@@ -1,5 +1,5 @@
 {
-  "format": 12,
+  "format": 13,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -27,7 +27,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -82,7 +85,11 @@
           ],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -92,7 +99,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -110,7 +117,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -151,7 +161,11 @@
           ],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -161,7 +175,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -179,7 +193,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -219,7 +236,11 @@
           "excluded_players": [],
           "contradictory": true,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -229,7 +250,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -247,7 +268,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -293,7 +317,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -303,7 +331,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -321,7 +349,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -361,7 +392,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -371,7 +406,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -389,7 +424,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -429,7 +467,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -439,7 +481,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 17,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -457,7 +499,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -497,10 +542,14 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     }
   ],
-  "entries_sha256": "9014ec0a0658d98db0b8d1ceda4f011eac3559f8edfbba86b94057ec5596bc55"
+  "entries_sha256": "4de29b147d4c9f5626fe829546acab1dabc8f7361e746b7a6c16c8109b3b73fe"
 }

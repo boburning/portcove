@@ -53,6 +53,16 @@ import {
   identityShards,
   gateFormPlatforms,
   gateLine,
+  gateLauncher,
+  gateProduct,
+  gateStatement,
+  bodyFirstLine,
+  listingCounts,
+  productIdentity,
+  releaseStatement,
+  sourceArchive,
+  textStatement,
+  launcherProgram,
   gateLineNamesProduct,
   gateRoleWord,
   gateHelper,
@@ -74,6 +84,7 @@ import {
 import { routeFitReport } from "./catalog-route-fit.mts";
 import {
   artifactFact,
+  cliInspector,
   coreData,
   deriveListingFacts,
   InspectionError,
@@ -238,6 +249,9 @@ function entry(
         prerelease: false,
         published_at: fields.published_at ?? "2026-11-01T00:00:00.000Z",
         packaged: true,
+        text: "unobserved" as const,
+        title: null,
+        statement: null,
       },
     ],
     other_packages: [],
@@ -282,6 +296,8 @@ interface ReleaseSpec {
   provider_prerelease?: boolean;
   assets_complete?: boolean;
   assets: AssetSpec[];
+  /** The release's own name and body as the observer would report them; absent: unobserved. */
+  text?: { name: string | null; body: string | null };
 }
 interface ObservationSpec {
   status?: string;
@@ -316,6 +332,7 @@ function observerReport(specs: Record<string, ObservationSpec>) {
             published_at: release.published_at ?? "2026-11-01T00:00:00Z",
             provider_prerelease: release.provider_prerelease ?? false,
             assets_complete: release.assets_complete ?? true,
+            ...(release.text ? { name: release.text.name, body: release.text.body } : {}),
             assets: release.assets.map((asset) => ({
               id: asset.id,
               name: asset.name,
@@ -842,7 +859,7 @@ void test("the gate keeps each name-permitted artifact's players under one top-l
   contradicted.enrollments[0]!.facts_sha256 = digestOf(contradicted.facts.entries[0]);
   assert.throws(
     () => gateGeneration(null, contradicted),
-    /contradicted, role-named or non-runtime artifact/u,
+    /contradicted, role-named, source or non-runtime artifact/u,
   );
 });
 
@@ -2846,6 +2863,9 @@ void test("a release is bound to its product's release line (D2a: a tool's relea
     prerelease: true,
     published_at: "2026-10-25T00:00:00.000Z",
     packaged: true,
+    text: "unobserved" as const,
+    title: null,
+    statement: null,
   });
   prerelease.enrollments[0]!.facts_sha256 = digestOf(entryCopy);
   // Bound to the main line, a newer main-line beta is the same line: accepted.
@@ -3197,6 +3217,9 @@ void test("release lines are counted over stable releases; prereleases only prot
       prerelease,
       published_at,
       packaged: true,
+      text: "unobserved" as const,
+      title: null,
+      statement: null,
     }));
   const withReleases = (
     chosen: [number, string, string],
@@ -3339,6 +3362,9 @@ void test("glued channel markers keep a stable release and its newer candidate o
       prerelease,
       published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
       packaged: true,
+      text: "unobserved" as const,
+      title: null,
+      statement: null,
     }));
   const stableThenCandidate = entry([artifact()], {}, unseen, {
     observed_releases: releases([
@@ -3379,6 +3405,9 @@ void test("an unbound named release line enrolls only when it names the listed p
           prerelease: false,
           published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
           packaged: true,
+          text: "unobserved" as const,
+          title: null,
+          statement: null,
         })),
       },
     );
@@ -3420,6 +3449,9 @@ void test("final short numbers and version-shaped product words keep products ap
       prerelease: false,
       published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
       packaged: true,
+      text: "unobserved" as const,
+      title: null,
+      statement: null,
     }));
   const id = "sm";
   const window = (tags: string[]) =>
@@ -3858,7 +3890,7 @@ void test("several archives for a platform are ambiguous, whatever their names s
 });
 
 void test("an archive bundling a compiler or interpreter toolchain is withheld (A2, R4)", () => {
-  const launcher = player("Game/Launcher.exe", "pe-x86-64", "launcher");
+  const launcher = player("Game/Game.exe", "pe-x86-64", "game");
   const toolchain = named(
     "Game-v1.0-windows.zip",
     [launcher],
@@ -4060,7 +4092,8 @@ void test("another package form competing with an offered archive excludes the i
   ]);
   assert.equal(reasonOf(decide(listing(id), facts)), "other-package-form-beside-archive");
 
-  // Linux: a tarball holding only a generator beside the game's AppImage.
+  // Linux: a tarball of the game beside the same product and version as an
+  // AppImage is that product in another package form: not a competitor.
   const linuxId = "zz-codegen-linux";
   const linux = await derive(
     [listing(linuxId, { platforms: ["linux-x86-64"] })],
@@ -4084,7 +4117,7 @@ void test("another package form competing with an offered archive excludes the i
     [["Game-v1.0.AppImage", ["linux-x86-64"]]],
     "a checksum file is not a program",
   );
-  assert.equal(reasonOf(decide(listing(linuxId), linuxFacts)), "other-package-form-beside-archive");
+  assert.equal(reasonOf(decide(listing(linuxId), linuxFacts)), "fit");
 
   // Windows: a launcher-only zip beside the game in a `.7z` the worker does not read.
   const sevenId = "zz-launcher-7z";
@@ -4699,6 +4732,7 @@ void test("release file names are classified as other package forms by fit and g
       provider_prerelease: false,
       assets_complete: true,
       malformed_assets: 0,
+      text: null,
       assets: assets.map((name, index) => ({
         id: 11 + index,
         name,
@@ -4718,13 +4752,13 @@ void test("release file names are classified as other package forms by fit and g
     ],
   );
   // A launcher-only zip beside the game's split 7z volumes is never enrolled.
-  const launcher = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+  const launcher = entry([artifact(windowsZip, [player("Game.exe")])], {}, unseen, {
     other_packages: recorded.slice(0, 2),
   });
   assert.equal(reasonOf(decide(listing(), launcher)), "other-package-form-beside-archive");
   const generation = generateRegistrations(
     [listing()],
-    table(entry([artifact(windowsZip, [player("Launcher.exe")])])),
+    table(entry([artifact(windowsZip, [player("Game.exe")])])),
   );
   const forged = structuredClone(generation);
   forged.facts.entries[0]!.other_packages = recorded.slice(0, 2);
@@ -4740,6 +4774,7 @@ void test("release file names are classified as other package forms by fit and g
       provider_prerelease: false,
       assets_complete: true,
       malformed_assets: 0,
+      text: null,
       assets: ["Client-win64.zip", "Game-win64.exe.001", "Game-win64.exe.002"].map(
         (name, index) => ({
           id: 21 + index,
@@ -4759,7 +4794,7 @@ void test("release file names are classified as other package forms by fit and g
       ["Game-win64.exe.002", W],
     ],
   );
-  const client = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+  const client = entry([artifact(windowsZip, [player("Game.exe")])], {}, unseen, {
     other_packages: exeVolumes,
   });
   assert.equal(reasonOf(decide(listing(), client)), "other-package-form-beside-archive");
@@ -4777,6 +4812,7 @@ void test("an unknown or unlisted release file competes with the archive; only t
     provider_prerelease: false,
     assets_complete: true,
     malformed_assets: 0,
+    text: null,
     assets: names.map((name, index) => ({
       id: id * 10 + index,
       name,
@@ -4793,7 +4829,7 @@ void test("an unknown or unlisted release file competes with the archive; only t
         : undefined;
   const generation = generateRegistrations(
     [listing()],
-    table(entry([artifact(windowsZip, [player("Launcher.exe")])])),
+    table(entry([artifact(windowsZip, [player("Game.exe")])])),
   );
   assert.equal(generation.enrollments.length, 1);
   const forge = (others: ReturnType<typeof otherPackagesOf>) => {
@@ -4821,7 +4857,7 @@ void test("an unknown or unlisted release file competes with the archive; only t
     unknown.map((other) => [other.name, other.platforms]),
     [["Game-win64.xyz", ["windows-x86-64"]]],
   );
-  const beside = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+  const beside = entry([artifact(windowsZip, [player("Game.exe")])], {}, unseen, {
     other_packages: unknown,
   });
   assert.equal(reasonOf(decide(listing(), beside)), "other-package-form-beside-archive");
@@ -4848,7 +4884,7 @@ void test("an unknown or unlisted release file competes with the archive; only t
     named,
   );
   assert.deepEqual(ignored, []);
-  const plain = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+  const plain = entry([artifact(windowsZip, [player("Game.exe")])], {}, unseen, {
     other_packages: ignored,
   });
   assert.equal(reasonOf(decide(listing(), plain)), "fit");
@@ -4908,16 +4944,55 @@ void test("the hand-checked correct shapes still enroll (D4 iii)", () => {
   }
 });
 
-void test("a launcher or settings program is selected with the generic wording", () => {
-  for (const program of ["Launcher.exe", "GameConfig.exe", "Game_Settings.exe"]) {
-    const generation = generateRegistrations(
-      [listing()],
-      table(entry([artifact(windowsZip, [player(`Game/${program}`)])])),
-    );
-    const record = generation.records[0]!;
-    const guide = record.listing.manual_setup as Guide;
-    assert.equal(guide.steps[2]!.instruction, genericSelection, program);
+void test("a launcher, settings or setup program as the only player is withheld as launcher-entry (1c)", () => {
+  // Whole words of the program name, also as a camel-case part.
+  for (const program of [
+    "Launcher.exe",
+    "GameConfig.exe",
+    "Game_Settings.exe",
+    "GameLauncher.exe",
+  ]) {
+    const facts = entry([named(windowsZip, [player(`Game/${program}`)], 11, "windows")]);
+    const decision = decide(listing(), facts);
+    assert.equal(reasonOf(decision), "launcher-entry", program);
+    assert.match((decision as { detail: string }).detail, /declares it the game's runtime entry/u);
+    // The gate restates the rule: an enrollment forced past the fit is refused.
+    assert.match(forcedGate(facts, 11), /launcher, settings or setup program/u, program);
+    assert.equal(launcherProgram(`Game/${program}`), true, program);
   }
+  // A launcher on one platform withholds the whole identity.
+  const both = entry([
+    named("Game-v1.0-windows.zip", [player("Game/Game.exe")], 11, "windows"),
+    named("Game-v1.0-linux.tar.gz", [player("Game/launcher", "elf64-x86-64")], 12, "linux"),
+  ]);
+  assert.equal(
+    reasonOf(decide(listing(unseen, { platforms: ["windows-x86-64", "linux-x86-64"] }), both)),
+    "launcher-entry",
+  );
+  // Setup and installer programs are already Core tool names: excluded
+  // players, never the platform's program. The launcher rule names them too,
+  // as a second guard.
+  for (const program of ["Setup.exe", "game-installer.exe"]) {
+    const facts = entry([named(windowsZip, [player(`Game/${program}`)], 11, "windows")]);
+    assert.equal(reasonOf(decide(listing(), facts)), "tool-not-game", program);
+    assert.equal(launcherProgram(`Game/${program}`), true, program);
+    assert.equal(gateLauncher(`Game/${program}`), true, program);
+  }
+  // Words that merely contain the letters are not launcher words.
+  for (const program of ["Launch.exe", "Settler.exe", "Game.exe", "Upset.exe"]) {
+    assert.equal(launcherProgram(`Game/${program}`), false, program);
+    assert.equal(gateLauncher(`Game/${program}`), false, program);
+    assert.ok(
+      decide(listing(), entry([named(windowsZip, [player(`Game/${program}`)], 11, "windows")])).fit,
+      program,
+    );
+  }
+  // The guide's generic wording stays as a second guard.
+  const generation = generateRegistrations([listing()], table(entry([artifact()])));
+  assert.notEqual(
+    (generation.records[0]!.listing.manual_setup as Guide).steps[2]!.instruction,
+    genericSelection,
+  );
 });
 
 void test("a Core refusal is scoped to its archive and its class is reported (D5)", async () => {
@@ -5180,4 +5255,514 @@ void test("each identity's retry state comes from its own shard only (J5)", asyn
     [["zz-retry-2", 2]],
   );
   assert.deepEqual(combined.table, whole.table);
+});
+
+// ---------------------------------------------------------------------------
+// #8569 cohort quality: withhold the doubtful by rule (1a–1c) and stop
+// withholding the same product in another package form (2a–2d), plus worker
+// defects (3a, 3b). Synthetic shapes only.
+
+/** Another package form as the worker records it. */
+const otherForm = (
+  asset_id: number,
+  name: string,
+  platforms: string[],
+  sha256: string | null = sha(`other-${name}`),
+) => ({ asset_id, name, size: 2048, sha256, platforms });
+const W = ["windows-x86-64"];
+const L = ["linux-x86-64"];
+const M = ["macos-x86-64", "macos-aarch64"];
+
+void test("release text statements: title and first body line only, whole words, never the product's own words (1a)", () => {
+  const repository = "fixture-owner/zz-unseen";
+  const rows: [string, string | null][] = [
+    ["v1.0 Beta", "beta"],
+    ["Version 2.0 (beta 3)", "beta"],
+    ["v2.0 RC1", "release-candidate"],
+    ["1.0rc2", "release-candidate"],
+    ["Release Candidate 3", "release-candidate"],
+    ["Pre-release build 7", "prerelease"],
+    ["pre release", "prerelease"],
+    ["prerelease", "prerelease"],
+    ["Alpha 4", "alpha"],
+    ["alpha2", "alpha"],
+    ["v1.0", null],
+    ["Arc Survivors 1.0", null],
+    ["Alphabet Soup 2", null],
+    ["Betamax Edition", null],
+    ["Source release", null],
+    ["Final release", null],
+    ["", null],
+  ];
+  for (const [line, token] of rows) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+  // A status word that is a word of the repository's own name is the product.
+  for (const repo of ["fixture-owner/alpha-quest", "fixture-owner/AlphaQuest"]) {
+    assert.equal(releaseStatement("Alpha Quest 1.0", repo), null, repo);
+    assert.equal(gateStatement("Alpha Quest 1.0", repo), null, repo);
+    assert.equal(releaseStatement("Alpha Quest 1.1 beta", repo), "beta", repo);
+    assert.equal(gateStatement("Alpha Quest 1.1 beta", repo), "beta", repo);
+  }
+  // Only the first non-empty line or heading of the body is judged.
+  assert.equal(bodyFirstLine("\n\n## Beta 3 is here\nMore text"), "Beta 3 is here");
+  assert.deepEqual(textStatement("v1.0", "\n## Release candidate\nNotes", repository), {
+    field: "body-first-line",
+    token: "release-candidate",
+  });
+  // A project-level remark further down the body never matches.
+  assert.equal(
+    textStatement(
+      "v1.0",
+      "Fixes a crash on start.\n\nThis project is pre-release quality software; expect beta bugs.",
+      repository,
+    ),
+    null,
+  );
+  // The title comes first.
+  assert.deepEqual(textStatement("v1.0 Alpha", "## Beta", repository), {
+    field: "title",
+    token: "alpha",
+  });
+});
+
+void test("a release whose title or first body line states a prerelease is never offered (1a)", async () => {
+  const id = "zz-stated-prerelease";
+  type Text = ReleaseSpec["text"];
+  const withText = (release: ReleaseSpec, text: Text): ReleaseSpec =>
+    text ? { ...release, text } : release;
+  const releases = (newest: Text, older?: Text) => [
+    withText(releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]), older),
+    withText(
+      releaseWith(2, "v3.0", "2026-10-20T00:00:00Z", [{ id: 21, name: windowsZip }]),
+      newest,
+    ),
+  ];
+  const run = async (newest: ReleaseSpec["text"], older?: ReleaseSpec["text"]) =>
+    (await derive([listing(id)], observerReport({ [id]: { releases: releases(newest, older) } })))
+      .table.entries[0]!;
+  // The provider flags v3.0 stable, but its title says beta: v1.0 is offered.
+  const titled = await run({ name: "v3.0 Beta", body: "Notes" }, { name: "v1.0", body: null });
+  assert.equal(titled.observation.tag, "v1.0");
+  const newer = titled.observed_releases.find((release) => release.release_id === 2)!;
+  assert.deepEqual(
+    [newer.text, newer.title, newer.statement, newer.prerelease],
+    ["observed", "v3.0 Beta", { field: "title", token: "beta" }, true],
+  );
+  const decision = decide(listing(id), titled);
+  assert.ok(decision.fit);
+  assert.equal(decision.enrollment.release.tag, "v1.0");
+  // The body's first heading says release candidate: the same.
+  const bodied = await run({ name: "v3.0", body: "## Release Candidate 2\n\n- fixes" });
+  assert.equal(bodied.observation.tag, "v1.0");
+  assert.deepEqual(bodied.observed_releases.find((r) => r.release_id === 2)!.statement, {
+    field: "body-first-line",
+    token: "release-candidate",
+  });
+  // A remark further down is no statement: v3.0 is offered.
+  const remark = await run({
+    name: "v3.0",
+    body: "Bug fixes.\n\nThis game is still pre-release quality.",
+  });
+  assert.equal(remark.observation.tag, "v3.0");
+  assert.equal(remark.observed_releases.find((r) => r.release_id === 2)!.statement, null);
+  // Unobserved text is UNKNOWN optional evidence, not a statement: it is
+  // recorded as such and queued for review.
+  const unobserved = await run(undefined);
+  assert.equal(unobserved.observation.tag, "v3.0");
+  assert.equal(unobserved.observed_releases.find((r) => r.release_id === 2)!.text, "unobserved");
+  const generation = generateRegistrations([listing(id)], table(unobserved));
+  assert.deepEqual(registrationQueues(generation).release_text_unobserved, [id]);
+  assert.deepEqual(
+    registrationQueues(generateRegistrations([listing(id)], table(titled))).release_statements,
+    {
+      [id]: ["v3.0: title beta"],
+    },
+  );
+  // The fit rule refuses an offered release whose recorded text states a
+  // prerelease, and the validator refuses a statement left out of the verdict
+  // or a title whose statement is not recorded.
+  const forgedTitle = structuredClone(remark);
+  const offered = forgedTitle.observed_releases.find((r) => r.release_id === 2)!;
+  offered.title = "v3.0 beta";
+  assert.throws(() => checkListingFactsTable(table(forgedTitle)), /prerelease statement/u);
+  offered.statement = { field: "title", token: "beta" };
+  assert.throws(() => checkListingFactsTable(table(forgedTitle)), /prerelease statement/u);
+  assert.equal(reasonOf(decide(listing(id), forgedTitle)), "no-stable-release");
+  // The gate re-derives the title itself and reads the recorded body statement.
+  const accepted = generateRegistrations([listing(id)], table(remark));
+  assert.equal(gateGeneration(null, accepted).added.length, 1);
+  for (const change of [
+    (release: ListingFactsEntry["observed_releases"][number]) => {
+      release.title = "v3.0 RC1";
+    },
+    (release: ListingFactsEntry["observed_releases"][number]) => {
+      release.statement = { field: "body-first-line", token: "alpha" };
+    },
+  ]) {
+    const forged = structuredClone(accepted);
+    change(forged.facts.entries[0]!.observed_releases.find((r) => r.release_id === 2)!);
+    forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+    assert.throws(() => gateGeneration(null, forged), /do not record as stable/u);
+  }
+});
+
+void test("a toolchain in any runtime archive withholds every platform of the identity (1b)", () => {
+  const both = listing(unseen, { platforms: ["windows-x86-64", "linux-x86-64"] });
+  const windows = named(
+    "Game-v1.0-windows.zip",
+    [player("Game/Game.exe")],
+    11,
+    "windows",
+    toolchainNames(["game", "python", "python.exe"], ["game.exe", "python.exe"]),
+  );
+  const linux = named("Game-v1.0-linux.tar.gz", [player("Game/game", "elf64-x86-64")], 12, "linux");
+  const facts = entry([windows, linux]);
+  assert.equal(reasonOf(decide(both, facts)), "bundled-toolchain");
+  assert.match((decide(both, facts) as { detail: string }).detail, /every platform/u);
+  // The gate refuses the clean Linux platform too.
+  assert.match(forcedGate(facts, 12, both, "linux-x86-64"), /bundles python/u);
+  // Without the toolchain both platforms enroll.
+  const clean = entry([
+    named("Game-v1.0-windows.zip", [player("Game/Game.exe")], 11, "windows"),
+    linux,
+  ]);
+  const decision = decide(both, clean);
+  assert.ok(decision.fit);
+  assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64", "linux-x86-64"]);
+  assert.equal(forcedGate(clean, 12, both, "linux-x86-64"), "accepted");
+  // A source archive, even one holding a program, never counts.
+  const source = named(
+    "Game-src-v1.0.zip",
+    [player("build/Game.exe", "pe-x86-64", "built")],
+    13,
+    "unknown",
+    toolchainNames(["make", "cmake"], ["make"]),
+  );
+  const withSource = entry([...clean.artifacts, source]);
+  assert.ok(decide(both, withSource).fit);
+  assert.equal(forcedGate(withSource, 12, both, "linux-x86-64"), "accepted");
+  // A vetoed archive (a role word) does not count either.
+  const update = named(
+    "Game-update-v1.0.zip",
+    [player("Game/Game.exe")],
+    14,
+    "unknown",
+    toolchainNames(["python.exe"], ["python.exe"]),
+  );
+  assert.ok(decide(both, entry([...clean.artifacts, update])).fit);
+});
+
+void test("product words name an asset's product and version, by fit and gate alike (2a)", () => {
+  const rows: [string, string[], string[]][] = [
+    ["Game-1.0-linux.tar.gz", ["game"], ["1", "0"]],
+    ["Game-1.0.AppImage", ["game"], ["1", "0"]],
+    ["game_1.0_amd64.deb", ["game"], ["1", "0"]],
+    ["Game-1.0.flatpak", ["game"], ["1", "0"]],
+    ["Game-1.0-win64.zip", ["game"], ["1", "0"]],
+    ["Game-1.0-Setup.exe", ["game"], ["1", "0"]],
+    ["GameSetup-v1.0.exe", ["game"], ["1", "0"]],
+    ["Install-Game-1.0.exe", ["game"], ["1", "0"]],
+    ["Game-1.0-macos.zip", ["game"], ["1", "0"]],
+    ["Game-1.0-macos.app.zip", ["game"], ["1", "0"]],
+    ["Game-1.0.dmg", ["game"], ["1", "0"]],
+    ["Game-v1.0-x86_64-linux.tar.gz", ["game"], ["1", "0"]],
+    ["Game-1.0-64-bit-portable.zip", ["game"], ["1", "0"]],
+    ["TableTennis-Windows-v1.7.0.zip", ["table", "tennis"], ["1", "7", "0"]],
+    ["GameStudio-1.0-win64.zip", ["game", "studio"], ["1", "0"]],
+    ["Game-1.0-update.7z", ["game", "update"], ["1", "0"]],
+    ["Game-1.0-beta2.zip", ["game"], ["1", "0"]],
+    ["Lantern64-2.1.exe", ["lantern", "64"], ["2", "1"]],
+    ["Setup.exe", [], []],
+    ["1.0-win64.zip", [], ["1", "0"]],
+    ["Game-win64.7z.001", ["game", "7", "z"], ["001"]],
+  ];
+  for (const [name, words, version] of rows) {
+    assert.deepEqual(productIdentity(name), { words, version }, `fit: ${name}`);
+    assert.deepEqual(gateProduct(name), { words, version }, `gate: ${name}`);
+  }
+});
+
+void test("the same product and version in another package form is not a competitor (2a)", () => {
+  const record = (platforms: string[]) => listing(unseen, { platforms });
+  const enrolls = (facts: ListingFactsEntry, platforms: string[]) => {
+    const decision = decide(record(platforms), facts);
+    assert.ok(decision.fit, JSON.stringify(decision));
+    const generation = generateRegistrations([record(platforms)], table(facts));
+    assert.equal(gateGeneration(null, generation).added.length, 1);
+    return generation;
+  };
+  // A Linux tarball beside the same game as an AppImage, a .deb or a Flatpak.
+  const tarball = named(
+    "Game-1.0-linux.tar.gz",
+    [player("Game/game", "elf64-x86-64")],
+    11,
+    "linux",
+  );
+  for (const form of ["Game-1.0.AppImage", "Game-1.0.deb", "Game-1.0.flatpak"]) {
+    const generation = enrolls(
+      entry([tarball], {}, unseen, { other_packages: [otherForm(12, form, L)] }),
+      L,
+    );
+    assert.deepEqual(registrationQueues(generation).same_product_forms, { [unseen]: [form] });
+  }
+  // A Windows zip beside the same game's setup program.
+  const zip = named("Game-1.0-win64.zip", [player("Game/Game.exe")], 11, "windows");
+  enrolls(
+    entry([zip], {}, unseen, { other_packages: [otherForm(12, "Game-1.0-Setup.exe", W)] }),
+    W,
+  );
+  // A macOS zip beside the same game's disk image.
+  const mac = named(
+    "Game-1.0-macos.zip",
+    [player("Game.app/Contents/MacOS/Game", "macho-universal-arm64+x86-64")],
+    11,
+    "macos",
+  );
+  enrolls(entry([mac], {}, unseen, { other_packages: [otherForm(12, "Game-1.0.dmg", M)] }), M);
+  // An unknown digest changes nothing: the names decide attribution.
+  enrolls(
+    entry([zip], {}, unseen, { other_packages: [otherForm(12, "Game-1.0-Setup.exe", W, null)] }),
+    W,
+  );
+});
+
+void test("other product words, versions, programs or empty words still withhold the identity (2a)", () => {
+  const withheld = (artifacts: ArtifactFactV2[], form: string, platforms = W) => {
+    const facts = entry(artifacts, {}, unseen, {
+      other_packages: [otherForm(19, form, platforms)],
+    });
+    assert.equal(reasonOf(decide(listing(), facts)), "other-package-form-beside-archive", form);
+    assert.match(
+      forcedGate(facts, artifacts[0]!.asset_id),
+      /another package for windows-x86-64/u,
+      form,
+    );
+  };
+  // A tools archive holding only a code generator beside the game's installer.
+  withheld(
+    [named("Codegen-1.0-win64.zip", [player("bin/rexglue.exe")], 11, "windows")],
+    "Install-Game-1.0.exe",
+  );
+  // The same, with the tools archive named for the game: its program is not.
+  withheld(
+    [named("Game-1.0-win64.zip", [player("bin/rexglue.exe")], 11, "windows")],
+    "Install-Game-1.0.exe",
+  );
+  withheld(
+    [named("TableTennis-Windows-v1.7.0.zip", [player("bin/rexglue.exe")], 11, "windows")],
+    "TableTennis-v1.7.0.exe",
+  );
+  // A small update archive beside the full build.
+  withheld(
+    [named("Game-1.0-win64.zip", [player("Game/Game.exe")], 11, "windows")],
+    "Game-1.0-update.7z",
+  );
+  // A studio or tools archive beside the game's archives and installer.
+  withheld(
+    [named("GameStudio-1.0-win64.zip", [player("GameStudio/GameStudio.exe")], 11, "windows")],
+    "Game-1.0-Setup.exe",
+  );
+  // Another version, empty product words, or a split volume.
+  const zip = named("Game-1.0-win64.zip", [player("Game/Game.exe")], 11, "windows");
+  withheld([zip], "Game-1.1-Setup.exe");
+  withheld([zip], "Setup.exe");
+  withheld([zip], "Game-win64.7z.001");
+  // Every archive that could be offered must agree: a second archive of
+  // other product words beside the game's zip keeps the form a competitor.
+  withheld(
+    [zip, named("Other-1.0-win64.zip", [player("Other/Other.exe")], 12, "windows")],
+    "Game-1.0-Setup.exe",
+  );
+});
+
+void test("names are classified by system and checksum words before the bare-binary and .pkg forms (2b, 2c)", () => {
+  const rows: [string, ReturnType<typeof otherPackageForm>, string[]][] = [
+    ["Game-1.0-macos", "macos", M],
+    ["game-darwin-arm64", "macos", M],
+    ["Game.osx", "container", []],
+    ["Game-1.0-linux", "linux", L],
+    ["Game-1.0-ps4.pkg", undefined, []],
+    ["Game-1.0-PS5.pkg", undefined, []],
+    ["Game-1.0.pkg", "macos", M],
+    ["Game-1.0-SHA256SUMS", undefined, []],
+    ["checksums-linux", undefined, []],
+    ["game_sha512sums", undefined, []],
+    ["sha256sums-of-game.txt", undefined, []],
+    ["Game.rtz", undefined, []],
+    ["Game.vbmod", undefined, []],
+    ["base.pk4", undefined, []],
+    ["helper.py", undefined, []],
+    ["Game.dll.aot", undefined, []],
+    ["settings.ini", undefined, []],
+    ["run.bat", "container", []],
+    ["run.cmd", "container", []],
+    ["run.ps1", "container", []],
+    ["Game.1.0.nupkg", "container", []],
+    ["Game.7z", "container", []],
+    ["Game.lha", "container", []],
+  ];
+  for (const [name, kind, served] of rows) {
+    assert.equal(otherPackageForm(name), kind, `fit: ${name}`);
+    assert.equal(gateFormKind(name), kind, `gate: ${name}`);
+    assert.deepEqual(gateFormPlatforms(name), served, `gate platforms: ${name}`);
+  }
+});
+
+void test("source and third-party source archives are never offered and never offer a platform (2d)", () => {
+  const both = listing(unseen, { platforms: ["windows-x86-64", "linux-x86-64"] });
+  const zip = named("Unseen-1.0-windows.zip", [player("Unseen/Unseen.exe")], 11, "windows");
+  const withCounts = (artifact: ArtifactFactV2, leaves: number, source_leaves: number) => ({
+    ...artifact,
+    listing_counts: { leaves, source_leaves },
+  });
+  const bare = otherForm(19, "unseen-linux", L);
+  const decideWith = (extra: ArtifactFactV2) =>
+    entry([zip, extra], {}, unseen, { other_packages: [bare] });
+  // A neutral source archive would make Linux "offered" beside the bare
+  // Linux program; as a source archive it offers nothing, so the form is
+  // ignored and Windows enrolls (and is queued for review).
+  for (const source of [
+    named("Unseen-1.0-src.zip", [], 12),
+    named("Unseen-Source-1.0.zip", [], 12),
+    withCounts(named("zlib-1.3.zip", [], 12), 40, 38),
+  ]) {
+    const facts = decideWith(source);
+    assert.ok(decide(both, facts).fit, source.name);
+    assert.equal(forcedGate(facts, 11, both), "accepted", source.name);
+    const generation = generateRegistrations([both], table(facts));
+    assert.deepEqual(registrationQueues(generation).source_archives, { [unseen]: [source.name] });
+    assert.equal(sourceArchive(source, `fixture-owner/${unseen}`), true, source.name);
+  }
+  // Not a source dump: it shares the product's words, holds too few source
+  // files, or holds a program; the bare Linux program then competes.
+  for (const data of [
+    withCounts(named("Unseen-data-1.0.zip", [], 12), 40, 38),
+    withCounts(named("assets-1.3.zip", [], 12), 40, 10),
+  ]) {
+    const facts = decideWith(data);
+    assert.equal(reasonOf(decide(both, facts)), "other-package-form-beside-archive", data.name);
+    assert.match(forcedGate(facts, 11, both), /another package for linux-x86-64/u, data.name);
+    assert.equal(sourceArchive(data, `fixture-owner/${unseen}`), false, data.name);
+  }
+  // A source-named archive holding the program is never one of the
+  // platform's competing archives: the binary zip enrolls alone.
+  const built = named("Unseen-src-1.0.zip", [player("Unseen/Unseen.exe")], 12);
+  const decision = decide(listing(), entry([zip, built]));
+  assert.ok(decision.fit);
+  assert.equal(decision.enrollment.runtimes[0]!.asset_id, 11);
+  assert.equal(forcedGate(entry([zip, built]), 11), "accepted");
+  assert.match(forcedGate(entry([zip, built]), 12), /source or non-runtime artifact/u);
+  // The listing counts are recorded by the worker and checked as facts.
+  assert.deepEqual(listingCounts(["main.c", "Main.C", "util.h", "readme.txt", "Makefile"]), {
+    leaves: 4,
+    source_leaves: 3,
+  });
+  const forged = structuredClone(zip);
+  forged.listing_counts = { leaves: 1, source_leaves: 2 };
+  assert.throws(() => checkListingFactsTable(table(entry([forged]))), /listing_counts/u);
+});
+
+void test("everything the worker writes validates: a container serving no desktop platform is recorded with none (3a)", async () => {
+  const id = "zz-container-none";
+  const result = await derive(
+    [listing(id)],
+    observerReport({
+      [id]: {
+        releases: [
+          releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+            { id: 11, name: windowsZip },
+            { id: 12, name: "Game-v1.0-android.7z" },
+            { id: 13, name: "Game-win32.7z" },
+            { id: 14, name: "Game-1.0-ps4.pkg" },
+          ]),
+        ],
+      },
+    }),
+  );
+  const facts = result.table.entries[0]!;
+  assert.equal(facts.ineligible, null, JSON.stringify(facts.ineligible));
+  assert.deepEqual(
+    facts.other_packages.map((other) => [other.name, other.platforms]),
+    [
+      ["Game-v1.0-android.7z", []],
+      ["Game-win32.7z", []],
+    ],
+  );
+  assert.deepEqual(facts.asset_names, [
+    "Game-v1.0-android.7z",
+    "Game-win32.7z",
+    "Game-1.0-ps4.pkg",
+  ]);
+  // Round trip: the table and every entry the worker wrote validate.
+  assert.doesNotThrow(() => checkListingFactsTable(result.table));
+  assert.ok(decide(listing(id), facts).fit);
+  assert.equal(
+    gateGeneration(null, generateRegistrations([listing(id)], result.table)).added.length,
+    1,
+  );
+  // Only a container may serve no platform.
+  const forged = structuredClone(facts);
+  forged.other_packages = [{ ...forged.other_packages[0]!, name: "Game.exe", platforms: [] }];
+  forged.asset_names = ["Game.exe"];
+  assert.throws(() => checkListingFactsTable(table(forged)), /platforms its form serves/u);
+});
+
+void test("every archive answering 404 is upstream-unavailable; one 404 is that archive's refusal (3b)", async () => {
+  const id = "zz-not-found";
+  const notFound = () =>
+    new InspectionError("Download failed: 404 Not Found.", true, "asset-not-found");
+  const releases = [
+    releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+      { id: 11, name: windowsZip },
+      { id: 12, name: linuxTar },
+    ]),
+  ];
+  const all = await derive([listing(id)], observerReport({ [id]: { releases } }), undefined, {
+    inspect: byAsset({ 11: notFound(), 12: notFound() }),
+  });
+  const gone = all.table.entries[0]!;
+  assert.equal(gone.ineligible?.reason, "upstream-unavailable");
+  assert.equal(reasonOf(decide(listing(id), gone)), "upstream-unavailable");
+  const one = await derive([listing(id)], observerReport({ [id]: { releases } }), undefined, {
+    inspect: byAsset({ 12: notFound() }),
+  });
+  const partly = one.table.entries[0]!;
+  assert.equal(partly.ineligible, null);
+  assert.deepEqual(
+    partly.refused_archives.map((archive) => [archive.asset_id, archive.refusal]),
+    [[12, "asset-not-found"]],
+  );
+  // The download itself: 404 is a permanent refusal, 5xx stays transient.
+  const original = globalThis.fetch;
+  const work = await mkdtemp(join(tmpdir(), "portcove-404-"));
+  try {
+    const inspect = cliInspector("/nonexistent/portcove", work);
+    const asset = {
+      id: 11,
+      name: windowsZip,
+      url: "https://github.com/fixture-owner/x/releases/download/v1/11",
+      size: 100,
+      sha256: sha("bytes"),
+    };
+    for (const [status, permanent, refusal] of [
+      [404, true, "asset-not-found"],
+      [503, false, "core-unknown"],
+      [500, false, "core-unknown"],
+      [429, false, "core-unknown"],
+    ] as const) {
+      globalThis.fetch = async () => new Response(null, { status });
+      await assert.rejects(inspect(asset, "windows-x86-64"), (error: unknown) => {
+        assert.ok(error instanceof InspectionError, String(status));
+        assert.equal(error.permanent, permanent, String(status));
+        assert.equal(error.refusal, refusal, String(status));
+        if (!permanent) assert.equal(error.cause, "network", String(status));
+        return true;
+      });
+    }
+  } finally {
+    globalThis.fetch = original;
+    await rm(work, { recursive: true, force: true });
+  }
 });

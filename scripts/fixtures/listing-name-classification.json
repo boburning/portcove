@@ -61,6 +61,10 @@
       {
         "tag": "build_20261120_2250",
         "provider_prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": false
       }
     ],
     "assets": [
@@ -115,7 +119,9 @@
       "Game-v1.0-win64.7z",
       "Game-v1.0.rar",
       "Game-win64.7z",
-      "Game-v1.0.7z"
+      "Game-v1.0.7z",
+      "Game-v1.0-android.7z",
+      "Game-win32.7z"
     ],
     "programs": [
       "game.exe",
@@ -175,7 +181,18 @@
       "Peggle.exe",
       "pokeplatinum",
       "GameConfig.exe",
-      "Game_Settings.exe"
+      "Game_Settings.exe",
+      "Configurator.exe",
+      "Editor.exe",
+      "GameLauncher.exe",
+      "GameStudio.exe",
+      "Launch.exe",
+      "Settler.exe",
+      "Setup.exe",
+      "Upset.exe",
+      "game",
+      "game-installer.exe",
+      "launcher"
     ]
   },
   "output": {
@@ -253,6 +270,11 @@
       },
       {
         "tag": "build_20261120_2250",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v3.0",
         "provider_prerelease": false,
         "prerelease": false
       }
@@ -673,6 +695,22 @@
         "arch": "unknown",
         "tool_token": null,
         "system_token": null
+      },
+      {
+        "name": "Game-v1.0-android.7z",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-win32.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
       }
     ],
     "programs": [
@@ -906,6 +944,50 @@
       },
       {
         "name": "Game_Settings.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configurator.exe",
+        "tool_token": "configurator"
+      },
+      {
+        "name": "Editor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "GameLauncher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Launch.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Settler.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Setup.exe",
+        "tool_token": "setup"
+      },
+      {
+        "name": "Upset.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game",
+        "tool_token": null
+      },
+      {
+        "name": "game-installer.exe",
+        "tool_token": "installer"
+      },
+      {
+        "name": "launcher",
         "tool_token": null
       }
     ]

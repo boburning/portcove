@@ -3750,19 +3750,22 @@ blocked reason:
    binding, that line is the main line or names the listed product; and no
    newer prerelease on the main line or another line naming the product
    follows it (`ambiguous-release-line`). The offered release is stable by
-   Core's rule and its tag is not only channel words with a date, time or
-   hash (`no-stable-release`).
+   Core's rule, its tag is not only channel words with a date, time or
+   hash, and neither its title nor the first line of its body states a
+   prerelease ([release text](#release-text-statements), `no-stable-release`).
 9. No other package form of the release serves a platform the release also
-   offers a readable archive for, unless it is that archive's own program:
-   its provider SHA-256 equals a player those archives hold for that platform
-   ([other package forms](#other-package-forms)). One with another digest, or
-   with no provider digest (UNKNOWN), means the release offers a different
-   package than its archive where the rule would bind, such as an installer,
-   or the real game beside an archive holding only a build tool, so the whole
-   identity is excluded (`other-package-form-beside-archive`). The decision
-   rests on the bytes' digests, never on the program's name. A form serving
-   only platforms without an offered archive is ignored. Other package forms
-   are never downloaded.
+   offers a readable archive for, unless it is that archive's own program
+   (its provider SHA-256 equals a player those archives hold for that
+   platform) or the same product in another package form: its product words
+   and version equal those of every archive that could be offered for the
+   platform, and each such archive's player there is named for that product
+   ([other package forms](#other-package-forms)). Any other form, including
+   one with no provider digest (UNKNOWN), means the release offers a
+   different package than its archive where the rule would bind, such as the
+   real game beside an archive holding only a build tool, so the whole
+   identity is excluded (`other-package-form-beside-archive`). A form serving
+   only platforms without an offered archive is ignored, and a source
+   archive offers no platform. Other package forms are never downloaded.
 10. For a supported desktop platform, an artifact has the role
     `desktop-game-runtime` from an `exact-release-structured` fact. That fact
     binds the archive's provider SHA-256 and holds player candidates with
@@ -3771,7 +3774,8 @@ blocked reason:
     [archive role word](#one-program-per-platform) such as `update`, and it
     names no other system or architecture than the platform's. It holds a player
     candidate whose platform-true machine runs on the platform and whose name
-    carries no tool token. Each player's own machine decides where it runs:
+    carries no tool token. It is no [source archive](#source-archives).
+    Each player's own machine decides where it runs:
     another player in the same archive, such as a 32-bit helper or the other
     system of a combined Windows and Linux archive, neither helps nor blocks
     the platform. No archive Core refused has a name that allows the platform
@@ -3780,8 +3784,12 @@ blocked reason:
     it.
 11. On that platform the players are one program, and the archives holding
     them are one package (equal archive bytes), whatever their names say
-    ([one program per platform](#one-program-per-platform)). No such archive
-    bundles a compiler, interpreter or build helper (`bundled-toolchain`).
+    ([one program per platform](#one-program-per-platform)). No archive of
+    the release that could be the game, on any platform, bundles a compiler,
+    interpreter or build helper: that excludes the whole identity
+    (`bundled-toolchain`). The one program is not named for a launcher,
+    settings or setup step on any platform; that excludes the whole identity
+    too (`launcher-entry`).
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3864,6 +3872,20 @@ enrollment can still offer it. The gate checks the same rule with its own code
 and also requires an enrollment to name every player of its artifact that runs
 on the platform.
 
+A launcher alone is not the game either. When the one program of a platform
+is named for a launcher, settings or setup step (`launcher`, `settings`,
+`config`, `setup` or `installer` as a whole word of its file name, split like
+product names, so `GameLauncher.exe` and `Game_Settings.exe` count and
+`Configurator.exe`, `Launch.exe` and `Settler.exe` do not), the whole
+identity is withheld as `launcher-entry`. Such a program often builds or
+prepares the game on first start without bundling a toolchain, and nothing
+in the facts says it is the game's runtime entry. Reconsider an identity
+withheld this way when listing data or release-bound metadata declares the
+launcher as the game's runtime entry; a reviewed `route_facts_v1`
+enrollment can still offer it. `setup` and `installer` programs are usually
+already excluded by Core's tool veto; the launcher rule names them as a
+second guard. The gate restates the rule with its own word splitter.
+
 One program name is not one package, and equal programs are not one package
 either. A release can carry the full game and a small update archive that
 holds the same game program (the same player SHA-256), or the game and an
@@ -3929,13 +3951,18 @@ they count only as a file leaf: `assets/link/`, `levels/ld/` or a
 other helpers count as a file or a directory (`tools/zig/`). Only a whole
 name matches, so `python311.dll`, `scripts/` or `node_modules/` never do. The
 helpers the recorded entries show are the artifact's `bundled_toolchain`; the
-facts check refuses a summary the entries do not show. Any such archive among
-the platform's candidates makes the platform `bundled-toolchain`, whatever
-the program is called: a program name cannot prove the release does not
-build itself. The route-fit report lists the helper names per identity
+facts check refuses a summary the entries do not show. Any such archive that
+could be the game withholds the whole identity as `bundled-toolchain`,
+whatever the program is called and whichever platform the archive serves:
+building on first start is a property of the project, not of one archive,
+and a program name cannot prove the release does not build itself. "Could
+be the game" means a runtime archive from exact bytes whose own name vetoes
+nothing and permits a supported platform; a [source archive](#source-archives)
+never counts. The route-fit report lists the helper names per identity
 (`registration_queues.bundled_toolchains`). The gate re-derives the helpers
 from the recorded `toolchain_names` with its own code, never from the
-worker's summary, and refuses an enrollment decided beside such an archive.
+worker's summary, and refuses an enrollment of any platform of a release with
+such an archive.
 
 ##### Release lines
 
@@ -4091,6 +4118,47 @@ the worker binds each entry to its listing's repository id
 (`repository-identity-changed`), and the gate requires the recorded id, so a
 renamed repository cannot enroll for a listing that names another one.
 
+###### Release text statements
+
+A release can call itself a prerelease in its own text while the provider
+flag says stable. A release whose title, or the first line of its body,
+states a prerelease is one for the newest-stable choice: the worker offers
+the newest release without such a statement, and the fit rule and the gate
+treat it like a flagged prerelease everywhere (`no-stable-release` when it is
+the offered release, the line count, and the newer-prerelease check). The
+statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
+`pre-release`), `release-candidate` (`release` followed by `candidate`, or a
+standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
+with digits). Words are split at separators and letter/digit changes, never
+inside a word, so `Arc`, `Alphabet` and `Betamax` state nothing. A status word
+that is also a word of the repository's own name (`alpha-quest`, `AlphaQuest`)
+names the product and states nothing.
+
+Only two places are judged: the release title, and the body's first line
+that holds a letter or digit once leading Markdown heading, quote, list and
+emphasis marks are removed (within the first 4,096 characters, at most 256
+characters of it). A project-level remark further down ("pre-release quality"
+in a long description) is never read. The facts record, per observed release,
+whether the observer reported the text (`text`: `observed` or `unobserved`),
+the title when it is bounded printable text (`title`), and the statement
+found (`statement`: `{ field: "title" | "body-first-line", token }`, or
+null). The body itself is never stored. The recorded verdict (`prerelease`)
+includes the statement, and the facts check refuses a recorded title whose
+statement is not the recorded one. The fit rule and, independently, the gate
+re-derive the title's statement from the recorded title and read the body's
+from the record. Reproduction compares the release list's current title and
+body where the entry records the text as observed.
+
+The listing observer report does not carry release titles or bodies today
+(its provider facts omit them), so every release's text is recorded
+`unobserved`. Unobserved text is UNKNOWN optional evidence, not a statement
+either way: the tag and provider flag still decide, and the route-fit report
+lists every identity whose offered release text is unobserved
+(`registration_queues.release_text_unobserved`). The rule applies to an
+identity as soon as its observer report carries the release `name` and
+`body`. `registration_queues.release_statements` lists every observed release
+with a statement per identity.
+
 ##### Other package forms
 
 A release can offer its program in a form the worker does not read beside
@@ -4110,27 +4178,38 @@ closed list is extended deliberately, in a reviewed change.
 
 The worker records every competing asset of the release with the provider's
 name, size and SHA-256 (never its bytes) and the platforms its form can
-serve. The lowercased name is judged in this order; the first match decides:
+serve. A container whose name verdict permits no supported platform (a
+non-desktop or other-architecture name such as `Game-android.7z` or
+`Game-win32.7z`) is recorded with an empty platform list; only a container
+may have one, and it competes nowhere. The lowercased name is judged in this
+order; the first match decides:
 
 1. A read archive (`.zip`, `.tar.gz`, `.tgz`, `.tar.xz`, including
    `.app.zip`, `.app.tar.gz` and `.dSYM.zip`): read, never another form.
 2. A shared library (`*.so`, `*.so.<digits…>`, `*.dll`, `*.dylib`): ignored,
    before the split-volume test, so `libgame.so.1.0.123` stays a library.
-3. The closed non-program list below: ignored.
+3. The closed non-program list below, and a name without a file extension
+   holding `sha256sums`, `sha512sums` or `checksums` as a whole
+   separator-delimited word (`Game-1.0-SHA256SUMS`, `checksums-linux`): ignored.
 4. A volume of a split file: any name ending `.` and three or more digits
    (`.7z.001`, `.zip.001`, `.exe.001`, `.iso.001`, bare `Game.001`), and
    `.z01`, `.r00`, `.part1.rar`: a container.
-5. A single-system form, in the table below.
+5. A single-system form, in the table below. Before `.pkg` is read as macOS,
+   a `.pkg` holding a non-desktop system word (`Game-ps4.pkg`, `ps5`, and
+   the other listing-only system tokens) is that system's package: ignored
+   as non-desktop. Before a name without an extension is read as a Linux
+   program, one holding `osx`, `macos` or `darwin` as a whole word is a
+   macOS program.
 6. A non-desktop package (`.apk`, `.aab`, `.ipa`, `.vpk`, `.nro`, `.nsp`,
    `.3dsx`, `.cia`, `.wad`): its existing non-desktop treatment.
 7. Everything else, any other or unknown extension: an unread container.
 
-| Form                                                                                                                                                                        | Serves                                                                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`, `.appinstaller` (names an MSIX package by URI, possibly hosted elsewhere)                                   | Windows                                                                                  |
-| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension  | Linux                                                                                    |
-| `.dmg`, `.pkg`                                                                                                                                                              | macOS                                                                                    |
-| a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …) | every platform its name permits; all when the name is neutral or Core cannot classify it |
+| Form                                                                                                                                                                                                | Serves                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`, `.appinstaller` (names an MSIX package by URI, possibly hosted elsewhere)                                                           | Windows                                                                                  |
+| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension and without a macOS word | Linux                                                                                    |
+| `.dmg`, a `.pkg` naming no non-desktop system, a file without an extension holding `osx`, `macos` or `darwin`                                                                                       | macOS                                                                                    |
+| a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …)                         | every platform its name permits; all when the name is neutral or Core cannot classify it |
 
 A file without an extension has no final `.` followed by letters and digits
 including a letter (`Game`, `Game-v1.0-linux`, `installer`). A name whose
@@ -4162,6 +4241,10 @@ ignored:
 - lockfiles, configuration, translations and metadata: `.lock`, `.toml`
   (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
   `.css`, `.desktop`;
+- data, configuration and mod payloads measured beside real releases that
+  cannot be the desktop package: `.rtz` (route data), `.vbmod` and `.pk4`
+  (mod and game data packs), `.py` (a script payload) and `.aot` (an
+  ahead-of-time compiled assembly cache);
 - the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
   `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
   `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
@@ -4184,30 +4267,91 @@ ignored:
   `Readme-Launcher`, `Authors-Cut`, `readme_first` and `installer` are bare
   Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
 
-Nothing that can carry or launch a program is on the list: `.js`, `.bat`,
-`.cmd`, `.ps1`, `.command`, `.nupkg`, `.db`, `.dat`, `.delta` and `.diff.gz`
-keep competing as unread containers.
+Nothing else that can carry or launch a program is on the list: `.js`,
+`.bat`, `.cmd`, `.ps1`, `.command`, `.nupkg`, `.7z`, `.lha`, `.db`, `.dat`,
+`.delta` and `.diff.gz` keep competing as unread containers. `.py` is on it
+by measurement, as a payload beside the release's packages; a Python script
+is never the desktop package a player registers.
 
 The identity is excluded as a whole (`other-package-form-beside-archive`)
 when the release carries such an asset for a platform the release also
-offers a readable archive for (one whose name permits that platform), and the
-asset's digest is not among the SHA-256s of the players those archives hold
-for that platform. An unknown digest excludes. Such a release offers a
-different package than its archive where the rule would bind, and nothing in
-the facts tells a portable build beside its installer apart from a code
-generator beside the game's installer, so the archives' role is unknown. A
-single-file program equal to such a player is the same package and enrolls.
-A form that serves only platforms without an offered archive is ignored: a
-`.dmg` beside Windows and Linux archives leaves both enrolled.
+offers a readable archive for (one whose name permits that platform and that
+is no [source archive](#source-archives)), the asset's digest is not among
+the SHA-256s of the players those archives hold for that platform (an
+unknown digest is not), and the asset is not the same product in another
+package form. A single-file program equal to such a player is the same
+package and enrolls. A form that serves only platforms without an offered
+archive is ignored: a `.dmg` beside Windows and Linux archives leaves both
+enrolled.
 
-This rule has a plain cost. A project that ships both a portable archive and
-a separate installer, disk image or other package for the same platform is
-withheld until a person reviews it, in the one grouped
-`other-package-form-beside-archive` queue. Any macOS zip beside a `.dmg` or
-`.pkg` is always withheld. A neutral-named archive permits every platform, so
-`game-1.0.zip` beside `Game.AppImage` or a `.dmg` withholds the whole
-identity. A reviewed `route_facts_v1` enrollment can still offer such a
-release.
+The same product in another package form is decided by attribution, never by
+loosening the rule. Each asset name's product words and version are derived
+the same way (`productIdentity`, restated by the gate as `gateProduct`): the
+package form (and an `.app` bundle suffix) or another file extension is
+removed; the rest is split at separators, with `x86_64`, `x86-64` and
+`64-bit` kept as one word; a whole word that is a platform or architecture
+word of the [release-line rule](#release-lines) (`linux`, `win64`, `x86_64`,
+`amd64`, `universal2`, `64bit`, …), a release-channel word alone or with
+digits (`release`, `beta`, `rc2`, `build`) or a package-form word (`setup`,
+`install`, `installer`, `portable`) is dropped; a version token (digits,
+optionally after `v`, `r` or `b`) is the version without that letter; every
+other word is split into product words at camel-case humps and letter/digit
+changes, dropping package-form parts (`GameSetup` is `game`). A form is the
+same product when its product words are not empty and equal those of every
+archive that could be offered for the platform (a runtime archive from exact
+bytes whose name vetoes nothing and that holds a player for the platform),
+its version equals theirs, and each such archive's player for the platform is
+named for that product: the program's words (without build-variant words)
+share a whole word of at least three characters with the product words, or
+one joined spelling contains the other and the shorter has at least four
+characters (`supertux2` and `supertux`). So `Game-1.0-linux.tar.gz` beside
+`Game-1.0.AppImage`, `Game-1.0.deb` or `Game-1.0.flatpak`,
+`Game-1.0-win64.zip` beside `Game-1.0-Setup.exe`, and `Game-1.0-macos.zip`
+beside `Game-1.0.dmg` enroll, each archive holding the game's own program.
+Another product (`GameStudio-1.0-win64.zip` beside `Game-1.0-Setup.exe`),
+another version (`Game-1.1-Setup.exe`), an update or other payload
+(`Game-1.0-update.7z`), empty product words on either side (`Setup.exe`), a
+second offerable archive of other product words, or an archive named for the
+game whose program is not (`TableTennis-v1.7.0.zip` holding only
+`rexglue.exe` beside `TableTennis-v1.7.0.exe`, or a code-generator archive
+beside `Install-Game-1.0.exe`) keep the form a competitor.
+
+This attribution is a contradiction detector. It does not prove the archive
+is the game: it only stops treating the same product in another package form
+as a competitor, and every player-program rule still decides the archive.
+Names nominate and contradict; they never supply missing product semantics.
+The route-fit report lists every identity whose forms were attributed this
+way (`registration_queues.same_product_forms`) as a review queue.
+
+The rule's cost is now narrower. A project that ships a portable archive and
+an installer, disk image or other package of other product words or another
+version for the same platform is withheld until a person reviews it, in the
+one grouped `other-package-form-beside-archive` queue. A neutral-named archive
+permits every platform, so `game-1.0.zip` beside `Game.AppImage` (no version)
+or a `.dmg` of another version withholds the whole identity. A reviewed
+`route_facts_v1` enrollment can still offer such a release.
+
+###### Source archives
+
+A source or compliance archive is never the game package. An archive is a
+source archive when Core's filename classifier gives it the `source-archive`
+role, or its name holds `source`, `sources` or `src` as a whole
+separator-delimited word (`Game-1.0-src.tar.gz`, `Game-Source-1.0.zip`), or
+it is a third-party library source dump: it holds no native program at all,
+at least three quarters of its listing's distinct file names are source or
+build files, and its product words share no word with the repository's name
+(`zlib-1.3.zip` in a game's release). The source and build files are a
+closed list of extensions (`.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.c++`, `.hpp`,
+`.hh`, `.hxx`, `.inl`, `.ipp`, `.m`, `.mm`, `.rs`, `.go`, `.java`, `.kt`,
+`.cs`, `.swift`, `.zig`, `.s`, `.asm`, `.py`, `.js`, `.ts`, `.cmake`, `.mk`,
+`.am`, `.ac`) and names (`makefile`, `cmakelists.txt`, `configure`,
+`meson.build`, `build.gradle`, `cargo.toml`). The worker records only the
+counts (`listing_counts`: `leaves` and `source_leaves` of Core's `leaves`).
+A source archive is never offered, never counts as one of a platform's
+competing archives (`ambiguous-artifact`), never counts for the toolchain
+rule, and offers no platform to another package form. The route-fit report
+lists them per identity (`registration_queues.source_archives`). The gate
+restates the rule with its own code from the recorded names and counts.
 
 Known residuals:
 
@@ -4248,8 +4392,9 @@ name everywhere, and that name passes the class. It uses the archive's own
 letter case, such as `Game.x86_64`, not Core's lowercase comparison key.
 Otherwise it says "Select the game program in your prepared copy." It also
 says that when the one program's name contains `launcher`, `settings` or
-`config`: such a program may be the documented entry point, so it can enroll,
-but the guide never calls it the game. The working
+`config` anywhere: such a program never enrolls as a whole word
+(`launcher-entry`, [one program per platform](#one-program-per-platform)),
+and the guide never calls one the game as a second guard. The working
 folder is the program's folder. The provenance reference names the repository,
 the release tag and release file when they pass the class, and the date facts
 were checked. It names at most three programs, then "and N more". Full paths,
@@ -4299,21 +4444,36 @@ file at all), `unsupported-archive-format` (only desktop forms the worker does
 not read, such as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`;
 the forms are in the detail and `unread_forms`), `non-desktop-platform`,
 `no-digest`,
-`repeated-inspection-failure` and `invalid-facts`. Product binding:
-`shared-repository` and `ambiguous-release-line`.
+`repeated-inspection-failure`, `invalid-facts` and `upstream-unavailable`
+(the listing's availability says so, or every archive of the offered release
+answered 404 Not Found: upstream's own statement that the packages are gone,
+re-evaluated when the release or its asset list changes; a single 404 among
+reachable archives is that archive's `asset-not-found` refusal, and 5xx
+responses, rate limits and timeouts stay transient `network` failures).
+Product binding: `shared-repository` and `ambiguous-release-line`.
 Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
-tool-role archive name), `contradictory-role`, `non-desktop-platform`,
-`unknown-platform`, `wrong-host`, `ambiguous-player`, `ambiguous-artifact`,
-`core-refused` (a refused archive's name allows the platform),
-`bundled-toolchain` and `guide-bound`. Release content: `other-package-form-beside-archive` (the
-whole identity). When no platform fits, the reason is the first of
+tool-role archive name), `contradictory-role` (also a source-named archive
+holding the only programs), `non-desktop-platform`, `unknown-platform`,
+`wrong-host`, `ambiguous-player`, `ambiguous-artifact`, `core-refused` (a
+refused archive's name allows the platform) and `guide-bound`. Release
+content, each for the whole identity: `other-package-form-beside-archive`,
+`bundled-toolchain` (reconsider when the release ships an archive without the
+toolchain, or a reviewed `route_facts_v1` enrollment covers the first-start
+build) and `launcher-entry` (reconsider when listing data or release-bound
+metadata declares the launcher as the game's runtime entry). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
 `tool-not-game`, `no-authorizing-source` and `no-player` that any platform
 gave. `bundled-toolchain` follows `core-refused` in that order.
 `registration_queues` also holds `bundled_toolchains` (each withheld
-identity's helper names) and `inspection_failures` (the
-`repeated-inspection-failure` identities by typed cause).
+identity's helper names), `inspection_failures` (the
+`repeated-inspection-failure` identities by typed cause),
+`same_product_forms` (per identity, the other package forms attributed to
+the archive's product: a review queue), `source_archives` (per identity, its
+source archives), `release_statements` (per identity, every observed release
+whose text states a prerelease, as `<tag>: <field> <token>`) and
+`release_text_unobserved` (identities whose offered release text the
+observer did not report).
 
 The gate compares the generation with a baseline. The baseline is the
 committed table at the merge base, never the working tree, so repeated runs and
@@ -4344,7 +4504,11 @@ release offers an archive for, whichever platforms the enrollment names
 recorded ones, and a container's or split volume's by its recorded name
 verdict), that the archives whose names permit
 the platform are one package, and that no refused archive is offered or
-could hold the platform's game. The facts
+could hold the platform's game. It restates the #8569 cohort rules with its
+own code too: the release text statements (the title's re-derived from the
+recorded title), product-word attribution with its player check
+(`gateProduct`), source archives, the identity-wide toolchain rule and the
+launcher words. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
 because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
@@ -4358,8 +4522,15 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 15, the facts parser version from 5 to 16 and
-the facts table format from 4 to 12 (generator 15: the own-name role-word
+generator version from 5 to 16, the facts parser version from 5 to 17 and
+the facts table format from 4 to 13 (generator 16, parser 17 and format 13:
+release text statements in the title or first body line, an identity-wide
+`bundled-toolchain`, `launcher-entry`, product-word attribution of the same
+product in another package form, source archives with recorded listing
+counts, system and checksum words before the bare-binary and `.pkg` forms,
+`.rtz`, `.vbmod`, `.pk4`, `.py` and `.aot` on the non-program list,
+containers serving no platform recorded with none, and an all-404 release
+recorded as `upstream-unavailable`; generator 15: the own-name role-word
 exemption is removed and every role word vetoes; generator 14 and parser 16:
 a role word was exempt only inside a run of a product name's words and
 camel-case archive names are split into words, `.appinstaller` is a Windows package form,
@@ -4423,6 +4594,16 @@ only. Each entry also records the observed releases and the release's
 [other package forms](#other-package-forms) with the provider's size and
 digest and the platforms each serves (never their bytes), for the
 release-line and other-package-form rules.
+
+A download that answers 404 Not Found refuses that archive permanently with
+the refusal class `asset-not-found`; when every archive of the release does,
+the entry is completed ineligible as `upstream-unavailable`. Other failed
+downloads (5xx, rate limits, timeouts, interruptions) stay transient
+`network` failures. From each archive's listing the worker also records the
+counts of distinct file names and of source or build file names
+(`listing_counts`, [source archives](#source-archives)), and from each
+observed release the observer's release text verdict
+([release text statements](#release-text-statements)).
 
 The worker's candidates are the authored listing-only GitHub identities, read
 before catalog generation adds generated routes (`workerRecords`). An identity
