@@ -4154,8 +4154,9 @@ Each run, in one concurrency group (`listing-facts-batch`):
    the current `main` tip as the squash will be, requires that composition to
    keep the allowlist and pass the gate and `generate-catalog.mts --check`
    against that tip, and merges through the guarded route
-   (`scripts/pr-delivery.mts merge`, exact head, that target and tree, closure
-   intent and merge message). A failed check stops the job. Missing or pending
+   (`scripts/pr-delivery.mts merge`, exact head, that target and tree checked
+   from local objects with `--verify-local-composition`, since GitHub rebuilds
+   its merge preview lazily, closure intent and merge message). A failed check stops the job. Missing or pending
    checks wait.
 3. Otherwise the job derives one batch from the tip of `main`: the newest
    main observer handoff (`catalog-upstream-observations-*`) and the worker
@@ -4231,8 +4232,9 @@ Each condition files or reuses one issue titled
 with the grouped reason and the run. A recurrence after it was closed reopens
 and comments on the same issue; an open issue is not commented again. No
 further run starts while any such issue is open; closing it is how a person
-clears the stop. An unreadable issue list fails the run rather than reading
-as "not stopped". The conditions are `gate-refused`, `reproduction-refused`,
+clears the stop. An unreadable issue list, or more than 1,000 open or closed
+workflow issues, fails the run rather than reading as "not stopped". A
+`reproduction-refused` issue names up to five refused entries and why. The conditions are `gate-refused`, `reproduction-refused`,
 `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `no-progress` (three
 consecutive runs settled nothing while work waited), `backlog-growing` (four
@@ -4249,7 +4251,7 @@ its issue is closed; close that pull request too.
 
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
-open. When the table has entries and is more than 7 days old, the job files
+open. When the table has entries and is more than 21 days old, the job files
 `Listing facts batch: facts are falling behind the clock`. It does not stop
 the job, whose next batch is the remedy. Every job and every step has a
 finite timeout, and each job's timeout is at least the sum of its steps', so
@@ -4301,7 +4303,9 @@ each batch is reopened before the next run, plus every reopen that waits
 longer. The pass itself has no 30-day limit: new identities are not yet
 offered. What the 30-day facts age bounds is the offered facts, which every
 landed batch reconfirms; they stay fresh while a batch lands at least every
-30 days, and the freshness alert fires after 7. Offered identities whose
+30 days. A quiet catalog proposes a reconfirmation batch once an offered
+entry was last confirmed 14 days earlier, and the freshness alert fires after
+21 days, above that hold and inside the 30-day age. Offered identities whose
 release changed drain at 18 per run, two runs per batch:
 `drain-exceeds-facts-age` stops the job when that alone reaches 30 days.
 Each run's `backlog` report gives the current numbers.

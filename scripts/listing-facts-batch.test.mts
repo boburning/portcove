@@ -39,6 +39,10 @@ import {
   changedPaths,
   claimsBatch,
   collectConditions,
+  freshnessAlertDays,
+  refreshAfterDays,
+  reproductionDetails,
+  parseWorkerSummary,
   jobBatches,
   materialChange,
   offeredDrainDays,
@@ -657,7 +661,14 @@ void test("the retained inputs must carry the recorded digest and match the file
 const summary = (fields: Partial<WorkerSummary> = {}, backlog = 10): WorkerSummary => ({
   no_progress: false,
   settled: 3,
-  backlog: { enrolled_pending: 0, new_pending: backlog, held_for_batch: 0, days_to_drain_all: 2 },
+  backlog: {
+    enrolled_pending: 0,
+    new_pending: backlog,
+    held_for_batch: 0,
+    days_to_drain_all: 2,
+    runs_to_drain_enrolled: 0,
+    cadence_hours: 6,
+  },
   ineligible: {},
   identities: Array.from({ length: 100 }, (_, index) => ({
     port_id: `id-${index}`,
@@ -752,6 +763,40 @@ void test("each stop condition is detected and named", () => {
   assert.equal(offeredDrainDays(offered(59)), 29.5);
   assert.deepEqual(assess([record()], { summary: offered(59) }), []);
   assert.deepEqual(assess([record()], { summary: offered(60) }), ["drain-exceeds-facts-age"]);
+  // A summary without the drain fields is malformed, never 0 days (A13).
+  const { runs_to_drain_enrolled: _r, ...partial } = summary().backlog;
+  assert.throws(
+    () => parseWorkerSummary(JSON.stringify({ ...summary(), backlog: partial })),
+    /malformed/u,
+  );
+  assert.doesNotThrow(() => parseWorkerSummary(JSON.stringify(summary())));
+  // The reproduction stop names the refused entries (A12).
+  const directory = mkdtempSync(join(tmpdir(), "facts-refusals-"));
+  try {
+    const file = join(directory, "refusals.json");
+    writeFileSync(file, JSON.stringify(["zz-a: mismatch: players differ"]));
+    assert.deepEqual(
+      assess([record()], { reproduction: "refused", details: reproductionDetails(file) }),
+      ["reproduction-refused"],
+    );
+    assert.match(
+      stopConditions({
+        runId: "9",
+        now: "2026-11-21T00:00:00.000Z",
+        summary: summary(),
+        history: [record()],
+        versions: "v",
+        gate: "ok",
+        paths: "ok",
+        reproduction: "refused",
+        details: reproductionDetails(file),
+      }).conditions[0]!.detail,
+      /zz-a: mismatch/u,
+    );
+    assert.deepEqual(reproductionDetails(join(directory, "missing.json")), {});
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
   const body = stopIssueBody({ name: "gate-refused", detail: "Grouped reason." }, "https://run");
   assert.match(body, /Grouped reason\./u);
   assert.match(body, /close this issue/u);
@@ -821,8 +866,11 @@ void test("the notify job adds a failed batch and failed jobs, never doubling a 
 void test("the freshness watchdog compares the facts' own time with the real clock", () => {
   const { entry } = fixture();
   const table = { ...emptyFactsTable("2026-11-01T00:00:00.000Z"), entries: [entry] };
-  assert.equal(factsFallingBehind(table, "2026-11-07T00:00:00.000Z"), undefined);
-  assert.match(factsFallingBehind(table, "2026-11-09T00:00:00.000Z")!, /8 days ago/u);
+  // A quiet catalog waits up to refreshAfterDays for a reconfirmation batch:
+  // the alert must not fire before that (N1).
+  assert.ok(freshnessAlertDays > refreshAfterDays && freshnessAlertDays < 30);
+  assert.equal(factsFallingBehind(table, "2026-11-22T00:00:00.000Z"), undefined);
+  assert.match(factsFallingBehind(table, "2026-11-23T00:00:00.000Z")!, /22 days ago/u);
   // An empty table offers nothing that could go stale.
   assert.equal(
     factsFallingBehind(emptyFactsTable("2026-01-01T00:00:00.000Z"), "2026-11-09T00:00:00.000Z"),
@@ -1119,6 +1167,6 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   // Only the built-in token: no secrets, no personal tokens.
   assert.doesNotMatch(text, /secrets\./u);
   // Merges go through the guarded route only, never an API shortcut.
-  assert.match(text, /scripts\/pr-delivery\.mts merge/u);
+  assert.match(text, /scripts\/pr-delivery\.mts"? merge[^\n]*\n[^\n]*--verify-local-composition/u);
   assert.doesNotMatch(text, /pulls\/[^\s]*\/merge|gh pr merge|enable_pr_auto_merge|--admin/u);
 });

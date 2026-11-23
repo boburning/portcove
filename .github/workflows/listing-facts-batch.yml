@@ -93,7 +93,7 @@ jobs:
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.gate.outputs.blocked == 'false' && needs.gate.outputs.pr_state == 'green'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     permissions:
       contents: write
       pull-requests: write
@@ -146,7 +146,7 @@ jobs:
           echo "target=$target" >> "$GITHUB_OUTPUT"
           echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
       - name: Merge through the guarded delivery route
-        timeout-minutes: 5
+        timeout-minutes: 8
         env:
           GITHUB_TOKEN: ${{ github.token }}
           NUMBER: ${{ needs.gate.outputs.pr_number }}
@@ -157,8 +157,14 @@ jobs:
           set -euo pipefail
           node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
             --closure "$RUNNER_TEMP/closure.json" --message "$RUNNER_TEMP/message.json"
-          node scripts/pr-delivery.mts merge --pr "$NUMBER" --head "$HEAD" \
-            --target "$TARGET" --tree "$TREE" \
+          # GitHub rebuilds its merge preview lazily: verify the reviewed
+          # composition from local objects, run from a checkout of the head
+          # with main's own delivery script.
+          git fetch --no-tags origin "+refs/pull/${NUMBER}/merge:refs/remotes/batch/merge"
+          git worktree add --detach "$RUNNER_TEMP/head" "$HEAD"
+          cd "$RUNNER_TEMP/head"
+          node "$GITHUB_WORKSPACE/scripts/pr-delivery.mts" merge --pr "$NUMBER" --head "$HEAD" \
+            --target "$TARGET" --tree "$TREE" --verify-local-composition \
             --closure-intent-file "$RUNNER_TEMP/closure.json" \
             --merge-message-file "$RUNNER_TEMP/message.json"
 
@@ -285,7 +291,9 @@ jobs:
       - name: Reproduce every changed eligible entry from its exact bytes
         id: verify
         timeout-minutes: 45
-        run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove --base HEAD~1 --own-run true
+        run: >-
+          node scripts/listing-facts-batch.mts verify --cli target/debug/portcove --base HEAD~1
+          --own-run true --refusals "$WORK/refusals.json"
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Publish the registration exception queues
@@ -312,7 +320,8 @@ jobs:
           if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
-            --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --output "$WORK/conditions.json" > /dev/null
+            --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals.json" \
+            --output "$WORK/conditions.json" > /dev/null
       # A batch is proposed only when every check passed, no stop condition
       # holds and the change is material (see materialChange).
       - name: Decide whether this batch can be proposed

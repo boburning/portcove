@@ -757,8 +757,12 @@ export const backlogGrowthRuns = 4;
 export const largeWithdrawal = 16;
 /** A coverage drop larger than this share of the previous run stops the job. */
 export const coverageDropShare = 0.25;
-/** Facts older than this against the real clock raise the freshness alert. */
-export const freshnessAlertDays = 7;
+/**
+ * Facts older than this against the real clock raise the freshness alert. It
+ * stays above `refreshAfterDays`, the longest a quiet catalog waits before a
+ * reconfirmation batch, and below the 30-day facts age.
+ */
+export const freshnessAlertDays = 21;
 
 /** The parts of the worker's summary line the job reads. */
 export interface WorkerSummary {
@@ -769,8 +773,8 @@ export interface WorkerSummary {
     new_pending: number;
     held_for_batch: number;
     days_to_drain_all: number;
-    runs_to_drain_enrolled?: number;
-    cadence_hours?: number;
+    runs_to_drain_enrolled: number;
+    cadence_hours: number;
   };
   ineligible: Record<string, number>;
   identities: { port_id: string; outcome: string; reason?: string }[];
@@ -783,6 +787,9 @@ export function parseWorkerSummary(text: string): WorkerSummary {
     typeof value.no_progress !== "boolean" ||
     !Number.isSafeInteger(value.settled) ||
     !isRecord(value.backlog) ||
+    // The drain stop reads these; a summary without them must not read as 0 days.
+    !Number.isSafeInteger(value.backlog.runs_to_drain_enrolled) ||
+    !(Number(value.backlog.cadence_hours) > 0) ||
     !isRecord(value.ineligible) ||
     !Array.isArray(value.identities)
   )
@@ -905,8 +912,8 @@ export const runsPerBatch = 2;
  * on top; the freshness alert covers those.
  */
 export function offeredDrainDays(summary: WorkerSummary) {
-  const runs = summary.backlog.runs_to_drain_enrolled ?? 0;
-  const cadence = summary.backlog.cadence_hours ?? 24;
+  const runs = summary.backlog.runs_to_drain_enrolled;
+  const cadence = summary.backlog.cadence_hours;
   return Math.round(((runs * runsPerBatch * cadence) / 24) * 10) / 10;
 }
 
@@ -943,6 +950,22 @@ export function freshnessIssueBody(detail: string, runUrl: string) {
     "",
     "This alert does not stop the job. Merge or clear the waiting batch, or close a stop issue, so a batch lands; close this issue once facts are fresh. A recurrence reopens it.",
   ].join("\n");
+}
+
+/** The refused entries a verify step recorded, as the reproduction stop's detail. */
+export function reproductionDetails(file: string | undefined) {
+  if (!file) return {};
+  try {
+    const lines: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (!Array.isArray(lines) || !lines.length) return {};
+    return {
+      "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${lines
+        .map((line) => `- ${String(line).slice(0, 400)}`)
+        .join("\n")}`,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /** Add a failed batch pull request and failed jobs to a run's conditions. */
@@ -1201,9 +1224,10 @@ async function jobIssues(state: "open" | "closed") {
         typeof issue.state === "string"
       )
         issues.push({ number: Number(issue.number), title: issue.title, state: issue.state });
-    if (batch.length < 100) break;
+    if (batch.length < 100) return issues;
   }
-  return issues;
+  // Never read a truncated list as "not stopped" or as "no issue to reuse".
+  throw new Error(`More than 1,000 ${state} workflow issues; the stop state is unknown.`);
 }
 
 /** File one issue per condition: comment on an open one, reopen a closed one, else open one. */
@@ -1301,6 +1325,12 @@ async function main(argv: string[]): Promise<string> {
           );
           for (const refusal of result.refused)
             problems.push(`${refusal.port_id}: ${refusal.reason}: ${refusal.detail}`);
+          // The stop issue names the refused entries (at most five).
+          if (option.refusals)
+            writeFileSync(
+              option.refusals,
+              `${JSON.stringify(result.refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`))}\n`,
+            );
         } finally {
           await rm(work, { recursive: true, force: true });
         }
@@ -1385,6 +1415,7 @@ async function main(argv: string[]): Promise<string> {
         paths: (option.paths as "ok" | "violated" | "skipped") ?? "skipped",
         reproduction: (option.reproduction as "ok" | "refused" | "skipped") ?? "skipped",
         ...(delta ? { delta } : {}),
+        details: reproductionDetails(option.refusals),
       });
       if (record)
         writeFileSync(option.history, `${JSON.stringify([...history, record].slice(-30))}\n`);
