@@ -575,7 +575,9 @@ async fn refusal_setupless_package_publishes_nothing() {
         )]);
         package
     };
-    let assert_refused = |error: PortcoveError| {
+    // The refusal states what happened to the player's installation: a first
+    // install adds nothing, an update leaves the current version unchanged.
+    let assert_refused = |error: PortcoveError, state: &str, not: &str| {
         assert_eq!(error.code, ErrorCode::Verification, "{error:?}");
         assert!(
             error
@@ -583,6 +585,8 @@ async fn refusal_setupless_package_publishes_nothing() {
                 .contains("does not contain the setup program this game needs"),
             "{error:?}"
         );
+        assert!(error.message.contains(state), "{error:?}");
+        assert!(!error.message.contains(not), "{error:?}");
         assert_eq!(
             error
                 .details
@@ -603,7 +607,11 @@ async fn refusal_setupless_package_publishes_nothing() {
         .install(SETUP_PORT, None, None, None, true, |_| {})
         .await
         .unwrap_err();
-    assert_refused(error);
+    assert_refused(
+        error,
+        "Nothing was installed.",
+        "Your current installation is unchanged.",
+    );
     assert!(service.status(SETUP_PORT).unwrap().active.is_none());
     assert!(fixture::tree(&harness.library.versions_dir()).is_empty());
     assert!(no_journals(&harness.library));
@@ -629,7 +637,11 @@ async fn refusal_setupless_package_publishes_nothing() {
         .update(SETUP_PORT, None, None, true, |_| {})
         .await
         .unwrap_err();
-    assert_refused(error);
+    assert_refused(
+        error,
+        "Your current installation is unchanged.",
+        "Nothing was installed.",
+    );
     let status = service.status(SETUP_PORT).unwrap();
     assert_eq!(status.active.unwrap().id, prepared.id);
     assert_eq!(fixture::tree(&prepared.path), before);
@@ -1031,6 +1043,11 @@ async fn update_needs_its_own_preparation_and_rollback_reaches_the_last_working_
     }
     assert_eq!(
         fs::read(prepared_v2.path.join(SETUP_SAVE)).unwrap(),
+        b"progress from v2"
+    );
+    // The collected copy in the player's data folder survives both rollbacks.
+    assert_eq!(
+        fs::read(user.join(SETUP_SAVE)).unwrap(),
         b"progress from v2"
     );
     assert!(v2.path.is_dir());

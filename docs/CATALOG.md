@@ -3213,11 +3213,15 @@ their own fixture, `mechanism-fixture-releases.json`.
 Release selection applies one typed-role gate for every adapter (#8602): a
 filename-suggested installer, builder, compiler, importer, development tool,
 debug build, source archive, documentation, mobile, console or server artifact
-never becomes the game package. When nothing else for this host remains, the
-refusal carries `route_hold: wrong-role` and nothing is downloaded. The one
-widening is declared by adapter: an upstream-managed setup route expects an
-extractable package named for its setup or installer, because its mechanism
-runs upstream's setup from that package.
+never becomes the game package. The gate covers every provider that chooses a
+package by filename: GitHub release assets, and GitLab release links and their
+final registry filenames. Reviewed-forge and direct-manifest routes install an
+exact reviewed artifact and choose nothing by filename. When nothing else for
+this host remains, the refusal carries `route_hold: wrong-role` and nothing is
+downloaded. The one widening is declared by adapter: an upstream-managed setup
+route expects an extractable package named for its setup or installer, because
+its mechanism runs upstream's setup from that package. Uninstallers and runtime
+redistributables stay refused.
 
 ### Qualification evidence preparation
 

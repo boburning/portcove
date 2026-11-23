@@ -1819,7 +1819,14 @@ impl Installer {
                     )?;
                 }
             }
-            require_declared_setup_program(port, &payload_root, &request.qualification)?;
+            require_declared_setup_program(
+                port,
+                &payload_root,
+                &request.qualification,
+                replacement.is_some()
+                    || crate::profile::active_install_id(&self.library.connection()?, &port.id)?
+                        .is_some(),
+            )?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -5703,10 +5710,13 @@ pub(crate) fn resolve_declared_executable(
 /// A managed preparation route runs the setup program its package declares.
 /// Resolve it in the staged package exactly as preparation will, so a package
 /// that could never be prepared is refused before anything is published.
+/// `has_current_installation` keeps the refusal true to the state: an update
+/// leaves the current installation unchanged, a first install adds nothing.
 fn require_declared_setup_program(
     port: &PortDefinition,
     payload_root: &Path,
     qualification: &InstallQualification,
+    has_current_installation: bool,
 ) -> Result<()> {
     if qualification.setup_executable_hints.is_empty() {
         return Ok(());
@@ -5726,9 +5736,14 @@ fn require_declared_setup_program(
     )
     .map(|_| ())
     .map_err(|error| {
-        PortcoveError::verification(
-            "This download does not contain the setup program this game needs, so Portcove did not install it. Your current installation is unchanged. Choose another release, or report the missing setup program to the port's maintainers.",
-        )
+        let state = if has_current_installation {
+            "Your current installation is unchanged."
+        } else {
+            "Nothing was installed."
+        };
+        PortcoveError::verification(format!(
+            "This download does not contain the setup program this game needs, so Portcove did not install it. {state} Choose another release, or report the missing setup program to the port's maintainers."
+        ))
         .detail("port_id", &port.id)
         .detail(
             "expected_setup_program",
