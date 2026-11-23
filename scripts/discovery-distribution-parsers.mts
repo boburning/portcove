@@ -167,7 +167,8 @@ export function parseMacSourcePortsMeta(textValue: string): ParsedExternalList {
     if (!isRecord(build) || typeof build.sourcePortStub !== "string" || !build.sourcePortStub)
       throw new Error("Malformed Mac Source Ports build");
     const upstream = text(build.sourcePortGitHub);
-    if (scummvm(upstream)) {
+    // Mac Source Ports' own repositories are its forks or builds, not upstreams.
+    if (scummvm(upstream) || /\/\/(?:www\.)?github\.com\/MacSourcePorts\//iu.test(upstream)) {
       excluded++;
       continue;
     }
@@ -206,22 +207,27 @@ export function parseBatoceraPackage(source: string, path: string): ParsedExtern
   bounded(source, 8 * 1024 * 1024, "Batocera package");
   const versions = new Map<string, string>();
   const sites = new Map<string, string>();
-  for (const line of logicalLines(source)) {
+  for (const raw of logicalLines(source)) {
+    const line = raw.trim();
     const version = /^([A-Z0-9_]+)_VERSION\s*[:?]?=\s*(\S+)/u.exec(line);
     if (version) versions.set(version[1]!, version[2]!);
     const call =
       /^([A-Z0-9_]+)_SITE\s*[:?]?=\s*\$\(call (github|gitlab),\s*([^,\s]+),\s*([^,\s)]+)/u.exec(
         line,
       );
-    if (call)
+    if (call && !sites.has(call[1]!))
       sites.set(
         call[1]!,
         `https://${call[2] === "github" ? "github.com" : "gitlab.com"}/${call[3]}/${call[4]}`,
       );
     else {
+      // A site naming its download route with make variables still names the
+      // project before them; the location keeps only the project path.
       const literal = /^([A-Z0-9_]+)_SITE\s*[:?]?=\s*(https?:\/\/\S+)/u.exec(line);
-      if (literal && !literal[2]!.includes("$("))
-        sites.set(literal[1]!, literal[2]!.replace(/\.git$/iu, ""));
+      if (literal) {
+        const project = literal[2]!.split("$(")[0]!.replace(/\.git$/iu, "");
+        if (!sites.has(literal[1]!) && project.length > 8) sites.set(literal[1]!, project);
+      }
     }
   }
   let excluded = 0;
@@ -263,16 +269,19 @@ export function parseBatoceraPackage(source: string, path: string): ParsedExtern
  */
 export function parseRetropieModule(source: string, path: string): ParsedExternalList {
   bounded(source, 8 * 1024 * 1024, "RetroPie module");
-  const field = (name: string) =>
-    new RegExp(`^rp_module_${name}="([^"]*)"`, "mu").exec(source)?.[1] ?? "";
+  const field = (name: string) => {
+    const match = new RegExp(`^rp_module_${name}=(?:"([^"]*)"|'([^']*)')`, "mu").exec(source);
+    return match?.[1] ?? match?.[2] ?? "";
+  };
   const id = field("id") || path.replace(/^.*\/|\.sh$/gu, "");
   const repo = field("repo").trim().split(/\s+/u).filter(Boolean);
   const urls: { url: string; pinned: string | null }[] = [];
   if (repo[0] === "git" && repo[1]) {
-    const pin = [repo[3], repo[2]].find((token) => token && !token.startsWith(":"));
-    urls.push({ url: repo[1], pinned: pin ?? null });
+    // Only a commit is a pin; a branch moves and a `:function` resolves at install.
+    const commit = repo[3] && /^[0-9a-f]{7,40}$/iu.test(repo[3]) ? repo[3] : null;
+    urls.push({ url: repo[1], pinned: commit });
   }
-  for (const match of source.matchAll(/gitPullOrClone\s+\S+\s+"?(https?:\/\/[^\s"]+)"?/gu))
+  for (const match of source.matchAll(/gitPullOrClone\s+\S+\s+["']?(https?:\/\/[^\s"';)]+)/gu))
     urls.push({ url: match[1]!, pinned: null });
   let excluded = 0;
   const rows: Parameters<typeof group>[0] = [];
@@ -305,13 +314,21 @@ export function parseRetropieModule(source: string, path: string): ParsedExterna
   return group(rows, { unlinked: urls.length ? 0 : 1, excluded });
 }
 
-/** RecompLauncher's repository value for each host it supports. */
+/**
+ * RecompLauncher's repository value for each host it supports, or null. A host
+ * it does not name, or a GitHub value that is not exactly `owner/name` (a
+ * dotted first segment names another host), is never mapped to GitHub.
+ */
 function recompLauncherUrl(repo: string, host: string) {
   if (!repo) return null;
+  const segments = repo.split("/");
   if (host === "gitlab") return `https://gitlab.com/${repo}`;
-  if (host === "forgejo") return `https://${repo}`;
-  if (host === "sourceforge") return `https://sourceforge.net/projects/${repo}`;
-  return `https://github.com/${repo}`;
+  if (host === "forgejo") return segments.length >= 3 ? `https://${repo}` : null;
+  if (host === "sourceforge")
+    return segments.length === 1 ? `https://sourceforge.net/projects/${repo}` : null;
+  if ((host === "" || host === "github") && segments.length === 2 && !segments[0]!.includes("."))
+    return `https://github.com/${repo}`;
+  return null;
 }
 
 /**

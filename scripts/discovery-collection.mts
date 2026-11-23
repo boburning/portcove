@@ -45,6 +45,7 @@ import {
   completeExternalInventory,
   dueExternalInventoryItems,
   externalInventoryCurrent,
+  inventoryItemKey,
   externalInventoryDue,
   markExternalInventoryUnchanged,
   parseExternalInventoryItem,
@@ -190,6 +191,7 @@ async function readDirectoryInventory(
     return;
   }
   const rows: { slug: string; fingerprint: string; public_code: boolean }[] = [];
+  let skipped = 0;
   const list = async (path: string, depth: number) => {
     if (!fits()) throw new InventoryDeferred();
     const listing = await host.source.sdk.request({
@@ -204,12 +206,25 @@ async function readDirectoryInventory(
       const entry = object(raw);
       if (typeof entry.path !== "string" || typeof entry.sha !== "string") continue;
       if (entry.type === "dir" && depth > 1) await list(entry.path, depth - 1);
-      else if (entry.type === "file" && directory.files.test(entry.path))
-        rows.push({ slug: entry.path, fingerprint: entry.sha, public_code: true });
+      else if (entry.type === "file" && directory.files.test(entry.path)) {
+        // A path outside the item key form is counted, never allowed to fail
+        // the whole listing.
+        if (inventoryItemKey.test(entry.path) && !entry.path.split("/").includes(".."))
+          rows.push({ slug: entry.path, fingerprint: entry.sha, public_code: true });
+        else skipped++;
+      }
     }
   };
   await list(directory.path, directory.depth);
   if (!rows.length) throw new Error("External source directory has no definitions");
+  if (skipped)
+    host.journal.notes.push({
+      phase: "external-inventory",
+      source: id,
+      status: "partial",
+      skipped_paths: skipped,
+      resume: "Definitions with unsupported file names are not read",
+    });
   host.leads = {
     ...host.leads,
     external: recordExternalInventory(

@@ -599,18 +599,23 @@ channel (the ScummVM expansion stays excluded).
   build's upstream project is a hint; its architecture is the claim's target.
   A build Mac Source Ports produced itself is `separately-built`; a build the
   project published itself is `upstream-build`. Mac Source Ports' own forks
-  are never upstreams. Game associations live only in the site's bundled
-  script and are not read.
+  are never upstreams and are excluded. Game associations live only in the
+  site's bundled script and are not read.
 - **Batocera** (`package/batocera/ports` in `batocera-linux/batocera.linux`) and
   **RetroPie** (`scriptmodules/ports` in `RetroPie/RetroPie-Setup`) are
   repository-directory baselines. The default branch is resolved to an exact
   revision with the repository's provider ID pinned, and the directory is
-  listed (Batocera to two levels). Each definition file is an item whose
+  listed. Batocera is listed to the package level (44 package definitions on
+  2026-11-23); deeper sub-packages are mods and game data for a port, outside
+  native-port scope. A file name outside the item form is counted and skipped. Each definition file is an item whose
   fingerprint is its blob, so only new and changed definitions, and any
   unread for thirty days, are read at that revision. A Batocera `<PKG>_SITE`
-  names the upstream and `<PKG>_VERSION` is Batocera's pin. A RetroPie
+  names the upstream (a download route built from make variables keeps the
+  project path before them) and `<PKG>_VERSION` is Batocera's pin. A RetroPie
   `rp_module_repo` and further `gitPullOrClone` repositories name upstreams;
-  a pin that a shell function resolves at install time is not static. Both
+  only a commit is a pin, since a branch moves and a `:function` resolves at
+  install time. RecompLauncher values on a host it does not name, or a GitHub
+  value that is not exactly `owner/name`, are never mapped to GitHub. Both
   directories also hold software outside native-port scope; research
   classifies each upstream.
 

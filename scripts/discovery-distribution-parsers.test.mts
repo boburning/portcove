@@ -339,3 +339,65 @@ void test("a repository-directory baseline reads only changed definitions at an 
   ]);
   assert.equal(listings.length, 2);
 });
+
+void test("distribution extraction keeps variable sites, real pins and recognized hosts only", () => {
+  const batocera = parseBatoceraPackage(
+    [
+      "  DEVILUTIONX_VERSION = 1.5.4",
+      "  DEVILUTIONX_SITE = https://github.com/diasurgical/devilutionX/releases/download/$(DEVILUTIONX_VERSION)",
+      "EDUKE32_SITE = https://voidpoint.io/terminx/eduke32/-/archive/$(EDUKE32_VERSION)",
+    ].join("\n"),
+    "package/batocera/ports/devilutionx/devilutionx.mk",
+  );
+  assert.deepEqual(
+    batocera.entries.map((entry) => entry.key),
+    [
+      "https://github.com/diasurgical/devilutionx",
+      "https://voidpoint.io/terminx/eduke32/-/archive",
+    ],
+    "a download route built from make variables still names its project",
+  );
+  const branch = parseRetropieModule(
+    'rp_module_id="dxx"\nrp_module_repo="git https://github.com/dxx-rebirth/dxx-rebirth master :_get_commit"',
+    "x/dxx.sh",
+  );
+  assert.equal(branch.entries[0]!.source_entries![0]!.pinned, null, "a branch is not a pin");
+  const quoted = parseRetropieModule(
+    "rp_module_id='q'\nrp_module_repo='git https://github.com/a/b.git main 0123abc'\ngitPullOrClone \"$d\" https://github.com/c/d.git;",
+    "x/q.sh",
+  );
+  assert.deepEqual(
+    quoted.entries.map((entry) => [entry.key, entry.source_entries![0]!.pinned]),
+    [
+      ["https://github.com/a/b", "0123abc"],
+      ["https://github.com/c/d", null],
+    ],
+  );
+  const hosts = parseRecompLauncherCatalog(
+    JSON.stringify({
+      catalogVersion: 1,
+      apps: [
+        { id: "a", repo: "owner/name", host: "codeberg" },
+        { id: "b", repo: "git.example.dev/owner/name" },
+        { id: "c", repo: "project", host: "sourceforge" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    hosts.entries.map((entry) => entry.key),
+    ["https://sourceforge.net/projects/project"],
+    "an unnamed host or a dotted value is never mapped to GitHub",
+  );
+  assert.equal(hosts.unlinked, 2);
+  const forks = parseMacSourcePortsMeta(
+    JSON.stringify([
+      {
+        sourcePortStub: "x",
+        sourcePortType: "Universal 2",
+        sourcePortGitHub: "https://github.com/MacSourcePorts/disasteroids3d",
+      },
+    ]),
+  );
+  assert.equal(forks.entries.length, 0);
+  assert.equal(forks.excluded, 1);
+});

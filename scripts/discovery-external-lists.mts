@@ -197,7 +197,9 @@ export const externalLeadLists = [
     conditional: true,
     refresh_days: 1,
   },
-  // Batocera's port packages at an exact revision: one `.mk` per package.
+  // Batocera's port packages at an exact revision: one `.mk` per package. The
+  // listing stops at the package level; deeper sub-packages are mods and game
+  // data for a port, outside native-port scope.
   {
     id: "batocera-ports",
     format: "batocera-ports",
