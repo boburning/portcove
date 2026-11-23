@@ -1,6 +1,6 @@
 # Supported capability contracts as the unit of integration (design, November 23, 2026)
 
-> **Status: PROPOSED design, revision 2.** Nothing here is implemented or
+> **Status: PROPOSED design, revision 3.** Nothing here is implemented or
 > activated. The [catalog contract](../CATALOG.md#integration-ownership), the
 > [definition delivery contract](../DEFINITION-DELIVERY.md) and the
 > [architecture](../ARCHITECTURE.md) remain the current contracts until each
@@ -1295,7 +1295,7 @@ pin executable names and package trees. Those pins are expressed by existing
   "artifact": { "role": "runtime" | "setup-tool", "size": 0, "sha256": "…" },
   "platforms": ["windows-x86-64"],
   "kind": "destination-path-reserve" | "discard-empty-output-scaffold" | "reviewed-runtime-write",
-  "paths": ["build-portcove/mods/bundled/psx.enhancement.internal-resolution/1.0.0/manifest.toml"]
+  "paths": ["runtime/data/bundled/example-pack/1.0.0/manifest.toml"]
 }]
 ```
 
@@ -1315,8 +1315,9 @@ per exception. Paths use the relative grammar.
 - `discard-empty-output-scaffold` requires a setup contract with
   `setup_output_paths`.
 - `destination-path-reserve` requires Windows.
-- An exception never relaxes integrity, ownership or archive safety. Both kinds
-  only _add_ a check or _tolerate_ a provably empty directory.
+- An exception never relaxes integrity, ownership or archive safety. No kind
+  does more than _add_ a check, _tolerate_ a provably empty directory, or
+  _report_ an existing runtime-written file as reviewed.
 
 **Selects in Core:**
 
@@ -1544,6 +1545,12 @@ place where historical shapes are read. It is a submodule of `installed_contract
      reads launches as today. One where it refuses does not launch (as
      today), and offers update to a current build, which creates a retained
      contract. Update never rewrites the old manifest.
+  5. **Port no longer in the current catalog.** The fallback would return the
+     current catalog, but there is no definition in it to read and no
+     current build to offer. Except for DKR's frozen definition, such an
+     install is treated as "fallback refuses": whole-directory backup and
+     restore apply as in step 3, launch and path-selective operations hold
+     with a reason naming the missing contract, and no update is offered.
 
   No other port gains a frozen historical definition in this design. One is
   added later only when the library diagnostics report pre-contract installs
@@ -1712,7 +1719,7 @@ only `sonic-3-and-knuckles-recomp` depends on the id lookup. The re-keying is
 
   ```json
   "predecessor_data_guard_v1": {
-    "predecessor_release": { "provider": "direct-manifest", "version": "v0.5.3", "sha256": "42ada105…be99" }
+    "predecessor_release": { "provider": "direct-manifest", "version": "v1.0.0", "sha256": "0000…0001" }
   }
   ```
 
@@ -2136,6 +2143,10 @@ these rules:
     record as immutable, re-verify the immutable set afterwards, and never
     delete; launch and path-selective operations hold with a reason naming
     the missing contract; update to a current build is offered.
+  - **Pre-contract install of a port that left the current catalog** (other
+    than DKR's frozen definition): treated as "fallback refuses", with
+    whole-directory backup and restore, launch and path-selective operations
+    held, and no update offered.
 - **Acceptance evidence:**
   - For each operation, a test with the port removed from the current
     catalog, and one with the current port carrying a policy field that the
@@ -2145,6 +2156,10 @@ these rules:
   - Whole-directory backup and restore: immutable paths are neither copied
     nor overwritten; a changed immutable file fails the operation without
     changes; restore deletes nothing.
+  - Pre-contract install of a departed port: whole-directory backup and
+    restore succeed; launch, path-selective operations and update are held or
+    not offered, each with a reason naming the missing contract; a DKR
+    pre-contract install of a departed port still reads its frozen definition.
   - Rollback of a departed port: allowed for a previously active verified
     build; held for a never-active build, an unverified build, and a build
     whose artifact or uploader a signed withdrawal or revocation names.
