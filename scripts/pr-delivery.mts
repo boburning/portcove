@@ -850,7 +850,11 @@ export class PullRequestDeliveryClient {
       ).data;
       closureReadback.actual_commit = actual;
       validateMergedCommit(actual, readback.merge_commit_sha, message);
-      const after = await readClosingRelationships(this.sdk, repository, number);
+      // A merged pull request's closing-inventory run no longer lists it; bind the
+      // readback to the exact check suite verified immediately before the merge.
+      const after = await readClosingRelationships(this.sdk, repository, number, {
+        mergedSuite: "inventory_suite" in refreshed ? refreshed.inventory_suite : undefined,
+      });
       closureReadback.closing = after;
       if (after.fingerprint !== closing.fingerprint)
         throw new Error("PR body or closing relationships changed across merge");
