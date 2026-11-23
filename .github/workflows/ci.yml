@@ -808,13 +808,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer causal fixture failed" }
 
   fast_catalog:
-    # 45 before listing facts reproduction, plus its CLI build (20), plan (2)
-    # and verification (45: a 2-minute canonical check, about 6 minutes of
-    # provenance reads, the 30-minute reproduction deadline at which every
-    # download and Core run is cut, and about a minute of release reads).
-    timeout-minutes: 115
+    # 45 before listing facts verification, plus its plan (2), CLI build (20),
+    # CLI hand-off (5) and checks (15: a 2-minute canonical check and the
+    # provenance reads). Reproduction runs in `listing_facts_reproduction`.
+    timeout-minutes: 90
     name: fast-catalog (linux-x86_64)
     needs: classify
+    outputs:
+      reproduce: ${{ steps.listing-facts.outputs.reproduce }}
+      shards: ${{ steps.listing-facts.outputs.shards }}
     # actions: read lets a facts batch's provenance be read from its run.
     permissions:
       contents: read
@@ -866,16 +868,31 @@ jobs:
       - name: Build the CLI that re-inspects listing release bytes
         if: steps.listing-facts.outputs.reproduce == 'true'
         timeout-minutes: 20
-        run: cargo build --locked -p portcove-cli
-      # Every change to the listing facts table: each eligible entry it adds or
-      # changes is reproduced from its exact release bytes, and a change that
-      # claims to be a batch keeps the path allowlist and its run provenance.
-      - name: Verify changed listing package facts
+        run: |
+          set -euo pipefail
+          cargo build --locked -p portcove-cli
+          mkdir -p work/listing-facts-cli
+          cp target/debug/portcove work/listing-facts-cli/portcove
+      - name: Hand the CLI to the reproduction shards
+        if: steps.listing-facts.outputs.reproduce == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-cli-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/listing-facts-cli/portcove
+          if-no-files-found: error
+          retention-days: 1
+      # Every change to the listing facts table: separation, clock and, for a
+      # change that claims to be a batch, the path allowlist and its run
+      # provenance, once. Each eligible entry it adds or changes is
+      # reproduced from its exact release bytes by the
+      # `listing_facts_reproduction` shards.
+      - name: Check changed listing package facts
         if: steps.listing-facts.outputs.reproduce == 'true' || steps.listing-facts.outputs.batch == 'true'
-        timeout-minutes: 45
+        timeout-minutes: 15
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove
+        run: node scripts/listing-facts-batch.mts verify --reproduce false
       - name: Exercise clean prose setup and execution
         if: contains(needs.classify.outputs.files_json, 'scripts/check-ci-prose') || contains(needs.classify.outputs.files_json, 'scripts/viteplus-cli.mts') || contains(needs.classify.outputs.files_json, '.github/workflows/ci.yml')
         run: node scripts/check-ci-prose.integration.mts
@@ -1610,12 +1627,15 @@ jobs:
         run: node scripts/ci-result-gate.mts
 
   catalog_full:
-    # The repository caps CI jobs at 120. Listing facts reproduction runs only
-    # for pull requests and merge groups (`listing-facts-batch.mts plan`), so
-    # in a qualification run its build and verification steps normally skip.
+    # The repository caps CI jobs at 120. Listing facts reproduction runs in
+    # `listing_facts_reproduction`, only for pull requests and merge groups
+    # (`listing-facts-batch.mts plan`).
     timeout-minutes: 120
     name: catalog-full
     needs: classify
+    outputs:
+      reproduce: ${{ steps.listing-facts.outputs.reproduce }}
+      shards: ${{ steps.listing-facts.outputs.shards }}
     permissions:
       contents: read
       actions: read
@@ -1676,21 +1696,98 @@ jobs:
       - name: Build the CLI that re-inspects listing release bytes
         if: steps.listing-facts.outputs.reproduce == 'true'
         timeout-minutes: 20
-        run: cargo build --locked -p portcove-cli
-      # Every change to the listing facts table: each eligible entry it adds or
-      # changes is reproduced from its exact release bytes, and a change that
-      # claims to be a batch keeps the path allowlist and its run provenance.
-      - name: Verify changed listing package facts
+        run: |
+          set -euo pipefail
+          cargo build --locked -p portcove-cli
+          mkdir -p work/listing-facts-cli
+          cp target/debug/portcove work/listing-facts-cli/portcove
+      - name: Hand the CLI to the reproduction shards
+        if: steps.listing-facts.outputs.reproduce == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-cli-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/listing-facts-cli/portcove
+          if-no-files-found: error
+          retention-days: 1
+      # Every change to the listing facts table: separation, clock and, for a
+      # change that claims to be a batch, the path allowlist and its run
+      # provenance, once. Each eligible entry it adds or changes is
+      # reproduced from its exact release bytes by the
+      # `listing_facts_reproduction` shards.
+      - name: Check changed listing package facts
         if: steps.listing-facts.outputs.reproduce == 'true' || steps.listing-facts.outputs.batch == 'true'
-        timeout-minutes: 45
+        timeout-minutes: 15
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove
+        run: node scripts/listing-facts-batch.mts verify --reproduce false
+
+  # Every eligible entry a facts change adds or changes, re-read from its
+  # exact digest-bound release asset: one identity per shard, at most the
+  # 256-job matrix limit, so a table of hundreds of new entries reproduces
+  # in one pull request. Each shard reads one archive at a time and deletes
+  # it, so disk never accumulates; its deadline is the repository's 120-minute
+  # CI job cap less its other steps. Every shard is required.
+  listing_facts_reproduction:
+    name: listing-facts-reproduction (${{ matrix.shard }})
+    needs: [classify, fast_catalog, catalog_full]
+    if: >-
+      always() &&
+      (needs.fast_catalog.outputs.reproduce == 'true' || needs.catalog_full.outputs.reproduce == 'true')
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.fast_catalog.outputs.shards || needs.catalog_full.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          # The facts gate compares with the base: the first parent of the
+          # pull request merge commit or of the pushed commit.
+          fetch-depth: 2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
+        with:
+          package_json_file: package.json
+      - name: Install locked dependencies
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-cli-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/listing-facts-cli
+      - name: Reproduce this shard's changed listing package facts
+        timeout-minutes: 90
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          chmod +x work/listing-facts-cli/portcove
+          node scripts/listing-facts-batch.mts verify --cli work/listing-facts-cli/portcove \
+            --shard "$SHARD" --deadline-minutes 85
 
   catalog:
     timeout-minutes: 15
     if: always()
-    needs: [classify, prose_checks, fast_catalog, windows_helpers, catalog_full]
+    needs:
+      [
+        classify,
+        prose_checks,
+        fast_catalog,
+        windows_helpers,
+        catalog_full,
+        listing_facts_reproduction,
+      ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1704,6 +1801,18 @@ jobs:
           PORTCOVE_TARGETED_RESULTS: '{"windows_helpers":"${{ needs.windows_helpers.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"catalog_full":"${{ needs.catalog_full.result }}"}'
         run: node scripts/ci-result-gate.mts
+      # A facts change whose plan asked for reproduction passes only when
+      # every reproduction shard succeeded.
+      - name: Require every listing facts reproduction shard
+        env:
+          REPRODUCE: ${{ needs.fast_catalog.outputs.reproduce == 'true' || needs.catalog_full.outputs.reproduce == 'true' }}
+          RESULT: ${{ needs.listing_facts_reproduction.result }}
+        run: |
+          set -euo pipefail
+          if [ "$REPRODUCE" = true ] && [ "$RESULT" != success ]; then
+            echo "Listing facts reproduction ended $RESULT." >&2
+            exit 1
+          fi
 
   fast_dependency_review:
     timeout-minutes: 45

@@ -22,7 +22,6 @@ import {
 } from "./catalog-authoring.mts";
 import {
   artifactExclusions,
-  boundFactsBatch,
   bundledToolchain,
   channelOnlyTag,
   gateChannelOnlyTag,
@@ -31,7 +30,6 @@ import {
   machineSystem,
   registrationQueues,
   checkListingFactsTable,
-  deltaBounds,
   digestOf,
   displayableName,
   emptyFactsTable,
@@ -49,7 +47,7 @@ import {
   readGateBaseline,
   fitContext,
   gateFormKind,
-  maxQueuedCompetingNames,
+  identityShards,
   gateFormPlatforms,
   gateLine,
   gateLineNamesProduct,
@@ -70,10 +68,12 @@ import {
   deriveListingFacts,
   InspectionError,
   maximumNameBytes,
+  OverBudgetError,
   otherPackagesOf,
   runCore,
   type ArchiveInspection,
   type ByteInspector,
+  combineShards,
   type DeriveResult,
   type NameClassifier,
   type ObservedAsset,
@@ -349,7 +349,8 @@ async function derive(
     state?: WorkerState | undefined;
     inspect?: TestInspector;
     now?: string;
-    budget?: Record<string, number>;
+    /** Plan only: settle what needs no bytes and leave the rest pending. */
+    plan?: boolean;
   } = {},
 ): Promise<DeriveResult> {
   return await deriveListingFacts({
@@ -357,7 +358,7 @@ async function derive(
     observerReport: report,
     table: previous,
     ...(options.state ? { state: options.state } : {}),
-    ...(options.budget ? { budget: options.budget } : {}),
+    ...(options.plan ? { inspectBytes: false } : {}),
     inspect: listed(options.inspect ?? inspector()),
     classify: coreClassifier,
     now: options.now ?? "2026-11-21T00:00:00.000Z",
@@ -748,23 +749,26 @@ function fittingFacts(count: number, prefix = "zz-gate") {
   };
 }
 
-void test("the gate refuses 65 added routes against the baseline and accepts 64", () => {
-  const sixtyFive = fittingFacts(65);
-  const generation = generateRegistrations(sixtyFive.records, sixtyFive.facts);
-  assert.throws(() => gateGeneration(null, generation), /65 added routes exceed the bound of 64/u);
-  const sixtyFour = fittingFacts(64);
-  assert.equal(
-    gateGeneration(null, generateRegistrations(sixtyFour.records, sixtyFour.facts)).added.length,
-    64,
-  );
-  // Against a baseline holding those 64, one more is a delta of one.
-  const baseline = enrollmentTable(generateRegistrations(sixtyFour.records, sixtyFour.facts));
+void test("the gate has no delta bound: a migration of 400 routes lands in one change (B1)", () => {
+  // Replaces the former 64 added / 32 withdrawn / 64 changed bounds.
+  const wave = fittingFacts(400);
+  const generation = generateRegistrations(wave.records, wave.facts);
+  assert.equal(gateGeneration(null, generation).added.length, 400);
+  // Against a baseline holding them, one more is a delta of one.
+  const fewer = fittingFacts(399);
+  const baseline = enrollmentTable(generateRegistrations(fewer.records, fewer.facts));
   assert.equal(gateGeneration(baseline, generation).added.length, 1);
-  assert.throws(
-    () => gateGeneration(enrollmentTable(generation), generateRegistrations([], table())),
-    /65 withdrawn routes exceed the bound of 32/u,
+  // Every one may be withdrawn, or changed, in one change too: what holds a
+  // mass withdrawal a bug causes is the batch job's withdrawal-held stop.
+  assert.equal(
+    gateGeneration(enrollmentTable(generation), generateRegistrations([], table())).withdrawn
+      .length,
+    400,
   );
-  assert.deepEqual(deltaBounds, { added: 64, withdrawn: 32, changed: 64 });
+  // The per-enrollment checks still refuse every unfit enrollment.
+  const forged = structuredClone(generation);
+  forged.enrollments[399]!.facts_sha256 = "0".repeat(64);
+  assert.throws(() => gateGeneration(null, forged), /does not rest on the committed facts entry/u);
 });
 
 void test("the gate independently refuses enrollments that do not rest on their facts", () => {
@@ -877,29 +881,24 @@ void test("malformed asset records and an undated newest release are invalid fac
   }
 });
 
-void test("facts land as successive bounded batches in port_id order", () => {
-  const { ids, records, facts } = fittingFacts(150, "zz-wave");
-  const empty = { ...emptyFactsTable(generatedAt) };
-  const first = boundFactsBatch(records, empty, facts);
-  const landed = enrolledIds(records, first.table);
-  assert.deepEqual(landed, ids.slice(0, 64));
-  assert.equal(first.deferred.length, 86);
-  assert.deepEqual(boundFactsBatch(records, empty, facts), first, "deterministic");
-  const second = boundFactsBatch(records, first.table, facts);
-  assert.deepEqual(enrolledIds(records, second.table), ids.slice(0, 128));
-  const third = boundFactsBatch(records, second.table, facts);
-  assert.deepEqual(enrolledIds(records, third.table), ids);
-  assert.equal(third.deferred.length, 0);
-  // Each batch passes the gate against the previous batch's table.
-  for (const [before, after] of [
-    [empty, first.table],
-    [first.table, second.table],
-    [second.table, third.table],
-  ] as const)
-    gateGeneration(
-      enrollmentTable(generateRegistrations(records, before)),
-      generateRegistrations(records, after),
-    );
+void test("every derived entry of a large wave lands in one run, with no batch bound (B3)", async () => {
+  // Replaces the former successive bounded batches of 64.
+  const ids = Array.from(
+    { length: 150 },
+    (_, index) => `zz-wave-${String(index).padStart(3, "0")}`,
+  );
+  const records = ids.map((id) => listing(id));
+  const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
+  const result = await derive(records, report);
+  assert.deepEqual(enrolledIds(records, result.table), ids);
+  assert.deepEqual(result.state.pending, []);
+  assert.equal(result.settled, 150);
+  assert.equal(result.no_progress, false);
+  // The whole wave passes the gate against the empty table in one change.
+  assert.equal(
+    gateGeneration(null, generateRegistrations(records, result.table)).added.length,
+    150,
+  );
 });
 
 function git(cwd: string, ...args: string[]) {
@@ -940,11 +939,12 @@ void test("the gate's baseline is the merge base's committed table, never the wo
     writeFileSync(join(repository.directory, enrollmentTablePath), JSON.stringify(big));
     const local = readGateBaseline({}, repository.run);
     assert.deepEqual(local, small);
-    assert.throws(
-      () => gateGeneration(local, generateRegistrations(sixtyFive.records, sixtyFive.facts)),
-      /65 added routes exceed the bound of 64/u,
+    // The delta is measured against the base: all 65 are added.
+    assert.equal(
+      gateGeneration(local, generateRegistrations(sixtyFive.records, sixtyFive.facts)).added.length,
+      65,
     );
-    // A delta of 64 from the base passes.
+    // So is any other generation's delta.
     assert.equal(
       gateGeneration(local, generateRegistrations(sixtyFour.records, sixtyFour.facts)).added.length,
       64,
@@ -1018,7 +1018,8 @@ void test("generation is deterministic and the committed tables are well formed 
 // ---------------------------------------------------------------------------
 // F3: the worker never stalls.
 
-void test("every identity of a 60-identity fixture is attempted within a bounded number of runs", async () => {
+void test("every identity of a 60-identity fixture is attempted in one run (B3)", async () => {
+  // Replaces the former bounded-runs sweep (12 identities and 1,500 bytes a run).
   const ids = Array.from(
     { length: 60 },
     (_, index) => `zz-sweep-${String(index).padStart(2, "0")}`,
@@ -1026,10 +1027,10 @@ void test("every identity of a 60-identity fixture is attempted within a bounded
   const records = ids.map((id) => listing(id));
   const specs: Record<string, ObservationSpec> = {};
   for (const [index, id] of ids.entries()) {
-    // 25 identities publish no provider digest; the first queued needs more
-    // than one run's whole byte budget; three fail transiently every time.
+    // 25 identities publish no provider digest; one carries large archives;
+    // three fail transiently every time.
     const sha256 = index % 12 < 5 ? null : undefined;
-    const size = index === 5 ? 900 : 100;
+    const size = index === 5 ? 2 * 1024 ** 3 - 1 : 100;
     specs[id] = {
       releases: [
         {
@@ -1050,75 +1051,58 @@ void test("every identity of a 60-identity fixture is attempted within a bounded
     if (flaky.has(id)) throw new Error("network reset");
     return asset.name === linuxTar ? [player("Game", "elf64-x86-64")] : [player("Game.exe")];
   };
-  const budget = { maxIdentities: 12, maxBytes: 1500, maxArchiveBytes: 1000 };
-  const attempted = new Set<string>();
-  let facts = emptyFactsTable("2026-11-20T00:00:00.000Z");
-  let state: WorkerState | undefined;
-  let runs = 0;
-  while (runs < 10) {
-    runs++;
-    const result = await derive(records, report, facts, {
-      state,
-      inspect,
-      budget,
-      now: `2026-11-2${runs}T00:00:00.000Z`,
-    });
-    for (const row of result.report)
-      if (row.outcome !== "deferred-identities") attempted.add(row.port_id);
-    assert.ok(result.report.filter((row) => row.inspected > 0).length <= 12);
-    facts = result.table;
-    state = result.state;
-    if (attempted.size === 60 && state.after === null && !state.held.length && !state.retry.length)
-      break;
-  }
+  const result = await derive(records, report, emptyFactsTable("2026-11-20T00:00:00.000Z"), {
+    inspect,
+  });
+  const attempted = new Set(result.report.map((row) => row.port_id));
   assert.equal(attempted.size, 60);
-  // Bytes allow seven inspections a run: 34 inspected identities take five
-  // runs, and three transient failures complete on their third attempt.
-  assert.ok(runs <= 8, `took ${runs} runs`);
-  const blocked = enrollmentTable(generateRegistrations(records, facts)).blocked;
+  assert.deepEqual(result.state.pending, []);
+  assert.deepEqual(
+    result.state.retry.map((item) => item.port_id),
+    ids.slice(55, 58),
+  );
+  const generation = generateRegistrations(records, result.table);
+  const blocked = enrollmentTable(generation).blocked;
   assert.equal(blocked["no-digest"], 25);
-  assert.equal(blocked["exceeds-run-budget"], 1);
-  assert.equal(blocked["repeated-inspection-failure"], 3);
-  assert.equal(generateRegistrations(records, facts).enrollments.length, 31);
+  // The large archives are read like any other (no size bound).
+  assert.ok(generation.enrollments.some((row) => row.port_id === ids[5]));
+  assert.equal(generation.enrollments.length, 32);
 });
 
-void test("an identity costlier than a whole run is completed with a reason, not retried", async () => {
-  const ids = ["zz-cost-a", "zz-cost-b"];
-  const records = ids.map((id) => listing(id));
+void test("a large archive is read, never completed for its size (B4)", async () => {
+  // Replaces the former `too-large` (512 MiB) and `exceeds-run-budget` (2 GiB) reasons.
+  const id = "zz-cost-a";
   const report = observerReport({
-    "zz-cost-a": {
+    [id]: {
       releases: [
         {
           id: 8,
           tag: "v1.0",
           assets: [
-            { id: 21, name: windowsZip, size: 900 },
-            { id: 22, name: linuxTar, size: 900 },
+            { id: 21, name: windowsZip, size: 1900 * 1024 ** 2 },
+            { id: 22, name: linuxTar, size: 1900 * 1024 ** 2 },
           ],
         },
       ],
     },
-    "zz-cost-b": {},
   });
   const log: string[] = [];
-  const first = await derive(records, report, undefined, {
+  const first = await derive([listing(id)], report, undefined, {
     inspect: inspector({ [linuxTar]: [player("Game", "elf64-x86-64")] }, log),
-    budget: { maxBytes: 1000, maxArchiveBytes: 1000 },
   });
-  assert.equal(outcome(first, "zz-cost-a")!.reason, "exceeds-run-budget");
-  assert.equal(outcome(first, "zz-cost-b")!.outcome, "complete");
+  assert.equal(outcome(first, id)!.outcome, "complete");
+  assert.deepEqual(log, [windowsZip, linuxTar]);
   log.length = 0;
-  const second = await derive(records, report, first.table, {
+  const second = await derive([listing(id)], report, first.table, {
     state: first.state,
     inspect: inspector({}, log),
-    budget: { maxBytes: 1000, maxArchiveBytes: 1000 },
     now: "2026-11-22T00:00:00.000Z",
   });
-  assert.deepEqual(log, [], "neither identity is read again while its release is unchanged");
-  assert.equal(outcome(second, "zz-cost-a")!.outcome, "unchanged");
+  assert.deepEqual(log, [], "an unchanged release is not read again");
+  assert.equal(outcome(second, id)!.outcome, "unchanged");
 });
 
-void test("transient failures retry from a bounded queue; permanent refusals complete", async () => {
+void test("transient failures retry every run until the retention bound; permanent refusals complete", async () => {
   const ids = ["zz-retry-a", "zz-retry-b", "zz-retry-c"];
   const records = ids.map((id) => listing(id));
   const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
@@ -1152,10 +1136,22 @@ void test("transient failures retry from a bounded queue; permanent refusals com
     now: "2026-11-22T00:00:00.000Z",
   });
   assert.equal(second.state.retry[0]!.failures, 2);
-  const third = await derive(records, report, second.table, {
+  // Within the last-good retention bound (14 days) a failure is retried,
+  // however often it recurs; no attempt count settles it.
+  const within = await derive(records, report, second.table, {
     state: second.state,
     inspect,
-    now: "2026-11-23T00:00:00.000Z",
+    now: "2026-12-05T00:00:00.000Z",
+  });
+  assert.equal(within.state.retry[0]!.failures, 3);
+  assert.equal(
+    within.table.entries.find((item) => item.port_id === "zz-retry-a"),
+    undefined,
+  );
+  const third = await derive(records, report, within.table, {
+    state: within.state,
+    inspect,
+    now: "2026-12-06T00:00:00.000Z",
   });
   assert.equal(outcome(third, "zz-retry-a")!.reason, "repeated-inspection-failure");
   assert.deepEqual(third.state.retry, []);
@@ -1180,7 +1176,7 @@ void test("transient failures retry from a bounded queue; permanent refusals com
   await derive(records, report, third.table, {
     state: third.state,
     inspect,
-    now: "2026-11-24T00:00:00.000Z",
+    now: "2026-12-07T00:00:00.000Z",
   });
   assert.equal(calls, 0, "completed identities are not retried while the release is unchanged");
 });
@@ -1481,7 +1477,8 @@ void test("a CLI run that times out is killed and leaves no temporary workspace"
 // ---------------------------------------------------------------------------
 // The worker end to end, reuse and batches.
 
-void test("the worker reuses unchanged archives and holds facts beyond one batch for the next run", async () => {
+void test("the worker lands every fact in one run and reuses unchanged archives (B3)", async () => {
+  // Replaces the former "holds facts beyond one batch" test (64 per batch).
   const ids = Array.from(
     { length: 70 },
     (_, index) => `zz-batch-${String(index).padStart(2, "0")}`,
@@ -1489,17 +1486,10 @@ void test("the worker reuses unchanged archives and holds facts beyond one batch
   const records = ids.map((id) => listing(id));
   const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
   const log: string[] = [];
-  const first = await derive(records, report, undefined, {
-    inspect: inspector({}, log),
-    budget: { maxIdentities: 100 },
-  });
+  const first = await derive(records, report, undefined, { inspect: inspector({}, log) });
   assert.equal(log.length, 70);
-  assert.deepEqual(enrolledIds(records, first.table), ids.slice(0, 64));
-  assert.equal(first.state.held.length, 6);
-  assert.ok(first.report.filter((row) => row.outcome === "held-for-batch").length === 6);
-  // Held facts are backlog too, named apart from inspection work.
-  assert.equal(first.backlog.held_for_batch, 6);
-  assert.equal(first.backlog.runs_to_land_held, 1);
+  assert.deepEqual(enrolledIds(records, first.table), ids);
+  assert.deepEqual(first.backlog, { enrolled_pending: 0, new_pending: 0, bytes_pending: 0 });
   assert.equal(first.no_progress, false);
   log.length = 0;
   const second = await derive(records, report, first.table, {
@@ -1507,14 +1497,122 @@ void test("the worker reuses unchanged archives and holds facts beyond one batch
     inspect: inspector({}, log),
     now: "2026-11-22T00:00:00.000Z",
   });
-  assert.deepEqual(log, [], "held and landed facts are reused, not downloaded again");
+  assert.deepEqual(log, [], "landed facts are reused, not downloaded again");
   assert.deepEqual(enrolledIds(records, second.table), ids);
-  assert.deepEqual(second.state.held, []);
-  assert.equal(second.backlog.held_for_batch, 0);
   gateGeneration(
     enrollmentTable(generateRegistrations(records, first.table)),
     generateRegistrations(records, second.table),
   );
+});
+
+void test("a deadline cuts a run cleanly; the cut identities lead the next run (B3)", async () => {
+  const ids = Array.from({ length: 6 }, (_, index) => `zz-cut-${index}`);
+  const records = ids.map((id) => listing(id));
+  const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
+  const log: string[] = [];
+  let deadline = Number.POSITIVE_INFINITY;
+  const inspect: TestInspector = async (asset) => {
+    const id = /fixture-owner\/([^/]+)\//u.exec(asset.url)![1]!;
+    log.push(id);
+    // The third inspection runs past the deadline and is cut.
+    if (log.length === 3) {
+      deadline = 0;
+      throw new OverBudgetError("The download reached the deadline.");
+    }
+    return [player("Game/Game.exe")];
+  };
+  const first = await deriveListingFacts({
+    records,
+    observerReport: report,
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: listed(inspect),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    get deadline() {
+      return deadline;
+    },
+  });
+  assert.deepEqual(log, ids.slice(0, 3));
+  assert.deepEqual(enrolledIds(records, first.table), ids.slice(0, 2));
+  assert.deepEqual(first.state.pending, ids.slice(2));
+  assert.equal(first.backlog.new_pending, 4);
+  assert.equal(outcome(first, ids[2]!)!.outcome, "deferred-deadline");
+  assert.equal(first.no_progress, false);
+  // The next run starts with the cut identities.
+  log.length = 0;
+  deadline = Number.POSITIVE_INFINITY;
+  const second = await derive(records, report, first.table, {
+    state: { ...first.state, pending: [ids[4]!, ids[2]!, ids[5]!, ids[3]!] },
+    inspect: async (asset) => {
+      log.push(/fixture-owner\/([^/]+)\//u.exec(asset.url)![1]!);
+      return [player("Game/Game.exe")];
+    },
+    now: "2026-11-22T00:00:00.000Z",
+  });
+  assert.deepEqual(log, [ids[4], ids[2], ids[5], ids[3]]);
+  assert.deepEqual(enrolledIds(records, second.table), ids);
+  assert.deepEqual(second.state.pending, []);
+});
+
+void test("a sharded run plans, inspects each shard and combines to the unsharded result (B3)", async () => {
+  const ids = Array.from({ length: 9 }, (_, index) => `zz-shard-${index}`);
+  const records = ids.map((id) => listing(id));
+  const report = observerReport(
+    Object.fromEntries(
+      ids.map((id, index) => [
+        id,
+        index === 0
+          ? {
+              releases: [
+                { id: 8, tag: "v1.0", assets: [{ id: 21, name: windowsZip, sha256: null }] },
+              ],
+            }
+          : {},
+      ]),
+    ),
+  );
+  const previous = emptyFactsTable("2026-11-01T00:00:00.000Z");
+  const whole = await derive(records, report, previous);
+  const plan = await deriveListingFacts({
+    records,
+    observerReport: report,
+    table: previous,
+    inspect: listed(async () => {
+      throw new Error("a plan reads no bytes");
+    }),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    inspectBytes: false,
+  });
+  // The plan settles what needs no bytes and lists every identity that does.
+  assert.deepEqual(
+    plan.needs.map((need) => need.port_id),
+    ids.slice(1),
+  );
+  assert.equal(plan.no_progress, false);
+  const shards = identityShards(plan.needs.map((need) => need.port_id));
+  assert.equal(shards.length, 8);
+  const results: { only: string[]; result: DeriveResult }[] = [];
+  for (const only of shards)
+    results.push({
+      only,
+      result: await deriveListingFacts({
+        records,
+        observerReport: report,
+        table: plan.table,
+        state: plan.state,
+        inspect: listed(inspector()),
+        classify: coreClassifier,
+        now: "2026-11-21T00:00:00.000Z",
+        only,
+      }),
+    });
+  const combined = combineShards(plan, results);
+  assert.deepEqual(combined.table, whole.table);
+  assert.deepEqual(combined.state, whole.state);
+  assert.equal(combined.settled, whole.settled);
+  assert.deepEqual(combined.ineligible, whole.ineligible);
+  assert.throws(() => combineShards(plan, [results[0]!, { ...results[0]! }]), /is in two shards/u);
 });
 
 void test("an authored listing guide stays first and gains the generated selection step", () => {
@@ -1795,7 +1893,6 @@ void test("malformed per-identity observations never fail the run (fuzz)", async
       inspect: listed(inspector()),
       classify: refusingLikeCore(anyNameClassifier, refusals),
       now: "2026-11-21T00:00:00.000Z",
-      budget: { maxIdentities: 100 },
     });
     assert.equal(refusals.count, 0, `round ${round}`);
     checkListingFactsTable(result.table);
@@ -1822,6 +1919,8 @@ const dayAfter = (start: string, days: number) =>
   new Date(Date.parse(start) + days * 86_400_000).toISOString();
 
 void test("enrolled identities whose release changed stay offered as pending-inspection, never as unavailable upstream", async () => {
+  // A plan (or a shard cut by its deadline) leaves them pending; the next
+  // full run drains all of them at once (formerly two per run over 21 runs).
   const ids = Array.from(
     { length: 41 },
     (_, index) => `zz-backlog-${String(index).padStart(2, "0")}`,
@@ -1832,56 +1931,44 @@ void test("enrolled identities whose release changed stay offered as pending-ins
     records,
     observerReport(Object.fromEntries(ids.map((id) => [id, { observed_at: start }]))),
     undefined,
-    { budget: { maxIdentities: 100 }, now: start },
+    { now: start },
   );
   assert.deepEqual(enrolledIds(records, first.table), ids);
-  let facts = first.table;
-  let state: WorkerState | undefined = first.state;
-  let drainedOn: number | undefined;
-  for (let day = 1; day <= 25; day++) {
-    const now = dayAfter(start, day);
-    const run = await derive(
-      records,
-      observerReport(
-        Object.fromEntries(ids.map((id) => [id, { ...changedRelease(id), observed_at: now }])),
-      ),
-      facts,
-      { state, now, budget: { maxIdentities: 2 } },
-    );
-    if (day === 1) {
-      assert.equal(run.backlog.enrolled_pending, 39);
-      assert.equal(run.backlog.new_pending, 0);
-      assert.equal(run.backlog.runs_to_drain_enrolled, 20);
-      assert.equal(run.backlog.days_to_drain_enrolled, 20);
-      assert.ok(run.report.some((row) => row.reason === "pending-inspection"));
-    }
-    assert.ok(
-      run.table.entries.every((item) => item.ineligible?.reason !== "observation-unavailable"),
-      `day ${day}: the backlog is not an upstream failure`,
-    );
-    assert.deepEqual(enrolledIds(records, run.table), ids, `day ${day}: still offered`);
-    gateGeneration(
-      enrollmentTable(generateRegistrations(records, facts)),
-      generateRegistrations(records, run.table),
-      deltaBounds,
-      facts,
-    );
-    facts = run.table;
-    state = run.state;
-    if (drainedOn === undefined && run.backlog.enrolled_pending === 0) drainedOn = day;
-  }
-  assert.equal(drainedOn, 21, "two identities per run drain 41 in 21 runs");
-  assert.ok(facts.entries.every((item) => item.observation.release_id === 9));
-  assert.ok(facts.entries.every((item) => item.attempt === null));
+  const now = dayAfter(start, 1);
+  const changed = observerReport(
+    Object.fromEntries(ids.map((id) => [id, { ...changedRelease(id), observed_at: now }])),
+  );
+  const planned = await derive(records, changed, first.table, {
+    state: first.state,
+    now,
+    plan: true,
+  });
+  assert.equal(planned.backlog.enrolled_pending, 41);
+  assert.equal(planned.backlog.new_pending, 0);
+  assert.equal(planned.needs.length, 41);
+  assert.ok(planned.report.every((row) => row.reason === "pending-inspection"));
+  assert.ok(
+    planned.table.entries.every((item) => item.ineligible?.reason !== "observation-unavailable"),
+    "the backlog is not an upstream failure",
+  );
+  assert.deepEqual(enrolledIds(records, planned.table), ids, "still offered");
+  gateGeneration(
+    enrollmentTable(generateRegistrations(records, first.table)),
+    generateRegistrations(records, planned.table),
+    first.table,
+  );
+  const drained = await derive(records, changed, planned.table, {
+    state: planned.state,
+    now: dayAfter(start, 2),
+  });
+  assert.equal(drained.backlog.enrolled_pending, 0);
+  assert.ok(drained.table.entries.every((item) => item.observation.release_id === 9));
+  assert.ok(drained.table.entries.every((item) => item.attempt === null));
 });
 
 void test("pending last-good facts withdraw only at the stale-facts age", async () => {
   const id = "zz-starved";
-  const newcomers = Array.from(
-    { length: 40 },
-    (_, index) => `zz-new-${String(index).padStart(2, "0")}`,
-  );
-  const records = [id, ...newcomers].map((item) => listing(item));
+  const records = [listing(id)];
   const start = "2026-11-02T00:00:00.000Z";
   const first = await derive(records, observerReport({ [id]: { observed_at: start } }), undefined, {
     now: start,
@@ -1890,15 +1977,12 @@ void test("pending last-good facts withdraw only at the stale-facts age", async 
   let state: WorkerState | undefined = first.state;
   for (let day = 1; day <= 32; day++) {
     const now = dayAfter(start, day);
-    // One identity per run, always taken by the cursor's next new identity.
+    // Every run's shard deadline cuts the identity before its inspection.
     const run = await derive(
       records,
-      observerReport({
-        [id]: { ...changedRelease(id), observed_at: now },
-        ...Object.fromEntries(newcomers.map((item) => [item, { observed_at: now }])),
-      }),
+      observerReport({ [id]: { ...changedRelease(id), observed_at: now } }),
       facts,
-      { state, now, budget: { maxIdentities: 1 } },
+      { state, now, plan: true },
     );
     const decision = decide(
       records[0]!,
@@ -1911,70 +1995,6 @@ void test("pending last-good facts withdraw only at the stale-facts age", async 
     facts = run.table;
     state = run.state;
   }
-});
-
-void test("offered identities are refreshed before growth, and growth still advances every run", async () => {
-  const enrolled = Array.from({ length: 5 }, (_, index) => `zz-held-${index}`);
-  const newcomers = Array.from(
-    { length: 10 },
-    (_, index) => `zz-grow-${String(index).padStart(2, "0")}`,
-  );
-  const records = [...enrolled, ...newcomers].map((id) => listing(id));
-  const start = "2026-11-02T00:00:00.000Z";
-  const first = await derive(
-    records,
-    observerReport(Object.fromEntries(enrolled.map((id) => [id, { observed_at: start }]))),
-    undefined,
-    { now: start },
-  );
-  assert.deepEqual(enrolledIds(records, first.table), enrolled);
-  let facts = first.table;
-  let state: WorkerState | undefined = first.state;
-  const grown: number[] = [];
-  for (let day = 1; day <= 4; day++) {
-    const now = dayAfter(start, day);
-    const log: string[] = [];
-    const run = await derive(
-      records,
-      observerReport({
-        ...Object.fromEntries(
-          enrolled.map((id) => [id, { ...changedRelease(id), observed_at: now }]),
-        ),
-        ...Object.fromEntries(newcomers.map((id) => [id, { observed_at: now }])),
-      }),
-      facts,
-      {
-        state,
-        now,
-        budget: { maxIdentities: 4 },
-        inspect: async (asset) => {
-          log.push(asset.url.split("/")[4]!);
-          return [player("Game/Game.exe")];
-        },
-      },
-    );
-    const inspectedNew = log.filter((id) => id.startsWith("zz-grow")).length;
-    grown.push(inspectedNew);
-    if (day === 1) {
-      assert.deepEqual(
-        log.filter((id) => id.startsWith("zz-held")),
-        enrolled.slice(0, 3),
-        "offered identities take all but the reserved share",
-      );
-      assert.equal(inspectedNew, 1);
-    }
-    facts = run.table;
-    state = run.state;
-  }
-  assert.ok(
-    grown.every((count) => count >= 1),
-    `growth advances every run: ${grown.join(",")}`,
-  );
-  assert.ok(
-    facts.entries
-      .filter((item) => enrolled.includes(item.port_id))
-      .every((item) => item.observation.release_id === 9),
-  );
 });
 
 // ---------------------------------------------------------------------------
@@ -2025,17 +2045,17 @@ void test("table provenance is optional, checked when present and carried into t
 void test("the facts table's time never moves backwards from the baseline's", async () => {
   const facts = table(entry());
   const generation = generateRegistrations([listing()], facts);
-  gateGeneration(null, generation, deltaBounds, { ...facts, generated_at: generatedAt });
+  gateGeneration(null, generation, { ...facts, generated_at: generatedAt });
   assert.throws(
     () =>
-      gateGeneration(null, generation, deltaBounds, {
+      gateGeneration(null, generation, {
         ...facts,
         generated_at: "2026-11-25T00:00:00.000Z",
       }),
     /before the baseline/u,
   );
   assert.throws(
-    () => gateGeneration(null, generation, deltaBounds, { generated_at: "never" }),
+    () => gateGeneration(null, generation, { generated_at: "never" }),
     /no generation time/u,
   );
   await assert.rejects(
@@ -2534,20 +2554,31 @@ void test("orders are by code point, never by locale", () => {
     assert.doesNotMatch(readFileSync(join(root, file), "utf8"), /\.localeCompare\(/u, file);
 });
 
-void test("a run that settles nothing while work waits reports no progress", async () => {
+void test("a run whose deadline left work pending but that settled nothing reports no progress", async () => {
   const records = [listing("zz-stall-a"), listing("zz-stall-b")];
-  const result = await derive(
+  const result = await deriveListingFacts({
+    records,
+    observerReport: observerReport({ "zz-stall-a": {}, "zz-stall-b": {} }),
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: listed(inspector()),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    deadline: 0,
+  });
+  assert.equal(result.settled, 0);
+  assert.equal(result.backlog.new_pending, 2);
+  assert.equal(result.no_progress, true);
+  // Transient failures alone are retries, not a stalled run.
+  const failing = await derive(
     records,
     observerReport({ "zz-stall-a": {}, "zz-stall-b": {} }),
     undefined,
     {
       inspect: inspector({ [windowsZip]: new InspectionError("Download failed.", false) }),
-      budget: { maxIdentities: 1 },
     },
   );
-  assert.equal(result.settled, 0);
-  assert.equal(result.backlog.new_pending, 1);
-  assert.equal(result.no_progress, true);
+  assert.equal(failing.settled, 0);
+  assert.equal(failing.no_progress, false);
   const moving = await derive(records, observerReport({ "zz-stall-a": {}, "zz-stall-b": {} }));
   assert.equal(moving.settled, 2);
   assert.equal(moving.no_progress, false);
@@ -2643,12 +2674,8 @@ void test("the worker keeps its own enrollments across runs and counts their wit
   const start = "2026-11-02T00:00:00.000Z";
   const report = (now: string, spec: (id: string) => ObservationSpec = () => ({})) =>
     observerReport(Object.fromEntries(ids.map((id) => [id, { ...spec(id), observed_at: now }])));
-  let facts = (
-    await sourceRun(authored, report(start), emptyFactsTable(start), {
-      now: start,
-      budget: { maxIdentities: 100 },
-    })
-  ).table;
+  let facts = (await sourceRun(authored, report(start), emptyFactsTable(start), { now: start }))
+    .table;
   assert.deepEqual(enrolledIds(authored, facts), ids, "run 1 enrolls every identity");
   // The assembled catalog now carries the generated routes. Reading those
   // records (the defect) would make every enrolled identity look operational
@@ -2668,21 +2695,21 @@ void test("the worker keeps its own enrollments across runs and counts their wit
     gateGeneration(
       enrollmentTable(generateRegistrations(authored, facts)),
       generateRegistrations(authored, result.table),
-      deltaBounds,
       facts,
     );
     facts = result.table;
     state = result.state;
   }
-  // Changed releases are the offered backlog, refreshed before growth.
+  // Changed releases a plan leaves pending stay offered.
   const changed = await sourceRun(authored, report(dayAfter(start, 7), changedRelease), facts, {
     state,
     now: dayAfter(start, 7),
-    budget: { maxIdentities: 4 },
+    plan: true,
   });
   assert.ok(changed.backlog.enrolled_pending > 0, "offered identities wait as enrolled_pending");
   assert.deepEqual(enrolledIds(authored, changed.table), ids, "still offered while pending");
-  // A genuine withdrawal (no stable release any more) counts against the bound.
+  // A genuine withdrawal (no stable release any more) lands for every
+  // identity in one run: there is no withdrawal bound.
   const prereleaseOnly = (id: string): ObservationSpec => ({
     releases: [
       {
@@ -2700,11 +2727,9 @@ void test("the worker keeps its own enrollments across runs and counts their wit
   const delta = gateGeneration(
     enrollmentTable(generateRegistrations(authored, facts)),
     generateRegistrations(authored, withdrawing.table),
-    deltaBounds,
     facts,
   );
-  assert.equal(delta.withdrawn.length, deltaBounds.withdrawn);
-  assert.equal(withdrawing.backlog.held_for_batch, ids.length - deltaBounds.withdrawn);
+  assert.equal(delta.withdrawn.length, ids.length);
   assert.match(delta.withdrawn[0]!.reason, /^no-stable-release/u);
 });
 
@@ -4401,9 +4426,10 @@ void test("an unknown or unlisted release file competes with the archive; only t
   assert.doesNotThrow(() => gateGeneration(null, forge(ignored)));
 });
 
-void test("the route fit report lists the competing asset names of each withheld identity, bounded (Z1)", () => {
+void test("the route fit report lists every competing asset name of each withheld identity (Z1, B4)", () => {
+  // As many other assets as the observer's window leaves room for beside the archive.
   const names = Array.from(
-    { length: maxQueuedCompetingNames + 2 },
+    { length: 31 },
     (_, index) => `Extra-${String(index).padStart(2, "0")}.xyz`,
   );
   const others = names.map((name, index) => ({
@@ -4424,7 +4450,7 @@ void test("the route fit report lists the competing asset names of each withheld
   assert.equal(reasonOf(generation.decisions[0]!), "other-package-form-beside-archive");
   const queues = registrationQueues(generation);
   assert.deepEqual(queues.other_package_forms, {
-    [unseen]: names.slice(0, maxQueuedCompetingNames),
+    [unseen]: names,
   });
   const clean = generateRegistrations(
     [listing()],
@@ -4532,7 +4558,7 @@ void test("a Core refusal is scoped to its archive and its class is reported (D5
   assert.throws(() => gateGeneration(null, forged), /refused archive that could hold its game/u);
 });
 
-void test("archives count per platform their names allow, within a hard overall bound (D6)", async () => {
+void test("every archive of a release is read; several for one platform are ambiguous, never counted (D6, B4)", async () => {
   const run = async (names: string[]) => {
     const id = "zz-many";
     const result = await derive(
@@ -4561,26 +4587,18 @@ void test("archives count per platform their names allow, within a hard overall 
     );
     return result.table.entries[0]!;
   };
-  // Six Windows, six Linux and four macOS archives: no platform holds more than six.
-  const spread = await run([
-    ...Array.from({ length: 6 }, () => windowsZip),
-    ...Array.from({ length: 6 }, () => linuxTar),
-    ...Array.from({ length: 4 }, () => "Game-v1.0-macos-arm64.zip"),
+  // Replaces the former `too-many-assets` (six per platform, sixteen per release).
+  // Every archive the observer lists is read, whatever the count.
+  const all = await run([
+    ...Array.from({ length: 10 }, () => windowsZip),
+    ...Array.from({ length: 10 }, () => linuxTar),
+    ...Array.from({ length: 11 }, () => "Game-v1.0-macos-arm64.zip"),
   ]);
-  assert.equal(spread.ineligible, null);
-  assert.equal(spread.artifacts.length, 16);
-  // Seven archives a Windows name allows cannot be told apart.
-  const crowded = await run(Array.from({ length: 7 }, () => windowsZip));
-  assert.equal(crowded.ineligible?.reason, "too-many-assets");
-  // Neutral names allow every platform.
-  const neutral = await run([...Array.from({ length: 6 }, () => linuxTar), neutralZip]);
-  assert.equal(neutral.ineligible?.reason, "too-many-assets");
-  // The hard bound: seventeen archives are never read, whatever they are called.
-  const overall = await run([
-    ...Array.from({ length: 6 }, () => windowsZip),
-    ...Array.from({ length: 6 }, () => linuxTar),
-    ...Array.from({ length: 5 }, () => "Game-v1.0-macos-arm64.zip"),
-  ]);
-  assert.equal(overall.ineligible?.reason, "too-many-assets");
-  assert.match(overall.ineligible?.detail ?? "", /at most 16/u);
+  assert.equal(all.ineligible, null);
+  assert.equal(all.artifacts.length, 31);
+  // Several distinct archives for one platform are judged by the fit rule.
+  assert.equal(reasonOf(decide(listing("zz-many"), all)), "ambiguous-artifact");
+  // One archive per platform still enrolls every platform.
+  const one = await run([windowsZip, linuxTar, "Game-v1.0-macos-arm64.zip"]);
+  assert.ok(decide(listing("zz-many"), one).fit);
 });

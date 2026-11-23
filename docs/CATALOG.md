@@ -3787,7 +3787,10 @@ blocked reason:
     `download` hold does not block registration. This route never offers a
     download.
 13. An authored listing guide leaves room for the generated selection step and
-    ownership reference within the eight-entry guide bound.
+    ownership reference within the eight-entry guide bound. That bound is
+    Core's catalog guide schema, which every client enforces; truncating
+    the authored guide would drop title-specific steps, so the identity is
+    withheld instead.
 
 The route's platforms are every platform satisfying 9 to 12. The generated
 record is exactly the hand-authored form: `external_registration_v1: true`, the
@@ -4219,7 +4222,7 @@ Upstream and release: `no-stable-release`, `no-release-archive` (no package
 file at all), `unsupported-archive-format` (only desktop forms the worker does
 not read, such as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`;
 the forms are in the detail and `unread_forms`), `non-desktop-platform`,
-`no-digest`, `too-many-assets`, `too-large`, `exceeds-run-budget`,
+`no-digest`,
 `repeated-inspection-failure` and `invalid-facts`. Product binding:
 `shared-repository` and `ambiguous-release-line`.
 Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
@@ -4244,9 +4247,11 @@ first parent of the checked-out merge commit, else the merge base with
 commit. Locally it is the merge base with `origin/main`. A revision without the
 table is an empty baseline. Outside a git repository the baseline is empty.
 Inside one, an unresolvable baseline is an error, so CI's catalog jobs check
-out two commits. A change of more than 64 added, 32 withdrawn or 64 changed
-routes (`deltaBounds`) is refused. Raising a bound is a reviewed change, and
-there is no bypass. The gate also re-checks every enrollment against its facts
+out two commits. The delta has no size bound: every enrollment that passes
+the checks below may land in one change, and so may every withdrawal. What
+holds a mass withdrawal a bug could cause is the facts batch job's
+`withdrawal-held` stop ([stop and wait](#stop-and-wait)), not a count. The
+gate re-checks every enrollment against its facts
 entry with its own code, independent of the fit rule. It checks the facts
 digest, complete eligible coverage, the bound repository id and release, the
 age and retention bounds, the exact archive binding, the veto, tool and system tokens,
@@ -4270,9 +4275,12 @@ committed table to equal the generator output, so a hand-edited table is
 refused.
 
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
-version. The same reviewed change must therefore raise the `changed` bound in
-`deltaBounds` for that change only. #8569 raised the generator version and
-the facts parser version from 5 to 12 and the facts table format from 4 to 11
+version; it lands in the reviewed change that raises it, with no bound to
+raise. Raise `GENERATOR_VERSION` when the fit rule or the generated route
+changes, `FACTS_PARSER_VERSION` when the worker's output for the same
+upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
+changes. #8569 raised the generator version from 5 to 12, the facts parser
+version from 5 to 13 and the facts table format from 4 to 11
 (iOS shape at any depth, glued numbers in program names, the gate's directory
 check, unreadable asset records, ARM64EC, release lines, shared
 repositories, one package per platform, per-archive Core refusals,
@@ -4282,10 +4290,10 @@ split-file volumes, unread compressed and disk-image forms, the
 non-program file list, the inverted default that makes every unlisted
 form compete, archive role words, one package by archive bytes, bundled
 toolchains, channel-only tags, stable-only release lines and typed
-inspection failure causes). It landed with an empty facts table and no
-enrollment, so no bound changed. A curated change that adds integrations to
-more generated identities than the `withdrawn` bound must be split into
-changes within it.
+inspection failure causes; parser 13 removed the size and count
+exclusions). It landed with an empty facts table and no enrollment. A
+curated change that adds integrations to generated identities withdraws
+their generated routes in that same change.
 
 A portcove-core test re-runs Core's own rules on every fact of the committed
 facts table, without network access. For each artifact it reclassifies the
@@ -4330,8 +4338,8 @@ release-line and other-package-form rules.
 The worker's candidates are the authored listing-only GitHub identities, read
 before catalog generation adds generated routes (`workerRecords`). An identity
 the generated route already offers is therefore still a candidate: its facts
-are kept and refreshed first, and its withdrawal counts against the batch
-bound. Every generated enrollment must name such an authored identity, or the
+are kept and refreshed, and its withdrawal is classified like any other
+(`withdrawal-held`). Every generated enrollment must name such an authored identity, or the
 run fails.
 
 Core's filename classifier (`portcove --json catalog classify-listing-names`)
@@ -4418,14 +4426,9 @@ re-evaluated only when the release or its asset list changes:
   package forms the worker does not read;
 - `non-desktop-platform`: only mobile or console package forms (`.ipa`,
   `.apk`, `.aab`, `.vpk`, `.nro`, `.nsp`, `.3dsx`, `.cia`, `.wad`);
-- `no-digest`: an archive without a provider SHA-256;
-- `too-large` (512 MiB per archive) and `too-many-assets`: more than six
-  archives whose names allow one platform (an archive whose name names no
-  system or architecture counts for every platform), or more than 16 archives
-  in the release whatever their names say. Seven archives for one platform
-  cannot be told apart; the overall bound keeps one release's inspection
-  bounded;
-- `exceeds-run-budget`: more unread bytes than one whole run may read (2 GiB);
+- `no-digest`: an archive without a provider SHA-256. This is a correctness
+  rule, not a limit: without the provider's digest the bytes the worker reads
+  cannot be bound to the release, and reproduction could not prove them;
 - no identity-level Core refusal: a permanent refusal is scoped to its
   archive. The entry records the archive in `refused_archives` with a bounded
   class: Core's typed error code (`core-source-invalid`, `core-unsupported`,
@@ -4434,8 +4437,10 @@ re-evaluated only when the release or its asset list changes:
   archive is never offered; it blocks only the platforms its name allows, and
   `core-refused` becomes the identity's reason only when no platform fits. An
   unchanged refused archive is not read again;
-- `repeated-inspection-failure`: three transient failures in a row. The
-  entry records the last failure's typed `cause` (`network` for a download,
+- `repeated-inspection-failure`: a transient failure that recurred on every
+  run for longer than the last-good retention bound (14 days, the same bound
+  that keeps an unavailable upstream's facts). No attempt count settles it:
+  a failure is retried every run until then. The entry records the last failure's typed `cause` (`network` for a download,
   `over-budget` for a timeout or deadline, `unreadable-archive` when Core read
   the bytes but returned nothing usable, or a refusal class such as
   `digest-mismatch` or `core-source-invalid`); every other reason records a
@@ -4459,68 +4464,62 @@ with malformed Unicode stays unclassified. An unclassified tag is never
 skipped as a prerelease: when it is newer than every stable release, the
 identity is `invalid-facts` for that release rather than silently falling back
 to an older one. An unclassified release file or program name makes its identity
-`invalid-facts` before any bytes are read. Requests are split by count and
-size below Core's 8 MiB input bound. If Core still refuses a request, it is
+`invalid-facts` before any bytes are read. Requests are split at Core's own
+request bounds (50,000 names and the CLI's 8 MiB input). If Core still refuses a request, it is
 split until the refused name is isolated. Only a refused known-good probe,
 meaning an unusable CLI, fails the whole run.
 
 ##### Inspection order and backlog
 
-Identities that need bytes share one budget per run: at most `maxIdentities`
-(24) identities and `maxBytes` (2 GiB). Let I be `maxIdentities`, R the share
-reserved for new identities (a quarter of I, at least one; 6) and Q the new
-identities' retry cap (half of R; 3). Each run inspects, in this order:
+A run has no identity, byte, archive-size or archive-count bound: it reads
+every identity that needs bytes, one archive at a time, verifying and then
+deleting each archive's bytes before the next, so disk never accumulates.
+The provider's own per-asset maximum (2 GiB for a GitHub release asset)
+bounds an archive. Several archives for one platform are judged by the fit
+rule (`ambiguous-artifact`), never by a count. Every derived entry lands in
+the same run: there is no batch bound.
 
-1. The cursor pass's next new identity, so the pass always advances.
-2. Offered identities whose release changed, oldest pending first, at most
-   I − R of them. Keeping what is already offered fresh comes before growth.
-3. New identities' transient failures, oldest first, at most Q.
-4. The cursor pass, in port_id order, with the rest of the budget. It stops
-   at the first identity that does not fit the remaining bytes and resumes
-   there next run.
-5. Offered identities again, with any budget the cursor pass did not use.
+The only limit is time. A run can be given a deadline (`--deadline`), the
+real time limit of the job it runs in; it is checked before each identity,
+and every download and Core run is cut at it. An identity the deadline cuts
+is left `pending-inspection`, not failed, and its id goes to the worker
+state's `pending` list: the resumable cursor. The next run inspects the
+pending identities first, in their order, then transient failures oldest
+first, then the rest in port_id order. Without a deadline nothing is cut.
 
-The worker state file (`--state`) holds the cursor, the retry queue and held
-facts. An offered identity the run did not reach keeps its last-good facts
-with an `attempt` of status `pending-inspection`. That is the worker's own
-backlog, not an upstream attempt. It starts no `observation-unavailable`
+A sharded run splits the work across a job matrix
+([scheduled facts batch job](#scheduled-facts-batch-job)):
+
+1. Plan (`derive --plan true`): every observed identity is evaluated without
+   reading bytes. Everything that needs no bytes settles; every identity
+   that needs bytes is left pending and listed in `needs`.
+2. Inspect: each shard runs the worker on the plan's table with the plan's
+   clock (`--now`), restricted to its identities (`--only`), with its
+   deadline. Shards are `identityShards`: one identity per shard, identity i
+   in port_id order in shard i mod N, N the number of identities that need
+   bytes but at most 256 (GitHub's matrix job limit).
+3. Combine (`combine`): each shard's identities are taken from that shard
+   and everything else from the plan, so a sharded run lands exactly what one
+   unsharded run would (`combineShards`).
+
+The worker state file (`--state`) holds the `pending` cursor and the retry
+queue (format 3). An offered identity a deadline cut keeps its last-good
+facts with an `attempt` of status `pending-inspection`. That is the worker's
+own backlog, not an upstream attempt. It starts no `observation-unavailable`
 clock, and the entry stays unchanged until the identity is inspected. Only
 `stale-facts` (30 days after the facts were last confirmed) withdraws it.
 
-Each run reports its `backlog`: `enrolled_pending`, `new_pending`,
-`bytes_pending`, and the runs and days to drain each at the configured
-`--cadence-hours` (default 24). Facts held for the batch bound are backlog
-too, named apart because they need no bytes: `held_for_batch` and
-`runs_to_land_held` (at most the smallest `deltaBounds` value land per run).
-Each run also reports `settled`, the identities it settled into the landed
-table (newly complete or newly ineligible), and `no_progress`, which is true
-when work waits but the run settled nothing. A run reconfirming the same
-verdict for the same release is not progress. Orders in the facts and
-enrollment tables use Unicode code points, never the running Node's locale
-data. With cadence c days, E pending offered
-identities totalling S_E bytes, and C new identities totalling S_C bytes:
-
-- Offered drain: runs_E = max(⌈E / (I − R)⌉, ⌈S_E / maxBytes⌉), or ⌈E / I⌉
-  when no new identity waits. It must stay below 30 / c runs.
-- Cursor pass: N = c × max(⌈C / I⌉, ⌈S_C / maxBytes⌉) days without an offered
-  backlog. With a saturating offered backlog it is c × ⌈C / (R − Q)⌉ days. In
-  the worst case, when each new identity needs nearly a whole run's bytes, it
-  is c × C days.
-
-The invariant is that a full cursor pass completes within N days at the
-configured cadence, and that N and the offered drain stay well within the
-30-day facts age. With the defaults and a daily cadence, 18 changed offered
-releases drain per run. An initial wave of 1,110 new identities takes about
-47 runs, so it runs at a shorter cadence, such as every 6 hours, until the
-first pass completes.
-
-Facts land as one bounded batch per run, never per game. The worker keeps new
-facts in port_id order while the enrollment delta stays within `deltaBounds`.
-The rest are held in the worker state and offered again next run without
-reading bytes. An initial wave of a few hundred candidates therefore lands as
-successive batches of at most 64. `--check` validates the committed table. An
-unattended run records provenance with `--workflow-run-id`, `--source-commit`
-and `--inputs-sha256`; the worker adds the CLI binary's SHA-256 itself.
+Each run reports its `backlog` (`enrolled_pending`, `new_pending`,
+`bytes_pending`: what deadlines cut), `needs`, `settled` (the identities it
+settled into the table, newly complete or newly ineligible), `unobserved`
+(candidates the observer report did not cover) and `no_progress`, which is
+true when a deadline left work pending but the run settled nothing. A run
+reconfirming the same verdict for the same release is not progress. Orders
+in the facts and enrollment tables use Unicode code points, never the
+running Node's locale data. `--check` validates the committed table. An
+unattended run records provenance with `--workflow-run-id`,
+`--source-commit` and `--inputs-sha256`; the worker adds the CLI binary's
+SHA-256 itself.
 
 Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
 platform, so a release with only 32-bit players stays `wrong-host`; a 32-bit
@@ -4536,11 +4535,12 @@ its checks and decisions in `scripts/listing-facts-batch.mts`. It is built
 disabled: the schedule does nothing and nothing is written until the owner
 sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`. A
 manual dispatch defaults to a dry run, which may run while disabled: it
-derives, generates and verifies one batch with read-only permissions, reports
+derives, generates and verifies the batch with read-only permissions, reports
 it in the job summary and artifacts, and saves no worker state, branch, pull
 request or issue. The job uses only the built-in workflow token, no secret,
 no paid runner and no external service other than GitHub and the upstream
-release downloads the worker already reads.
+release downloads the worker already reads. The dispatch input bypasses
+nothing: without the variable it can only dry-run.
 
 Each run, in one concurrency group (`listing-facts-batch`):
 
@@ -4561,22 +4561,30 @@ Each run, in one concurrency group (`listing-facts-batch`):
    of that run attempt; without such a run the batch still waits. The merged
    batch branch is then deleted (a failed deletion changes nothing else). A
    failed check stops the job. Missing or pending checks wait, and a batch
-   that has waited more than 3 days (`batchWaitDays`) files `batch-waiting`.
-3. Otherwise the job derives one batch from the tip of `main`: the newest
-   main observer handoff (`catalog-upstream-observations-*`) and the worker
-   state restored from the Actions cache. It retains the run's inputs (the
+   that has waited more than 15 days (`batchWaitDays`) files `batch-waiting`.
+3. Otherwise the job derives one batch from the tip of `main` over the whole
+   candidate set: the newest main observer handoff
+   (`catalog-upstream-observations-*`) and the worker state restored from the
+   Actions cache. `prepare` builds the CLI once, retains the run's inputs (the
    observations, the prior state and `inputs.json` with their digests) as the
-   `listing-facts-batch-inputs-<run id>` artifact before the worker runs,
-   then runs the worker once with `--workflow-run-id`, `--source-commit` and
-   `--inputs-sha256`, regenerates the catalog and commits locally. A batch it
-   can propose is retained with its outputs record
+   `listing-facts-batch-inputs-<run id>` artifact before the worker runs, and
+   plans the run with `--workflow-run-id`, `--source-commit` and
+   `--inputs-sha256`; `inspect` runs one matrix job per shard of the
+   identities that need bytes ([inspection order](#inspection-order-and-backlog)),
+   each with the hosted job's 6-hour limit less its other steps as its
+   deadline; `combine` requires every shard to have finished, merges them,
+   regenerates the catalog, commits locally and checks the paths, the gate
+   and the batch once; `reproduce` re-reads every added or changed eligible
+   entry in the same shards; `decide` assesses the stop conditions. A batch
+   it can propose is retained with its outputs record
    (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
    of the batch patch, and whether the run was a dry run). It refuses
    its own batch on a path outside the allowlist, a gate refusal, an entry it
    cannot reproduce, or any stop condition, and proposes nothing when the
    change is not material: no enrollment changed, no entry appeared,
    disappeared or changed other than by reconfirmation, and no offered entry
-   was last confirmed more than 14 days before.
+   was last confirmed more than 15 days before (`refreshAfterDays`). There is
+   one batch with everything that fits; nothing is held for a later run.
 4. A ready batch is pushed as the one-commit branch
    `automation/listing-facts-batch-<run id>` and opened as a pull request,
    after the deliver job checks that the applied patch and facts table are
@@ -4603,14 +4611,18 @@ the facts table and exactly the outputs `scripts/generate-catalog.mts`
 rewrites from it. The allowlist is by name, so each of those paths must also
 stay a regular, non-executable file on both sides (`git diff --raw` modes
 `000000` or `100644`): a symlink, an executable bit or a gitlink at an
-allowed name is a violation. It never changes `deltaBounds`, `GENERATOR_VERSION`, a
+allowed name is a violation. It never changes `GENERATOR_VERSION`, a
 script, a workflow or an authored listing, and `generate-catalog.mts --check`
 still requires every output to equal what the facts produce.
 
 Pull-request CI (`fast-catalog`, and `catalog-full` in qualification) runs
-`listing-facts-batch.mts plan` and `verify` for every pull request, whoever
-opened it. For every eligible entry the change adds or changes against the
-gate's baseline, CI reads the release by numeric repository and release id
+`listing-facts-batch.mts plan` and the change's checks once
+(`verify --reproduce false`) for every pull request, whoever opened it. The
+plan shards every eligible entry the change adds or changes against the
+gate's baseline (`identityShards`), and the required
+`listing-facts-reproduction` matrix runs one job per shard
+(`verify --shard I`); the `catalog` check passes only when every shard
+succeeded. For each such entry, CI reads the release by numeric repository and release id
 from the GitHub REST API, requires those ids to name the listing's own
 repository, the recorded tag, publication time, Core's stable verdict and the
 asset-list digest, lists the repository's releases by id (one page of 100,
@@ -4633,20 +4645,29 @@ every entry of its repository until the next run. Any change to an eligible entr
 `observed_at` and the worker's `attempt` record is reproduced, including the
 parser version, coverage, repository binding and unread forms. A
 reconfirmation re-reads nothing, so whoever can merge can keep a
-reconfirmation's date moving; an ineligible entry offers nothing, and its
-withdrawals stay bounded by the gate. One change may reproduce at most 64
-entries and 4 GiB with no archive over 512 MiB (`reproductionBudget`). The
-30-minute deadline is checked before each entry and archive, and every
-download, Core inspection and name classification is cut to the time left
-(at most 10 minutes each) and not started past it, so an item that reaches
-the deadline is an `over-budget` refusal, never a step timeout. After the
-deadline only the two release reads of the entry in hand remain (30 seconds
-each). The worker's batch bound (`boundFactsBatch`) keeps every batch inside
-that budget. A change over budget, an oversized or unavailable asset or a
-changed release refuses the entry: it is never trusted. A facts change may
-not record `generated_at`, or any added or changed `observed_at`, more than
-10 minutes ahead of the clock (`clockProblems`): facts age is measured from
-those times. A push to `main` was verified on its pull request and re-reads
+reconfirmation's date moving; an ineligible entry offers nothing.
+
+Reproduction has no entry, byte or archive-size bound; it is sized from the
+real runner constraints instead. A shard holds the fewest entries the
+256-job matrix allows (one for up to 256 entries, so a table of 400 new
+entries is two per shard). Each shard reads one archive at a time and
+deletes it, so its disk holds one archive (at most the provider's 2 GiB) and
+Core's extraction of it at a time, inside the hosted runner's free disk
+(about 14 GB on a standard Linux runner). Its deadline is the job's time
+limit less its other steps: 85 minutes inside the repository's 120-minute CI
+job cap, 315 inside the batch job's 6-hour limit. The deadline is checked
+before each entry and archive, and every download, Core inspection and name
+classification is cut to the time left and not started past it, so an item
+that reaches it is an `over-budget` refusal, never a step timeout. An
+unavailable asset, a changed release or a reached deadline refuses the
+entry: it is never trusted, and any refused entry fails its shard and the
+`catalog` check. The release reads use the workflow token's REST budget
+(1,000 requests an hour per repository for `GITHUB_TOKEN`; two per entry), so
+a change far above about 500 entries can be refused as `release-unavailable`
+until it is re-run: refused, never trusted. A facts change may not record
+`generated_at`, or any added or changed `observed_at`, ahead of the clock
+(`clockProblems`): facts age is measured from those times, which all come
+from earlier runs. A push to `main` was verified on its pull request and re-reads
 nothing.
 
 The pull-request check runs the pull request's own code. So `plan` and
@@ -4699,34 +4720,53 @@ of reopening the old one. A `reproduction-refused` issue names up to five
 refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
 `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `batch-waiting` (an open batch whose
-required checks have not all finished more than 3 days after it was opened,
-most likely because its runs wait for approval), `no-progress` (three
-consecutive runs settled nothing while work waited), `backlog-growing` (four
-consecutive runs grew the backlog), `large-withdrawal` (more than 16 routes in
-one batch), `repository-identity-changed`, `rule-version-changed` (the facts
-parser, generator or Core filename rule version changed since the previous
-run), `observer-coverage-dropped` (a quarter fewer observed identities than
-the previous run), `drain-exceeds-facts-age` (refreshing the offered
-identities whose release changed takes 30 days or more, counting two runs per
-landed batch) and `worker-error` (also any job, the `gate` job included, that
-failed, timed out or was cancelled). A stop condition found while deriving also withholds that run's
+required checks have not all finished more than 15 days after it was opened,
+most likely because its runs wait for approval: a reconfirmation proposed at
+15 days must merge within the rest of the 30-day facts age),
+`no-progress` (the run's deadlines left work pending and it settled nothing:
+with no identity or byte bound, a whole shard could not finish one
+identity), `backlog-growing` (shard deadlines left more identities pending
+than in the previous run), `withdrawal-held` (see below),
+`repository-identity-changed`, `rule-version-changed` (the facts parser,
+generator or Core filename rule version changed since the previous run),
+`observer-coverage-dropped` (an identity the previous run's observer covered
+is a candidate this run's observer report does not cover at all) and
+`worker-error` (also any job, the `gate` job and every shard included, that
+failed, timed out or was cancelled).
+
+`withdrawal-held` replaces a numeric withdrawal cap. It protects players
+from a bug that withdraws offered games, without a magic number: each route
+the batch withdraws is classified from the facts on both sides
+(`withdrawalCauses`). A withdrawal proceeds when an upstream fact explains
+it: its facts entry changed in something other than a reconfirmation (a new
+release, an ineligible verdict from a complete observation, upstream
+unavailable past the 14-day retention bound) or its listing is no longer a
+candidate (an authored, reviewed change). It is held, and the whole batch
+with it, when the entry was rewritten by another facts parser version
+(`rule-version`), or when the entry is unchanged but for a reconfirmation
+(`not-reobserved`: the withdrawal comes from a rule change or from facts
+ageing out because the observer did not observe them completely, which is
+how an observer coverage drop shows). A person reviews the held routes and
+clears the stop; a rule change that withdraws routes lands as a reviewed
+pull request, never as an unattended batch. Any number of upstream-explained
+withdrawals, additions or changes proceed. A stop condition found while deriving also withholds that run's
 batch. An open batch pull request that still fails stops the job again after
 its issue is closed; close that pull request too.
 
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
-open. When the table is more than 21 days old, including the empty table
-before the first batch lands, or records a time more than 10 minutes ahead
-of the clock, the job files
+open. When the table is more than 15 days old (`freshnessAlertDays`: a quiet
+catalog proposes its reconfirmation batch at 15 days, so older facts have
+not landed one), including the empty table before the first batch lands, or
+records a time ahead of the clock, the job files
 `Listing facts batch: facts are falling behind the clock`. It does not stop
 the job, whose next batch is the remedy. Every job and every step has a
 finite timeout, and each job's timeout is at least the sum of its steps', so
-a slow step fails inside the job and the stop assessment still runs: the CLI
-build 30 minutes; the worker 60 (each download and Core run stops at 10
-minutes, but the worker has no overall deadline, so a run past 60 minutes
-fails as `worker-error`); reproduction 45 (the 2-minute canonical check, the
-provenance reads of about 6 minutes in pull-request CI, the 30-minute
-deadline and about a minute of release reads); the derive job 250 and the
+a slow step fails inside the job and the stop assessment still runs. These
+are harness budgets, not limits on what lands: the plan job 130 minutes (the
+CLI build 30, the plan 30); each `inspect` and `reproduce` shard the hosted
+job's 360-minute limit, with the worker's or reproduction's deadline set to
+that limit less the shard's other steps; `combine` 80; `decide` 75; the
 deliver job 40.
 
 ###### Exception queues
@@ -4774,37 +4814,69 @@ actual approval or other intervention; and whether the next ordinary
 qualifying `main` run selects and publishes the batch. Only
 that publication makes the batch delivered.
 
-###### Cadence and drain
+###### Migration and steady state
 
-The schedule runs every 6 hours (`--cadence-hours 6`). A run reads at most
-I = 24 identities and 2 GiB; a batch lands at most 64 added, 32 withdrawn and
-64 changed routes and reproduces at most 64 entries and 4 GiB. A run derives
-only while no batch is open, so each landed batch costs two runs, the one
-that derives it and the one that merges it, plus the wait until a person
-approves its workflow runs.
+There is no drip-feed. The first enabled run is one migration: it plans
+every listing-only GitHub identity, reads every identity that needs bytes
+across the inspect matrix, and opens one pull request that enrolls every
+identity that passes the correctness rules. That pull request's CI
+reproduces every new entry across the reproduction matrix, so a table of
+several hundred new entries is verified in one pull request. Steady state
+afterwards is the same unbounded job: each run proposes one batch with every
+change that fits, whatever its size.
 
-When this job was added, 1,110 listing-only GitHub identities had no facts
-(`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47
-deriving runs while the byte budget does not bind (an average below
-2 GiB / 24, about 85 MiB of archives per identity; identities settled without
-bytes, such as those without a release archive, need none). Almost every
-deriving run of that pass settles new identities and is therefore a batch,
-so the pass takes about 2 × 47 = 94 runs: 23.5 days at this cadence when
-each batch's runs are approved before the next run, plus every approval that
-waits longer. The pass itself has no 30-day limit: new identities are not yet
-offered. What the 30-day facts age bounds is the offered facts, which every
-landed batch reconfirms; they stay fresh while a batch lands at least every
-30 days. A quiet catalog proposes a reconfirmation batch once an offered
-entry was last confirmed 14 days earlier, and the freshness alert fires after
-21 days, above that hold and inside the 30-day age. Offered identities whose
-release changed drain at 18 per run, two runs per batch:
-`drain-exceeds-facts-age` stops the job when that alone reaches 30 days.
-Each run's `backlog` report gives the current numbers.
+What protects players is not a count: it is the correctness rules (the fit
+rule and the gate, each with its own code), the reproduction of every added
+or changed entry from its exact bytes, and the stop conditions, including
+`withdrawal-held`. The schedule runs every 6 hours: that decides how soon a
+new release is seen, never how much lands. A run derives only while no batch
+is open, so each landed batch costs two runs (the one that derives it and
+the one that merges it) plus the wait until a person approves its workflow
+runs. A quiet catalog proposes a reconfirmation batch once an offered entry
+was last confirmed 15 days earlier (`refreshAfterDays`, half the facts age),
+which leaves the other half of the 30-day facts age for its approval.
+
+###### Numeric constants
+
+Every number that remains in the worker, the generator, the gate and the job
+is a correctness rule or comes from a real constraint:
+
+| Constant                                                           | Value                                 | Constraint                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxFactsAgeDays`                                                  | 30 days                               | Correctness: how long observed release facts are trusted without a fresh complete observation.                                                                                                                                                                                |
+| `lastGoodRetentionDays`                                            | 14 days                               | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary.                                                                                                                                                                          |
+| `maxDistinctPrograms`                                              | 1                                     | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                  |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds) | 4 releases, 32 assets                 | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                 |
+| `coreInspectedFileBound` (players per archive)                     | 16,384                                | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                          |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                     | 1,024 bytes, 50,000 names, 8 MiB      | Core's classification request bounds and the CLI's input bound.                                                                                                                                                                                                               |
+| `guideBound` (`guide-bound`)                                       | 8 entries                             | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead. |
+| `displayableName`                                                  | 120 characters, 3 programs            | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                            |
+| `matrixJobLimit`                                                   | 256                                   | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                      |
+| Shard deadlines                                                    | 315 and 330 of 360 minutes; 85 of 120 | The hosted job's 6-hour limit and the repository's 120-minute CI job cap, less each shard's other steps.                                                                                                                                                                      |
+| Provider asset size                                                | 2 GiB                                 | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                               |
+| `releaseListPage`                                                  | 100                                   | The REST API's largest page, the observer's page size.                                                                                                                                                                                                                        |
+| `refreshAfterDays`, `freshnessAlertDays`                           | 15 days                               | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                       |
+| `batchWaitDays`                                                    | 15 days                               | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                      |
+| `clockSkewMs`                                                      | 0                                     | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                 |
+| Artifact retention                                                 | 30 days                               | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                |
+| Retained-artifact ZIP bounds                                       | 64 MiB compressed, 128 MiB expanded   | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                |
+| Stop-issue reads                                                   | 1,000 issues                          | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                          |
+
+The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
+512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
+the 10-minute per-download and per-Core-run cap, the 512 MiB archive bound,
+the six-per-platform and sixteen-per-release archive counts, three-failure
+retry count, the 16-route withdrawal stop, the quarter coverage share, the
+three-run and four-run stop counts, the 21-day alert, the 3-day wait, the
+10-minute clock skew, the 4,096-file and 64 MiB handoff bounds and the
+ten-name report cap are removed.
 
 ###### Switching it on
 
 The job stays disabled until the real cohort, independent review, exact
-gates, base-relative bounds and an activation decision are in place. Before
+gates and an activation decision are in place. Switching it on starts the
+migration: the first run proposes one pull request with every identity
+that fits, possibly hundreds. Before
 activation, the owner decides the path scope: the recorded direction on
 [#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
 names only the facts and enrollment tables, while a batch that enrolls also
@@ -4827,11 +4899,13 @@ batch could not offer a route. Then the owner, in the repository settings:
    requests, not only this job's. The job requests its own write permissions
    per job.
 3. Optionally dispatch the workflow once with the default dry run and read
-   its summary and artifacts.
+   its summary and artifacts: the dry run derives the same migration batch
+   and reports its size, its exception queues and its stop conditions.
 4. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true` (unset
    or any other value is off).
 5. For each batch pull request, approve its workflow runs (**Approve
-   workflows to run**). That approval is a human intervention, and it grants
+   workflows to run**), including the migration pull request, whose
+   reproduction matrix may run up to 256 jobs. That approval is a human intervention, and it grants
    CI permission only: the job merges later through the guarded route when
    the exact-head checks pass. A merged batch reaches `main` CI and catalog
    publication with the next ordinary qualifying `main` run. The pilot

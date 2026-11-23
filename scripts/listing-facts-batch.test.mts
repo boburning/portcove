@@ -17,15 +17,14 @@ import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
-import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
-  boundFactsBatch,
+  identityShards,
+  matrixJobLimit,
   digestOf,
   emptyFactsTable,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
   needsReproduction,
-  reproductionBudget,
   reproductionPlan,
   type ListingFactsEntry,
   type ListingFactsTable,
@@ -71,14 +70,13 @@ import {
   parseWorkerSummary,
   jobBatches,
   materialChange,
-  offeredDrainDays,
   workflowLogin,
   factsFallingBehind,
   handoffObservations,
   inputsArtifactFiles,
   inputsProblems,
   mergeMessage,
-  noProgressRuns,
+  withdrawalCauses,
   parseProviderRelease,
   parseProviderReleaseList,
   parseRawDiff,
@@ -149,19 +147,6 @@ const player = (path: string, machine = "pe-x86-64"): PlayerFact => ({
   sha256: sha(`${path}/${machine}`),
 });
 const unseen = "zz-unseen-observed-runtime-fixture";
-function listing(id = unseen): AuthoredPort {
-  return {
-    format_version: 1,
-    listing: {
-      id,
-      name: "Unseen Observed Runtime",
-      summary: "A native runtime observed only through release facts.",
-      project_url: `https://github.com/fixture-owner/${id}`,
-      availability: "packages",
-      platforms: ["windows-x86-64"],
-    },
-  };
-}
 
 /** A provider release and the eligible entry the worker would write for it. */
 function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) {
@@ -850,9 +835,10 @@ void test("reproduction restates the observed releases from the release list (F8
   assert.equal(await run(complete, release, tool), undefined);
 });
 
-void test("reproduction is budgeted: oversized assets, too many entries or bytes and the clock refuse", async () => {
+void test("reproduction has no entry, byte or size bound; only the shard's clock refuses (B2)", async () => {
+  // Replaces the former 64-entry / 4 GiB / 512 MiB / 30-minute budget.
   const { release, entry, players } = fixture(unseen, [player("Game/Game.exe")], 4096);
-  const run = (entries: ListingFactsEntry[], budget = {}, clock?: () => number) =>
+  const run = (entries: ListingFactsEntry[], clock?: () => number, deadline?: number) =>
     reproduceFacts({
       entries,
       readRelease: reader({ 8: release }),
@@ -860,28 +846,29 @@ void test("reproduction is budgeted: oversized assets, too many entries or bytes
       inspect: inspector(players),
       classify: coreClassifier,
       boundLines: unbound(entries),
-      budget: { ...reproductionBudget, ...budget },
       ...(clock ? { clock } : {}),
+      ...(deadline === undefined ? {} : { deadline }),
     });
-  assert.equal(
-    (await run([entry], { maxArchiveBytes: 4095 })).refused[0]!.reason,
-    "oversized-asset",
-  );
-  const many = await run([entry, { ...entry, port_id: "zz-second" }], { maxEntries: 1 });
-  assert.deepEqual(
-    many.refused.map((refusal) => refusal.reason),
-    ["over-budget", "over-budget"],
-  );
-  assert.equal((await run([entry], { maxBytes: 4095 })).refused[0]!.reason, "over-budget");
+  // Many entries, each as large as the provider allows, are all read.
+  const wide = await run([entry, { ...entry, port_id: "zz-second" }]);
+  assert.deepEqual(wide.verified, [unseen, "zz-second"]);
+  assert.deepEqual(wide.refused, []);
+  // A shard's deadline refuses what it reaches, never trusts it.
   let now = 0;
-  const late = await run([entry], { maxMilliseconds: 10 }, () => (now += 20));
+  const late = await run([entry], () => (now += 20), 10);
   assert.equal(late.refused[0]!.reason, "over-budget");
-  assert.deepEqual(reproductionBudget, {
-    maxEntries: 64,
-    maxBytes: 4 * 1024 ** 3,
-    maxArchiveBytes: 512 * 1024 ** 2,
-    maxMilliseconds: 30 * 60_000,
-  });
+});
+
+void test("reproduction shards hold every entry, deterministically, within the matrix limit (B2)", () => {
+  assert.equal(matrixJobLimit, 256);
+  const ids = Array.from({ length: 400 }, (_, index) => `zz-${String(index).padStart(3, "0")}`);
+  const shards = identityShards(ids.toReversed());
+  assert.equal(shards.length, 256);
+  assert.deepEqual(shards.flat().toSorted(), ids);
+  assert.ok(shards.every((shard) => shard.length >= 1 && shard.length <= 2));
+  assert.deepEqual(identityShards(ids), shards, "independent of input order");
+  assert.deepEqual(identityShards(["zz-a", "zz-b"]), [["zz-a"], ["zz-b"]]);
+  assert.deepEqual(identityShards([]), []);
 });
 
 void test("reproduction proves the named release is still the newest stable one (F2)", async () => {
@@ -1008,9 +995,10 @@ void test("reproduction proves the named release is still the newest stable one 
 void test("a reproduction that reaches its deadline refuses the entry as over-budget (F7)", async () => {
   const { release, entry, players } = fixture();
   // Every download and Core run is cut to the time left; none starts after it.
-  assert.equal(boundedTimeout(undefined), 10 * 60_000);
+  // No fixed per-operation cap: only the deadline cuts.
+  assert.equal(boundedTimeout(undefined), undefined);
   assert.equal(boundedTimeout(1_000_000 + 5000, 1_000_000), 5000);
-  assert.equal(boundedTimeout(1_000_000 + 60 * 60_000, 1_000_000), 10 * 60_000);
+  assert.equal(boundedTimeout(1_000_000 + 60 * 60_000, 1_000_000), 60 * 60_000);
   assert.throws(() => boundedTimeout(1_000_000, 1_000_000), OverBudgetError);
   const base = {
     entries: [entry, { ...entry, port_id: "zz-second" }],
@@ -1074,7 +1062,7 @@ void test("only eligible entries a change adds or changes are reproduced", () =>
   assert.equal(needsReproduction(entry, rebound), true);
   const ineligible = {
     ...structuredClone(entry),
-    ineligible: { reason: "too-large", detail: "x", cause: null },
+    ineligible: { reason: "no-digest", detail: "x", cause: null },
     artifacts: [],
   } as ListingFactsEntry;
   assert.equal(needsReproduction(entry, ineligible), false);
@@ -1113,9 +1101,9 @@ void test("only eligible entries a change adds or changes are reproduced", () =>
   assert.equal(reproductionPlan(null, table(entry)).entries.length, 1);
 });
 
-void test("a batch never asks CI to reproduce more than its budget; the rest is held", () => {
-  const ids = ["zz-a", "zz-b", "zz-c"];
-  const records = ids.map((id) => listing(id));
+void test("a whole table of new entries is planned for reproduction in one change (B2)", () => {
+  // Replaces the former batch hold at the reproduction budget.
+  const ids = Array.from({ length: 300 }, (_, index) => `zz-${String(index).padStart(3, "0")}`);
   const entries = ids.map((id) => fixture(id).entry);
   const previous = emptyFactsTable("2026-11-20T00:00:00.000Z");
   const next: ListingFactsTable = {
@@ -1123,27 +1111,18 @@ void test("a batch never asks CI to reproduce more than its budget; the rest is 
     entries,
     entries_sha256: digestOf(entries),
   };
-  const byEntries = boundFactsBatch(records, previous, next, undefined, {
-    ...reproductionBudget,
-    maxEntries: 2,
-  });
+  const plan = reproductionPlan(previous, next);
   assert.deepEqual(
-    byEntries.table.entries.map((entry) => entry.port_id),
-    ["zz-a", "zz-b"],
+    plan.entries.map((entry) => entry.port_id),
+    ids,
   );
+  assert.equal(plan.bytes, 300 * 4096);
   assert.deepEqual(
-    byEntries.deferred.map((entry) => entry.port_id),
-    ["zz-c"],
+    identityShards(plan.entries.map((entry) => entry.port_id))
+      .flat()
+      .toSorted(),
+    ids,
   );
-  const byBytes = boundFactsBatch(records, previous, next, undefined, {
-    ...reproductionBudget,
-    maxBytes: 4096,
-  });
-  assert.deepEqual(
-    byBytes.table.entries.map((entry) => entry.port_id),
-    ["zz-a"],
-  );
-  assert.equal(reproductionPlan(previous, byBytes.table).bytes, 4096);
 });
 
 void test("provider release records are read strictly", () => {
@@ -1343,7 +1322,6 @@ void test("the retained inputs must carry the recorded digest and match the file
     observations,
     state,
     factsTable: Buffer.from("{}"),
-    budget: { maxEntries: 64 },
   });
   const inputsBytes = Buffer.from(`${JSON.stringify(inputs, null, 2)}\n`);
   const recorded = {
@@ -1392,12 +1370,10 @@ const summary = (fields: Partial<WorkerSummary> = {}, backlog = 10): WorkerSumma
   backlog: {
     enrolled_pending: 0,
     new_pending: backlog,
-    held_for_batch: 0,
-    days_to_drain_all: 2,
-    runs_to_drain_enrolled: 0,
-    cadence_hours: 6,
+    bytes_pending: backlog * 100,
   },
   ineligible: {},
+  unobserved: [],
   identities: Array.from({ length: 100 }, (_, index) => ({
     port_id: `id-${index}`,
     outcome: "unchanged",
@@ -1435,34 +1411,30 @@ void test("each stop condition is detected and named", () => {
   assert.deepEqual(assess([], { paths: "violated" }), ["path-allowlist"]);
   assert.deepEqual(assess([], { reproduction: "refused" }), ["reproduction-refused"]);
   assert.deepEqual(assess([], { summary: undefined }), ["worker-error"]);
-  // No progress for N consecutive runs, including this one.
-  const stalled = summary({ no_progress: true, settled: 0 });
+  // One run whose deadlines left work pending but settled nothing stops
+  // (formerly three consecutive runs).
+  assert.deepEqual(assess([record()], { summary: summary({ no_progress: true, settled: 0 }) }), [
+    "no-progress",
+  ]);
+  // A deadline backlog larger than the previous run's (formerly four runs of growth).
+  assert.deepEqual(assess([record({ backlog_total: 9 })], { summary: summary({}, 10) }), [
+    "backlog-growing",
+  ]);
+  assert.deepEqual(assess([record({ backlog_total: 10 })], { summary: summary({}, 10) }), []);
+  assert.deepEqual(assess([record({ backlog_total: 0 })], { summary: summary({}, 0) }), []);
+  // Withdrawals no upstream fact explains are held, whatever their number
+  // (formerly more than 16 withdrawals); upstream-caused ones of any number proceed.
   assert.deepEqual(
-    assess(
-      Array.from({ length: noProgressRuns - 2 }, () => record({ no_progress: true })),
-      {
-        summary: stalled,
-      },
-    ),
+    assess([record()], {
+      delta: { added: 0, withdrawn: 1, changed: 0 },
+      held: [{ port_id: "zz-a", cause: "rule-version" }],
+    }),
+    ["withdrawal-held"],
+  );
+  assert.deepEqual(
+    assess([record()], { delta: { added: 400, withdrawn: 300, changed: 200 }, held: [] }),
     [],
   );
-  assert.deepEqual(
-    assess(
-      Array.from({ length: noProgressRuns - 1 }, () => record({ no_progress: true })),
-      {
-        summary: stalled,
-      },
-    ),
-    ["no-progress"],
-  );
-  // A backlog that grows instead of draining.
-  const growing = [6, 7, 8, 9].map((total) => record({ backlog_total: total }));
-  assert.deepEqual(assess(growing, { summary: summary({}, 10) }), ["backlog-growing"]);
-  assert.deepEqual(assess(growing, { summary: summary({}, 9) }), []);
-  assert.deepEqual(assess([record()], { delta: { added: 0, withdrawn: 17, changed: 0 } }), [
-    "large-withdrawal",
-  ]);
-  assert.deepEqual(assess([record()], { delta: { added: 64, withdrawn: 16, changed: 0 } }), []);
   assert.deepEqual(
     assess([record()], {
       summary: summary({
@@ -1475,24 +1447,22 @@ void test("each stop condition is detected and named", () => {
     ["repository-identity-changed"],
   );
   assert.deepEqual(assess([record({ versions: "old" })]), ["rule-version-changed"]);
-  assert.deepEqual(assess([record({ observed: 200 })]), ["observer-coverage-dropped"]);
-  // The offered drain counts the run each batch needs to merge (D5).
-  const offered = (runs: number) =>
-    summary({
-      backlog: {
-        enrolled_pending: 9,
-        new_pending: 0,
-        held_for_batch: 0,
-        days_to_drain_all: 1,
-        runs_to_drain_enrolled: runs,
-        cadence_hours: 6,
-      },
-    });
-  assert.equal(offeredDrainDays(offered(59)), 29.5);
-  assert.deepEqual(assess([record()], { summary: offered(59) }), []);
-  assert.deepEqual(assess([record()], { summary: offered(60) }), ["drain-exceeds-facts-age"]);
-  // A summary without the drain fields is malformed, never 0 days (A13).
-  const { runs_to_drain_enrolled: _r, ...partial } = summary().backlog;
+  // Coverage drops when an identity the previous observer covered is
+  // uncovered now (formerly a quarter fewer identities).
+  assert.deepEqual(
+    assess([record({ observed_ids: ["id-1", "zz-lost"] })], {
+      summary: summary({ unobserved: ["zz-lost"] }),
+    }),
+    ["observer-coverage-dropped"],
+  );
+  assert.deepEqual(
+    assess([record({ observed_ids: ["id-1"] })], {
+      summary: summary({ unobserved: ["zz-new-listing"] }),
+    }),
+    [],
+  );
+  // A summary without the backlog fields is malformed, never 0 (A13).
+  const { new_pending: _n, ...partial } = summary().backlog;
   assert.throws(
     () => parseWorkerSummary(JSON.stringify({ ...summary(), backlog: partial })),
     /malformed/u,
@@ -1596,6 +1566,42 @@ void test("the notify job adds a failed batch and failed jobs, never doubling a 
   );
 });
 
+void test("a withdrawal is held unless an upstream fact explains it (B1)", () => {
+  const ids = ["zz-a", "zz-b", "zz-c", "zz-d"];
+  const prior = ids.map((id) => fixture(id).entry);
+  const factsOf = (entries: ListingFactsEntry[]): ListingFactsTable => ({
+    ...emptyFactsTable("2026-11-20T00:00:00.000Z"),
+    entries,
+    entries_sha256: digestOf(entries),
+  });
+  const released = structuredClone(prior[0]!);
+  released.observation.release_id = 9;
+  const reconfirmed = structuredClone(prior[1]!);
+  reconfirmed.observation.observed_at = "2026-11-21T00:00:00.000Z";
+  const reparsed = structuredClone(prior[2]!);
+  reparsed.parser_version += 1;
+  const enrollments = (list: string[]) => ({ enrollments: list.map((port_id) => ({ port_id })) });
+  assert.deepEqual(
+    withdrawalCauses(
+      enrollments(ids),
+      enrollments([]),
+      factsOf(prior),
+      factsOf([released, reconfirmed, reparsed]),
+    ),
+    [
+      { port_id: "zz-a", cause: "upstream" },
+      { port_id: "zz-b", cause: "not-reobserved" },
+      { port_id: "zz-c", cause: "rule-version" },
+      { port_id: "zz-d", cause: "upstream" },
+    ],
+  );
+  // Kept routes are not withdrawals.
+  assert.deepEqual(
+    withdrawalCauses(enrollments(ids), enrollments(ids), factsOf(prior), factsOf(prior)),
+    [],
+  );
+});
+
 void test("a batch waiting for its checks for days, and a failed gate job, file a stop issue (F8, F10)", () => {
   const waiting = (prState: string, prCreatedAt: string) =>
     collectConditions(
@@ -1608,13 +1614,15 @@ void test("a batch waiting for its checks for days, and a failed gate job, file 
         jobs: {},
       },
     ).conditions;
-  assert.equal(batchWaitDays, 3);
+  // Derived from the facts age: a reconfirmation proposed at refreshAfterDays
+  // must merge within the rest of the 30 days (formerly 3 days).
+  assert.equal(batchWaitDays, 30 - refreshAfterDays);
   for (const state of ["waiting-for-checks", "pending"]) {
-    assert.deepEqual(waiting(state, "2026-11-21T00:00:00.000Z"), [], state);
-    const [condition, ...rest] = waiting(state, "2026-11-19T00:00:00.000Z");
+    assert.deepEqual(waiting(state, "2026-11-09T00:00:00.000Z"), [], state);
+    const [condition, ...rest] = waiting(state, "2026-11-07T00:00:00.000Z");
     assert.deepEqual(rest, []);
     assert.equal(condition!.name, "batch-waiting");
-    assert.match(condition!.detail, /#12 has waited 4 days .*Approve workflows to run/u);
+    assert.match(condition!.detail, /#12 has waited 16 days .*Approve workflows to run/u);
   }
   // A green, failed or absent batch, or an unknown opening time, never waits.
   for (const state of ["green", "failed", "none"])
@@ -1669,11 +1677,13 @@ void test("the guarded merge binds to the head's own successful CI run (F10)", (
 void test("the freshness watchdog compares the facts' own time with the real clock", () => {
   const { entry } = fixture();
   const table = { ...emptyFactsTable("2026-11-01T00:00:00.000Z"), entries: [entry] };
-  // A quiet catalog waits up to refreshAfterDays for a reconfirmation batch:
-  // the alert must not fire before that (N1).
-  assert.ok(freshnessAlertDays > refreshAfterDays && freshnessAlertDays < 30);
-  assert.equal(factsFallingBehind(table, "2026-11-22T00:00:00.000Z"), undefined);
-  assert.match(factsFallingBehind(table, "2026-11-23T00:00:00.000Z")!, /22 days ago/u);
+  // A quiet catalog proposes its reconfirmation batch at refreshAfterDays:
+  // the alert fires once facts are older than that, never before (N1).
+  assert.equal(freshnessAlertDays, refreshAfterDays);
+  assert.ok(freshnessAlertDays < 30);
+  const quiet = { ...table, generated_at: "2026-11-20T00:00:00.000Z" };
+  assert.equal(factsFallingBehind(quiet, "2026-12-05T00:00:00.000Z"), undefined);
+  assert.match(factsFallingBehind(quiet, "2026-12-06T00:00:00.000Z")!, /16 days ago/u);
   // An empty table alerts too once it is old, so a first batch that never
   // lands is visible (F8); a fresh empty table does not.
   assert.match(
@@ -1689,9 +1699,9 @@ void test("the freshness watchdog compares the facts' own time with the real clo
     factsFallingBehind(table, "2026-10-31T23:00:00.000Z")!,
     /ahead of the clock .*generated_at 2026-11-01/u,
   );
-  // Within the 10-minute skew it is not.
+  // Exactly at the clock it is not: no skew is allowed (formerly 10 minutes).
   assert.equal(
-    factsFallingBehind({ ...table, entries: [] }, "2026-10-31T23:55:00.000Z"),
+    factsFallingBehind({ ...table, entries: [] }, "2026-11-01T00:00:00.000Z"),
     undefined,
   );
   const observedAhead = structuredClone(table);
@@ -1706,15 +1716,15 @@ void test("the freshness watchdog compares the facts' own time with the real clo
 void test("a facts change may not record times ahead of the clock (F3)", () => {
   const { entry } = fixture();
   const now = Date.parse("2026-11-21T00:00:00.000Z");
-  const table = { ...emptyFactsTable("2026-11-21T00:05:00.000Z"), entries: [entry] };
-  // Within the 10-minute skew, and an unchanged table, pass.
-  assert.equal(clockSkewMs, 10 * 60_000);
+  const table = { ...emptyFactsTable("2026-11-21T00:00:00.000Z"), entries: [entry] };
+  // Times at the clock, and an unchanged table, pass: no skew is allowed.
+  assert.equal(clockSkewMs, 0);
   assert.deepEqual(clockProblems(null, table, now), []);
   assert.deepEqual(clockProblems(table, table, now + 365 * 86_400_000 * -1), []);
-  const ahead = { ...table, generated_at: "2026-11-21T00:11:00.000Z" };
+  const ahead = { ...table, generated_at: "2026-11-21T00:00:01.000Z" };
   assert.match(clockProblems(null, ahead, now).join(), /generated_at .* ahead of the clock/u);
   const observed = structuredClone(table);
-  observed.entries[0]!.observation.observed_at = "2026-11-21T00:11:00.000Z";
+  observed.entries[0]!.observation.observed_at = "2026-11-21T00:00:01.000Z";
   assert.match(clockProblems(null, observed, now).join(), /observed_at .* ahead of the clock/u);
   // An unchanged observed_at is not judged again; an unparseable time is ahead.
   const baseline = structuredClone(observed);
@@ -1982,7 +1992,9 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   // Every job is gated: by the variable, or (read-only jobs) by a dry-run dispatch.
   for (const [name, job] of Object.entries(workflow.jobs)) {
     assert.ok(job.if, `${name} has no condition`);
-    const gated = job.if.includes(enabled) || ["derive"].includes(name);
+    const gated =
+      job.if.includes(enabled) ||
+      ["prepare", "inspect", "combine", "reproduce", "decide"].includes(name);
     assert.ok(gated, `${name} is not gated by the variable`);
     assert.ok(job["timeout-minutes"] && job["timeout-minutes"] <= 360, `${name} timeout`);
     // Every step has a finite budget, and the job outlasts their sum, so a
@@ -2003,13 +2015,29 @@ void test("the workflow does nothing until the owner enables it and writes nothi
       assert.ok(job.if.includes(`!(${dryRun})`), `${name} writes on a dry run`);
     }
   }
-  // The gate job admits a dry-run dispatch only, and derive needs the gate.
+  // The gate job admits a dry-run dispatch only, and the derivation needs the gate.
   assert.ok(workflow.jobs.gate!.if!.includes(`(${dryRun})`));
-  assert.ok(workflow.jobs.derive!.if!.includes("needs.gate.outputs.blocked == 'false'"));
-  assert.ok(workflow.jobs.derive!.if!.includes("needs.gate.outputs.pr_state == 'none'"));
-  assert.ok(Object.values(workflow.jobs.derive!.permissions!).every((access) => access === "read"));
+  assert.ok(workflow.jobs.prepare!.if!.includes("needs.gate.outputs.blocked == 'false'"));
+  assert.ok(workflow.jobs.prepare!.if!.includes("needs.gate.outputs.pr_state == 'none'"));
+  for (const name of ["prepare", "inspect", "combine", "reproduce", "decide"])
+    assert.ok(
+      Object.values(workflow.jobs[name]!.permissions!).every((access) => access === "read"),
+      `${name} only reads`,
+    );
+  // The derivation is sharded by a matrix from the plan, with no size bound
+  // (B2, B3): each shard is bounded only by the hosted job's 6-hour limit.
+  const matrixOf = (name: string) =>
+    (workflow.jobs[name] as unknown as { strategy: { matrix: { shard: string } } }).strategy.matrix
+      .shard;
+  assert.equal(matrixOf("inspect"), "${{ fromJSON(needs.prepare.outputs.shards) }}");
+  assert.equal(matrixOf("reproduce"), "${{ fromJSON(needs.combine.outputs.shards) }}");
+  for (const name of ["inspect", "reproduce"])
+    assert.equal(workflow.jobs[name]!["timeout-minutes"], 360, name);
+  // A missing shard is never merged around.
+  assert.match(workflow.jobs.combine!.if!, /needs\.inspect\.result == 'success'/u);
+  assert.doesNotMatch(text, /maxIdentities|maxBytes|cadence-hours|reproductionBudget/u);
   // A dry run never saves the worker state.
-  const save = workflow.jobs.derive!.steps.find((step) =>
+  const save = workflow.jobs.decide!.steps.find((step) =>
     String(step.uses).startsWith("actions/cache/save"),
   );
   assert.match(String((save as { if?: string }).if), /env\.DRY_RUN != 'true'/u);

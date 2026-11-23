@@ -2,19 +2,24 @@
 #
 # Built disabled. Nothing runs on the schedule, and nothing writes, until the
 # owner sets the repository variable PORTCOVE_FACTS_BATCH_ENABLED to `true`.
-# A manual dispatch may always dry-run: it derives, generates and verifies one
+# A manual dispatch may always dry-run: it derives, generates and verifies the
 # batch with read-only permissions and saves no state, pull request or issue.
+# The dispatch input changes nothing else: it cannot bypass the switch.
 #
-# One run, in one concurrency group:
+# One run, in one concurrency group, with no size bound on what it lands:
 #  1. `gate`: any open "Listing facts batch stopped: ..." issue stops the run;
 #     an open batch pull request is evaluated instead of starting another.
 #  2. `merge`: a batch whose five required checks pass on its exact head, whose
 #     paths stay inside the allowlist and whose delta the gate accepts is
 #     merged through the guarded delivery route (`scripts/pr-delivery.mts`).
-#  3. `derive`: the facts worker reads the newest main observer handoff with
-#     its persisted state, catalog generation writes the outputs, and the job
-#     refuses its own batch on a path outside the allowlist, a gate refusal
-#     or an entry it cannot reproduce from the exact release bytes.
+#  3. `prepare` builds the CLI, records the run's inputs and plans the whole
+#     candidate set without reading bytes; `inspect` reads the archives of
+#     the identities that need bytes, one identity per matrix shard (at most
+#     the 256-job matrix limit), each bounded only by the job's 6-hour limit;
+#     `combine` merges the shards and regenerates the catalog; `reproduce`
+#     re-reads every added or changed eligible entry in the same shards; and
+#     `decide` refuses the batch on a path outside the allowlist, a gate
+#     refusal, an entry it cannot reproduce or any stop condition.
 #  4. `deliver`: pushes the one-commit batch branch, opens the pull request
 #     and only then saves the worker state, so a failed delivery moves no cursor.
 #  5. `notify`: files one issue per stop condition and the freshness alert.
@@ -31,12 +36,12 @@ name: Listing facts batch
 
 on:
   schedule:
-    # Every six hours: see the drain math in docs/CATALOG.md.
+    # Every six hours: how soon a new release is seen, never how much lands.
     - cron: "41 */6 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Dry run - derive, generate and verify one batch; write nothing
+        description: Dry run - derive, generate and verify the batch; write nothing
         type: boolean
         default: true
 
@@ -196,30 +201,32 @@ jobs:
           [[ "$BRANCH" =~ ^automation/listing-facts-batch-[1-9][0-9]{0,19}$ ]]
           git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ":refs/heads/${BRANCH}"
 
-  derive:
+  # A batch starts only when no stop issue and no batch pull request is open.
+  # The derivation is sharded: `prepare` plans the run (everything that needs
+  # no bytes), `inspect` reads each shard's archives (one identity per shard,
+  # at most the 256-job matrix limit), `combine` merges the shards and
+  # regenerates the catalog, `reproduce` re-reads every added or changed
+  # entry in the same shards, and `decide` assesses the run.
+  prepare:
     needs: gate
-    # A batch starts only when no stop issue and no batch pull request is open.
     if: >-
       needs.gate.outputs.blocked == 'false' &&
       (needs.gate.outputs.pr_state == 'none' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run))
     runs-on: ubuntu-latest
-    # The sum of its step budgets, so the stop assessment and artifacts still
-    # run after the slowest permitted worker and reproduction.
-    timeout-minutes: 250
+    timeout-minutes: 130
     permissions:
       contents: read
       actions: read
     outputs:
-      ready: ${{ steps.ready.outputs.ready }}
-      reproduced: ${{ steps.verify.outputs.reproduced }}
+      shards: ${{ steps.shards.outputs.shards }}
+      now: ${{ steps.inputs.outputs.now }}
     env:
       WORK: ${{ github.workspace }}/work/listing-facts-batch
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
         with:
-          fetch-depth: 2
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         timeout-minutes: 5
@@ -241,7 +248,11 @@ jobs:
           shared-key: upstream-observer-cli
       - name: Build the Portcove CLI that inspects release bytes
         timeout-minutes: 30
-        run: cargo build --locked -p portcove-cli
+        run: |
+          set -euo pipefail
+          cargo build --locked -p portcove-cli
+          mkdir -p "$WORK/cli"
+          cp target/debug/portcove "$WORK/cli/portcove"
       - name: Find the newest main observer handoff
         id: observer
         timeout-minutes: 2
@@ -262,8 +273,8 @@ jobs:
           path: |
             work/listing-facts-batch/state.json
             work/listing-facts-batch/history.json
-          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: listing-facts-batch-v1-
+          key: listing-facts-batch-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: listing-facts-batch-v2-
       - name: Record this run's inputs
         id: inputs
         timeout-minutes: 2
@@ -271,12 +282,15 @@ jobs:
           OBSERVER_RUN: ${{ steps.observer.outputs.run_id }}
         run: |
           set -euo pipefail
-          mkdir -p "$WORK/inputs"
+          mkdir -p "$WORK/inputs" "$WORK/plan"
           node scripts/listing-facts-batch.mts observations --handoff "$WORK/handoff" --output "$WORK/inputs/observations.json"
           if [ -f "$WORK/state.json" ]; then cp "$WORK/state.json" "$WORK/inputs/state-before.json"; else : > "$WORK/inputs/state-before.json"; fi
+          if [ -f "$WORK/history.json" ]; then cp "$WORK/history.json" "$WORK/plan/history.json"; fi
           node scripts/listing-facts-batch.mts inputs --observations "$WORK/inputs/observations.json" \
             --state "$WORK/inputs/state-before.json" --observer-run "$OBSERVER_RUN" \
             --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --output "$WORK/inputs/inputs.json"
+          # Every shard runs on the same clock as the plan.
+          echo "now=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >> "$GITHUB_OUTPUT"
       # Retained before the worker runs, so the digest it records is checkable.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
@@ -285,28 +299,161 @@ jobs:
           path: ${{ env.WORK }}/inputs/
           if-no-files-found: error
           retention-days: 30
-      - name: Run the facts worker once
-        id: worker
-        timeout-minutes: 60
+      - name: Plan the run without reading bytes
+        timeout-minutes: 30
         env:
           INPUTS_SHA256: ${{ steps.inputs.outputs.inputs_sha256 }}
+          NOW: ${{ steps.inputs.outputs.now }}
         run: |
           set -euo pipefail
+          state=()
+          if [ -s "$WORK/inputs/state-before.json" ]; then cp "$WORK/inputs/state-before.json" "$WORK/plan/state.json"; state=(--state "$WORK/plan/state.json"); fi
           node scripts/listing-package-facts.mts derive --observations "$WORK/inputs/observations.json" \
-            --cli target/debug/portcove --state "$WORK/state.json" --cadence-hours 6 \
+            --cli "$WORK/cli/portcove" "${state[@]}" --now "$NOW" --plan true \
+            --output "$WORK/plan/table.json" --needs "$WORK/plan/needs.json" --result "$WORK/plan/plan.json" \
             --workflow-run-id "$GITHUB_RUN_ID" --source-commit "$GITHUB_SHA" \
-            --inputs-sha256 "$INPUTS_SHA256" --report "$WORK/worker-report.json" > /dev/null
-      - name: Regenerate the catalog from the new facts
+            --inputs-sha256 "$INPUTS_SHA256" > /dev/null
+      - name: Shard the identities that need bytes
+        id: shards
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts worker-shards --needs "$WORK/plan/needs.json" --directory "$WORK/plan"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-plan-${{ github.run_id }}
+          path: |
+            ${{ env.WORK }}/plan/
+            ${{ env.WORK }}/cli/
+          if-no-files-found: error
+          retention-days: 1
+
+  inspect:
+    needs: prepare
+    if: needs.prepare.result == 'success' && needs.prepare.outputs.shards != '[]'
+    runs-on: ubuntu-latest
+    # GitHub-hosted jobs run at most 6 hours: the shard's real time limit.
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shards) }}
+    env:
+      WORK: ${{ github.workspace }}/work/listing-facts-batch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-plan-${{ github.run_id }}
+          path: ${{ env.WORK }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-inputs-${{ github.run_id }}
+          path: ${{ env.WORK }}/inputs
+      # The worker reads one archive at a time and deletes it, so disk never
+      # accumulates. Its deadline is the job's 360 minutes less every other
+      # step's budget and the time to write its result; what the deadline
+      # cuts stays pending and leads the next run.
+      - name: Inspect this shard's identities
+        timeout-minutes: 335
+        env:
+          SHARD: ${{ matrix.shard }}
+          NOW: ${{ needs.prepare.outputs.now }}
+        run: |
+          set -euo pipefail
+          chmod +x "$WORK/cli/portcove"
+          mkdir -p "$WORK/shard"
+          deadline=$(date -u -d '+330 minutes' +%Y-%m-%dT%H:%M:%S.000Z)
+          node -e 'const fs=require("node:fs");const plan=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(plan.state));' \
+            "$WORK/plan/plan.json" "$WORK/shard/state.json"
+          node scripts/listing-package-facts.mts derive --observations "$WORK/inputs/observations.json" \
+            --cli "$WORK/cli/portcove" --table "$WORK/plan/table.json" --state "$WORK/shard/state.json" \
+            --now "$NOW" --only "$WORK/plan/only-$SHARD.json" --deadline "$deadline" \
+            --output "$WORK/shard/table.json" --result "$WORK/shard/result.json" > /dev/null
+          node -e 'const fs=require("node:fs");fs.writeFileSync(process.argv[3],JSON.stringify({only:JSON.parse(fs.readFileSync(process.argv[1],"utf8")),result:JSON.parse(fs.readFileSync(process.argv[2],"utf8"))}));' \
+            "$WORK/plan/only-$SHARD.json" "$WORK/shard/result.json" "$WORK/shard/shard-$SHARD.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-shard-${{ github.run_id }}-${{ matrix.shard }}
+          path: ${{ env.WORK }}/shard/shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 1
+
+  combine:
+    needs: [prepare, inspect]
+    # Every shard must have finished: a missing shard is never merged around.
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.inspect.result == 'success' || needs.inspect.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      material: ${{ steps.generate.outputs.material }}
+      paths: ${{ steps.paths.outcome }}
+      gate: ${{ steps.gate.outcome }}
+      checks: ${{ steps.checks.outcome }}
+      shards: ${{ steps.plan.outputs.shards }}
+      reproduce: ${{ steps.plan.outputs.reproduce }}
+    env:
+      WORK: ${{ github.workspace }}/work/listing-facts-batch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-plan-${{ github.run_id }}
+          path: ${{ env.WORK }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          pattern: listing-facts-batch-shard-${{ github.run_id }}-*
+          path: ${{ env.WORK }}/shards
+          merge-multiple: true
+      - name: Merge the shards and regenerate the catalog
         id: generate
         timeout-minutes: 10
         run: |
           set -euo pipefail
+          mkdir -p "$WORK/shards" "$WORK/out"
+          node scripts/listing-package-facts.mts combine --plan "$WORK/plan/plan.json" --shards "$WORK/shards" \
+            --state "$WORK/out/state.json" --report "$WORK/out/worker-report.json" > /dev/null
+          if [ -f "$WORK/plan/history.json" ]; then cp "$WORK/plan/history.json" "$WORK/out/history.json"; fi
           # The baseline is this checkout's main tip: compare as a local run.
           env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts > /dev/null
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit --quiet --allow-empty -am "chore(catalog): listing facts batch ${GITHUB_RUN_ID}"
-          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/delta.json" > /dev/null
+          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/out/delta.json" > /dev/null
+          git format-patch -1 --stdout HEAD > "$WORK/out/batch.patch"
       - name: Refuse paths outside the batch allowlist
         id: paths
         timeout-minutes: 2
@@ -316,69 +463,198 @@ jobs:
         timeout-minutes: 10
         # Compared with the previous commit: the main tip this batch starts from.
         run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
-      # 45: the 2-minute canonical check, then the 30-minute reproduction
-      # deadline at which every download and Core run is cut (the entry is
-      # refused as over-budget), plus about a minute of release reads.
-      - name: Reproduce every changed eligible entry from its exact bytes
-        id: verify
-        timeout-minutes: 45
-        run: >-
-          node scripts/listing-facts-batch.mts verify --cli target/debug/portcove --base HEAD~1
-          --own-run true --refusals "$WORK/refusals.json"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - name: Check the batch once and shard its reproduction
+        id: plan
+        timeout-minutes: 5
+        run: node scripts/listing-facts-batch.mts plan --base HEAD~1
+      - name: Check separation, clock and canonical outputs
+        id: checks
+        timeout-minutes: 5
+        run: node scripts/listing-facts-batch.mts verify --base HEAD~1 --own-run true --reproduce false
       - name: Publish the registration exception queues
         if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           set -euo pipefail
-          node scripts/catalog-route-fit.mts --json --output "$WORK/route-fit.json"
-          node scripts/listing-facts-batch.mts queues --route-fit "$WORK/route-fit.json" --output "$WORK/queue-counts.json" > /dev/null
-      - name: Assess the stop conditions
-        id: assess
-        if: ${{ !cancelled() }}
-        timeout-minutes: 2
+          node scripts/catalog-route-fit.mts --json --output "$WORK/out/route-fit.json"
+          node scripts/listing-facts-batch.mts queues --route-fit "$WORK/out/route-fit.json" --output "$WORK/out/queue-counts.json" > /dev/null
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-combined-${{ github.run_id }}
+          path: ${{ env.WORK }}/out/
+          if-no-files-found: error
+          retention-days: 1
+
+  reproduce:
+    needs: [prepare, combine]
+    if: needs.combine.result == 'success' && needs.combine.outputs.reproduce == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.combine.outputs.shards) }}
+    env:
+      WORK: ${{ github.workspace }}/work/listing-facts-batch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-plan-${{ github.run_id }}
+          path: ${{ env.WORK }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-combined-${{ github.run_id }}
+          path: ${{ env.WORK }}/out
+      # The job's 360 minutes less every other step's budget.
+      - name: Reproduce this shard's entries from their exact bytes
+        timeout-minutes: 320
         env:
-          PATHS: ${{ steps.paths.outcome == 'failure' && 'violated' || steps.paths.outcome == 'success' && 'ok' || 'skipped' }}
-          GATE: ${{ steps.gate.outcome == 'failure' && 'refused' || steps.gate.outcome == 'success' && 'ok' || 'skipped' }}
-          VERIFY: ${{ steps.verify.outcome == 'failure' && 'refused' || steps.verify.outcome == 'success' && 'ok' || 'skipped' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          versions=$(node scripts/listing-facts-batch.mts versions --cli target/debug/portcove || echo unknown)
+          chmod +x "$WORK/cli/portcove"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            am --quiet "$WORK/out/batch.patch"
+          mkdir -p "$WORK/refusals"
+          node scripts/listing-facts-batch.mts verify --cli "$WORK/cli/portcove" --base HEAD~1 \
+            --own-run true --shard "$SHARD" --deadline-minutes 315 --refusals "$WORK/refusals/refusals-$SHARD.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-refusals-${{ github.run_id }}-${{ matrix.shard }}
+          path: ${{ env.WORK }}/refusals/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  decide:
+    needs: [prepare, inspect, combine, reproduce]
+    if: ${{ !cancelled() && needs.prepare.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+      reproduced: ${{ steps.ready.outputs.reproduced }}
+    env:
+      WORK: ${{ github.workspace }}/work/listing-facts-batch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.combine.result == 'success'
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-combined-${{ github.run_id }}
+          path: ${{ env.WORK }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.reproduce.result != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          pattern: listing-facts-batch-refusals-${{ github.run_id }}-*
+          path: ${{ env.WORK }}/refusals
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-plan-${{ github.run_id }}
+          path: ${{ env.WORK }}/plan-artifact
+      - name: Apply the batch commit
+        if: needs.combine.result == 'success'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            am --quiet "$WORK/batch.patch"
+      - name: Assess the stop conditions
+        id: assess
+        timeout-minutes: 3
+        env:
+          PATHS: ${{ needs.combine.outputs.paths == 'failure' && 'violated' || needs.combine.outputs.paths == 'success' && 'ok' || 'skipped' }}
+          GATE: ${{ needs.combine.outputs.gate == 'failure' && 'refused' || needs.combine.outputs.gate == 'success' && 'ok' || 'skipped' }}
+          VERIFY: ${{ (needs.combine.outputs.checks == 'failure' || needs.reproduce.result == 'failure' || needs.reproduce.result == 'cancelled') && 'refused' || 'ok' }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$WORK/history.json" ] && [ -f "$WORK/plan-artifact/plan/history.json" ]; then
+            cp "$WORK/plan-artifact/plan/history.json" "$WORK/history.json"
+          fi
+          versions=$(node scripts/listing-facts-batch.mts versions --cli "$WORK/plan-artifact/cli/portcove" || echo unknown)
           delta=()
           if [ -f "$WORK/delta.json" ]; then delta=(--delta "$WORK/delta.json"); fi
           report=()
           if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
+          mkdir -p "$WORK/refusals"
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
-            --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals.json" \
+            --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
             --output "$WORK/conditions.json" > /dev/null
-      # A batch is proposed only when every check passed, no stop condition
-      # holds and the change is material (see materialChange).
+      # A batch is proposed only when every check and every reproduction
+      # shard passed, no stop condition holds and the change is material.
       - name: Decide whether this batch can be proposed
         id: ready
-        if: ${{ !cancelled() }}
-        timeout-minutes: 1
+        timeout-minutes: 2
         env:
-          PATHS: ${{ steps.paths.outcome }}
-          GATE: ${{ steps.gate.outcome }}
-          VERIFY: ${{ steps.verify.outcome }}
+          PATHS: ${{ needs.combine.outputs.paths }}
+          GATE: ${{ needs.combine.outputs.gate }}
+          CHECKS: ${{ needs.combine.outputs.checks }}
+          REPRODUCE: ${{ needs.reproduce.result }}
           STOP: ${{ steps.assess.outputs.stop }}
-          MATERIAL: ${{ steps.generate.outputs.material }}
+          MATERIAL: ${{ needs.combine.outputs.material }}
         run: |
           set -euo pipefail
           ready=false
-          if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$VERIFY" = success ] \
+          if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$CHECKS" = success ] \
+            && { [ "$REPRODUCE" = success ] || [ "$REPRODUCE" = skipped ]; } \
             && [ "$STOP" = false ] && [ "$MATERIAL" = true ]; then ready=true; fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "reproduced=$(node scripts/listing-facts-batch.mts plan --base HEAD~1 | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).reproduce??0)}catch{console.log(0)}})')" >> "$GITHUB_OUTPUT"
           if [ "$ready" = true ]; then
-            git format-patch -1 --stdout HEAD > "$WORK/batch.patch"
             # What this run produced: a batch's provenance is bound to it.
             node scripts/listing-facts-batch.mts outputs --run-id "$GITHUB_RUN_ID" --dry-run "$DRY_RUN" \
               --patch "$WORK/batch.patch" --output "$WORK/outputs/outputs.json" > /dev/null
           fi
       - name: Retain this run's outputs record
-        if: ${{ !cancelled() && steps.ready.outputs.ready == 'true' }}
+        if: ${{ steps.ready.outputs.ready == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
@@ -387,7 +663,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Retain the batch, its report and the exception queues
-        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
@@ -401,7 +676,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Retain the complete registration queues
-        if: ${{ !cancelled() && hashFiles('work/listing-facts-batch/route-fit.json') != '' }}
+        if: ${{ hashFiles('work/listing-facts-batch/route-fit.json') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
@@ -411,7 +686,7 @@ jobs:
       # A ready batch's state is saved by `deliver`, only after its pull
       # request opened: a failed delivery must not move the cursor.
       - name: Hand the worker state to delivery
-        if: ${{ !cancelled() && env.DRY_RUN != 'true' && steps.ready.outputs.ready == 'true' }}
+        if: ${{ env.DRY_RUN != 'true' && steps.ready.outputs.ready == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
@@ -425,24 +700,24 @@ jobs:
       - name: Persist the worker state and run history of a run with nothing to propose
         # A refused batch saves nothing either: the next run derives it again.
         if: >-
-          ${{ !cancelled() && env.DRY_RUN != 'true' &&
+          ${{ env.DRY_RUN != 'true' &&
           hashFiles('work/listing-facts-batch/state.json') != '' &&
           steps.ready.outputs.ready != 'true' && steps.assess.outputs.stop == 'false' &&
-          steps.generate.outputs.material == 'false' }}
+          needs.combine.outputs.material == 'false' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
         with:
           path: |
             work/listing-facts-batch/state.json
             work/listing-facts-batch/history.json
-          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          key: listing-facts-batch-v2-${{ github.run_id }}-${{ github.run_attempt }}
 
   deliver:
-    needs: derive
+    needs: decide
     if: >-
       vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
-      needs.derive.outputs.ready == 'true'
+      needs.decide.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -483,7 +758,7 @@ jobs:
         timeout-minutes: 4
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          REPRODUCED: ${{ needs.derive.outputs.reproduced }}
+          REPRODUCED: ${{ needs.decide.outputs.reproduced }}
         run: |
           set -euo pipefail
           branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
@@ -506,10 +781,10 @@ jobs:
           path: |
             work/listing-facts-batch/state.json
             work/listing-facts-batch/history.json
-          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          key: listing-facts-batch-v2-${{ github.run_id }}-${{ github.run_attempt }}
 
   notify:
-    needs: [gate, derive, merge, deliver]
+    needs: [gate, prepare, inspect, combine, reproduce, decide, merge, deliver]
     if: >-
       always() && vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
@@ -529,7 +804,7 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: needs.derive.result != 'skipped'
+        if: needs.decide.result != 'skipped'
         continue-on-error: true
         timeout-minutes: 3
         with:
@@ -544,7 +819,11 @@ jobs:
           PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
           PR_CREATED_AT: ${{ needs.gate.outputs.pr_created_at }}
           GATE: ${{ needs.gate.result }}
-          DERIVE: ${{ needs.derive.result }}
+          PREPARE: ${{ needs.prepare.result }}
+          INSPECT: ${{ needs.inspect.result }}
+          COMBINE: ${{ needs.combine.result }}
+          REPRODUCE: ${{ needs.reproduce.result }}
+          DECIDE: ${{ needs.decide.result }}
           MERGE: ${{ needs.merge.result }}
           DELIVER: ${{ needs.deliver.result }}
         run: |
@@ -552,6 +831,7 @@ jobs:
           node scripts/listing-facts-batch.mts collect --conditions work/listing-facts-batch/conditions.json \
             --blocked "${BLOCKED:-false}" --pr-state "${PR_STATE:-none}" --pr-number "${PR_NUMBER:-none}" \
             --pr-created-at "${PR_CREATED_AT:-none}" \
-            --gate "$GATE" --derive "$DERIVE" --merge "$MERGE" --deliver "$DELIVER"
+            --gate "$GATE" --prepare "$PREPARE" --inspect "$INSPECT" --combine "$COMBINE" \
+            --reproduce "$REPRODUCE" --decide "$DECIDE" --merge "$MERGE" --deliver "$DELIVER"
           node scripts/listing-facts-batch.mts issues --conditions work/listing-facts-batch/conditions.json \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

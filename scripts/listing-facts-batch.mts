@@ -2,8 +2,9 @@
 // scheduled job `.github/workflows/listing-facts-batch.yml` and of the
 // pull-request side that holds every facts-table change to the same rules.
 //
-// The job runs the facts worker (`scripts/listing-package-facts.mts`) once,
-// regenerates the catalog and proposes one bounded batch. Nothing here is a
+// The job runs the facts worker (`scripts/listing-package-facts.mts`) over
+// the whole candidate set, sharded across a job matrix, regenerates the
+// catalog and proposes one batch with everything that fits: no size bound. Nothing here is a
 // second status or backlog authority: the facts table, the enrollment table
 // and `catalog-route-fit.mts --json` stay the record; the job keeps only the
 // worker state and a short run history in its cache.
@@ -26,10 +27,13 @@
 //    digest it came from; CI checks them against that run, its retained
 //    inputs and its outputs record (`provenanceProblems`, `inputsProblems`,
 //    `outputsProblems`).
-//  - Stop and wait: conditions a person must clear (`stopConditions`).
+//  - Stop and wait: conditions a person must clear (`stopConditions`),
+//    including a withdrawal no upstream fact explains (`withdrawalCauses`).
 //
 //   node scripts/listing-facts-batch.mts plan [--base REV]
-//   node scripts/listing-facts-batch.mts verify --cli PORTCOVE [--base REV]
+//   node scripts/listing-facts-batch.mts verify --cli PORTCOVE [--base REV] \
+//     [--reproduce false | --shard I] [--deadline-minutes M]
+//   node scripts/listing-facts-batch.mts worker-shards --needs FILE --directory DIR
 //   node scripts/listing-facts-batch.mts paths [--base REV] [--head REV]
 //   node scripts/listing-facts-batch.mts observations --handoff DIR --output FILE
 //   node scripts/listing-facts-batch.mts inputs --observations FILE --state FILE \
@@ -63,15 +67,16 @@ import { inspectBoundedZip } from "./bounded-zip.mts";
 import { parseCatalogSource, readCatalogSource } from "./catalog-authoring.mts";
 import {
   checkListingFactsTable,
+  compareCodePoints,
   digestOf,
   FACTS_PARSER_VERSION,
+  maxFactsAgeDays,
   GENERATOR_VERSION,
   enrollmentTablePath,
   factsTablePath,
   gateBaselineRevision,
   readGateBaseline,
-  reproductionBudget,
-  reproductionCost,
+  identityShards,
   releaseLine,
   reproductionPlan,
   sameExceptReconfirmation,
@@ -80,7 +85,6 @@ import {
   type GitRunner,
   type ListingFactsEntry,
   type ListingFactsTable,
-  type ReproductionBudget,
 } from "./catalog-generated-registration.mts";
 import {
   artifactFact,
@@ -156,8 +160,8 @@ function canonicalDerivativeProblems(): string[] {
   const result = spawnSync(process.execPath, ["scripts/generate-catalog.mts", "--check"], {
     cwd: root,
     encoding: "utf8",
-    // About 3 seconds in practice; a 2-minute cap keeps verify inside its
-    // step budget beside the 30-minute reproduction and one 10-minute item.
+    // About 3 seconds in practice; a 2-minute harness budget keeps a hung
+    // check inside its step.
     timeout: 2 * 60_000,
     killSignal: "SIGKILL",
     maxBuffer: 16 * 1024 * 1024,
@@ -469,7 +473,6 @@ export const releaseListPage = 100;
 
 export type RefusalReason =
   | "over-budget"
-  | "oversized-asset"
   | "release-unavailable"
   | "release-changed"
   | "not-latest-stable"
@@ -494,16 +497,20 @@ export interface ReproductionResult {
  * stable release the worker's rules choose from the repository's release
  * list, the entry records exactly the release's archives, and each archive's
  * re-inspected players and Core's name verdicts rebuild a byte-equal artifact
- * fact. Anything else, including a budget overrun, refuses that entry.
+ * fact. Anything else, including the shard's deadline, refuses that entry.
+ * There is no entry, byte or archive-size bound: a shard holds the fewest
+ * entries the matrix allows (`identityShards`) and reads one archive at a
+ * time.
  *
  * `boundLines` names, for every entry, the release line its listing binds
  * (`boundReleaseLine`, null when unbound): the worker chooses the newest
  * stable release of that line only, so reproduction checks the same.
  *
- * `deadline` (epoch ms, default now plus `budget.maxMilliseconds`) is checked
- * before each entry and archive; pass the same deadline to the inspector and
- * classifier so a download or Core run that reaches it stops there and the
- * entry is refused as `over-budget` instead of running past the step.
+ * `deadline` (epoch ms, none by default: the shard job's real time limit
+ * less its other steps) is checked before each entry and archive; pass the
+ * same deadline to the inspector and classifier so a download or Core run
+ * that reaches it stops there and the entry is refused as `over-budget`
+ * instead of running past the step.
  */
 export async function reproduceFacts(inputs: {
   entries: readonly ListingFactsEntry[];
@@ -512,29 +519,14 @@ export async function reproduceFacts(inputs: {
   inspect: ByteInspector;
   classify: NameClassifier;
   boundLines: ReadonlyMap<string, string | null>;
-  budget?: ReproductionBudget;
   clock?: () => number;
   deadline?: number;
 }): Promise<ReproductionResult> {
-  const budget = inputs.budget ?? reproductionBudget;
   const clock = inputs.clock ?? Date.now;
-  const deadline = inputs.deadline ?? clock() + budget.maxMilliseconds;
+  const deadline = inputs.deadline ?? Number.POSITIVE_INFINITY;
   const refused: Refusal[] = [];
   const verified: string[] = [];
-  const total = inputs.entries.reduce((sum, entry) => sum + reproductionCost(entry), 0);
-  if (inputs.entries.length > budget.maxEntries || total > budget.maxBytes) {
-    const detail = `The change asks to reproduce ${inputs.entries.length} entries and ${total} bytes; one change may reproduce at most ${budget.maxEntries} entries and ${budget.maxBytes} bytes.`;
-    return {
-      verified,
-      refused: inputs.entries.map((entry) => ({
-        port_id: entry.port_id,
-        reason: "over-budget",
-        detail,
-      })),
-      bytes: 0,
-    };
-  }
-  const overBudget = `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`;
+  const overBudget = "The reproduction reached its shard's deadline.";
   let names: NameVerdicts;
   try {
     names = await NameVerdicts.start(inputs.classify);
@@ -573,14 +565,6 @@ export async function reproduceFacts(inputs: {
   async function reproduceEntry(
     entry: ListingFactsEntry,
   ): Promise<"verified" | { reason: RefusalReason; detail: string }> {
-    const large = [...entry.artifacts, ...entry.refused_archives].find(
-      (artifact) => artifact.size > budget.maxArchiveBytes,
-    );
-    if (large)
-      return {
-        reason: "oversized-asset",
-        detail: `${large.name} exceeds ${budget.maxArchiveBytes} bytes.`,
-      };
     const releaseId = entry.observation.release_id;
     if (releaseId === null)
       return { reason: "release-changed", detail: "An eligible entry names no release." };
@@ -1054,7 +1038,6 @@ export interface BatchInputs {
   observations_sha256: string;
   state_sha256: string;
   facts_table_sha256: string;
-  budget: Record<string, number>;
 }
 
 /** Problems with a run's retained inputs against the provenance and the files beside them. */
@@ -1094,7 +1077,6 @@ export function batchInputs(input: {
   observations: Buffer;
   state: Buffer;
   factsTable: Buffer;
-  budget: Record<string, number>;
 }): BatchInputs {
   const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
   return {
@@ -1105,7 +1087,6 @@ export function batchInputs(input: {
     observations_sha256: sha(input.observations),
     state_sha256: sha(input.state),
     facts_table_sha256: sha(input.factsTable),
-    budget: input.budget,
   };
 }
 
@@ -1211,21 +1192,17 @@ export const inputsArtifactFiles = (archive: Buffer) =>
  * The listing observations of an observer handoff directory (one JSON file
  * per provider source, each with `descriptive_listing_candidates`), as a
  * worker report `{ listings }`. Files are read in name order; a listing seen
- * twice keeps its first observation. Bounded: at most 4,096 files and 64 MiB.
+ * twice keeps its first observation. The handoff is this repository's own
+ * observer artifact; its size is the observer's, with no bound of its own.
  */
 export function handoffObservations(directory: string) {
   const listings: unknown[] = [];
   const seen = new Set<string>();
-  let bytes = 0;
   const files = readdirSync(directory)
     .filter((name) => name.endsWith(".json") && name !== "summary.json")
     .toSorted();
-  if (files.length > 4096) throw new Error("The observer handoff holds too many files.");
   for (const name of files) {
     const file = path.join(directory, name);
-    const size = statSync(file).size;
-    bytes += size;
-    if (bytes > 64 * 1024 * 1024) throw new Error("The observer handoff exceeds 64 MiB.");
     const report: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (!isRecord(report) || !Array.isArray(report.descriptive_listing_candidates)) continue;
     for (const candidate of report.descriptive_listing_candidates as unknown[]) {
@@ -1238,8 +1215,12 @@ export function handoffObservations(directory: string) {
   return { listings };
 }
 
-/** Reconfirmed facts older than this are refreshed by a batch even when nothing else changed. */
-export const refreshAfterDays = 14;
+/**
+ * Reconfirmed facts older than this are refreshed by a batch even when
+ * nothing else changed: half the facts age, so the batch and the person who
+ * approves its runs have the other half before offered routes age out.
+ */
+export const refreshAfterDays = maxFactsAgeDays / 2;
 /**
  * Whether a derived batch is worth a pull request (and a person's approval):
  * the enrollment changed, an entry appeared, disappeared or changed in
@@ -1271,6 +1252,55 @@ export function materialChange(
       (now - Date.parse(prior.observation.observed_at)) / 86_400_000 > refreshAfterDays
     );
   });
+}
+
+/**
+ * Why each route a change withdraws is withdrawn, from the facts on both
+ * sides: `upstream` when its facts entry changed in anything but a
+ * reconfirmation (a new release, a verdict from a complete observation,
+ * upstream unavailable past the retention bound) or its listing is no
+ * longer a candidate (an authored change); `rule-version` when the entry was
+ * rewritten by another facts parser version; `not-reobserved` when the entry
+ * is unchanged but for a reconfirmation (the withdrawal comes from a rule
+ * change or from facts ageing out without a complete observation, an
+ * observer coverage lapse). Only `upstream` proceeds unattended.
+ */
+export function withdrawalCauses(
+  previousEnrollments: unknown,
+  currentEnrollments: unknown,
+  previousFacts: unknown,
+  current: ListingFactsTable,
+): { port_id: string; cause: "upstream" | "rule-version" | "not-reobserved" }[] {
+  const ids = (table: unknown) =>
+    new Set(
+      (isRecord(table) && Array.isArray(table.enrollments) ? table.enrollments : []).flatMap(
+        (row: unknown) => (isRecord(row) && typeof row.port_id === "string" ? [row.port_id] : []),
+      ),
+    );
+  const after = ids(currentEnrollments);
+  const before = new Map(
+    (isRecord(previousFacts) && Array.isArray(previousFacts.entries)
+      ? (previousFacts.entries as ListingFactsEntry[])
+      : []
+    ).map((entry) => [entry.port_id, entry]),
+  );
+  const now = new Map(current.entries.map((entry) => [entry.port_id, entry]));
+  return [...ids(previousEnrollments)]
+    .filter((id) => !after.has(id))
+    .toSorted(compareCodePoints)
+    .map((port_id) => {
+      const prior = before.get(port_id);
+      const next = now.get(port_id);
+      if (!prior || !next) return { port_id, cause: "upstream" as const };
+      if (prior.parser_version !== next.parser_version)
+        return { port_id, cause: "rule-version" as const };
+      return {
+        port_id,
+        cause: sameExceptReconfirmation(prior, next)
+          ? ("not-reobserved" as const)
+          : ("upstream" as const),
+      };
+    });
 }
 
 /** Enrollment changes between two committed enrollment tables, by port_id. */
@@ -1331,11 +1361,10 @@ export const stopConditionNames = [
   "required-check-failed",
   "no-progress",
   "backlog-growing",
-  "large-withdrawal",
+  "withdrawal-held",
   "repository-identity-changed",
   "rule-version-changed",
   "observer-coverage-dropped",
-  "drain-exceeds-facts-age",
   "batch-waiting",
   "worker-error",
 ] as const;
@@ -1350,6 +1379,8 @@ export interface RunRecord {
   run_id: string;
   at: string;
   observed: number;
+  /** The identities the observer covered; kept on the newest record only. */
+  observed_ids?: string[];
   settled: number;
   no_progress: boolean;
   backlog_total: number;
@@ -1357,28 +1388,26 @@ export interface RunRecord {
   identity_changed: number;
   versions: string;
 }
-/** Consecutive no-progress runs before the job stops. */
-export const noProgressRuns = 3;
-/** Consecutive runs whose backlog grew before the job stops. */
-export const backlogGrowthRuns = 4;
-/** More withdrawals than this in one batch stop the job. */
-export const largeWithdrawal = 16;
-/** A coverage drop larger than this share of the previous run stops the job. */
-export const coverageDropShare = 0.25;
 /**
- * Facts older than this against the real clock raise the freshness alert. It
- * stays above `refreshAfterDays`, the longest a quiet catalog waits before a
- * reconfirmation batch, and below the 30-day facts age.
+ * Facts older than this against the real clock raise the freshness alert: a
+ * quiet catalog proposes its reconfirmation batch at `refreshAfterDays`, so
+ * facts older than that have not landed one. Derived, not chosen.
  */
-export const freshnessAlertDays = 21;
+export const freshnessAlertDays = maxFactsAgeDays / 2;
 /**
  * A batch pull request whose required checks have not all started or
  * finished after this many days stops the job: its runs most likely wait for
- * a person to approve them.
+ * a person to approve them. A reconfirmation proposed at `refreshAfterDays`
+ * must merge within the rest of the facts age, or offered routes age out;
+ * so the wait is the facts age less the refresh point.
  */
-export const batchWaitDays = 3;
-/** The clock skew a recorded time may lead the real clock by. */
-export const clockSkewMs = 10 * 60_000;
+export const batchWaitDays = maxFactsAgeDays - maxFactsAgeDays / 2;
+/**
+ * The clock skew a recorded time may lead the real clock by: none. Every
+ * recorded time comes from an earlier run on GitHub-hosted runners, whose
+ * clocks are synchronized, and is checked later.
+ */
+export const clockSkewMs = 0;
 
 /** The parts of the worker's summary line the job reads. */
 export interface WorkerSummary {
@@ -1387,12 +1416,11 @@ export interface WorkerSummary {
   backlog: {
     enrolled_pending: number;
     new_pending: number;
-    held_for_batch: number;
-    days_to_drain_all: number;
-    runs_to_drain_enrolled: number;
-    cadence_hours: number;
+    bytes_pending: number;
   };
   ineligible: Record<string, number>;
+  /** Candidate identities the observer report did not cover. */
+  unobserved: string[];
   identities: { port_id: string; outcome: string; reason?: string }[];
 }
 
@@ -1403,10 +1431,11 @@ export function parseWorkerSummary(text: string): WorkerSummary {
     typeof value.no_progress !== "boolean" ||
     !Number.isSafeInteger(value.settled) ||
     !isRecord(value.backlog) ||
-    // The drain stop reads these; a summary without them must not read as 0 days.
-    !Number.isSafeInteger(value.backlog.runs_to_drain_enrolled) ||
-    !(Number(value.backlog.cadence_hours) > 0) ||
+    // The backlog stop reads these; a summary without them must not read as 0.
+    !Number.isSafeInteger(value.backlog.enrolled_pending) ||
+    !Number.isSafeInteger(value.backlog.new_pending) ||
     !isRecord(value.ineligible) ||
+    !Array.isArray(value.unobserved) ||
     !Array.isArray(value.identities)
   )
     throw new Error("The worker summary is malformed.");
@@ -1428,6 +1457,8 @@ export function stopConditions(input: {
   paths: "ok" | "violated" | "skipped";
   reproduction: "ok" | "refused" | "skipped";
   delta?: { added: number; withdrawn: number; changed: number };
+  /** Withdrawals no upstream fact explains (`withdrawalCauses`). */
+  held?: readonly { port_id: string; cause: string }[];
   details?: Partial<Record<StopConditionName, string>>;
 }): { conditions: StopCondition[]; record: RunRecord | undefined } {
   const conditions: StopCondition[] = [];
@@ -1444,15 +1475,16 @@ export function stopConditions(input: {
     return { conditions, record: undefined };
   }
   const summary = input.summary;
-  const backlog =
-    summary.backlog.enrolled_pending + summary.backlog.new_pending + summary.backlog.held_for_batch;
+  const backlog = summary.backlog.enrolled_pending + summary.backlog.new_pending;
   const identityChanged = summary.identities.filter(
     (row) => row.reason === "repository-identity-changed" && row.outcome === "ineligible",
   ).length;
+  const observedIds = summary.identities.map((row) => row.port_id).toSorted(compareCodePoints);
   const record: RunRecord = {
     run_id: input.runId,
     at: input.now,
-    observed: summary.identities.length,
+    observed: observedIds.length,
+    observed_ids: observedIds,
     settled: summary.settled,
     no_progress: summary.no_progress,
     backlog_total: backlog,
@@ -1460,77 +1492,56 @@ export function stopConditions(input: {
     identity_changed: identityChanged,
     versions: input.versions,
   };
-  const runs = [...input.history, record];
-  const last = (count: number) => runs.slice(-count);
-  if (runs.length >= noProgressRuns && last(noProgressRuns).every((run) => run.no_progress))
+  // A run has no identity or byte bound, so one run that left work pending
+  // but settled nothing means a whole shard could not finish one identity.
+  if (summary.no_progress)
     add(
       "no-progress",
-      `${noProgressRuns} consecutive runs settled nothing while work waited (runs ${last(
-        noProgressRuns,
-      )
-        .map((run) => run.run_id)
-        .join(", ")}).`,
+      `This run's deadlines left ${backlog} identities pending, and it settled none.`,
     );
-  const growth = last(backlogGrowthRuns + 1);
-  if (
-    growth.length === backlogGrowthRuns + 1 &&
-    growth.every(
-      (run, index) => index === 0 || run.backlog_total > growth[index - 1]!.backlog_total,
-    )
-  )
+  const previous = input.history.at(-1);
+  // Pending work exists only where a shard's deadline cut it; more of it
+  // than the previous run left means the shards no longer keep up.
+  if (previous && backlog > previous.backlog_total)
     add(
       "backlog-growing",
-      `The backlog grew for ${backlogGrowthRuns} consecutive runs: ${growth.map((run) => run.backlog_total).join(" → ")}.`,
+      `Shard deadlines left ${backlog} identities pending, up from ${previous.backlog_total}.`,
     );
-  if ((input.delta?.withdrawn ?? 0) > largeWithdrawal)
+  // Withdrawals an upstream fact explains proceed; a withdrawal a rule or
+  // parser version change, or a lapse of observation, causes is held for a
+  // person: it is how a bug would withdraw offered games.
+  const held = input.held ?? [];
+  if (held.length)
     add(
-      "large-withdrawal",
-      `This batch withdraws ${input.delta!.withdrawn} routes; more than ${largeWithdrawal} needs a person.`,
+      "withdrawal-held",
+      `This batch would withdraw ${held.length} offered route(s) without a change in upstream facts: ${held
+        .slice(0, 5)
+        .map((item) => `${item.port_id} (${item.cause})`)
+        .join(
+          ", ",
+        )}${held.length > 5 ? ", …" : ""}. Review the cause; a rule change lands by hand.`,
     );
   if (identityChanged > 0)
     add(
       "repository-identity-changed",
       `${identityChanged} listed repositories now resolve to another repository id.`,
     );
-  const previous = input.history.at(-1);
   if (previous && previous.versions !== input.versions)
     add(
       "rule-version-changed",
       `The facts parser, generator, classifier or CLI changed (${previous.versions} → ${input.versions}); review one batch by hand.`,
     );
-  if (
-    previous &&
-    previous.observed > 0 &&
-    record.observed < previous.observed * (1 - coverageDropShare)
-  )
+  // Coverage drops when an identity the previous run's observer covered is
+  // a candidate this run's observer report does not cover at all.
+  const lost = previous?.observed_ids
+    ? summary.unobserved.filter((id) => previous.observed_ids!.includes(id))
+    : [];
+  if (lost.length)
     add(
       "observer-coverage-dropped",
-      `The observer covered ${record.observed} identities, down from ${previous.observed}.`,
-    );
-  const drainDays = offeredDrainDays(summary);
-  if (drainDays >= 30)
-    add(
-      "drain-exceeds-facts-age",
-      `Refreshing the offered identities whose release changed takes about ${drainDays} days (${runsPerBatch} runs per batch at this cadence, before any wait for a person), not within the 30-day facts age.`,
+      `The observer no longer covers ${lost.length} identities it covered in the previous run: ${lost.slice(0, 5).join(", ")}${lost.length > 5 ? ", …" : ""}.`,
     );
   return { conditions, record };
-}
-
-/**
- * Runs one landed batch costs: the deriving run that opens it and the run
- * that merges it (a run derives only while no batch is open).
- */
-export const runsPerBatch = 2;
-/**
- * Days until the offered identities whose release changed are refreshed and
- * landed: the worker's run count for them, times the runs each landed batch
- * costs, at the configured cadence. Waits for a person to approve a batch's runs come
- * on top; the freshness alert covers those.
- */
-export function offeredDrainDays(summary: WorkerSummary) {
-  const runs = summary.backlog.runs_to_drain_enrolled;
-  const cadence = summary.backlog.cadence_hours;
-  return Math.round(((runs * runsPerBatch * cadence) / 24) * 10) / 10;
 }
 
 /**
@@ -1627,8 +1638,20 @@ export const inertText = (text: string) =>
 export function reproductionDetails(file: string | undefined) {
   if (!file) return {};
   try {
-    const lines: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (!Array.isArray(lines) || !lines.length) return {};
+    // One file, or a directory of one file per reproduction shard.
+    const files = statSync(file).isDirectory()
+      ? readdirSync(file)
+          .filter((name) => name.endsWith(".json"))
+          .toSorted()
+          .map((name) => path.join(file, name))
+      : [file];
+    const lines = files
+      .flatMap((name) => {
+        const parsed: unknown = JSON.parse(readFileSync(name, "utf8"));
+        return Array.isArray(parsed) ? (parsed as unknown[]) : [];
+      })
+      .slice(0, 5);
+    if (!lines.length) return {};
     return {
       "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${lines
         .map((line) => `- ${inertText(String(line).slice(0, 400))}`)
@@ -1638,6 +1661,27 @@ export function reproductionDetails(file: string | undefined) {
     return {};
   }
 }
+
+/** The batch workflow's jobs, as `collect` reads their results. */
+export const batchJobs = [
+  "gate",
+  "prepare",
+  "inspect",
+  "combine",
+  "reproduce",
+  "decide",
+  "merge",
+  "deliver",
+] as const;
+/** Jobs whose failure the deriving run's own conditions already explain. */
+const derivingJobs: readonly string[] = [
+  "derive",
+  "prepare",
+  "inspect",
+  "combine",
+  "reproduce",
+  "decide",
+];
 
 /** Add a failed batch pull request and failed jobs to a run's conditions. */
 export function collectConditions(
@@ -1672,9 +1716,13 @@ export function collectConditions(
       detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its workflow runs most likely wait for **Approve workflows to run**; approve them or close the pull request, then close this issue.`,
     });
   for (const [job, result] of Object.entries(input.jobs))
-    // A derive job that already named its conditions failed because of them.
-    // A timed-out or cancelled job ends the same way: nothing silent.
-    if (["failure", "cancelled"].includes(result) && !(job === "derive" && found.conditions.length))
+    // A deriving job that failed after its run named its conditions failed
+    // because of them. A timed-out or cancelled job ends the same way:
+    // nothing silent.
+    if (
+      ["failure", "cancelled"].includes(result) &&
+      !(derivingJobs.includes(job) && found.conditions.length)
+    )
       conditions.push({ name: "worker-error", detail: `The ${job} job ended ${result}.` });
   return { conditions, freshness };
 }
@@ -2010,6 +2058,7 @@ async function main(argv: string[]): Promise<string> {
       if (event && !["pull_request", "merge_group"].includes(event) && option.base === undefined) {
         output("reproduce", "false");
         output("batch", "false");
+        output("shards", "[]");
         return `Listing facts are verified on pull requests; ${event} runs skip reproduction.\n`;
       }
       const current = currentFacts();
@@ -2020,9 +2069,13 @@ async function main(argv: string[]): Promise<string> {
       const plan = reproductionPlan(baseline, current);
       const batch = claimsBatch(baseline, current, process.env.GITHUB_HEAD_REF);
       const changed = digestOf(isRecord(baseline) ? baseline : null) !== digestOf(current);
+      // One matrix job per shard: every entry is reproduced, each shard
+      // holding the fewest entries the matrix allows.
+      const shards = identityShards(plan.entries.map((entry) => entry.port_id));
       output("reproduce", String(plan.entries.length > 0));
       output("batch", String(batch));
-      return `${JSON.stringify({ facts_changed: changed, batch, reproduce: plan.entries.length, bytes: plan.bytes })}\n`;
+      output("shards", JSON.stringify(shards.map((_, index) => index)));
+      return `${JSON.stringify({ facts_changed: changed, batch, reproduce: plan.entries.length, shards: shards.length, bytes: plan.bytes })}\n`;
     }
     case "paths": {
       // Working tree against --base, or the committed range --base..--head.
@@ -2043,7 +2096,8 @@ async function main(argv: string[]): Promise<string> {
       if (separation) problems.push(separation);
       problems.push(...clockProblems(baseline, current, Date.now()));
       const headRef = process.env.GITHUB_HEAD_REF || undefined;
-      if (claimsBatch(baseline, current, headRef)) {
+      // A reproduction shard leaves the batch checks to the one checks run.
+      if (option.shard === undefined && claimsBatch(baseline, current, headRef)) {
         // The committed range only: files a CI step leaves behind are not
         // part of the change (the job checks its working tree with `paths`).
         problems.push(...allowlistProblems(changedEntries(git, base, "HEAD")));
@@ -2055,28 +2109,49 @@ async function main(argv: string[]): Promise<string> {
         if (option["own-run"] !== "true")
           problems.push(...(await verifyProvenance(current, headRef)));
       }
+      // `--reproduce false` runs only the checks above (once per change);
+      // `--shard I` reproduces only shard I of `identityShards`, so a matrix
+      // reproduces every entry. Without either, every entry here.
       const plan = reproductionPlan(baseline, current);
-      if (plan.entries.length) {
+      const shards = identityShards(plan.entries.map((entry) => entry.port_id));
+      const shard = option.shard === undefined ? undefined : Number(option.shard);
+      if (
+        shard !== undefined &&
+        !(Number.isSafeInteger(shard) && shard >= 0 && shard < shards.length)
+      )
+        throw new Error(`verify --shard ${option.shard} names no shard of ${shards.length}.`);
+      const mine = new Set(
+        shard === undefined ? plan.entries.map((e) => e.port_id) : shards[shard],
+      );
+      const entries =
+        option.reproduce === "false" ? [] : plan.entries.filter((entry) => mine.has(entry.port_id));
+      if (entries.length) {
         if (!option.cli) throw new Error("verify needs --cli to reproduce facts.");
         const work = await mkdtemp(path.join(os.tmpdir(), "listing-facts-reproduce-"));
         try {
           const cli = path.resolve(option.cli);
-          // One deadline for the whole reproduction: every download and Core
-          // run is cut at it, and the entry is refused as over-budget.
-          const deadline = Date.now() + reproductionBudget.maxMilliseconds;
+          // The shard's real time limit: every download and Core run is cut
+          // at it, and the entry is refused as over-budget.
+          const minutes = option["deadline-minutes"]
+            ? Number(option["deadline-minutes"])
+            : undefined;
+          if (minutes !== undefined && !(minutes > 0))
+            throw new Error("verify --deadline-minutes needs a positive number.");
+          const deadline = minutes === undefined ? undefined : Date.now() + minutes * 60_000;
+          const timing = deadline === undefined ? {} : { deadline };
           const result = await reproduceFacts({
-            entries: plan.entries,
+            entries,
             readRelease: githubReleaseReader(token()),
             listReleases: githubReleaseLister(token()),
-            inspect: cliInspector(cli, work, { deadline }),
-            classify: cliClassifier(cli, work, { deadline }),
+            inspect: cliInspector(cli, work, timing),
+            classify: cliClassifier(cli, work, timing),
             boundLines: boundLinesOf(
               readCatalogSource(path.join(root, "crates/portcove-core/catalog")).authored,
             ),
-            deadline,
+            ...timing,
           });
           summary(
-            `Reproduced ${result.verified.length} of ${plan.entries.length} changed eligible facts entries (${result.bytes} bytes).`,
+            `Reproduced ${result.verified.length} of ${entries.length} changed eligible facts entries${shard === undefined ? "" : ` in shard ${shard} of ${shards.length}`} (${result.bytes} bytes).`,
           );
           for (const refusal of result.refused)
             problems.push(`${refusal.port_id}: ${refusal.reason}: ${refusal.detail}`);
@@ -2090,10 +2165,26 @@ async function main(argv: string[]): Promise<string> {
           await rm(work, { recursive: true, force: true });
         }
       }
-      output("reproduced", String(plan.entries.length));
+      output("reproduced", String(entries.length));
       if (problems.length)
         throw new Error(`Listing facts change refused:\n- ${problems.join("\n- ")}`);
-      return `Listing facts change verified: ${plan.entries.length} eligible entries reproduced.\n`;
+      return `Listing facts change verified: ${entries.length} eligible entries reproduced.\n`;
+    }
+    case "worker-shards": {
+      // The facts worker's shards: one per identity that needs bytes, at
+      // most `matrixJobLimit`, each written as `only-<index>.json`.
+      if (!option.needs || !option.directory)
+        throw new Error("worker-shards needs --needs and --directory.");
+      const needs = JSON.parse(readFileSync(option.needs, "utf8")) as { port_id: string }[];
+      const shards = identityShards(needs.map((need) => need.port_id));
+      mkdirSync(option.directory, { recursive: true });
+      for (const [index, only] of shards.entries())
+        writeFileSync(
+          path.join(option.directory, `only-${index}.json`),
+          `${JSON.stringify(only)}\n`,
+        );
+      output("shards", JSON.stringify(shards.map((_, index) => index)));
+      return `${needs.length} identities need bytes in ${shards.length} shard(s).\n`;
     }
     case "observations": {
       if (!option.handoff || !option.output)
@@ -2127,7 +2218,6 @@ async function main(argv: string[]): Promise<string> {
         observations: read(option.observations!),
         state: read(option.state!),
         factsTable: read(path.join(root, factsTablePath)),
-        budget: { ...reproductionBudget },
       });
       const bytes = Buffer.from(`${JSON.stringify(inputs, null, 2)}\n`);
       writeFileSync(option.output!, bytes);
@@ -2187,6 +2277,7 @@ async function main(argv: string[]): Promise<string> {
             added: number;
             withdrawn: number;
             changed: number;
+            held?: { port_id: string; cause: string }[];
           })
         : undefined;
       const { conditions, record } = stopConditions({
@@ -2198,11 +2289,18 @@ async function main(argv: string[]): Promise<string> {
         gate: (option.gate as "ok" | "refused" | "skipped") ?? "skipped",
         paths: (option.paths as "ok" | "violated" | "skipped") ?? "skipped",
         reproduction: (option.reproduction as "ok" | "refused" | "skipped") ?? "skipped",
-        ...(delta ? { delta } : {}),
+        ...(delta ? { delta, held: delta.held ?? [] } : {}),
         details: reproductionDetails(option.refusals),
       });
       if (record)
-        writeFileSync(option.history, `${JSON.stringify([...history, record].slice(-30))}\n`);
+        // The identity list is kept on the newest record only: coverage
+        // compares one run with the previous one.
+        writeFileSync(
+          option.history,
+          `${JSON.stringify(
+            [...history.map(({ observed_ids: _ids, ...rest }) => rest), record].slice(-30),
+          )}\n`,
+        );
       const facts = currentFacts();
       const behind = factsFallingBehind(facts, option.now ?? new Date().toISOString());
       if (option.output)
@@ -2337,11 +2435,15 @@ async function main(argv: string[]): Promise<string> {
     case "delta": {
       const base = baselineRevision(option.base);
       const before = git(["show", `${base}:${enrollmentTablePath}`]);
-      const delta = tableDelta(
-        before ? (JSON.parse(before) as unknown) : null,
-        JSON.parse(readFileSync(path.join(root, enrollmentTablePath), "utf8")),
+      const previous = before ? (JSON.parse(before) as unknown) : null;
+      const current: unknown = JSON.parse(
+        readFileSync(path.join(root, enrollmentTablePath), "utf8"),
       );
-      if (option.output) writeFileSync(option.output, `${JSON.stringify(delta)}\n`);
+      const delta = tableDelta(previous, current);
+      const held = withdrawalCauses(previous, current, baselineFacts(base), currentFacts()).filter(
+        (item) => item.cause !== "upstream",
+      );
+      if (option.output) writeFileSync(option.output, `${JSON.stringify({ ...delta, held })}\n`);
       output("changed", String(delta.added + delta.withdrawn + delta.changed > 0));
       output("material", String(materialChange(baselineFacts(base), currentFacts(), delta)));
       return `${JSON.stringify(delta)}\n`;
@@ -2455,12 +2557,7 @@ async function main(argv: string[]): Promise<string> {
         prState: option["pr-state"] ?? "none",
         prNumber: option["pr-number"] ?? "none",
         ...(option["pr-created-at"] ? { prCreatedAt: option["pr-created-at"] } : {}),
-        jobs: {
-          gate: option.gate ?? "",
-          derive: option.derive ?? "",
-          merge: option.merge ?? "",
-          deliver: option.deliver ?? "",
-        },
+        jobs: Object.fromEntries(batchJobs.map((job) => [job, option[job] ?? ""] as const)),
       });
       writeFileSync(option.conditions, `${JSON.stringify(collected)}\n`);
       return `${collected.conditions.length} condition(s).\n`;

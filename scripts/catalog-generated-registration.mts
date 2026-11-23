@@ -80,14 +80,18 @@ import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { registrationOwnership } from "./catalog-route-facts.mts";
 import { heldAt, usesScummvmEngine } from "./catalog-route-holds.mts";
-import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import {
+  listingPackageLimit,
+  listingProviderIdentity,
+  listingReleaseLimit,
+} from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
 export const GENERATOR_VERSION = 12;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 12;
+export const FACTS_PARSER_VERSION = 13;
 export const FACTS_TABLE_FORMAT = 11;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -96,16 +100,24 @@ export const factsGenerator = "scripts/listing-package-facts.mts";
 export const enrollmentGenerator = "scripts/generate-catalog.mts";
 
 /**
- * Bounds of one generation's enrollment delta against the merge-base table.
- * A larger change lands as successive batches, one per worker run; a run
- * beyond them is refused until a person raises the bound here in a reviewed
- * change. There is no bypass.
+ * Facts older than this, measured against the table's `generated_at`, are
+ * stale: the correctness bound on how long observed release facts are
+ * trusted without a fresh complete observation.
  */
-export const deltaBounds = { added: 64, withdrawn: 32, changed: 64 } as const;
-/** Facts older than this, measured against the table's `generated_at`, are stale. */
 export const maxFactsAgeDays = 30;
-/** Last-good facts survive consecutive non-complete attempts for this long. */
+/**
+ * Last-good facts survive consecutive non-complete attempts for this long,
+ * and a transient inspection failure is retried for this long: the
+ * correctness bound on how long an upstream or provider fault is treated as
+ * temporary.
+ */
 export const lastGoodRetentionDays = 14;
+/**
+ * Core's bound on the regular files one listing inspection reads
+ * (`MAXIMUM_SHAPE_PATHS` in `crates/portcove-core/src/package_shape.rs`):
+ * no archive can record more programs than that.
+ */
+export const coreInspectedFileBound = 16_384;
 const day = 86_400_000;
 
 /** The only fact source generator v1 accepts: exact, digest-bound archive bytes. */
@@ -144,9 +156,6 @@ export const ineligibleReasons = [
   "unsupported-archive-format",
   "non-desktop-platform",
   "no-digest",
-  "too-large",
-  "too-many-assets",
-  "exceeds-run-budget",
   "core-refused",
   "repeated-inspection-failure",
   "invalid-facts",
@@ -451,9 +460,9 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
     !targetArch.includes(value.arch as string) ||
     typeof value.contradictory !== "boolean" ||
     !Array.isArray(value.players) ||
-    value.players.length > 64 ||
+    value.players.length > coreInspectedFileBound ||
     !Array.isArray(value.excluded_players) ||
-    value.excluded_players.length > 64
+    value.excluded_players.length > coreInspectedFileBound
   )
     throw new Error(`${where} is not a typed artifact fact.`);
   // Generator v1 trusts only exact structural observations of digest-bound bytes.
@@ -513,10 +522,14 @@ function checkSuggestion(suggestion: unknown, where: string) {
     throw new Error(`${where} is not a filename classification.`);
 }
 
-/** At most this many observed releases, other packages and refused archives per entry. */
-const maxObservedReleases = 16;
-const maxOtherPackages = 32;
-const maxRefusedArchives = 32;
+/**
+ * The observer's own window: at most `listingReleaseLimit` releases, each
+ * with at most `listingPackageLimit` assets
+ * (`scripts/listing-upstream-observation.mts`). An entry can record no more.
+ */
+const maxObservedReleases = listingReleaseLimit;
+const maxOtherPackages = listingPackageLimit;
+const maxRefusedArchives = listingPackageLimit;
 
 function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
   const releases = entry.observed_releases;
@@ -662,7 +675,7 @@ export function checkListingFactsEntry(
     !positive(entry.parser_version) ||
     !isRecord(entry.observation) ||
     !Array.isArray(entry.artifacts) ||
-    entry.artifacts.length > 256
+    entry.artifacts.length > listingPackageLimit
   )
     throw new Error(`${where} needs an identity, GitHub repository id and parser.`);
   const observation = entry.observation;
@@ -753,7 +766,6 @@ export function checkListingFactsTable(value: unknown): asserts value is Listing
     value.generator !== factsGenerator ||
     !timestamp(value.generated_at) ||
     !Array.isArray(value.entries) ||
-    value.entries.length > 10000 ||
     value.entries_sha256 !== digestOf(value.entries)
   )
     throw new Error("Listing package facts need the current format, generator and entry digest.");
@@ -992,15 +1004,6 @@ export function machineRunsOn(machine: string, platform: string): boolean {
 /** Whether an archive's name permits P: it names no other system or architecture. */
 function namePermits(artifact: ArtifactFactV2, platform: string) {
   return namePermitsName(artifact.name_suggestion, platform);
-}
-/** How many of these archive names allow each supported platform. */
-export function archivesPerPlatform(names: readonly NameSuggestion[]): Record<string, number> {
-  return Object.fromEntries(
-    platforms.map((platform) => [
-      platform,
-      names.filter((named) => namePermitsName(named, platform)).length,
-    ]),
-  );
 }
 /** Whether a name vetoes its archive by its own words, whatever the archive holds. */
 function nameVetoes(named: NameSuggestion) {
@@ -2377,8 +2380,9 @@ export interface RegistrationQueues {
   /**
    * The `other-package-form-beside-archive` queue's evidence: per withheld
    * identity, in port_id order, the names of the release assets that compete
-   * with its archive, in code-point order and at most
-   * `maxQueuedCompetingNames`. An unusual extra file listed here is how a
+   * with its archive, in code-point order: every one, bounded only by the
+   * release's own assets in the observer's `listingPackageLimit` window. An
+   * unusual extra file listed here is how a
    * person decides deliberately whether the closed non-program list
    * (`nonProgramSuffixes`) should grow.
    */
@@ -2395,8 +2399,6 @@ export interface RegistrationQueues {
    */
   inspection_failures: Record<string, string[]>;
 }
-/** The most competing asset names the report lists for one identity. */
-export const maxQueuedCompetingNames = 10;
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
   const reasons = Object.fromEntries(blockedReasons.map((reason) => [reason, [] as string[]]));
@@ -2469,7 +2471,7 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
           const names = new Set(
             competingPackages(entry).flatMap(([, foreign]) => foreign.map((other) => other.name)),
           );
-          return [[id, [...names].toSorted(compareCodePoints).slice(0, maxQueuedCompetingNames)]];
+          return [[id, [...names].toSorted(compareCodePoints)]];
         }),
     ),
     bundled_toolchains: Object.fromEntries(
@@ -2615,7 +2617,13 @@ type Guide = {
   references?: { title: string; instruction: string }[];
   help_url?: string;
 };
-/** Core's concrete guide bound: steps plus references, and warnings, at most eight. */
+/**
+ * Core's catalog guide schema bound (`crates/portcove-core/src/catalog.rs`
+ * and `catalog/listings.rs`): steps plus references, and warnings, at most
+ * eight. Every client enforces it, so a longer guide cannot ship, and
+ * truncating an authored guide would drop title-specific steps: an identity
+ * without room is withheld (`guide-bound`).
+ */
 const guideBound = 8;
 const authoredGuide = (record: AuthoredPort) =>
   isRecord(record.listing.manual_setup)
@@ -3689,9 +3697,12 @@ function gateEnrollmentProblems(
 }
 
 /**
- * Refuse a generation whose delta against the baseline (the merge base's
- * committed table, never the working tree) exceeds the bounds, or whose
- * enrollments do not rest on complete, current, digest-bound facts. The gate
+ * Refuse a generation whose enrollments do not rest on complete, current,
+ * digest-bound facts, or whose facts time moves backwards from the
+ * baseline's (the merge base's committed tables, never the working tree).
+ * The delta has no size bound: every enrollment that passes these checks may
+ * land in one change. A mass withdrawal a bug could cause is held by the
+ * facts batch job's `withdrawal-held` stop (`withdrawalCauses`). The gate
  * restates the release-asset classifier independently (`gateFormKind`) but
  * sees only the assets the facts recorded as other package forms. Reproducing
  * the facts re-lists the release with the worker's classifier, so an asset
@@ -3701,7 +3712,6 @@ function gateEnrollmentProblems(
 export function gateGeneration(
   baseline: unknown,
   generation: Generation,
-  bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
   baselineFacts: unknown = null,
 ) {
   const delta = enrollmentDelta(baseline, generation);
@@ -3716,11 +3726,6 @@ export function gateGeneration(
         `The facts table was generated at ${generation.facts.generated_at}, before the baseline's ${String((baselineFacts as Record<string, unknown>).generated_at)}.`,
       );
   }
-  for (const name of ["added", "withdrawn", "changed"] as const)
-    if (delta[name].length > bounds[name])
-      problems.push(
-        `${delta[name].length} ${name} routes exceed the bound of ${bounds[name]}; land them as successive batches.`,
-      );
   const entries = new Map(generation.facts.entries.map((entry) => [entry.port_id, entry]));
   const listings = generation.records.map((record) => record.listing as Record<string, unknown>);
   for (const enrollment of generation.enrollments)
@@ -3795,31 +3800,24 @@ export function readGateBaseline(
 // Reproduction: CI re-reads the exact bytes behind every eligible entry a
 // change adds or changes (`scripts/listing-facts-batch.mts reproduce`).
 
-export interface ReproductionBudget {
-  /** Eligible entries one change may add or change. */
-  maxEntries: number;
-  /** Archive bytes one reproduction may download in total. */
-  maxBytes: number;
-  /** Largest single archive; a larger one is refused, never trusted. */
-  maxArchiveBytes: number;
-  /** Wall-clock budget of one reproduction, in milliseconds. */
-  maxMilliseconds: number;
-}
 /**
- * One change's reproduction budget. The entry bound is the gate's largest
- * delta bound; 4 GiB is two worker runs' byte budget, and an archive is never
- * larger than the worker reads (512 MiB). One 30-minute deadline bounds the
- * whole reproduction: it is checked before each entry and archive, and every
- * download, name classification and Core run is cut to the time left
- * (`boundedTimeout`), so a reproduction ends at the deadline plus process
- * scheduling, inside its 45-minute CI step.
+ * GitHub Actions runs at most this many jobs from one matrix
+ * ([documentation](https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrix)).
  */
-export const reproductionBudget: ReproductionBudget = {
-  maxEntries: Math.max(deltaBounds.added, deltaBounds.changed),
-  maxBytes: 4 * 1024 ** 3,
-  maxArchiveBytes: 512 * 1024 ** 2,
-  maxMilliseconds: 30 * 60_000,
-};
+export const matrixJobLimit = 256;
+/**
+ * Deterministic shards of identities: `count` shards (one per identity, at
+ * most `matrixJobLimit`), identity i in port_id order in shard i mod count.
+ * Reproduction and the facts worker shard the same way, so every shard
+ * holds the fewest identities the matrix allows and none is left out.
+ */
+export function identityShards(ids: readonly string[]): string[][] {
+  const sorted = [...new Set(ids)].toSorted(compareCodePoints);
+  const count = Math.min(matrixJobLimit, sorted.length);
+  const shards: string[][] = Array.from({ length: count }, () => []);
+  for (const [index, id] of sorted.entries()) shards[index % count]!.push(id);
+  return shards;
+}
 
 /**
  * An entry without the fields a reconfirmation alone moves: `observed_at`
@@ -3868,86 +3866,4 @@ export function reproductionPlan(previous: unknown, next: ListingFactsTable) {
     needsReproduction(before.get(entry.port_id), entry),
   );
   return { entries, bytes: entries.reduce((sum, entry) => sum + reproductionCost(entry), 0) };
-}
-
-// ---------------------------------------------------------------------------
-// Batching: facts land through one bounded batch per worker run.
-
-/**
- * Keep the new facts of identities in port_id order while the enrollment delta
- * against the routes `previous` produces stays within the bounds; every other
- * changed identity keeps its previous entry, and its new entry is returned as
- * deferred so the next run offers it again without reading bytes. A change
- * that time alone causes (facts ageing out) cannot be deferred and counts
- * first. Eligible entries that need reproduction also stay within
- * `reproduction` (entries and archive bytes), so CI can always re-read every
- * one of them. Deterministic and pure.
- */
-export function boundFactsBatch(
-  records: readonly AuthoredPort[],
-  previous: ListingFactsTable,
-  next: ListingFactsTable,
-  bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
-  reproduction: ReproductionBudget = reproductionBudget,
-): { table: ListingFactsTable; deferred: ListingFactsEntry[] } {
-  const byId = new Map(records.map((record) => [record.listing.id, record]));
-  const context = fitContext(records);
-  const before = new Map(previous.entries.map((entry) => [entry.port_id, entry]));
-  const after = new Map(next.entries.map((entry) => [entry.port_id, entry]));
-  const enrolled = (id: string, entry: ListingFactsEntry | undefined, at: string) => {
-    const record = byId.get(id);
-    const decision = record ? fitDecision(record, entry, at, context) : undefined;
-    return decision?.fit ? JSON.stringify(decision.enrollment) : undefined;
-  };
-  const effect = (from: string | undefined, to: string | undefined) =>
-    from === to ? undefined : !from ? "added" : !to ? "withdrawn" : "changed";
-  const counts = { added: 0, withdrawn: 0, changed: 0 };
-  const ids = [...new Set([...before.keys(), ...after.keys()])].toSorted();
-  const accepted = new Map<string, ListingFactsEntry>();
-  const pending: string[] = [];
-  for (const id of ids) {
-    const old = before.get(id);
-    const proposed = after.get(id);
-    if (digestOf(old ?? null) === digestOf(proposed ?? null)) {
-      if (old) accepted.set(id, old);
-      const change = effect(
-        enrolled(id, old, previous.generated_at),
-        enrolled(id, old, next.generated_at),
-      );
-      if (change) counts[change]++;
-    } else pending.push(id);
-  }
-  const deferred: ListingFactsEntry[] = [];
-  // Every eligible entry this batch adds or changes is re-read from its exact
-  // bytes in CI; the batch never asks for more than that check may read.
-  let reproduceEntries = 0;
-  let reproduceBytes = 0;
-  for (const id of pending) {
-    const old = before.get(id);
-    const proposed = after.get(id);
-    const base = enrolled(id, old, previous.generated_at);
-    const change = effect(base, enrolled(id, proposed, next.generated_at));
-    const cost = proposed && needsReproduction(old, proposed) ? reproductionCost(proposed) : null;
-    const reproducible =
-      cost === null ||
-      (reproduceEntries < reproduction.maxEntries &&
-        reproduceBytes + cost <= reproduction.maxBytes);
-    if (reproducible && (!change || counts[change] < bounds[change])) {
-      if (cost !== null) {
-        reproduceEntries++;
-        reproduceBytes += cost;
-      }
-      if (change) counts[change]++;
-      if (proposed) accepted.set(id, proposed);
-      continue;
-    }
-    if (proposed) deferred.push(proposed);
-    if (old) accepted.set(id, old);
-    const kept = effect(base, enrolled(id, old, next.generated_at));
-    if (kept) counts[kept]++;
-  }
-  const sorted = [...accepted.values()].toSorted((left, right) =>
-    left.port_id < right.port_id ? -1 : 1,
-  );
-  return { table: { ...next, entries: sorted, entries_sha256: digestOf(sorted) }, deferred };
 }
