@@ -95,22 +95,33 @@ export function externalWebLocation(value: string) {
   if (parts.some((part) => part.length > 200 || /^\.+$/u.test(part)) || parts.length > 12)
     return null;
   let search = url.search.length > 1 && url.search.length <= 200 ? url.search : "";
-  let site = host;
-  // SourceForge serves one project under several routes and a project site
-  // (`<name>.sourceforge.net`); its project root is the identity.
-  const sourceforge = host.match(/^(?:(?<name>[a-z0-9-]+)\.)?sourceforge\.net$/u);
+  const site = /(?:^|\.)sourceforge\.net$/u.test(host) ? "sourceforge.net" : host;
+  // SourceForge serves one project under several routes, mirror hosts and a
+  // project site (`<name>.sourceforge.net`); its project root is the identity.
+  // Mirror and service hosts name the project only in their path.
+  const sourceforge = /(?:^|\.)sourceforge\.net$/u.test(host);
   if (sourceforge) {
-    const named = sourceforge.groups?.name;
-    const project =
-      named && named !== "www"
-        ? named
-        : parts[0] === "projects" || parts[0] === "p"
-          ? parts[1]
+    const labels = host.split(".").slice(0, -2);
+    const projectSite =
+      labels.length === 1 && !sourceforgeServiceHosts.has(labels[0]!) ? labels[0] : undefined;
+    const routed =
+      parts[0] === "projects" || parts[0] === "project" || parts[0] === "p"
+        ? parts[1]
+        : // A mirror's `/<name>/<file>` download route.
+          labels.length && labels[0] === "prdownloads"
+          ? parts[0]
           : undefined;
+    const project = projectSite ?? routed;
     if (!project || !segment.test(project)) return null;
-    site = "sourceforge.net";
     parts = ["projects", project.toLowerCase()];
     search = "";
+  } else {
+    // A GitLab-style `/-/` route belongs to the project before it.
+    const route = parts.indexOf("-");
+    if (route > 0) {
+      parts = parts.slice(0, route);
+      search = "";
+    }
   }
   const path = `${parts.length ? `/${parts.join("/")}` : ""}${search}`;
   // One site served over HTTP and HTTPS is one location; the key ignores the scheme.
@@ -120,6 +131,23 @@ export function externalWebLocation(value: string) {
     host: "web",
   } as const;
 }
+/** SourceForge hosts that serve many projects: mirrors and services, never a project site. */
+const sourceforgeServiceHosts = new Set([
+  "www",
+  "downloads",
+  "prdownloads",
+  "master",
+  "dl",
+  "svn",
+  "git",
+  "hg",
+  "cvs",
+  "web",
+  "shell",
+  "frs",
+  "apps",
+  "a",
+]);
 /** A repository on a resolvable host, or else an official URL on any other host. */
 export function externalLocation(value: string) {
   return externalRepository(value) ?? externalWebLocation(value);

@@ -1919,6 +1919,22 @@ void test("official URLs on unsupported hosts are retained as unresolved web hin
     "https://sourceforge.net/projects/openlara",
     "a SourceForge project site is its project",
   );
+  for (const [mirror, project] of [
+    ["https://downloads.sourceforge.net/project/foo/foo-1.0.tar.gz", "foo"],
+    ["https://prdownloads.sourceforge.net/bar/bar-2.zip", "bar"],
+    ["https://master.dl.sourceforge.net/project/baz/x.zip", "baz"],
+  ] as const)
+    assert.equal(
+      externalWebLocation(mirror)?.key,
+      `https://sourceforge.net/projects/${project}`,
+      "a mirror names its project only in its path",
+    );
+  assert.equal(externalWebLocation("https://downloads.sourceforge.net/"), null);
+  assert.equal(
+    externalWebLocation("https://voidpoint.io/terminx/eduke32/-/archive/r1")?.key,
+    externalWebLocation("https://voidpoint.io/terminx/eduke32")?.key,
+    "a self-hosted GitLab route belongs to its project",
+  );
   for (const forge of [
     "https://gist.github.com/owner/abc",
     "https://codeload.github.com/owner/repo/zip/main",

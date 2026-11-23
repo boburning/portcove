@@ -351,10 +351,7 @@ void test("distribution extraction keeps variable sites, real pins and recognize
   );
   assert.deepEqual(
     batocera.entries.map((entry) => entry.key),
-    [
-      "https://github.com/diasurgical/devilutionx",
-      "https://voidpoint.io/terminx/eduke32/-/archive",
-    ],
+    ["https://github.com/diasurgical/devilutionx", "https://voidpoint.io/terminx/eduke32"],
     "a download route built from make variables still names its project",
   );
   const branch = parseRetropieModule(
