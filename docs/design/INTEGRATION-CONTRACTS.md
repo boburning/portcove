@@ -10,20 +10,34 @@
   (dynamic native ports program; batch 1 "Contracts" in the lead's mechanism
   map of 2026-11-23) and [#921](https://github.com/boburning/portcove/issues/921)
   (definition delivery and retained installed contracts).
-- **Source:** `main` at `f8799fb31`.
+- **Source:** `main` at `e53fee315`.
 - **Merged since revision 1:**
-  [#8622](https://github.com/boburning/portcove/pull/8622) (external-profile
-  policies bound to the definition's own identity; step 1), merged as
-  `f8799fb31`. It removed 12 compiled pins and kept two (Dune Dynasty,
-  fheroes2) in `reviewed_subject` (`native_external_profile.rs:173-183`).
-- **Still in flight** (open, not merged at `f8799fb31`); this document builds
-  on them:
+  - [#8622](https://github.com/boburning/portcove/pull/8622) (external-profile
+    policies bound to the definition's own identity; step 1), merged as
+    `f8799fb31`. It removed 12 compiled pins and kept two (Dune Dynasty,
+    fheroes2) in `reviewed_subject` (`native_external_profile.rs:173-183`).
   - [#8618](https://github.com/boburning/portcove/pull/8618) (Open Surge and
-    CVLoD path-policy pins; test-only `cfg` items counted as tests)
-  - [#8625](https://github.com/boburning/portcove/pull/8625) (family-generator
-    shorthands expanded by declared fields, not repository literals)
-- **Line numbers:** every file:line citation refers to `f8799fb31`. Core paths
+    CVLoD path-policy pins; test-only `cfg` items counted as tests), merged as
+    `e53fee315`. Its Open Surge check is now keyed on an environment-variable
+    literal; see the surge residual in [IC-12](#ic-12-exceptions-phase-b-c7b-and-residuals).
+- **Still in flight** (open at `e53fee315`); this document builds on it:
+  [#8625](https://github.com/boburning/portcove/pull/8625) (family-generator
+  shorthands expanded by declared fields, not repository literals).
+- **Line numbers:** every file:line citation refers to `e53fee315`. Core paths
   are relative to `crates/portcove-core/src/` unless stated otherwise.
+- **Lead decisions:** two are recorded in [lead decisions](#lead-decisions-recorded).
+
+**Revision 3** applies the lead's final review round. It declares today's
+guarded fallback as the pre-contract reader and bounds whole-directory backup
+by the manifest's immutable set; derives C1's combinations from today's
+validator; counts four C7 phase-A rows; keeps id tests that sit inside a
+retained-key gate as fence data and adds a fourth guard-predicate test;
+records the two lead decisions; adds the
+[maintenance frequency](#owner-and-lead-maintenance-frequency) section; makes
+the IC-2a table fail closed against a digest of its inputs; uses a generic
+field comparison for the library-import reconciliation; adds IC-4's
+`legacy_scope` flag; bounds `reviewed-runtime-write` and seeded text; and
+uses neutral fixture values in normative examples.
 
 **Revision 2** applies an independent review (verdict: adopt with changes). It:
 
@@ -56,8 +70,10 @@
 9. [One capability assessment](#one-capability-assessment)
 10. [Compatibility and rollout order](#compatibility-and-rollout-order)
 11. [Implementation breakdown](#implementation-breakdown)
-12. [Alternatives rejected](#alternatives-rejected)
-13. [Open risks and unknowns](#open-risks-and-unknowns)
+12. [Lead decisions recorded](#lead-decisions-recorded)
+13. [Owner and lead maintenance frequency](#owner-and-lead-maintenance-frequency)
+14. [Alternatives rejected](#alternatives-rejected)
+15. [Open risks and unknowns](#open-risks-and-unknowns)
 
 ## Owner direction and how this design answers it
 
@@ -92,7 +108,7 @@ Each part of the direction maps to a concrete proposal:
 | Direction                                                                               | Proposal in this document                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Capability contracts are the unit of integration                                        | Every proposed contract is a named, versioned definition feature in Core's existing registry (`definition_capabilities.rs:42-100`). It has a closed typed shape, a validator and a retained-contract representation ([contract map](#contract-map)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Trace remaining title-specific behavior                                                 | [Measured starting point](#measured-starting-point) lists the identities that fail the retired-authority gate (117 at `f8799fb31`, 56 with the in-flight pull requests merged), with their authority kinds. [Implementation breakdown](#implementation-breakdown) assigns every identity to the pull request that retires its authority.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Trace remaining title-specific behavior                                                 | [Measured starting point](#measured-starting-point) lists the identities that fail the retired-authority gate (98 at `e53fee315`, 56 with #8625 merged), with their authority kinds. [Implementation breakdown](#implementation-breakdown) assigns every identity to the pull request that retires its authority.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | The missing concepts                                                                    | Eight concepts:<br>- **Process handoff:** [C1](#c1-process-handoff-launchprocess-handoff-v1)<br>- **Launch environment contributions:** [C2](#c2-launch-environment-contributions-launchenvironment-contributions-v1)<br>- **External roots with typed checks** (covers external save locations and root resolution): [C3](#c3-external-roots-and-typed-checks-nativeexternal-roots-v1)<br>- **Player-data roles** (covers generated-data ownership, save-file role maps and runtime credentials): [C4](#c4-player-data-roles-dataroles-v1)<br>- **Seeded files** (covers managed initialization): [C5](#c5-seeded-files-and-file-signature-checks-stagedseeded-files-v1)<br>- **Shared write scopes:** [C6](#c6-shared-write-scope-stagedshared-write-scope-v2)<br>- **Byte-bound artifact exceptions** (covers artifact-specific restrictions): [C7](#c7-byte-bound-artifact-exceptions-runtimeartifact-exceptions-v1)<br>- **Exact mod-provider bindings:** [C8](#c8-recorded-mod-provider-bindings-library-migration-no-definition-change) |
 | Six areas                                                                               | The [contract map](#contract-map) lists the existing contracts and the missing concepts for each area.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Core implements and validates supported combinations; definitions supply facts          | Each contract states what Core validates (adapters, platforms, interaction with other contracts) and what it selects. No contract carries code, paths outside closed bases, shell text or an open check vocabulary.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -121,27 +137,28 @@ The owner's constraints also bind this design:
 
 ## Measured starting point
 
-`node scripts/maintenance-program-view.mts --json` on `f8799fb31`, and on a
-local merge of `f8799fb31` with #8618 (`cea9c5863`) and #8625 (`67549c5fb`):
+`node scripts/maintenance-program-view.mts --json` on `f8799fb31` (before
+#8618), on `e53fee315` (after #8618), and on a local merge of `e53fee315` with
+#8625 (`67549c5fb`):
 
-| Gate                | Numerator / denominator (version)            | `f8799fb31`    | With #8618 and #8625 merged |
-| ------------------- | -------------------------------------------- | -------------- | --------------------------- |
-| `fitting`           | 777 / 1624 (`program-view/in-scope/1`)       | 0.4784         | unchanged                   |
-| `retired-authority` | n / 460 (`program-view/in-scope-enrolled/1`) | 343 (117 fail) | **404 (56 fail)**           |
+| Gate                | Numerator / denominator (version)            | `f8799fb31`    | `e53fee315`   | With #8625 merged |
+| ------------------- | -------------------------------------------- | -------------- | ------------- | ----------------- |
+| `fitting`           | 777 / 1624 (`program-view/in-scope/1`)       | 0.4784         | unchanged     | unchanged         |
+| `retired-authority` | n / 460 (`program-view/in-scope-enrolled/1`) | 343 (117 fail) | 362 (98 fail) | **404 (56 fail)** |
 
 The retired-authority gate reports no unknown kinds. The local merge is a
 measurement, not a prediction: the 56 remaining identities are assigned one by
 one in the [implementation breakdown](#implementation-breakdown).
 
 Per-kind authority counts at `f8799fb31` (#8622 lowered `core-title-literal`
-from 37 entries and 60 identities). The last column gives the count after the
-local merge where it differs:
+from 37 entries and 60 identities). The identities column gives later counts
+where they differ; every other column is the same at `e53fee315`:
 
 | Kind                                   | State   | Entries | Files | Identities                                    | Members (rows)                                                                                                  |
 | -------------------------------------- | ------- | ------- | ----- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `core-title-literal`                   | active  | 35      | 35    | 50 (24 after merge)                           | —                                                                                                               |
+| `core-title-literal`                   | active  | 35      | 35    | 50 (24 at `e53fee315`)                        | —                                                                                                               |
 | `title-named-core-item`                | active  | 61      | 22    | 33                                            | —                                                                                                               |
-| `family-generator-script`              | active  | 14      | 14    | 52 (retired after merge)                      | —                                                                                                               |
+| `family-generator-script`              | active  | 14      | 14    | 52 (retired with #8625)                       | —                                                                                                               |
 | `historical-artifact-registry`         | active  | 26      | 2     | 18                                            | `#dkr` 4, `#direct` 4, `#packages` 7, `#cartridge` 6, `#forbidden_memories_producer` 1, `tool-artifacts.json` 4 |
 | `external-profile-policy`              | active  | 18      | 1     | 25                                            | `ExternalProfilePolicy` 18                                                                                      |
 | `native-external-profile-module`       | active  | 11      | 11    | 0 (covered through `external-profile-policy`) | —                                                                                                               |
@@ -274,8 +291,11 @@ lives, where it is conflated and the rule every consumer follows.
 - **Rule:** an existing installation is interpreted only by its own retained
   contract, read at the boundary in
   [the read/migration boundary](#installed-state-and-the-readmigration-boundary).
-  Where no retained contract exists (pre-schema-6 manifests), the frozen
-  historical reader supplies one. The _current_ catalog is never a substitute.
+  Where no retained contract exists (pre-schema-6 manifests), the
+  [pre-contract reader](#installed-state-and-the-readmigration-boundary)
+  applies: today's guarded fallback, which reads the current definition only
+  while that definition has gained none of the policy fields listed there.
+  Outside that guard the current catalog is never a substitute.
   Departure of a port from the current catalog withholds new acquisition
   only. Backup, restore, rollback to a retained build, launch of a retained
   build and removal stay governed by retained state and local integrity.
@@ -311,9 +331,9 @@ operation it should hold.
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | No recorded uploader for a build acquired after the baseline (`release/uploader_continuity.rs:288-297`), reached through `require_activation_gates` (`service.rs:7432-7445`) | Rollback (`service.rs:5017-5030`); profile-pinned launch of the _already active_ build (`profile_deploy.rs:2763-2767`); settings recovery (`service/game_settings.rs:573`; `game_settings/activation_deletion.rs:85`); retained-build permission (`retained_build.rs:429`); recovery (`recovery.rs:170`, `:199`, `:874`)         | Uploader continuity is acquisition-trust evidence for _making a not-yet-executed build active_. It keeps holding first activation and rollback to a build that was never active. It does not hold launch of the currently active build or file-only settings recovery. "Never active" is UNKNOWN as a recorded fact; see [risks](#open-risks-and-unknowns). The trust change needs a critical reviewer. |
 | 2   | The current catalog narrowed `accepted_uploaders` (`release/uploader_continuity.rs:302-325`, `current.unwrap_or(retained)` at `:304`)                                        | Same as case 1                                                                                                                                                                                                                                                                                                                   | Narrowing is a reviewed revocation, not missing evidence, so it may hold activation of a build from that uploader. It must not reinterpret the retained route for operations that execute nothing.                                                                                                                                                                                                      |
-| 3   | No retained contract (pre-schema-6 manifest) for a port whose persistence needs a restore receipt (`service.rs:7618-7630`)                                                   | Backup assessment (`service/backups.rs:1306`, `:1362-1373`); collectible-data review (`:554`); protection (`service/protection.rs:227`); game settings (`service/game_settings.rs:108`); native-portable transitions (`service/native_portable.rs:343-493`); restore deletion (`service/restore_deletion.rs:82`, `:420`, `:473`) | The frozen historical reader supplies the retained interpretation, as `install.rs:4185-4227` already does for DKR. Where none can be established, _whole-directory_ backup (copying everything under the install's owned roots without per-path claims) stays available. Only path-selective operations hold.                                                                                           |
+| 3   | No retained contract (pre-schema-6 manifest) for a port whose persistence needs a restore receipt (`service.rs:7618-7630`)                                                   | Backup assessment (`service/backups.rs:1306`, `:1362-1373`); collectible-data review (`:554`); protection (`service/protection.rs:227`); game settings (`service/game_settings.rs:108`); native-portable transitions (`service/native_portable.rs:343-493`); restore deletion (`service/restore_deletion.rs:82`, `:420`, `:473`) | The [pre-contract reader](#installed-state-and-the-readmigration-boundary) applies: DKR's frozen definition, else today's guarded fallback to the current definition. Only where that fallback refuses does _whole-directory_ backup apply (every path not recorded immutable in the verified manifest; no per-path claims), and only path-selective operations hold.                                   |
 | 4   | Port absent from the current catalog                                                                                                                                         | Backup, restore, rollback, `prepare_launch` and removal (preview `service.rs:5606`, execution `:5716`; see distinction 4)                                                                                                                                                                                                        | Absence withholds new acquisition and successor selection only. Retained operations proceed on the retained contract. The comment at `service.rs:4989-4991` ("a retained contract proves the target's identity, not a newly offered rollback route") is an explicit product decision to revisit: rollback to a retained, already-verified build offers no new route.                                    |
-| 5   | Legacy install with no retained catalog where the current port gained policy fields (`service.rs:7559-7574`)                                                                 | Every operation that uses `persistence_contract_for_install`, including backup                                                                                                                                                                                                                                                   | Same as case 3: the historical reader, not the current port.                                                                                                                                                                                                                                                                                                                                            |
+| 5   | Legacy install with no retained catalog where the current port gained policy fields (`service.rs:7559-7574`)                                                                 | Every operation that uses `persistence_contract_for_install`, including backup                                                                                                                                                                                                                                                   | This is the case where the guarded fallback refuses. Whole-directory backup and restore stay available; launch and path-selective operations hold with a reason naming the missing contract.                                                                                                                                                                                                            |
 | 6   | Shipwright version or asset outside "stable 9.x / `soh-*-win64.zip`" (`installed_mutability.rs:53-83`)                                                                       | Launch mutability qualification (`service/launch_preparation.rs:75`) and backup, through `checked_port` (`:93-99`)                                                                                                                                                                                                               | Retired with [C4](#c4-player-data-roles-dataroles-v1). The role map is read from the retained contract; a version outside a declared version set withholds only progress copy, the one operation the role map's version scope concerns.                                                                                                                                                                 |
 | 7   | Ghostship data-compatibility inspection error (`service.rs:3012-3016`, `:4999-5008`; `service/launch_preparation.rs:69`)                                                     | Launch and rollback held with `UnsafeData`                                                                                                                                                                                                                                                                                       | Correct when inspection _found_ incompatible data. An inspection _error_ (unknown) should hold only the data-transforming route. The legacy region is entered only through its retained guard ([fence](#declared-frozen-historical-recovery)); the narrowing is part of [IC-3c](#ic-3c-remaining-refusals-cases-3-6-7).                                                                                 |
 
@@ -612,12 +632,12 @@ spawned process exits.
 
 **Core validates:**
 
-| Rule           | Detail                                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Adapters       | native-portable, n64-recomp-portable or libultraship-portable, the adapters that carry `windows_tracked_handoff` today                         |
-| Platform       | Windows x86-64 only, matching `session_job.rs`                                                                                                 |
-| Exclusions     | Not combined with `upstream-managed-setup` or user-prepared registration, which have no Portcove-owned job                                     |
-| Reader minimum | Derived from the value: `tracked-successor` requires native 28; `tracked-successor-after-launcher-exit` requires native 35 (`launch.rs:19-22`) |
+| Rule           | Detail                                                                                                                                                                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Adapters       | Any adapter, as today: the validator (`catalog.rs:1964-1991`) places no adapter restriction. Today's users are native-portable (6), n64-recomp-portable (1) and staged-source-portable (1, `goldeneye-007-n64-pc-port`)                                    |
+| Platform       | The entry lists Windows x86-64, matching `launch/session_job.rs`                                                                                                                                                                                           |
+| Launch         | Every Windows launch executable, from `executable_hints` and from a user-prepared registration's `executable`, is a native Windows executable, not a batch or script launcher (`catalog.rs:1966-1985`). User-prepared registrations are accepted, as today |
+| Reader minimum | Derived from the value: `tracked-successor` requires native 28; `tracked-successor-after-launcher-exit` requires native 35 (`launch.rs:19-22`)                                                                                                             |
 
 **Selects in Core.** It selects the minimum capability that
 `tracked_handoff_native_capability` derives. Runtime behavior is unchanged,
@@ -650,6 +670,9 @@ as today's `"windows_tracked_handoff": true` and encodes absence as absence
 values differ only in the reader minimum, which is not an operational
 property of an installation, so Snap64's retained builds compare equal to its
 migrated definition.
+
+No combination accepted today is narrowed. The rows are today's validator,
+moved to the new field.
 
 **Users.** 8 entries. Seven become `tracked-successor`; `snap64-recomp` becomes
 `tracked-successor-after-launcher-exit`.
@@ -747,10 +770,10 @@ resolves _its own declared_ roots. That is not another upstream's.
   "platforms": ["linux-x86-64"],
   "role": "upstream-profile" | "external-write",
   "candidates": [
-    { "env": "XDG_CONFIG_HOME", "empty": "absent", "join": ["CorsixTH"] },
-    { "known_folder": "account-home", "join": [".config", "CorsixTH"] }
+    { "env": "XDG_CONFIG_HOME", "empty": "absent", "join": ["ExampleGame"] },
+    { "known_folder": "account-home", "join": [".config", "ExampleGame"] }
   ],
-  "owned_fallback": { "persistent_path": ".z2rs-data" },
+  "owned_fallback": { "persistent_path": ".example-data" },
   "checks": [ { "kind": "...", ... } ]
 }]
 ```
@@ -771,6 +794,8 @@ Field rules:
   - An unset variable always moves to the next candidate. A set, non-empty
     value that fails the base rules below always refuses; it never falls
     through, because the upstream would use it.
+- Every candidate has at least one `join` segment, so no root is a bare
+  base such as the account home or the system temporary directory.
 - `known_folder` takes a closed list, resolved by OS APIs:
 
   | Value                     | Resolution                                                 |
@@ -785,7 +810,11 @@ Field rules:
 - Bounds: at most 4 roots per platform, at most 6 candidates per root, at
   most 6 `join` segments per candidate and at most 12 checks per root.
 - The bounded walk keeps Core's constants: depth 32 and 65,536 entries
-  (`external_runtime/shared_preferences.rs:396-433`). Data may only lower them.
+  (`external_runtime/shared_preferences.rs:396-433`). Data cannot change them.
+  Each constant is recorded as a row of the restriction register that #8633
+  introduces (bound, purpose, what exceeding it means), and exceeding it
+  refuses launch as "not yet checked", never as safe. IC-8a coordinates the
+  rows with #8633.
 
 **Path rules (normative).** Core enforces these for every candidate. They are
 stated here, not inherited from a module, and each has its own refusal test.
@@ -941,7 +970,7 @@ script field. IC-8 updates every consumer together:
 | `scripts/scheduled-package-drift.test.mts` (`:41`), `scripts/catalog-openmohaa-portable.mts` (`:108`)                                   | Fixtures and the OpenMoHAA generator emit `external_roots`                                                                                          |
 | `scripts/maintenance-program-view.mts` (+ tests)                                                                                        | The `external-profile-policy` and `native-external-profile-module` kinds are declared retired                                                       |
 | `scripts/catalog-source-authoring.test.mts`, `scripts/catalog-literal-launch-publication.test.mts`                                      | Updated fixtures                                                                                                                                    |
-| Desktop presentation and Tauri                                                                                                          | None: no non-generated file under `apps/desktop/src` or `apps/desktop/src-tauri` reads the field at `f8799fb31`; IC-8 repeats the search            |
+| Desktop presentation and Tauri                                                                                                          | None: no non-generated file under `apps/desktop/src` or `apps/desktop/src-tauri` reads the field at `e53fee315`; IC-8 repeats the search            |
 
 **Users.** 25 entries and OpenSC2K.
 
@@ -956,8 +985,8 @@ script field. IC-8 updates every consumer together:
   (`native_external_profile.rs:173-183`). Those pins exist because "nothing
   binds this policy to a package shape". With declared roots, the binding
   _is_ the definition's own data, so a wrong claim guards the wrong directory
-  of the claimant's own declaration. This needs the lead's decision recorded
-  on #8622; see [risks](#open-risks-and-unknowns).
+  of the claimant's own declaration. **Decided:** they retire under C3
+  ([lead decision 1](#lead-decisions-recorded)).
 
 **Accepted** (merges "external save locations", "root resolution" and the
 OpenSC2K external write).
@@ -974,14 +1003,14 @@ values (`portable_saves.rs:38-54`).
 
 ```json
 "data_roles": {
-  "applies_to_versions": ["9.3.1"],
+  "applies_to_versions": ["1.0.0"],
   "platforms": ["windows-x86-64", "linux-x86-64"],
   "entries": [
-    { "path": "Save/file1.sav", "role": "portable-progress" },
-    { "path": "Save/global.sav", "role": "device-configuration" },
-    { "path": "randomizer", "role": "generated-content" },
-    { "path": "asset_dump", "role": "local-player-data", "scope": "version-local", "reserve": true },
-    { "path": "retroachievements.credentials", "role": "runtime-credential", "scope": "version-local" }
+    { "path": "saves/slot1.sav", "role": "portable-progress" },
+    { "path": "saves/options.sav", "role": "device-configuration" },
+    { "path": "generated", "role": "generated-content" },
+    { "path": "exports", "role": "local-player-data", "scope": "version-local", "reserve": true },
+    { "path": "service.credentials", "role": "runtime-credential", "scope": "version-local" }
   ]
 },
 "data_roles_transition_v1": {
@@ -1004,7 +1033,7 @@ Field rules:
   launch, as `require_graphics_export_directory` does today. It is allowed only
   on `local-player-data` and `generated-content`.
 - `applies_to_versions` is an optional exact version list (≤16).
-  `portable_saves.rs` scopes the role map to 9.3.1 today. When present,
+  `portable_saves.rs` scopes Shipwright's role map to 9.3.1 today. When present,
   version-scoped operations (progress copy, portable export/import) are
   offered only for listed versions. Other operations are unaffected; this is
   case 6 of [blanket refusals](#where-missing-optional-evidence-becomes-a-blanket-refusal-today).
@@ -1047,19 +1076,24 @@ interpretation classifies as `portable-progress` or `local-player-data`.
   holds against `archive_data_compatibility_v1.build_specific_progress_paths`.
 - `portable-progress` requires a non-empty role map for the containing
   directory.
-- **Transitions.** Order the roles by preservation:
-  `portable-progress` = `local-player-data` > `device-configuration` = `mods`
-  > `unknown` > `generated-content` = `original-derived` > `runtime-credential`.
-  > When the current definition gives a path a lower role than the retained
-  > definition it updates or rolls back from, the current definition must carry
-  > a `data_roles_transition_v1` record. The record names the exact predecessor
-  > retained contract (`predecessor_contract_sha256`) and each lowered path with
-  > its `from` and `to` roles, as `archive_data_transition_v1`
-  > (`archive_data_transition.rs:1-40`) does for data admission. Without it the
-  > update, rollback, backup and progress operations treat the path under its
-  > higher retained role and report the conflict. A transition can never lower a
-  > path below `local-player-data` while any retained contract still gives it a
-  > progress role and that file exists; the player must move it first.
+- **Transitions.** The roles have five preservation levels, from most to
+  least preserved:
+  1. `portable-progress` and `local-player-data`;
+  2. `device-configuration` and `mods`;
+  3. `unknown`;
+  4. `generated-content` and `original-derived`;
+  5. `runtime-credential`.
+
+  When the current definition gives a path a lower level than the retained
+  definition it updates or rolls back from, the current definition must carry
+  a `data_roles_transition_v1` record. The record names the exact predecessor
+  retained contract (`predecessor_contract_sha256`) and each lowered path with
+  its `from` and `to` roles, as `archive_data_transition_v1`
+  (`archive_data_transition.rs:1-40`) does for data admission. Without it the
+  update, rollback, backup and progress operations treat the path under its
+  higher retained role and report the conflict. A transition can never lower a
+  path out of level 1 while any retained contract still gives it a progress
+  role and that file exists; the player must move it first.
 
 **Selects in Core:**
 
@@ -1133,8 +1167,8 @@ rejected: it would duplicate the role vocabulary and need the same consumers.
 **Fields.**
 
 ```json
-"seeded_files": [{ "path": "chocolate-doom.cfg", "text": "autoload_path \"autoload\"\n...", "when": "absent" }],
-"file_signatures": [{ "path": "GameData/PILOT.CFG", "size": 14943, "prefix_hex": "504346120e" }]
+"seeded_files": [{ "path": "example.cfg", "text": "data_path \"data\"\n", "when": "absent" }],
+"file_signatures": [{ "path": "data/PROFILE.DAT", "size": 4096, "prefix_hex": "50524f46" }]
 ```
 
 Field rules:
@@ -1143,6 +1177,15 @@ Field rules:
   paths. `text` is UTF-8 of at most 4 KiB with no NUL. `when` is closed:
   `absent`, meaning Core never rewrites an existing file, which is today's
   invariant in `managed_chocolate.rs:1`.
+- Seeded text follows value rules equivalent to the
+  [launch value rules](../CATALOG.md#package-and-launch-declaration-compatibility),
+  because a runtime reads it as configuration: no control characters other
+  than newline and tab; no absolute path, drive, UNC or device form; no `..`
+  segment; no URL scheme; no environment expansion (`$NAME`, `${NAME}`,
+  `%NAME%`); and every path-like value names a location inside the
+  installation's declared mutable paths. IC-10 checks today's seeds against
+  these rules first; a seed that fails stays a frozen historical translation
+  rather than widening the rules.
 - File signatures: at most 8 per entry. `prefix_hex` is at most 32 bytes.
   Signatures apply to admitted source materialization outputs or seeded paths.
 
@@ -1191,7 +1234,7 @@ a step interpreter, and the owner excludes another planner.
 
 ```json
 "shared_write_scope": {
-  "base": { "known_folder": "roaming-app-data", "join": ["SMB1R"] },
+  "base": { "known_folder": "roaming-app-data", "join": ["ExampleGame"] },
   "files": ["settings.cfg"],
   "account_binding": "sid",
   "content_checks": [{ "kind": "godot-config-constructor-free", "max_bytes": 65536 }],
@@ -1289,7 +1332,9 @@ per exception. Paths use the relative grammar.
 
 - **Phase A (no schema change): a frozen retained reader.** A Core-bundled
   `historical-artifacts.json#artifact_exceptions` section holds today's three
-  behaviors as rows keyed only by `(role, size, sha256)`, with no port id. The
+  behaviors as exactly **4 rows** keyed only by `(role, size, sha256)`, with no
+  port id: Diablo, OpenGOAL, and one row per G-Diffuser artifact (Windows and
+  Linux, `install.rs:6020-6033`). The
   callers already hold the artifact digest (#8618). Byte binding is legitimate
   here for two reasons, and only for these rows:
   - the behavior is a property of those exact bytes (a bundled path depth, an
@@ -1298,8 +1343,9 @@ per exception. Paths use the relative grammar.
     definitions can never gain one.
 
   The section is **closed**: it is declared in the
-  [frozen fence](#declared-frozen-historical-recovery) with its exact row set,
-  and the detector fails if a row is added. It is not a growing "declared data
+  [frozen fence](#declared-frozen-historical-recovery) with the hash of its
+  exact row set, and the detector fails on any change to that set (a row
+  added, removed or edited) without a doc update. It is not a growing "declared data
   authority". After phase B, its only reader is the retained interpretation of
   installs whose retained definitions predate `artifact_exceptions`.
 
@@ -1310,7 +1356,17 @@ per exception. Paths use the relative grammar.
   so the bundled section is reached only through retained definitions.
 
 **Users.** alexbeav-diablo-recomp, opengoal-jak1 and g-diffuser (`reviewed-runtime-write`:
-the two v1.2.3 shader-cache files, `install.rs:6008-6035`).
+one shader-cache file per v1.2.3 artifact, two rows, `install.rs:6008-6035`).
+
+**`reviewed-runtime-write` limits (normative).** A listed path must be a
+single file name or relative path under the runtime directory. Its final
+extension, compared case-insensitively, must not be executable or loadable
+(`exe`, `dll`, `com`, `bat`, `cmd`, `ps1`, `vbs`, `sh`, `so`, `dylib`,
+`appimage`, `jar`, `py`), a name containing `.so.` is refused, and the path
+must not equal or contain any path
+the verified manifest records as immutable. The kind only changes how an
+existing file is _reported_; it never permits replacing a runtime file and
+never marks a file trusted to execute.
 
 **Retires.** The three id-and-digest pins: `runtime_path_policy.rs:288-293`,
 `preparation_execution.rs:775-777` and `reviewed_g_diffuser_cache`
@@ -1333,7 +1389,7 @@ express.
    reversible: a client below 78 refuses the migrated library
    ([database and migrations](../ARCHITECTURE.md#database-and-migrations)).
    - It adds a side table: `profile_package_bindings(profile_id,
-     revision_digest, package_path, binding_json)`.
+     revision_digest, package_path, binding_json, legacy_scope)`.
    - For each stored `ProviderPackageRef` with `binding: None` in
      `profiles.profile_json` and `profile_revisions.revision_json`, it records
      the binding that `legacy_binding` resolves today.
@@ -1350,9 +1406,11 @@ express.
    import (format 3 vs 4, `recipe.rs:319-327`) apply the same resolution at
    their own read boundaries.
 5. **`legacy_loader`** (`profile_loader.rs:120-130`). It stays only for
-   _retained_ definitions without `mod_loader`. It moves to the historical
-   reader, keyed on retained format and the absence of the field, never on a
-   current definition. `Catalog::validate` already requires `mod_loader` where
+   _retained_ definitions without `mod_loader`, and for journals and setup
+   records that carry only a port id (`profile_loader.rs:119-120`). It moves
+   to the historical reader, keyed on the retained format and the absence of
+   the field, or on the journal or record format, never on a current
+   definition. `Catalog::validate` already requires `mod_loader` where
    a loader is used; a regression test asserts that a current definition
    cannot reach the fallback. `native_mod_list::recomp_game` reads the
    retained or current `mod_loader` contract.
@@ -1370,12 +1428,16 @@ counted under the frozen historical category.
    key built at `:328-335`). Holds remembered for legacy references therefore
    have no scope suffix.
 
-   Rule: `hold_scope` returns `None` for a binding that came from the side
-   table (a migrated legacy reference) and `Some(scope)` for a recorded
-   binding. Every existing hold key is then byte-identical after migration 78,
-   so the holds file is neither rewritten nor migrated, and no hold is lost or
-   shown again. New installs record exact bindings, so their holds carry a
-   scope, as non-legacy holds do today.
+   Rule: migration 78 writes a side-table row with `legacy_scope: true` for
+   every reference that exists at schema 77 and whose effective binding
+   equals the legacy binding, whether that binding was elided (`None`) or
+   stored explicitly equal to it. `hold_scope` returns `None` exactly for
+   references with `legacy_scope`, and `Some(scope)` otherwise. Every
+   existing hold key is then byte-identical after migration 78, so the holds
+   file is neither rewritten nor migrated, and no hold is lost or shown
+   again. References written after 78 record exact bindings and have no
+   `legacy_scope`, so their holds carry a scope, as non-legacy holds do
+   today.
 
 **Forward-upgrade test.** A fixture library at schema 77 holds profiles and
 revisions with `binding: None` references for both providers, recipes in
@@ -1383,7 +1445,8 @@ formats 3 and 4, and an `auto-update-holds.json` with scoped and unscoped
 keys. Opening it with the new client migrates to 78. The test asserts:
 
 - every revision digest and profile JSON byte string is unchanged;
-- the side table holds exactly the bindings `legacy_binding` resolves at 77;
+- the side table holds exactly the bindings `legacy_binding` resolves at 77,
+  with `legacy_scope` set for both elided and explicitly-equal references;
 - browse, `reference_matches`, auto-update and both import paths resolve the
   same bindings as at 77;
 - every hold in the holds file still matches its reference;
@@ -1450,26 +1513,44 @@ place where historical shapes are read. It is a submodule of `installed_contract
   are not written back: the retained bytes and the `installed_contract_sha256`
   identity stay unchanged, so retained-build references, recipes and profile
   revisions keep matching (`retained_build.rs:33-43`, `:975-989`).
-- **Pre-contract manifests** (schema 2-5, no `retained_contract`). The rule is
-  whole-directory backup, case 3 of
-  [blanket refusals](#where-missing-optional-evidence-becomes-a-blanket-refusal-today):
-  - Backup copies everything under the installation's owned roots without
-    per-path claims, and restore puts back exactly what it copied. This needs
-    no historical definition, so it is available for every pre-contract
-    install.
-  - Path-selective operations (collectible-data review, progress copy,
-    folder sync, native-portable transitions, restore deletion, game
-    settings) need a retained definition. Without one they hold, with a
-    reason that names the missing contract. The current catalog is never
-    substituted ([distinction 4](#4-exact-installed-state)).
-  - Ports that need path-selective claims for pre-contract installs get them
-    only from a frozen historical definition. Today that is **DKR only**
-    (`legacy_dkr/catalog.json`, read at `install.rs:4183-4228`). No other port
-    is added by this design. A port is added later only when two things hold:
-    the library diagnostics report pre-contract installs of it in the classes
-    that need a restore receipt (`persistence.rs:241-245`: psx-recomp-managed,
-    ready staged archives, N64 executable-parent runtimes), and its creating
-    definition is recovered from catalog history as an exact frozen file.
+- **Pre-contract manifests** (schema 2-5, no `retained_contract`). The
+  pre-contract reader is today's code, declared as such, not a new reader:
+  1. **DKR** reads its frozen definition (`legacy_dkr/catalog.json`, through
+     `catalog_for_verified_manifest`, `install.rs:4208-4228`).
+  2. **Every other pre-contract install** reads through the guarded fallback
+     `installed_catalog_or_fallback` (`service.rs:7550-7578`). Keyed on the
+     absence of a retained contract, it uses the current definition _unless_
+     that definition has gained any of the listed policy fields
+     (`runtime_data_policy`, `archive_data_compatibility_v1`,
+     `managed_shared_preferences`, an applicable `external_profile_policy`,
+     `n64_runtime_at_executable_parent`, `linux_packaged_library` on Linux,
+     `windows_shipwright_persistence` or `windows_tracked_handoff` on
+     Windows), in which case it refuses. The refusal stays. After C1-C7, the
+     list is checked against the definition's `CurrentInterpretation`, so a
+     migrated field still triggers it, and each new contract (`external_roots`,
+     `data_roles`, `seeded_files`, `shared_write_scope`, `process_handoff`,
+     `artifact_exceptions`) joins the list in its own pull request.
+  3. **Where the fallback refuses**, and only there, whole-directory backup
+     applies. It copies every path under the installation's owned roots that
+     the verified manifest does **not** record as immutable, with no per-path
+     claims. After backup, the immutable set is re-verified against the
+     manifest; a mismatch fails the backup and changes nothing. Restore puts
+     back exactly the copied paths, re-verifies the immutable set, and never
+     deletes anything. Launch and the path-selective operations
+     (collectible-data review, progress copy, folder sync, native-portable
+     transitions, restore deletion, game settings) hold with a reason that
+     names the missing contract.
+  4. **Launch and update.** A pre-contract install that the guarded fallback
+     reads launches as today. One where it refuses does not launch (as
+     today), and offers update to a current build, which creates a retained
+     contract. Update never rewrites the old manifest.
+
+  No other port gains a frozen historical definition in this design. One is
+  added later only when the library diagnostics report pre-contract installs
+  of it where the guarded fallback refuses, in the classes that need a restore
+  receipt (`persistence.rs:241-245`), and its creating definition is recovered
+  from catalog history as an exact frozen file.
+
 - **Migrations.** Only C8 needs a library migration (78, one-way). No
   installed-contract format is added: translation happens on read, and the
   existing wrapper formats 4-12 (`installed_contract.rs:225-262`) already fence
@@ -1542,11 +1623,20 @@ fact that a current definition cannot carry or produce:
 - a retained contract format, or the absence of a retained contract;
 - a retired definition field that `retired_creation` refuses for new
   definitions (for example `release.managed_build`, `definition_entry.rs:340-342`);
-- a specific migration row or library metadata schema range;
+- a specific migration row, journal format or library metadata schema range;
 - an exact package or artifact digest recorded in `historical-artifacts.json`;
 - a retained preparation mode (for example `Ghostship200Legacy`).
 
-A port id is never a retained key: a current definition carries the same id.
+A port id alone is never a retained key: a current definition carries the same
+id. An id test **inside** a region that a retained-key test already gates is
+different: it is fence data, it stays, and it is declared with the region.
+Removing such a test is not a cleanup. Several of them are early exits that
+keep every other port out of the region; without them, other ports would reach
+the region's errors (`install.rs:4203-4205`) or its lookups
+(`service/ghostship_recovery.rs:263`, `:272-277`). Where a region looks itself
+up by its own id after the gate, the lookup uses the subject's own value
+(`session.port_id`), not a second literal.
+
 Ordinary entry points (launch completion, backup, import) may _call into_ a
 fenced region. What the fence guarantees is that the region's guard returns
 "not historical" for every current definition, so a current definition with
@@ -1562,7 +1652,7 @@ code regions: `frozen_historical`. Each declaration states:
 | Field         | Content                                                                 |
 | ------------- | ----------------------------------------------------------------------- |
 | `guard`       | The predicate and the retained key it reads, with its file and function |
-| `fence`       | The exact formats, rows and digests the region may read                 |
+| `fence`       | The exact formats, rows, digests and id tests the region may contain    |
 | `tests`       | The guard-predicate tests (below) and the region's behavior tests       |
 | `end_of_life` | The retirement condition                                                |
 
@@ -1572,11 +1662,11 @@ separately (`frozen_historical: {entries, identities}`) so they stay visible.
 The detector fails when any of these hold:
 
 - a literal or row appears outside declared regions;
-- a region's fence row set changes without a doc update (rows are hashed into
-  the declaration);
+- a region's fence (its row set and its declared id tests) changes without a
+  doc update; the fence is hashed into the declaration;
 - a declared region has no guard-predicate test.
 
-**Guard-predicate tests (required per region).**
+**Guard-predicate tests (required per region, all four).**
 
 1. **Current definitions never enter.** For every embedded catalog entry with
    the region's port id (and, as a fixture, an unfamiliar current definition
@@ -1586,21 +1676,25 @@ The detector fails when any of these hold:
    entry points listed for the region with that current definition.
 2. **Retained keys enter.** A fixture carrying the retained key enters the
    region and behaves as today.
-3. **The id alone does not enter.** A fixture with the right port id but
+3. **The id alone does not enter.** A fixture with the region's port id but
    without the retained key does not enter.
+4. **Unrelated subjects pass through.** A fixture with an unrelated id and no
+   retained key passes through the region's guard with no error, no log of a
+   refusal and no side effect, through every ordinary entry point listed for
+   the region.
 
-**Declared regions** (at `f8799fb31`):
+**Declared regions** (at `e53fee315`):
 
-| Region                                                                                                                                                                  | Guard (retained key)                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Fence (may read only)                                                                                                                                                                                                                                                        | Ordinary callers                                                                                                                                                                                                               | End of life                                                                                                                       |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Legacy DKR (`legacy_dkr/`, `historical-artifacts.json#dkr`)                                                                                                             | Manifest has no `retained_contract` **and** its `(version, platform, artifact size and sha256, selected executable)` matches a `#dkr` row (`install.rs:4183-4206`). IC-1 removes the leading `install.port_id != "dkr-r"` test: the digest match is sufficient and stricter.                                                                                                                                                                                                     | 4 rows (1.0.2 and 1.0.4 × Windows zip / Linux AppImage); `legacy_dkr/catalog.json`                                                                                                                                                                                           | `catalog_for_verified_manifest` (`install.rs:4208-4228`)                                                                                                                                                                       | `legacy_dkr/README.md:61-64`                                                                                                      |
-| Legacy cartridge (`legacy_cartridge/`, `legacy_cartridge_cleanup.rs`, `cartridge_build.rs`, `historical-artifacts.json#cartridge`, the `CartridgeBuildRecipe` variants) | The definition carries the retired `release.managed_build` field, which `retired_creation` refuses for every non-retained definition (`definition_entry.rs:338-342`; 0 current catalog entries carry it); for journals and cleanup, the journal's recorded recipe. IC-1 replaces the id tests at `cancellation.rs`, `install.rs` and `legacy_cartridge_cleanup.rs` (`operation.port_id == "cvlod-recomp"`) with the recorded recipe.                                             | 6 `(port_id, recipe, projection)` rows; frozen `legacy_cartridge/*.json` definitions; the CVLoD WinINet junction path                                                                                                                                                        | Catalog validation of retained recipes (`catalog.rs:1060-1065` → `cartridge_build.rs:123-140`); cancellation; published cleanup; recovery                                                                                      | `legacy_cartridge/README.md:38-41`                                                                                                |
-| Library-import reconciliation (`library_import.rs:22-42`)                                                                                                               | Shipwright: already a field comparison (embedded declares `windows_shipwright_persistence`, retained does not). Snap64: IC-1 replaces `embedded.id == "snap64-recomp"` with "the retained definition's selected artifact digest is in a frozen list of pre-handoff Snap64 packages", recorded as new `historical-artifacts.json#packages` rows. The worker derives the exact list from catalog history (the Snap64 releases offered before `windows_tracked_handoff` was added). | Those rows; library metadata schema 1-16                                                                                                                                                                                                                                     | `plan_library_import` (`:313`); `import_execution.rs:332`                                                                                                                                                                      | Library metadata schemas below the oldest supported export generation are refused with an explicit upgrade route (owner decision) |
-| Ghostship 2.0.0 legacy recovery (`ghostship_data_store.rs`, `preparation_ghostship.rs`, `service/ghostship_*.rs`)                                                       | The active install's retained preparation mode is `Ghostship200Legacy` with installed contract format 4 (`service/ghostship_recovery.rs:286`), or a migration-37 row exists for the install. Today the guard first tests `session.port_id != "ghostship"` (`:263`); that test is removed so the retained mode alone decides.                                                                                                                                                     | Migration-37 tables; `LegacyDataSeal` format 1; package `ghostship-200-windows` (`Mary-Celeste-Alfa-Win64.zip`, sha `a49f4c79…`); executable sha `2063529579d2…` (11,533,312 bytes); source `ghostship-source` (8,388,608 bytes, sha `17ce0773…`); preparation plan format 2 | Launch completion (`service.rs:6729` → `library.rs:2121`); backup create and list (`service/backups.rs:904`, `:930`); user plan, authorize and recover (`service/ghostship_recovery.rs`, `ghostship_recovery_execution.rs:22`) | No library holds a format-4 contract or unresolved migration-37 row, reported by diagnostics, then owner-confirmed retirement     |
-| Historical packages (`historical-artifacts.json#packages`)                                                                                                              | The retained definition's artifact digest matches a row                                                                                                                                                                                                                                                                                                                                                                                                                          | 7 `PackageContract`s plus IC-1's Snap64 rows                                                                                                                                                                                                                                 | The [read boundary](#installed-state-and-the-readmigration-boundary) translations only, after C4-C6                                                                                                                            | Per package: no retained contract or registration references it                                                                   |
-| Artifact exceptions, phase A (`historical-artifacts.json#artifact_exceptions`, [C7](#c7-byte-bound-artifact-exceptions-runtimeartifact-exceptions-v1))                  | The artifact's `(role, size, sha256)` matches a row and, after phase B, the retained definition predates `artifact_exceptions`                                                                                                                                                                                                                                                                                                                                                   | Exactly 3 rows (Diablo, OpenGOAL, G-Diffuser); closed                                                                                                                                                                                                                        | Destination checks, preparation output validation, unknown-file reporting                                                                                                                                                      | No retained definition without `artifact_exceptions` references a row                                                             |
-| C8 migration input (`GAMEBANANA_BINDINGS`, `COMMUNITY_BINDINGS` copies)                                                                                                 | A stored reference with `binding: None` at schema 77, or imported format-3 data                                                                                                                                                                                                                                                                                                                                                                                                  | Rows for stored refs with `binding: None`                                                                                                                                                                                                                                    | Migration 78 and recipe/library import of format-3 data                                                                                                                                                                        | No supported import format can carry `binding: None`                                                                              |
-| `legacy_loader`                                                                                                                                                         | A retained definition without `mod_loader` **and** a retained format that predates `mods.native-loader-binding-v1`                                                                                                                                                                                                                                                                                                                                                               | `profile_loader.rs:120-130` rows                                                                                                                                                                                                                                             | Read boundary only                                                                                                                                                                                                             | Same as library-import reconciliation                                                                                             |
+| Region                                                                                                                                                                  | Guard (retained key)                                                                                                                                                                                                                                                                                        | Fence (may contain only)                                                                                                                                                                                                                                                                                                                                                                                                         | Ordinary callers                                                                                                                                                                                                               | End of life                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Legacy DKR (`legacy_dkr/`, `historical-artifacts.json#dkr`)                                                                                                             | Manifest has no `retained_contract` (`install.rs:4187`), then a `#dkr` row matches `(version, platform, artifact, selected executable)`                                                                                                                                                                     | The `install.port_id != "dkr-r"` early exit (`:4187`), kept so that other pre-contract installs never reach the "outside the recorded compatibility identities" error (`:4203-4205`); 4 rows (1.0.2 and 1.0.4 × Windows zip / Linux AppImage); `legacy_dkr/catalog.json`                                                                                                                                                         | `catalog_for_verified_manifest` (`install.rs:4208-4228`)                                                                                                                                                                       | `legacy_dkr/README.md:61-64`                                                                                                      |
+| Legacy cartridge (`legacy_cartridge/`, `legacy_cartridge_cleanup.rs`, `cartridge_build.rs`, `historical-artifacts.json#cartridge`, the `CartridgeBuildRecipe` variants) | The definition carries the retired `release.managed_build` field, which `retired_creation` refuses for every non-retained definition (`definition_entry.rs:338-342`; 0 current catalog entries carry it); for journals and cleanup, the journal's recorded recipe                                           | 6 `(port_id, recipe, projection)` rows; frozen `legacy_cartridge/*.json` definitions; the CVLoD WinINet junction path; the journal id tests at `install.rs:2098`, `recovery.rs:269`, `cancellation.rs:511` and `legacy_cartridge_cleanup.rs:92`, each evaluated after or together with the recorded recipe                                                                                                                       | Catalog validation of retained recipes (`catalog.rs:1060-1065` → `cartridge_build.rs:123-140`); cancellation; published cleanup; recovery                                                                                      | `legacy_cartridge/README.md:38-41`                                                                                                |
+| Library-import reconciliation (`library_import.rs:22-42`)                                                                                                               | A generic field comparison: the embedded definition declares a field that the retained one lacks. Shipwright already works this way (`windows_shipwright_persistence`). IC-1 replaces `embedded.id == "snap64-recomp"` with the same comparison for `windows_tracked_handoff` (embedded set, retained not). | The two tolerated fields; library metadata schema 1-16                                                                                                                                                                                                                                                                                                                                                                           | `plan_library_import` (`:313`); `import_execution.rs:332`                                                                                                                                                                      | Library metadata schemas below the oldest supported export generation are refused with an explicit upgrade route (owner decision) |
+| Ghostship 2.0.0 legacy recovery (`ghostship_data_store.rs`, `preparation_ghostship.rs`, `service/ghostship_*.rs`)                                                       | The active install's retained preparation mode is `Ghostship200Legacy` (`service/ghostship_recovery.rs:286`), or a migration-37 row exists for the install                                                                                                                                                  | The early exit `session.port_id != "ghostship"` (`:263`), kept; the status lookup at `:272-277` uses `session.port_id` instead of a second literal; migration-37 tables; `LegacyDataSeal` format 1; package `ghostship-200-windows` (`Mary-Celeste-Alfa-Win64.zip`, sha `a49f4c79…`); executable sha `2063529579d2…` (11,533,312 bytes); source `ghostship-source` (8,388,608 bytes, sha `17ce0773…`); preparation plan format 2 | Launch completion (`service.rs:6729` → `library.rs:2121`); backup create and list (`service/backups.rs:904`, `:930`); user plan, authorize and recover (`service/ghostship_recovery.rs`, `ghostship_recovery_execution.rs:22`) | No library holds a format-4 contract or unresolved migration-37 row, reported by diagnostics, then owner-confirmed retirement     |
+| Historical packages (`historical-artifacts.json#packages`)                                                                                                              | The retained definition's artifact digest matches a row                                                                                                                                                                                                                                                     | 7 `PackageContract`s                                                                                                                                                                                                                                                                                                                                                                                                             | The [read boundary](#installed-state-and-the-readmigration-boundary) translations only, after C4-C6                                                                                                                            | Per package: no retained contract or registration references it                                                                   |
+| Artifact exceptions, phase A (`historical-artifacts.json#artifact_exceptions`, [C7](#c7-byte-bound-artifact-exceptions-runtimeartifact-exceptions-v1))                  | The artifact's `(role, size, sha256)` matches a row and, after phase B, the retained definition predates `artifact_exceptions`                                                                                                                                                                              | Exactly 4 rows (Diablo, OpenGOAL, G-Diffuser Windows, G-Diffuser Linux); closed                                                                                                                                                                                                                                                                                                                                                  | Destination checks, preparation output validation, unknown-file reporting                                                                                                                                                      | No retained definition without `artifact_exceptions` references a row                                                             |
+| C8 migration input (`GAMEBANANA_BINDINGS`, `COMMUNITY_BINDINGS` copies)                                                                                                 | A stored reference that predates schema 78 (side-table row with `legacy_scope`), or imported format-3 data                                                                                                                                                                                                  | Rows for stored refs at schema 77                                                                                                                                                                                                                                                                                                                                                                                                | Migration 78 and recipe/library import of format-3 data                                                                                                                                                                        | No supported import format can carry `binding: None`                                                                              |
+| `legacy_loader`                                                                                                                                                         | A retained definition without `mod_loader` that predates `mods.native-loader-binding-v1`, **or** a journal or setup record that carries only a port id (`profile_loader.rs:119-120`), keyed on that record's format                                                                                         | `profile_loader.rs:120-130` rows                                                                                                                                                                                                                                                                                                                                                                                                 | Read boundary and the journal and setup readers only                                                                                                                                                                           | Same as library-import reconciliation                                                                                             |
 
 **Moved out of the fence: `historical-artifacts.json#direct`.** Revision 1
 fenced it; that was wrong. `requires_fresh_direct_data_guard`
@@ -1855,10 +1949,9 @@ view. Every migration pull request (IC-6 to IC-12) also carries the
 
 **Gate method.**
 
-- **Baseline: 404/460, measured** on a local merge of `f8799fb31` with #8618
-  and #8625 (see [measured starting point](#measured-starting-point)). At
-  `f8799fb31` alone it is 343/460. If either pull request changes before
-  merging, re-measure.
+- **Baseline: 404/460, measured** on a local merge of `e53fee315` with #8625
+  (see [measured starting point](#measured-starting-point)). At `e53fee315`
+  alone it is 362/460. If #8625 changes before merging, re-measure.
 - Each of the 56 remaining identities is assigned below to the pull request
   that removes its last authority kind. The numbers are estimates until each
   pull request records its actual program-view result. A denominator change
@@ -1867,94 +1960,22 @@ view. Every migration pull request (IC-6 to IC-12) also carries the
 ### Start first
 
 These four need no definition schema change, are independent of each other,
-and retire authority or a distinction failure directly. Each brief below can
-be pasted as a worker assignment. Every brief shares these rules:
+and retire authority or a distinction failure directly.
+
+**First implementation step: IC-5**, the smallest closed change, now that its
+row count is fixed at 4. IC-2a may start in parallel; IC-1 and IC-3a follow.
+
+Each brief below can be pasted as a worker assignment. Every brief shares
+these rules:
 
 - Read [AGENTS.md](../../AGENTS.md), this document's sections named in the
   brief, and the owning issue (#1422; #921 for retained state).
 - Branch from current `main`. Re-verify every cited `file:line` on it before
-  editing; the citations here refer to `f8799fb31`.
+  editing; the citations here refer to `e53fee315`.
 - Own only the listed files. If another open pull request writes one of them,
   stop and report instead of editing.
 - Return a pushed draft pull request and a report (head SHA, program-view
   before and after, tests added). Do not wait on CI, review or merge.
-
-#### IC-2a Rust-verified route-holds table and parity test
-
-- **Goal.** Make Core the only acquisition-restriction evaluator that
-  maintenance scripts depend on, without deleting anything yet.
-- **Read:** [one capability assessment](#one-capability-assessment), in
-  particular [maintenance scripts](#maintenance-scripts).
-- **Files owned:**
-  - New Rust test module in `crates/portcove-core/src/` (for example
-    `route_holds_table_tests.rs`) that reads the authored carriers under
-    `crates/portcove-core/catalog/` and writes or verifies
-    `crates/portcove-core/catalog/route-holds.generated.json`.
-  - The new generated file.
-  - New `scripts/catalog-assessment-parity.test.mts`.
-  - `docs/CATALOG.md`: the table's regeneration command and contract, beside
-    the other generated catalog files.
-  - Validation plan / test-impact wiring only as needed for the new file
-    (`scripts/validation-plan.mts`, `scripts/rust-test-impact.mts`).
-- **Not owned:** `acquisition_restriction.rs` semantics,
-  `catalog-route-holds.mts`, `catalog-route-fit.mts`,
-  `catalog-generated-registration.mts` (IC-2b changes them).
-- **Acceptance evidence:**
-  - `route_holds_table_is_current` fails on a stale table and passes on the
-    committed one.
-  - The phase-3 consistency test: for every embedded entry, the compiled
-    `managed_acquisition_hold` evaluates to the same outcomes as the table.
-  - The parity test compares TypeScript `heldAt` with the table over every
-    identity, platform and route-fit operation. Every difference is listed as
-    an expected divergence with an issue link (at least: authored vs compiled
-    input, `legacy-download-block` vs `download`, the missing `unverifiable`
-    phase).
-  - Route fit and the program view are byte-identical before and after.
-- **Retires:** nothing yet; it creates the single source that IC-2b switches
-  to. **Gate:** +0.
-- **Review:** independent reviewer.
-
-#### IC-1 Frozen fence: DKR, legacy cartridge and library import
-
-- **Goal.** Re-key three historical regions on retained keys, declare them
-  frozen, and teach the program view the `frozen_historical` category.
-- **Read:** [declared frozen historical recovery](#declared-frozen-historical-recovery).
-- **Files owned:**
-  - DKR: `install.rs` (`legacy_dkr_artifact`, `:4183-4206`: drop the
-    `"dkr-r"` id test; the digest row match decides); `legacy_dkr/README.md`.
-  - Legacy cartridge: `cancellation.rs`, `install.rs`,
-    `legacy_cartridge_cleanup.rs`, `recovery.rs` (replace `cvlod-recomp` id
-    tests with the recorded recipe), `cartridge_build.rs`,
-    `legacy_cartridge/README.md`.
-  - Library import: `library_import.rs:22-42` (replace
-    `embedded.id == "snap64-recomp"` with the frozen Snap64 package digest
-    list); `historical-artifacts.json#packages` (new Snap64 rows, derived
-    from catalog history) and `historical_artifacts.rs`.
-  - Program view: `scripts/maintenance-program-view.mts` and its test, and
-    `docs/MAINTENANCE-STORE.md` (program cutover view): the
-    `frozen_historical` attribute with `guard`, `fence`, `tests` and
-    `end_of_life`; a row-set hash per region; detector failures as listed in
-    the fence section.
-- **Not owned:** `persistence.rs` and the `#direct` rows (IC-1b); Ghostship
-  files (IC-12); `launch.rs` (IC-6).
-- **Acceptance evidence:**
-  - For each region, the three guard-predicate tests: every embedded entry
-    with the region's id, and an unfamiliar current definition copying that
-    id, never enter; a retained-key fixture enters and behaves as today; the
-    id without the key does not enter.
-  - Existing tests unchanged and passing: `install.rs` `legacy_dkr_tests`,
-    `historical_artifacts.rs:220-279`,
-    `cancellation_managed_builder_tests.rs`, `library_import.rs:44-56` and
-    `:767-950`.
-  - The program view reports `frozen_historical` separately, fails on a new
-    literal outside regions, and fails when a region's rows change without a
-    doc update.
-- **Retires:** live-authority counting for dkr-r, cvlod-recomp,
-  dr-mario-nes-recomp, earthbound-recomp, gundam-wing-endless-duel-recomp,
-  render96ex and yoshis-cookie-recomp, and the Snap64 id literal in
-  `library_import.rs`. **Gate:** +7 → about 411, if the `CartridgeBuildRecipe`
-  variants and cartridge module stems are inside the declared region.
-- **Review:** independent reviewer.
 
 #### IC-5 Frozen byte-bound exception rows (C7 phase A)
 
@@ -1962,7 +1983,8 @@ be pasted as a worker assignment. Every brief shares these rules:
   keyed only by artifact bytes.
 - **Read:** [C7](#c7-byte-bound-artifact-exceptions-runtimeartifact-exceptions-v1).
 - **Files owned:** `historical-artifacts.json` (new
-  `#artifact_exceptions` section, exactly 3 rows) and
+  `#artifact_exceptions` section, exactly 4 rows: Diablo, OpenGOAL, and the
+  two G-Diffuser artifacts) and
   `historical_artifacts.rs`; `runtime_path_policy.rs:288-293` and its callers'
   argument (`install.rs:991`, `:5076`; `service.rs:1748`;
   `output_relocation.rs:502`; `transfer_copy.rs:314`; `library_transfer.rs:53`;
@@ -1977,42 +1999,157 @@ be pasted as a worker assignment. Every brief shares these rules:
     today.
   - Unfamiliar-identity scenario: the same bytes under an unfamiliar fixture
     id get each behavior; different bytes under the original ids do not.
-  - The detector fails when a fourth row is added.
+  - The detector fails when the row set changes (a fifth row, a removed row
+    or an edited digest) without a doc update.
+  - The two G-Diffuser rows satisfy the `reviewed-runtime-write` limits (a
+    test runs the phase-B validator rule over the frozen rows).
 - **Retires:** the three pins. **Gate:** +1, alexbeav-diablo-recomp
   (cumulative about 412 after IC-1). opengoal-jak1 and g-diffuser stay counted for
   other kinds (IC-12).
 - **Review:** independent reviewer.
 
+#### IC-2a Rust-verified route-holds table and parity test
+
+- **Goal.** Make Core the only acquisition-restriction evaluator that
+  maintenance scripts depend on, without deleting anything yet.
+- **Read:** [one capability assessment](#one-capability-assessment), in
+  particular [maintenance scripts](#maintenance-scripts).
+- **Files owned:**
+  - New Rust test module in `crates/portcove-core/src/` (for example
+    `route_holds_table_tests.rs`) that reads **only the restriction
+    carriers** of the authored files under `crates/portcove-core/catalog/`
+    (each port's `integration.acquisition_restrictions`, each listing's
+    `restrictions` and legacy reason), not whole authored ports, and writes
+    or verifies `crates/portcove-core/catalog/route-holds.generated.json`.
+  - The new generated file. Its header carries `format_version` and
+    `carriers_sha256`, the SHA-256 of the canonical serialization of exactly
+    the carriers it read.
+  - New `scripts/catalog-assessment-parity.test.mts`, and a small reader
+    module that the scripts will share in IC-2b.
+  - `docs/CATALOG.md`: the table's contract and its regeneration command,
+    beside the other generated catalog files, including that **any edit to a
+    restriction carrier needs a Rust test run to regenerate the table**.
+  - Validation plan / test-impact wiring only as needed for the new file
+    (`scripts/validation-plan.mts`, `scripts/rust-test-impact.mts`).
+- **Not owned:** `acquisition_restriction.rs` semantics,
+  `catalog-route-holds.mts`, `catalog-route-fit.mts`,
+  `catalog-generated-registration.mts` (IC-2b changes them).
+- **Reader rules (fail closed):** the TypeScript reader recomputes
+  `carriers_sha256` from the authored files and refuses to answer on a
+  mismatch, telling the author to regenerate. An identity, platform or
+  operation with no row is an error, never "no hold".
+- **Acceptance evidence:**
+  - `route_holds_table_is_current` fails on a stale table and passes on the
+    committed one.
+  - Reader tests: an edited carrier without regeneration fails with the
+    regeneration message; a missing row fails; neither reads as "not held".
+  - The phase-3 consistency test: for every embedded entry, the compiled
+    `managed_acquisition_hold` evaluates to the same outcomes as the table.
+  - The parity test compares TypeScript `heldAt` with the table over every
+    identity, platform and route-fit operation. Every difference is listed as
+    an expected divergence with an issue link (at least: authored vs compiled
+    input, `legacy-download-block` vs `download`, the missing `unverifiable`
+    phase).
+  - Route fit and the program view are byte-identical before and after.
+- **Retires:** nothing yet; it creates the single source that IC-2b switches
+  to. **Gate:** +0.
+- **Review:** independent reviewer.
+
+#### IC-1 Frozen fence: DKR, legacy cartridge and library import
+
+- **Goal.** Declare three historical regions frozen behind their retained-key
+  guards, remove the one id literal that is not inside a gated region, and
+  teach the program view the `frozen_historical` category.
+- **Read:** [declared frozen historical recovery](#declared-frozen-historical-recovery).
+- **Files owned:**
+  - DKR: `install.rs` (`legacy_dkr_artifact`, `:4183-4206`): **keep** the
+    `"dkr-r"` early exit; declare it, the 4 rows and `legacy_dkr/catalog.json`
+    as the region's fence; `legacy_dkr/README.md`.
+  - Legacy cartridge: `cancellation.rs:511`, `install.rs:2098`,
+    `legacy_cartridge_cleanup.rs:92`, `recovery.rs:269`: **keep** the journal
+    id tests as fence data, evaluated together with the recorded recipe;
+    `cartridge_build.rs`; `legacy_cartridge/README.md`.
+  - Library import: `library_import.rs:22-42`: replace
+    `embedded.id == "snap64-recomp"` with the generic comparison already used
+    for Shipwright: the embedded definition sets `windows_tracked_handoff` and
+    the retained one does not. This tolerates the same later-added field for
+    every entry, as the Shipwright branch already does for its field; the
+    pull request states that extension and tests it for a second handoff
+    entry.
+  - Program view: `scripts/maintenance-program-view.mts` and its test, and
+    `docs/MAINTENANCE-STORE.md` (program cutover view): the
+    `frozen_historical` attribute with `guard`, `fence`, `tests` and
+    `end_of_life`; a fence hash per region; detector failures as listed in
+    the fence section.
+- **Not owned:** `persistence.rs` and the `#direct` rows (IC-1b); Ghostship
+  files (IC-12); `launch.rs` (IC-6).
+- **Acceptance evidence:**
+  - For each region, the four guard-predicate tests: current definitions with
+    the region's id (embedded, and an unfamiliar copy) never enter; a
+    retained-key fixture enters and behaves as today; the id without the key
+    does not enter; an unrelated id without the key passes through with no
+    error and no side effect.
+  - Existing tests unchanged and passing: `install.rs` `legacy_dkr_tests`,
+    `historical_artifacts.rs:220-279`,
+    `cancellation_managed_builder_tests.rs`, `library_import.rs:44-56` and
+    `:767-950`.
+  - The program view reports `frozen_historical` separately, fails on a new
+    literal outside regions, and fails when a region's fence changes without
+    a doc update.
+- **Retires:** live-authority counting for dkr-r, cvlod-recomp,
+  dr-mario-nes-recomp, earthbound-recomp, gundam-wing-endless-duel-recomp,
+  render96ex and yoshis-cookie-recomp, and the Snap64 id literal in
+  `library_import.rs`. **Gate:** +7 → about 411, if the `CartridgeBuildRecipe`
+  variants and cartridge module stems are inside the declared region.
+- **Review:** independent reviewer.
+
 #### IC-3a Retained operations do not consult the current catalog (cases 4 and 5)
 
-- **Goal.** Backup, restore, launch and removal of an existing installation
-  read its retained contract, and a pre-contract install keeps whole-directory
-  backup, whether or not the current catalog still has the port or has gained
-  policy fields.
+- **Goal.** Operations on an existing installation read its retained
+  contract, or for a pre-contract install the
+  [pre-contract reader](#installed-state-and-the-readmigration-boundary),
+  whether or not the current catalog still lists the port.
 - **Read:** distinction 4, [blanket refusals](#where-missing-optional-evidence-becomes-a-blanket-refusal-today)
-  cases 3-5, and [pre-contract manifests](#installed-state-and-the-readmigration-boundary).
-- **Files owned:** `service.rs` (`installed_catalog_or_fallback` `:7550-7579`,
-  `prepare_launch` `:7017`, `preview_removal` `:5606`, `remove` `:5716`);
-  `service/backups.rs` (`:659`, `:917`, `:927`, `:1410`, `:1516`, `:1637`,
-  `:1874`); ARCHITECTURE
+  cases 3-5, [pre-contract manifests](#installed-state-and-the-readmigration-boundary)
+  and [lead decision 2](#lead-decisions-recorded).
+- **Files owned:** `service.rs` (`installed_catalog_or_fallback` `:7550-7578`,
+  rollback target selection `:4935-5030`, `prepare_launch` `:7017`,
+  `preview_removal` `:5606`, `remove` `:5716`); `service/backups.rs` (`:659`,
+  `:917`, `:927`, `:1410`, `:1516`, `:1637`, `:1874`); ARCHITECTURE
   [backup service](../ARCHITECTURE.md#backup-service-ownership) and
   [definition operation eligibility](../ARCHITECTURE.md#definition-operation-eligibility).
-- **Not owned:** rollback target selection (`service.rs:4935-5030`): the
-  comment at `:4989-4991` records a product decision. Rollback of a departed
-  port is included only if the lead records that decision on #1422 first;
-  otherwise rollback stays held and the brief says so. Uploader continuity
-  (IC-3b, critical reviewer).
-- **Acceptance evidence:** for each operation, a test with the port removed
-  from the current catalog and one with the current port carrying a policy
-  field the retained one lacks:
-  - backup, restore, launch of the active build and removal proceed on the
-    retained contract;
-  - a pre-contract install backs up and restores as a whole directory, while
-    collectible-data review, folder sync and restore deletion hold with a
-    reason naming the missing contract;
-  - new acquisition, update and successor selection stay held.
-- **Retires:** two of the seven blanket refusals. **Gate:** +0 (distinction
-  repair).
+- **Not owned:** uploader continuity (IC-3b, critical reviewer).
+- **Semantics to implement:**
+  - **Port absent from the current catalog** (case 4): backup, restore,
+    launch of the active build and removal proceed on the retained contract.
+    Rollback is allowed to a retained, locally verified build that was
+    previously active, unless a signed withdrawal or revocation names its
+    artifact or uploader (lead decision 2). "Previously active" comes from the
+    library's selection-transaction history, not from launch history, which
+    is per port. A build with no such record is treated as never active and
+    stays held; that is the same UNKNOWN IC-3b settles. New acquisition,
+    update and successor selection stay held.
+  - **Pre-contract install** (cases 3 and 5): the guarded fallback is kept as
+    the reader. Where it reads, every operation behaves as today, including
+    launch and update. Where it refuses, backup and restore run as
+    whole-directory operations over the paths the verified manifest does not
+    record as immutable, re-verify the immutable set afterwards, and never
+    delete; launch and path-selective operations hold with a reason naming
+    the missing contract; update to a current build is offered.
+- **Acceptance evidence:**
+  - For each operation, a test with the port removed from the current
+    catalog, and one with the current port carrying a policy field that the
+    pre-contract install's port did not have.
+  - Pre-contract installs where the fallback reads: launch, settings and
+    backup behave exactly as before (regression test over existing fixtures).
+  - Whole-directory backup and restore: immutable paths are neither copied
+    nor overwritten; a changed immutable file fails the operation without
+    changes; restore deletes nothing.
+  - Rollback of a departed port: allowed for a previously active verified
+    build; held for a never-active build, an unverified build, and a build
+    whose artifact or uploader a signed withdrawal or revocation names.
+- **Retires:** blanket refusals 4 and 5, and the whole-directory part of 3.
+  **Gate:** +0 (distinction repair).
 - **Review:** independent reviewer.
 
 ### Can start after the first four
@@ -2073,13 +2210,15 @@ be pasted as a worker assignment. Every brief shares these rules:
   `provider_auto_update.rs` (`hold_scope` rule), `provider_browse.rs`,
   `thunderstore.rs`, `database.rs` (migration 78), `profile.rs`,
   `library_import.rs` and `recipe.rs` import, `profile_loader.rs`
-  (`legacy_loader` behind its retained guard), `native_mod_list.rs`; program
-  view (provider-binding-table members declared retired).
+  (`legacy_loader` behind its retained-definition and journal-format guard),
+  `native_mod_list.rs`; program view (provider-binding-table members declared
+  retired).
 - **Acceptance:** the [forward-upgrade test](#c8-recorded-mod-provider-bindings-library-migration-no-definition-change)
   from schema 77; new installs record exact bindings; the
   unfamiliar-identity scenario gets provider install, browse and auto-update
   from `mod_provider_bindings` with no table; current definitions cannot reach
-  `legacy_loader`.
+  `legacy_loader`; a reference stored at 77 with an explicit binding equal to
+  the legacy one keeps its unscoped hold key.
 - **Gate:** +1 → zelda64-recomp.
 
 ### Needs the next reader generation (one coordinated reader release)
@@ -2137,7 +2276,10 @@ _published_ definitions together, at the next minimum generation.
   translation.
 - **Gate:** +26 → the 25 policy identities and nicholas-ochoa-opensc2k
   (CorsixTH needs IC-7).
-- **Precondition:** the lead's decision on #8622's two kept pins.
+- **Precondition** (lead decision 1): before deleting `reviewed_subject`,
+  IC-8b confirms in `native_external_profile.rs` that the Dune Dynasty and
+  fheroes2 walks only read and refuse, and records the evidence in its pull
+  request.
 
 #### IC-9 Player-data roles (C4)
 
@@ -2161,13 +2303,16 @@ _published_ definitions together, at the next minimum generation.
   `managed_runtime_policy.rs:181-184`, authoring.
 - **Acceptance:** seeded bytes, arguments and screenshot patterns per
   Chocolate executable; TFE pilot signature; never rewrite an existing file;
+  the seeded-text value rules, with refusal tests for each forbidden form;
   compatibility parity.
+- **Review:** critical reviewer (signed data writes configuration a runtime
+  reads).
 - **Gate:** +4 → chocolate-doom-family, chocolate-heretic, chocolate-hexen,
   the-force-engine-dark-forces.
 
 #### IC-11 Shared write scope v2 (C6)
 
-- **Files:** `external_runtime/shared_preferences.rs` (and `/smb1r.rs`),
+- **Files:** `external_runtime/shared_preferences.rs` and `external_runtime/shared_preferences/smb1r.rs`,
   `managed_shared_preferences.rs`, the consent review in `service.rs`
   (`:1775-1864`, `:4220-4259`), the Tauri disclosure (copy owned by
   CONTENT-DESIGN), transport regeneration.
@@ -2179,39 +2324,43 @@ _published_ definitions together, at the next minimum generation.
 
 - **C7B:** definition-carried `artifact_exceptions`; the three current
   definitions declare their rows; the bundled section becomes retained-only.
+  The validator enforces the `reviewed-runtime-write` limits (no executable
+  or loadable extension, no immutable manifest path). **Review:** critical
+  reviewer, because publishers can then add exceptions without a Core
+  release.
 - **Residuals** (8 identities):
 
-| Identity                                                                 | Route                                                                                                                                                 |
-| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| surge-the-rabbit-opensurge                                               | Rename `KnownFailureCause::OpenSurgeUserDataPath` to a generic cause with a decode alias at the failure-wire read boundary. Needs an API schema note. |
-| g-diffuser                                                               | IC-5 removes the cache pin; gate `ROM_PATCH_FIXTURE_PORT` (`catalog.rs:2457`) under the qualification-fixtures feature, or move it to test data       |
-| yu-gi-oh-forbidden-memories-recompiled                                   | Move the qualification-fixture title code to fixture data                                                                                             |
-| opengoal-jak1, opengoal-jak2, opengoal-jak3, interkarma-daggerfall-unity | Named-mechanism classification, subject to the call-site check in [mechanism classification](#declared-frozen-historical-recovery)                    |
-| ghostship                                                                | Re-key the production literals on the retained mode; each one confined or counted                                                                     |
+| Identity                                                                 | Route                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| surge-the-rabbit-opensurge                                               | Rename `KnownFailureCause::OpenSurgeUserDataPath` to a generic cause with a decode alias at the failure-wire read boundary (API schema note). Also replace #8618's selector: `check_user_data_root` (`runtime_path_policy.rs:219-230`) now applies when `user_data_environment == "OPENSURGE_USER_PATH"`, an identifying literal of the kind this design rejects for Snap64. It becomes a declared rule on the owned user-data root reusing C3's closed `forbid` vocabulary, e.g. `user_data_path_rules: { "windows-x86-64": { "forbid": ["non-ascii"] } }` (reader generation). The program view does not count the variable today, so this is a correctness residual, not a gate change. |
+| g-diffuser                                                               | IC-5 removes the cache pin; gate `ROM_PATCH_FIXTURE_PORT` (`catalog.rs:2457`) under the qualification-fixtures feature, or move it to test data                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| yu-gi-oh-forbidden-memories-recompiled                                   | Move the qualification-fixture title code to fixture data                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| opengoal-jak1, opengoal-jak2, opengoal-jak3, interkarma-daggerfall-unity | Named-mechanism classification, subject to the call-site check in [mechanism classification](#declared-frozen-historical-recovery)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ghostship                                                                | Re-key the production literals on the retained mode; each one confined or counted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 - **Gate:** up to +8 → 460/460, if every UNKNOWN resolves favorably.
 
 ### Summary
 
-| PR          | Mechanism                                | Schema                  | Entries            | Gate after (estimate) |
-| ----------- | ---------------------------------------- | ----------------------- | ------------------ | --------------------- |
-| (merged)    | #8622                                    | no                      | —                  | 343 (measured)        |
-| (in flight) | #8618, #8625                             | no                      | —                  | 404 (measured)        |
-| IC-2a       | Rust-verified route-holds table, parity  | no                      | whole catalog      | 404                   |
-| IC-1        | Fence: DKR, cartridge, library import    | no                      | 7 identities       | 411                   |
-| IC-5        | Frozen exception rows (C7A)              | no                      | 3 artifacts        | 412                   |
-| IC-3a       | Retained operations (cases 4, 5)         | no                      | all installs       | 412                   |
-| IC-1b       | Direct guard on declared data            | embedded feature        | 4                  | 416                   |
-| IC-2b, 2c   | Retire TS evaluator; one Core assessment | no                      | whole catalog      | 416                   |
-| IC-3b, 3c   | Uploader continuity; cases 3, 6, 7       | no                      | all installs       | 416                   |
-| IC-4        | Recorded provider bindings (C8)          | **library 78, one-way** | 2 plus stored refs | 417                   |
-| IC-6        | Process handoff (C1)                     | reader                  | 8                  | 418                   |
-| IC-7        | Environment contributions (C2)           | reader                  | 1                  | 418                   |
-| IC-8a/b     | External roots (C3)                      | reader + transport      | 26                 | 444                   |
-| IC-9        | Player-data roles (C4)                   | reader + transport      | 3                  | 446                   |
-| IC-10       | Seeded files (C5)                        | reader                  | 4                  | 450                   |
-| IC-11       | Shared write scope v2 (C6)               | reader + transport      | 2                  | 452                   |
-| IC-12       | Exceptions B (C7) and residuals          | reader / mixed          | 8                  | up to 460             |
+| PR          | Mechanism                                | Schema                  | Entries            | Gate after (estimate)    |
+| ----------- | ---------------------------------------- | ----------------------- | ------------------ | ------------------------ |
+| (merged)    | #8622, #8618                             | no                      | —                  | 343, then 362 (measured) |
+| (in flight) | #8625                                    | no                      | —                  | 404 (measured)           |
+| IC-2a       | Rust-verified route-holds table, parity  | no                      | whole catalog      | 404                      |
+| IC-1        | Fence: DKR, cartridge, library import    | no                      | 7 identities       | 411                      |
+| IC-5        | Frozen exception rows (C7A)              | no                      | 3 artifacts        | 412                      |
+| IC-3a       | Retained operations (cases 4, 5)         | no                      | all installs       | 412                      |
+| IC-1b       | Direct guard on declared data            | embedded feature        | 4                  | 416                      |
+| IC-2b, 2c   | Retire TS evaluator; one Core assessment | no                      | whole catalog      | 416                      |
+| IC-3b, 3c   | Uploader continuity; cases 3, 6, 7       | no                      | all installs       | 416                      |
+| IC-4        | Recorded provider bindings (C8)          | **library 78, one-way** | 2 plus stored refs | 417                      |
+| IC-6        | Process handoff (C1)                     | reader                  | 8                  | 418                      |
+| IC-7        | Environment contributions (C2)           | reader                  | 1                  | 418                      |
+| IC-8a/b     | External roots (C3)                      | reader + transport      | 26                 | 444                      |
+| IC-9        | Player-data roles (C4)                   | reader + transport      | 3                  | 446                      |
+| IC-10       | Seeded files (C5)                        | reader                  | 4                  | 450                      |
+| IC-11       | Shared write scope v2 (C6)               | reader + transport      | 2                  | 452                      |
+| IC-12       | Exceptions B (C7) and residuals          | reader / mixed          | 8                  | up to 460                |
 
 **Dependency order.**
 
@@ -2220,10 +2369,48 @@ _published_ definitions together, at the next minimum generation.
   reviewer.
 - IC-2b depends on IC-2a. IC-2c is independent of both.
 - IC-6, IC-7 and IC-8a can proceed in parallel. IC-6 needs IC-1 for its gate
-  credit. IC-8b depends on IC-8a and the #8622 decision.
+  credit. IC-8b depends on IC-8a.
 - IC-9 depends on IC-4 (Shipwright's binding first).
 - IC-11 depends on IC-9 (the RE Gaiden graphics exports move first).
 - IC-12 comes last; its g-diffuser row needs IC-5.
+
+## Lead decisions recorded
+
+Recorded on 2026-11-23 in the lead's review of revision 2.
+
+1. **The two pins #8622 kept (Dune Dynasty, fheroes2) retire under C3**
+   (option a). The condition is C3's normative rules: signed data never grants
+   write or delete access in an external root, and every candidate has at
+   least one `join` segment. Before deleting `reviewed_subject`
+   (`native_external_profile.rs:173-183`), IC-8b confirms in that module that
+   these two policies' walks only read and refuse, and records that evidence
+   in its pull request. On that basis IC-8 keeps its +26 estimate.
+2. **Rollback of a port that has left the current catalog** (option b) is
+   allowed to a retained, locally verified build that was previously active,
+   unless a signed withdrawal or revocation names its artifact or uploader.
+   "Previously active" comes from the library's selection-transaction
+   history, because launch history is kept per port. This links to the
+   IC-3b UNKNOWN ("never active" as a recorded fact): a build without such a
+   record is treated as never active and stays held. IC-3a implements the
+   rule now that its pre-contract semantics (D1, D2) are specified.
+
+## Owner and lead maintenance frequency
+
+What still needs the owner or the lead after this design lands, and how
+often:
+
+| Event                                                                                                  | Who and what                                                                                                                                                  | Frequency                                             |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| A new closed value, check kind, role or contribution                                                   | A Core pull request with its consumer, an independent review (critical where the table above says so), and a reader generation                                | Only when a port needs a mechanism no contract offers |
+| A reader generation ships                                                                              | The released preview's generation becomes the minimum supported generation for definitions that use the new features, joined with the compact-listing minimum | Once per reader release that adds a feature           |
+| A frozen region reaches its end-of-life condition                                                      | Diagnostics report it; the owner confirms retirement; a pull request deletes the region                                                                       | Rare; one confirmation per region                     |
+| A trust-sensitive change (uploader continuity, consent scope, seeded text, publisher-added exceptions) | Critical reviewer                                                                                                                                             | Per such pull request                                 |
+| Pending lead decisions                                                                                 | None open after the two recorded above. New ones are recorded in this section                                                                                 | —                                                     |
+
+**A new port whose requirements fit existing contracts needs none of these.**
+Its definition declares the existing fields, passes the validators, is
+reviewed and signed as catalog data, and is delivered without a Core change,
+a reader generation or a lead decision. That is the completion test.
 
 ## Alternatives rejected
 
@@ -2272,28 +2459,28 @@ _published_ definitions together, at the next minimum generation.
 
 ## Open risks and unknowns
 
-| Item                                                                                              | Status                                   | What settles it                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #8622's two kept pins (Dune Dynasty, fheroes2): is a definition-declared root binding sufficient? | Lead decision                            | The lead records the decision on #8622. C3's argument is in [C3](#c3-external-roots-and-typed-checks-nativeexternal-roots-v1).                                      |
-| Rollback of a port absent from the current catalog (`service.rs:4989-4991`)                       | Lead decision                            | Recorded on #1422 before IC-3a includes rollback                                                                                                                    |
-| "Never active" is not a recorded fact for the IC-3b uploader-continuity narrowing                 | UNKNOWN                                  | Read `InstallRecord` and the activation history. If absent, IC-3b keeps the hold for rollback and narrows only active-build launch and file-only settings recovery. |
-| Ghostship production literals confined to the 2.0.0 route                                         | UNKNOWN                                  | Re-key each on the retained mode (IC-12); any that cannot be stays counted                                                                                          |
-| `jakmods` selected only through definition data                                                   | UNKNOWN                                  | Read its call sites                                                                                                                                                 |
-| Whether other tracked-handoff upstreams exit before their successor joins                         | UNKNOWN                                  | Native launch-tree observation per entry                                                                                                                            |
-| The exact pre-handoff Snap64 package digests                                                      | To derive                                | IC-1 reads catalog history for the Snap64 releases offered before `windows_tracked_handoff`                                                                         |
-| GB Recompiled fallback expressible as an ordered candidate list                                   | UNKNOWN                                  | Full read of `managed_shared_preferences.rs`                                                                                                                        |
-| `regaiden-gbc` materialization is title-specific                                                  | UNKNOWN                                  | Read the transform implementation                                                                                                                                   |
-| Authored restriction carriers deserialize into Core's `AcquisitionRestriction`                    | UNKNOWN                                  | IC-2a's table test; a failure is a divergence to fix                                                                                                                |
-| Check-kind list completeness for the 11 modules                                                   | Risk                                     | IC-8a's per-policy parity tests. A behavior that fits no kind is either a new kind with its own consumer or stays a declared historical translation.                |
-| Gate estimates                                                                                    | Estimates from a measured 404 baseline   | Each pull request records the actual program-view result                                                                                                            |
-| Older previews lose live updates for definitions adopting new features                            | Accepted (owner compatibility amendment) | One minimum supported generation, shared with the compact-listing cutover                                                                                           |
+| Item                                                                              | Status                                   | What settles it                                                                                                                                                     |
+| --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Never active" is not a recorded fact for the IC-3b uploader-continuity narrowing | UNKNOWN                                  | Read `InstallRecord` and the activation history. If absent, IC-3b keeps the hold for rollback and narrows only active-build launch and file-only settings recovery. |
+| Ghostship production literals confined to the 2.0.0 route                         | UNKNOWN                                  | Re-key each on the retained mode (IC-12); any that cannot be stays counted                                                                                          |
+| `jakmods` selected only through definition data                                   | UNKNOWN                                  | Read its call sites                                                                                                                                                 |
+| Whether other tracked-handoff upstreams exit before their successor joins         | UNKNOWN                                  | Native launch-tree observation per entry                                                                                                                            |
+| GB Recompiled fallback expressible as an ordered candidate list                   | UNKNOWN                                  | Full read of `managed_shared_preferences.rs`                                                                                                                        |
+| `regaiden-gbc` materialization is title-specific                                  | UNKNOWN                                  | Read the transform implementation                                                                                                                                   |
+| Authored restriction carriers deserialize into Core's `AcquisitionRestriction`    | UNKNOWN                                  | IC-2a's table test; a failure is a divergence to fix                                                                                                                |
+| Check-kind list completeness for the 11 modules                                   | Risk                                     | IC-8a's per-policy parity tests. A behavior that fits no kind is either a new kind with its own consumer or stays a declared historical translation.                |
+| Gate estimates                                                                    | Estimates from a measured 404 baseline   | Each pull request records the actual program-view result                                                                                                            |
+| Older previews lose live updates for definitions adopting new features            | Accepted (owner compatibility amendment) | One minimum supported generation, shared with the compact-listing cutover                                                                                           |
 
-**Settled in revision 2** (kept so a later reader does not repeat the search):
+**Settled in revisions 2 and 3** (kept so a later reader does not repeat the search):
 
-| Item                                             | Finding                                                                                                          |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Removal consults the current catalog             | Yes: `preview_removal` (`service.rs:5606`) and `remove` (`:5716`); now case 4                                    |
-| Auto-update hold scopes persisted                | Yes, in `auto-update-holds.json` (`provider_auto_update.rs:35`); C8 keeps every key byte-identical               |
-| Node script tests need a built CLI binary        | No longer applies: the [generated table](#maintenance-scripts) is produced by a Rust test and read by TypeScript |
-| Static proof that frozen regions are unreachable | Not needed: replaced by [guard-predicate tests](#declared-frozen-historical-recovery)                            |
-| CorsixTH on Windows reads `USERNAME`             | Not needed for parity: C2 sets `USER=PLAYER` on both platforms, as today                                         |
+| Item                                               | Finding                                                                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Removal consults the current catalog               | Yes: `preview_removal` (`service.rs:5606`) and `remove` (`:5716`); now case 4                                             |
+| Auto-update hold scopes persisted                  | Yes, in `auto-update-holds.json` (`provider_auto_update.rs:35`); C8 keeps every key byte-identical                        |
+| Node script tests need a built CLI binary          | No longer applies: the [generated table](#maintenance-scripts) is produced by a Rust test and read by TypeScript          |
+| Static proof that frozen regions are unreachable   | Not needed: replaced by [guard-predicate tests](#declared-frozen-historical-recovery)                                     |
+| CorsixTH on Windows reads `USERNAME`               | Not needed for parity: C2 sets `USER=PLAYER` on both platforms, as today                                                  |
+| #8622's two kept pins                              | Lead decision 1: retire under C3, after IC-8b confirms the walks only read and refuse                                     |
+| Rollback of a port absent from the current catalog | Lead decision 2: allowed to a previously active, locally verified build unless a signed withdrawal or revocation names it |
+| Pre-handoff Snap64 package digests                 | Not needed: IC-1 uses the generic retained-vs-embedded field comparison                                                   |
