@@ -1,0 +1,151 @@
+{
+  "_comment": "Synthetic release facts for the mechanism evidence suites (#8555). The repositories, tags and files are fixture identities, not recorded upstream observations; mechanism_fixtures.rs owns their meaning.",
+  "upstream_setup": [
+    {
+      "tag_name": "v3.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-03T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-prep-android-arm64.apk",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-prep-android-arm64.apk",
+          "size": 11,
+          "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333331"
+        },
+        {
+          "name": "mechanism-prep-switch.nro",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-prep-switch.nro",
+          "size": 11,
+          "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333332"
+        }
+      ]
+    },
+    {
+      "tag_name": "v2.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-02T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-prep-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-windows-x64.zip",
+          "size": 11,
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222221"
+        },
+        {
+          "name": "mechanism-prep-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-linux-x64.zip",
+          "size": 11,
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "name": "mechanism-prep-installer-windows-x64.exe",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-installer-windows-x64.exe",
+          "size": 11,
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222223"
+        },
+        {
+          "name": "mechanism-prep-source.tar.gz",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-source.tar.gz",
+          "size": 11,
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222224"
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/SHA256SUMS.txt",
+          "size": 11,
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222225"
+        }
+      ]
+    },
+    {
+      "tag_name": "v1.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-01T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-prep-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-prep-windows-x64.zip",
+          "size": 11,
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "name": "mechanism-prep-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-prep-linux-x64.zip",
+          "size": 11,
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111112"
+        }
+      ]
+    }
+  ],
+  "referenced_disc": [
+    {
+      "tag_name": "v3.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-03T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-disc-android-arm64.apk",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v3.0.0/mechanism-disc-android-arm64.apk",
+          "size": 11,
+          "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666661"
+        }
+      ]
+    },
+    {
+      "tag_name": "v2.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-02T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-disc-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-windows-x64.zip",
+          "size": 11,
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555551"
+        },
+        {
+          "name": "mechanism-disc-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-linux-x64.zip",
+          "size": 11,
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555552"
+        },
+        {
+          "name": "mechanism-disc-builder-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-builder-windows-x64.zip",
+          "size": 11,
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555553"
+        },
+        {
+          "name": "mechanism-disc-windows-x64-debug.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-windows-x64-debug.zip",
+          "size": 11,
+          "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555554"
+        }
+      ]
+    },
+    {
+      "tag_name": "v1.0.0",
+      "draft": false,
+      "prerelease": false,
+      "published_at": "2026-11-01T00:00:00Z",
+      "assets": [
+        {
+          "name": "mechanism-disc-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v1.0.0/mechanism-disc-windows-x64.zip",
+          "size": 11,
+          "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444441"
+        },
+        {
+          "name": "mechanism-disc-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v1.0.0/mechanism-disc-linux-x64.zip",
+          "size": 11,
+          "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444442"
+        }
+      ]
+    }
+  ]
+}

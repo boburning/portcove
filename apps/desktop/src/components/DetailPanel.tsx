@@ -51,7 +51,15 @@ import { ArtworkControls } from "./Artwork";
 import { GameHeroFramingPreview } from "./GameHero";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+  type ReactNode,
+} from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -119,6 +127,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import type { ReportSettingsDraft, SettingsDraftSummary } from "./GameSettingsPanel";
 import { ExternalModPortals } from "./ExternalModPortals";
 import { JakModsBrowser } from "./JakModsBrowser";
 import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
@@ -616,12 +625,30 @@ function DetailBody(model: {
   }, [mayHaveCommunitySource, model.port.id, model.libraryGeneration, modsKey]);
   const hasCommunitySource = mayHaveCommunitySource && communitySource?.key === modsKey;
   const [modSupportRetry, retryModSupport] = useState(0);
-  const [observedModPlay, setModPlay] = useState<ModPlayState>();
-  const modPlay =
-    observedModPlay?.port === model.port.id &&
-    observedModPlay.generation === model.libraryGeneration
-      ? observedModPlay
-      : undefined;
+  const [observedModPlay, setModPlay] = useState<{
+    key: string;
+    state: ModPlayState | undefined;
+  }>();
+  const reportModPlay = useCallback(
+    (state: ModPlayState | undefined) => setModPlay({ key: modsKey, state }),
+    [modsKey],
+  );
+  const modPlay = observedModPlay?.key === modsKey ? observedModPlay.state : undefined;
+  const [drafts, setDrafts] = useState(
+    () => new Map<string, SettingsDraftSummary & { scope: string }>(),
+  );
+  const reportDraft = useCallback<ReportSettingsDraft>(
+    (id, summary) => {
+      setDrafts((previous) => {
+        const next = new Map(previous);
+        if (summary) next.set(id, { ...summary, scope: modsKey });
+        else next.delete(id);
+        return next;
+      });
+    },
+    [modsKey],
+  );
+  const settingsDrafts = [...drafts.values()].filter(({ scope }) => scope === modsKey);
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
     let current = true;
@@ -742,28 +769,13 @@ function DetailBody(model: {
               }}
             />
             {modsAvailable && modPlay && (
-              <>
-                <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
-                  <Trans
-                    t={tMods}
-                    i18nKey="mods.workspace.playUses"
-                    components={{ name: <bdi>{modPlay.name}</bdi> }}
-                  />
-                </span>
-                {modPlay.pending > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={modPlay.busy || Boolean(busy)}
-                    onClick={() => {
-                      reveal("mods");
-                      requestModReview((request) => request + 1);
-                    }}
-                  >
-                    {tMods("mods.workspace.review")}
-                  </Button>
-                )}
-              </>
+              <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                <Trans
+                  t={tMods}
+                  i18nKey="mods.workspace.playUses"
+                  components={{ name: <bdi>{modPlay.name}</bdi> }}
+                />
+              </span>
             )}
           </div>
         ) : (
@@ -828,6 +840,19 @@ function DetailBody(model: {
             </div>
           )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+          <PendingChangeReview
+            key={modsKey}
+            settings={settingsDrafts}
+            modPlay={modsAvailable ? modPlay : undefined}
+            busy={Boolean(busy)}
+            reviewMods={() => {
+              reveal("mods", modPlay?.review?.headingId);
+              if (!modPlay?.review?.open) requestModReview((request) => request + 1);
+            }}
+            reviewSettings={({ formId, canReview }) =>
+              reveal("configuration", formId, canReview ? "[data-settings-file-review]" : undefined)
+            }
+          />
         </>
       )}
     >
@@ -863,7 +888,7 @@ function DetailBody(model: {
                       busy={Boolean(busy)}
                       openGameFiles={() => reveal("files")}
                       active={currentSection === "mods"}
-                      onPlayState={setModPlay}
+                      onPlayState={reportModPlay}
                       reviewFromPlay={reviewFromPlay}
                       onAppliedFromPlay={() => reveal("overview")}
                     />
@@ -876,12 +901,73 @@ function DetailBody(model: {
           : {}),
         saves: <DetailSavesSection {...{ model, external }} />,
         ...(model.status?.active && !external
-          ? { configuration: <DetailConfigurationSection model={model} /> }
+          ? {
+              configuration: <DetailConfigurationSection model={model} reportDraft={reportDraft} />,
+            }
           : {}),
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal, previewActions }} />,
       })}
     </DetailLayout>
+  );
+}
+
+function PendingChangeReview({
+  settings,
+  modPlay,
+  busy,
+  reviewMods,
+  reviewSettings,
+}: {
+  settings: readonly SettingsDraftSummary[];
+  modPlay: ModPlayState | undefined;
+  busy: boolean;
+  reviewMods: () => void;
+  reviewSettings: (draft: SettingsDraftSummary) => void;
+}) {
+  const { t } = useAppTranslation("detail");
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  const count = settings.reduce((sum, file) => sum + file.count, modPlay?.pending ?? 0);
+  if (!count) return null;
+  const choose = (open: () => void) => {
+    if (disclosure.current) disclosure.current.open = false;
+    open();
+  };
+  return (
+    <details ref={disclosure} className="min-w-0">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer font-semibold">
+        {t("changeReview.open", { count })}
+      </summary>
+      <ul className="m-0 grid list-none gap-1 px-2 pb-2">
+        {!!modPlay?.pending && (
+          <li>
+            <Button
+              type="button"
+              variant="ghost"
+              data-focusable
+              disabled={busy || (modPlay.busy && !modPlay.review?.open)}
+              onClick={() => choose(reviewMods)}
+            >
+              {t("changeReview.mods", { count: modPlay.pending })}
+            </Button>
+          </li>
+        )}
+        {settings.map((draft) => (
+          <li key={draft.formId}>
+            <Button
+              type="button"
+              variant="ghost"
+              data-focusable
+              className="h-auto max-w-full flex-wrap justify-start text-start whitespace-normal"
+              onClick={() => choose(() => reviewSettings(draft))}
+            >
+              {t("changeReview.settings", { count: draft.count })}
+              <bdi className="min-w-0 wrap-anywhere text-pc-muted-foreground">{draft.path}</bdi>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -4489,7 +4575,13 @@ function DetailSavesSection({
   );
 }
 
-function DetailConfigurationSection({ model }: { model: Parameters<typeof DetailBody>[0] }) {
+function DetailConfigurationSection({
+  model,
+  reportDraft,
+}: {
+  model: Parameters<typeof DetailBody>[0];
+  reportDraft: ReportSettingsDraft;
+}) {
   const active = model.status?.active;
   if (!active) return null;
   return (
@@ -4499,6 +4591,7 @@ function DetailConfigurationSection({ model }: { model: Parameters<typeof Detail
         installId={active.id}
         generation={model.libraryGeneration}
         busy={Boolean(model.busy)}
+        reportDraft={reportDraft}
       />
     </div>
   );

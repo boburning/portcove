@@ -2605,6 +2605,17 @@ async fn unknown_named_feature_does_not_block_a_supported_definition() {
     .await;
 }
 
+/// A released reader that meets a future entry schema records that one
+/// definition as needing a newer engine; its siblings remain usable.
+#[tokio::test]
+async fn newer_definition_schema_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["definition_schema"] = 5.into();
+        entry["future_layout"] = serde_json::json!({"shape": "unknown to this reader"});
+    })
+    .await;
+}
+
 async fn unsupported_sibling(change: impl FnOnce(&mut Value)) {
     let fixture = RepositoryFixture::new();
     let (port_id, mut targets) = repository_targets();

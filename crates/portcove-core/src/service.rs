@@ -88,7 +88,11 @@ mod ghostship_recovery;
 mod ghostship_recovery_execution;
 mod ghostship_safety;
 #[cfg(test)]
+mod referenced_disc_mechanism_tests;
+#[cfg(test)]
 mod shipwright_persistence_tests;
+#[cfg(test)]
+mod upstream_managed_setup_mechanism_tests;
 mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 mod advisories;

@@ -100,13 +100,27 @@ definition_features! {
 }
 
 const UNKNOWN_REQUIRED_FEATURE: &str = "unknown_required_feature";
+const UNSUPPORTED_DEFINITION_SCHEMA: &str = "unsupported_definition_schema";
+/// The newest indexed definition entry schema this reader interprets.
+pub(crate) const MAX_DEFINITION_SCHEMA: u64 = 4;
 
-/// A newer named feature this reader does not implement. Like an unknown
-/// engine template, it requires a newer engine rather than invalidating the
-/// authenticated definition.
-pub(crate) fn is_unknown_required_feature(error: &PortcoveError) -> bool {
+/// A newer named feature or a newer definition entry schema this reader does
+/// not implement. Like an unknown engine template, either requires a newer
+/// engine for that one definition rather than invalidating the authenticated
+/// index, its siblings or the catalog.
+pub(crate) fn requires_newer_engine(error: &PortcoveError) -> bool {
     error.code == crate::ErrorCode::Unsupported
-        && error.details.contains_key(UNKNOWN_REQUIRED_FEATURE)
+        && (error.details.contains_key(UNKNOWN_REQUIRED_FEATURE)
+            || error.details.contains_key(UNSUPPORTED_DEFINITION_SCHEMA))
+}
+
+/// Refuse an entry schema newer than this reader before any typed parsing, so
+/// a future entry shape is recorded as needing a newer engine, not as invalid.
+pub(crate) fn newer_definition_schema(schema: u64) -> PortcoveError {
+    PortcoveError::unsupported(format!(
+        "definition entry schema {schema} requires a newer Portcove"
+    ))
+    .detail(UNSUPPORTED_DEFINITION_SCHEMA, schema.to_string())
 }
 
 // Entry inspection calls this before the advisory bounds and every typed port

@@ -70608,6 +70608,97 @@
       "external_profile_policy": "openmohaa-unix-v1"
     },
     {
+      "id": "mgrayd-fable2pubgames-recomp",
+      "name": "Fable II Pub Games (MGRayd Recomp)",
+      "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
+      "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "MGRayd/Fable2PubGames-Recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own purchased Fable II Pub Games Xbox 360 container. Extract the complete official Windows package to a writable folder outside the Portcove library, and keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your container, and use Install Game Files to prepare it with the upstream tool before Play Pub Games. In Portcove, select Fable2PubGamesLauncher.exe with its containing folder as the working folder and no arguments. Play opens the upstream launcher; choose Play Pub Games there. Portcove registers and launches the copy you keep. It does not download, prepare, update or replace this copy. You and upstream own the package, your container, game files, saves and settings. Removing the registration leaves all of them in place. Backups, rollback and data migration are not offered for this copy. The launcher keeps data, saves, logs and cache in its folder; close the game and preserve that folder and your original container before replacing the package. The package includes recompiled game code that the project license does not cover.",
+        "original_game_title": "Fable II Pub Games",
+        "original_game": {
+          "format_version": 1,
+          "id": "fable-ii-pub-games",
+          "evidence_urls": [
+            "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md",
+            "https://github.com/MGRayd/Fable2PubGames-Recomp"
+          ],
+          "source_editions": [
+            {
+              "id": "fable-ii-pub-games-xbox-360",
+              "title": "Fable II Pub Games (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+              ]
+            }
+          ]
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Import your own Pub Games container",
+              "instruction": "Use your own purchased Fable II Pub Games Xbox 360 container. Extract the complete official Windows package to a writable folder outside the Portcove library, and keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your container, and use Install Game Files to prepare it with the upstream tool before Play Pub Games."
+            },
+            {
+              "title": "Preserve the upstream data",
+              "instruction": "The launcher creates data, saves, logs and cache in its folder. Keep the original container and preserve the creating runtime and actual save folder before replacement."
+            },
+            {
+              "title": "Add the game and manage your files",
+              "instruction": "In Portcove, select Fable2PubGamesLauncher.exe with its containing folder as the working folder and no arguments. Play opens the upstream launcher; choose Play Pub Games there. Portcove registers and launches the copy you keep. It does not download, prepare, update or replace this copy. You and upstream own the package, your container, game files, saves and settings. Removing the registration leaves all of them in place. Backups, rollback and data migration are not offered for this copy."
+            },
+            {
+              "title": "Review optional Fable II save sync separately",
+              "instruction": "The upstream Advanced Options can link the Fable II Recompiled saves folder and sync when Pub Games closes. This can update Fable2PubInfo.xml bridge records in the other game’s profile. Keep your own backups as well as the upstream pubgames-sync-backups, and close both games before any maintenance. Leave sync off for independent profiles."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+            "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
+          ],
+          "help_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+        },
+        "artwork": {
+          "game_id": 21328,
+          "cover_id": 431477,
+          "image_id": "co98xh",
+          "image_sha256": "793f6e451b5b086d8c1ed7cb1a6a1b47f7894649dc6acbe01e54fc851044dec9",
+          "game_slug": "fable-ii-pub-games",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "monster-hunter-portable-3rd-hd-yakumo",
       "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
       "summary": "Play your own MHP3rd HD disc image with Yakumo. Portcove can manage a separate Windows x86-64 copy or launch one you prepared.",

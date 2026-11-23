@@ -33,6 +33,8 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 type Project = ProviderProjectView["project"];
 type File = Project["files"][number];
+export type ModDraftReviewState = { headingId: string; open: boolean };
+
 type Props = {
   portId: string;
   generation: number;
@@ -47,6 +49,7 @@ type Props = {
   undoLocal?: (digest: string) => void;
   setDraft: Dispatch<SetStateAction<ModDraft>>;
   onBusyChange: (busy: boolean) => void;
+  onReviewChange?: (state: ModDraftReviewState | undefined) => void;
   onInstalled: (message: string) => void;
   onRefresh?: () => void;
   onApplying?: (applying: boolean) => void;
@@ -102,6 +105,7 @@ export function ModProviderBrowser({
   undoLocal,
   setDraft,
   onBusyChange,
+  onReviewChange,
   onInstalled,
   onRefresh,
   onApplying,
@@ -152,6 +156,7 @@ export function ModProviderBrowser({
   const [working, setWorking] = useState<"files" | "review" | "apply">();
   const [failure, setFailure] = useState<string>();
   const reviewId = useId();
+  const reviewHeadingId = `${reviewId}-heading`;
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -187,6 +192,10 @@ export function ModProviderBrowser({
     onBusyChange(busy);
   }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  useEffect(() => {
+    onReviewChange?.({ headingId: reviewHeadingId, open: review });
+  }, [onReviewChange, review, reviewHeadingId]);
+  useEffect(() => () => onReviewChange?.(undefined), [onReviewChange]);
   useEffect(() => {
     if (review) reviewHeading.current?.focus();
   }, [review]);
@@ -753,7 +762,7 @@ export function ModProviderBrowser({
       {review && (
         <Notice intent="info">
           <div id={reviewId} data-slot="notice-body" className="grid gap-3">
-            <h4 ref={reviewHeading} tabIndex={-1} className="font-semibold">
+            <h4 id={reviewHeadingId} ref={reviewHeading} tabIndex={-1} className="font-semibold">
               {t("mods.workspace.review")}
             </h4>
             <p>

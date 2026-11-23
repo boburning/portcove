@@ -85,6 +85,8 @@ mod managed_initialization;
 mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
+#[cfg(test)]
+mod mechanism_fixtures;
 mod n64_graphics;
 mod native_external_profile;
 mod native_portable_data;

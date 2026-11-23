@@ -99,6 +99,7 @@ function write(root: string, path: string, text: string) {
 }
 
 const src = "crates/portcove-core/src";
+const historicalDigest = "a".repeat(64);
 
 /** A repository tree carrying one instance of each authority shape. */
 function authorityTree(withCode: boolean, extra: Record<string, string> = {}) {
@@ -169,6 +170,38 @@ function authorityTree(withCode: boolean, extra: Record<string, string> = {}) {
     root,
     "crates/portcove-core/catalog/external-mod-portals.json",
     JSON.stringify([{ port: "never-seen-by-code", portals: ["portal"] }]),
+  );
+  // Each historical section names its subject a different way: an explicit
+  // identity, an exact package digest bound by a port-scoped source contract,
+  // the catalog release repository or the title keys its text spells.
+  write(
+    root,
+    `${src}/historical-artifacts.json`,
+    JSON.stringify({
+      dkr: [{ version: "1", executable: "Never-Seen-By-Code.exe" }],
+      direct: [{ port_id: withCode ? "coded-port" : "never-seen-by-code", version: "1" }],
+      packages: [{ contract: "frozen-v1", version: "1", sha256: historicalDigest }],
+      cartridge: [{ port_id: "never-seen-by-code", projection: "never-seen-by-code" }],
+      forbidden_memories_producer: withCode
+        ? { repository: "owner/coded", tag: "v1" }
+        : { asset_name: "never-seen-by-code-win.zip", tag: "v1" },
+    }),
+  );
+  write(
+    root,
+    "crates/portcove-core/catalog/catalog.json",
+    JSON.stringify({
+      source_catalog: {
+        qualification: [
+          { scope: { port_id: "never-seen-by-code", artifact_sha256: historicalDigest } },
+        ],
+      },
+    }),
+  );
+  write(
+    root,
+    "crates/portcove-core/catalog/tool-artifacts.json",
+    JSON.stringify([{ name: "builder-pack.zip", sha256: "b".repeat(64) }]),
   );
   for (const [path, text] of Object.entries(extra)) write(root, path, text);
   return root;
@@ -270,7 +303,7 @@ void test("the retired-authority gate is derived from detected title-specific co
     {
       id: "coded-port",
       detail:
-        "Served by core-title-literal, external-profile-policy, family-generator-script, native-external-profile-module, qualification-fixture-title-code, title-named-core-item.",
+        "Served by core-title-literal, external-profile-policy, family-generator-script, historical-artifact-registry, native-external-profile-module, qualification-fixture-title-code, title-named-core-item.",
     },
   ]);
   assert.equal(subject(failing, "coded-port").remaining_action, "retire-title-authority");
@@ -294,6 +327,79 @@ void test("test modules and test files never count as title-specific code", () =
   assert.deepEqual(generator.files, []);
 });
 
+void test("historical artifact rows are covered identities, never a silent retirement", () => {
+  const registry = (view: ReturnType<typeof programView>) =>
+    view.authority_kinds.find((kind) => kind.kind === "historical-artifact-registry")!;
+  const coded = registry(viewFor({ withCode: true }));
+  // An explicit identity and the catalog release repository both name coded-port.
+  assert.deepEqual(coded.identities, ["coded-port", "never-seen-by-code"]);
+  assert.deepEqual(coded.unattributed, []);
+  assert.equal(coded.count, 6);
+  assert.deepEqual(
+    coded.members?.map((member) => [member.name, member.rows]),
+    [
+      ["historical-artifacts.json#dkr", 1],
+      ["historical-artifacts.json#direct", 1],
+      ["historical-artifacts.json#packages", 1],
+      ["historical-artifacts.json#cartridge", 1],
+      ["historical-artifacts.json#forbidden_memories_producer", 1],
+      ["tool-artifacts.json", 1],
+    ],
+  );
+  // Digest, title-key and identity rows all name the listing-only subject.
+  const data = registry(viewFor({ withCode: false }));
+  assert.deepEqual(data.identities, ["never-seen-by-code"]);
+  assert.deepEqual(data.unattributed, []);
+
+  // A title row that names no subject makes the gate unknown rather than
+  // passing; an unmatched builder pack row names no title at all.
+  const unnamed = viewFor({
+    withCode: false,
+    extra: {
+      [`${src}/historical-artifacts.json`]: JSON.stringify({
+        dkr: [{ version: "1" }],
+        direct: [{ port_id: "never-seen-by-code" }],
+        packages: [{ contract: "frozen-v1", sha256: "c".repeat(64) }],
+        cartridge: [{ port_id: "never-seen-by-code" }],
+        forbidden_memories_producer: { tag: "v1" },
+      }),
+    },
+  });
+  assert.deepEqual(registry(unnamed).unattributed, [
+    "historical-artifacts.json#dkr[0]",
+    "historical-artifacts.json#forbidden_memories_producer[0]",
+    "historical-artifacts.json#packages[0]",
+  ]);
+  assert.equal(unnamed.gates.retired_authority.state, "unknown");
+  assert.deepEqual(
+    unnamed.gates.retired_authority.unknown_kinds.map((entry) => entry.kind),
+    ["historical-artifact-registry"],
+  );
+
+  // A missing section is reported by the rot check, not read as retired.
+  const root = authorityTree(false, {
+    [`${src}/historical-artifacts.json`]: JSON.stringify({ direct: [] }),
+  });
+  try {
+    const { context } = fixtureContext(routeFitInputs());
+    const errors = authorityInventoryErrors(detectAuthorities(root, context, fixtureKinds(false)));
+    assert.ok(
+      errors.includes(
+        "Authority kind historical-artifact-registry cannot find historical-artifacts.json#dkr; fix the detector or declare that member retired.",
+      ),
+      errors.join("\n"),
+    );
+    assert.ok(
+      errors.includes(
+        "Authority kind historical-artifact-registry found historical-artifacts.json#direct but read no rows from it.",
+      ),
+      errors.join("\n"),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 void test("an identity no code has seen is a subject with its route-fit disposition", () => {
   const view = viewFor({ withCode: true });
   const unseen = subject(view, "never-seen-by-code");
@@ -304,6 +410,7 @@ void test("an identity no code has seen is a subject with its route-fit disposit
   assert.deepEqual(unseen.title_code_paths, [
     "core-title-literal",
     "external-mod-portals",
+    "historical-artifact-registry",
     "provider-binding-table",
   ]);
   assert.ok(unseen.reason.length > 0);

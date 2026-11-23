@@ -190,6 +190,18 @@ impl DefinitionContentIndex {
             .ok_or_else(|| PortcoveError::not_found("definition identity is outside the index"))?;
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
+        // Read only the schema number before the typed document: a newer entry
+        // shape needs a newer engine and is not validated by this reader.
+        if let Some(schema) = value
+            .0
+            .get("definition_schema")
+            .and_then(Value::as_u64)
+            .filter(|schema| *schema > crate::definition_capabilities::MAX_DEFINITION_SCHEMA)
+        {
+            return Err(crate::definition_capabilities::newer_definition_schema(
+                schema,
+            ));
+        }
         let document: EntryDocument = serde_json::from_value(value.0)?;
         if !matches!(document.definition_schema, 1..=4) {
             return Err(PortcoveError::unsupported(
@@ -283,11 +295,14 @@ impl DefinitionContentIndex {
             }
             require_feature(required_features.as_ref(), Feature::ModLoader)?;
         }
+        // A Daggerfall Unity binding is a mod loader, so its named feature was
+        // already required above; this adds only the capability minimum.
         if crate::profile_loader::declares_dfu_loader(&port)
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable"
-                    && requirement.minimum_version >= crate::profile_loader::DFU_CAPABILITY
-            })
+            && !supports(
+                Feature::ModLoader,
+                "native-portable",
+                crate::profile_loader::DFU_CAPABILITY,
+            )?
         {
             return Err(PortcoveError::verification(
                 "Daggerfall Unity data-only loader requires its native-portable capability",

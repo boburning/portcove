@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useAppTranslation } from "../localization";
 import type {
   GameSettingChange,
@@ -23,6 +23,15 @@ type DraftValue = { action: "set"; input: string } | { action: "reset" };
 type FieldError = "tooLarge" | "whole" | "number" | "choose" | "range";
 type Draft = { identity: string; values: Map<string, DraftValue> };
 
+export type SettingsDraftSummary = {
+  formId: string;
+  path: string;
+  count: number;
+  canReview: boolean;
+};
+
+export type ReportSettingsDraft = (formId: string, summary?: SettingsDraftSummary) => void;
+
 export interface GameSettingsActions {
   review: (fileId: string, edits: GameSettingsEdit[]) => Promise<GameSettingsChangeSetReview>;
   apply: (review: GameSettingsChangeSetReview) => Promise<GameSettingsView>;
@@ -36,6 +45,7 @@ export function GameSettingsPanel({
   changed,
   disabled = false,
   fileReadRevisions,
+  reportDraft,
 }: {
   view: GameSettingsChangeSetView;
   generation: number;
@@ -43,6 +53,7 @@ export function GameSettingsPanel({
   changed: (view: GameSettingsView) => void;
   disabled?: boolean;
   fileReadRevisions?: ReadonlyMap<string, number>;
+  reportDraft?: ReportSettingsDraft | undefined;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -76,6 +87,7 @@ export function GameSettingsPanel({
           disabled={disabled || !settings.available}
           heading={heading}
           readRevision={fileReadRevisions?.get(file.id) ?? 0}
+          reportDraft={reportDraft}
         />
       ))}
     </section>
@@ -103,6 +115,7 @@ function SettingsFileDraft({
   disabled,
   heading,
   readRevision,
+  reportDraft,
 }: {
   file: FileView;
   identity: string;
@@ -112,6 +125,7 @@ function SettingsFileDraft({
   disabled: boolean;
   heading: RefObject<HTMLHeadingElement | null>;
   readRevision: number;
+  reportDraft: ReportSettingsDraft | undefined;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const [draft, setDraft] = useState<Draft>();
@@ -129,6 +143,14 @@ function SettingsFileDraft({
   if (selected && selected.identity !== identity) setSelected(undefined);
   const values = draft?.values;
   const count = values?.size ?? 0;
+  const formId = useId();
+  const canReview =
+    !disabled && !needsRead && !held && available && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
+  useEffect(() => {
+    if (!count || !reportDraft) return;
+    reportDraft(formId, { formId, path: file.path, count, canReview });
+    return () => reportDraft(formId);
+  }, [canReview, count, file.path, formId, reportDraft]);
   const update = (id: string, value?: DraftValue) => {
     setError(undefined);
     setSavedAtRead(undefined);
@@ -140,8 +162,7 @@ function SettingsFileDraft({
     });
   };
   const submit = (form: HTMLFormElement) => {
-    if (disabled || needsRead || held || !available || !count || count > MAX_CHANGES_PER_REVIEW)
-      return;
+    if (!canReview) return;
     const edits: GameSettingsEdit[] = [];
     for (const setting of file.settings) {
       const value = values?.get(setting.id);
@@ -160,6 +181,9 @@ function SettingsFileDraft({
   };
   return (
     <form
+      id={formId}
+      aria-labelledby={`${formId}-heading`}
+      tabIndex={-1}
       noValidate
       className="grid gap-3"
       onSubmit={(event) => {
@@ -167,7 +191,9 @@ function SettingsFileDraft({
         submit(event.currentTarget);
       }}
     >
-      <h4 className="m-0 text-sm font-medium wrap-anywhere">{file.path}</h4>
+      <h4 id={`${formId}-heading`} className="m-0 text-sm font-medium wrap-anywhere">
+        {file.path}
+      </h4>
       {!available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
       {held && (
         <div>
@@ -209,8 +235,9 @@ function SettingsFileDraft({
             <Button
               ref={reviewButton}
               type="submit"
+              data-settings-file-review
               variant="primary"
-              disabled={needsRead || !count || count > MAX_CHANGES_PER_REVIEW}
+              disabled={!canReview}
             >
               {t("editor.review")}
             </Button>

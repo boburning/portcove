@@ -27857,6 +27857,13 @@
             },
             "type": "object"
           },
+          "environment_prefix": {
+            "description": "Optional restatement of the environment name prefix derived from the\nport ID: its ASCII letters and digits, uppercased, followed by `_`. A\nstem over 32 characters keeps its first 24 characters followed by the\nfirst 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any\nother value is refused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "launch": {
             "additionalProperties": false,
             "properties": {

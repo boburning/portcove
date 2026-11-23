@@ -1713,9 +1713,19 @@ GitHub repository name or family key, with the catalog as the dictionary
 (`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
 prepared runtime contracts) matched against definition values; the
 `native_external_profile` modules, covered through `ExternalProfilePolicy`;
-compiled provider binding tables; and the retired `github_mods.rs` source
+compiled provider binding tables; the bundled frozen artifact registries
+(`historical-artifact-registry`); and the retired `github_mods.rs` source
 table and `external-mod-portals.json`, which #8567 replaced with catalog
-`mod_sources` data and which must stay absent. Only `#[test]` functions and items gated on exactly
+`mod_sources` data and which must stay absent. The registry kind reads every
+section of Core's `historical-artifacts.json` and the reviewed
+`tool-artifacts.json` builder packs as declared members. A historical row covers its `port_id` or
+`projection`, the catalog definition whose release repository equals its
+`repository`, or the identity whose definition or port-scoped `source_catalog`
+record declares its exact `sha256`; otherwise the catalog title keys its text
+spells. A historical row that names no subject this way is an unattributed
+entry, so the gate turns unknown instead of passing. A builder pack is chosen
+only through a definition's admitted projection and names no title, so an
+unmatched tool row is counted and rot-checked but covers no identity. Only `#[test]` functions and items gated on exactly
 `#[cfg(test)]`, and test-named files, are excluded; platform gates such as
 `cfg(any(test, windows))` are production code. Each kind reports its count,
 files, covered identities where derivable and any entries it cannot attribute,

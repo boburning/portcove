@@ -25,6 +25,47 @@ function octal(bytes: Buffer) {
   return number;
 }
 
+/** Read the single regular member of an independently verified CLI archive. */
+export function unpackFixedLinuxCli(archive: Buffer, maximumBinaryBytes: number) {
+  if (archive.length < 18 || archive[0] !== 0x1f || archive[1] !== 0x8b || archive[2] !== 8)
+    throw new Error("CLI package is not the fixed gzip route");
+  const decoded = gunzipSync(archive, { maxOutputLength: maximumBinaryBytes + 16 * 1024 });
+  if (decoded.length < 1536 || decoded.length % 512 !== 0)
+    throw new Error("CLI TAR record boundaries differ");
+  const header = decoded.subarray(0, 512);
+  const type = header[156];
+  // Refuse extension/link forms before reading their possibly huge size fields.
+  if (type !== 0 && type !== 0x30)
+    throw new Error("CLI TAR extensions, links and sparse entries are unsupported");
+  if (
+    !header.subarray(0, 100).equals(Buffer.concat([Buffer.from("portcove"), Buffer.alloc(92)])) ||
+    header.subarray(157, 257).some((byte) => byte !== 0) ||
+    header.subarray(345, 500).some((byte) => byte !== 0)
+  )
+    throw new Error("CLI TAR path/link/prefix inventory differs");
+  const magic = header.subarray(257, 265);
+  if (!magic.equals(Buffer.from("ustar\0" + "00")) && !magic.equals(Buffer.from("ustar  \0")))
+    throw new Error("CLI TAR producer format differs");
+  const checksum = octal(header.subarray(148, 156));
+  let sum = 0;
+  for (let index = 0; index < 512; index++)
+    sum += index >= 148 && index < 156 ? 0x20 : header[index]!;
+  if (sum !== checksum) throw new Error("CLI TAR raw header checksum differs");
+  const size = octal(header.subarray(124, 136));
+  const mode = octal(header.subarray(100, 108));
+  if (size < 1 || size > maximumBinaryBytes || mode > 0o777 || (mode & 0o100) === 0)
+    throw new Error("CLI TAR executable size/mode differs");
+  const padded = Math.ceil(size / 512) * 512;
+  const end = 512 + padded;
+  if (
+    decoded.length - end < 1024 ||
+    decoded.length - end > 16 * 1024 ||
+    decoded.subarray(512 + size).some((byte) => byte !== 0)
+  )
+    throw new Error("CLI TAR padding/end records contain unsupported extra content");
+  return decoded.subarray(512, 512 + size);
+}
+
 /** Fixed producer emits one normal portcove binary. Raw TAR structure is checked
  * without a semantic library that might preprocess PAX/GNU/link/sparse entries.
  * Gzip decoding is bounded by the independently captured binary size plus the
@@ -63,43 +104,7 @@ export function inspectCompiledCliPackage(
     if (binary.length !== entry.bytes || crc32(binary) !== entry.crc)
       throw new Error("CLI ZIP executable length/CRC differs");
   } else if (platform === "linux-x86_64") {
-    if (archive.length < 18 || archive[0] !== 0x1f || archive[1] !== 0x8b || archive[2] !== 8)
-      throw new Error("CLI package is not the fixed gzip route");
-    const decoded = gunzipSync(archive, { maxOutputLength: expectedBinary.bytes + 16 * 1024 });
-    if (decoded.length < 1536 || decoded.length % 512 !== 0)
-      throw new Error("CLI TAR record boundaries differ");
-    const header = decoded.subarray(0, 512);
-    const type = header[156];
-    // Refuse extension/link forms before reading their possibly huge size fields.
-    if (type !== 0 && type !== 0x30)
-      throw new Error("CLI TAR extensions, links and sparse entries are unsupported");
-    if (
-      !header.subarray(0, 100).equals(Buffer.concat([Buffer.from("portcove"), Buffer.alloc(92)])) ||
-      header.subarray(157, 257).some((byte) => byte !== 0) ||
-      header.subarray(345, 500).some((byte) => byte !== 0)
-    )
-      throw new Error("CLI TAR path/link/prefix inventory differs");
-    const magic = header.subarray(257, 265);
-    if (!magic.equals(Buffer.from("ustar\0" + "00")) && !magic.equals(Buffer.from("ustar  \0")))
-      throw new Error("CLI TAR producer format differs");
-    const checksum = octal(header.subarray(148, 156));
-    let sum = 0;
-    for (let index = 0; index < 512; index++)
-      sum += index >= 148 && index < 156 ? 0x20 : header[index]!;
-    if (sum !== checksum) throw new Error("CLI TAR raw header checksum differs");
-    const size = octal(header.subarray(124, 136));
-    const mode = octal(header.subarray(100, 108));
-    if (size !== expectedBinary.bytes || mode > 0o777 || (mode & 0o100) === 0)
-      throw new Error("CLI TAR executable size/mode differs");
-    const padded = Math.ceil(size / 512) * 512;
-    const end = 512 + padded;
-    if (
-      decoded.length - end < 1024 ||
-      decoded.length - end > 16 * 1024 ||
-      decoded.subarray(512 + size).some((byte) => byte !== 0)
-    )
-      throw new Error("CLI TAR padding/end records contain unsupported extra content");
-    binary = decoded.subarray(512, 512 + size);
+    binary = unpackFixedLinuxCli(archive, expectedBinary.bytes);
   } else throw new Error("CLI package platform is outside the selected pair");
   if (binary.length !== expectedBinary.bytes || hash(binary) !== expectedBinary.sha256)
     throw new Error("CLI packaged executable differs from captured actual compiler output");

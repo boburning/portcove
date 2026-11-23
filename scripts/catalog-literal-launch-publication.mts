@@ -79,6 +79,41 @@ function subject(files: Files, id: string) {
   return { index, definitions, row, entry, projection, catalog, port: ports[0]! };
 }
 
+// Core reads or replaces the static argument list itself for these
+// declarations (exact argument contracts, fixed-launch policies, prepared
+// runtimes and builders), or refuses a launch contract beside them, so moving
+// the list would change launch behavior rather than only its representation.
+const argumentReaders = [
+  "managed_initialization",
+  "external_profile_policy",
+  "runtime_data_policy",
+  "managed_shared_preferences",
+  "bundled_runtime",
+  // A data transition compares the exact launch coordinates of its predecessor,
+  // so a move would silently end the subject's transition eligibility.
+  "archive_data_transition_v1",
+  "archive_data_compatibility_v1",
+] as const;
+const releaseArgumentReaders = ["managed_build", "user_prepared"] as const;
+
+function present(value: unknown) {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isRecord(value)) return Object.keys(value).length > 0;
+  return true;
+}
+
+/** Why moving this subject's static arguments would change launch behavior, if it would. */
+export function literalLaunchBehaviorChange(port: Doc): string | undefined {
+  const release = object(port.release);
+  const reader = [
+    ...argumentReaders.filter((key) => present(port[key])),
+    ...releaseArgumentReaders.filter((key) => present(release[key])).map((key) => `release.${key}`),
+  ];
+  if (reader.length > 0) return `${reader.join(", ")} depends on the static launch arguments`;
+  return undefined;
+}
+
 export function literalLaunchDraft(prior: Files, id: string) {
   const { entry, projection, catalog, port } = subject(prior, id);
   const args = port.launch_arguments;
@@ -91,7 +126,6 @@ export function literalLaunchDraft(prior: Files, id: string) {
     release.provider !== "github" ||
     Object.keys(object(release.curated ?? {})).length !== 0 ||
     "reviewed_launch_contract_v1" in port ||
-    port.managed_initialization !== undefined ||
     !Array.isArray(args) ||
     args.length === 0 ||
     args.length > 64 ||
@@ -104,6 +138,8 @@ export function literalLaunchDraft(prior: Files, id: string) {
     new Set(platforms).size !== platforms.length
   )
     throw new Error("only exact existing literal native GitHub launch arguments can move");
+  const change = literalLaunchBehaviorChange(port);
+  if (change) throw new Error(`the literal launch move would change launch behavior: ${change}`);
   const launch = Object.fromEntries(
     platforms.map((platform: string) => [platform, { arguments: args }]),
   );

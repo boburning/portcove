@@ -250,6 +250,14 @@
       ]
     },
     {
+      "file": "scripts/catalog-literal-launch-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3507],
+        ["release-check", 4307]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/n64-original-publication.test.mts",
       "memberships": [
         ["catalog-full-2", 3550],
@@ -270,6 +278,22 @@
       "memberships": [
         ["catalog-full-2", 3504],
         ["release-check", 4304]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-released-reader.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3505],
+        ["release-check", 4305]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/github-release-attestation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3506],
+        ["release-check", 4306]
       ],
       "ordinary_families": ["release-contract-tests"]
     },

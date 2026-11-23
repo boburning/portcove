@@ -3382,6 +3382,14 @@ export interface ReviewedLaunchContractV1 {
     "macos-x86-64"?: AssetRules;
     "windows-x86-64"?: AssetRules;
   };
+  /**
+   * Optional restatement of the environment name prefix derived from the
+   * port ID: its ASCII letters and digits, uppercased, followed by `_`. A
+   * stem over 32 characters keeps its first 24 characters followed by the
+   * first 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any
+   * other value is refused.
+   */
+  environment_prefix?: string | null;
   launch?: {
     "linux-x86-64"?: LaunchValues;
     "macos-aarch64"?: LaunchValues;
