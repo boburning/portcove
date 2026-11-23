@@ -141,15 +141,25 @@ that advances `portcove-production-coordinator-state`, which only App
 `5632044` may update, so creation is limited to that App. GitHub matches each
 pattern's `*` against one path component, which is exactly one receipt name.
 `--check-release-rulesets` fails when either receipt policy is missing or
-weaker, and release operations interpret the observer's inventory through
-`requireReceiptTagProtectionPolicy`. Exact raw-commit verification remains at
+weaker. `requireReceiptTagProtectionPolicy` interprets the isolated observer's
+inventory for the release consumers that rely on receipt pairs without
+re-reading historical raw commits; no production code calls it until those
+consumers are wired (#8626). Exact raw-commit verification remains at
 allocation time, for the active reservation, and in the published-source proof.
-Before applying the receipt immutability policy, confirm that GitHub accepts a
-same-object `updateRefs` assertion (`beforeOid` equal to `afterOid`) on a tag
-covered by an `update` rule with no bypass: every coordinator checkpoint after
-an allocation re-asserts both receipts that way inside its signed atomic
-transaction. If GitHub refuses it, do not apply the policy; the next checkpoint
-of every active reservation would fail closed and stall releases.
+Every coordinator checkpoint after an allocation re-asserts both receipts with
+`beforeOid` equal to `afterOid` inside its signed atomic transaction, so the
+immutability policy is applied only because GitHub accepts that same-object
+assertion. A probe on 2026-11-23 (recorded on #1422) sent such an `updateRefs`
+for a tag under the no-bypass "Portcove controller tag immutability" ruleset
+(ID `27037961`, `update` and `deletion`), and GitHub accepted it without moving
+the ref. The probe used the owner account's token rather than App `5632044`;
+the ruleset has no bypass actor, so the rule applied to that caller the same
+way. It did not re-test that a real move or deletion is refused.
+Receipt-shaped names nested one level deeper, such as
+`portcove-production-prepared/v1.0.0/x`, are outside the one-component
+patterns: any writer could create one, and readers then refuse the namespace
+(fail closed, but a denial of service). Covering them needs an additional `**`
+creation pattern, which is an owner decision.
 `node scripts/release-receipt-validation.mts` is the read-only cutover check:
 it verifies every existing pair against its source commit, prepared commit and
 preparation intent and prints the covered inventory, its digest and every
