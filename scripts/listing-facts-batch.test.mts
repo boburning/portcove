@@ -17,9 +17,12 @@ import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
+import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
   identityShards,
+  identityBudgetMinutes,
   matrixJobLimit,
+  reproductionDeadlineMinutes,
   digestOf,
   emptyFactsTable,
   FACTS_PARSER,
@@ -67,6 +70,13 @@ import {
   freshnessAlertDays,
   refreshAfterDays,
   reproductionDetails,
+  reproductionParallelism,
+  reproductionScopeProblems,
+  reproductionTransient,
+  githubJson,
+  githubTokenHourlyRequests,
+  quotaResumeAt,
+  resetQuota,
   parseWorkerSummary,
   jobBatches,
   materialChange,
@@ -213,17 +223,9 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
   };
   return { release, entry, players };
 }
-const reader =
-  (releases: Record<number, ProviderRelease | Error>) =>
-  async (repositoryId: number, releaseId: number) => {
-    assert.equal(repositoryId, 4242);
-    const found = releases[releaseId];
-    if (!found) throw new Error("404");
-    if (found instanceof Error) throw found;
-    return structuredClone(found);
-  };
 /** A provider release as the REST release list states it. */
 const listed = (release: ProviderRelease) => ({
+  url: `https://api.github.com/repos/${release.repository}/releases/${release.id}`,
   id: release.id,
   tag_name: release.tag_name,
   draft: release.draft,
@@ -531,7 +533,6 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
   const log: string[] = [];
   const ok = await reproduceFacts({
     entries: [entry],
-    readRelease: reader({ 8: release }),
     listReleases: lister(release),
     inspect: inspector(players, log),
     classify: coreClassifier,
@@ -548,7 +549,6 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     mutate(copy);
     const result = await reproduceFacts({
       entries: [copy.entry],
-      readRelease: reader({ 8: copy.release }),
       listReleases: lister(copy.release),
       inspect: inspector(inspected),
       classify: coreClassifier,
@@ -621,8 +621,9 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
   );
   const unavailable = await reproduceFacts({
     entries: [entry],
-    readRelease: reader({ 8: new Error("rate limited") }),
-    listReleases: lister(release),
+    listReleases: async () => {
+      throw new Error("rate limited");
+    },
     inspect: inspector(players),
     classify: coreClassifier,
     boundLines: unbound([entry]),
@@ -670,7 +671,6 @@ void test("a refused archive, the release's line facts and its installers are re
   const run = (copy: ListingFactsEntry, inspect: ByteInspector, provider = release) =>
     reproduceFacts({
       entries: [copy],
-      readRelease: reader({ 8: provider }),
       listReleases: lister(provider),
       inspect,
       classify: coreClassifier,
@@ -823,7 +823,6 @@ void test("reproduction restates the observed releases from the release list (F8
     (
       await reproduceFacts({
         entries: [copy],
-        readRelease: reader({ 8: release }),
         listReleases: lister(...listedReleases),
         inspect: inspector(players),
         classify: coreClassifier,
@@ -855,7 +854,6 @@ void test("reproduction has no entry, byte or size bound; only the shard's clock
   const run = (entries: ListingFactsEntry[], clock?: () => number, deadline?: number) =>
     reproduceFacts({
       entries,
-      readRelease: reader({ 8: release }),
       listReleases: lister(release),
       inspect: inspector(players),
       classify: coreClassifier,
@@ -905,7 +903,6 @@ void test("reproduction proves the named release is still the newest stable one 
   ) =>
     reproduceFacts({
       entries: [recorded],
-      readRelease: reader({ 8: release }),
       listReleases,
       inspect: inspector(players),
       classify: coreClassifier,
@@ -956,7 +953,6 @@ void test("reproduction proves the named release is still the newest stable one 
   const onLine = (boundLines: ReadonlyMap<string, string | null>) =>
     reproduceFacts({
       entries: [recording("alphabet-1.0", false)],
-      readRelease: reader({ 8: release }),
       listReleases: lister(other({ tag_name: "alphabet-1.0" }), release),
       inspect: inspector(players),
       classify: coreClassifier,
@@ -978,19 +974,33 @@ void test("reproduction proves the named release is still the newest stable one 
     (await refused(lister(other({ tag_name: "v2.0-rc1", published_at: null }), release))).detail,
     /no parseable publication time/u,
   );
+  // The offered release is read from the list itself (J2): a malformed
+  // record of it is no release to offer.
+  const malformed = await refused(
+    lister({ ...listed(release), assets: [...listed(release).assets, { id: "x" }] }),
+  );
+  assert.equal(malformed.reason, "release-unavailable");
+  assert.match(malformed.detail, /not a well-formed release/u);
+  // An unreadable asset of a newer release leaves the newest stable unknown.
   assert.match(
     (
       await refused(
-        lister({ ...listed(release), assets: [...listed(release).assets, { id: "x" }] }),
+        lister({ ...listed(other({ tag_name: "v2.0-rc1" })), assets: [{ id: "x" }] }, release),
       )
     ).detail,
     /cannot read/u,
   );
-  // A full page may hide newer releases; an unreadable list is unavailable.
+  // A full page that does not hold the offered release refuses it; one whose
+  // newest stable release of the line is the offered one reproduces, since
+  // nothing on a later page is newer (J7). An unreadable list is unavailable.
   const page = Array.from({ length: 100 }, (_, index) =>
     listed(other({ id: 100 + index, tag_name: "v2.0-rc1" })),
   );
-  assert.match((await refused(lister(...page))).detail, /100 or more releases/u);
+  assert.equal((await refused(lister(...page))).reason, "release-unavailable");
+  const drafts = Array.from({ length: 99 }, (_, index) =>
+    listed(other({ id: 100 + index, tag_name: `v0.${index}`, draft: true })),
+  );
+  assert.deepEqual((await run(lister(release, ...drafts))).verified, [unseen]);
   assert.equal(
     (
       await refused(async () => {
@@ -1016,7 +1026,6 @@ void test("a reproduction that reaches its deadline refuses the entry as over-bu
   assert.throws(() => boundedTimeout(1_000_000, 1_000_000), OverBudgetError);
   const base = {
     entries: [entry, { ...entry, port_id: "zz-second" }],
-    readRelease: reader({ 8: release }),
     listReleases: lister(release),
     classify: coreClassifier,
     boundLines: unbound([entry, { ...entry, port_id: "zz-second" }]),
@@ -1614,6 +1623,47 @@ void test("a withdrawal is held unless an upstream fact explains it (B1)", () =>
     withdrawalCauses(enrollments(ids), enrollments(ids), factsOf(prior), factsOf(prior)),
     [],
   );
+  // An observer outage or an unreadable archive is no upstream statement:
+  // held, never withdrawn unattended (J6). A verdict from a complete
+  // observation, or a repository id that changed under the name, proceeds.
+  const ineligibleAs = (entry: ListingFactsEntry, reason: string, cause: string | null = null) =>
+    ({
+      ...structuredClone(entry),
+      ineligible: { reason, detail: "x", cause },
+      observed_releases: [],
+      other_packages: [],
+      asset_names: [],
+      refused_archives: [],
+      artifacts: [],
+    }) as ListingFactsEntry;
+  assert.deepEqual(
+    withdrawalCauses(
+      enrollments(ids),
+      enrollments([]),
+      factsOf(prior),
+      factsOf([
+        ineligibleAs(prior[0]!, "observation-unavailable"),
+        ineligibleAs(prior[1]!, "repeated-inspection-failure", "runner-time"),
+        ineligibleAs(prior[2]!, "no-stable-release"),
+        ineligibleAs(prior[3]!, "repository-identity-changed"),
+      ]),
+    ),
+    [
+      { port_id: "zz-a", cause: "observation-unavailable" },
+      { port_id: "zz-b", cause: "inspection-failure" },
+      { port_id: "zz-c", cause: "upstream" },
+      { port_id: "zz-d", cause: "upstream" },
+    ],
+  );
+  assert.deepEqual(
+    withdrawalCauses(
+      enrollments(["zz-a"]),
+      enrollments([]),
+      factsOf(prior),
+      factsOf([ineligibleAs(prior[0]!, "invalid-facts")]),
+    ),
+    [{ port_id: "zz-a", cause: "inspection-failure" }],
+  );
 });
 
 void test("a batch waiting for its checks for days, and a failed gate job, file a stop issue (F8, F10)", () => {
@@ -2045,8 +2095,10 @@ void test("the workflow does nothing until the owner enables it and writes nothi
       .shard;
   assert.equal(matrixOf("inspect"), "${{ fromJSON(needs.prepare.outputs.shards) }}");
   assert.equal(matrixOf("reproduce"), "${{ fromJSON(needs.combine.outputs.shards) }}");
-  for (const name of ["inspect", "reproduce"])
-    assert.equal(workflow.jobs[name]!["timeout-minutes"], 360, name);
+  assert.equal(workflow.jobs.inspect!["timeout-minutes"], 360);
+  // The job's reproduction has CI's shard deadline (J3): the sum of its
+  // steps, whose reproduction step outlasts `reproductionDeadlineMinutes`.
+  assert.equal(workflow.jobs.reproduce!["timeout-minutes"], 125);
   // A missing shard is never merged around.
   assert.match(workflow.jobs.combine!.if!, /needs\.inspect\.result == 'success'/u);
   assert.doesNotMatch(text, /maxIdentities|maxBytes|cadence-hours|reproductionBudget/u);
@@ -2097,4 +2149,290 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   // Merges go through the guarded route only, never an API shortcut.
   assert.match(text, /scripts\/pr-delivery\.mts"? merge[^\n]*\n[^\n]*--verify-local-composition/u);
   assert.doesNotMatch(text, /pulls\/[^\s]*\/merge|gh pr merge|enable_pr_auto_merge|--admin/u);
+});
+
+// ---------------------------------------------------------------------------
+// Part J: what an untrusted change can make CI do, quota and runner limits.
+
+const authored = (id: string): AuthoredPort => ({
+  format_version: 1,
+  listing: {
+    id,
+    name: "Fixture Game",
+    summary: "A listing-only fixture.",
+    project_url: `https://github.com/fixture-owner/${id}`,
+    availability: "packages",
+    platforms: ["windows-x86-64"],
+  },
+});
+
+void test("a change naming an entry outside the authored catalog is refused before any call (J1)", async () => {
+  const { release, entry, players } = fixture();
+  const records = [authored(unseen)];
+  assert.deepEqual(reproductionScopeProblems([entry], records, null), []);
+  // A fabricated identity, a foreign repository and a re-bound id are refused.
+  const fabricated = { ...structuredClone(entry), port_id: "zz-fabricated" };
+  const foreign = { ...structuredClone(entry), repository: "huge-owner/huge-repository" };
+  const rebound = { ...structuredClone(entry), repository_id: 99 };
+  const baseline = { entries: [entry] };
+  assert.match(
+    reproductionScopeProblems([fabricated], records, null).join(" "),
+    /not an authored listing-only/u,
+  );
+  assert.match(
+    reproductionScopeProblems([foreign], records, null).join(" "),
+    /huge-owner\/huge-repository, but its listing names/u,
+  );
+  assert.match(
+    reproductionScopeProblems([rebound], records, baseline).join(" "),
+    /repository id 99, but it was bound to 4242/u,
+  );
+  // A new identity has no prior binding: its id is checked by reproduction.
+  assert.deepEqual(reproductionScopeProblems([rebound], records, null), []);
+  // Reproduction itself refuses the whole call with zero provider calls and
+  // zero downloads when any entry is out of scope.
+  let calls = 0;
+  const log: string[] = [];
+  const result = await reproduceFacts({
+    entries: [entry, fabricated],
+    listReleases: async (id) => {
+      calls++;
+      return await lister(release)(id);
+    },
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+  });
+  assert.equal(calls, 0);
+  assert.deepEqual(log, []);
+  assert.deepEqual(
+    result.refused.map((refusal) => refusal.reason),
+    ["mismatch", "mismatch"],
+  );
+  assert.equal(result.bytes, 0);
+});
+
+void test("reproduction reads each repository's release list once and waits out a spent quota (J2)", async () => {
+  // Two entries of one repository: one list request, no per-release read.
+  const { release, entry, players } = fixture();
+  const second = structuredClone(entry);
+  second.port_id = "zz-second";
+  let calls = 0;
+  const result = await reproduceFacts({
+    entries: [entry, second],
+    listReleases: async (id) => {
+      calls++;
+      return await lister(release)(id);
+    },
+    inspect: inspector(players),
+    classify: coreClassifier,
+    boundLines: new Map([
+      [unseen, null],
+      ["zz-second", null],
+    ]),
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(result.verified.toSorted(), ["zz-second", unseen].toSorted());
+  // The provider's quota headers decide the wait.
+  const headers = (values: Record<string, string>) => ({
+    get: (name: string) => values[name] ?? null,
+  });
+  assert.equal(quotaResumeAt(200, headers({ "x-ratelimit-remaining": "5" }), 1_000), undefined);
+  assert.equal(
+    quotaResumeAt(
+      403,
+      headers({ "x-ratelimit-remaining": "0", "x-ratelimit-reset": "100" }),
+      1_000,
+    ),
+    100_000,
+  );
+  assert.equal(quotaResumeAt(429, headers({ "retry-after": "7" }), 1_000), 8_000);
+  assert.equal(
+    quotaResumeAt(403, headers({ "x-ratelimit-remaining": "0", "x-ratelimit-reset": "0" }), 1_000),
+    61_000,
+  );
+  assert.equal(
+    quotaResumeAt(403, headers({ "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1" }), 5_000),
+    6_000,
+  );
+  // A spent quota is waited out and the request repeated, within the deadline.
+  let clock = 1_000_000;
+  const answers = [
+    new Response("[]", {
+      status: 403,
+      headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String((clock + 20) / 1000) },
+    }),
+    new Response("[1]", { status: 200, headers: { "x-ratelimit-remaining": "999" } }),
+  ];
+  resetQuota();
+  let requests = 0;
+  const fetcher = (async () => {
+    requests++;
+    return answers.shift()!;
+  }) as unknown as typeof fetch;
+  assert.deepEqual(
+    await githubJson("https://api.github.com/x", undefined, {
+      fetch: fetcher,
+      now: () => clock,
+      deadline: clock + 60_000,
+    }),
+    [1],
+  );
+  assert.equal(requests, 2);
+  // A wait past the deadline is the runner's time: over budget, transient.
+  resetQuota();
+  clock = 2_000_000;
+  const spent = (async () =>
+    new Response("[]", {
+      status: 403,
+      headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(clock / 1000 + 3600) },
+    })) as unknown as typeof fetch;
+  await assert.rejects(
+    githubJson("https://api.github.com/x", undefined, {
+      fetch: spent,
+      now: () => clock,
+      deadline: clock + 60_000,
+    }),
+    OverBudgetError,
+  );
+  resetQuota();
+  // Shards run with the parallelism the hourly quota allows: at most one
+  // request per entry, so a shard costs its entry count.
+  assert.equal(githubTokenHourlyRequests, 1_000);
+  assert.equal(
+    reproductionParallelism(
+      400,
+      identityShards(Array.from({ length: 400 }, (_, i) => `id-${i}`)).length,
+    ),
+    256,
+  );
+  assert.equal(reproductionParallelism(1_100, 256), 200);
+  assert.equal(reproductionParallelism(5_000, 256), 50);
+  assert.equal(reproductionParallelism(0, 0), 1);
+  // Over-budget refusals of every shard are transient, never a stop.
+  const directory = mkdtempSync(join(tmpdir(), "facts-transient-"));
+  try {
+    const write = (name: string, value: unknown) =>
+      writeFileSync(join(directory, name), JSON.stringify(value));
+    write("refusals-0.json", { ok: false, transient: true, refusals: ["zz-a: over-budget: x"] });
+    write("refusals-1.json", { ok: true, transient: false, refusals: [] });
+    assert.equal(reproductionTransient(directory, 2), true);
+    // A missing shard file, or any other refusal, is not transient.
+    assert.equal(reproductionTransient(directory, 3), false);
+    write("refusals-2.json", { ok: false, transient: false, refusals: ["zz-b: mismatch: y"] });
+    assert.equal(reproductionTransient(directory, 3), false);
+    const conditions = (reproduction: "refused" | "transient") =>
+      stopConditions({
+        runId: "9",
+        now: "2026-11-21T00:00:00.000Z",
+        summary: summary(),
+        history: [record()],
+        versions: "v",
+        gate: "ok",
+        paths: "ok",
+        reproduction,
+      }).conditions.map((condition) => condition.name);
+    assert.deepEqual(conditions("transient"), []);
+    assert.deepEqual(conditions("refused"), ["reproduction-refused"]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("one shared reproduction deadline bounds CI, the job and each identity's inspection (J3, J8)", () => {
+  assert.equal(reproductionDeadlineMinutes, 85);
+  // A CI shard holds ceil(candidates / 256) entries sharing the deadline.
+  assert.equal(identityBudgetMinutes(1), 85);
+  assert.equal(identityBudgetMinutes(256), 85);
+  assert.equal(identityBudgetMinutes(400), 42.5);
+  assert.equal(identityBudgetMinutes(1_100), 17);
+  const ci = parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")) as {
+    jobs: Record<
+      string,
+      {
+        if?: string;
+        needs?: string[];
+        "timeout-minutes"?: number;
+        permissions?: Record<string, string>;
+        strategy?: Record<string, unknown>;
+        steps: {
+          name?: string;
+          run?: string;
+          env?: Record<string, string>;
+          "timeout-minutes"?: number;
+        }[];
+      }
+    >;
+  };
+  const shard = ci.jobs.listing_facts_reproduction!;
+  // The repository's 120-minute CI job cap binds; the step outlasts the
+  // deadline `verify` applies by default, so it never passes it.
+  assert.ok(shard["timeout-minutes"]! <= 120);
+  const step = shard.steps.find((item) => item.run?.includes("listing-facts-batch.mts verify"))!;
+  assert.ok(step["timeout-minutes"]! > reproductionDeadlineMinutes);
+  assert.doesNotMatch(step.run!, /--deadline-minutes/u);
+  // Least privilege, always evaluated, bounded by the quota.
+  assert.deepEqual(shard.permissions, { contents: "read" });
+  assert.match(shard.if!, /^always\(\) &&/u);
+  assert.match(String(shard.strategy!["max-parallel"]), /outputs\.max_parallel/u);
+  // The `catalog` aggregate needs every reproduction shard and fails unless
+  // they all succeeded when the plan asked for reproduction.
+  const catalog = ci.jobs.catalog!;
+  assert.match(catalog.if!, /always\(\)/u);
+  assert.ok(catalog.needs!.includes("listing_facts_reproduction"));
+  const required = catalog.steps.find(
+    (item) => item.name === "Require every listing facts reproduction shard",
+  )!;
+  assert.equal(required.env!.RESULT, "${{ needs.listing_facts_reproduction.result }}");
+  assert.match(required.run!, /\[ "\$REPRODUCE" = true \] && \[ "\$RESULT" != success \]/u);
+  // The batch job's reproduction uses the same default deadline.
+  const batch = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    on: Record<string, unknown>;
+    jobs: Record<
+      string,
+      { steps: { run?: string; "timeout-minutes"?: number }[]; strategy?: Record<string, unknown> }
+    >;
+  };
+  // Triggers: the schedule and a manual dispatch only.
+  assert.deepEqual(Object.keys(batch.on).toSorted(), ["schedule", "workflow_dispatch"]);
+  const own = batch.jobs.reproduce!.steps.find((item) => item.run?.includes("verify --cli"))!;
+  assert.doesNotMatch(own.run!, /--deadline-minutes/u);
+  assert.ok(own["timeout-minutes"]! > reproductionDeadlineMinutes);
+  assert.match(String(batch.jobs.reproduce!.strategy!["max-parallel"]), /outputs\.max_parallel/u);
+});
+
+void test("an identity that stays pending across consecutive runs stops the job, by cause (J4)", () => {
+  const starving = { ...summary(), pending_ids: ["zz-slow", "zz-other"] };
+  starving.identities = [
+    { port_id: "zz-slow", outcome: "deferred-deadline" },
+    { port_id: "zz-other", outcome: "deferred-deadline" },
+  ];
+  const first = stopConditions({
+    runId: "1",
+    now: "2026-11-21T00:00:00.000Z",
+    summary: starving,
+    history: [],
+    versions: "v",
+    gate: "ok",
+    paths: "ok",
+    reproduction: "ok",
+  });
+  assert.deepEqual(first.record!.pending_ids, ["zz-other", "zz-slow"]);
+  const second = stopConditions({
+    runId: "2",
+    now: "2026-11-21T06:00:00.000Z",
+    summary: { ...starving, pending_ids: ["zz-slow"] },
+    history: [first.record!],
+    versions: "v",
+    gate: "ok",
+    paths: "ok",
+    reproduction: "ok",
+  });
+  const condition = second.conditions.find((item) => item.name === "pending-repeated")!;
+  assert.match(condition.detail, /deferred-deadline \(1: zz-slow\)/u);
+  assert.ok(stopConditionNames.includes("pending-repeated"));
+  assert.throws(
+    () => parseWorkerSummary(JSON.stringify({ ...summary(), pending_ids: [1] })),
+    /malformed/u,
+  );
 });

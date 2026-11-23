@@ -363,7 +363,8 @@ jobs:
       # The worker reads one archive at a time and deletes it, so disk never
       # accumulates. Its deadline is the job's 360 minutes less every other
       # step's budget and the time to write its result; what the deadline
-      # cuts stays pending and leads the next run.
+      # cuts stays pending and goes last in the next run; each identity also
+      # has the per-identity budget CI can reproduce it in.
       - name: Inspect this shard's identities
         timeout-minutes: 335
         env:
@@ -407,6 +408,7 @@ jobs:
       gate: ${{ steps.gate.outcome }}
       checks: ${{ steps.checks.outcome }}
       shards: ${{ steps.plan.outputs.shards }}
+      max_parallel: ${{ steps.plan.outputs.max_parallel }}
       reproduce: ${{ steps.plan.outputs.reproduce }}
     env:
       WORK: ${{ github.workspace }}/work/listing-facts-batch
@@ -487,15 +489,20 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The same deadline as pull-request CI's reproduction shard
+  # (`reproductionDeadlineMinutes`, the default of `verify`): the job never
+  # relies on more time than the CI that later re-checks its batch.
   reproduce:
     needs: [prepare, combine]
     if: needs.combine.result == 'success' && needs.combine.outputs.reproduce == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    # The sum of its steps' budgets.
+    timeout-minutes: 125
     permissions:
       contents: read
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(needs.combine.outputs.max_parallel || '1') }}
       matrix:
         shard: ${{ fromJSON(needs.combine.outputs.shards) }}
     env:
@@ -527,9 +534,8 @@ jobs:
         with:
           name: listing-facts-batch-combined-${{ github.run_id }}
           path: ${{ env.WORK }}/out
-      # The job's 360 minutes less every other step's budget.
       - name: Reproduce this shard's entries from their exact bytes
-        timeout-minutes: 320
+        timeout-minutes: 90
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SHARD: ${{ matrix.shard }}
@@ -541,7 +547,7 @@ jobs:
             am --quiet "$WORK/out/batch.patch"
           mkdir -p "$WORK/refusals"
           node scripts/listing-facts-batch.mts verify --cli "$WORK/cli/portcove" --base HEAD~1 \
-            --own-run true --shard "$SHARD" --deadline-minutes 315 --refusals "$WORK/refusals/refusals-$SHARD.json"
+            --own-run true --shard "$SHARD" --refusals "$WORK/refusals/refusals-$SHARD.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         timeout-minutes: 5
@@ -613,6 +619,7 @@ jobs:
           PATHS: ${{ needs.combine.outputs.paths == 'failure' && 'violated' || needs.combine.outputs.paths == 'success' && 'ok' || 'skipped' }}
           GATE: ${{ needs.combine.outputs.gate == 'failure' && 'refused' || needs.combine.outputs.gate == 'success' && 'ok' || 'skipped' }}
           VERIFY: ${{ (needs.combine.outputs.checks == 'failure' || needs.reproduce.result == 'failure' || needs.reproduce.result == 'cancelled') && 'refused' || 'ok' }}
+          SHARDS: ${{ needs.combine.outputs.shards }}
         run: |
           set -euo pipefail
           if [ ! -f "$WORK/history.json" ] && [ -f "$WORK/plan-artifact/plan/history.json" ]; then
@@ -624,10 +631,14 @@ jobs:
           report=()
           if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
           mkdir -p "$WORK/refusals"
+          # Every reproduction shard writes one refusal file; only when all of
+          # them did, and each refused only for the runner's time, is the
+          # refusal transient (no stop; the next run retries).
+          shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
-            --output "$WORK/conditions.json" > /dev/null
+            --shard-count "$shard_count" --output "$WORK/conditions.json" > /dev/null
       # A batch is proposed only when every check and every reproduction
       # shard passed, no stop condition holds and the change is material.
       - name: Decide whether this batch can be proposed

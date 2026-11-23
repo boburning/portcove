@@ -92,7 +92,7 @@ import { isRecord } from "./runtime-values.mts";
 export const GENERATOR_VERSION = 13;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 14;
+export const FACTS_PARSER_VERSION = 15;
 export const FACTS_TABLE_FORMAT = 12;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -258,13 +258,19 @@ export type RefusalClass = (typeof refusalClasses)[number];
  * Why an inspection failed without a permanent verdict on the bytes, as a
  * bounded class: the download (`network`), a timeout or deadline
  * (`over-budget`), bytes Core read but returned nothing usable for
- * (`unreadable-archive`), or a refusal class (`refusalClasses`, including
- * `digest-mismatch`).
+ * (`unreadable-archive`), an identity whose inspection does not fit the
+ * per-identity budget CI can reproduce (`runner-time`,
+ * `identityBudgetMinutes`), a runner that ran out of disk while Core
+ * extracted the archive (`runner-disk`), or a refusal class
+ * (`refusalClasses`, including `digest-mismatch`). The runner causes are
+ * real constraints of the hosted runner, never verdicts on the bytes.
  */
 export const failureCauses = [
   "network",
   "over-budget",
   "unreadable-archive",
+  "runner-time",
+  "runner-disk",
   ...refusalClasses,
 ] as const;
 export type FailureCause = (typeof failureCauses)[number];
@@ -3064,6 +3070,9 @@ const gateMachines: Record<
   "macos-aarch64": { os: "macos", arch: "aarch64", exact: ["macho-arm64"], universal: "arm64" },
 };
 const gateDay = 24 * 60 * 60 * 1000;
+/** The facts age and last-good retention bounds, restated for the gate (tested equal). */
+export const gateFactsAgeDays = 30;
+export const gateRetentionDays = 14;
 /** Words the gate drops from a program name before comparing programs, restated. */
 const gateVariantWords = [
   "exe",
@@ -3884,14 +3893,14 @@ function gateEnrollmentProblems(
   )
     problems.push(`${id} rests on facts that are not a complete, eligible, bound observation.`);
   const reference = Date.parse(generatedAt);
-  if (reference - Date.parse(entry.observation.observed_at) > 30 * gateDay)
-    problems.push(`${id} rests on facts older than 30 days.`);
+  if (reference - Date.parse(entry.observation.observed_at) > gateFactsAgeDays * gateDay)
+    problems.push(`${id} rests on facts older than ${gateFactsAgeDays} days.`);
   if (
     entry.attempt &&
     entry.attempt.status !== "pending-inspection" &&
-    reference - Date.parse(entry.attempt.first_at) > 14 * gateDay
+    reference - Date.parse(entry.attempt.first_at) > gateRetentionDays * gateDay
   )
-    problems.push(`${id} rests on last-good facts kept beyond 14 days.`);
+    problems.push(`${id} rests on last-good facts kept beyond ${gateRetentionDays} days.`);
   const platformsSeen = new Set<string>();
   if (!enrollment.platforms.length) problems.push(`${id} has no platform.`);
   for (const platform of enrollment.platforms) {
@@ -4165,6 +4174,24 @@ export function readGateBaseline(
  * ([documentation](https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrix)).
  */
 export const matrixJobLimit = 256;
+/**
+ * The deadline, in minutes, of one CI reproduction shard: the repository's
+ * 120-minute CI job cap (`ci-workflow.test.mts`) less the shard's other
+ * steps. It binds every path that reproduces facts: pull-request CI and the
+ * batch job's own reproduction use it, and the facts worker never settles an
+ * identity whose inspection would not fit it (`identityBudgetMinutes`).
+ */
+export const reproductionDeadlineMinutes = 85;
+/**
+ * The time one identity's inspection may take so CI can reproduce it: a CI
+ * reproduction shard holds at most ceil(candidates / `matrixJobLimit`)
+ * entries (a change's entries are bounded by the authored listing-only
+ * identities), and they share the shard's `reproductionDeadlineMinutes`. An
+ * identity over it is a `runner-time` failure, never settled as facts.
+ */
+export function identityBudgetMinutes(candidates: number) {
+  return reproductionDeadlineMinutes / Math.max(1, Math.ceil(candidates / matrixJobLimit));
+}
 /**
  * Deterministic shards of identities: `count` shards (one per identity, at
  * most `matrixJobLimit`), identity i in port_id order in shard i mod count.

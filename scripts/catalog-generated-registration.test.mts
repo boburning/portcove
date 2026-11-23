@@ -58,6 +58,10 @@ import {
   otherPackageForm,
   otherPackagePlatforms,
   listedRepositories,
+  gateFactsAgeDays,
+  gateRetentionDays,
+  lastGoodRetentionDays,
+  maxFactsAgeDays,
   releaseLine,
   lineNamesProduct,
   type ArtifactFactV2,
@@ -69,6 +73,7 @@ import {
 import { routeFitReport } from "./catalog-route-fit.mts";
 import {
   artifactFact,
+  coreData,
   deriveListingFacts,
   InspectionError,
   maximumNameBytes,
@@ -4854,4 +4859,146 @@ void test("every archive of a release is read; several for one platform are ambi
   // One archive per platform still enrolls every platform.
   const one = await run([windowsZip, linuxTar, "Game-v1.0-macos-arm64.zip"]);
   assert.ok(decide(listing("zz-many"), one).fit);
+});
+
+// ---------------------------------------------------------------------------
+// Part J: the worker's runner limits, shard ordering and shard state.
+
+const slowInspector =
+  (log: string[] = []): ByteInspector =>
+  async (asset, _platform, deadline) => {
+    log.push(asset.url.split("/")[4]!);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    if (deadline !== undefined && Date.now() >= deadline)
+      throw new OverBudgetError("The download reached the deadline.");
+    return { players: [player("Game/Game.exe")], names: [], leaves: [] };
+  };
+
+void test("an identity over the budget CI can reproduce it in settles with the runner-time cause (J3)", async () => {
+  const id = "zz-slow-identity";
+  const run = (table: ListingFactsTable, state?: WorkerState) =>
+    deriveListingFacts({
+      records: [listing(id)],
+      observerReport: observerReport({ [id]: {} }),
+      table,
+      ...(state ? { state } : {}),
+      inspect: slowInspector(),
+      classify: coreClassifier,
+      now: "2026-11-21T00:00:00.000Z",
+      identityBudgetMs: 1,
+    });
+  const first = await run(emptyFactsTable("2026-11-01T00:00:00.000Z"));
+  // The first time it is retried, never settled as facts.
+  assert.deepEqual(
+    first.state.retry.map(({ port_id, cause }) => [port_id, cause]),
+    [[id, "runner-time"]],
+  );
+  assert.equal(first.table.entries.length, 0);
+  // A second consecutive one settles it ineligible, grouped by its cause.
+  const second = await run(first.table, first.state);
+  const entry = second.table.entries[0]!;
+  assert.equal(entry.ineligible?.reason, "repeated-inspection-failure");
+  assert.equal(entry.ineligible?.cause, "runner-time");
+  assert.match(entry.ineligible.detail, /per-identity budget CI can reproduce/u);
+  // Within the budget the identity settles normally.
+  const fits = await deriveListingFacts({
+    records: [listing(id)],
+    observerReport: observerReport({ [id]: {} }),
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: slowInspector(),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+  });
+  assert.equal(fits.table.entries[0]!.ineligible, null);
+  // Core running out of runner disk is transient, never a refusal (J7).
+  const full = {
+    stdout: JSON.stringify({
+      ok: false,
+      error: { code: "state", presentation: { presentation_key: "storage_full" } },
+    }),
+    exited: true,
+  };
+  assert.throws(
+    () => coreData(full, "inspection"),
+    (error: unknown) =>
+      error instanceof InspectionError && !error.permanent && error.cause === "runner-disk",
+  );
+  const refused = {
+    stdout: JSON.stringify({ ok: false, error: { code: "unsupported" } }),
+    exited: true,
+  };
+  assert.throws(
+    () => coreData(refused, "inspection"),
+    (error: unknown) => error instanceof InspectionError && error.permanent,
+  );
+  // The gate restates the age bounds; they are tested equal.
+  assert.equal(gateFactsAgeDays, maxFactsAgeDays);
+  assert.equal(gateRetentionDays, lastGoodRetentionDays);
+});
+
+void test("identities a shard deadline cut go last, so they never starve their shard-mates (J4)", async () => {
+  const ids = ["zz-order-a", "zz-order-b", "zz-order-c"];
+  const log: string[] = [];
+  await deriveListingFacts({
+    records: ids.map((id) => listing(id)),
+    observerReport: observerReport(Object.fromEntries(ids.map((id) => [id, {}]))),
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    state: { format: 3, pending: ["zz-order-a"], retry: [] },
+    inspect: slowInspector(log),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+  });
+  assert.deepEqual(log, ["zz-order-b", "zz-order-c", "zz-order-a"]);
+});
+
+void test("each identity's retry state comes from its own shard only (J5)", async () => {
+  const ids = ["zz-retry-0", "zz-retry-1", "zz-retry-2"];
+  const records = ids.map((id) => listing(id));
+  const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
+  const state: WorkerState = {
+    format: 3,
+    pending: [],
+    retry: [
+      { port_id: "zz-retry-1", since: "2026-11-18T00:00:00.000Z", failures: 2, cause: "network" },
+      { port_id: "zz-retry-2", since: "2026-11-18T00:00:00.000Z", failures: 1, cause: "network" },
+    ],
+  };
+  // zz-retry-1 recovers; zz-retry-2 fails again.
+  const inspect: ByteInspector = async (asset) => {
+    if (asset.url.includes("/zz-retry-2/"))
+      throw new InspectionError("Download failed.", false, "core-unknown", "network");
+    return { players: [player("Game/Game.exe")], names: [], leaves: [] };
+  };
+  const previous = emptyFactsTable("2026-11-01T00:00:00.000Z");
+  const common = { records, observerReport: report, classify: coreClassifier };
+  const now = "2026-11-21T00:00:00.000Z";
+  const whole = await deriveListingFacts({ ...common, table: previous, state, inspect, now });
+  const plan = await deriveListingFacts({
+    ...common,
+    table: previous,
+    state,
+    inspect,
+    now,
+    inspectBytes: false,
+  });
+  const results: { only: string[]; result: DeriveResult }[] = [];
+  for (const only of identityShards(plan.needs.map((need) => need.port_id)))
+    results.push({
+      only,
+      result: await deriveListingFacts({
+        ...common,
+        table: plan.table,
+        state: plan.state,
+        inspect,
+        now,
+        only,
+      }),
+    });
+  const combined = combineShards(plan, results);
+  assert.deepEqual(combined.state, whole.state);
+  assert.deepEqual(
+    combined.state.retry.map(({ port_id, failures }) => [port_id, failures]),
+    [["zz-retry-2", 2]],
+  );
+  assert.deepEqual(combined.table, whole.table);
 });

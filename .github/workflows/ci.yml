@@ -817,6 +817,7 @@ jobs:
     outputs:
       reproduce: ${{ steps.listing-facts.outputs.reproduce }}
       shards: ${{ steps.listing-facts.outputs.shards }}
+      max_parallel: ${{ steps.listing-facts.outputs.max_parallel }}
     # actions: read lets a facts batch's provenance be read from its run.
     permissions:
       contents: read
@@ -1636,6 +1637,7 @@ jobs:
     outputs:
       reproduce: ${{ steps.listing-facts.outputs.reproduce }}
       shards: ${{ steps.listing-facts.outputs.shards }}
+      max_parallel: ${{ steps.listing-facts.outputs.max_parallel }}
     permissions:
       contents: read
       actions: read
@@ -1727,7 +1729,10 @@ jobs:
   # 256-job matrix limit, so a table of hundreds of new entries reproduces
   # in one pull request. Each shard reads one archive at a time and deletes
   # it, so disk never accumulates; its deadline is the repository's 120-minute
-  # CI job cap less its other steps. Every shard is required.
+  # CI job cap less its other steps (`reproductionDeadlineMinutes`, the
+  # default of `verify`), which also bounds each identity's inspection in the
+  # facts worker. At most `max_parallel` shards run at once, so their REST
+  # requests fit the GITHUB_TOKEN quota. Every shard is required.
   listing_facts_reproduction:
     name: listing-facts-reproduction (${{ matrix.shard }})
     needs: [classify, fast_catalog, catalog_full]
@@ -1740,6 +1745,7 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(needs.fast_catalog.outputs.max_parallel || needs.catalog_full.outputs.max_parallel || '1') }}
       matrix:
         shard: ${{ fromJSON(needs.fast_catalog.outputs.shards || needs.catalog_full.outputs.shards) }}
     steps:
@@ -1774,7 +1780,7 @@ jobs:
           set -euo pipefail
           chmod +x work/listing-facts-cli/portcove
           node scripts/listing-facts-batch.mts verify --cli work/listing-facts-cli/portcove \
-            --shard "$SHARD" --deadline-minutes 85
+            --shard "$SHARD"
 
   catalog:
     timeout-minutes: 15

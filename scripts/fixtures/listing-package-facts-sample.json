@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -92,7 +92,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -161,7 +161,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -229,7 +229,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -303,7 +303,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -371,7 +371,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -439,7 +439,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 14,
+      "parser_version": 15,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -502,5 +502,5 @@
       ]
     }
   ],
-  "entries_sha256": "fc3fca20882b280b9baa1c3c0121b96146e83ad9ff0d7caf1cb703a80b9ac61d"
+  "entries_sha256": "a16c47d6cc3be64d7b0eb94004b41e6d1adb15390adf6707056c72f5f8e9c2bd"
 }

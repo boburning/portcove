@@ -42,9 +42,10 @@
 //    malformed observation or any unexpected failure settles that identity as
 //    `invalid-facts` and never fails the run.
 //  - Every identity that needs bytes is inspected, one archive at a time,
-//    with no identity or byte bound. Only a deadline (a shard's real time
-//    limit) stops a run; what it cuts stays pending and leads the next run
-//    (`WorkerState.pending`). A sharded run plans (`inspectBytes: false`),
+//    with no identity or byte bound. Each identity has the time CI can
+//    reproduce it in (`identityBudgetMinutes`; over it, `runner-time`), and
+//    a deadline (a shard's real time limit) stops a run; what it cuts stays
+//    pending and goes last in the next run (`WorkerState.pending`). A sharded run plans (`inspectBytes: false`),
 //    inspects each shard (`only`) on the plan's table and merges the shards
 //    (`combineShards`).
 //  - A non-complete upstream observation (rate limit, not found, partial)
@@ -78,6 +79,7 @@ import {
   archiveForms,
   boundReleaseLine,
   fitContext,
+  identityBudgetMinutes,
   releaseLine,
   type Generation,
   type OtherPackage,
@@ -206,6 +208,8 @@ export interface ArchiveInspection {
 export type ByteInspector = (
   asset: ObservedAsset,
   readerPlatform: string,
+  /** A deadline (epoch ms) for this read only, earlier than the inspector's own. */
+  deadline?: number,
 ) => Promise<ArchiveInspection>;
 /** Core's `catalog.classify-listing-names` data. */
 export interface NameClassification {
@@ -268,7 +272,7 @@ export function workerRecords(source: {
  * Authored listing-only GitHub identities the generated route could serve,
  * including those it already offers: id -> listed repository.
  */
-function listingOnly(records: readonly AuthoredPort[]) {
+export function listingOnly(records: readonly AuthoredPort[]) {
   return new Map(
     records
       .filter((record) => record.integration === undefined)
@@ -618,9 +622,15 @@ export interface DeriveInputs {
    * Epoch ms after which no further identity's inspection starts and a
    * download or Core run in progress is cut (pass the same deadline to the
    * inspector): the shard's real time limit. Cut identities stay pending and
-   * lead the next run (`WorkerState.pending`).
+   * go last in the next run (`WorkerState.pending`).
    */
   deadline?: number;
+  /**
+   * The time one identity's inspection may take, in milliseconds: by default
+   * `identityBudgetMinutes` of the candidate count, so CI can reproduce what
+   * the worker settles. Over it the identity is a `runner-time` failure.
+   */
+  identityBudgetMs?: number;
 }
 export interface ReportRow {
   port_id: string;
@@ -1413,12 +1423,17 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     await isolated(id, () => evaluate(id));
 
   // Pass B: inspect every identity that needs bytes, one archive at a time,
-  // with no identity or byte bound. Identities a previous deadline cut go
-  // first, then transient failures oldest first, then the rest in port_id
-  // order. Only the deadline (the shard's real time limit) stops the pass;
-  // what it cuts stays pending and leads the next run.
+  // with no identity or byte bound. Transient failures go oldest first, then
+  // the rest in port_id order, and identities a previous shard deadline cut
+  // go last, so one slow identity never starves its shard-mates. Each
+  // identity has the time CI can reproduce it in (`identityBudgetMinutes`);
+  // over it, it is a `runner-time` failure, and a second consecutive one
+  // settles it ineligible with that cause. The shard deadline (the shard's
+  // real time limit) stops the pass; what it cuts stays pending.
   let bytes = 0;
   const pastDeadline = () => inputs.deadline !== undefined && Date.now() >= inputs.deadline;
+  const identityBudgetMs =
+    inputs.identityBudgetMs ?? identityBudgetMinutes(candidates.size) * 60_000;
   const cut = new Set<string>();
   const inspectOne = async (need: Need) => {
     const found: {
@@ -1429,6 +1444,31 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
+    const identityDeadline = Date.now() + identityBudgetMs;
+    // One identity that does not fit the per-identity budget CI can
+    // reproduce in: retried once, then settled with the runner-time cause.
+    const runnerTime = () => {
+      const prior = retry.get(need.id);
+      if (prior?.cause === "runner-time") {
+        ineligible(
+          need.id,
+          need.repositoryId,
+          need.release,
+          "repeated-inspection-failure",
+          `Inspection did not finish within the ${Math.floor(identityBudgetMs / 60_000)}-minute per-identity budget CI can reproduce, in two consecutive runs.`,
+          undefined,
+          "runner-time",
+        );
+        return;
+      }
+      retry.set(need.id, {
+        port_id: need.id,
+        since: prior?.since ?? now,
+        failures: (prior?.failures ?? 0) + 1,
+        cause: "runner-time",
+      });
+      notComplete(need.id, "failed");
+    };
     for (const asset of need.archives) {
       const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
       if (known) {
@@ -1443,19 +1483,32 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
+      if (Date.now() >= identityDeadline && !pastDeadline()) {
+        runnerTime();
+        return;
+      }
       try {
         inspected++;
         bytes += asset.size;
-        const inspection = await inputs.inspect(asset, readerPlatform(asset.name));
+        const inspection = await inputs.inspect(
+          asset,
+          readerPlatform(asset.name),
+          identityDeadline,
+        );
         found.push({
           asset,
           players: inspection.players,
           toolchain: toolchainNames(inspection.names, inspection.leaves),
         });
       } catch (error) {
-        // The deadline cut this identity: it is pending, not failed.
+        // The shard deadline cut this identity: it is pending, not failed.
         if (error instanceof OverBudgetError && pastDeadline()) {
           cut.add(need.id);
+          return;
+        }
+        // Its own budget ran out: the runner's time, not the bytes.
+        if (error instanceof OverBudgetError) {
+          runnerTime();
           return;
         }
         // A permanent refusal is scoped to its archive: it is recorded with
@@ -1507,7 +1560,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const waiting = new Map(state.pending.map((id, index) => [id, index]));
   const order = needs.toSorted(
     (left, right) =>
-      (waiting.get(left.id) ?? Infinity) - (waiting.get(right.id) ?? Infinity) ||
+      Number(waiting.has(left.id)) - Number(waiting.has(right.id)) ||
+      (waiting.get(left.id) ?? 0) - (waiting.get(right.id) ?? 0) ||
       compareCodePoints(retry.get(left.id)?.since ?? "~", retry.get(right.id)?.since ?? "~") ||
       compareCodePoints(left.id, right.id),
   );
@@ -1638,9 +1692,14 @@ export function combineShards(
     state: {
       format: 3,
       pending,
+      // Each identity's retry item comes from its owning shard only: every
+      // shard started from the whole plan state, so another shard's copy of
+      // it is stale.
       retry: [
         ...plan.state.retry.filter((item) => !covered(item.port_id)),
-        ...shards.flatMap((shard) => shard.result.state.retry),
+        ...shards.flatMap((shard) =>
+          shard.result.state.retry.filter((item) => owner.get(item.port_id) === shard.result),
+        ),
       ].toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     },
     report: report.toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
@@ -1744,7 +1803,8 @@ export async function runCore(
   });
 }
 
-function coreData(run: CoreRun, what: string): Record<string, unknown> {
+/** Core's JSON envelope: its data, or the failure as an `InspectionError`. Exported for its unit test. */
+export function coreData(run: CoreRun, what: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(run.stdout);
@@ -1757,11 +1817,21 @@ function coreData(run: CoreRun, what: string): Record<string, unknown> {
     );
   }
   if (isRecord(parsed) && parsed.ok === true && isRecord(parsed.data)) return parsed.data;
+  // The runner's disk ran out while Core extracted the archive: a real
+  // constraint of the hosted runner (about 14 GB free on a standard public
+  // runner, below Core's 16 GiB extraction ceiling plus the archive), never
+  // a verdict on the bytes. It is transient and retried.
+  const error = isRecord(parsed) && isRecord(parsed.error) ? parsed.error : undefined;
+  if (isRecord(error?.presentation) && error.presentation.presentation_key === "storage_full")
+    throw new InspectionError(
+      `The runner ran out of disk during ${what}.`,
+      false,
+      "core-state",
+      "runner-disk",
+    );
   // Core ran and refused these bytes: the same bytes are refused again. A
   // run that was killed (its timeout) settles nothing about the bytes.
-  const refusal = refusalClassOf(
-    isRecord(parsed) && isRecord(parsed.error) ? parsed.error.code : undefined,
-  );
+  const refusal = refusalClassOf(error?.code);
   throw new InspectionError(
     `Core refused the archive during ${what}.`,
     run.exited,
@@ -1793,8 +1863,11 @@ export function cliInspector(
   workDirectory: string,
   options: { deadline?: number } = {},
 ): ByteInspector {
-  const { deadline } = options;
-  return async (asset, platform) => {
+  return async (asset, platform, identityDeadline) => {
+    const deadline =
+      identityDeadline === undefined
+        ? options.deadline
+        : Math.min(identityDeadline, options.deadline ?? Number.POSITIVE_INFINITY);
     if (!asset.sha256 || !/^https:\/\/github\.com\//u.test(asset.url))
       throw new InspectionError(
         "Only digest-bound GitHub release assets are inspected.",
@@ -1952,7 +2025,7 @@ function parseState(text: string): WorkerState {
 
 /** The worker summary line the job reads (`parseWorkerSummary`). */
 export const workerSummary = (result: DeriveResult) =>
-  `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, pending: result.state.pending.length, retry: result.state.retry.length, bytes: result.bytes, backlog: result.backlog, needs: result.needs.length, ineligible: result.ineligible, unobserved: result.unobserved, identities: result.report })}\n`;
+  `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, pending: result.state.pending.length, pending_ids: result.state.pending, retry: result.state.retry.length, bytes: result.bytes, backlog: result.backlog, needs: result.needs.length, ineligible: result.ineligible, unobserved: result.unobserved, identities: result.report })}\n`;
 
 async function main(argv: string[]) {
   if (argv.length === 1 && argv[0] === "--check") {
