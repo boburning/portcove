@@ -195,13 +195,9 @@ mod tests {
     #[test]
     fn bytes_that_differ_from_the_provider_digest_are_refused() {
         let (_temporary, path, size, _) = archive(&[("Game.exe", pe(0x8664, EXECUTABLE))]);
-        let error = inspect_listing_artifact_archive(
-            &path,
-            Platform::WindowsX86_64,
-            size,
-            &"0".repeat(64),
-        )
-        .unwrap_err();
+        let error =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &"0".repeat(64))
+                .unwrap_err();
         assert!(error.message.contains("SHA-256"), "{error:?}");
     }
 }
