@@ -579,12 +579,14 @@ fn record_readers_refuse_newer_formats_without_changing_them() {
     assert_eq!(setup.service.pending_setups().unwrap().len(), 1);
 }
 
+type Step<'a> = Box<dyn Fn(&Setup) + 'a>;
+
 #[test]
 fn cancelling_at_any_stage_keeps_a_resumable_or_cleanly_forgotten_setup() {
     for stop_at in 0..5 {
         let setup = published(false);
         let (executable, working) = installed_program(&setup);
-        let steps: Vec<Box<dyn Fn(&Setup)>> = vec![
+        let steps: Vec<Step<'_>> = vec![
             Box::new(|_| {}),
             Box::new(|setup| {
                 setup
