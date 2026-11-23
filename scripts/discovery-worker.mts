@@ -35,6 +35,7 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   postgresDiscoveryStore,
+  readDiscoverySnapshot,
 } from "./discovery-store.mts";
 import type {
   DiscoveryLease,
@@ -75,7 +76,15 @@ export const discoveryDefinitionDigest = createHash("sha256")
 const sha256 = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 /** Clocks a pass stamps even when it learns nothing new. */
-const passClocks = new Set(["completed_at", "observed_at", "checked_at", "attempted_at"]);
+const passClocks = new Set([
+  "completed_at",
+  "observed_at",
+  "checked_at",
+  "attempted_at",
+  "unchanged_at",
+  // A read's measured transfer, not something learned.
+  "bytes",
+]);
 
 /** Digest of what a pass learned: collector state without its observation clocks. */
 export function learnedDigest(value: unknown) {
@@ -844,6 +853,63 @@ export function importLocalState(
   };
   store.finish(lease, "complete", { import: summary });
   return summary;
+}
+
+/**
+ * Transfer to reserve for one read of the stored leads. The admission meters 70%
+ * of a reservation as payload, and the read returns the state document and
+ * every record once.
+ */
+export function storedLeadsReservation(forecast: { state_bytes: number; record_bytes: number }) {
+  return Math.ceil(
+    (Number(forecast.state_bytes) + Number(forecast.record_bytes)) / 0.7 + 1024 * 1024,
+  );
+}
+
+/**
+ * The shared store's collected leads for a local runner, read without a lease.
+ * Each read holds its own transfer admission sized from the stored state; a
+ * commit during the read makes it read again, each time admitted.
+ */
+export async function readStoredLeads(
+  environment: NodeJS.ProcessEnv,
+  options: { scope?: string } = {},
+): Promise<
+  | { outcome: "read"; revision: number; leads: LeadState; bytes: number }
+  | { outcome: "empty"; bytes: number }
+> {
+  const scope = options.scope ?? discoveryWorkerScope;
+  const { queryJson } = await import("./maintenance-store.mts");
+  const { withMaintenanceAdmission } = await import("./maintenance-resource-policy.mts");
+  let bytes = 0;
+  for (;;) {
+    const forecast = (await withMaintenanceAdmission(environment, "inspect", () =>
+      queryJson(environment, discoveryTransferForecastQuery),
+    )) as { state_bytes: number; record_bytes: number };
+    const snapshot = await withMaintenanceAdmission(
+      environment,
+      "inspect",
+      () => readDiscoverySnapshot(environment, scope),
+      { reservationBytes: storedLeadsReservation(forecast) },
+    );
+    bytes += snapshot.bytes;
+    // Commits are half a lease apart and a read takes seconds; every repeat is
+    // admitted again, so a deferred admission ends the loop.
+    if (snapshot.outcome === "moved") continue;
+    if (snapshot.outcome === "empty") return { outcome: "empty", bytes };
+    const state = parseWorkerState(snapshot.state);
+    const records: Record<string, unknown> = {};
+    for (const raw of snapshot.records)
+      if (isRecord(raw) && Number.isSafeInteger(raw.id)) records[String(raw.id)] = raw;
+    return {
+      outcome: "read",
+      revision: snapshot.revision,
+      // Records still embedded in an older state document take precedence, as
+      // they do for the collector.
+      leads: parseLeadState({ ...state.leads, records: { ...records, ...state.leads.records } }),
+      bytes,
+    };
+  }
 }
 
 /** Recent measured transfer and current state size, read before admission. */

@@ -6,6 +6,7 @@ import test from "node:test";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
+import { emptyCheckpoint } from "./discovery-checkpoint.mts";
 import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
@@ -30,8 +31,11 @@ import {
   discoveryTransferForecastQuery,
   runDiscoveryPasses,
   renderDiscoveryStatus,
+  readStoredLeads,
   runDiscoveryWorker,
+  storedLeadsReservation,
 } from "./discovery-worker.mts";
+import { overlayLocalResearch } from "./discovery-leads.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import { backup, migrate, queryJson, restore, runSql } from "./maintenance-store.mts";
@@ -515,6 +519,81 @@ void test(
   },
 );
 
+void test(
+  "a local runner reads the shared store's leads without a lease and keeps its research",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const environment = postgresFixture(context, server.directory!).start("snapshot").owner;
+    migrate(environment);
+    assert.equal((await readStoredLeads(environment)).outcome, "empty");
+    const store = postgresDiscoveryStore(environment);
+    const owner = lease("1");
+    store.acquire(owner, options);
+    const record = (id: number, revision: string): DiscoveryLead => ({
+      id,
+      repository: `ports/game-${id}`,
+      url: `https://github.com/ports/game-${id}`,
+      description: "",
+      revision,
+      observed_at: "2026-11-01T00:00:00.000Z",
+      evidence: "lead-search-1.json",
+      status: "pending",
+    });
+    const stored = [record(1, "a"), record(2, "b")];
+    store.commit(owner, 0, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {
+        format: 1,
+        leads: { format: 1, next_family: 3, slices: {}, records: {} },
+        checkpoint: emptyCheckpoint(),
+        research_progress: {},
+      },
+      observations: [],
+      watches: [],
+      leadRecords: stored,
+    });
+    // The collector still holds its lease; the read takes none.
+    const read = await readStoredLeads(environment);
+    assert.equal(read.outcome, "read");
+    if (read.outcome !== "read") return;
+    assert.equal(read.revision, 1);
+    assert.equal(read.leads.next_family, 3, "the store's continuation comes along");
+    assert.deepEqual(Object.keys(read.leads.records).sort(), ["1", "2"]);
+    assert.ok(read.bytes > 0);
+
+    const local = {
+      format: 1 as const,
+      next_family: 0,
+      slices: {},
+      records: {
+        // Researched at the stored revision: the research stays.
+        "1": {
+          ...record(1, "a"),
+          status: "researched" as const,
+          research: { evidence_id: "e1", file: "local.json", material: "m" },
+        },
+        // Researched at an older revision: the stored record requeues it.
+        "2": {
+          ...record(2, "old"),
+          status: "no-change" as const,
+          disposition: { reason: "no package", resume: "release" },
+        },
+        // Found by this runner's own search only.
+        "3": record(3, "c"),
+      },
+    };
+    const merged = overlayLocalResearch(read.leads, local);
+    assert.equal(merged.records["1"]!.status, "researched");
+    assert.equal(merged.records["1"]!.research?.evidence_id, "e1");
+    assert.equal(merged.records["2"]!.status, "pending");
+    assert.equal(merged.records["2"]!.revision, "b");
+    assert.equal(merged.records["2"]!.disposition, undefined);
+    assert.equal(merged.records["3"]!.revision, "c");
+    assert.equal(merged.next_family, 3);
+  },
+);
+
 void test("a database failure halts collection instead of relabeling a source", async (context) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
   context.after(() => rmSync(root, { recursive: true, force: true }));
@@ -992,4 +1071,16 @@ void test("a failed lead-record load finishes the attempt instead of holding the
   assert.equal(result.outcome, "failed");
   assert.match(result.reason ?? "", /lead records could not be loaded/u);
   assert.deepEqual(memory.finished, ["failed"]);
+});
+
+void test("a stored-lead read reserves enough metered payload for the whole state", () => {
+  for (const [state, records] of [
+    [0, 0],
+    [2_000_000, 500_000],
+    [8 * 1024 * 1024, 64 * 1024 * 1024],
+  ] as const) {
+    const reservation = storedLeadsReservation({ state_bytes: state, record_bytes: records });
+    // withMaintenanceAdmission meters floor(reservation * 0.7) as payload.
+    assert.ok(Math.floor(reservation * 0.7) >= state + records + 700_000);
+  }
 });
