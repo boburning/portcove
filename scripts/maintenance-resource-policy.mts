@@ -15,7 +15,7 @@ const mb = 1_000_000;
 export const neonProject = "wispy-salad-36926388";
 export const transferLimit = 5_000 * mb;
 const day = 86_400_000;
-const admissionTimeout = 2 * 60 * 60 * 1000;
+export const admissionTimeout = 2 * 60 * 60 * 1000;
 const sampleLifetime = 5 * 60 * 1000;
 const bootstrapAllowance = 5 * mb;
 const recoveryDailyForecast = 22 * mb;
@@ -175,7 +175,14 @@ export function isNeon(environment: NodeJS.ProcessEnv) {
   return /(?:^|\.)neon\.tech$/iu.test(environment.PGHOST ?? "");
 }
 
-export function policyLimits(meter: NeonMeter, operation: MaintenanceOperation, now: number) {
+export function policyLimits(
+  meter: NeonMeter,
+  operation: MaintenanceOperation,
+  now: number,
+  /** A measured reservation for this request; never below the operation's own cost. */
+  reservationBytes?: number,
+) {
+  const reservation = Math.max(costs[operation], reservationBytes ?? 0);
   const days = Math.max(0, Math.ceil((Date.parse(meter.resetAt) - now) / day) - 1);
   const recovery = operation.startsWith("recovery");
   const reserve =
@@ -193,7 +200,7 @@ export function policyLimits(meter: NeonMeter, operation: MaintenanceOperation, 
   return {
     reserve_bytes: reserve,
     future_daily_recovery_bytes: scheduled,
-    operation_reservation_bytes: costs[operation],
+    operation_reservation_bytes: reservation,
     ceiling_bytes: operatingCeiling - chargeableForecast - bootstrapAllowance,
     cutover_allowance_bytes: meter.sampleOrigin === "november-cutover" ? transitionAllowance : null,
     recurring_monthly_projection_bytes: 31 * (recoveryDailyForecast + costs.collect),
@@ -214,11 +221,13 @@ export function acquireMaintenanceReservation(
     reason: string;
     now?: number;
     executor?: boolean;
+    reservationBytes?: number | undefined;
   },
 ) {
   const { meter, operation, request, revision, reason } = input;
   const now = input.now ?? Date.now();
-  const limits = policyLimits(meter, operation, now);
+  const limits = policyLimits(meter, operation, now, input.reservationBytes);
+  const reserved = limits.operation_reservation_bytes;
   const age = now - Date.parse(meter.sampledAt);
   const useCutover = meter.sampleOrigin === "november-cutover";
   if (
@@ -265,7 +274,7 @@ export function acquireMaintenanceReservation(
         clock_timestamp() >= ${sampled}::timestamptz AND
         (${useCutover} OR clock_timestamp() <= ${sampled}::timestamptz + interval '5 minutes') AND
         clock_timestamp() + interval '2 hours' < ${reset}::timestamptz AS valid,
-        NOT duplicate AND ${meter.transferBytes} + unresolved + ${costs[operation]} <= ${limits.ceiling_bytes} AS fits
+        NOT duplicate AND ${meter.transferBytes} + unresolved + ${reserved} <= ${limits.ceiling_bytes} AS fits
       FROM balance, state
     ), observed AS (
       INSERT INTO ${table}
@@ -273,7 +282,7 @@ export function acquireMaintenanceReservation(
          reported_bytes, reserved_bytes, outcome, finished_at)
       SELECT ${sqlLiteral(id)}::uuid, ${sqlLiteral(request)}, ${sqlLiteral(operation)}, ${revision ? sqlLiteral(revision) : "NULL"},
         ${sqlLiteral(reason)}, ${period}, ${reset}, ${sampled}, ${sqlLiteral(meter.sampleOrigin ?? "live")}, ${meter.transferBytes},
-        CASE WHEN fits THEN ${costs[operation]} ELSE 0 END,
+        CASE WHEN fits THEN ${reserved} ELSE 0 END,
         CASE WHEN fits THEN 'running' ELSE 'deferred' END, CASE WHEN NOT fits THEN clock_timestamp() END
       FROM decision WHERE valid
       RETURNING attempt_id, outcome, started_at
@@ -328,16 +337,23 @@ function recordEvidence(environment: NodeJS.ProcessEnv, evidence: unknown) {
 export async function withMaintenanceAdmission<T>(
   environment: NodeJS.ProcessEnv,
   operation: MaintenanceOperation,
-  callback: (bytes: number) => Promise<T> | T,
+  /** Receives the admitted bytes and the time by which its transfer must finish. */
+  callback: (bytes: number, deadline: number) => Promise<T> | T,
   options: {
     estimate?: (value: T) => number;
     request?: string | undefined;
     completed?: (value: T) => boolean;
     bootstrap?: boolean;
     executor?: boolean;
+    /** Measured transfer this request expects; raises, never lowers, the reservation. */
+    reservationBytes?: number;
   } = {},
 ): Promise<T> {
-  if (!isNeon(environment)) return await callback(costs[operation]);
+  if (!isNeon(environment))
+    return await callback(
+      Math.max(costs[operation], options.reservationBytes ?? 0),
+      Number.POSITIVE_INFINITY,
+    );
   const revision = environment.GITHUB_SHA ?? environment.PORTCOVE_SOURCE_REVISION;
   const run = environment.GITHUB_RUN_ID;
   const reason = [
@@ -414,6 +430,7 @@ export async function withMaintenanceAdmission<T>(
     request,
     revision,
     reason,
+    reservationBytes: options.reservationBytes,
   });
   const coalesced =
     admission.reason === "equivalent-request" &&
@@ -438,7 +455,7 @@ export async function withMaintenanceAdmission<T>(
       ),
     };
     const value = await maintenanceTransfer.run(measurement, () =>
-      callback(admission.operation_reservation_bytes),
+      callback(admission.operation_reservation_bytes, measurement.deadline),
     );
     estimate = options.estimate?.(value) ?? 200_000 + Math.ceil(measurement.payloadBytes * 1.3);
     if (estimate !== undefined && (!Number.isSafeInteger(estimate) || estimate < 0))

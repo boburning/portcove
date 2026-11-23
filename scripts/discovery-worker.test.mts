@@ -17,16 +17,22 @@ import type {
   DiscoveryStore,
   DiscoveryWatchChange,
 } from "./discovery-store.mts";
+import type { DiscoveryWorkerResult } from "./discovery-worker.mts";
 import {
   discoveryDefinitionDigest,
   importLocalState,
   leadObservation,
   leadWatch,
   parseWorkerState,
+  providerWake,
+  learnedDigest,
+  discoveryTransferForecastQuery,
+  runDiscoveryPasses,
   renderDiscoveryStatus,
   runDiscoveryWorker,
 } from "./discovery-worker.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
+import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import { backup, migrate, queryJson, restore, runSql } from "./maintenance-store.mts";
 
 const server = postgresServer();
@@ -127,7 +133,17 @@ void test(
       "expired",
     );
     assert.equal(commit(store, second, 2, { cursor: 2 }).revision, 3);
-    store.finish(second, "partial", { sources: [] });
+    store.finish(second, "partial", {
+      committed: { sent_bytes: 4000, received_bytes: 1000 },
+    });
+    assert.deepEqual(
+      queryJson(environment, discoveryTransferForecastQuery),
+      {
+        state_bytes: Buffer.byteLength(JSON.stringify({ cursor: 2 }).replace(":", ": ")),
+        previous_transfer_bytes: 5000,
+      },
+      "the forecast reads measured state and the recent runs' transfer",
+    );
     assert.equal(store.acquire(lease("3"), options).revision, 3, "finish releases the lease");
 
     assert.throws(
@@ -211,7 +227,7 @@ void test(
     const after = restored.acquire(lease("2"), options);
     assert.equal(after.revision, 1, "reactivation resumes from the restored position");
     assert.equal(after.generation, 2);
-    const status = queryJson(target, discoveryStatusQuery({ attempts: 5, watches: 5 })) as Record<
+    const status = queryJson(target, discoveryStatusQuery({ attempts: 5 })) as Record<
       string,
       unknown
     >;
@@ -271,7 +287,19 @@ function memoryStore() {
   };
 }
 
-async function providers(budget: DiscoveryBudget, releases: () => unknown[]) {
+async function providers(
+  budget: DiscoveryBudget,
+  releases: () => unknown[],
+  extraProjects = 0,
+  releaseReads: string[] = [],
+) {
+  const extra = Array.from({ length: extraProjects }, (_, index) => ({
+    id: 20_000 + index,
+    full_name: `ports/project-${index}`,
+    html_url: `https://github.com/ports/project-${index}`,
+    description: "Native port",
+    pushed_at: "2026-10-30T00:00:00Z",
+  }));
   const sdk = await fixtureGitHub(({ endpoint }) => {
     budget.charge("GET", endpoint, 1, 100, "200");
     if (endpoint === "rate_limit")
@@ -286,7 +314,7 @@ async function providers(budget: DiscoveryBudget, releases: () => unknown[]) {
     if (endpoint.startsWith("search/repositories"))
       // A project whose identity never appears in collector code or configuration.
       return {
-        total_count: 1,
+        total_count: 1 + extra.length,
         incomplete_results: false,
         items: [
           {
@@ -296,9 +324,13 @@ async function providers(budget: DiscoveryBudget, releases: () => unknown[]) {
             description: "PC port of a console game",
             pushed_at: "2026-10-30T00:00:00Z",
           },
+          ...extra,
         ],
       };
-    if (endpoint === "repos/holdout/unseen-native-port/releases?per_page=5") return releases();
+    if (/\/releases\?per_page=\d+$/u.test(endpoint)) {
+      releaseReads.push(endpoint);
+      return endpoint.startsWith("repos/holdout/unseen-native-port/releases") ? releases() : [];
+    }
     return new Response(JSON.stringify({ message: "fixture" }), {
       status: 404,
       headers: { "content-type": "application/json" },
@@ -492,4 +524,335 @@ void test("a database failure halts collection instead of relabeling a source", 
   assert.deepEqual(result.sources, [], "no source is reported with a database error");
   assert.equal(memory.commits.length, 1, "nothing after the failed commit is written");
   assert.deepEqual(memory.finished, ["failed"]);
+});
+
+void test("unattended collection applies no per-run counts and commits within its transfer pacing", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const at = "2026-11-01T05:00:00.000Z";
+  const now = () => Date.parse(at);
+  const budget = new DiscoveryBudget("hosted", () => {}, now, at, {
+    requests: Number.MAX_SAFE_INTEGER,
+    bytes: 512 * 1024 * 1024,
+    milliseconds: 3_600_000,
+  });
+  const releaseReads: string[] = [];
+  const result = await runDiscoveryWorker({
+    store: memory.store,
+    runDir: root,
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    budget,
+    now,
+    // No elapsed time yet: pacing allows no interim commit, only the final one.
+    transferBytes: 16 * 1024 * 1024,
+    connect: async () => await providers(budget, () => [], 11, releaseReads),
+  });
+  assert.notEqual(result.outcome, "failed", result.reason ?? "");
+  // The interactive runner rechecks at most four release hints per run.
+  assert.equal(new Set(releaseReads).size, 12, "every pending lead is rechecked in one run");
+  assert.equal(memory.commits.length, 1, "pacing defers interim commits to the final commit");
+  assert.equal(memory.rows.size, 12);
+});
+
+void test("fair hint order takes every due hint, longest waiting first", () => {
+  const hint = (first: string, checked?: string) => ({
+    url: "",
+    host: "github" as const,
+    title: "",
+    lists: ["finds"],
+    first_observed_at: first,
+    last_observed_at: first,
+    ...(checked
+      ? {
+          resolution: {
+            status: "failed" as const,
+            checked_at: checked,
+            retry_at: "2026-10-01T00:00:00Z",
+          },
+        }
+      : {}),
+  });
+  const state = {
+    lists: {},
+    hints: Object.fromEntries(
+      Array.from({ length: 12 }, (_, index) => [
+        `https://github.com/ports/hint-${String(index).padStart(2, "0")}`,
+        hint(`2026-10-${String(10 + index).padStart(2, "0")}T00:00:00Z`),
+      ]),
+    ),
+  } as unknown as Parameters<typeof selectExternalResolutions>[0];
+  const fair = selectExternalResolutions(
+    state,
+    new Set(),
+    new Map(),
+    "2026-11-01T00:00:00Z",
+    Infinity,
+    "fair",
+  );
+  assert.equal(fair.length, 12, "no per-run count");
+  assert.equal(fair[0]?.repository, "ports/hint-00", "the longest-waiting hint comes first");
+  const bounded = selectExternalResolutions(state, new Set(), new Map(), "2026-11-01T00:00:00Z");
+  assert.equal(bounded.length, 8, "the interactive runner keeps its bounded newest-first slice");
+  assert.equal(bounded[0]?.repository, "ports/hint-11");
+});
+
+void test(
+  "stored collector state is not capped at a fixed size",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const environment = postgresFixture(context, server.directory!).start("large").owner;
+    migrate(environment);
+    const store = postgresDiscoveryStore(environment);
+    const owner = lease("1");
+    store.acquire(owner, options);
+    const large = { padding: "x".repeat(9 * 1024 * 1024) };
+    assert.equal(commit(store, owner, 0, large).revision, 1, "state above 8 MiB commits");
+  },
+);
+
+void test("an exhausted provider quota waits for its reset between passes and continues", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const start = Date.parse("2026-11-01T05:00:00.000Z");
+  let clock = start;
+  const now = () => clock;
+  const reset = start + 20 * 60_000;
+  const sleeps: number[] = [];
+  const admitted: number[] = [];
+  let quotaReads = 0;
+  const run = await runDiscoveryPasses({
+    store: memory.store,
+    runDir: root,
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    now,
+    deadline: start + 3 * 3_600_000,
+    diskBytes: 512 * 1024 * 1024,
+    finalizationMs: 60_000,
+    // Each pass runs under its own admission, here without a provider meter.
+    admit: async (pass, collect) => {
+      admitted.push(pass);
+      return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
+    },
+    sleep: async (milliseconds) => {
+      sleeps.push(milliseconds);
+      clock += milliseconds;
+    },
+    connect: async (budget) => {
+      const fixture = await providers(budget, () => []);
+      const original = fixture.sdk.request.bind(fixture.sdk);
+      // The first quota read reports search exhausted until the reset.
+      fixture.sdk.request = (async (route: { url?: string }) => {
+        if (typeof route.url === "string" && route.url.endsWith("/rate_limit")) {
+          quotaReads++;
+          budget.charge("GET", "rate_limit", 1, 100, "200");
+          const search = quotaReads === 1 ? 0 : 4000;
+          // After the reset GitHub reports the next window's reset.
+          const next = quotaReads === 1 ? reset : reset + 3_600_000;
+          return {
+            status: 200,
+            headers: {},
+            url: route.url,
+            data: {
+              resources: {
+                core: { remaining: 4000, reset: Math.floor(next / 1000) },
+                graphql: { remaining: 4000, reset: Math.floor(next / 1000) },
+                search: { remaining: search, reset: Math.floor(next / 1000) },
+              },
+            },
+          };
+        }
+        return await original(route as never);
+      }) as typeof fixture.sdk.request;
+      return fixture;
+    },
+  });
+  assert.notEqual(run.outcome, "failed", run.passes.at(-1)?.reason ?? "");
+  assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
+  assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
+  assert.ok(clock > reset, "collection resumed only after the reset");
+  assert.equal(
+    memory.finished.length,
+    2,
+    "each pass closes its own attempt and releases its lease",
+  );
+  assert.ok(
+    [...memory.rows.values()].some((row) => row.provider_id === "9001"),
+    "the search that quota blocked ran after the reset",
+  );
+  // The many search families that found it again add no rows.
+  assert.deepEqual(
+    [...memory.rows.values()].map((row) => row.facts.release_assets_observed),
+    [false],
+  );
+});
+
+void test("passes stop when one makes no progress, the deadline passes or admission defers", async () => {
+  const pass = (overrides: Partial<DiscoveryWorkerResult>): DiscoveryWorkerResult =>
+    ({
+      format: "portcove-discovery-worker-result",
+      format_version: 1,
+      outcome: "partial",
+      started_at: "",
+      finished_at: "",
+      canonical_overlap: "unknown",
+      sources: [],
+      notes: [],
+      leads: { records: 0, pending_families: 0, external: null },
+      committed: {
+        pages: 0,
+        observations: 0,
+        watch_changes: 0,
+        state_bytes: 0,
+        sent_bytes: 0,
+        received_bytes: 0,
+      },
+      budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
+      ...overrides,
+    }) satisfies DiscoveryWorkerResult;
+  const start = Date.parse("2026-11-01T05:00:00.000Z");
+  const drive = async (results: (DiscoveryWorkerResult | undefined)[]) => {
+    let calls = 0;
+    const sleeps: number[] = [];
+    const run = await runDiscoveryPasses({
+      store: memoryStore().store,
+      runDir: os.tmpdir(),
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      connect: async () => {
+        throw new Error("not used");
+      },
+      now: () => start,
+      deadline: start + 3_600_000,
+      diskBytes: 1,
+      finalizationMs: 0,
+      admit: async () => results[calls++],
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      },
+    });
+    return { calls, sleeps, run };
+  };
+  const soon = new Date(start + 60_000).toISOString();
+  const late = new Date(start + 2 * 3_600_000).toISOString();
+  assert.equal((await drive([pass({ progressed: false, wake_at: soon })])).calls, 1);
+  assert.equal((await drive([pass({ progressed: true, wake_at: late })])).calls, 1);
+  assert.equal((await drive([pass({ progressed: true })])).calls, 1, "a pass that ended naturally");
+  const continued = await drive([
+    pass({ progressed: true, wake_at: soon }),
+    pass({ outcome: "complete" }),
+  ]);
+  assert.equal(continued.calls, 2);
+  assert.deepEqual(continued.sleeps, [60_000]);
+  assert.equal(continued.run.outcome, "complete");
+  const deferred = await drive([undefined]);
+  assert.equal(deferred.run.outcome, "deferred");
+  assert.match(deferred.run.deferred ?? "", /admission/u);
+});
+
+void test("a pass that has spent its admitted transfer ends resumably after its final commit", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const at = "2026-11-01T05:00:00.000Z";
+  const now = () => Date.parse(at);
+  const budget = new DiscoveryBudget("hosted", () => {}, now, at);
+  const result = await runDiscoveryWorker({
+    store: memory.store,
+    runDir: root,
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    commitIntervalMs: 0,
+    transferBytes: 1,
+    budget,
+    now,
+    connect: async () => await providers(budget, () => []),
+  });
+  assert.equal(result.outcome, "partial");
+  assert.match(result.reason ?? "", /admitted database transfer is spent/u);
+  assert.equal(result.wake_at, at, "the next pass may continue at once");
+  assert.equal(memory.commits.length, 1, "the final commit keeps the pass's progress");
+  assert.deepEqual(memory.finished, ["partial"]);
+});
+
+void test("provider wake reports only a blocking quota or backoff", () => {
+  const at = Date.parse("2026-11-01T05:00:00.000Z");
+  const budget = new DiscoveryBudget(
+    "hosted",
+    () => {},
+    () => at,
+    new Date(at).toISOString(),
+  );
+  assert.equal(providerWake(budget, at), undefined);
+  budget.observeProvider({ resource: "search", remaining: 0, resetAt: "2026-11-01T05:10:00.000Z" });
+  assert.equal(providerWake(budget, at), Date.parse("2026-11-01T05:10:01.000Z"));
+});
+
+void test("a pass that only restamps observation clocks has learned nothing", () => {
+  const state = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T05:00:00Z", records: 3 } } },
+  };
+  const later = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T06:00:00Z", records: 3 } } },
+  };
+  const changed = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T06:00:00Z", records: 4 } } },
+  };
+  assert.equal(learnedDigest(state), learnedDigest(later));
+  assert.notEqual(learnedDigest(state), learnedDigest(changed));
+});
+
+void test("a pass that throws keeps the record of earlier passes", async () => {
+  const start = Date.parse("2026-11-01T05:00:00.000Z");
+  let calls = 0;
+  const first = {
+    format: "portcove-discovery-worker-result",
+    format_version: 1,
+    outcome: "partial",
+    progressed: true,
+    wake_at: new Date(start).toISOString(),
+    started_at: "",
+    finished_at: "",
+    canonical_overlap: "unknown",
+    sources: [],
+    notes: [],
+    leads: { records: 0, pending_families: 0, external: null },
+    committed: {
+      pages: 1,
+      observations: 0,
+      watch_changes: 0,
+      state_bytes: 0,
+      sent_bytes: 0,
+      received_bytes: 0,
+    },
+    budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
+  } satisfies DiscoveryWorkerResult;
+  const run = await runDiscoveryPasses({
+    store: memoryStore().store,
+    runDir: os.tmpdir(),
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    connect: async () => {
+      throw new Error("not used");
+    },
+    now: () => start,
+    deadline: start + 3_600_000,
+    diskBytes: 1,
+    finalizationMs: 0,
+    admit: async () => {
+      if (calls++ === 0) return first;
+      throw new Error("psql exited 2: connection reset");
+    },
+  });
+  assert.equal(run.outcome, "failed");
+  assert.deepEqual(run.passes, [first], "the committed first pass stays in the record");
+  assert.match(run.reason ?? "", /pass 2 failed: .*connection reset/u);
 });

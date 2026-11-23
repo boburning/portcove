@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,11 @@ import type { Octokit } from "@octokit/core";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
+import {
+  DiscoveryBudget,
+  createDiscoveryTransport,
+  discoveryProfiles,
+} from "./discovery-budget.mts";
 import {
   advanceDiscovery,
   emptyCheckpoint,
@@ -52,7 +56,7 @@ import { assessUpstreamLineage } from "./upstream-lineage.mts";
 
 export const discoveryWorkerScope = "primary";
 /** Bump when the normalized observation facts change meaning. */
-export const discoveryParserVersion = 1;
+export const discoveryParserVersion = 2;
 export const discoveryWorkerStateFormat = 1;
 
 /** Identifies the collector definitions this state was written under. */
@@ -68,6 +72,18 @@ export const discoveryDefinitionDigest = createHash("sha256")
   .digest("hex");
 
 const sha256 = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+
+/** Clocks a pass stamps even when it learns nothing new. */
+const passClocks = new Set(["completed_at", "observed_at", "checked_at", "attempted_at"]);
+
+/** Digest of what a pass learned: collector state without its observation clocks. */
+export function learnedDigest(value: unknown) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify(value, (key, field: unknown) => (passClocks.has(key) ? undefined : field)),
+    )
+    .digest("hex");
+}
 
 export interface DiscoveryWorkerState {
   leads: LeadState;
@@ -98,8 +114,9 @@ const sorted = (values: readonly string[] | undefined) =>
 
 /**
  * Normalized, provider-bound facts for one positive lead. Portcove-side
- * dispositions, local evidence paths and observation clocks are excluded so an
- * unchanged project stays one row however often it is seen.
+ * dispositions, search-family and curated-list provenance, local evidence paths
+ * and observation clocks are excluded, so an unchanged project stays one row
+ * however often and wherever it is seen. Provenance stays in collector state.
  */
 export function leadObservation(lead: DiscoveryLead): DiscoveryProviderObservation | undefined {
   if (!Number.isSafeInteger(lead.id) || lead.id <= 0) return undefined;
@@ -111,15 +128,12 @@ export function leadObservation(lead: DiscoveryLead): DiscoveryProviderObservati
   };
   if (lead.created_at) facts.created_at = lead.created_at;
   const aliases = sorted(lead.aliases);
-  if (aliases) facts.aliases = aliases.slice(0, 20);
-  const families = sorted(lead.search_families);
-  if (families) facts.search_families = families;
-  const lists = sorted(lead.external_lists);
-  if (lists) facts.external_lists = lists;
+  if (aliases) facts.aliases = aliases;
   if (lead.manifest) facts.manifest = lead.manifest;
   if (lead.release_hint) facts.release_assets_observed = lead.release_hint.assets_observed;
   // Keep the row inside the store's bound; the remaining facts identify the project.
   if (Buffer.byteLength(JSON.stringify(facts)) > 12_000) delete facts.manifest;
+  if (Buffer.byteLength(JSON.stringify(facts)) > 12_000) delete facts.aliases;
   return {
     provider: "github",
     provider_id: String(lead.id),
@@ -174,10 +188,19 @@ export interface DiscoveryWorkerOptions {
   covered: () => Set<string>;
   scope?: string;
   leaseSeconds?: number;
-  /** Minimum time between interim commits; every run also commits at its end. */
+  /**
+   * Interim commit interval. It defaults to half the lease, so every commit also
+   * renews the lease long before it can lapse.
+   */
   commitIntervalMs?: number;
-  /** Database transfer the run may spend on interim commits. */
+  /** Database transfer admitted for this pass; a pass that has spent it ends resumably. */
   transferBytes?: number;
+  /**
+   * Start of the whole run. Passes of one run share it, so work already done in
+   * an earlier pass (a release checked, a search window completed) is not redone.
+   */
+  runStartedAt?: string;
+  /** This pass's budget; its limits come from physical resources. */
   budget?: DiscoveryBudget;
   now?: () => number;
 }
@@ -187,6 +210,10 @@ export interface DiscoveryWorkerResult {
   format_version: 1;
   outcome: "complete" | "partial" | "failed" | "deferred";
   reason?: string;
+  /** Whether this pass changed collector state; an unproductive pass is not repeated. */
+  progressed?: boolean;
+  /** When an exhausted provider quota or backoff lifts, if that is what stopped the pass. */
+  wake_at?: string;
   attempt_id?: string;
   acquisition?: number;
   generation?: number;
@@ -223,10 +250,11 @@ export async function runDiscoveryWorker(
 ): Promise<DiscoveryWorkerResult> {
   const now = options.now ?? Date.now;
   const startedAt = new Date(now()).toISOString();
+  const runStartedAt = options.runStartedAt ?? startedAt;
   const scope = options.scope ?? discoveryWorkerScope;
   const leaseSeconds = options.leaseSeconds ?? 3600;
-  const interval = options.commitIntervalMs ?? 120_000;
-  const transferBytes = options.transferBytes ?? 12 * 1024 * 1024;
+  const interval = options.commitIntervalMs ?? (leaseSeconds * 1000) / 2;
+  const transferBytes = options.transferBytes ?? Number.POSITIVE_INFINITY;
   const lease: DiscoveryLease = { scope, attempt: randomUUID(), token: randomUUID() };
   const committed = {
     pages: 0,
@@ -268,6 +296,7 @@ export async function runDiscoveryWorker(
     throw error;
   }
   const state = parseWorkerState(grant.state);
+  const initialDigest = learnedDigest({ leads: state.leads, checkpoint: state.checkpoint });
   let revision = grant.revision;
   // Stored state and its observations commit together, so everything in the
   // loaded state is already retained; only later differences are sent.
@@ -299,25 +328,40 @@ export async function runDiscoveryWorker(
   const budget =
     options.budget ??
     new DiscoveryBudget(
-      "ordinary",
+      "hosted",
       (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
       now,
       startedAt,
     );
   if (state.backoff_until) budget.usage.backoff_until = state.backoff_until;
   const journal: DiscoveryCollectionHost["journal"] = {
-    started_at: startedAt,
+    started_at: runStartedAt,
     notes: [],
     sources: [],
     collection_done: false,
     coverage: "unknown",
   };
+  const nextState = () => ({
+    format: discoveryWorkerStateFormat,
+    leads: host.leads,
+    checkpoint: host.checkpoint,
+    research_progress: state.research_progress,
+    ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
+  });
   let lastCommit = now();
   let dirty = false;
   let stale = false;
   // Any other failed commit also halts collection, so a database error inside a
   // collector's own error handling is never recorded as a source outcome.
   let halted: Error | undefined;
+  // Set once this pass has spent its admitted database transfer.
+  let spent: GitHubApiError | undefined;
+  const stopped = () => {
+    if (stale)
+      throw new DiscoveryStoreRefused("stale-writer", "This discovery attempt lost its lease");
+    if (halted) throw halted;
+    if (spent) throw spent;
+  };
   let source: SourceContext | undefined;
   const host: DiscoveryCollectionHost = {
     leads: state.leads,
@@ -335,18 +379,30 @@ export async function runDiscoveryWorker(
     deferredLeadFamilies: new Set(),
     leadPages: 0,
     searches: 0,
+    unattended: true,
     persist() {
-      // Once a newer owner or restore takes the lease, every later step stops here,
-      // even inside collectors that tolerate their own source failures.
-      if (stale)
-        throw new DiscoveryStoreRefused("stale-writer", "This discovery attempt lost its lease");
-      if (halted) throw halted;
+      // Once a newer owner or restore takes the lease, or this pass cannot commit
+      // any more, every later step stops here, even inside collectors that
+      // tolerate their own source failures.
+      stopped();
       dirty = true;
       if (now() - lastCommit < interval) return;
-      // Leave room for this commit and the final one within the run's allowance.
-      const stateBytes = committed.state_bytes || Buffer.byteLength(JSON.stringify(host.leads));
-      if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes <= transferBytes * 0.6)
-        flush();
+      // Commit (and so renew the lease) only while this commit and the final one
+      // still fit the admitted transfer; otherwise end the pass resumably. The
+      // admission meters 70% of its reservation as payload.
+      // Size the next and final commits from everything they carry.
+      const pending = remember(host.leads);
+      const stateBytes = Buffer.byteLength(
+        JSON.stringify([nextState(), pending.observations, pending.watches]),
+      );
+      if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes > transferBytes * 0.7) {
+        spent = new GitHubApiError(
+          "budget_exhausted",
+          "This pass's admitted database transfer is spent; the next pass continues",
+        );
+        throw spent;
+      }
+      flush();
     },
     save(name, value) {
       if (!/^[A-Za-z0-9._-]{1,160}$/u.test(name)) throw new Error("Unsafe evidence name");
@@ -371,13 +427,7 @@ export async function runDiscoveryWorker(
   const flush = () => {
     if (stale) return;
     const { observations, watches } = remember(host.leads);
-    const next = {
-      format: discoveryWorkerStateFormat,
-      leads: host.leads,
-      checkpoint: host.checkpoint,
-      research_progress: state.research_progress,
-      ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
-    };
+    const next = nextState();
     try {
       const saved = options.store.commit(lease, revision, {
         definition: discoveryDefinitionDigest,
@@ -414,6 +464,8 @@ export async function runDiscoveryWorker(
       save: (name, value) => host.save(name, value),
       primaryProgress: { entries: state.research_progress, persist: () => host.persist() },
       acceptSource: (collected: CollectedSource) => {
+        // A stopped pass records no further source outcome.
+        stopped();
         journal.sources = journal.sources.filter((value) => value.id !== collected.id);
         journal.sources.push(collected);
         host.checkpoint = advanceDiscovery(host.checkpoint, {
@@ -459,8 +511,16 @@ export async function runDiscoveryWorker(
     external: host.leadSummary().external,
   };
   const remaining = budget.remaining();
+  const wake = spent ? undefined : providerWake(budget, now());
   const final = result(outcome, {
     ...(reason ? { reason } : {}),
+    progressed: learnedDigest({ leads: host.leads, checkpoint: host.checkpoint }) !== initialDigest,
+    // A spent transfer allowance continues at once in a new pass; a quota waits.
+    ...(spent
+      ? { wake_at: new Date(now()).toISOString() }
+      : wake === undefined
+        ? {}
+        : { wake_at: new Date(wake).toISOString() }),
     attempt_id: lease.attempt,
     acquisition: grant.acquisition,
     generation: grant.generation,
@@ -492,6 +552,117 @@ export async function runDiscoveryWorker(
     }
   }
   return final;
+}
+
+export interface DiscoveryPassOptions extends Omit<
+  DiscoveryWorkerOptions,
+  "budget" | "transferBytes" | "runStartedAt"
+> {
+  /** Epoch milliseconds by which collection must stop, before final commits. */
+  deadline: number;
+  /** Response bytes the runner can retain. */
+  diskBytes: number;
+  /** Time to commit a pass's final state within its admission. */
+  finalizationMs: number;
+  /**
+   * Runs one pass under its own database admission. Returns undefined when the
+   * shared allowance defers it.
+   */
+  admit: (
+    pass: number,
+    run: (admitted: { bytes: number; deadline: number }) => Promise<DiscoveryWorkerResult>,
+  ) => Promise<DiscoveryWorkerResult | undefined>;
+  sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
+  signal?: AbortSignal;
+}
+
+const cancellableSleep = (milliseconds: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(done, milliseconds);
+    function done() {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    }
+    signal?.addEventListener("abort", done, { once: true });
+  });
+
+/**
+ * Collect until a physical limit stops the run. Each pass holds its own database
+ * admission, lease and attempt; between passes the worker holds nothing while it
+ * waits for an exhausted provider quota to reset. A pass that changed nothing is
+ * not repeated.
+ */
+export async function runDiscoveryPasses(options: DiscoveryPassOptions) {
+  const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? cancellableSleep;
+  const runStartedAt = new Date(now()).toISOString();
+  const passes: DiscoveryWorkerResult[] = [];
+  let deferred: string | undefined;
+  let failure: string | undefined;
+  for (let pass = 1; ; pass++) {
+    let result: DiscoveryWorkerResult | undefined;
+    try {
+      result = await options.admit(pass, async ({ bytes, deadline }) => {
+        const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
+        const startedAt = now();
+        const budget = new DiscoveryBudget(
+          "hosted",
+          (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
+          now,
+          new Date(startedAt).toISOString(),
+          {
+            requests: Number.MAX_SAFE_INTEGER,
+            bytes: options.diskBytes,
+            milliseconds: Math.max(1, finishBy - startedAt),
+          },
+        );
+        return await runDiscoveryWorker({ ...options, budget, transferBytes: bytes, runStartedAt });
+      });
+    } catch (error) {
+      // Keep the record of the passes that already committed.
+      failure = `pass ${pass} failed: ${errorMessage(error).slice(0, 500)}`;
+      break;
+    }
+    if (!result) {
+      deferred = "resource admission deferred this pass; the next run continues";
+      break;
+    }
+    passes.push(result);
+    if (result.outcome !== "partial" || !result.progressed || !result.wake_at) break;
+    const wake = Date.parse(result.wake_at);
+    if (!(wake < options.deadline) || options.signal?.aborted) break;
+    if (wake > now()) await sleep(wake - now(), options.signal);
+    if (options.signal?.aborted) break;
+  }
+  const last = passes.at(-1);
+  const outcome: DiscoveryWorkerResult["outcome"] =
+    failure || passes.some((p) => p.outcome === "failed")
+      ? "failed"
+      : (last?.outcome ?? "deferred");
+  return {
+    outcome,
+    passes,
+    ...(deferred ? { deferred } : {}),
+    ...(failure ? { reason: failure } : {}),
+  };
+}
+
+/**
+ * When an observed provider quota or Retry-After backoff is what stops work,
+ * the time it lifts; otherwise undefined.
+ */
+export function providerWake(budget: DiscoveryBudget, now: number) {
+  const times: number[] = [];
+  const backoff = Date.parse(budget.usage.backoff_until ?? "");
+  if (Number.isFinite(backoff) && backoff > now) times.push(backoff);
+  for (const [resource, quota] of Object.entries(budget.usage.provider_quotas ?? {})) {
+    const needed = resource === "graphql" ? budget.graphqlPointHeadroom : 1;
+    const reset = Date.parse(quota.resetAt);
+    if (quota.remaining < needed && Number.isFinite(reset) && reset > now) times.push(reset);
+  }
+  // Wake just after the latest blocking reset, so every exhausted resource has lifted.
+  return times.length ? Math.max(...times) + 1000 : undefined;
 }
 
 async function observeProviderCapacity(sdk: Octokit, budget: DiscoveryBudget) {
@@ -527,6 +698,7 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     number | undefined
   >;
   const watches = isRecord(status.watches) ? status.watches : {};
+  const run = isRecord(status.latest_run) ? status.latest_run : undefined;
   const due = Array.isArray(watches.due) ? (watches.due as Record<string, unknown>[]) : [];
   const lines = [
     "## Unattended discovery collection",
@@ -534,7 +706,7 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     latest
       ? `Latest attempt \`${String(latest.attempt_id)}\` (${String(latest.outcome)}) started ${String(latest.started_at)} at \`${String(latest.source_revision)}\`; ${String(latest.committed_pages)} committed pages.`
       : "No discovery attempt is recorded yet.",
-    `Retained observations: ${String(observations.rows ?? 0)} rows for ${String(observations.subjects ?? 0)} provider subjects; ${String(observations.latest_attempt_new_rows ?? 0)} new in the latest attempt.`,
+    `Retained observations: ${String(observations.rows ?? 0)} rows for ${String(observations.subjects ?? 0)} provider subjects; ${String(observations.latest_run_new_rows ?? 0)} new in the latest run${run ? ` (${String(run.passes)} passes: ${Array.isArray(run.outcomes) ? run.outcomes.join(", ") : ""})` : ""}.`,
     `Canonical ownership: unknown until Roadmap reconciliation. Due watches: ${due.length}.`,
     "",
   ];
@@ -613,6 +785,24 @@ export function importLocalState(
   return summary;
 }
 
+/** Recent measured transfer and current state size, read before admission. */
+export const discoveryTransferForecastQuery = `SELECT json_build_object(
+  'state_bytes', coalesce((SELECT max(octet_length(state::text))
+    FROM portcove_maintenance.discovery_collection_state), 0),
+  'previous_transfer_bytes', coalesce((SELECT max(
+      coalesce((result->'committed'->>'sent_bytes')::bigint, 0) +
+      coalesce((result->'committed'->>'received_bytes')::bigint, 0))
+    FROM portcove_maintenance.discovery_collection_attempts
+    WHERE result IS NOT NULL AND runner IN (
+      -- The passes of the last seven runs.
+      SELECT runner FROM portcove_maintenance.discovery_collection_attempts
+      GROUP BY runner ORDER BY max(acquisition) DESC LIMIT 7)), 0));`;
+
+/** Time to write the final state: a generous allowance proportional to its size. */
+export function finalizationMilliseconds(stateBytes: number) {
+  return 60_000 + Math.ceil(stateBytes / (256 * 1024)) * 1000;
+}
+
 const usage =
   "usage: node scripts/discovery-worker.mts collect|status|import-local [--database-env NAME] [--output DIR] [--state-dir DIR]";
 
@@ -644,16 +834,32 @@ export async function discoveryWorkerMain(argv: string[]) {
       await import("./maintenance-resource-policy.mts");
     const run = process.env.GITHUB_RUN_ID;
     let status: unknown;
+    const request = (suffix: string) =>
+      run
+        ? `github:${run}:discovery-status:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}:${suffix}`
+        : undefined;
     try {
+      // Size the export's admission from what it will read.
+      const size = (await withMaintenanceAdmission(
+        environment,
+        "inspect",
+        () =>
+          queryJson(
+            environment,
+            `SELECT (SELECT coalesce(sum(octet_length(w::text)), 0)
+                 FROM portcove_maintenance.discovery_watches w WHERE w.status = 'due')
+               + (SELECT coalesce(sum(octet_length(a::text)), 0) FROM (
+                   SELECT * FROM portcove_maintenance.discovery_collection_attempts
+                   ORDER BY acquisition DESC LIMIT 10) a)
+               + 1048576;`,
+          ),
+        { request: request("size") },
+      )) as number;
       status = await withMaintenanceAdmission(
         environment,
         "inspect",
-        () => queryJson(environment, discoveryStatusQuery({ attempts: 10, watches: 200 })),
-        {
-          request: run
-            ? `github:${run}:discovery-status:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
-            : undefined,
-        },
+        () => queryJson(environment, discoveryStatusQuery({ attempts: 10 })),
+        { request: request("export"), reservationBytes: Math.ceil(Number(size) * 2) },
       );
     } catch (error) {
       if (!(error instanceof MaintenanceResourceDeferred)) throw error;
@@ -698,7 +904,11 @@ export async function discoveryWorkerMain(argv: string[]) {
   const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? "").trim();
   const runDir = path.join(output, "evidence");
   mkdirSync(runDir, { recursive: true });
-  const write = (value: DiscoveryWorkerResult) => {
+  const write = (value: {
+    outcome: string;
+    reason?: string | undefined;
+    [key: string]: unknown;
+  }) => {
     writeFileSync(path.join(output, "result.json"), `${JSON.stringify(value, null, 2)}\n`);
     console.log(JSON.stringify({ outcome: value.outcome, reason: value.reason ?? null }));
   };
@@ -732,73 +942,106 @@ export async function discoveryWorkerMain(argv: string[]) {
     cancellation.abort(new GitHubApiError("cancelled", "Discovery worker cancelled"));
   process.once("SIGTERM", cancel);
   process.once("SIGINT", cancel);
-  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred, admissionTimeout } =
     await import("./maintenance-resource-policy.mts");
-  let collected: DiscoveryWorkerResult | undefined;
-  try {
-    collected = await withMaintenanceAdmission(
-      environment,
-      "discovery",
-      async (reservation) =>
-        await runDiscoveryWorker({
-          store: postgresDiscoveryStore(environment),
-          runDir,
-          sourceRevision: process.env.GITHUB_SHA ?? "local",
-          runner: process.env.GITHUB_RUN_ID
-            ? `github-actions:${process.env.GITHUB_RUN_ID}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
-            : `local:${os.hostname()}`,
-          covered: (() => {
-            let cache: Set<string> | undefined;
-            return () => (cache ??= catalogCoveredHints());
-          })(),
-          transferBytes: reservation,
-          connect: async (budget) => {
-            const scope = discoveryGitHubScope(budget, token, { signal: cancellation.signal });
-            // Discovery collection is read-only; refuse any mutation at the client.
-            const sdk = await createGitHubClient({
-              ...scope,
-              allowRequest: (method) => method === "GET" || method === "HEAD",
-            });
-            return { sdk, http: createDiscoveryTransport(budget, token) };
-          },
-        }),
-      {
-        estimate: (value) =>
-          200_000 + Math.ceil((value.committed.sent_bytes + value.committed.received_bytes) * 1.3),
-        completed: (value) => value.outcome !== "failed",
-      },
-    );
-  } catch (error) {
-    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+  const run = process.env.GITHUB_RUN_ID;
+  const requestKey = (suffix: string) =>
+    run
+      ? `github:${run}:discovery:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}:${suffix}`
+      : undefined;
+  const deferredRun = (reason: string) => {
     const at = new Date().toISOString();
-    write({
-      format: "portcove-discovery-worker-result",
-      format_version: 1,
-      outcome: "deferred",
-      reason: `resource admission: ${error.message}`,
-      started_at: at,
-      finished_at: at,
-      canonical_overlap: "unknown",
-      sources: [],
-      notes: [],
-      leads: { records: 0, pending_families: 0, external: null },
-      committed: {
-        pages: 0,
-        observations: 0,
-        watch_changes: 0,
-        state_bytes: 0,
-        sent_bytes: 0,
-        received_bytes: 0,
-      },
-      budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
-    });
+    write({ outcome: "deferred", reason, started_at: at, finished_at: at, passes: [] });
     return 75;
+  };
+  try {
+    // Size every pass from measured state and transfer rather than fixed limits.
+    let forecast: { state_bytes: number; previous_transfer_bytes: number };
+    try {
+      forecast = (await withMaintenanceAdmission(
+        environment,
+        "inspect",
+        () => queryJson(environment, discoveryTransferForecastQuery),
+        { request: requestKey("forecast") },
+      )) as typeof forecast;
+    } catch (error) {
+      if (error instanceof MaintenanceResourceDeferred)
+        return deferredRun(`resource admission: ${error.message}`);
+      if (/does not exist/u.test(errorMessage(error)))
+        return deferredRun("The maintenance store is not migrated for discovery collection yet");
+      throw error;
+    }
+    const deadlineEpoch = Number(process.env.PORTCOVE_DISCOVERY_DEADLINE_EPOCH);
+    const disk = statfsSync(runDir);
+    const finalizationMs = finalizationMilliseconds(forecast.state_bytes);
+    const store = postgresDiscoveryStore(environment);
+    const covered = (() => {
+      let cache: Set<string> | undefined;
+      return () => (cache ??= catalogCoveredHints());
+    })();
+    let previousTransfer = forecast.previous_transfer_bytes;
+    const collected = await runDiscoveryPasses({
+      store,
+      runDir,
+      covered,
+      sourceRevision: process.env.GITHUB_SHA ?? "local",
+      runner: run
+        ? `github-actions:${run}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
+        : `local:${os.hostname()}:${randomUUID()}`,
+      // The job's own deadline, less time to commit the final state.
+      deadline: Number.isFinite(deadlineEpoch)
+        ? deadlineEpoch * 1000 - finalizationMs
+        : Date.now() + discoveryProfiles.hosted.milliseconds,
+      // Half the runner's free space for retained responses and evidence.
+      diskBytes: Math.floor((Number(disk.bavail) * Number(disk.bsize)) / 2),
+      finalizationMs,
+      signal: cancellation.signal,
+      connect: async (budget) => {
+        const scope = discoveryGitHubScope(budget, token, { signal: cancellation.signal });
+        // Discovery collection is read-only; refuse any mutation at the client.
+        const sdk = await createGitHubClient({
+          ...scope,
+          allowRequest: (method) => method === "GET" || method === "HEAD",
+        });
+        return { sdk, http: createDiscoveryTransport(budget, token) };
+      },
+      admit: async (pass, collect) => {
+        // The acquire read, a commit every half lease across the admission window
+        // and the final commit, each with a margin for its checkpoint and
+        // observations; the admission meters 70% of a reservation as payload.
+        const transfers = 1 + Math.ceil(admissionTimeout / (3600 * 500)) + 1;
+        const reservationBytes = Math.ceil(
+          (forecast.state_bytes * 1.25 * transfers + previousTransfer * 0.25) / 0.7 + 1024 * 1024,
+        );
+        try {
+          const result = await withMaintenanceAdmission(
+            environment,
+            "discovery",
+            async (bytes, deadline) => await collect({ bytes, deadline }),
+            {
+              request: requestKey(`pass-${pass}`),
+              reservationBytes,
+              estimate: (value) =>
+                200_000 +
+                Math.ceil((value.committed.sent_bytes + value.committed.received_bytes) * 1.3),
+              completed: (value) => value.outcome !== "failed",
+            },
+          );
+          previousTransfer = result.committed.sent_bytes + result.committed.received_bytes;
+          forecast.state_bytes = Math.max(forecast.state_bytes, result.committed.state_bytes);
+          return result;
+        } catch (error) {
+          if (error instanceof MaintenanceResourceDeferred) return undefined;
+          throw error;
+        }
+      },
+    });
+    write({ format: "portcove-discovery-run-result", format_version: 1, ...collected });
+    return collected.outcome === "failed" ? 1 : collected.outcome === "deferred" ? 75 : 0;
   } finally {
     process.off("SIGTERM", cancel);
     process.off("SIGINT", cancel);
   }
-  write(collected);
-  return collected.outcome === "failed" ? 1 : collected.outcome === "deferred" ? 75 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))

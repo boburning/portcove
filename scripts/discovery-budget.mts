@@ -163,10 +163,12 @@ export class DiscoveryBudget {
     persist: (usage: Usage) => void = () => {},
     now: () => number = Date.now,
     startedAt = new Date(now()).toISOString(),
+    /** Measured physical limits replacing the profile's bootstrap envelope. */
+    limits: { requests: number; bytes: number; milliseconds: number } = discoveryProfiles[profile],
   ) {
     this.persist = persist;
     this.now = now;
-    this.limits = discoveryProfiles[profile];
+    this.limits = limits;
     const started = Date.parse(startedAt);
     if (!Number.isFinite(started)) throw new Error("Invalid discovery start time");
     this.deadline = performance.now() + this.limits.milliseconds - Math.max(0, now() - started);

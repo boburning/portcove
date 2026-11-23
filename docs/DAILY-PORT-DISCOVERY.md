@@ -766,10 +766,36 @@ the client refuses every mutation.
 State lives in the [maintenance store](MAINTENANCE-STORE.md#discovery-collection),
 not in a local file. The worker takes a fenced lease and a database acquisition
 ticket before any external read, then commits the lead continuation, the new
-positive provider observations and watch changes together. Commits are throttled
-to bound database transfer, and the last state always commits at the end. A
+positive provider observations and watch changes together. It commits every
+half lease, which also renews the lease, and always commits its last state. A
 crash before a commit replays those pages; identical observations are stored
 once. A stale or expired worker, or one from before a restore, cannot commit.
+
+Unattended collection applies no per-run counts. It has no research or delivery
+reserve and no fixed request profile:
+
+- every due curated-list hint is resolved, the longest-waiting first;
+- every pending lead's releases are rechecked, the never-checked and then the
+  longest-unchecked first;
+- lead searches continue through every family and continuation.
+
+Only physical limits stop a run. These are observed provider quota and
+Retry-After, half the runner's free disk for retained responses, the job's
+deadline (GitHub's hosted-job maximum, less time to commit the final state), and
+database transfer.
+
+A run is a sequence of passes. Each pass holds its own transfer admission,
+sized from the stored state and the previous pass, plus its own lease and
+attempt. A pass ends when its work is done, when provider quota runs out, when
+its admitted transfer could no longer cover the next commit and the final one,
+or when its admission window or the job deadline nears. When quota or transfer
+ended a productive pass, the worker holds nothing while it waits for the
+quota reset, then starts a new pass. A pass that changed no state is not
+repeated. Passes share the run's start, so a release already checked or a
+search window already completed in this run is not redone. Fair ordering means
+sustained new hints cannot starve older work. The interactive runner keeps its
+bounded slices and reserves for in-run research. The collector's shared 32 MiB
+lead-state envelope remains until lead records move to row storage.
 
 Canonical ownership is `unknown` in this path. The worker reads catalog lineage
 but not the Roadmap inventory. A retained observation is a lead, not intake,
@@ -779,9 +805,8 @@ with its continuation intact. An inaccessible source is recorded as such and
 never as absence. Exit code 75 means deferred: inactive store, lease held,
 resource admission or missing credential. Any other failed database commit stops
 collection and fails the job at the last committed page, so a store error is
-never recorded as a source outcome. Stored state is capped at 8 MiB; reaching
-the cap fails every later commit until lead records move to row storage or are
-compacted, so watch `committed.state_bytes` in each result.
+never recorded as a source outcome. `result.json` lists every pass with its
+outcome, `committed.state_bytes` and transfer.
 
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop

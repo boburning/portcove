@@ -152,7 +152,7 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
 }
 
 /** Read-only status export for the hosted researcher and the maintenance report. */
-export function discoveryStatusQuery(limits: { attempts: number; watches: number }) {
+export function discoveryStatusQuery(limits: { attempts: number }) {
   return `SET TRANSACTION READ ONLY;
 SELECT json_build_object(
   'activation', (SELECT json_build_object('active', collection_active, 'generation', collection_generation)
@@ -172,7 +172,20 @@ SELECT json_build_object(
     'subjects', (SELECT count(DISTINCT (provider, provider_id)) FROM portcove_maintenance.discovery_observations),
     'latest_attempt_new_rows', (SELECT count(*) FROM portcove_maintenance.discovery_observations o
       WHERE o.first_attempt_id = (SELECT attempt_id FROM portcove_maintenance.discovery_collection_attempts
+        ORDER BY acquisition DESC LIMIT 1)),
+    -- A run is every pass (attempt) with the latest attempt's runner identity.
+    'latest_run_new_rows', (SELECT count(*) FROM portcove_maintenance.discovery_observations o
+      JOIN portcove_maintenance.discovery_collection_attempts a ON a.attempt_id = o.first_attempt_id
+      WHERE a.runner = (SELECT runner FROM portcove_maintenance.discovery_collection_attempts
         ORDER BY acquisition DESC LIMIT 1))),
+  'latest_run', (SELECT json_build_object('runner', runner, 'passes', count(*),
+      'committed_pages', sum(committed_pages), 'started_at', min(started_at),
+      'finished_at', max(finished_at),
+      'outcomes', json_agg(outcome ORDER BY acquisition))
+    FROM portcove_maintenance.discovery_collection_attempts
+    WHERE runner = (SELECT runner FROM portcove_maintenance.discovery_collection_attempts
+      ORDER BY acquisition DESC LIMIT 1)
+    GROUP BY runner),
   'watches', json_build_object(
     'by_reason', coalesce((SELECT json_object_agg(reason || ':' || status, n) FROM (
       SELECT reason, status, count(*) AS n FROM portcove_maintenance.discovery_watches
@@ -183,6 +196,6 @@ SELECT json_build_object(
           WHERE o.provider = w.provider AND o.provider_id = w.provider_id
           ORDER BY o.first_seen_at DESC LIMIT 1) AS repository
       FROM portcove_maintenance.discovery_watches w WHERE w.status = 'due'
-      ORDER BY w.updated_at, w.provider_id LIMIT ${limits.watches}) d), '[]'))
+      ORDER BY w.updated_at, w.provider_id) d), '[]'))
 )::text;`;
 }

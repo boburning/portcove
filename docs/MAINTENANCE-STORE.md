@@ -74,9 +74,10 @@ lease generation; commits also check expiry and the expected revision. They then
 and watch changes in one transaction. The collector role may execute them; the
 report role reads.
 
-The stored state is limited to 8 MiB of JSON so acquire and status reads fit one
-bounded client transfer; a commit beyond it fails visibly and keeps the prior
-position. `definition_sha256` records the collector definitions (state format,
+Stored state has no fixed size bound; migration `0008` removed the original
+8 MiB check. The worker sizes its transfer admission from the stored state and
+recent runs, so reads and commits stay inside an admitted, measured allowance.
+`definition_sha256` records the collector definitions (state format,
 parser version, search families and curated lists). A worker whose definitions
 differ resends its observations; cursor compatibility itself comes from each
 search slice's recorded query contract. Discovery tables are ordinary backup

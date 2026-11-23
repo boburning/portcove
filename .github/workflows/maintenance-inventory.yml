@@ -498,7 +498,9 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    # GitHub-hosted jobs stop at 360 minutes. Collection itself is bounded by
+    # provider quota, runner disk and admitted database transfer, not counts.
+    timeout-minutes: 355
     concurrency:
       group: portcove-discovery-collection
       cancel-in-progress: false
@@ -523,8 +525,8 @@ jobs:
           mkdir -p work/discovery-worker
       - name: Collect discovery sources without a terminal or model
         id: discover
-        # The 30-minute discovery budget plus admission and a final bounded commit.
-        timeout-minutes: 42
+        # The worker stops collecting before this deadline to commit its final state.
+        timeout-minutes: 335
         env:
           PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
           PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
@@ -532,6 +534,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           rc=0
+          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((EPOCHSECONDS + 330 * 60))
           node scripts/discovery-worker.mts collect --output work/discovery-worker || rc=$?
           if [[ "$rc" == 75 ]]; then
             echo 'Discovery collection deferred; the retained continuation resumes on the next run.' >> "$GITHUB_STEP_SUMMARY"
