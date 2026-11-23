@@ -1924,6 +1924,7 @@ void test("the exception queues report counts per reason and the top unsupported
       exclusions: { "asset-tool-name:patcher": ["e"] },
       refusals: { "core-source-invalid": ["f", "g"], "digest-mismatch": [] },
       shared_repositories: { "o/shared": ["h", "i", "j"] },
+      enrolled_beside_unoffered_forms: ["k"],
     },
   });
   assert.deepEqual(counts, {
@@ -1932,7 +1933,9 @@ void test("the exception queues report counts per reason and the top unsupported
     exclusions: { "asset-tool-name:patcher": 1 },
     refusals: { "core-source-invalid": 2 },
     shared_repositories: { "o/shared": 3 },
+    enrolled_beside_unoffered_forms: 1,
   });
+  assert.match(markdown, /platform without an archive \(review: 1\)\n\n- `k`/u);
   assert.match(markdown, /more than one identity \(1; 3 identities/u);
   assert.match(markdown, /\| `no-observation` \| 3 \|/u);
   assert.match(markdown, /\| `core-source-invalid` \| 2 \|/u);

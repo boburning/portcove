@@ -77,11 +77,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 9;
+export const GENERATOR_VERSION = 10;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 9;
-export const FACTS_TABLE_FORMAT = 8;
+export const FACTS_PARSER_VERSION = 10;
+export const FACTS_TABLE_FORMAT = 9;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -1100,7 +1100,6 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
     after: match[2]!.slice(0, 1),
   }));
   const bareNumber = (word: string | undefined) => word !== undefined && /^[0-9]+$/u.test(word);
-  const name = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   const words: string[] = [];
   let previousKept = false;
   for (const [index, { word, after }] of parts.entries()) {
@@ -1118,15 +1117,11 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
     }
     if (bareNumber(word)) {
       const rest = parts.slice(index + 1).filter((part) => !droppedWord(part.word));
-      // A final number after words spelling the repository's own name is
-      // the version (`proj-3` in `proj` is the main line).
       const partOfProduct =
         previousKept &&
         word.length <= 2 &&
         after !== "." &&
-        (rest.length === 0
-          ? words.join("") !== name
-          : !bareNumber(rest[0]!.word) || rest[0]!.after === ".");
+        (rest.length === 0 || !bareNumber(rest[0]!.word) || rest[0]!.after === ".");
       if (!partOfProduct) break;
       words.push(word);
       continue;
@@ -1139,6 +1134,7 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
     words.push(word);
     previousKept = true;
   }
+  const name = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   return words.join("") === name ? "" : words.join("-");
 }
 
@@ -1374,7 +1370,51 @@ const documentNames = new Set([
   "version",
   "manifest",
   "makefile",
+  "news",
+  "todo",
+  "install",
+  "dockerfile",
+  "hashes",
+  "signatures",
+  "sha256sum",
+  "sha512sum",
+  "sha1sum",
+  "md5sum",
+  "gpl-2.0",
+  "gpl-3.0",
+  "lgpl-2.1",
+  "lgpl-3.0",
+  "agpl-3.0",
 ]);
+/**
+ * A documentation name with a suffix (`LICENSE-MIT`, `COPYING.LESSER`,
+ * `README.markdown`, `changelog_2026`): one of these words, any letter case,
+ * followed by the end, `.`, `-` or `_`.
+ */
+const documentPrefix =
+  /^(?:license|licence|copying|readme|changelog|changes|notice|authors)(?:$|[._-])/u;
+/**
+ * Compressed, container and disk-image forms the worker does not read, beyond
+ * `unreadForms`, judged only when no read archive form matched (`.tar.gz`,
+ * `.tgz` and `.tar.xz` are read): `.tar.lz`, `.tar.lzma` and `.tar.lz4` end in
+ * one of these.
+ */
+const unreadContainerSuffixes = [
+  ".gz",
+  ".xz",
+  ".bz2",
+  ".zst",
+  ".lz",
+  ".lzma",
+  ".lz4",
+  ".cab",
+  ".lzh",
+  ".ace",
+  ".cpio",
+  ".iso",
+  ".img",
+  ".love",
+];
 /**
  * Sidecar extensions longer than the one-to-five-character extension window
  * that are never a program (checksums, signatures, update metadata, torrents).
@@ -1399,11 +1439,13 @@ const sidecarExtensions = [
 const libraryName = (lower: string) =>
   /\.so(\.[0-9]+)*$/u.test(lower) || lower.endsWith(".dll") || lower.endsWith(".dylib");
 /**
- * A volume of a split archive (`Game.7z.001`, `Game.zip.001`, `Game.z01`,
- * `Game.r00`, `Game.part1.rar`): a container the worker does not read.
+ * A volume of a split file (`Game.7z.001`, `Game.zip.001`, `Game.exe.001`,
+ * `Game.iso.001`, bare `Game.001`, `Game.z01`, `Game.r00`, `Game.part1.rar`):
+ * any name ending `.` and three or more digits is one, whatever precedes it. A
+ * container the worker does not read.
  */
 export const splitVolume = (name: string) =>
-  /\.(?:7z|zip|rar|tar|tgz|tbz2?|txz|tar\.[a-z0-9]+)\.[0-9]{3,}$/u.test(name.toLowerCase()) ||
+  /\.[0-9]{3,}$/u.test(name) ||
   /\.(?:z|r)[0-9]{2}$/u.test(name.toLowerCase()) ||
   /\.part[0-9]+\.rar$/u.test(name.toLowerCase());
 
@@ -1416,12 +1458,15 @@ export const splitVolume = (name: string) =>
  *    `.aarch64`, or a bare binary: a name with no file extension (no final `.`
  *    followed by one to five letters and digits including a letter, and no
  *    known sidecar extension, `sidecarExtensions`), other than a
- *    documentation, checksum or metadata name (`documentNames`) or a shared
- *    library (`*.so.<n>`);
+ *    documentation, checksum or metadata name (`documentNames`,
+ *    `documentPrefix`) or a shared library (`*.so.<n>`). A name whose apparent
+ *    extension is only a version (`game-v1.0`, `Game.v1.2`, `game.1.2.3`) is
+ *    such a bare binary;
  *  - `macos`: `.dmg`, `.pkg`;
- *  - `container`: a container the worker does not read (`.7z`, `.rar`,
- *    `.jar`, `.tar`, `.tar.bz2`, `.tbz2`, `.tar.zst`) or a volume of a split
- *    archive (`splitVolume`); it serves every platform its name permits.
+ *  - `container`: a container, compressed file or disk image the worker does
+ *    not read (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.tbz2`,
+ *    `.tar.zst`, `unreadContainerSuffixes`) or a volume of a split file
+ *    (`splitVolume`); it serves every platform its name permits.
  */
 export function otherPackageForm(
   name: string,
@@ -1437,11 +1482,12 @@ export function otherPackageForm(
     return undefined;
   }
   const lower = name.toLowerCase();
+  if (unreadContainerSuffixes.some((suffix) => lower.endsWith(suffix))) return "container";
   if (libraryName(lower) || sidecarExtensions.some((extension) => lower.endsWith(extension)))
     return undefined;
   // A file extension: a final `.` and one to five letters and digits, one a letter.
   if (/\.(?=[A-Za-z0-9]{1,5}$)[0-9]*[A-Za-z][A-Za-z0-9]*$/u.test(name)) return undefined;
-  return documentNames.has(lower) ? undefined : "linux";
+  return documentNames.has(lower) || documentPrefix.test(lower) ? undefined : "linux";
 }
 const windowsForms: readonly string[] = [
   ".exe",
@@ -2005,6 +2051,15 @@ export interface RegistrationQueues {
    * release-line binding, whether or not facts exist yet.
    */
   shared_repositories: Record<string, string[]>;
+  /**
+   * Every enrolled identity whose release also records another package form
+   * serving a platform with no offered archive (`competingPackages` ignores
+   * such a form), in port_id order: a review queue for the residual where
+   * the release's only program for an enrolled platform is not the game (a
+   * Windows installer beside a neutral-named Linux tarball holding something
+   * else, and the mirror case).
+   */
+  enrolled_beside_unoffered_forms: string[];
 }
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
@@ -2051,6 +2106,20 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
         .filter(([, ids]) => ids.length > 1)
         .toSorted(([left], [right]) => compareCodePoints(left, right)),
     ),
+    enrolled_beside_unoffered_forms: generation.decisions
+      .filter((decision) => {
+        if (!decision.fit) return false;
+        const entry = generation.facts.entries.find(
+          (candidate) => candidate.port_id === decision.port_id,
+        );
+        return (entry?.other_packages ?? []).some((other) =>
+          other.platforms.some(
+            (platform) => !entry!.artifacts.some((artifact) => namePermits(artifact, platform)),
+          ),
+        );
+      })
+      .map((decision) => decision.port_id)
+      .toSorted(compareCodePoints),
   };
 }
 
@@ -2538,7 +2607,6 @@ export function gateLine(tag: string | null, id: number, repository: string) {
   ];
   const isNumber = (word: string) => /^[0-9]+$/u.test(word);
   const isVersion = (word: string) => /^[vrb]?[0-9]+$/u.test(word);
-  const own = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   // Words and the first separator character after each ("" at the end).
   const lower = tag.toLowerCase();
   const scanned: { text: string; then: string }[] = [];
@@ -2585,14 +2653,11 @@ export function gateLine(tag: string | null, id: number, repository: string) {
     }
     if (isNumber(text)) {
       const following = words.slice(index + 1).find((word) => !word.dropped);
-      // After words spelling the repository's own name, a final number is the version.
       const product =
         afterProductWord &&
         text.length <= 2 &&
         then !== "." &&
-        (following === undefined
-          ? kept.join("") !== own
-          : !isNumber(following.text) || following.then === ".");
+        (following === undefined || !isNumber(following.text) || following.then === ".");
       if (!product) break;
       kept.push(text);
       continue;
@@ -2605,6 +2670,7 @@ export function gateLine(tag: string | null, id: number, repository: string) {
     kept.push(text);
     afterProductWord = true;
   }
+  const own = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   return kept.join("") === own ? "" : kept.join("-");
 }
 /** Whether an unbound line names the listed product, restated: see `lineNamesProduct`. Exported for its unit table only. */
@@ -2698,13 +2764,34 @@ export function gateFormPlatforms(name: string): string[] {
   const linux = ["linux-x86-64"];
   const macos = ["macos-x86-64", "macos-aarch64"];
   const endsWithAny = (suffixes: string[]) => suffixes.some((suffix) => lower.endsWith(suffix));
-  // Split volumes (`.7z.001`, `.zip.001`, `.z01`, `.r00`, `.part1.rar`) and
-  // whole containers: their platforms come from the recorded name verdict.
+  // Split volumes (any `.<three or more digits>` ending: `.7z.001`,
+  // `.exe.001`, bare `.001`; and `.z01`, `.r00`, `.part1.rar`) and whole
+  // containers, compressed files and disk images the worker does not read:
+  // their platforms come from the recorded name verdict. The read archives
+  // `.tar.gz`, `.tgz` and `.tar.xz` are not containers here.
+  const readArchive = endsWithAny([".zip", ".tar.gz", ".tgz", ".tar.xz"]);
   if (
-    /\.(7z|zip|rar|tar|tgz|tbz|tbz2|txz|tar\.[a-z0-9]+)\.[0-9]{3,}$/u.test(lower) ||
+    /\.[0-9][0-9][0-9]+$/u.test(lower) ||
     /\.[zr][0-9][0-9]$/u.test(lower) ||
     /\.part[0-9]+\.rar$/u.test(lower) ||
-    endsWithAny([".7z", ".rar", ".jar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"])
+    endsWithAny([".7z", ".rar", ".jar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"]) ||
+    (!readArchive &&
+      endsWithAny([
+        ".gz",
+        ".xz",
+        ".bz2",
+        ".zst",
+        ".lz",
+        ".lzma",
+        ".lz4",
+        ".cab",
+        ".lzh",
+        ".ace",
+        ".cpio",
+        ".iso",
+        ".img",
+        ".love",
+      ]))
   )
     return [];
   if (endsWithAny([".exe", ".msi", ".msix", ".appx", ".msixbundle", ".appxbundle"])) return windows;
@@ -2776,7 +2863,24 @@ export function gateFormPlatforms(name: string): string[] {
       "version",
       "manifest",
       "makefile",
-    ].includes(lower)
+      "news",
+      "todo",
+      "install",
+      "dockerfile",
+      "hashes",
+      "signatures",
+      "sha1sum",
+      "sha256sum",
+      "sha512sum",
+      "md5sum",
+      "gpl-2.0",
+      "gpl-3.0",
+      "lgpl-2.1",
+      "lgpl-3.0",
+      "agpl-3.0",
+    ].includes(lower) ||
+    // `LICENSE-MIT`, `COPYING.LESSER`, `README.markdown`, `changelog_2026`.
+    /^(license|licence|copying|readme|changelog|changes|notice|authors)([-._]|$)/u.test(lower)
   )
     return [];
   // Any other name without a short extension is a bare binary.

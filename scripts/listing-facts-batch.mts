@@ -1701,6 +1701,11 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
   // Repositories several identities name: each stays `shared-repository`
   // until a reviewed release-line binding exists.
   const shared = sizes(queues.shared_repositories);
+  // Enrolled identities whose release also ships a form for a platform it
+  // offers no archive for: each is listed for a person to review.
+  const review = Array.isArray(queues.enrolled_beside_unoffered_forms)
+    ? queues.enrolled_beside_unoffered_forms.filter((id): id is string => typeof id === "string")
+    : [];
   const table = (title: string, rows: readonly (readonly [string, number])[]) =>
     rows.length
       ? [
@@ -1726,6 +1731,10 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
         `Repositories named by more than one identity (${shared.length}; ${shared.reduce((sum, [, count]) => sum + count, 0)} identities; top ${top})`,
         shared.slice(0, top),
       ),
+      `### Enrolled beside another package form for a platform without an archive (review: ${review.length})`,
+      "",
+      ...(review.length ? review.map((id) => `- \`${id}\``) : ["None."]),
+      "",
     ].join("\n"),
     counts: {
       reasons: Object.fromEntries(reasons),
@@ -1733,6 +1742,7 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
       exclusions: Object.fromEntries(sizes(queues.exclusions)),
       refusals: Object.fromEntries(refusals),
       shared_repositories: Object.fromEntries(shared),
+      enrolled_beside_unoffered_forms: review.length,
     },
   };
 }

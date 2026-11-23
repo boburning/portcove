@@ -2869,13 +2869,17 @@ void test("release lines err toward one line for version noise and different lin
     // major versions this way is `ambiguous-release-line`: an honest exclusion.
     ["sm-1", "owner/spider-game", "sm-1"],
     ["sm-2", "owner/spider-game", "sm-2"],
-    // After words spelling the repository's own name a final number is the
-    // version, so `proj-3` and `proj-4` on `proj` are one (main) line (R8).
-    ["sm-1", "owner/sm", ""],
-    ["proj-3", "owner/proj", ""],
-    ["proj-4", "owner/proj", ""],
-    ["proj-4-win64", "owner/proj", ""],
-    ["my-proj-3", "owner/my-proj", ""],
+    // The repository's own name does not change that: on `sm`, `sm-1` and
+    // `sm-2` are still two lines, so a listing for game 1 never enrolls game
+    // 2's release. A repository tagging major versions `<repo>-N` is
+    // `ambiguous-release-line` unless the listing binds its release.
+    ["sm-1", "owner/sm", "sm-1"],
+    ["sm-2", "owner/sm", "sm-2"],
+    ["sm-1-v1.0", "owner/sm", "sm-1"],
+    ["proj-3", "owner/proj", "proj-3"],
+    ["proj-4", "owner/proj", "proj-4"],
+    ["proj-4-win64", "owner/proj", "proj-4"],
+    ["my-proj-3", "owner/my-proj", "my-proj-3"],
     ["proj-64-v1", "owner/proj", "proj-64"],
     ["proj2-3", "owner/proj", "proj2-3"],
     // Version-shaped product words still make lines of their own: honest exclusions.
@@ -3065,12 +3069,12 @@ void test("final short numbers and version-shaped product words keep products ap
       published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
       packaged: true,
     }));
-  const id = "sm-decomp";
+  const id = "sm";
   const window = (tags: string[]) =>
     entry([artifact()], { tag: tags.at(-1)!, release_id: 7 + tags.length - 1 }, id, {
       observed_releases: releases(tags),
     });
-  // On repository `fixture-owner/sm-decomp`, `sm-1` and `sm-2` may be two games:
+  // On repository `fixture-owner/sm`, `sm-1` and `sm-2` may be two games:
   // the newest (game 2) is never enrolled for an unbound listing.
   for (const tags of [
     ["sm-1", "sm-2"],
@@ -3091,7 +3095,7 @@ void test("final short numbers and version-shaped product words keep products ap
     assert.ok(decide(listing(id), window(tags)).fit, tags.join());
   // A listing bound to `sm-2` is read on that line and enrolls.
   const bound = listing(id, {
-    release_url: "https://github.com/fixture-owner/sm-decomp/releases/tag/sm-2",
+    release_url: "https://github.com/fixture-owner/sm/releases/tag/sm-2",
   });
   const two = window(["sm-1", "sm-2"]);
   assert.ok(decide(bound, two).fit);
@@ -3101,16 +3105,23 @@ void test("final short numbers and version-shaped product words keep products ap
   const forged = structuredClone(generation);
   forged.records = [listing(id)];
   assert.throws(() => gateGeneration(null, forged), /release line is ambiguous/u);
-  // On a repository named `sm` itself, `sm-1` and `sm-2` are its own major
-  // versions: one main line, and the newest enrolls (R8).
-  const ownName = entry([artifact()], { tag: "sm-2", release_id: 8 }, "sm", {
-    observed_releases: releases(["sm-1", "sm-2"]),
+  // A final number after words spelling the repository's own name is not
+  // read as a version: on repository `proj`, `proj-3` and `proj-4` stay two
+  // lines, so the unbound listing is excluded and the gate refuses a forged
+  // enrollment of the newest.
+  const ownName = entry([artifact()], { tag: "proj-4", release_id: 8 }, "proj", {
+    observed_releases: releases(["proj-3", "proj-4"]),
   });
-  assert.ok(decide(listing("sm"), ownName).fit);
-  assert.equal(
-    gateGeneration(null, generateRegistrations([listing("sm")], table(ownName))).added.length,
-    1,
-  );
+  assert.equal(reasonOf(decide(listing("proj"), ownName)), "ambiguous-release-line");
+  const boundOwn = listing("proj", {
+    release_url: "https://github.com/fixture-owner/proj/releases/tag/proj-4",
+  });
+  assert.ok(decide(boundOwn, ownName).fit);
+  const ownGeneration = generateRegistrations([boundOwn], table(ownName));
+  assert.equal(gateGeneration(null, ownGeneration).added.length, 1);
+  const forgedOwn = structuredClone(ownGeneration);
+  forgedOwn.records = [listing("proj")];
+  assert.throws(() => gateGeneration(null, forgedOwn), /release line is ambiguous/u);
 });
 
 void test("two different archives for one platform are ambiguous even with one program name (D3)", () => {
@@ -3338,11 +3349,64 @@ void test("another package form competing with an offered archive excludes the i
   ];
   narrowed.enrollments[0]!.facts_sha256 = digestOf(narrowed.facts.entries[0]);
   assert.throws(() => gateGeneration(null, narrowed), /another package for windows-x86-64/u);
+  // A `.dmg` forged beside an enrolled macOS zip is refused by the gate, which
+  // names the `.dmg`'s platforms itself, even when recorded with none (Y5).
+  const macListing = listing(unseen, { platforms: ["macos-aarch64"] });
+  const universal = player("Unseen.app/Contents/MacOS/Unseen", "macho-universal-arm64+x86-64");
+  const macGeneration = generateRegistrations(
+    [macListing],
+    table(entry([artifact(macZip, [universal], 13)])),
+  );
+  assert.equal(gateGeneration(null, macGeneration).added.length, 1);
+  for (const recorded of [["macos-x86-64", "macos-aarch64"], []]) {
+    const forged = structuredClone(macGeneration);
+    forged.facts.entries[0]!.other_packages = [other(sha("dmg-bytes"), "Unseen.dmg", recorded)];
+    forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+    assert.throws(
+      () => gateGeneration(null, forged),
+      /another package for macos-aarch64 \(Unseen\.dmg\)/u,
+    );
+  }
   // Two-platform enrollments: the gate passes the `.dmg` release and refuses
   // a Linux-only enrollment forged over the Setup.exe and generator releases,
   // whichever platform the enrollment names.
   const twoPlatforms = generateRegistrations([both2], table(dmg));
   assert.equal(gateGeneration(null, twoPlatforms).added.length, 1);
+  // The `.dmg` serves only a platform without an offered archive, so it is
+  // ignored by the rule; the enrollment is listed for review instead (Y6).
+  assert.deepEqual(registrationQueues(twoPlatforms).enrolled_beside_unoffered_forms, [unseen]);
+  assert.deepEqual(registrationQueues(generation).enrolled_beside_unoffered_forms, []);
+  // A Windows installer beside a Linux-named tarball: the installer serves
+  // only Windows, where no archive is offered, so the Linux program enrolls —
+  // whatever it is — and is listed for review (residual f).
+  const installerAndTarball = entry([artifact(linuxTar, [linuxGame], 12)], {}, unseen, {
+    other_packages: [other(sha("setup-bytes"))],
+  });
+  const linuxOnly = listing(unseen, { platforms: ["linux-x86-64"] });
+  const installerGeneration = generateRegistrations([linuxOnly], table(installerAndTarball));
+  assert.equal(installerGeneration.enrollments.length, 1);
+  assert.deepEqual(registrationQueues(installerGeneration).enrolled_beside_unoffered_forms, [
+    unseen,
+  ]);
+  // Beside a neutral-named archive, which permits every platform, the same
+  // installer competes on Windows and the whole identity is excluded.
+  assert.equal(
+    reasonOf(
+      decide(
+        linuxOnly,
+        entry([artifact(neutralZip, [linuxGame], 12)], {}, unseen, {
+          other_packages: [other(sha("setup-bytes"))],
+        }),
+      ),
+    ),
+    "other-package-form-beside-archive",
+  );
+  // An excluded identity is not listed: the queue holds enrollments only.
+  assert.deepEqual(
+    registrationQueues(generateRegistrations([both2], table(setupAndLinux)))
+      .enrolled_beside_unoffered_forms,
+    [],
+  );
   for (const [facts, name] of [
     [setupAndLinux, "Unseen-Setup.exe"],
     [generatorRelease, "Install-Game.exe"],
@@ -3447,6 +3511,28 @@ void test("release file names are classified as other package forms by fit and g
     ["libgame.so.1.2.3", undefined, []],
     ["game.dll", undefined, []],
     ["libgame.dylib", undefined, []],
+    // Documentation names with suffixes and other non-program names (Y4).
+    ["COPYING.LESSER", undefined, []],
+    ["README.markdown", undefined, []],
+    ["readme_first", undefined, []],
+    ["LICENSE-MIT", undefined, []],
+    ["Licence-Apache", undefined, []],
+    ["Changelog_2026", undefined, []],
+    ["CHANGES", undefined, []],
+    ["NOTICE-THIRD-PARTY", undefined, []],
+    ["AUTHORS", undefined, []],
+    ["NEWS", undefined, []],
+    ["TODO", undefined, []],
+    ["INSTALL", undefined, []],
+    ["CHANGELOG", undefined, []],
+    ["Dockerfile", undefined, []],
+    ["hashes", undefined, []],
+    ["signatures", undefined, []],
+    ["sha256sum", undefined, []],
+    ["sha1sum", undefined, []],
+    ["md5sum", undefined, []],
+    ["sha512sum", undefined, []],
+    ["gpl-3.0", undefined, []],
     // Read archives and non-desktop packages are not other package forms.
     ["Game-v1.0-windows-x64.zip", undefined, []],
     ["Game.app.zip", undefined, []],
@@ -3474,7 +3560,13 @@ void test("release file names are classified as other package forms by fit and g
     ["Game.aarch64", "linux", L],
     ["Game", "linux", L],
     ["Game-v1.0-linux", "linux", L],
-    ["Game.exe.001", "linux", L],
+    // An apparent extension that is only a version leaves a bare binary (Y4).
+    ["game-v1.0", "linux", L],
+    ["Game.v1.2", "linux", L],
+    ["game.1.2.3", "linux", L],
+    // A documentation word not followed by the end or a separator is a program.
+    ["readmeviewer", "linux", L],
+    ["noticeboard", "linux", L],
     // macOS forms.
     ["Game.dmg", "macos", M],
     ["Game.pkg", "macos", M],
@@ -3489,6 +3581,35 @@ void test("release file names are classified as other package forms by fit and g
     ["Game.z01", "container", []],
     ["Game.r00", "container", []],
     ["Game.part1.rar", "container", []],
+    // Any `.<three or more digits>` ending is a split volume, whatever its
+    // inner extension (Y2): never a Linux bare binary.
+    ["Game.exe.001", "container", []],
+    ["Game-win64.exe.002", "container", []],
+    ["Game.iso.001", "container", []],
+    ["Game.001", "container", []],
+    ["Game.1000", "container", []],
+    // Compressed files, containers and disk images the worker does not read (Y3).
+    ["Game.gz", "container", []],
+    ["Game.xz", "container", []],
+    ["Game.bz2", "container", []],
+    ["Game.zst", "container", []],
+    ["Game.lz", "container", []],
+    ["Game.lzma", "container", []],
+    ["Game.lz4", "container", []],
+    ["Game.tar.lz", "container", []],
+    ["Game.tar.lzma", "container", []],
+    ["Game.tar.lz4", "container", []],
+    ["Game.cab", "container", []],
+    ["Game.lzh", "container", []],
+    ["Game.ace", "container", []],
+    ["Game.cpio", "container", []],
+    ["Game.iso", "container", []],
+    ["Game.img", "container", []],
+    ["Game.love", "container", []],
+    // ...but the read `.tar.gz`, `.tgz` and `.tar.xz` stay read archives.
+    ["Game-linux.tar.gz", undefined, []],
+    ["Game-linux.tgz", undefined, []],
+    ["Game-linux.tar.xz", undefined, []],
   ];
   for (const [name, kind, gate] of rows) {
     assert.equal(otherPackageForm(name), kind, `fit: ${name}`);
@@ -3538,6 +3659,43 @@ void test("release file names are classified as other package forms by fit and g
   forged.facts.entries[0]!.other_packages = recorded.slice(0, 2);
   forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
   assert.throws(() => gateGeneration(null, forged), /Game-win64\.7z\.001/u);
+  // A client zip beside the game's split `.exe` volumes is never enrolled on
+  // Windows: the volumes are containers serving Windows by their name (Y2).
+  const exeVolumes = otherPackagesOf(
+    {
+      id: 2,
+      version: "v1.0",
+      published_at: "2026-10-01T00:00:00Z",
+      provider_prerelease: false,
+      assets_complete: true,
+      malformed_assets: 0,
+      assets: ["Client-win64.zip", "Game-win64.exe.001", "Game-win64.exe.002"].map(
+        (name, index) => ({
+          id: 21 + index,
+          name,
+          url: `https://github.com/fixture-owner/x/releases/download/v1/${index}`,
+          size: 100,
+          sha256: sha(name),
+        }),
+      ),
+    },
+    (name) => (name.includes("win64") ? suggestion("Game-win64.7z") : undefined),
+  );
+  assert.deepEqual(
+    exeVolumes.map((other) => [other.name, other.platforms]),
+    [
+      ["Game-win64.exe.001", W],
+      ["Game-win64.exe.002", W],
+    ],
+  );
+  const client = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+    other_packages: exeVolumes,
+  });
+  assert.equal(reasonOf(decide(listing(), client)), "other-package-form-beside-archive");
+  const forgedClient = structuredClone(generation);
+  forgedClient.facts.entries[0]!.other_packages = exeVolumes;
+  forgedClient.enrollments[0]!.facts_sha256 = digestOf(forgedClient.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, forgedClient), /Game-win64\.exe\.001/u);
 });
 
 void test("the hand-checked correct shapes still enroll (D4 iii)", () => {

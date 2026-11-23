@@ -560,6 +560,10 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
             "generated-route candidates among them",
             sharedCandidates(report.registration_queues).length,
           ),
+          row(
+            "enrolled beside another package form for a platform without an archive (review)",
+            report.registration_queues.enrolled_beside_unoffered_forms.length,
+          ),
         ]
       : []),
   ];
