@@ -63,14 +63,17 @@ export function inspectCatalogSemanticOpportunity(raw: unknown) {
       !/^sha256\/[a-f0-9]{64}\.json$/u.test(definition.definition_target) ||
       definition.policy_target !== `policy/official/${definition.stable_id}.json` ||
       typeof definition.policy_schema !== "number" ||
-      ![1, 2, 3, 4].includes(definition.policy_schema)
+      ![1, 2, 3, 4, 5].includes(definition.policy_schema)
     )
       throw new Error("catalog semantic Core definition/policy identity differs");
+    if ((definition.policy_schema === 5) !== definition.grant_id.startsWith("reviewed-forge-v1-"))
+      throw new Error("catalog semantic forge grant family differs");
     previous = definition.stable_id;
     if (
-      definition.policy_schema <= 2
+      definition.policy_schema <= 2 || definition.policy_schema === 5
         ? definition.launch_target !== null || definition.launch_revision !== null
-        : definition.launch_target !== `policy/official/${definition.stable_id}.launch.json`
+        : definition.launch_target !== `policy/official/${definition.stable_id}.launch.json` ||
+          definition.launch_revision === null
     )
       throw new Error("catalog semantic launch identity differs");
     return {

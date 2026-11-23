@@ -267,7 +267,7 @@ pub(crate) fn compose_verified_definition(
         (None, None) => {}
         _ => return Err(out_of_scope("source authority presence changed")),
     }
-    let mut catalog = Catalog::from_document(document)?;
+    let mut catalog = Catalog::from_indexed_document(document, Some(selected), Some(effective))?;
     catalog.retain_embedded_file_patterns(effective, selected)?;
     catalog.retain_unrelated_upstream_reviews(effective, selected);
     validate_definition_transition(effective, &catalog, selected)?;

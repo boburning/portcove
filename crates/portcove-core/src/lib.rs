@@ -54,6 +54,7 @@ mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
 mod gitlab;
+mod historical_artifacts;
 mod host_preferences;
 mod host_tools;
 mod import_execution;
@@ -62,6 +63,13 @@ mod install;
 mod installed_contract;
 mod installed_mutability;
 mod launch;
+mod launch_paths;
+mod reviewed_launch_contract;
+pub use launch_paths::LaunchPath;
+pub use reviewed_launch_contract::{
+    AssetRules, LaunchPathValue, LaunchValue, LaunchValues, PackageFormat, PrereleaseRule,
+    ReviewedLaunchContractV1,
+};
 #[cfg(windows)]
 mod legacy_cartridge_cleanup;
 mod library;
@@ -127,6 +135,7 @@ mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
+mod psx_tool_artifacts;
 mod quaddicted;
 mod quake_mod_browser;
 #[cfg(feature = "qualification-fixtures")]
@@ -141,6 +150,7 @@ mod relative_file_set;
 mod release;
 mod release_notes;
 mod retained_build;
+mod reviewed_forge;
 mod rom_patch;
 mod route_facts;
 mod runtime;

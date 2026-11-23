@@ -157,25 +157,9 @@ pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
 // Exact historical readers keep their creating contracts. Newer managed
 // recipes for these identities require the same bounded data guard in
 // both independent-definition admission and actual lifecycle operations.
-const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
-
 pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'static str)> {
-    match port_id {
-        "sonic-3-and-knuckles-recomp" => Some(("v0.5.3", LEGACY_PACKAGE)),
-        "sonic-the-hedgehog-recomp" => Some((
-            "v0.6.0",
-            "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-        )),
-        "mega-man-x2-snes-recomp" => Some((
-            "v0.1.4",
-            "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-        )),
-        "super-metroid-recomp" => Some((
-            "v0.3.12",
-            "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
-        )),
-        _ => None,
-    }
+    let row = crate::historical_artifacts::legacy_direct(port_id)?;
+    Some((&row.version, &row.sha256))
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {

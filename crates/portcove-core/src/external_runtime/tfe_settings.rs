@@ -13,7 +13,10 @@ fn invalid() -> PortcoveError {
 }
 
 pub(super) fn validate_declaration(spec: &UserPreparedRuntimeSpec) -> Result<()> {
-    if spec.version != "1.22.420"
+    if spec.version
+        != crate::historical_artifacts::PackageContract::TfeDarkForces122420
+            .package()
+            .version
         || !spec
             .required_mutable_files
             .iter()

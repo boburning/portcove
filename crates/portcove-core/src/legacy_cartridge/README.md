@@ -4,6 +4,9 @@ These frozen reader projections preserve installations created by development
 Core builds before the October 22, 2026 upstream-first reset. They are historical
 compatibility data, never a new artifact grant or a current definition authority.
 New installation, generation, compilation and toolchain acquisition are retired.
+Core's `../historical-artifacts.json` binds each creating port and serialized
+recipe to one frozen reader projection. The reader still compares the retained
+execution projection and checks the original identity.
 
 The five admitted port snapshots are copied from
 `crates/portcove-core/catalog/catalog-current-authoring.json` at
