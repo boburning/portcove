@@ -648,6 +648,44 @@ pub(crate) fn suggest_from_filename(name: &str) -> FilenameSuggestion {
     }
 }
 
+/// Filename roles a route's declared mechanism expects as its game package,
+/// besides the desktop game runtime every route accepts. This is the one table
+/// that widens the role gate, and it is keyed by the declared adapter only.
+///
+/// An upstream-managed setup route installs a package that carries upstream's
+/// own setup program and runs it as explicit preparation, so an extractable
+/// package named for its setup or installer is that route's expected game
+/// package. A self-running installer is never extractable and stays refused.
+fn adapter_expected_package_roles(adapter: crate::AdapterKind) -> &'static [ArtifactRole] {
+    match adapter {
+        crate::AdapterKind::UpstreamManagedSetup => &[ArtifactRole::Installer],
+        _ => &[],
+    }
+}
+
+/// The typed-role gate every release route applies before ranking packages.
+///
+/// A filename that suggests anything other than the desktop game runtime
+/// (installer, builder, compiler, importer, development tool, debug symbols,
+/// source archive, documentation, mobile or console package, dedicated
+/// server, integrity metadata) is held as [`RouteHold::WrongRole`], unless the
+/// declared adapter expects that role for an extractable package. A debug
+/// build is held unless a reviewed hint names its whole filename.
+pub(crate) fn package_role_hold(
+    adapter: crate::AdapterKind,
+    name: &str,
+    can_extract: bool,
+    hints: &[String],
+) -> Option<RouteHold> {
+    let suggestion = suggest_from_filename(name);
+    if suggestion.debug_build && !hints.iter().any(|hint| hint.eq_ignore_ascii_case(name)) {
+        return Some(RouteHold::WrongRole);
+    }
+    let expected = suggestion.role == ArtifactRole::DesktopGameRuntime
+        || (can_extract && adapter_expected_package_roles(adapter).contains(&suggestion.role));
+    (!expected).then_some(RouteHold::WrongRole)
+}
+
 /// Programs in a reviewed package listing that may be the game's player.
 /// Programs under or named as a toolchain, installer, server or development
 /// tool are never player candidates.

@@ -432,11 +432,13 @@ async fn refusal_unsupported_platform_downloads_nothing() {
 }
 
 /// Typed route facts: a checksum list, a mobile or console package and another
-/// host's package are never offered as this host's game. Tool, source and
-/// debug decoys are excluded from the served list (see
-/// `mechanism_fixtures::tool_or_debug_decoy`); each recorded decoy is then
-/// offered alone under this host's name, and the installer (on Windows) and
-/// source-archive cases record an observed, tracked defect.
+/// host's package are never offered as this host's game, and the recorded
+/// installer and source-archive decoys are served beside the game package,
+/// whose own name carries upstream's `setup` token. Each recorded decoy is
+/// then offered alone under this host's name and refused with nothing
+/// downloaded: the source archive, and on Windows the installer, by their role
+/// (#8602); the rest, and the installer where `.exe` is not a package form, by
+/// host or form.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let harness = Harness::new();
@@ -481,36 +483,16 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
         let result = service
             .install(SETUP_PORT, None, None, None, true, |_| {})
             .await;
-        let selected = [format!("{SETUP_REPOSITORY}/releases/download/{tag}/{name}")];
-        if name.ends_with("-source.tar.gz") {
-            // Observed behavior, tracked as a defect (#8602), not a
-            // contract: a source archive that is the only supported archive
-            // is selected and downloaded as the game. The generic package
-            // choice (`release.rs`, `choose_asset_for_variant`) applies the
-            // typed-role gate only for portable adapters. Here it is refused
-            // only because the served bytes are not a TAR, and nothing is
-            // published.
-            let error = result.unwrap_err();
-            assert_eq!(error.code, ErrorCode::Verification, "{name}: {error:?}");
-            assert_eq!(server.downloads(), selected, "{name}");
-        } else if name.contains("-installer-") && cfg!(windows) {
-            // Observed behavior, tracked as a defect (#8602), not a
-            // contract: `.exe` is a supported package form on Windows, and the
-            // same generic choice selects the installer as the game. Only the
-            // selection is pinned here; what install then does with the
-            // misnamed package has not been observed on this branch.
-            assert_eq!(server.downloads(), selected, "{name}: {result:?}");
-            if let Ok(install) = &result {
-                assert_eq!(install.artifact.asset_name, name);
-            }
-            continue;
-        } else {
-            // Checksum list, mobile and console packages, and the installer
-            // where `.exe` is not a supported package form.
-            let error = result.unwrap_err();
-            assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
-            assert!(server.downloads().is_empty(), "{name}");
-        }
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
+        let role_held =
+            name.ends_with("-source.tar.gz") || (name.contains("-installer-") && cfg!(windows));
+        assert_eq!(
+            error.details.get("route_hold").map(String::as_str),
+            role_held.then_some("wrong-role"),
+            "{name}: {error:?}"
+        );
+        assert!(server.downloads().is_empty(), "{name}");
         assert!(
             service.status(SETUP_PORT).unwrap().active.is_none(),
             "{name}"
@@ -576,49 +558,84 @@ async fn refusal_missing_or_moved_original() {
     fs::rename(&moved, &harness.original).unwrap();
 }
 
-/// Observed behavior, tracked as a defect (#8602), not a contract.
-///
-/// A package that lacks its declared setup program installs successfully and
-/// then can never be prepared, so the player gets an installed game that is
-/// permanently waiting for setup. Install qualification only resolves the
-/// game executable (`install.rs`, `InstallQualification` built from
-/// `executable_hints`); the setup program is first resolved when preparation
-/// is planned (`preparation.rs`, `setup_executable_hints` in the plan). The
-/// safety properties asserted here are contract: preparation is refused
-/// before anything runs, nothing is published or journaled, and the
-/// installed package and the player's original are unchanged.
+/// A package that lacks its declared setup program could never be prepared,
+/// so install refuses it (#8602): the setup program is resolved in the staged
+/// package exactly as preparation resolves it, before anything is published or
+/// journaled. With an earlier version installed, that version stays active and
+/// unchanged; the player's original is untouched.
 #[tokio::test]
-async fn observed_setupless_package_installs_but_cannot_be_prepared() {
+async fn refusal_setupless_package_publishes_nothing() {
     let harness = Harness::new();
-    let mut setupless = harness.package("v2.0.0", "success");
-    setupless.bytes = fixture::zip(&[(
-        fixture::game_program(host()),
-        b"inert upstream-setup game".to_vec(),
-        true,
-    )]);
-    let server = ReleaseServer::start(SETUP_REPOSITORY, "upstream_setup", vec![setupless]);
+    let setupless = |tag: &str| {
+        let mut package = harness.package(tag, "success");
+        package.bytes = fixture::zip(&[(
+            fixture::game_program(host()),
+            b"inert upstream-setup game".to_vec(),
+            true,
+        )]);
+        package
+    };
+    let assert_refused = |error: PortcoveError| {
+        assert_eq!(error.code, ErrorCode::Verification, "{error:?}");
+        assert!(
+            error
+                .message
+                .contains("does not contain the setup program this game needs"),
+            "{error:?}"
+        );
+        assert_eq!(
+            error
+                .details
+                .get("expected_setup_program")
+                .map(String::as_str),
+            Some(fixture::setup_program(host()).as_str())
+        );
+    };
+    let server = ReleaseServer::start(
+        SETUP_REPOSITORY,
+        "upstream_setup",
+        vec![setupless("v2.0.0")],
+    );
     let document = fixture::document();
     let service = harness.service(&server, &document, None);
     harness.register_original(&service);
-    // Observed (tracked defect): install accepts the package.
-    let installed = service
+    let error = service
         .install(SETUP_PORT, None, None, None, true, |_| {})
         .await
-        .unwrap();
-    let before = fixture::tree(&installed.path);
-    let error = prepare(&service).unwrap_err();
-    assert!(
-        error.message.contains("setup executable"),
-        "preparation is refused while resolving the setup program: {error:?}"
+        .unwrap_err();
+    assert_refused(error);
+    assert!(service.status(SETUP_PORT).unwrap().active.is_none());
+    assert!(fixture::tree(&harness.library.versions_dir()).is_empty());
+    assert!(no_journals(&harness.library));
+    harness.assert_original_untouched();
+    drop(service);
+
+    // An update to a setupless package keeps the prepared version active.
+    let server = ReleaseServer::start_with_releases(
+        SETUP_REPOSITORY,
+        harness.only("v1.0.0"),
+        vec![harness.package("v1.0.0", "success")],
     );
-    assert_eq!(fixture::tree(&installed.path), before, "{error:?}");
-    assert_eq!(
-        service.status(SETUP_PORT).unwrap().active.unwrap().id,
-        installed.id
+    let (service, _, prepared) = install_and_prepare(&harness, &server, &document).await;
+    drop(service);
+    let before = fixture::tree(&prepared.path);
+    let server = ReleaseServer::start(
+        SETUP_REPOSITORY,
+        "upstream_setup",
+        vec![setupless("v2.0.0")],
     );
-    assert!(pending_setup(&service));
-    assert!(service.prepare_launch(SETUP_PORT, None).is_err());
-    assert!(no_journals(&harness.library), "{error:?}");
+    let service = harness.service(&server, &document, None);
+    let error = service
+        .update(SETUP_PORT, None, None, true, |_| {})
+        .await
+        .unwrap_err();
+    assert_refused(error);
+    let status = service.status(SETUP_PORT).unwrap();
+    assert_eq!(status.active.unwrap().id, prepared.id);
+    assert_eq!(fixture::tree(&prepared.path), before);
+    assert!(!pending_setup(&service));
+    service.prepare_launch(SETUP_PORT, None).unwrap();
+    assert!(no_journals(&harness.library));
     harness.assert_original_untouched();
 }
 
@@ -712,14 +729,18 @@ enum AfterRecovery {
     /// The verified prepared installation was journaled as `Prepared` or
     /// later: recovery finishes publication and registration
     /// (`recovery.rs`, `recover_published_install`), so the prepared copy is
-    /// active, the unprepared installation becomes previous, and no journal or
-    /// private work remains.
+    /// active and no journal or private work remains. The rollback version is
+    /// the last working version: on a first install, with nothing earlier,
+    /// the unprepared installation; after an update, the previous prepared
+    /// version, never the update's own unprepared package (#8602).
     Published,
 }
 
 /// A crash at each preparation boundary resolves on restart to exactly one
 /// expected state, never a mixture, with player progress and the original
-/// intact. Faults are deterministic, so each point has one outcome.
+/// intact. Faults are deterministic, so each point has one outcome. Every
+/// point runs for a first install and for an update whose previous version
+/// is prepared.
 #[tokio::test]
 async fn interrupted_preparation_recovers_with_player_data_intact() {
     use AfterRecovery::{Published, Unpublished};
@@ -758,120 +779,173 @@ async fn interrupted_preparation_recovers_with_player_data_intact() {
         (LifecycleFaultPoint::PreparationPublished, Published),
         (LifecycleFaultPoint::PreparationRegistered, Published),
     ] {
-        let context = format!("{point:?}");
-        let harness = Harness::new();
-        let server = ReleaseServer::start(
+        for update in [false, true] {
+            interrupted_preparation_case(point, expected, update).await;
+        }
+    }
+}
+
+async fn interrupted_preparation_case(
+    point: LifecycleFaultPoint,
+    expected: AfterRecovery,
+    update: bool,
+) {
+    let context = format!("{point:?} update={update}");
+    let harness = Harness::new();
+    let document = fixture::document();
+    // After an update, the last working version is the prepared earlier one.
+    let last_working = if update {
+        let server = ReleaseServer::start_with_releases(
             SETUP_REPOSITORY,
-            "upstream_setup",
-            vec![harness.package("v2.0.0", "success")],
+            harness.only("v1.0.0"),
+            vec![harness.package("v1.0.0", "success")],
         );
-        let document = fixture::document();
-        let service = harness.service(&server, &document, None);
+        let (service, _, prepared_v1) = install_and_prepare(&harness, &server, &document).await;
+        play_once(&service, &prepared_v1, b"player progress");
+        Some(prepared_v1)
+    } else {
+        None
+    };
+    let server = ReleaseServer::start(
+        SETUP_REPOSITORY,
+        "upstream_setup",
+        vec![harness.package("v2.0.0", "success")],
+    );
+    let service = harness.service(&server, &document, None);
+    let installed = if update {
+        service
+            .update(SETUP_PORT, None, None, true, |_| {})
+            .await
+            .unwrap()
+    } else {
         harness.register_original(&service);
         let installed = service
             .install(SETUP_PORT, None, None, None, true, |_| {})
             .await
             .unwrap();
         write_save(&installed, b"player progress");
-        let installed_tree = fixture::tree(&installed.path);
-        drop(service);
-        let faulted = harness.service(&server, &document, Some(point));
-        let error = prepare(&faulted).unwrap_err();
-        assert!(
-            error.message.contains("injected mechanism fault"),
-            "{context}: {error:?}"
-        );
-        drop(faulted);
+        installed
+    };
+    let installed_tree = fixture::tree(&installed.path);
+    drop(service);
+    let faulted = harness.service(&server, &document, Some(point));
+    let error = prepare(&faulted).unwrap_err();
+    assert!(
+        error.message.contains("injected mechanism fault"),
+        "{context}: {error:?}"
+    );
+    drop(faulted);
 
-        let restarted = harness.service(&server, &document, None);
-        restarted.recover_pending_operations().unwrap();
-        let status = restarted.status(SETUP_PORT).unwrap();
-        let active = status.active.clone().unwrap();
-        assert!(restarted.verify(SETUP_PORT).unwrap().valid, "{context}");
-        // The installed package is never changed by preparation or recovery.
-        assert_eq!(fixture::tree(&installed.path), installed_tree, "{context}");
-        assert!(!installed.path.join(SETUP_MARKER).exists(), "{context}");
-        harness.assert_original_untouched();
-        match expected {
-            Unpublished {
+    let restarted = harness.service(&server, &document, None);
+    restarted.recover_pending_operations().unwrap();
+    let status = restarted.status(SETUP_PORT).unwrap();
+    let active = status.active.clone().unwrap();
+    let previous = status.previous.as_ref().map(|install| install.id.clone());
+    assert!(restarted.verify(SETUP_PORT).unwrap().valid, "{context}");
+    // The installed package is never changed by preparation or recovery.
+    assert_eq!(fixture::tree(&installed.path), installed_tree, "{context}");
+    assert!(!installed.path.join(SETUP_MARKER).exists(), "{context}");
+    harness.assert_original_untouched();
+    match expected {
+        AfterRecovery::Unpublished {
+            staging_exists,
+            quiesced,
+        } => {
+            assert_eq!(active.id, installed.id, "{context}");
+            assert_eq!(
+                previous,
+                last_working.as_ref().map(|install| install.id.clone()),
+                "{context}"
+            );
+            assert!(pending_setup(&restarted), "{context}");
+            let journals = OperationStore::new(harness.library.clone()).all().unwrap();
+            assert_eq!(journals.len(), 1, "{context}");
+            let journal = &journals[0];
+            assert_eq!(
+                journal.phase,
+                crate::operation::LifecyclePhase::Preparing,
+                "{context}"
+            );
+            assert_eq!(
+                journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .is_some_and(|path| path.is_dir()),
                 staging_exists,
-                quiesced,
-            } => {
-                assert_eq!(active.id, installed.id, "{context}");
-                assert!(status.previous.is_none(), "{context}");
-                assert!(pending_setup(&restarted), "{context}");
-                let journals = OperationStore::new(harness.library.clone()).all().unwrap();
-                assert_eq!(journals.len(), 1, "{context}");
-                let journal = &journals[0];
-                assert_eq!(
-                    journal.phase,
-                    crate::operation::LifecyclePhase::Preparing,
-                    "{context}"
-                );
-                assert_eq!(
-                    journal
-                        .paths
-                        .staging
-                        .as_ref()
-                        .is_some_and(|path| path.is_dir()),
-                    staging_exists,
-                    "{context}"
-                );
-                // A retry succeeds beside the retained work; reviewed cleanup
-                // then removes only that work.
-                let retried = prepare(&restarted).unwrap();
-                assert!(!pending_setup(&restarted), "{context}");
-                assert_eq!(
-                    fs::read(retried.path.join(SETUP_SAVE)).unwrap(),
-                    b"player progress",
-                    "{context}"
-                );
-                review_and_clean_retained_preparation(&restarted, &context, quiesced);
-                assert_eq!(
-                    restarted.status(SETUP_PORT).unwrap().active.unwrap().id,
-                    retried.id,
-                    "{context}"
-                );
-                assert!(retried.path.join(SETUP_MARKER).is_file(), "{context}");
-            }
-            Published => {
-                assert_ne!(active.id, installed.id, "{context}");
-                assert_eq!(active.artifact, installed.artifact, "{context}");
-                assert_eq!(status.previous.unwrap().id, installed.id, "{context}");
-                assert!(!pending_setup(&restarted), "{context}");
-                assert!(active.path.join(SETUP_MARKER).is_file(), "{context}");
-                assert!(
-                    active.path.join(crate::preparation::RECEIPT_FILE).is_file(),
-                    "{context}"
-                );
-                assert_eq!(
-                    fs::read(active.path.join(SETUP_SAVE)).unwrap(),
-                    b"player progress",
-                    "{context}"
-                );
-                assert!(no_journals(&harness.library), "{context}");
-                restarted.prepare_launch(SETUP_PORT, None).unwrap();
-            }
+                "{context}"
+            );
+            // A retry succeeds beside the retained work; reviewed cleanup
+            // then removes only that work.
+            let retried = prepare(&restarted).unwrap();
+            assert!(!pending_setup(&restarted), "{context}");
+            review_and_clean_retained_preparation(&restarted, &context, quiesced);
+            restarted.prepare_launch(SETUP_PORT, None).unwrap();
+            assert_eq!(
+                fs::read(retried.path.join(SETUP_SAVE)).unwrap(),
+                b"player progress",
+                "{context}"
+            );
+            let status = restarted.status(SETUP_PORT).unwrap();
+            assert_eq!(status.active.unwrap().id, retried.id, "{context}");
+            assert_eq!(
+                status.previous.unwrap().id,
+                last_working.as_ref().unwrap_or(&installed).id,
+                "{context}"
+            );
+            assert!(retried.path.join(SETUP_MARKER).is_file(), "{context}");
         }
+        AfterRecovery::Published => {
+            assert_ne!(active.id, installed.id, "{context}");
+            assert_eq!(active.artifact, installed.artifact, "{context}");
+            assert_eq!(
+                previous.as_deref(),
+                Some(last_working.as_ref().unwrap_or(&installed).id.as_str()),
+                "{context}"
+            );
+            assert!(!pending_setup(&restarted), "{context}");
+            assert!(active.path.join(SETUP_MARKER).is_file(), "{context}");
+            assert!(
+                active.path.join(crate::preparation::RECEIPT_FILE).is_file(),
+                "{context}"
+            );
+            assert!(no_journals(&harness.library), "{context}");
+            restarted.prepare_launch(SETUP_PORT, None).unwrap();
+            assert_eq!(
+                fs::read(active.path.join(SETUP_SAVE)).unwrap(),
+                b"player progress",
+                "{context}"
+            );
+        }
+    }
+    if let Some(prepared_v1) = &last_working {
+        // Rollback reaches the last working version, launchable and with the
+        // player's progress, whichever state recovery reached.
+        let rolled_back = restarted.rollback(SETUP_PORT).unwrap();
+        assert_eq!(rolled_back.id, prepared_v1.id, "{context}");
+        assert!(!pending_setup(&restarted), "{context}");
+        restarted.prepare_launch(SETUP_PORT, None).unwrap();
+        assert_eq!(
+            fs::read(prepared_v1.path.join(SETUP_SAVE)).unwrap(),
+            b"player progress",
+            "{context}"
+        );
     }
 }
 
 /// Update never runs setup and leaves the previous prepared copy and the
 /// player's progress intact; the new package needs its own preparation.
 ///
-/// The rollback part records observed behavior, tracked as a defect
-/// (#8602), not a contract. After update and preparation, rollback
-/// activates the unprepared v2 package that the preparation was derived from:
-/// that copy cannot be launched, and the last working version (prepared v1)
-/// is no longer reachable by rollback. Publishing a prepared copy records the
-/// copy it was derived from as the rollback version
-/// (`library.rs`, `register_prepared_install`, `previous_install_id`), and
-/// rollback is a single-slot swap of active and previous
-/// (`library.rs`, `Library::rollback`). The safety properties asserted here
-/// are contract: nothing the upstream setup or the player owns is deleted and
-/// collected progress is kept.
+/// After update and preparation, rollback returns to the last working version
+/// (#8602): publishing prepared v2 keeps prepared v1 as the rollback version
+/// because the replaced active installation was the preparation's own
+/// unprepared source (`library.rs`, `register_prepared_install`). Rollback
+/// then swaps between the two prepared versions. The unprepared v2 package
+/// stays tracked like any superseded installation and is removed with the
+/// port; nothing the upstream setup or the player owns is deleted, collected
+/// progress is kept, and player data follows the active version.
 #[tokio::test]
-async fn update_needs_its_own_preparation_and_observed_rollback_reaches_unprepared_package() {
+async fn update_needs_its_own_preparation_and_rollback_reaches_the_last_working_version() {
     let harness = Harness::new();
     let document = fixture::document();
     let server = ReleaseServer::start_with_releases(
@@ -918,36 +992,55 @@ async fn update_needs_its_own_preparation_and_observed_rollback_reaches_unprepar
         fs::read(prepared_v2.path.join(SETUP_SAVE)).unwrap(),
         b"player progress"
     );
+    play_once(&service, &prepared_v2, b"progress from v2");
 
-    // Observed (tracked defect): publishing prepared v2 replaced prepared v1
-    // as the rollback version with the unprepared v2 package.
+    // Publishing prepared v2 kept prepared v1 as the rollback version.
     let status = service.status(SETUP_PORT).unwrap();
-    assert_eq!(status.previous.as_ref().unwrap().id, v2.id);
+    assert_eq!(status.active.as_ref().unwrap().id, prepared_v2.id);
+    assert_eq!(status.previous.as_ref().unwrap().id, prepared_v1.id);
     let rolled_back = service.rollback(SETUP_PORT).unwrap();
-    assert_eq!(rolled_back.id, v2.id);
-    assert!(pending_setup(&service));
-    assert!(service.prepare_launch(SETUP_PORT, None).is_err());
-    // Rolling back again only returns to prepared v2; prepared v1 is never
-    // offered again.
+    assert_eq!(rolled_back.id, prepared_v1.id);
+    assert!(!pending_setup(&service));
+    let spec = service.prepare_launch(SETUP_PORT, None).unwrap();
+    assert!(fixture::within(&spec.executable, &prepared_v1.path));
+    // Player data follows the active version.
+    assert_eq!(
+        fs::read(prepared_v1.path.join(SETUP_SAVE)).unwrap(),
+        b"progress from v2"
+    );
+    assert_eq!(
+        service.status(SETUP_PORT).unwrap().previous.unwrap().id,
+        prepared_v2.id
+    );
+
+    // Rolling back again returns to prepared v2.
     let restored = service.rollback(SETUP_PORT).unwrap();
     assert_eq!(restored.id, prepared_v2.id);
     assert_eq!(
         service.status(SETUP_PORT).unwrap().previous.unwrap().id,
-        v2.id
+        prepared_v1.id
     );
-
-    // Contract: nothing is deleted and progress is kept throughout.
     assert!(!pending_setup(&service));
-    service.prepare_launch(SETUP_PORT, None).unwrap();
+    let spec = service.prepare_launch(SETUP_PORT, None).unwrap();
+    assert!(fixture::within(&spec.executable, &prepared_v2.path));
+
+    // Nothing is deleted and progress is kept throughout; the unprepared v2
+    // package stays tracked for removal.
     for copy in [&prepared_v1, &prepared_v2] {
         assert!(copy.path.join(SETUP_MARKER).is_file());
-        assert_eq!(
-            fs::read(copy.path.join(SETUP_SAVE)).unwrap(),
-            b"player progress"
-        );
     }
+    assert_eq!(
+        fs::read(prepared_v2.path.join(SETUP_SAVE)).unwrap(),
+        b"progress from v2"
+    );
     assert!(v2.path.is_dir());
-    assert_eq!(fs::read(user.join(SETUP_SAVE)).unwrap(), b"player progress");
+    assert!(
+        harness
+            .library
+            .port_install_paths(SETUP_PORT)
+            .unwrap()
+            .contains(&v2.path)
+    );
     harness.assert_original_untouched();
     assert!(no_journals(&harness.library));
 }

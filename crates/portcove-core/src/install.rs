@@ -119,6 +119,9 @@ pub struct InstallQualification {
     reviewed_package_format: Option<crate::PackageFormat>,
     native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
+    /// The setup program a managed preparation route runs on this host. A new
+    /// package must contain it before publication (#8602).
+    setup_executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     external_profile_policy: Option<crate::ExternalProfilePolicy>,
     persistent_paths: Vec<String>,
@@ -324,6 +327,14 @@ impl InstallQualification {
             reviewed_package_format: port.reviewed_package_format(platform),
             native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
+            setup_executable_hints: if crate::preparation::managed(port) {
+                port.setup_executable_hints
+                    .get(&platform)
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            },
             runtime_subdirectory: port.runtime_subdirectory_for(platform).map(str::to_owned),
             external_profile_policy: port.external_profile_policy,
             persistent_paths: crate::persistence::declared_paths(port, platform).to_vec(),
@@ -1808,6 +1819,7 @@ impl Installer {
                     )?;
                 }
             }
+            require_declared_setup_program(port, &payload_root, &request.qualification)?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -5686,6 +5698,44 @@ pub(crate) fn resolve_declared_executable(
         _ => {}
     }
     Ok(executable)
+}
+
+/// A managed preparation route runs the setup program its package declares.
+/// Resolve it in the staged package exactly as preparation will, so a package
+/// that could never be prepared is refused before anything is published.
+fn require_declared_setup_program(
+    port: &PortDefinition,
+    payload_root: &Path,
+    qualification: &InstallQualification,
+) -> Result<()> {
+    if qualification.setup_executable_hints.is_empty() {
+        return Ok(());
+    }
+    let selected = resolve_declared_executable(payload_root, qualification)?;
+    let working = crate::adapter::launch_working_directory(
+        port,
+        payload_root,
+        &selected,
+        qualification.platform,
+    )?;
+    resolve_executable_hints(
+        &working,
+        qualification.platform,
+        &qualification.setup_executable_hints,
+        "setup executable",
+    )
+    .map(|_| ())
+    .map_err(|error| {
+        PortcoveError::verification(
+            "This download does not contain the setup program this game needs, so Portcove did not install it. Your current installation is unchanged. Choose another release, or report the missing setup program to the port's maintainers.",
+        )
+        .detail("port_id", &port.id)
+        .detail(
+            "expected_setup_program",
+            qualification.setup_executable_hints.join(", "),
+        )
+        .detail("cause", error.message)
+    })
 }
 
 pub(crate) fn resolve_executable_hints(

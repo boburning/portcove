@@ -4,8 +4,9 @@
 //! replayed over every recorded release fixture in `src/testdata`. A frozen
 //! copy of the selection logic from before typed roles (verbatim from `main`
 //! at d27d2fbb3, renamed with a `legacy_` prefix) is compared with the typed
-//! path. Differences are allowed only for the two named defects and every one
-//! is listed below with its reason.
+//! path. Differences are allowed only for the named defects (wrong host,
+//! foreign-only release and, since #8602, wrong role) and every one is listed
+//! below with its reason.
 
 use std::collections::BTreeSet;
 
@@ -581,6 +582,30 @@ enum Defect {
     /// another host, or tied with one: removing those packages yields the
     /// typed choice.
     WrongHostPackage,
+    /// Legacy selection chose a package whose filename-suggested role the
+    /// typed-role gate holds for this port's adapter (installer, builder,
+    /// compiler, importer, development tool, debug build, source archive and
+    /// other non-runtime roles), or tied with one: removing those packages
+    /// (and other hosts' packages) yields the typed choice or refusal (#8602).
+    WrongRolePackage,
+}
+
+/// Whether the typed-role gate holds this asset for this port and host, with
+/// the same extractability the typed choice uses.
+fn role_held(port: &PortDefinition, platform: Platform, name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    let can_extract = port.reviewed_package_format(platform).is_some()
+        || port.release.requires_tar_xz(platform)
+        || [".zip", ".tar.gz", ".tgz"]
+            .iter()
+            .any(|extension| name.ends_with(extension));
+    let hints = port
+        .release
+        .asset_hints
+        .get(&platform)
+        .cloned()
+        .unwrap_or_default();
+    crate::route_facts::package_role_hold(port.adapter, &name, can_extract, &hints).is_some()
 }
 
 /// The fixture records this port's own repository.
@@ -772,8 +797,29 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                             .map(|asset| asset.name.as_str())
                             == new;
                     let new_is_host = new.is_none_or(|name| !legacy_other_host(name, platform));
-                    let defect = (new_is_host && (wrong_host_choice || resolved_tie))
-                        .then_some(Defect::WrongHostPackage);
+                    let wrong_role_choice =
+                        old_name.is_some_and(|name| role_held(port, platform, name));
+                    let runtime_assets = host_assets
+                        .iter()
+                        .filter(|asset| !role_held(port, platform, &asset.name))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let legacy_runtime = legacy_choose_asset(port, platform, &runtime_assets)
+                        .ok()
+                        .map(|asset| asset.name.as_str());
+                    let role_tie = old
+                        .as_ref()
+                        .is_err_and(|error| error.code == crate::ErrorCode::Conflict);
+                    let defect = if new_is_host && (wrong_host_choice || resolved_tie) {
+                        Some(Defect::WrongHostPackage)
+                    } else if new_is_host
+                        && (wrong_role_choice || wrong_host_choice || role_tie)
+                        && legacy_runtime == new
+                    {
+                        Some(Defect::WrongRolePackage)
+                    } else {
+                        None
+                    };
                     record(
                         &release.tag_name,
                         "asset".into(),
