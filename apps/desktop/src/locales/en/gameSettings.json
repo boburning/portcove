@@ -247,9 +247,9 @@
     "recipe": {
       "allowCode": "I allow the exact packages below to run mod code.",
       "checkAllProviders": "Check the provider for every missing mod",
+      "checkedSoFar": "{{done}} of {{total}} mods checked with the provider.",
       "checkProvider": "Check provider for {{name}}",
       "checkStopped": "Stopped at {{name}}. {{reason}} The mods checked before it stay ready, including after a restart.",
-      "checkedSoFar": "{{done}} of {{total}} mods checked with the provider.",
       "close": "Close review",
       "details": "Recipe inputs and details",
       "disabled": "{{name}} is off",

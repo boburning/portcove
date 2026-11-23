@@ -256,9 +256,9 @@
     "recipe": {
       "allowCode": "Permito que los paquetes indicados a continuación ejecuten código de mods.",
       "checkAllProviders": "Buscar en el proveedor todos los mods que faltan",
+      "checkedSoFar": "{{done}} de {{total}} mods comprobados con el proveedor.",
       "checkProvider": "Buscar {{name}} en el proveedor",
       "checkStopped": "Se detuvo en {{name}}. {{reason}} Los mods comprobados antes siguen listos, también tras reiniciar.",
-      "checkedSoFar": "{{done}} de {{total}} mods comprobados con el proveedor.",
       "close": "Cerrar revisión",
       "details": "Archivos y detalles de la receta",
       "disabled": "{{name}} está desactivado",
