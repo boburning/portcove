@@ -1938,6 +1938,15 @@ impl Library {
         Ok(snapshot)
     }
 
+    /// When each port's update check last succeeded, from the durable snapshots.
+    pub(crate) fn update_checked_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement =
+            connection.prepare("SELECT port_id, checked_at FROM update_snapshots")?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
     pub fn update_snapshot(&self, port_id: &str) -> Result<Option<UpdateSnapshot>> {
         let connection = self.connection()?;
         let stored: Option<(String, i64)> = connection

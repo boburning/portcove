@@ -53,6 +53,7 @@ mod game_file_root;
 mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
+mod github_request_budget;
 mod gitlab;
 mod historical_artifacts;
 mod host_preferences;

@@ -129,6 +129,34 @@ pub(crate) const PSX_DATA_RECEIPT: &str = ".portcove-psx-data-restored.json";
 pub(crate) const PSX_DATA_WRITE_PREFIX: &str = ".portcove-psx-data-write-";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
+/// The provider allowance one game's update check draws from.
+enum UpdateCheckAllowance {
+    /// Ordinary GitHub acquisition of this repository, under the player's sign-in.
+    GithubOrdinary(String),
+    /// Managed scoped GitHub acquisition: always anonymous and unconditional.
+    GithubScoped,
+    Other(ReleaseSource),
+}
+
+/// Games whose checks draw from the same allowance; one exhausted allowance defers
+/// only the games that share it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum UpdateCheckAllowanceKey {
+    GithubOrdinary,
+    GithubScoped,
+    Other(ReleaseSource),
+}
+
+impl UpdateCheckAllowance {
+    fn key(&self) -> UpdateCheckAllowanceKey {
+        match self {
+            Self::GithubOrdinary(_) => UpdateCheckAllowanceKey::GithubOrdinary,
+            Self::GithubScoped => UpdateCheckAllowanceKey::GithubScoped,
+            Self::Other(provider) => UpdateCheckAllowanceKey::Other(*provider),
+        }
+    }
+}
+
 struct RollbackTargetFailure {
     reason: PortActionReason,
     error: PortcoveError,
@@ -3585,6 +3613,19 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
+    /// Check several games against their release providers.
+    ///
+    /// Results come back in the caller's order, but work starts with the game whose
+    /// durable last check (`update_snapshots.checked_at` in the library database,
+    /// which survives restart) is oldest, never-checked games first. When a provider
+    /// reports its allowance exhausted or throttles, games of the same provider
+    /// allowance that have not started are not sent: each returns a rate-limit
+    /// failure marked `update_check_deferred`, keeps its previous snapshot and stays
+    /// unknown. Because they keep the oldest snapshots, the next bulk check after
+    /// the reset starts with them, so a large library completes over several
+    /// windows instead of re-checking its first entries. Nothing is retried within
+    /// one call. Ordinary GitHub metadata of a repository several of these games
+    /// name is read once and shared; managed scoped acquisition never shares.
     pub async fn check_updates(
         &self,
         port_ids: impl IntoIterator<Item = String>,
@@ -3598,22 +3639,109 @@ impl PortcoveService {
             .into_iter()
             .map(|port_id| {
                 let status = statuses.get(&port_id).cloned();
-                (port_id, status)
+                let allowance = self.update_check_allowance(&port_id);
+                (port_id, status, allowance)
             })
             .collect::<Vec<_>>();
-        Ok(stream::iter(jobs)
-            .map(|(port_id, status)| async move {
-                let result = self.check_update_with_status(&port_id, status).await;
-                (port_id, result)
-            })
-            .buffered(BULK_PROVIDER_CONCURRENCY)
-            .collect()
-            .await)
+        // Read the raw durable times: a status may hide a snapshot that no longer
+        // describes its current channel, but that game was still checked then.
+        let checked_at = self.library.update_checked_at()?;
+        let mut order = (0..jobs.len()).collect::<Vec<_>>();
+        order.sort_by_key(|&index| (checked_at.get(&jobs[index].0).copied(), index));
+        let mut repository_games = std::collections::HashMap::<String, usize>::new();
+        for (_, _, allowance) in &jobs {
+            if let Some(UpdateCheckAllowance::GithubOrdinary(repository)) = allowance {
+                *repository_games
+                    .entry(repository.to_ascii_lowercase())
+                    .or_default() += 1;
+            }
+        }
+        let shared = crate::github_request_budget::SharedObservations::new(
+            repository_games
+                .into_iter()
+                .filter(|(_, games)| *games > 1)
+                .map(|(repository, _)| repository),
+        );
+        let exhausted = std::sync::Mutex::new(std::collections::HashMap::<
+            UpdateCheckAllowanceKey,
+            PortcoveError,
+        >::new());
+        let exhausted = &exhausted;
+        let jobs = &jobs;
+        let mut results = shared
+            .scope(
+                stream::iter(order)
+                    .map(|index| async move {
+                        let (port_id, status, allowance) = &jobs[index];
+                        let key = allowance.as_ref().map(UpdateCheckAllowance::key);
+                        let deferred = key.as_ref().and_then(|key| {
+                            exhausted
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                                .get(key)
+                                .and_then(crate::failure::deferred_after)
+                        });
+                        let result = match deferred {
+                            Some(error) => Err(error.detail("update_check_deferred", "true")),
+                            None => {
+                                let result =
+                                    self.check_update_with_status(port_id, status.clone()).await;
+                                if let (Err(error), Some(key)) = (&result, key)
+                                    && let Some(deferral) = crate::failure::deferred_after(error)
+                                {
+                                    exhausted
+                                        .lock()
+                                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                                        .entry(key)
+                                        .or_insert(deferral);
+                                }
+                                result
+                            }
+                        };
+                        (index, port_id.clone(), result)
+                    })
+                    .buffered(BULK_PROVIDER_CONCURRENCY)
+                    .collect::<Vec<_>>(),
+            )
+            .await;
+        results.sort_by_key(|(index, _, _)| *index);
+        Ok(results
+            .into_iter()
+            .map(|(_, port_id, result)| (port_id, result))
+            .collect())
+    }
+
+    /// The provider allowance one game's update check draws from, from local state.
+    /// `None` when it cannot be determined; such a check is never deferred.
+    fn update_check_allowance(&self, port_id: &str) -> Option<UpdateCheckAllowance> {
+        let port = self.catalog.port(port_id).ok()?;
+        // An admitted publisher scope sends no credential; a scope that cannot be
+        // established here fails the real check, so it is treated as ordinary.
+        let scoped = crate::definition_repository::publisher_policy::acquisition_scope(
+            &self.library,
+            &self.catalog,
+            &port.id,
+        )
+        .ok()
+        .flatten()
+        .is_some();
+        Some(match (port.release.provider, scoped) {
+            (ReleaseSource::Github, true) => UpdateCheckAllowance::GithubScoped,
+            (ReleaseSource::Github, false) => {
+                UpdateCheckAllowance::GithubOrdinary(port.release.repository.clone())
+            }
+            (provider, _) => UpdateCheckAllowance::Other(provider),
+        })
     }
 
     /// The expected provider cost of checking these games, from local state only (no
     /// network). A caller can compare it with the allowance it knows is left and offer
-    /// sign-in before a check that would not fit; see `UpdateCheckForecast`.
+    /// sign-in before a check that would not fit; see `UpdateCheckForecast`. Counts
+    /// follow the current GitHub sign-in: anonymous conditional reads count, an
+    /// authenticated read with a cached validator is expected to cost nothing. Games
+    /// sharing one repository share its ordinary reads in a bulk check, so the
+    /// repository is counted once (at its costliest game); managed scoped reads are
+    /// never shared and always count.
     pub async fn forecast_update_checks(
         &self,
         port_ids: impl IntoIterator<Item = String>,
@@ -3628,33 +3756,32 @@ impl PortcoveService {
             .collect::<Result<Vec<_>>>()?;
         let (statuses, _) = self.status_rows_with_recommendations(&self.catalog, &ports, false)?;
         let mut forecast = crate::UpdateCheckForecast::default();
+        let mut shared_repositories =
+            std::collections::HashMap::<String, crate::RequestCostForecast>::new();
+        let add = |forecast: &mut crate::UpdateCheckForecast, cost: crate::RequestCostForecast| {
+            forecast.counted_requests = forecast
+                .counted_requests
+                .saturating_add(cost.counted_requests);
+            forecast.sign_in_relief_requests = forecast
+                .sign_in_relief_requests
+                .saturating_add(cost.sign_in_relief_requests);
+        };
         for status in statuses {
             let port = self.catalog.port(&status.port_id)?;
-            // An admitted publisher scope sends no credential; a scope that cannot be
-            // established here fails the real check, so it is treated as ordinary.
-            let scoped = crate::definition_repository::publisher_policy::acquisition_scope(
-                &self.library,
-                &self.catalog,
-                &port.id,
-            )
-            .ok()
-            .flatten()
-            .is_some();
+            let scoped = matches!(
+                self.update_check_allowance(&port.id),
+                Some(UpdateCheckAllowance::GithubScoped)
+            );
+            let mut cost = crate::RequestCostForecast::default();
             // The individual check reports an invalid retained manifest. That
             // failure should not prevent estimating other games in the batch.
             if status.exact_release.is_some()
                 && !scoped
                 && port.release.provider == ReleaseSource::Github
             {
-                let exact = self.releases.forecast_explicit_variant_request_cost();
-                forecast.counted_requests = forecast
-                    .counted_requests
-                    .saturating_add(exact.counted_requests);
-                forecast.sign_in_relief_requests = forecast
-                    .sign_in_relief_requests
-                    .saturating_add(exact.sign_in_relief_requests);
+                cost = self.releases.forecast_explicit_variant_request_cost();
             }
-            let cost = match Self::saved_package_variant(port, status.channel, platform, &status) {
+            let base = match Self::saved_package_variant(port, status.channel, platform, &status) {
                 Ok(Some(variant)) if variant.explicit_id().is_some() && !scoped => {
                     self.releases.forecast_explicit_variant_request_cost()
                 }
@@ -3665,13 +3792,25 @@ impl PortcoveService {
                         .await?
                 }
             };
-            forecast.games = forecast.games.saturating_add(1);
-            forecast.counted_requests = forecast
-                .counted_requests
-                .saturating_add(cost.counted_requests);
-            forecast.sign_in_relief_requests = forecast
+            cost.counted_requests = cost.counted_requests.saturating_add(base.counted_requests);
+            cost.sign_in_relief_requests = cost
                 .sign_in_relief_requests
-                .saturating_add(cost.sign_in_relief_requests);
+                .saturating_add(base.sign_in_relief_requests);
+            forecast.games = forecast.games.saturating_add(1);
+            if port.release.provider == ReleaseSource::Github && !scoped {
+                let shared = shared_repositories
+                    .entry(port.release.repository.to_ascii_lowercase())
+                    .or_default();
+                shared.counted_requests = shared.counted_requests.max(cost.counted_requests);
+                shared.sign_in_relief_requests = shared
+                    .sign_in_relief_requests
+                    .max(cost.sign_in_relief_requests);
+            } else {
+                add(&mut forecast, cost);
+            }
+        }
+        for cost in shared_repositories.into_values() {
+            add(&mut forecast, cost);
         }
         Ok(forecast)
     }
@@ -9968,6 +10107,179 @@ mod tests {
                 .iter()
                 .all(|port_id| calls.iter().filter(|called| *called == port_id).count() == 1)
         );
+    }
+
+    /// A provider whose allowance admits `allowance` resolutions and then answers
+    /// like an exhausted GitHub primary limit until it is reset.
+    struct ExhaustibleReleaseProvider {
+        allowance: AtomicUsize,
+        calls: Mutex<Vec<String>>,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for ExhaustibleReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            // Admit in request order, like a provider counting requests as they arrive.
+            let admitted = {
+                let mut calls = self.calls.lock().unwrap();
+                calls.push(port.id.clone());
+                self.allowance
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                        left.checked_sub(1)
+                    })
+                    .is_ok()
+            };
+            tokio::task::yield_now().await;
+            if !admitted {
+                return Err(PortcoveError::network("GitHub API returned 403 Forbidden")
+                    .with_known_cause(crate::failure::KnownFailureCause::ProviderRequest {
+                        provider: crate::failure::FailureProvider::Github,
+                        status: 403,
+                        rate_limited: true,
+                        resets_at: Some(4_000_000_000),
+                    })
+                    .detail("rate_remaining", "0")
+                    .detail("rate_reset", "4000000000"));
+            }
+            Ok(ResolvedRelease {
+                version: "2.0.0".into(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-2.0.0.zip", port.id),
+                    url: "https://invalid.example/exhaustible.zip".into(),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
+                },
+                uploader_continuity: None,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn bulk_update_checks_retain_unfinished_games_and_resume_them_first() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let provider = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(usize::MAX),
+            calls: Mutex::new(Vec::new()),
+        });
+        // Use games whose check asks the provider about that game alone: a runtime
+        // family game also resolves its shared runtime, which would spend allowance
+        // on another game's behalf and blur what this test counts.
+        let probe = PortcoveService::with_provider(
+            Library::open(temporary.path().join("probe")).unwrap(),
+            provider.clone(),
+        )
+        .unwrap();
+        let mut port_ids = Vec::new();
+        for port in catalog.ports() {
+            if port_ids.len() == 12 {
+                break;
+            }
+            if port.release.provider != ReleaseSource::Github {
+                continue;
+            }
+            provider.calls.lock().unwrap().clear();
+            if probe.check_update(&port.id).await.is_ok()
+                && *provider.calls.lock().unwrap() == [port.id.clone()]
+            {
+                port_ids.push(port.id.clone());
+            }
+        }
+        drop(probe);
+        assert_eq!(port_ids.len(), 12);
+        provider.allowance.store(5, Ordering::SeqCst);
+        provider.calls.lock().unwrap().clear();
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+        assert_eq!(
+            outcomes.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            port_ids.iter().collect::<Vec<_>>(),
+            "results keep the caller's order"
+        );
+        let mut checked = Vec::new();
+        let mut deferred = 0;
+        for (port_id, result) in &outcomes {
+            match result {
+                Ok(_) => checked.push(port_id.clone()),
+                Err(error) => {
+                    // Unknown stays unknown: a rate-limit failure, never "checked".
+                    assert!(crate::failure::is_rate_limited(error), "{error:?}");
+                    assert_eq!(
+                        error.presentation().presentation_key,
+                        "provider_rate_limited"
+                    );
+                    assert!(
+                        service.status(port_id).unwrap().last_update_check.is_none(),
+                        "{port_id} must not be recorded as checked"
+                    );
+                    if error
+                        .details
+                        .get("update_check_deferred")
+                        .map(String::as_str)
+                        == Some("true")
+                    {
+                        deferred += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(checked.len(), 5);
+        // After the first refusal, at most the three checks already in flight were
+        // sent; the rest of the library was retained without asking the provider.
+        let first_calls = provider.calls.lock().unwrap().len();
+        assert!(first_calls <= 5 + 1 + 3, "{first_calls} provider calls");
+        assert_eq!(deferred, 12 - first_calls);
+        assert!(deferred >= 3);
+
+        // A restart keeps the durable order: reopen the library and service.
+        drop(service);
+        provider.allowance.store(5, Ordering::SeqCst);
+        provider.calls.lock().unwrap().clear();
+        let service = PortcoveService::with_provider(
+            Library::open(temporary.path().join("library")).unwrap(),
+            provider.clone(),
+        )
+        .unwrap();
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+        let resumed = outcomes
+            .iter()
+            .filter(|(_, result)| result.is_ok())
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(resumed.len(), 5);
+        // The second window starts with games that were never checked, so it does
+        // not spend the allowance on the five checked in the first window.
+        assert!(
+            resumed.iter().all(|id| !checked.contains(id)),
+            "{resumed:?} repeats {checked:?}"
+        );
+        let calls = provider.calls.lock().unwrap().clone();
+        assert!(
+            calls.iter().take(5).all(|id| !checked.contains(id)),
+            "{calls:?}"
+        );
+
+        // A third window completes the library: every game has now been checked once.
+        provider.allowance.store(12, Ordering::SeqCst);
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+        let mut ever_checked = checked;
+        ever_checked.extend(resumed);
+        for (port_id, result) in &outcomes {
+            assert!(result.is_ok(), "{port_id}");
+            ever_checked.push(port_id.clone());
+        }
+        ever_checked.sort();
+        ever_checked.dedup();
+        assert_eq!(ever_checked.len(), 12);
     }
 
     fn backup_authorization(

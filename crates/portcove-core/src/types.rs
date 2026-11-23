@@ -525,7 +525,7 @@ pub struct RuntimeSourceTarget {
     pub materialization: RuntimeSourceMaterialization,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub enum ReleaseSource {
     #[default]
@@ -2712,13 +2712,17 @@ pub struct UploaderContinuityRecord {
 /// locally from the persisted conditional-request cache without any network call.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
-    /// Requests budgeted against the provider's primary rate limit. A saved
-    /// GitHub package choice budgets a typical fresh inventory (three asset
-    /// pages per release); larger releases and cached conditional responses can
-    /// make the actual cost higher or lower. The forecast is advisory.
+    /// Requests expected to count against the provider's primary rate limit under
+    /// the current sign-in. Anonymous GitHub reads count even when a cached
+    /// validator lets GitHub answer `304`; only an authenticated `304` is exempt,
+    /// so a signed-in estimate assumes cached resources are unchanged. A saved
+    /// GitHub package choice budgets a typical fresh inventory (three asset pages
+    /// per release); larger releases, changed resources and cached conditional
+    /// responses can make the actual cost higher or lower. The forecast is advisory.
     pub counted_requests: u32,
-    /// The part of `counted_requests` that signing in would move to a higher limit.
-    /// A managed-definition port deliberately sends no credential, so it never counts here.
+    /// The part of `counted_requests` that signing in would move to a higher limit:
+    /// anonymous ordinary reads, and none once signed in. A managed-definition port
+    /// deliberately sends no credential, so it never counts here.
     pub sign_in_relief_requests: u32,
 }
 

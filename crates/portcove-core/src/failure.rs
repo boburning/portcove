@@ -256,6 +256,77 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
+    /// The provider already reported this client's allowance used up, so Core did
+    /// not send the request. Nothing was learned about the requested resource.
+    ProviderAllowanceExhausted {
+        provider: FailureProvider,
+        resets_at: Option<i64>,
+    },
+}
+
+/// Whether a failure means a provider allowance or throttle stopped the request,
+/// as opposed to an answer about the requested resource.
+#[cfg(test)]
+pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
+    matches!(
+        error.known_cause(),
+        Some(
+            KnownFailureCause::ProviderRequest {
+                rate_limited: true,
+                ..
+            } | KnownFailureCause::ProviderAllowanceExhausted { .. }
+        )
+    )
+}
+
+/// The failure of an item that was not sent because `cause` already stopped the
+/// same provider allowance. `None` when `cause` is not a rate limit.
+pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
+    let (provider, resets_at) = match cause.known_cause()? {
+        KnownFailureCause::ProviderRequest {
+            provider,
+            rate_limited: true,
+            resets_at,
+            ..
+        }
+        | KnownFailureCause::ProviderAllowanceExhausted {
+            provider,
+            resets_at,
+        } => (*provider, *resets_at),
+        _ => return None,
+    };
+    let mut error = PortcoveError::network(
+        "The provider's request allowance was used up earlier in this check, so this item was not sent.",
+    )
+    .with_known_cause(KnownFailureCause::ProviderAllowanceExhausted {
+        provider,
+        resets_at,
+    })
+    .detail("rate_limit_deferred", "true");
+    for key in [
+        "rate_limit",
+        "rate_remaining",
+        "rate_reset",
+        "retry_after",
+        "rate_limit_credential",
+    ] {
+        if let Some(value) = cause.details.get(key) {
+            error.details.insert(key.into(), value.clone());
+        }
+    }
+    Some(error)
+}
+
+fn reset_sentence(resets_at: Option<i64>) -> String {
+    resets_at
+        .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
+        .and_then(|time| {
+            time.format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
+        .map_or_else(String::new, |time| {
+            format!(" The provider reported a reset time of {time}.")
+        })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -571,15 +642,7 @@ impl KnownFailureCause {
                     );
                 }
                 if *rate_limited {
-                    let reset = resets_at
-                        .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
-                        .and_then(|time| {
-                            time.format(&time::format_description::well_known::Rfc3339)
-                                .ok()
-                        });
-                    let reset = reset.map_or_else(String::new, |time| {
-                        format!(" The provider reported a reset time of {time}.")
-                    });
+                    let reset = reset_sentence(*resets_at);
                     return (
                         "provider_rate_limited",
                         format!(
@@ -591,6 +654,22 @@ impl KnownFailureCause {
                     "provider_request_rejected",
                     format!(
                         "{provider} rejected the API request (HTTP {status}). Review the technical details and current provider status before retrying."
+                    ),
+                );
+            }
+            Self::ProviderAllowanceExhausted {
+                provider,
+                resets_at,
+            } => {
+                let provider = match provider {
+                    FailureProvider::Github => "GitHub",
+                    FailureProvider::Gitlab => "GitLab",
+                };
+                let reset = reset_sentence(*resets_at);
+                return (
+                    "provider_rate_limited",
+                    format!(
+                        "{provider} already reported this client's request allowance used up, so Portcove waited instead of asking again.{reset} This item was not checked; check again after that time."
                     ),
                 );
             }
@@ -684,6 +763,7 @@ impl PortcoveError {
                 }),
                 _,
             ) => (Some(*status), *rate_limited),
+            (Some(KnownFailureCause::ProviderAllowanceExhausted { .. }), _) => (None, true),
             (_, Some(UpstreamObservation::Status(status))) => (Some(status), false),
             (_, Some(UpstreamObservation::Transport { .. })) => {
                 return UpstreamFailure::Unavailable;
