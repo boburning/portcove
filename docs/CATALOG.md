@@ -447,6 +447,22 @@ managed holds in the canonical form below. It narrowed, cleared and reworded
 nothing. Each narrowing is a later data change under the rights-basis decision
 authority.
 
+`reconsider_when` is never evaluated by Core. Run
+`node scripts/restriction-recheck.mts` for a read-only report of each hold's
+authored conditions. It reads committed catalog source, an optional listing
+observer report (`--observations`) and an optional evidence file (`--evidence`)
+of reviewed content scans, grants and route changes. It reports each condition
+as `satisfied`, `not-satisfied`, `unknown` or `manual`. A hold with any manual
+condition is flagged `manual`, for the owner, whatever its other conditions
+say. Every manual hold, and every hold whose machine-checkable result is
+satisfied or unknown, is listed by name under its flag. A successor release
+counts only when it was published after the newest scoped release. When more
+than one release is observed and any lacks a publication time, newest-release
+checks are `unknown`, and missing evidence is `unknown`, never `satisfied`. It uses no
+network, decides nothing and clears no hold. The [November 22, 2026 restriction evidence](evidence/acquisition-restriction-evidence-2026-11-22.md)
+records the upstream facts and a proposed scoped decision for every migrated
+row.
+
 ### Upstream listing and distribution requests
 
 Upstream maintainers and rights holders can open a
