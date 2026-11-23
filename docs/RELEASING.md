@@ -215,6 +215,19 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   the observation once half that window has elapsed. Authored guide changes,
   new release facts, and changes to the permitted freshness window bypass this
   deduplication. Existing incomplete collection and failure rules still apply.
+- **Minimum supported preview for live listing updates:** Preview 14
+  (`0.1.0-preview.14`), the first release that reads the compact listing
+  carrier. Listing changes reach only that carrier. Older previews keep the
+  last legacy listing directory (revision 47), their library, installed
+  games, originals, saves, settings and launch, and they still receive
+  definition and policy updates. They receive no further listing changes until
+  the application is updated. The application updater reads
+  `updates/<channel>/latest.json` and does not depend on catalog listings. Older
+  previews default to the Beta channel, which has no feed yet, so players
+  choose the Preview channel or install the new preview from its release page.
+  The bound is raised when a later reader generation replaces the compact
+  carrier. Details and the cutover runbook:
+  [Signed catalog](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview).
 - **Late Pages readback:** The existing twice-daily catalog schedule checks the
   previous commit from the pinned Pages branch before selecting the next
   publication source. A seven-day artifact identifies the earlier Pages commit,

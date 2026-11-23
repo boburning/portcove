@@ -108,14 +108,14 @@ The publication policy in #5894 uses supported consumer bounds. Changes reserve
 15% of capacity for growth, including JSON escaping. A catalog may exceed 4 MiB
 once compatible application packages are available on the affected channels.
 
-| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                          |
-| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory and its signed descriptive target have independent 8 MiB limits. The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
+| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory has an 8 MiB limit; the signed listing targets have the limits in [Listing delivery limits](#listing-delivery-limits). The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
 
 `node scripts/catalog-capacity.mts --check` reports generated and compact
 operational bytes, a representative escaped signed envelope and the separate
@@ -154,8 +154,9 @@ own inventory and keeps the existing write-time and post-write readbacks.
 Each descriptive target has an 8 MiB wire limit. The compact carrier has a
 separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
-carrier body. Scheduled publication activates compact delivery once it
-verifies a capable released reader (see [Activation checklist](#activation-checklist)).
+carrier body. The compact carrier is the only live listing carrier; the
+legacy target keeps its last signed bytes (see
+[Compact listing delivery and the minimum supported preview](#compact-listing-delivery-and-the-minimum-supported-preview)).
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
@@ -223,14 +224,13 @@ bound, stale Pages tree or changed body stops publication. Recover the exact
 addressed objects from the pinned last-good Git tree before retrying. A broken
 history pointer cannot trigger a new bootstrap.
 
-### Activation preconditions
+### History bootstrap preconditions
 
-The owner must resolve these before history bootstrap or compact listing
-activation. Each failure below stops publication in the prepare job's context
-check, before any role key is used. The last good publication stays served,
-but publication stays stopped until the cause is repaired. Items 1, 2 and 5
-concern history bootstrap; compact activation alone does not depend on them,
-but activating both makes compact delivery one-way (item 5).
+The owner must resolve these before history bootstrap. Each failure below
+stops publication in the prepare job's context check, before any role key is
+used. The last good publication stays served, but publication stays stopped
+until the cause is repaired. The compact listing cutover does not depend on
+them.
 
 1. **Unbounded chain.** Each publication adds one inventory segment and one
    parent checkpoint. Verification walks both chains under one shared bound of
@@ -246,65 +246,79 @@ but activating both makes compact delivery one-way (item 5).
    recover it, because an existing pointer always selects segmented history.
    Rotation needs a defined checkpoint successor before history is activated.
    _Open._
-3. **Fixed legacy listing.** After compact activation the legacy target's
-   bytes are fixed, except for safety withdrawals and download holds (see
-   [Legacy holds after compact activation](#legacy-holds-after-compact-activation)).
-   _Partly satisfied by this repository's code and tests:_ a hold added or
-   retold in the catalog after activation now reaches format-11 readers
-   without withdrawing the row. An added held row also carries the compact
-   row's current descriptive facts to format-11 readers. Preparation binds
-   that row to Core's format-11 export and the signer to
-   `portcove_listing_carrier::legacy_row_projection`; Core's tests prove the
-   two are equal for every committed listing row and for fixture rows with
-   restrictions, implementation, verified sources and typed IGDB scenes.
-   _The residual gap is the accepted legacy-reader hold policy_ (lead decision
-   recorded on #1422): format-11 readers cannot receive a typed restriction's
-   permit, scope, second hold, non-download operation, `reason` or
-   `tracking_issue`. A hold that predates activation on a discovery row the
-   legacy target does not deliver stays with the reader's bundled row, as it
-   does before activation. Players who need typed restrictions update to a
-   capable release.
-4. **No enrichment fallback.** Legacy preparation drops all optional observer
-   enrichment when Core refuses the candidate set and keeps publishing.
-   _Satisfied by this repository's code and tests for compact preparation:_
-   it excludes and reports only the candidates Core refuses, and each excluded
-   row keeps its prior signed observation. Only Core's own refusal counts: the
-   inspection must exit with Core's `verification`, `source_invalid` or
-   `unsupported` code and the matching JSON error envelope. Core reports any
-   decoding or validation failure of a staged listing target as
-   `verification`; a file-system failure stays a `state` error. Capacity
-   exhaustion of the encoded carrier, a projection failure, a Core crash,
-   timeout, output overflow or any other Core error fails compact preparation
-   with a precise error instead of excluding candidates. Legacy preparation
-   keeps its all-or-nothing fallback unchanged.
-5. **Rollback after history bootstrap.** A reviewed return to legacy-only
-   delivery is available before history bootstrap (see
-   [Returning to legacy-only delivery](#returning-to-legacy-only-delivery)).
-   Once a checkpoint names a compact floor, the checkpoint refuses a successor
-   without the compact carrier with `catalog history checkpoint listing requires
-   its authenticated retained carriers`. Activating both makes compact delivery
-   one-way until a compact retirement checkpoint is defined. _Open._
-6. **Revision bump.** Compact activation must use a revision above the legacy
-   target. A format-15 compact target beside a format-11 legacy target at the
-   same revision decodes differently, and the release tools refuse it.
-   _Satisfied by this repository's code and tests:_ preparation publishes the
-   first compact target above the legacy revision, and the rehearsal checks it.
-7. **Released reader.** Compact delivery must stay readable by the released
-   CLI players run. _Satisfied by this repository's code and tests, and
-   enabled in `Catalog publish` (#1422):_ see [Automatic released-reader selection](#automatic-released-reader-selection).
-   No caller-supplied path or SHA-256 is needed; the explicit
-   `--released-reader` path remains an override for rehearsal and tests.
-8. **Publish-time reader recheck.** A reader withdrawn between Prepare and the
-   Pages push must stop that push. _The script side is satisfied by code and
-   tests_ (`node scripts/catalog-released-reader.mts SITE`), and the publish
-   job runs it on each fresh Pages base inside its push retry loop.
 
-#### Automatic released-reader selection
+## Compact listing delivery and the minimum supported preview
 
-`--official-released-reader` on `scripts/listing-observation-delivery.mts`
-selects the reader from the protected `gh-pages` Preview pointer
-(`updates/preview/latest.json`, which also follows newer Beta and Stable
-releases) and verifies it without credentials. No token is read or sent:
+Portcove is pre-beta. Under the owner policy of November 23, 2026 (#1422), the
+compact carrier `policy/official/catalog.listings.compact.json`
+(`gzip-base64-json-v1`, listing format 15) is the only listing target that
+changes. **Preview 14 (`0.1.0-preview.14`) is the minimum supported preview
+for live listing updates**: it is the first release whose reader selects the
+compact carrier, and Preview 15 reads it too. The publisher states it as
+`minimumLiveListingReader` in `scripts/listing-observation-delivery.mts` and
+in each preparation report. It is raised when a later reader generation
+replaces the compact carrier.
+
+The legacy format-11 target `policy/official/catalog.listings.json` stays
+named in the official-policy role with its last signed bytes (revision 47,
+SHA-256 `0d20ba97…`, 8,388,398 bytes) and never changes again. Preparation
+republishes those exact authenticated bytes beside every compact target; it
+has no legacy projection, byte-budget fitting, hold successor or legacy-only
+return. Each compact revision is above the legacy revision.
+
+### What an older preview does after cutover
+
+Preview 13 and earlier read only the legacy target (format 11; Preview 13's
+capability report lists formats 5–13 and no carrier). Read from the
+`nightly-0.1.0-preview.13` sources:
+
+- **Listing refresh.** The reader acquires `catalog.listings.json` by name
+  (`listing_delivery.rs`, `acquire_admissible`). It is still signed in every
+  new policy role version with the same bytes. An equal revision with equal
+  bytes is admitted, so the stored directory stays selected and its signed
+  provenance stays fresh. The player keeps the revision-47 directory, with no
+  error and no fallback, and receives no further listing changes.
+- **Unknown target name.** Definition refresh walks the policy role's targets
+  and skips any name that is not a stable definition ID. The compact name
+  contains dots, so it is ignored.
+- **Library and play.** The bundled catalog, library, installed games,
+  originals, saves, settings and launch do not read the listing target.
+  Definition and policy delivery continue unchanged.
+- **Application update.** The updater reads
+  `updates/{beta,preview}/latest.json` with its own minisign key, separately
+  from the TUF catalog (`application_update.rs`); it does not read listing
+  targets or catalog freshness. Older previews default to the Beta channel,
+  and no Beta feed is published yet, so a player chooses the Preview channel
+  in Settings or installs the new preview from the release page. That was
+  already true before the cutover.
+
+Alternatives considered:
+
+- **Remove the legacy target from the policy role.** The old reader's refresh
+  then fails on a missing target. When the stored provenance expires the
+  directory falls back to the build's bundled listings with
+  `ListingDirectoryUnavailable`, losing the delivered revision 47. The signer
+  also refuses a compact target without its legacy target, so this needs a
+  signer rule change.
+- **Signed metadata the old reader cannot parse.** It would stop all catalog
+  delivery to older builds, including definition and policy updates.
+
+Keeping the frozen target needs no signer rule change and leaves older builds
+on a valid, fresh, unchanging directory.
+
+**Accepted consequence.** Older previews no longer receive listing changes,
+including new or changed download holds, withdrawals and typed restrictions
+added after revision 47. Their bundled holds and the frozen revision-47 holds
+remain. Operational definition and policy holds still reach them. The
+mitigation is the application update to Preview 14 or later.
+
+### Released-reader gate
+
+The compact carrier is published first, or raised to a newer listing format,
+only after preparation verifies that the current released preview reads it.
+`--official-released-reader` selects that reader from the protected
+`gh-pages` Preview pointer (`updates/preview/latest.json`, which also follows
+newer Beta and Stable releases) and verifies it without credentials:
 
 - The version must not be listed in `updates/withdrawn.json`.
 - The tag's object and peeled commit come from an anonymous `git ls-remote`,
@@ -318,201 +332,202 @@ releases) and verifies it without credentials. No token is read or sent:
   Sigstore trusted root, read anonymously with `gh attestation trusted-root`.
 - The single regular archive member is unpacked privately. Its capability
   report, run in a private directory with no credentials, must name the
-  `gzip-base64-json-v1` carrier and listing format 15, and the release
-  version.
+  `gzip-base64-json-v1` carrier, listing format 15 and the release version.
 
-The reader is needed only for first activation and for a later compact format
-increase. When selection or the probe fails, preparation does not stop: a
-legacy-only prior stays legacy-only byte for byte, and an active compact prior
-republishes both exact authenticated carriers. The report records the reason
-in `released_reader_unavailable`. While a format increase stays unverified,
-the renewed carriers also hold back other listing changes, including new
-holds. GitHub allows 60 anonymous API requests an hour per address, so a
-shared runner address can delay activation; it cannot change what is
-published. The report retains the selected tag, tag object, source commit,
-release ID and archive digest in `released_reader_source`.
-`node scripts/catalog-released-reader.mts select DIR` is a read-only preflight
-that prints what the selection would verify and the reader's capabilities.
+When selection or the probe fails, or no reader source is configured,
+preparation does not stop and publishes nothing new for listings: a
+legacy-only prior is renewed byte for byte, and an active compact prior
+renews its exact compact and legacy targets. Other catalog changes and
+freshness renewal continue. The report records the reason in
+`released_reader_unavailable`. GitHub allows 60 anonymous API requests an hour
+per address, so a shared runner address can delay the cutover; it cannot
+change what is published. The publish job reruns
+`node scripts/catalog-released-reader.mts site` on each fresh Pages base and
+stops that push if the selected reader was withdrawn or replaced.
+`node scripts/catalog-released-reader.mts select DIR` is a read-only preflight.
+`--released-reader PATH --released-reader-sha256 HEX` is an explicit reader for
+rehearsal, tests and offline evidence; it cannot be combined with official
+selection.
 
-#### Activation checklist
+### Cutover runbook
 
-Since #1422, `Catalog publish` passes `--official-released-reader` on every
-publishing trigger. Nothing passes `--compact` or `--return-to-legacy`, and
-history bootstrap remains a separate owner activation. Compact delivery starts
-with the first publication whose released reader verifies; until then each
-publication stays legacy-only. Activation was one reviewed workflow change:
+**Preconditions.**
 
-1. **Verify.** On the `main` commit the change targets: the required checks
-   are green, and
-   `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
-   passes with a locally built CLI. Optionally run the `select` preflight
-   above and confirm it reports format 15 and `gzip-base64-json-v1`. Do not
-   request history bootstrap in the same change.
-2. **The one workflow change** in `.github/workflows/catalog-publish.yml`,
-   with no new permission, secret, environment or trigger:
-   - In the prepare job's observation step, pass
-     `--official-released-reader`, give the step `id: observe`, append
-     `reader_activation=` and the compact JSON of the report's
-     `released_reader_activation` (empty when absent) to `$GITHUB_OUTPUT`,
-     and expose it as a job output.
-   - In the publish job, set `CATALOG_READER_ACTIVATION` from that output and,
-     inside the Pages push retry loop after each fresh `site` worktree is
-     created, run `node scripts/catalog-released-reader.mts site` when it is
-     non-empty.
-3. **Read back** the first activated run: its prepare report shows
-   `listing_format` 15, `released_reader_source`, and a `legacy_sha256` equal
-   to the legacy target already served; Pages then serves
-   `policy/official/catalog.listings.compact.json` beside the unchanged legacy
-   target.
-4. **Roll back** before history bootstrap: revert the workflow change. That
-   stops further reader selection, but an existing compact target keeps
-   publishing. To return to legacy-only delivery, run one reviewed
-   publication with `--return-to-legacy` (see
-   [Returning to legacy-only delivery](#returning-to-legacy-only-delivery)),
-   then remove it again. After history bootstrap the return is refused
-   (item 5).
+- Required checks are green on the merge commit.
+- `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
+  passes with a release or stripped CLI.
+- The `select` preflight reports the current Preview, format 15 and
+  `gzip-base64-json-v1`.
+- No history bootstrap is requested in the same change.
+- `Catalog publish` keeps its permissions, secrets, environments and
+  triggers.
 
-### Rehearsing compact activation
+**The merge.** Merging this change makes the next `Catalog publish` run
+publish the compact carrier, if its reader verifies.
+
+**First-publication readback.**
+
+1. In the prepare job's `observation-projection.json`, check these fields:
+   - `carrier` is `compact` and `listing_format` is 15.
+   - `revision` is above `legacy_target.revision` (47).
+   - `delivered_records` equals `canonical_records` (1,649 on November 23,
+     2026), and `not_projected_records` equals `withdrawn_records`.
+   - `legacy_target.sha256` and `bytes` equal the served legacy target.
+   - `released_reader` and `released_reader_source` name the current Preview.
+   - `target_bytes` is within 8 MiB, `decoded_bytes` within 32 MiB, and
+     `excluded_candidates` and `diagnostics` are reviewed.
+2. On Pages, follow `catalog/metadata/timestamp.json` to its snapshot, then to
+   `official-policy`. The policy role names
+   `policy/official/catalog.listings.compact.json` with the report's
+   `target_sha256` and `target_bytes`. It still names
+   `policy/official/catalog.listings.json` with the unchanged SHA-256 and
+   length.
+3. Decode the served compact target. Its `decoded_bytes` and `decoded_sha256`
+   match, and it holds format 15, the reported revision, all canonical rows
+   and the typed `restrictions`.
+4. A Preview 15 client refresh selects the compact target:
+   `portcove catalog listing-refresh` then `catalog listing-status` report its
+   revision and listing count.
+5. A Preview 13 client keeps revision 47 selected and reports no error.
+6. The retained catalog tree is within 768 MiB, and the Pages tree within
+   900,000,000 bytes.
+
+**Rollback.** Clients cannot be rolled back. Compact readers keep their
+replay floor, so the signer refuses any return to a lower compact revision.
+Older previews keep the frozen legacy target either way.
+
+Reverting the merge restores the dual-carrier publisher. That publisher keeps
+the compact target, but it fails preparation as soon as a catalog hold needs
+a legacy successor that does not fit the 8,388,398-byte legacy target. Treat
+a revert as a stop-gap and fix publisher defects forward. No release-tools
+rule changes in either direction. History bootstrap is not part of the
+cutover or its rollback and stays with the owner.
+
+**Transitional behavior and removal conditions.**
+
+- **The frozen legacy target.** It stays named while any supported release
+  reads it. Remove it with a reviewed signer and history rule change after the
+  minimum supported application generation for all catalog delivery is
+  Preview 14 or later.
+- **Retired release-tools paths.** These remain unused by the publisher:
+  `check_legacy_successor`, the legacy-only return in `check_listings`, and
+  the legacy body kept in `HistoricalRevisionFloors`. Remove them with that
+  same reviewed change, after the retained legacy bodies are pruned.
+- **Retained legacy bodies.** The 47 retained legacy listing bodies are no
+  longer read by any client except the frozen one, but historical
+  verification still reads each referenced body. Pruning needs a retained
+  listing-floor ledger: a signed or checkpointed record of each historical
+  listing revision, decoded SHA-256 and withdrawals, verified against the
+  bodies before they are removed. Pruning without one is unsafe.
+
+### Rehearsing the cutover
 
 `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
-runs the production preparation entry point, `prepareObservationBundle`, once per
-step against the committed catalog and the committed publication bundle. `PATH`
-is a locally built `portcove` CLI. It exports, validates and inspects every
-publication. Activation runs the automatic released-reader selection over
-fixture Pages, tag, release-asset and attestation sources that publish `PATH`,
-or `--released-reader PATH` when given, under the version it reports. The
-fixture statement stands in for GitHub's signature, which
-`scripts/github-release-attestation.test.mts` verifies against a real GitHub
-release attestation. `DIR` must be an empty directory; each step's bundle and
-report stay there.
+runs the production preparation entry point, `prepareObservationBundle`, once
+per step against the committed catalog and the committed publication bundle.
+`PATH` is a locally built `portcove` CLI that exports, validates and inspects
+every publication. The first step's prior is a fixture legacy-only repository
+whose format-11 target is Core's export of the operational rows. Automatic
+selection runs over fixture Pages, tag, release-asset and attestation sources
+that publish `PATH`, or `--released-reader PATH`. The fixture statement stands
+in for GitHub's signature, which `scripts/github-release-attestation.test.mts`
+verifies against a real GitHub release attestation. `DIR` must be empty.
+Nothing is signed or published; the release-tools tests cover signer
+admission. Each step stops the rehearsal when its property fails:
 
-The prior repository of each step is a fixture: its metadata names the
-previous step's listing targets, and the verification report is that
-repository's file inventory. Nothing is signed or verified against a key, and
-nothing is published or activated. The release-tools tests cover the signer's
-admission of these proposals. `scripts/listing-compact-activation-rehearsal.test.mts`
-runs the same steps with a stand-in CLI whose one validation rule mirrors
-Core's refusal of an unknown observation field. Each step stops the rehearsal
-when its property fails:
+- **Released-reader gate.** These cases each renew the legacy-only
+  publication byte for byte, with a reason:
+  - an explicit reader without the carrier, without format 15, or with a
+    different SHA-256;
+  - an automatically selected version that is withdrawn, lacks format 15,
+    has a substituted archive or an unattested tag object, or comes from a
+    commit off protected `main`.
+- **Cutover.** The first compact target is format 15, delivers every
+  canonical row and publishes above the legacy revision. The legacy bytes are
+  unchanged, and the selected reader is verified and reported.
+- **After cutover.** A new download hold reaches the compact target only. The
+  legacy target stays byte-identical, and an unchanged directory republishes
+  the exact compact bytes.
+- **Enrichment.** Two observer candidates are prepared, one with a field
+  Core's observation schema refuses. Preparation excludes and reports only
+  that candidate, and its row keeps the prior signed observation. Only Core's
+  own refusal counts: the inspection must exit with Core's `verification`,
+  `source_invalid` or `unsupported` code and the matching JSON error envelope.
+  A Core crash, timeout, output overflow, other Core error, projection failure
+  or carrier capacity exhaustion fails preparation.
+- **Preconditions.** Preparation without the prior signed repository is
+  refused.
 
-- **Released-reader gate.** With an explicit reader, preparation refuses
-  activation when the reader lacks the `gzip-base64-json-v1` carrier, lacks
-  the candidate's listing format, or differs from its reviewed SHA-256. With
-  automatic selection, a withdrawn version, a reader without format 15, a
-  substituted archive, an unattested tag object or a source off protected
-  `main` each leave the legacy-only publication byte for byte unchanged.
-- **Activation reader.** Activation verifies the selected reader and reports
-  its source.
-- **Activation.** The first compact target is format 15 and publishes above the
-  legacy revision. Preparation keeps the signed legacy bytes it read from the
-  prior repository.
-- **Holds after activation.** A hold added to a delivered row, and one added to
-  a discovery row the legacy target does not deliver, both reach the legacy
-  target automatically. The added row equals Core's format-11 export, each hold
-  equals the compact row's hold, and no other legacy row changes. Removing the
-  holds from the catalog again leaves the legacy target unchanged.
-- **Enrichment.** Two observer candidates are prepared, one with a field Core's
-  observation schema refuses. Compact preparation excludes and reports only
-  that candidate; its row keeps the prior signed observation. Legacy
-  preparation drops both, as on `main`.
-- **Rollback.** A legacy-only return publishes a format-11 target above the
-  compact revision, keeps every compact withdrawal and removes the compact
-  target. Preparation refuses a return without a current compact target.
+### Cutover evidence, November 23, 2026
 
-On November 22, 2026 the committed catalog had 152 typed listing restrictions.
-Each is a whole-listing download hold whose explanation is the legacy
-`download_block_reason`, so format-11 readers receive every hold. They cannot
-receive each restriction's `reason` code and `tracking_issue`; no committed
-restriction uses a permit, a scope, a second hold or an operation other than
-download. A fresh legacy projection delivers 5 of the held listings. The other
-147 are discovery rows outside the legacy target, so legacy readers keep their
-bundled row, as they do before activation. The rehearsal passed every step with
-a locally built CLI on that date. On November 23, 2026 it passed every step
-again with automatic released-reader selection, using a debug CLI for Core and
-a stripped copy of it as the published reader. A debug CLI's archive exceeds
-the selection's 64 MiB archive bound, so pass a release or stripped build with
-`--released-reader`.
+All offline; nothing was signed or uploaded. Inputs:
 
-On November 23, 2026 at `main` commit `591b2b9` the rehearsal passed every
-step with a release CLI (debug info off) for Core and a stripped copy as the
-published reader. The committed catalog then had 155 restriction facts format
-11 cannot express: 152 download holds lose only `reason` and
-`tracking_issue`, and 3 listings (`chameleon-twist-recompiled`,
-`grand-theft-auto-san-andreas-unity`, `linewars-ii-sdl3`) also have a
-download permit scoped to reviewed artifacts. Format-11 readers hold the whole
-listing for those 3, which is stricter than compact readers.
+- Pages `gh-pages` commit `7585833` (timestamp 60, expiring
+  2026-11-24T15:53Z).
+- The committed catalog at this branch's merge of `main` `76539c9`.
+- Release-built `portcove` and `portcove-release-tools`.
+- The released Linux x86-64 CLIs. Each archive matched its release
+  `SHA256SUMS`.
 
-Activation readiness, November 23, 2026, against the served Pages commit
-`c912fc3` (timestamp 60, legacy target `0d20ba97…`, 8,388,398 bytes): an
-offline dry run of preparation with `--official-released-reader` selected
-`nightly-0.1.0-preview.14` (release 454576766, source `01f4b2c`, unwithdrawn,
-format 15 and `gzip-base64-json-v1`), kept the legacy bytes exactly and
-proposed compact revision 48 above legacy revision 47 with all 1,649 rows:
-2,745,010 wire bytes of 8 MiB and 9,602,327 decoded bytes of 32 MiB. When the
-anonymous attestation read was rate limited (HTTP 403), the same run stayed
-legacy-only and byte-identical, and an active compact prior renewed both
-carriers without any GitHub read. Simulating generated registrations that
-make listing-only identities operational, with compact active the legacy
-target stayed byte-identical and the compact target stayed under 2.8 MB wire
-and 10.1 MB decoded at 400 identities. Without compact, 400 identities the
-legacy target did not already deliver exceeded its bound in preparation, and
-200 left 87 bytes. The embedded `listings.json` guard is the next limit: 400
-simulated identities left 93,413 bytes below its 85% ceiling.
+| Step                                                                                                             | Result                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prepare, with Preview 15 (`749bb1e6…`) as the explicit reader, the prior verified by release tools               | Compact revision 48 (legacy 47), format 15, 1,649 of 1,649 rows, 0 withdrawals. Wire: 2,745,010 bytes of 8 MiB, SHA-256 `ed6d37df…`. Decoded: 9,602,327 bytes of 32 MiB. 152 held rows with 155 typed restrictions; 875 rows keep their signed observations. The legacy target is byte-identical. The observer was unavailable offline (it needs an Actions token), so no new observations. |
+| Workflow steps after prepare                                                                                     | Core `inspect-definition-publication` selects the compact target (revision 48, 1,649 rows, `ed6d37df…`). The plan advances every role to version 61. `check-definition-publication-context`, which runs the historical listing-floor rules against the real prior, passes.                                                                                                                  |
+| Preview 15 CLI `inspect-definition-publication` on the staged bundle                                             | Selects `catalog.listings.compact.json`, revision 48, 1,649 listings, SHA-256 `ed6d37df…`.                                                                                                                                                                                                                                                                                                  |
+| Preview 14 CLI `inspect-definition-publication` on the staged bundle                                             | Refused: `query metadata exceeds its read budget`. Preview 14's offline publication inspector does not yet recognize the compact name and applies the 64 KiB policy-file cap; Preview 15 fixed this. The inspector is a publisher tool, not the client's acquisition path. The client result is in the next row.                                                                            |
+| Preview 14 client code (tagged source): carrier decode, `parse_compact` and projection onto the embedded catalog | See the PR body for the run; a person can repeat it with the harness described there.                                                                                                                                                                                                                                                                                                       |
+| Preview 13 CLI                                                                                                   | Reports formats 5–13 and no carrier. Its offline publication inspector refuses the staged bundle the same way as Preview 14. Its client path is the code reading in [What an older preview does after cutover](#what-an-older-preview-does-after-cutover); the legacy bytes it acquires are the ones it already admits from Pages today.                                                    |
 
-Activation also slows retention growth. On that commit the retained catalog
-tree measured 404,914,714 of 805,306,368 bytes (768 MiB) and the Pages tree
-404,921,640 of 900,000,000 bytes. 47 retained legacy listing targets made up
-390,631,685 bytes; each listing change adds one 8.39 MB legacy target, about
-6.7 changes a day over the previous week, leaving roughly 47 changes before
-the 768 MiB bound. After activation a change adds a compact target of about
-2.75 MB instead, and the legacy target grows only for withdrawals and holds.
-Activation does not remove retained targets; the retention bound still needs
-its own plan.
+A live client refresh against the staged bundle cannot run offline: the
+bundle is unsigned, and clients trust only the compiled root. After the first
+signed cutover publication, a person runs readback steps 4 and 5 against Pages.
 
-### Legacy holds after compact activation
+**Migration simulation (not committed).** The simulation gives 200 and 400
+listing-only identities a generated registration shaped like `generatedRecord`
+(`scripts/catalog-generated-registration.mts`), using the committed port
+`dkr-r` as the per-port template. In every case, preparation succeeds with
+1,649 rows and the legacy target stays byte-identical. A changed declaration
+drops its prior observation until it is observed again, so the compact target
+shrinks.
 
-After activation the legacy target stays fixed for format-11 readers. It
-changes only to keep them at least as safe as compact readers. A hold may be
-added or tightened without withdrawing the row; it is never loosened or
-dropped.
+| Identities | Compact wire | Decoded   | `catalog.json` (85% ceiling 14,260,633) | Embedded `listings.json` (85% ceiling 7,130,316) |
+| ---------- | ------------ | --------- | --------------------------------------- | ------------------------------------------------ |
+| 0          | 2,745,010    | 9,602,327 | 4,263,284                               | 6,449,993 (headroom 680,323)                     |
+| 200        | 2,478,558    | 8,922,800 | 5,087,120                               | 6,293,881                                        |
+| 400        | 2,177,290    | 8,163,715 | 5,914,276                               | 6,141,705                                        |
 
-- A legacy successor may add safety withdrawals, add a `download_block_reason`
-  to a delivered row, replace that hold's text, or add a held row. It must
-  advance above the current listing revision.
-- Each hold it adds or retells equals the hold of the same publication's
-  compact row. Each row it adds equals that compact row's format-11
-  projection exactly, without observations, and the compact target must
-  deliver that row unwithdrawn. Preparation checks this against Core's
-  format-11 export; the signer checks it against the compact row with the
-  shared projection Core's tests prove equal to that export.
-- A retold hold only makes a download stricter. An added held row is not only
-  a hold: it also gives format-11 readers, which until then kept their bundled
-  row, the compact row's current descriptive facts, such as name, summary,
-  project URL, media and download hints. Those are exactly the facts compact
-  readers receive in the same publication.
-- It never drops or clears a hold, removes a withdrawal, removes an unwithdrawn
-  row or changes any other legacy fact.
-- The first compact publication keeps the legacy bytes exactly. From the next
-  compact publication, preparation adds a successor automatically when Core's
-  current format-11 export holds a delivered row with different or missing
-  text, or holds an undelivered row whose hold is new or changed since the
-  active compact target. A catalog hold that is later removed stays in the
-  legacy target. Renewal of an expired prior publishes no successor.
-- A reviewed exact legacy target in the publication bundle remains the route
-  for withdrawals, under the same rules.
-- The compact successor carries the same withdrawals and publishes above the
-  legacy successor.
+**Storage runway.** The retained catalog tree measured 404,914,714 of
+805,306,368 bytes (768 MiB), and the Pages tree 404,922,011 of 900,000,000.
+The 47 retained legacy listing bodies make up 390,631,685 bytes.
 
-### Returning to legacy-only delivery
+- **Before cutover.** Each listing change added an 8.39 MB legacy body: about
+  47 more changes before 768 MiB, roughly a week at the 6.7 changes a day
+  measured over the previous week.
+- **After cutover.** Each listing change adds one compact body (about 2.75 MB)
+  plus about 7 KB of role metadata. A renewal with unchanged listings adds
+  only metadata. That leaves about 145 listing changes before 768 MiB (about
+  three weeks at the same pace) and about 180 before the Pages bound.
+- **Pruning.** Pruning the 46 superseded legacy bodies would free 382,243,287
+  bytes, but it needs the listing-floor ledger above.
 
-`--return-to-legacy` on `scripts/listing-observation-delivery.mts` is a
-reviewed recovery route. No workflow passes it. It requires current
-authenticated compact and legacy targets and publishes a format-11 legacy
-target without the compact target. That target publishes above the compact
-revision and keeps every compact withdrawal. Compact readers then read the
-legacy target without a replay refusal. The signer refuses a legacy-only
-successor at or below the compact revision, or one that drops a compact
-withdrawal.
+### Listing delivery limits
+
+The released readers' limits can change only with a new reader release.
+
+| Limit                              | Value               | Enforced by                                                                                                                                  | Released reader (Preview 14/15)     |
+| ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Listing target wire bytes          | 8 MiB               | Reader acquisition and carrier decode; publisher transport encoding; signer and history verification (`portcove_listing_carrier::MAX_BYTES`) | Yes                                 |
+| Compact decoded bytes              | 32 MiB              | Reader `parse_compact` and its SQLite check; publisher projection                                                                            | Yes                                 |
+| Compact record bytes               | 1 MiB               | Reader `parse_compact`; the publisher inherits it through Core inspection                                                                    | Yes                                 |
+| Listings and withdrawals           | 10,000 each         | Reader; publisher projection                                                                                                                 | Yes                                 |
+| TUF snapshot / targets / timestamp | 4 / 8 / 1 MiB       | Reader TUF client (`definition_repository.rs`)                                                                                               | Yes                                 |
+| Embedded `listings.json`           | 8 MiB, 85% CI guard | Each build's own embedded and authored directory; `catalog-capacity --check`; publisher canonical input read                                 | Only for that build's embedded copy |
+| Retained repository                | 768 MiB             | Signer (`PUBLIC_REPOSITORY_MAX_BYTES`) and Pages overlay                                                                                     | No                                  |
+| Signer bundle                      | 32 MiB              | Signer                                                                                                                                       | No                                  |
+
+Removed with the cutover: the publisher's legacy byte-budget fitting, which
+omitted optional observations and non-required rows to fit 8 MiB, and the
+legacy hold successor's byte check.
 
 ## Capacity diagnostics and retained representations
 

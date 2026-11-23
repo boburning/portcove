@@ -1299,25 +1299,6 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(corrected.revision, first.revision + 1);
 });
 
-void test("observation delivery accepts format-13 canonical input and uses Core's format-11 projection", async () => {
-  const { fixtureListing, fixturePolicy, fixtureDelivery } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const authored = {
-    ...fixtureListing,
-    media: [{ id: "scene", role: "screenshot", igdb: { kind: "screenshot" } }],
-  };
-  const result = projectListingDelivery(
-    { format_version: 13, listings: [authored] },
-    [{ ...fixturePolicy().listing_update, media: authored.media }],
-    null,
-    0,
-    8 * 1024 * 1024,
-    { format_version: 11, listings: [fixtureListing] },
-  );
-  assert.deepEqual(result.bytes, fixtureDelivery());
-});
-
 void test("compact activation requires both capabilities from the reviewed released reader", async () => {
   const { requireCompactListingReader } = await import("./listing-observation-delivery.mts");
   const { compactListingCarrier } = await import("./listing-directory-carrier.mts");
@@ -1350,12 +1331,8 @@ void test("format 14 edition bindings require both released capabilities and sta
     await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery, requireCompactListingReader } =
     await import("./listing-observation-delivery.mts");
-  const {
-    compactListingCarrier,
-    compactListingDecodedMaximum,
-    encodeCompactListing,
-    decodeRetainedCompactListing,
-  } = await import("./listing-directory-carrier.mts");
+  const { compactListingCarrier, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
   const release = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
     ok: true,
     command: "capabilities",
@@ -1407,25 +1384,13 @@ void test("format 14 edition bindings require both released capabilities and sta
     }),
   );
   const completeSnapshot = (source: unknown, projection: unknown, previous: Buffer) =>
-    projectListingDelivery(
-      source,
-      [],
-      previous,
-      0,
-      compactListingDecodedMaximum,
-      projection,
-      new Set(),
-      0,
-      [],
-      true,
-    );
+    projectListingDelivery(source, [], previous, { compatible: projection, now: 0 });
   const projected = completeSnapshot(canonical, canonical, prior13);
   const decoded = decodedListingDelivery(
     decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
   );
   assert.equal(decoded.directory.format_version, 14);
   assert.equal(projected.delivered_records, 1);
-  assert.deepEqual(projected.omitted, []);
   assert.deepEqual(decoded.directory.listings[0]!.original_game, current.original_game);
   assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
   assert.equal(decoded.revision, old.revision + 1);
@@ -1434,14 +1399,6 @@ void test("format 14 edition bindings require both released capabilities and sta
     () => completeSnapshot(canonical, { format_version: 13, listings: [format13] }, prior13),
     /changed canonical identities or format/u,
   );
-  const legacyProjection = projectListingDelivery(canonical, [], fixtureDelivery(), 0, undefined, {
-    format_version: 11,
-    listings: [legacy],
-  });
-  const oldDirectory = decodedListingDelivery(legacyProjection.bytes).directory;
-  assert.equal(oldDirectory.format_version, 11);
-  assert.deepEqual(oldDirectory.listings[0]!.original_game, original);
-  assert.equal(oldDirectory.listings[0]!.media, undefined);
   const removed = completeSnapshot(
     { format_version: 13, listings: [format13] },
     { format_version: 14, listings: [format13] },
@@ -1457,12 +1414,8 @@ void test("format 15 restrictions require the released reader and never reach ol
     await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery, requireCompactListingReader } =
     await import("./listing-observation-delivery.mts");
-  const {
-    compactListingCarrier,
-    compactListingDecodedMaximum,
-    encodeCompactListing,
-    decodeRetainedCompactListing,
-  } = await import("./listing-directory-carrier.mts");
+  const { compactListingCarrier, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
   const release = (listing_formats: number[]) => ({
     ok: true,
     command: "capabilities",
@@ -1499,18 +1452,10 @@ void test("format 15 restrictions require the released reader and never reach ol
   const prior14 = Buffer.from(
     JSON.stringify({ ...old, directory: { format_version: 14, listings: [fixtureListing] } }),
   );
-  const projected = projectListingDelivery(
-    canonical,
-    [],
-    prior14,
-    0,
-    compactListingDecodedMaximum,
-    canonical,
-    new Set(),
-    0,
-    [],
-    true,
-  );
+  const projected = projectListingDelivery(canonical, [], prior14, {
+    compatible: canonical,
+    now: 0,
+  });
   const decoded = decodedListingDelivery(
     decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
   );
@@ -1518,29 +1463,8 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.equal(decoded.directory.listings[0]!.download_block_reason, reason);
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
-  const legacyProjection = projectListingDelivery(canonical, [], fixtureDelivery(), 0, undefined, {
-    format_version: 11,
-    listings: [legacy],
-  });
-  const oldDirectory = decodedListingDelivery(legacyProjection.bytes).directory;
-  assert.equal(oldDirectory.format_version, 11);
-  assert.equal(oldDirectory.listings[0]!.download_block_reason, reason);
-  assert.equal(oldDirectory.listings[0]!.restrictions, undefined);
-
   assert.throws(
-    () =>
-      projectListingDelivery(
-        { format_version: 16, listings: [current] },
-        [],
-        null,
-        0,
-        compactListingDecodedMaximum,
-        undefined,
-        new Set(),
-        0,
-        [],
-        true,
-      ),
+    () => projectListingDelivery({ format_version: 16, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });
@@ -1549,27 +1473,15 @@ void test("complete format-13 compact snapshots keep authored scenes and format-
   const { fixtureListing, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const { compactListingDecodedMaximum, encodeCompactListing, decodeRetainedCompactListing } =
+  const { encodeCompactListing, decodeRetainedCompactListing } =
     await import("./listing-directory-carrier.mts");
   const implementation = { kind: "native_port" };
   const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
   const authored = { ...fixtureListing, implementation, media: [scene] };
   const canonical = { format_version: 13, listings: [authored] };
   const prior = fixtureDelivery();
-  const compact = projectListingDelivery(
-    canonical,
-    [],
-    prior,
-    0,
-    compactListingDecodedMaximum,
-    canonical,
-    new Set(),
-    0,
-    [],
-    true,
-  );
+  const compact = projectListingDelivery(canonical, [], prior, { compatible: canonical, now: 0 });
   assert.equal(compact.delivered_records, 1);
-  assert.deepEqual(compact.omitted, []);
   const decoded = decodedListingDelivery(
     decodeRetainedCompactListing(encodeCompactListing(compact.bytes)),
   );
@@ -1587,77 +1499,25 @@ void test("complete format-13 compact snapshots keep authored scenes and format-
     format_version: 13,
     listings: [{ ...authored, project_url: "https://github.com/other/game" }],
   };
-  const changed = projectListingDelivery(
-    changedSource,
-    [],
-    prior,
-    0,
-    compactListingDecodedMaximum,
-    changedSource,
-    new Set(),
-    0,
-    [],
-    true,
-  );
+  const changed = projectListingDelivery(changedSource, [], prior, {
+    compatible: changedSource,
+    now: 0,
+  });
   assert.equal(
     decodedListingDelivery(changed.bytes).directory.listings[0]!.upstream_observation,
     undefined,
-  );
-  assert.deepEqual(
-    projectListingDelivery(canonical, [], prior, 0, undefined, {
-      format_version: 11,
-      listings: [fixtureListing],
-    }).bytes,
-    prior,
   );
   const withdrawnScene = {
     format_version: 12,
     listings: [{ ...fixtureListing, implementation }],
   };
-  const next = projectListingDelivery(
-    withdrawnScene,
-    [],
-    compact.bytes,
-    0,
-    compactListingDecodedMaximum,
-    { ...withdrawnScene, format_version: 13 },
-    new Set(),
-    0,
-    [],
-    true,
-  );
+  const next = projectListingDelivery(withdrawnScene, [], compact.bytes, {
+    compatible: { ...withdrawnScene, format_version: 13 },
+    now: 0,
+  });
   const nextDirectory = decodedListingDelivery(next.bytes).directory;
   assert.equal(nextDirectory.format_version, 13);
   assert.equal(nextDirectory.listings[0]!.media, undefined);
-});
-
-void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
-  const { fixtureListing, fixturePolicy } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const old = fixturePolicy().listing_update;
-  const first = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing] },
-    [old],
-    null,
-  );
-  const nextListing = { ...fixtureListing, id: "another-project", summary: "x".repeat(20000) };
-  const next = { ...fixturePolicy(nextListing).listing_update };
-  const capped = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing, nextListing] },
-    [next, old],
-    first.bytes,
-    0,
-    first.bytes.length + 100,
-  );
-  assert.deepEqual(capped.bytes, first.bytes);
-  assert.equal(capped.changed, false);
-  assert.deepEqual(
-    capped.omitted.map((value) => value.id),
-    ["another-project"],
-  );
-  assert.equal(capped.delivered_records, 1);
-  assert.equal(capped.canonical_records, 2);
 });
 
 void test("an absent observed digest frees signed capacity without counting a retained observation as new", async () => {
@@ -1687,22 +1547,9 @@ void test("an absent observed digest frees signed capacity without counting a re
   const incomingAsset = requiredFixture(fixtureRecords(incomingRelease.assets)[0]);
   incomingAsset.sha256 = "a".repeat(64);
   const directory = { format_version: 11, listings: [fixtureListing, newListing] };
-  const all = projectListingDelivery(directory, [incoming, existing], previous);
-  const exactLimit = all.bytes.length;
-  const bounded = projectListingDelivery(directory, [incoming, existing], previous, 0, exactLimit);
-  assert.deepEqual(bounded.bytes, all.bytes);
+  const bounded = projectListingDelivery(directory, [incoming, existing], previous);
   assert.equal(bounded.delivered_records, 2);
   assert.equal(bounded.updated, 1);
-  const belowLimit = projectListingDelivery(
-    directory,
-    [incoming, existing],
-    previous,
-    0,
-    exactLimit - 1,
-  );
-  assert.deepEqual(belowLimit.omitted, [
-    { id: newListing.id, reason: "existing-target-byte-budget" },
-  ]);
   const delivered = fixtureRecord(fixtureRecord(JSON.parse(bounded.bytes.toString())).directory);
   const newRow = requiredFixture(
     fixtureRecords(delivered.listings).find((row) => row.id === newListing.id),
@@ -1711,13 +1558,7 @@ void test("an absent observed digest frees signed capacity without counting a re
   const oldObservation = fixtureRecord(existing.upstream_observation);
   const oldRelease = requiredFixture(fixtureRecords(oldObservation.releases)[0]);
   assert.equal(requiredFixture(fixtureRecords(oldRelease.assets)[0]).sha256, null);
-  const replay = projectListingDelivery(
-    directory,
-    [existing, incoming],
-    bounded.bytes,
-    0,
-    exactLimit,
-  );
+  const replay = projectListingDelivery(directory, [existing, incoming], bounded.bytes);
   assert.equal(replay.changed, false);
   assert.equal(replay.revision, bounded.revision);
   assert.equal(replay.updated, 0);
@@ -1885,81 +1726,6 @@ void test("completed source observations stay bound to current canonical provide
   );
 });
 
-void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
-  const { fixtureListing, fixturePolicy } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const first = fixturePolicy().listing_update;
-  const initial = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing] },
-    [first],
-    null,
-  );
-  const registered = {
-    ...fixtureListing,
-    id: "new-reviewed",
-    download_block_reason: "External only",
-  };
-  const discovery = { ...fixtureListing, id: "other-candidate" };
-  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
-  const ids = new Set([String(fixtureListing.id), registered.id]);
-  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
-  assert.ok(typeof first.upstream_observation.fresh_until === "string");
-  const expiry = Date.parse(first.upstream_observation.fresh_until);
-  assert.ok(Number.isFinite(expiry));
-  const constrained = projectListingDelivery(
-    current,
-    [],
-    initial.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
-  );
-  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
-  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
-  assert.deepEqual(new Set(rows.map((row) => row.id)), ids);
-  assert.deepEqual(
-    rows.find((row) => row.id === registered.id),
-    registered,
-  );
-  assert.deepEqual(constrained.omittedObservations, [
-    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
-  ]);
-  assert.deepEqual(doc.withdrawn_ids, []);
-  assert.throws(
-    () =>
-      projectListingDelivery(
-        current,
-        [],
-        initial.bytes,
-        0,
-        base.bytes.length,
-        undefined,
-        ids,
-        expiry - 1,
-      ),
-    /unexpired prior observations/,
-  );
-  const replay = projectListingDelivery(
-    current,
-    [],
-    constrained.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
-  );
-  assert.deepEqual(replay.bytes, constrained.bytes);
-  assert.equal(replay.changed, false);
-  assert.throws(
-    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
-    /without an explicit withdrawal/,
-  );
-});
-
 void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {
   const { createHash } = await import("node:crypto");
   const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -2004,59 +1770,23 @@ void test("compact publication rebinds the exact decoded directory to its separa
   );
 });
 
-void test("a reviewed legacy withdrawal keeps other legacy facts and compact-only guides", async () => {
+void test("a reviewed compact withdrawal keeps the other delivered listings", async () => {
   const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery, reviewedLegacySuccessor } =
-    await import("./listing-observation-delivery.mts");
-  const legacy = fixtureDelivery();
-  const before = decodedListingDelivery(legacy);
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const before = decodedListingDelivery(fixtureDelivery());
   const released = before.directory.listings[0]!;
-  const nextLegacy = {
-    ...before,
-    revision: 4,
-    withdrawn_ids: [released.id],
-    directory: { ...before.directory, listings: [] },
-  };
   const wire = (value: unknown) => Buffer.from(JSON.stringify(value));
-  // A withdrawal binds no hold; the binding is Core's format-11 export.
-  const binding = { legacy: { ...before.directory, format_version: 11 }, compactWithdrawn: [] };
-  assert.deepEqual(reviewedLegacySuccessor(legacy, wire(nextLegacy), 3, binding), nextLegacy);
-  assert.throws(
-    () => reviewedLegacySuccessor(legacy, wire(nextLegacy), 4, binding),
-    /must advance/u,
-  );
-  assert.throws(
-    () =>
-      reviewedLegacySuccessor(
-        legacy,
-        wire({ ...nextLegacy, directory: before.directory }),
-        3,
-        binding,
-      ),
-    /other facts/u,
-  );
-  assert.throws(
-    () => reviewedLegacySuccessor(legacy, wire({ ...nextLegacy, withdrawn_ids: [] }), 3, binding),
-    /safety withdrawal/u,
-  );
-
   const compactOnly = { ...released, id: "compact-only" };
   const newerDirectory = {
     ...before.directory,
     listings: [...before.directory.listings, compactOnly],
   };
   const active = wire({ ...before, directory: newerDirectory, revision: 3 });
-  const refreshed = projectListingDelivery(
-    newerDirectory,
-    [],
-    active,
-    4,
-    undefined,
-    newerDirectory,
-    new Set(),
-    Date.now(),
-    [released.id],
-  );
+  const refreshed = projectListingDelivery(newerDirectory, [], active, {
+    revisionFloor: 4,
+    compatible: newerDirectory,
+    withdrawals: [released.id],
+  });
   const actual = decodedListingDelivery(refreshed.bytes);
   assert.equal(actual.revision, 5);
   assert.deepEqual(actual.withdrawn_ids, [released.id]);
@@ -2076,26 +1806,14 @@ void test("compact listing includes the complete canonical snapshot or fails at 
     { id: "withdrawn-listing", name: "Withdrawn listing" },
   ];
   const canonical = { format_version: 11, listings };
-  const operationalIds = new Set(["operational-listing"]);
-  const project = (bound: number) =>
-    projectListingDelivery(
-      canonical,
-      [],
-      null,
-      0,
-      bound,
-      undefined,
-      operationalIds,
-      0,
-      ["withdrawn-listing"],
-      true,
-    );
+  const project = (byteLimit: number) =>
+    projectListingDelivery(canonical, [], null, {
+      byteLimit,
+      now: 0,
+      withdrawals: ["withdrawn-listing"],
+    });
   const complete = project(compactListingDecodedMaximum);
-  const legacy = projectListingDelivery(canonical, [], null, 0, 1000, undefined, operationalIds);
-  assert.equal(legacy.delivered_records, 1);
   assert.equal(complete.delivered_records, 2);
-  assert.deepEqual(complete.omitted, []);
-  assert.deepEqual(complete.omittedObservations, []);
   assert.deepEqual(decodedListingDelivery(complete.bytes).directory.listings, [
     listings[1],
     listings[0],
@@ -2104,6 +1822,7 @@ void test("compact listing includes the complete canonical snapshot or fails at 
   assert.deepEqual(decodeRetainedCompactListing(wire), complete.bytes);
   assert.deepEqual(project(complete.bytes.length).bytes, complete.bytes);
   assert.throws(() => project(complete.bytes.length - 1), /retaining last-good publication/u);
+  assert.throws(() => project(compactListingDecodedMaximum + 1), /compact decoded maximum/u);
 });
 
 void test("signed directory retains equivalent completed evidence until its recorded midpoint", async () => {
@@ -2121,16 +1840,9 @@ void test("signed directory retains equivalent completed evidence until its reco
   };
   const candidate = { ...old, upstream_observation: observation };
   const advance = (hours: number, proposed = candidate) =>
-    projectListingDelivery(
-      canonical,
-      [proposed],
-      first.bytes,
-      0,
-      undefined,
-      undefined,
-      new Set(),
-      Date.parse(`2026-11-10T0${hours}:00:02Z`),
-    );
+    projectListingDelivery(canonical, [proposed], first.bytes, {
+      now: Date.parse(`2026-11-10T0${hours}:00:02Z`),
+    });
   assert.deepEqual(advance(3).bytes, first.bytes);
   const renewal = advance(6);
   assert.equal(renewal.revision, first.revision + 1);

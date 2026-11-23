@@ -1552,23 +1552,17 @@ It uses one gzip stream in a versioned JSON envelope with the decoded size and
 SHA-256. The carrier has an eight-MiB limit and the decoded directory has a
 32-MiB limit. Compact delivery retains all applicable canonical listings,
 including implementation explanations and reviewed IGDB scenes when present.
-The existing policy role signs the exact carrier bytes. The last verified legacy
-directory remains signed for older clients and its bytes stay fixed. Later
-observations update only the compact target. Both carriers share a revision
-floor and must decode to the same bytes at equal revisions. The scheduled
-publisher keeps the existing representation until its first compact publication
-is explicitly enabled. First activation and later format upgrades require the
-reviewed released CLI and its exact SHA-256. The preparation command checks
-that reader's carrier and directory-format capabilities before making a bundle.
-The publisher records the verified reader version and digest. After activation,
-the legacy target follows the [legacy-hold policy](SIGNED-CATALOG.md#legacy-holds-after-compact-activation):
-it changes only to add a safety withdrawal or a download hold, advances above
-the current revision and preserves the other signed legacy rows. The compact
-successor carries the same withdrawals, preserves its other rows and prior
-withdrawals, and publishes above the legacy successor. Compact preparation
-excludes and reports an observer candidate that fails Core validation; the
-definitions and the remaining candidates still publish. Legacy preparation
-keeps its fallback and publishes none of the candidates in that case.
+The existing policy role signs the exact carrier bytes. The legacy
+directory stays signed for older clients with its last bytes and never changes
+again; compact delivery is the only live listing carrier
+([minimum supported preview](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview)).
+Both carriers share a revision floor and must decode to the same bytes at
+equal revisions. First compact publication and later format upgrades wait until
+the publisher has verified the current released preview reader. Until then,
+the publisher renews the prior listing targets exactly. The preparation report
+records the verified reader version and digest. Compact preparation excludes
+and reports an observer candidate that fails Core validation; the definitions
+and the remaining candidates still publish.
 If prior metadata has expired, the publisher first renews the exact known
 targets through historical signature verification.
 

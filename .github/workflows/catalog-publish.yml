@@ -168,9 +168,11 @@ jobs:
       - name: Build the catalog tools
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
-      # Compact listing delivery (#1422): the anonymously selected and verified
-      # released reader decides activation; without one the prior carriers stay.
-      - name: Project completed shared observations into the descriptive listing targets
+      # Compact listing delivery (#1422) is the only live listing carrier; the
+      # legacy target keeps its last signed bytes. The anonymously selected and
+      # verified released reader gates the carrier; without one the prior
+      # listing targets are renewed exactly.
+      - name: Project completed shared observations into the compact listing target
         id: observe
         if: steps.decide.outputs.publish == 'true'
         run: |
