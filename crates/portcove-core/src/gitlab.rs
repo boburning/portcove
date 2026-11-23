@@ -1060,9 +1060,9 @@ fn resolve_observed_asset(
     )
     .is_some()
     {
-        // The link was chosen by its label; its real file contradicts it.
+        // The link passed the gate, so its registry file differs from it.
         return Err(PortcoveError::verification(
-            "the GitLab package file is not the game package its release link names; nothing was downloaded",
+            "GitLab package filename identifies an installer, tool, debug build or source archive, not the game package",
         )
         .detail(
             "route_hold",
@@ -2500,6 +2500,7 @@ mod tests {
                 observed(file_name),
             )
             .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification, "{file_name}");
             assert_eq!(
                 error.details.get("route_hold").map(String::as_str),
                 Some("wrong-role"),
@@ -2608,7 +2609,14 @@ mod tests {
             if name == selected_name {
                 assert_eq!(result.unwrap().asset.name, selected_name);
             } else {
-                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Verification);
+                if name.ends_with("-Source.zip") {
+                    assert_eq!(
+                        error.details.get("route_hold").map(String::as_str),
+                        Some("wrong-role")
+                    );
+                }
                 assert!(provider.cache.read().await.is_empty());
             }
         }

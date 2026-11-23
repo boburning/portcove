@@ -476,5 +476,15 @@ fn upstream_setup_widening_admits_only_setup_and_installer_packages() {
             Some(RouteHold::WrongRole),
             "{name}"
         );
-    }
+    } // The setup-token rule narrows only the installer widening: a PSX
+    // preparation kit named for its source stays that route's package.
+    let kit = "game-psx-kit-source.zip";
+    assert_eq!(
+        package_role_hold(crate::AdapterKind::PsxRecompManaged, kit, true, &[]),
+        None
+    );
+    assert_eq!(
+        package_role_hold(managed, kit, true, &[]),
+        Some(RouteHold::WrongRole)
+    );
 }
