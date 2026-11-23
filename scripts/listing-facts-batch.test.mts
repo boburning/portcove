@@ -77,6 +77,8 @@ import {
   modeViolations,
   outputsProblems,
   collectConditions,
+  expectedBatchAuthor,
+  isExpectedBatchAuthor,
   freshnessAlertDays,
   refreshAfterDays,
   reproductionDetails,
@@ -1884,6 +1886,66 @@ void test("a batch merges only when all five required checks pass on its exact h
     assert.equal(batchPullProblems({ ...pull, ...changed }).length, 1, JSON.stringify(changed));
 });
 
+void test("another App's batch-shaped pull request is the named foreign-batch-author stop (F3)", () => {
+  assert.equal(expectedBatchAuthor(undefined), undefined);
+  assert.equal(expectedBatchAuthor(""), undefined);
+  assert.equal(expectedBatchAuthor("bad slug[bot]"), undefined);
+  assert.equal(expectedBatchAuthor("portcove-facts-batch"), "portcove-facts-batch[bot]");
+  // Unknown slug: any App's bot is evaluated; `merge` binds it to the minted App.
+  assert.ok(isExpectedBatchAuthor("other-app[bot]", undefined));
+  assert.ok(isExpectedBatchAuthor("Portcove-Facts-Batch[bot]", "portcove-facts-batch"));
+  assert.ok(!isExpectedBatchAuthor("other-app[bot]", "portcove-facts-batch"));
+  assert.ok(stopConditionNames.includes("foreign-batch-author"));
+  const { conditions } = collectConditions(
+    { conditions: [], freshness: null },
+    {
+      prState: "foreign",
+      prNumber: "7",
+      foreignAuthor: "other-app[bot]",
+      jobs: { merge: "success", gate: "success" },
+    },
+  );
+  assert.deepEqual(
+    conditions.map((condition) => condition.name),
+    ["foreign-batch-author"],
+  );
+  assert.match(conditions[0]!.detail, /#7 was opened by other-app\[bot\]/u);
+  // A stop issue already open files nothing more.
+  assert.deepEqual(
+    collectConditions(
+      { conditions: [], freshness: null },
+      { blocked: true, prState: "foreign", prNumber: "7", foreignAuthor: "x[bot]", jobs: {} },
+    ).conditions,
+    [],
+  );
+  // The workflow wires both detections to `notify`, and the merge job never
+  // merges or deletes for a foreign author.
+  const text = readFileSync(join(root, batchWorkflowPath), "utf8");
+  const workflow = parse(text) as {
+    jobs: Record<
+      string,
+      {
+        outputs?: Record<string, string>;
+        steps: { id?: string; if?: string; run?: string; env?: Record<string, string> }[];
+      }
+    >;
+  };
+  const gatePull = workflow.jobs.gate!.steps.find((step) => step.id === "pull")!;
+  assert.equal(
+    gatePull.env!.PORTCOVE_FACTS_BATCH_APP_SLUG,
+    "${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}",
+  );
+  assert.equal(workflow.jobs.merge!.outputs!.foreign_author, "${{ steps.author.outputs.foreign }}");
+  for (const step of workflow.jobs.merge!.steps.filter((item) =>
+    /pr-delivery\.mts"? merge|:refs\/heads\/\$\{BRANCH\}/u.test(item.run ?? ""),
+  ))
+    assert.equal(step.if, "steps.author.outputs.foreign == ''");
+  const notify = workflow.jobs.notify!.steps.find((step) => /collect/u.test(step.run ?? ""))!;
+  assert.match(notify.env!.FOREIGN_AUTHOR!, /needs\.merge\.outputs\.foreign_author/u);
+  assert.match(notify.env!.FOREIGN_AUTHOR!, /needs\.gate\.outputs\.pr_state == 'foreign'/u);
+  assert.match(notify.run!, /--foreign-author "\$\{FOREIGN_AUTHOR:-\}"/u);
+});
+
 void test("the enrollment delta and the batch pull request body state what changed and the owner's action", () => {
   const row = (id: string, digest = "x") => ({ port_id: id, facts_sha256: digest });
   assert.deepEqual(
@@ -2172,7 +2234,7 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   assert.match(String((save as { if?: string }).if), /steps\.ready\.outputs\.ready != 'true'/u);
   // The delivered patch is the one this run recorded, and the outputs
   // record is retained for the pull-request check (F5).
-  assert.match(text, /outputs-check --record/u);
+  assert.match(text, /outputs-check --revision "\$commit" \\\n\s*--record/u);
   assert.match(text, /name: listing-facts-batch-outputs-\$\{\{ github\.run_id \}\}/u);
   // The merge binds to the head's CI run (F10) and cleans up its branch.
   assert.match(text, /--run "\$CI_RUN" --attempt "\$CI_ATTEMPT"/u);
@@ -2230,14 +2292,17 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
         new RegExp(`${step!.uses!.replace(/[.]/gu, "\\.")} # v\\d+\\.\\d+\\.\\d+`, "u"),
       );
       // The narrowest token: this repository, Contents and Pull requests only.
+      // No `owner`/`repositories` input, so the pinned action scopes the
+      // token to `GITHUB_REPOSITORY` on every trigger. A `schedule` event has
+      // no `github.event.repository`: an input derived from it would be
+      // empty and widen the token to every repository of the installation.
       assert.deepEqual(step!.with, {
         "app-id": "${{ vars.FACTS_BATCH_APP_ID }}",
         "private-key": "${{ secrets.FACTS_BATCH_APP_PRIVATE_KEY }}",
-        owner: "${{ github.repository_owner }}",
-        repositories: "${{ github.event.repository.name }}",
         "permission-contents": "write",
         "permission-pull-requests": "write",
       });
+      assert.doesNotMatch(JSON.stringify(step!.with), /github\.event|owner|repositories/u, name);
       assert.equal(step!.id, "app");
       // The built-in token of an App job writes nothing.
       assert.ok(
@@ -2325,6 +2390,135 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   assert.equal(opened.env!.GITHUB_TOKEN, "${{ steps.app.outputs.token }}");
   // No documentation or code path asks a person to approve, close or reopen a batch.
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
+});
+
+void test("deliver and merge never execute batch or artifact content; the mint comes last (F1)", () => {
+  const text = readFileSync(join(root, batchWorkflowPath), "utf8");
+  type Step = { id?: string; name?: string; run?: string; uses?: string; with?: unknown };
+  const workflow = parse(text) as { jobs: Record<string, { steps: Step[] }> };
+  const mint = "actions/create-github-app-token@";
+  // A script of the untouched main checkout, the only code these jobs run.
+  const trusted = /^"\$GITHUB_WORKSPACE\/scripts\/[a-z0-9-]+\.mts"$/u;
+  // Comments are prose, not commands; a continued line is one command.
+  const code = (step: Step) =>
+    (step.run ?? "")
+      .split("\n")
+      .filter((line) => !/^\s*#/u.test(line))
+      .join("\n")
+      .replace(/\\\n\s*/gu, " ");
+  for (const name of ["deliver", "merge"]) {
+    const steps = workflow.jobs[name]!.steps;
+    // The first step that brings batch or artifact content into the job.
+    const untrusted = steps.findIndex(
+      (step) =>
+        step.uses?.startsWith("actions/download-artifact@") ||
+        /refs\/pull\/|\bam\b/u.test(code(step)),
+    );
+    assert.ok(untrusted > 0, name);
+    // Dependencies are installed from main's lockfile, before any batch content.
+    const install = steps.findIndex((step) => /pnpm install --frozen-lockfile/u.test(code(step)));
+    assert.ok(install >= 0 && install < untrusted, `${name} installs before batch content`);
+    for (const step of steps.slice(untrusted)) {
+      const body = code(step);
+      const label = `${name}: ${step.name ?? step.uses}`;
+      // No local action, package manager, shell script or relative program.
+      assert.ok(!step.uses?.startsWith("./"), label);
+      assert.doesNotMatch(
+        body,
+        /\b(?:pnpm|npm|npx|yarn|corepack|cargo|make|source)\b|(?:^|[\s;&|(])(?:bash|sh|\.)\s+\S|(?:^|[\s;&|(])\.\//u,
+        label,
+      );
+      assert.doesNotMatch(
+        body,
+        /\bcd "\$RUNNER_TEMP\/batch"|\$RUNNER_TEMP\/(?:batch|head)\/\S*\.(?:m?[jt]s|sh)\b/u,
+      );
+      for (const match of body.matchAll(/(?:^|[\s;&|(=])node\s+(\S+)/gu)) {
+        const script = match[1]!;
+        if (trusted.test(script)) continue;
+        // The one exception: catalog generation in a checkout of main's tip
+        // that received only the allowlisted data files of the composition,
+        // proven equal to it before anything runs there.
+        assert.equal(name, "merge", `${label} runs ${script}`);
+        assert.equal(script, '"$RUNNER_TEMP/main/scripts/generate-catalog.mts"', label);
+        const checked = body.indexOf(
+          `test "$(git -C "$RUNNER_TEMP/main" rev-parse 'HEAD^{tree}')" = "$tree"`,
+        );
+        assert.ok(checked >= 0 && checked < match.index, `${label}: data-only composition first`);
+        assert.match(
+          body,
+          /isolated_git worktree add --quiet --detach "\$RUNNER_TEMP\/main" "\$target"/u,
+        );
+        assert.match(
+          body,
+          /git cat-file blob "\$\{tree\}:\$\{file\}" > "\$RUNNER_TEMP\/main\/\$\{file\}"/u,
+        );
+        assert.doesNotMatch(body, /git (?:-C \S+ )?(?:merge|checkout|switch|am)(?![\w-])/u, label);
+      }
+      // Git that writes batch files runs without ambient configuration,
+      // hooks, attribute files or fsmonitor.
+      if (/isolated_git/u.test(body))
+        for (const setting of [
+          "GIT_CONFIG_NOSYSTEM=1",
+          "GIT_CONFIG_GLOBAL=/dev/null",
+          "GIT_ATTR_NOSYSTEM=1",
+          "-c core.hooksPath=/dev/null",
+          "-c core.attributesFile=/dev/null",
+          "-c core.fsmonitor=false",
+        ])
+          assert.ok(body.includes(setting), `${label}: ${setting}`);
+      for (const line of body.split("\n").filter((item) => /\bam\b/u.test(item)))
+        assert.match(line, /^\s*isolated_git -C "\$RUNNER_TEMP\/batch"/u, label);
+      for (const line of body.split("\n").filter((item) => /\bworktree add\b/u.test(item)))
+        assert.match(line, /isolated_git worktree add|--no-checkout/u, label);
+      for (const line of body.split("\n").filter((item) => /\bgit\b[^\n]*\bpush\b/u.test(item)))
+        assert.match(line, /-c core\.hooksPath=\/dev\/null push --quiet --no-verify/u, label);
+    }
+    // The workspace itself is never patched or merged: batch content goes
+    // to a separate worktree or stays Git objects.
+    assert.doesNotMatch(
+      steps.map(code).join("\n"),
+      /^\s*git (?:-c \S+ \\?\s*)*(?:am|merge|checkout|switch|apply)(?![\w-])/mu,
+      name,
+    );
+    // The mint is the last step before the steps that use its outputs, and
+    // nothing that reads batch content runs after it except the push of the
+    // already-checked commit.
+    const minted = steps.findIndex((step) => step.uses?.startsWith(mint));
+    const users = steps.flatMap((step, index) =>
+      JSON.stringify(step).includes("steps.app.outputs") ? [index] : [],
+    );
+    assert.equal(users[0], minted + 1, `${name}: the mint immediately precedes its first use`);
+    assert.deepEqual(
+      users,
+      Array.from({ length: users.length }, (_, index) => minted + 1 + index),
+      `${name}: every step between the mint and the last token use needs it`,
+    );
+    for (const step of steps.slice(minted + 1))
+      assert.doesNotMatch(
+        code(step),
+        /\bam\b|worktree add|merge-tree|outputs-check|\bpaths --base|generate-catalog/u,
+        `${name}: ${step.name ?? step.uses} reads batch content after the mint`,
+      );
+    // Every check runs before the mint.
+    const checks = steps.flatMap((step, index) =>
+      /outputs-check|\bpaths --base|generate-catalog|merge-intent/u.test(code(step)) ? [index] : [],
+    );
+    assert.ok(checks.length && checks.every((index) => index < minted), name);
+    // Downloads are data only: none is a program, and none lands in the checkout's code.
+    for (const step of steps.filter((item) => item.uses?.startsWith("actions/download-artifact@")))
+      assert.match(
+        String((step.with as { path?: string }).path),
+        /^work\/listing-facts-batch(?:\/outputs)?$/u,
+      );
+  }
+  assert.equal(
+    workflow.jobs.merge!.steps.some((step) => step.uses?.startsWith("actions/download-artifact@")),
+    false,
+    "merge downloads no artifact",
+  );
+  // deliver pushes the checked commit by id from the untouched checkout.
+  assert.match(text, /"\$\{COMMIT\}:refs\/heads\/\$\{branch\}"/u);
+  assert.match(text, /open-pull-request --revision "\$COMMIT"/u);
 });
 
 // ---------------------------------------------------------------------------

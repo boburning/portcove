@@ -1948,6 +1948,7 @@ export const stopConditionNames = [
   "observer-coverage-dropped",
   "pending-repeated",
   "batch-waiting",
+  "foreign-batch-author",
   "worker-error",
 ] as const;
 export type StopConditionName = (typeof stopConditionNames)[number];
@@ -2362,11 +2363,18 @@ export function collectConditions(
     blocked?: boolean;
     /** The freshness of the committed facts, evaluated on every enabled run. */
     freshness?: string | null;
+    /** The login of a batch-shaped pull request's author that is not the job's App. */
+    foreignAuthor?: string;
   },
 ) {
   const freshness = input.freshness !== undefined ? input.freshness : found.freshness;
   if (input.blocked) return { conditions: [] as StopCondition[], freshness };
   const conditions = [...found.conditions];
+  if (input.foreignAuthor)
+    conditions.push({
+      name: "foreign-batch-author",
+      detail: `Batch-shaped pull request #${input.prNumber} was opened by ${input.foreignAuthor}, not by the job's own GitHub App, so the job neither merges it nor starts another batch. Find out which App opened it and why; close it (and, if it was not expected, remove that App's write access), then close this issue.`,
+    });
   if (input.prState === "failed")
     conditions.push({
       name: "required-check-failed",
@@ -2542,9 +2550,12 @@ export function ciRunFor(
 
 /**
  * Whether a pull request author is a GitHub App's bot user other than the
- * built-in workflow token's: the job delivers with its own App, whose slug
- * the read-only `gate` does not hold. The `merge` job, which mints the App
- * token, binds the author to that App's exact login before it merges.
+ * built-in workflow token's. Without the optional `appSlug` (the owner's
+ * repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG`), the read-only `gate`
+ * does not know which App delivers, so any App's batch-shaped pull request
+ * is evaluated and the `merge` job binds the author to the minted App's exact
+ * login before any write; a mismatch there, or here once the slug is known,
+ * is the named `foreign-batch-author` stop (`isExpectedBatchAuthor`).
  */
 export function isBatchAppAuthor(user: unknown) {
   return (
@@ -2554,6 +2565,18 @@ export function isBatchAppAuthor(user: unknown) {
     /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?\[bot\]$/iu.test(user.login) &&
     user.login !== workflowLogin
   );
+}
+
+/** The expected App's bot login, from its slug, or undefined when the slug is unset or malformed. */
+export function expectedBatchAuthor(appSlug: string | undefined) {
+  const slug = appSlug?.trim();
+  return slug && /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/iu.test(slug) ? `${slug}[bot]` : undefined;
+}
+
+/** Whether a batch author is the expected App's bot; any App's bot when the slug is unknown. */
+export function isExpectedBatchAuthor(login: string, appSlug: string | undefined) {
+  const expected = expectedBatchAuthor(appSlug);
+  return expected === undefined || login.toLowerCase() === expected.toLowerCase();
 }
 
 /**
@@ -2679,8 +2702,25 @@ function authoredRecordsAt(revision: string): AuthoredPort[] {
   }
 }
 
-function currentFacts(): ListingFactsTable {
-  const table = parseCatalogSource(readFileSync(path.join(root, factsTablePath), "utf8"));
+/**
+ * The facts table's bytes: the checkout's file, or the committed file at
+ * `revision`. The `deliver` job reads the applied batch commit this way, so
+ * main's script checks the batch without running from the batch's tree.
+ */
+function factsBytes(revision?: string): Buffer {
+  if (revision === undefined) return readFileSync(path.join(root, factsTablePath));
+  if (!/^[0-9a-f]{40}$/u.test(revision)) throw new Error("--revision must be a full commit id.");
+  const result = spawnSync("git", ["cat-file", "blob", `${revision}:${factsTablePath}`], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout))
+    throw new Error(`Cannot read ${factsTablePath} at ${revision}.`);
+  return result.stdout;
+}
+
+function currentFacts(revision?: string): ListingFactsTable {
+  const table = parseCatalogSource(factsBytes(revision).toString("utf8"));
   checkListingFactsTable(table);
   return table;
 }
@@ -3059,16 +3099,21 @@ async function main(argv: string[]): Promise<string> {
       writeFileSync(option.output!, `${JSON.stringify(record, null, 2)}\n`);
       return `${JSON.stringify(record)}\n`;
     }
+    case "allowlist": {
+      // The paths a batch may change, one per line, for the merge job's
+      // data-only composition.
+      return `${batchAllowlist.join("\n")}\n`;
+    }
     case "outputs-check": {
       // The deliver job: the applied patch and facts table are this run's.
       if (!option.record || !option.patch)
         throw new Error("outputs-check needs --record and --patch.");
-      const current = currentFacts();
+      const current = currentFacts(option.revision);
       if (!current.provenance) throw new Error("A batch must record its provenance.");
       const problems = outputsProblems(
         current.provenance,
         readFileSync(option.record),
-        readFileSync(path.join(root, factsTablePath)),
+        factsBytes(option.revision),
         readFileSync(option.patch),
       );
       if (problems.length) throw new Error(problems.join("\n"));
@@ -3269,6 +3314,19 @@ async function main(argv: string[]): Promise<string> {
           throw new Error("More than 1,000 open pull requests; the batch state is unknown.");
       }
       const batches = jobBatches(pulls, repository());
+      // With the owner's optional App slug, another App's batch-shaped pull
+      // request is a named stop, never a batch to evaluate or a silent hold.
+      const appSlug = process.env.PORTCOVE_FACTS_BATCH_APP_SLUG;
+      const foreign = batches.find(
+        (pull) => !isExpectedBatchAuthor(String((pull.user as { login: unknown }).login), appSlug),
+      );
+      if (foreign) {
+        const author = String((foreign.user as { login: unknown }).login);
+        output("state", "foreign");
+        output("number", String(Number(foreign.number)));
+        output("author", author);
+        return `${JSON.stringify({ state: "foreign", number: Number(foreign.number), author })}\n`;
+      }
       if (batches.length === 0) {
         output("state", "none");
         return `${JSON.stringify({ state: "none" })}\n`;
@@ -3384,7 +3442,7 @@ async function main(argv: string[]): Promise<string> {
     case "open-pull-request": {
       for (const name of ["branch", "run-url", "delta", "reproduced"])
         if (!option[name]) throw new Error(`open-pull-request needs --${name}.`);
-      const current = currentFacts();
+      const current = currentFacts(option.revision);
       if (!current.provenance) throw new Error("A batch must record its provenance.");
       if (option.branch !== `${batchBranchPrefix}${current.provenance.workflow_run_id}`)
         throw new Error("The branch is not this run's batch branch.");
@@ -3465,6 +3523,7 @@ async function main(argv: string[]): Promise<string> {
         prState: option["pr-state"] ?? "none",
         prNumber: option["pr-number"] ?? "none",
         ...(option["pr-created-at"] ? { prCreatedAt: option["pr-created-at"] } : {}),
+        ...(option["foreign-author"] ? { foreignAuthor: option["foreign-author"] } : {}),
         jobs: Object.fromEntries(batchJobs.map((job) => [job, option[job] ?? ""] as const)),
       });
       writeFileSync(option.conditions, `${JSON.stringify(collected)}\n`);

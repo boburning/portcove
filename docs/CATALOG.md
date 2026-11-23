@@ -4970,7 +4970,9 @@ refused entries and why, as inert code text. The conditions are `gate-refused`, 
 [catalog capacity](#catalog-capacity)), `reproduction-refused`,
 `reproduction-transient` (a reproduction that ended only transiently on two
 consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
-well-formed one-commit pull request), `batch-waiting` (an open batch whose
+well-formed one-commit pull request), `foreign-batch-author` (a batch-shaped
+pull request another GitHub App opened; see
+[credentials](#credentials-the-app-token-and-the-built-in-token)), `batch-waiting` (an open batch whose
 required checks have not all finished more than 15 days after it was opened,
 most likely because its runs wait for approval: a reconfirmation proposed at
 15 days must merge within the rest of the 30-day facts age),
@@ -5062,9 +5064,28 @@ is one CI path, with no second trigger, personal token or recurring dispatch.
   deployment-branch policy admits only `main`, and only they can read its
   variable `FACTS_BATCH_APP_ID` and secret `FACTS_BATCH_APP_PRIVATE_KEY`. In
   each, one step (`actions/create-github-app-token`, pinned by commit SHA)
-  references the key and mints a token for this repository with only
-  `contents: write` and `pull-requests: write`, after every check that needs
-  no credential. The action revokes the token when the job ends.
+  references the key and mints a token with only `contents: write` and
+  `pull-requests: write`, after every check that needs no credential and
+  immediately before the first step that uses it. The step sets no `owner` or
+  `repositories` input, so the pinned action scopes the token to the current
+  repository (`GITHUB_REPOSITORY`) on every trigger; an input taken from
+  `github.event.repository` would be empty on `schedule` and widen the token
+  to every repository of the installation. The action revokes the token when
+  the job ends.
+- Neither job ever executes batch or artifact content. `$GITHUB_WORKSPACE`
+  stays the untouched `main` checkout, and every check runs its scripts:
+  `deliver` applies the patch with `git am` in a separate worktree (Git
+  without system or global configuration, hooks, attribute files or
+  fsmonitor, so no filter, diff or merge driver runs) and checks the commit
+  as Git objects with main's `paths` and `outputs-check --revision`, then
+  pushes that commit by id and opens the pull request with main's script.
+  `merge` composes the batch onto the current `main` tip with
+  `git merge-tree` (objects only), checks both diffs with main's `paths`,
+  and runs `generate-catalog.mts --check` in a checkout of the `main` tip
+  that received only the allowlisted data files of the composition, proven
+  equal to it; the guarded merge reads a head worktree that writes no file.
+  `deliver` downloads only data (the patch, its outputs record, the delta,
+  the worker report and the worker state); `merge` downloads nothing.
 - `deliver` pushes the batch branch with it and opens the pull request;
   `merge` merges through the guarded route and deletes the branch. Each push
   gets the token as an HTTP header through that one `git` command's
@@ -5089,15 +5110,51 @@ is one CI path, with no second trigger, personal token or recurring dispatch.
 A dry run never reaches `deliver` or `merge` (both require the variable and
 no dry run), so it works with the environment unset or the App unavailable.
 
+- `gate` evaluates any GitHub App's pull request on a batch branch of this
+  repository unless the owner sets the optional, non-secret repository
+  variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to the App's slug. Then another
+  App's batch-shaped pull request is the named `foreign-batch-author` stop;
+  unset, `merge` binds the author to the minted App's `app-slug` before any
+  write and raises the same stop on a mismatch. The job never sets the
+  variable.
+
 What the repository cannot show: the App's actual permission set,
-installation scope and absence from every bypass list (UNKNOWN until the
-first live run). The first live batch confirms them: the token request for
-exactly Contents and Pull requests on this repository succeeds (a request
-GitHub cannot grant fails the mint step); the pull request shows the App as
-its author and CI starts without anyone approving it; the merge succeeds
-only once the five required checks pass, and `main` CI starts on the merge
-commit. A push to a path outside the allowlist is refused by the job itself,
-before GitHub sees it.
+installation scope and absence from every bypass list (UNKNOWN). A
+successful mint does not confirm them: the action requests only the listed
+permissions and the current repository, and a broader App or installation
+grants them just the same. The owner verifies once in the App's settings
+that its permissions are exactly Contents and Pull requests (read and write)
+plus Metadata (read), that it is installed on this repository only and that
+it is on no ruleset bypass list, and records that on
+[#1422](https://github.com/boburning/portcove/issues/1422). The first live
+batch then records these observations:
+
+- the mint step's log names exactly this repository ("Creating token for
+  this repository"), never "all repositories owned by";
+- the pull request's author is the App's bot, and its CI starts without
+  anyone approving it;
+- no unexpected `push` workflow runs on the batch branch: every workflow's
+  `push` trigger names `main` or `v*` tags only, none matches
+  `automation/**`;
+- the merge succeeds only with the five required checks green, and the
+  `Protect main` ruleset's additional approval for unattributed changes does
+  not refuse it (expected inert with zero required approvals; see
+  [Repository settings](REPOSITORY-SETTINGS.md)). The batch commit is
+  authored and committed as `github-actions[bot]` (the patch's author is
+  fixed by `combine` and bound by the outputs record, and the App's bot
+  identity is known only after the mint), while the App pushes it;
+- `main` CI and the catalog publication start on the merge commit;
+- the branch deletion succeeds, and the post-job step revokes each token.
+
+A push to a path outside the allowlist is refused by the job itself, before
+GitHub sees it.
+
+The residual trust, plainly: the App's key, or any step that runs in
+`deliver` or `merge`, is equivalent to unattended write to `main` for
+anything that is not a workflow file, subject only to the five required
+checks, because the ruleset requires no approving review and a merged batch
+is then signed and published automatically. The `facts-batch` environment
+admits only `main`, so anything merged to `main` could use the key.
 
 ###### Migration and steady state
 
