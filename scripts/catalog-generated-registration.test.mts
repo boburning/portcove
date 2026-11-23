@@ -45,6 +45,8 @@ import {
   machineRunsOn,
   readGateBaseline,
   fitContext,
+  gateFormKind,
+  maxQueuedCompetingNames,
   gateFormPlatforms,
   gateLine,
   gateLineNamesProduct,
@@ -3470,7 +3472,7 @@ void test("another package form competing with an offered archive excludes the i
   assert.equal(reasonOf(decide(listing(), glue)), "tool-not-game");
 });
 
-void test("release file names are classified as other package forms by fit and gate alike (W2, X1)", () => {
+void test("release file names are classified as other package forms by fit and gate alike (W2, X1, Z1)", () => {
   const W = ["windows-x86-64"];
   const L = ["linux-x86-64"];
   const M = ["macos-x86-64", "macos-aarch64"];
@@ -3514,10 +3516,8 @@ void test("release file names are classified as other package forms by fit and g
     // Documentation names with suffixes and other non-program names (Y4).
     ["COPYING.LESSER", undefined, []],
     ["README.markdown", undefined, []],
-    ["readme_first", undefined, []],
     ["LICENSE-MIT", undefined, []],
     ["Licence-Apache", undefined, []],
-    ["Changelog_2026", undefined, []],
     ["CHANGES", undefined, []],
     ["NOTICE-THIRD-PARTY", undefined, []],
     ["AUTHORS", undefined, []],
@@ -3533,6 +3533,162 @@ void test("release file names are classified as other package forms by fit and g
     ["md5sum", undefined, []],
     ["sha512sum", undefined, []],
     ["gpl-3.0", undefined, []],
+    // The closed non-program list (Z1): suffixes in any letter case.
+    ["Game.zip.sig", undefined, []],
+    ["Game.zip.asc", undefined, []],
+    ["Game.zip.minisig", undefined, []],
+    ["key.pem", undefined, []],
+    ["Game.zip.gpg", undefined, []],
+    ["Game.zip.sigstore", undefined, []],
+    ["Game.zip.intoto.jsonl", undefined, []],
+    ["Game.zip.sha384", undefined, []],
+    ["Game.zip.sha224", undefined, []],
+    ["Game.zip.md5sum", undefined, []],
+    ["Game.zip.sha1sum", undefined, []],
+    ["Game.zip.sha256sums", undefined, []],
+    ["Game.zip.checksum", undefined, []],
+    ["Game.zip.checksums", undefined, []],
+    ["latest-linux.yml", undefined, []],
+    ["latest-mac.yaml", undefined, []],
+    ["update.json", undefined, []],
+    ["appcast.xml", undefined, []],
+    ["Info.plist", undefined, []],
+    ["Game.AppImage.zsync", undefined, []],
+    ["notes.txt", undefined, []],
+    ["README.md", undefined, []],
+    ["CHANGELOG.markdown", undefined, []],
+    ["guide.rst", undefined, []],
+    ["Manual.pdf", undefined, []],
+    ["index.html", undefined, []],
+    ["index.htm", undefined, []],
+    ["notes.rtf", undefined, []],
+    ["Game.nfo", undefined, []],
+    ["build.log", undefined, []],
+    ["scores.csv", undefined, []],
+    ["screenshot.png", undefined, []],
+    ["cover.jpg", undefined, []],
+    ["cover.jpeg", undefined, []],
+    ["demo.gif", undefined, []],
+    ["banner.webp", undefined, []],
+    ["logo.svg", undefined, []],
+    ["icon.ico", undefined, []],
+    ["trailer.mp4", undefined, []],
+    ["trailer.webm", undefined, []],
+    ["trailer.mov", undefined, []],
+    ["Game.pdb", undefined, []],
+    ["Game.dbg", undefined, []],
+    ["Game.x86_64.debug", undefined, []],
+    ["Game.sym", undefined, []],
+    ["Game.torrent", undefined, []],
+    ["fix.patch", undefined, []],
+    ["fix.diff", undefined, []],
+    ["GAME.ZIP.SHA256", undefined, []],
+    ["Screenshot.PNG", undefined, []],
+    // ...exact names, license names and documentation words followed only by a license identifier.
+    ["sha512sums", undefined, []],
+    ["SHASUMS256", undefined, []],
+    ["checksums", undefined, []],
+    ["checksum", undefined, []],
+    ["b3sums", undefined, []],
+    ["hashes", undefined, []],
+    ["signatures", undefined, []],
+    ["sha256sum", undefined, []],
+    ["sha1sum", undefined, []],
+    ["md5sum", undefined, []],
+    ["sha512sum", undefined, []],
+    ["releases", undefined, []],
+    ["version", undefined, []],
+    ["manifest", undefined, []],
+    ["license", undefined, []],
+    ["licence", undefined, []],
+    ["copying", undefined, []],
+    ["readme", undefined, []],
+    ["changelog", undefined, []],
+    ["changes", undefined, []],
+    ["notice", undefined, []],
+    ["authors", undefined, []],
+    ["news", undefined, []],
+    ["todo", undefined, []],
+    ["install", undefined, []],
+    ["makefile", undefined, []],
+    ["dockerfile", undefined, []],
+    ["gpl-2.0", undefined, []],
+    ["agpl-3.0", undefined, []],
+    ["lgpl-2.1-or-later", undefined, []],
+    ["apache-2.0", undefined, []],
+    ["mpl-2.0", undefined, []],
+    ["bsd-3-clause", undefined, []],
+    ["LICENSE-MIT", undefined, []],
+    ["LICENSE-APACHE-2.0", undefined, []],
+    ["LICENSE_BSD", undefined, []],
+    ["COPYING.LESSER", undefined, []],
+    ["README.markdown", undefined, []],
+    ["LICENSE_THIRD_PARTY.txt", undefined, []],
+    ["LICENSE-THIRD-PARTY", undefined, []],
+    ["LICENSE.thirdparty", undefined, []],
+    ["Licence-GPL", undefined, []],
+    ["COPYING-LGPL", undefined, []],
+    // Libraries before split volumes: a versioned `.so` stays a library.
+    ["libgame.so.1.0.123", undefined, []],
+    ["libgame.so.1.0", undefined, []],
+    ["Game.DLL", undefined, []],
+    // Read archives in any letter case, and non-desktop packages.
+    ["Game.zip", undefined, []],
+    ["Game-mac.dSYM.zip", undefined, []],
+    ["Game.app.zip", undefined, []],
+    ["Game.TAR.GZ", undefined, []],
+    ["Game.TGZ", undefined, []],
+    ["Game.aab", undefined, []],
+    ["Game.vpk", undefined, []],
+    ["Game.nro", undefined, []],
+    ["Game.nsp", undefined, []],
+    ["Game.3dsx", undefined, []],
+    ["Game.cia", undefined, []],
+    ["Game.wad", undefined, []],
+    // A documentation word followed by anything else is not ignored (Z1):
+    // the name classifies by the other rules, the safe direction.
+    ["Changes-Game-linux", "linux", L],
+    ["Notice-Me-Senpai", "linux", L],
+    ["Readme-Launcher", "linux", L],
+    ["Authors-Cut", "linux", L],
+    ["installer", "linux", L],
+    ["readme_first", "linux", L],
+    ["Changelog_2026", "linux", L],
+    ["Game.v1", "linux", L],
+    ["game-1.0", "linux", L],
+    ["Install-Game.sh", "linux", L],
+    ["INSTALL.sh", "linux", L],
+    ["Game.rpm", "linux", L],
+    ["Game.flatpak", "linux", L],
+    ["Game.AppImage", "linux", L],
+    // Every other or unknown extension is an unread container (Z1).
+    ["Game-linux.txz", "container", []],
+    ["Game.tbz", "container", []],
+    ["Game.tzst", "container", []],
+    ["Game.tlz", "container", []],
+    ["Game.taz", "container", []],
+    ["Game.tz", "container", []],
+    ["Game.Z", "container", []],
+    ["Game.tar.Z", "container", []],
+    ["Game.zipx", "container", []],
+    ["Game.sit", "container", []],
+    ["Game.arj", "container", []],
+    ["Game.lha", "container", []],
+    ["Game.wim", "container", []],
+    ["Game.vhd", "container", []],
+    ["Game.chd", "container", []],
+    ["Game.squashfs", "container", []],
+    ["Game.pck", "container", []],
+    ["Game.pak", "container", []],
+    ["Game.wasm", "container", []],
+    ["Game.xyz", "container", []],
+    ["Game-win64.xyz", "container", []],
+    ["Game.jar", "container", []],
+    ["Game.tar", "container", []],
+    ["Game.rar", "container", []],
+    ["Game.tar.zst", "container", []],
+    ["Game.tbz2", "container", []],
+    ["Game.7z.sha", "container", []],
     // Read archives and non-desktop packages are not other package forms.
     ["Game-v1.0-windows-x64.zip", undefined, []],
     ["Game.app.zip", undefined, []],
@@ -3613,6 +3769,7 @@ void test("release file names are classified as other package forms by fit and g
   ];
   for (const [name, kind, gate] of rows) {
     assert.equal(otherPackageForm(name), kind, `fit: ${name}`);
+    assert.equal(gateFormKind(name), kind, `gate kind: ${name}`);
     assert.deepEqual(gateFormPlatforms(name), gate, `gate: ${name}`);
     if (kind !== "container")
       assert.deepEqual(otherPackagePlatforms(name, undefined), gate, `fit platforms: ${name}`);
@@ -3696,6 +3853,124 @@ void test("release file names are classified as other package forms by fit and g
   forgedClient.facts.entries[0]!.other_packages = exeVolumes;
   forgedClient.enrollments[0]!.facts_sha256 = digestOf(forgedClient.facts.entries[0]);
   assert.throws(() => gateGeneration(null, forgedClient), /Game-win64\.exe\.001/u);
+});
+
+void test("an unknown or unlisted release file competes with the archive; only the closed list is ignored (Z1)", () => {
+  const releaseOf = (names: string[], id: number) => ({
+    id,
+    version: "v1.0",
+    published_at: "2026-10-01T00:00:00Z",
+    provider_prerelease: false,
+    assets_complete: true,
+    malformed_assets: 0,
+    assets: names.map((name, index) => ({
+      id: id * 10 + index,
+      name,
+      url: `https://github.com/fixture-owner/x/releases/download/v1/${index}`,
+      size: 100,
+      sha256: sha(name),
+    })),
+  });
+  const named = (name: string) =>
+    name.includes("linux")
+      ? suggestion(linuxTar)
+      : name.includes("win64")
+        ? suggestion("Game-win64.7z")
+        : undefined;
+  const generation = generateRegistrations(
+    [listing()],
+    table(entry([artifact(windowsZip, [player("Launcher.exe")])])),
+  );
+  assert.equal(generation.enrollments.length, 1);
+  const forge = (others: ReturnType<typeof otherPackagesOf>) => {
+    const forged = structuredClone(generation);
+    forged.facts.entries[0]!.other_packages = others;
+    forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+    return forged;
+  };
+  // The game as an unread `.txz` beside a Linux tarball whose single program
+  // is not the game: that program never enrolls on Linux.
+  const txz = otherPackagesOf(releaseOf([linuxTar, "Game-linux.txz"], 3), named);
+  assert.deepEqual(
+    txz.map((other) => [other.name, other.platforms]),
+    [["Game-linux.txz", ["linux-x86-64"]]],
+  );
+  const launcher = entry([artifact(linuxTar, [player("Unseen", "elf64-x86-64")], 12)], {}, unseen, {
+    other_packages: txz,
+  });
+  const linuxOnly = listing(unseen, { platforms: ["linux-x86-64"] });
+  assert.equal(reasonOf(decide(linuxOnly, launcher)), "other-package-form-beside-archive");
+  assert.equal(reasonOf(decide(linuxOnly, { ...launcher, other_packages: [] })), "fit");
+  // An unknown extension competes like any unread container.
+  const unknown = otherPackagesOf(releaseOf([windowsZip, "Game-win64.xyz"], 4), named);
+  assert.deepEqual(
+    unknown.map((other) => [other.name, other.platforms]),
+    [["Game-win64.xyz", ["windows-x86-64"]]],
+  );
+  const beside = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+    other_packages: unknown,
+  });
+  assert.equal(reasonOf(decide(listing(), beside)), "other-package-form-beside-archive");
+  assert.throws(() => gateGeneration(null, forge(unknown)), /Game-win64\.xyz/u);
+  // The gate names a recorded unknown container's platforms from the record
+  // and refuses it too; a `.txz` recorded for Windows is refused alike.
+  const txzForWindows = otherPackagesOf(releaseOf([windowsZip, "Game-win64.txz"], 5), named);
+  assert.throws(() => gateGeneration(null, forge(txzForWindows)), /Game-win64\.txz/u);
+  // Checksums, update metadata, decoration and notes never exclude a release.
+  const ignored = otherPackagesOf(
+    releaseOf(
+      [
+        windowsZip,
+        `${windowsZip}.sha256`,
+        "SHA256SUMS",
+        "latest.yml",
+        "screenshot.png",
+        "notes.txt",
+        "LICENSE-MIT",
+        `${windowsZip}.sig`,
+      ],
+      6,
+    ),
+    named,
+  );
+  assert.deepEqual(ignored, []);
+  const plain = entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+    other_packages: ignored,
+  });
+  assert.equal(reasonOf(decide(listing(), plain)), "fit");
+  assert.doesNotThrow(() => gateGeneration(null, forge(ignored)));
+});
+
+void test("the route fit report lists the competing asset names of each withheld identity, bounded (Z1)", () => {
+  const names = Array.from(
+    { length: maxQueuedCompetingNames + 2 },
+    (_, index) => `Extra-${String(index).padStart(2, "0")}.xyz`,
+  );
+  const others = names.map((name, index) => ({
+    asset_id: 50 + index,
+    name,
+    size: 2048,
+    sha256: null,
+    platforms: ["windows-x86-64"],
+  }));
+  const generation = generateRegistrations(
+    [listing()],
+    table(
+      entry([artifact(windowsZip, [player("Launcher.exe")])], {}, unseen, {
+        other_packages: others,
+      }),
+    ),
+  );
+  assert.equal(reasonOf(generation.decisions[0]!), "other-package-form-beside-archive");
+  const queues = registrationQueues(generation);
+  assert.deepEqual(queues.other_package_forms, {
+    [unseen]: names.slice(0, maxQueuedCompetingNames),
+  });
+  const clean = generateRegistrations(
+    [listing()],
+    table(entry([artifact(windowsZip, [player("Launcher.exe")])])),
+  );
+  assert.deepEqual(registrationQueues(clean).other_package_forms, {});
 });
 
 void test("the hand-checked correct shapes still enroll (D4 iii)", () => {

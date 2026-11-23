@@ -38,8 +38,9 @@
 //     newer prerelease of another line follows it (`ambiguous-release-line`);
 //  7b. the release ships no other package form (a non-archive desktop
 //     package such as `.exe`, `.msix`, `.AppImage`, `.sh` or `.dmg`, a bare
-//     binary, or a container or split-archive volume the worker does not read
-//     whose name permits P) for a platform P it also offers a readable archive
+//     binary, or any other asset that is neither a read archive, a library,
+//     a non-desktop package nor on the closed non-program list: an unread
+//     container whose name permits P, `otherPackageForm`) for a platform P it also offers a readable archive
 //     for (one whose name permits P), other than that archive's own player
 //     for P: every such asset has a provider digest equal to a player of P's
 //     archives, else the release offers a different package than the archive
@@ -77,11 +78,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 10;
+export const GENERATOR_VERSION = 11;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 10;
-export const FACTS_TABLE_FORMAT = 9;
+export const FACTS_PARSER_VERSION = 11;
+export const FACTS_TABLE_FORMAT = 10;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -1342,10 +1343,78 @@ export const formPlatforms = {
   macos: ["macos-x86-64", "macos-aarch64"],
 } as const;
 /**
- * Release files that are documentation, checksums, signatures, update
- * metadata or libraries, never a program: exact whole names, any letter case.
+ * The closed list of release files that are never a program, by suffix, any
+ * letter case: checksums and signatures, update metadata, text and documents,
+ * images and media used as release decoration, debug symbols, patches and
+ * torrents. Only this list and `nonProgramNames` ignore an asset; every other
+ * file that is not a read archive, a library or a non-desktop package
+ * competes with the archive.
  */
-const documentNames = new Set([
+export const nonProgramSuffixes = [
+  // Checksums and signatures.
+  ".sha1",
+  ".sha224",
+  ".sha256",
+  ".sha384",
+  ".sha512",
+  ".sha1sum",
+  ".sha256sum",
+  ".sha512sum",
+  ".sha256sums",
+  ".md5",
+  ".md5sum",
+  ".checksum",
+  ".checksums",
+  ".sig",
+  ".asc",
+  ".minisig",
+  ".pem",
+  ".gpg",
+  ".sigstore",
+  ".intoto.jsonl",
+  // Update metadata.
+  ".blockmap",
+  ".zsync",
+  ".yml",
+  ".yaml",
+  ".json",
+  ".xml",
+  ".plist",
+  // Text and documents.
+  ".txt",
+  ".md",
+  ".markdown",
+  ".rst",
+  ".pdf",
+  ".html",
+  ".htm",
+  ".rtf",
+  ".nfo",
+  ".log",
+  ".csv",
+  // Images and media.
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".ico",
+  ".mp4",
+  ".webm",
+  ".mov",
+  // Debug symbols.
+  ".pdb",
+  ".dbg",
+  ".debug",
+  ".sym",
+  // Patches and torrents.
+  ".torrent",
+  ".patch",
+  ".diff",
+] as const;
+/** Exact whole names, any letter case, that are never a program. */
+export const nonProgramNames = [
   "sha256sums",
   "sha512sums",
   "sha1sums",
@@ -1357,84 +1426,52 @@ const documentNames = new Set([
   "shasums512",
   "checksum",
   "checksums",
-  "license",
-  "licence",
-  "readme",
-  "changelog",
-  "changes",
-  "copying",
-  "notice",
-  "authors",
-  "credits",
-  "releases",
-  "version",
-  "manifest",
-  "makefile",
-  "news",
-  "todo",
-  "install",
-  "dockerfile",
   "hashes",
   "signatures",
   "sha256sum",
   "sha512sum",
   "sha1sum",
   "md5sum",
-  "gpl-2.0",
-  "gpl-3.0",
-  "lgpl-2.1",
-  "lgpl-3.0",
-  "agpl-3.0",
-]);
+  "releases",
+  "version",
+  "manifest",
+  "license",
+  "licence",
+  "copying",
+  "readme",
+  "changelog",
+  "changes",
+  "notice",
+  "authors",
+  "credits",
+  "news",
+  "todo",
+  "install",
+  "makefile",
+  "dockerfile",
+] as const;
+/** An SPDX-looking license name (`gpl-3.0`, `lgpl-2.1-or-later`, `apache-2.0`). */
+const spdxName =
+  /^(?:(?:a|l)?gpl|mpl|apache|epl|cddl|eupl|ofl|artistic|bsl|cc0|cc-by(?:-sa|-nc|-nd)*)-[0-9]+(?:\.[0-9]+)*(?:-only|-or-later)?$|^bsd-[0-9]-clause$/u;
 /**
- * A documentation name with a suffix (`LICENSE-MIT`, `COPYING.LESSER`,
- * `README.markdown`, `changelog_2026`): one of these words, any letter case,
- * followed by the end, `.`, `-` or `_`.
+ * A documentation word followed only by `.lesser` or `-`, `_` or `.` and a
+ * license identifier (`LICENSE-MIT`, `COPYING.LESSER`, `Licence-Apache`,
+ * `NOTICE-THIRD-PARTY`). A document suffix (`README.markdown`) is on
+ * `nonProgramSuffixes`. Anything else after the word (`Readme-Launcher`,
+ * `Changes-Game-linux`) is classified by the other rules.
  */
 const documentPrefix =
-  /^(?:license|licence|copying|readme|changelog|changes|notice|authors)(?:$|[._-])/u;
-/**
- * Compressed, container and disk-image forms the worker does not read, beyond
- * `unreadForms`, judged only when no read archive form matched (`.tar.gz`,
- * `.tgz` and `.tar.xz` are read): `.tar.lz`, `.tar.lzma` and `.tar.lz4` end in
- * one of these.
- */
-const unreadContainerSuffixes = [
-  ".gz",
-  ".xz",
-  ".bz2",
-  ".zst",
-  ".lz",
-  ".lzma",
-  ".lz4",
-  ".cab",
-  ".lzh",
-  ".ace",
-  ".cpio",
-  ".iso",
-  ".img",
-  ".love",
-];
-/**
- * Sidecar extensions longer than the one-to-five-character extension window
- * that are never a program (checksums, signatures, update metadata, torrents).
- */
-const sidecarExtensions = [
-  ".blockmap",
-  ".sha256",
-  ".sha512",
-  ".sha384",
-  ".sha224",
-  ".sha256sum",
-  ".sha512sum",
-  ".sha1sum",
-  ".md5sum",
-  ".minisig",
-  ".torrent",
-  ".sha256sums",
-  ".checksum",
-  ".checksums",
-];
+  /^(?:license|licence|copying|readme|changelog|changes|notice|authors)(?:\.lesser|[._-](?:third[-_]?party|3rd[-_]?party|(?:mit|bsd|isc|zlib|apache|gpl|lgpl|agpl|mpl|epl|ofl|cc0|cc-by(?:-sa)?|unlicense|boost|bsl)(?:[-_.]?[0-9]+(?:\.[0-9]+)*)?(?:[-_.]?(?:only|or-later|clause))?))?$/u;
+/** A release file that is never a program: `nonProgramSuffixes`, `nonProgramNames` or a license name. */
+export const nonProgramFile = (name: string) => {
+  const lower = name.toLowerCase();
+  return (
+    nonProgramSuffixes.some((suffix) => lower.endsWith(suffix)) ||
+    (nonProgramNames as readonly string[]).includes(lower) ||
+    spdxName.test(lower) ||
+    documentPrefix.test(lower)
+  );
+};
 /** A shared library: `*.so`, `*.so.<n>[.<n>…]`, `*.dll`, `*.dylib`. */
 const libraryName = (lower: string) =>
   /\.so(\.[0-9]+)*$/u.test(lower) || lower.endsWith(".dll") || lower.endsWith(".dylib");
@@ -1450,44 +1487,44 @@ export const splitVolume = (name: string) =>
   /\.part[0-9]+\.rar$/u.test(name.toLowerCase());
 
 /**
- * The kind of another package form a release asset is, or undefined for an
- * archive the worker reads, a non-desktop package or any other file:
- *  - `windows`: `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`;
- *  - `linux`: `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`,
- *    `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or
- *    `.aarch64`, or a bare binary: a name with no file extension (no final `.`
- *    followed by one to five letters and digits including a letter, and no
- *    known sidecar extension, `sidecarExtensions`), other than a
- *    documentation, checksum or metadata name (`documentNames`,
- *    `documentPrefix`) or a shared library (`*.so.<n>`). A name whose apparent
- *    extension is only a version (`game-v1.0`, `Game.v1.2`, `game.1.2.3`) is
- *    such a bare binary;
- *  - `macos`: `.dmg`, `.pkg`;
- *  - `container`: a container, compressed file or disk image the worker does
- *    not read (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.tbz2`,
- *    `.tar.zst`, `unreadContainerSuffixes`) or a volume of a split file
- *    (`splitVolume`); it serves every platform its name permits.
+ * The kind of another package form a release asset is, judged in this order
+ * on the lowercased name; the first match decides:
+ *  1. a read archive (`archiveForms`, also `.app.zip`, `.dSYM.zip`): undefined;
+ *  2. a shared library (`*.so`, `*.so.<n>…`, `*.dll`, `*.dylib`): undefined;
+ *  3. a file on the closed non-program list (`nonProgramFile`): undefined;
+ *  4. a volume of a split file (`splitVolume`): `container`;
+ *  5. `windows`: `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`;
+ *     `linux`: `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`,
+ *     `.bin`, `.sh`, `.linux`, `.x86`, `.x86_64`, `.arm64`, `.aarch64`, or a
+ *     bare binary: a name with no file extension (no final `.` followed by
+ *     letters and digits including a letter, other than a version such as
+ *     `v1`), so `game-v1.0`, `Game.v1.2` and `game.1.2.3` are bare binaries;
+ *     `macos`: `.dmg`, `.pkg`;
+ *  6. a non-desktop package (`nonDesktopForms`): undefined;
+ *  7. everything else, any other or unknown extension (`.7z`, `.txz`,
+ *     `.tar.Z`, `.zipx`, `.sit`, `.wim`, `.iso`, `.pck`, `.xyz`, …):
+ *     `container`, an unread container serving every platform its name
+ *     permits.
+ * An unknown form therefore competes with the archive instead of being
+ * ignored; extending `nonProgramSuffixes` is the deliberate way to ignore one.
  */
 export function otherPackageForm(
   name: string,
 ): "windows" | "linux" | "macos" | "container" | undefined {
-  if (splitVolume(name)) return "container";
-  const form = packageFormOf(name);
-  if (form !== undefined) {
-    if (windowsForms.includes(form)) return "windows";
-    if (linuxForms.includes(form)) return "linux";
-    if ([".dmg", ".pkg"].includes(form)) return "macos";
-    if ([".7z", ".rar", ".jar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"].includes(form))
-      return "container";
-    return undefined;
-  }
   const lower = name.toLowerCase();
-  if (unreadContainerSuffixes.some((suffix) => lower.endsWith(suffix))) return "container";
-  if (libraryName(lower) || sidecarExtensions.some((extension) => lower.endsWith(extension)))
-    return undefined;
-  // A file extension: a final `.` and one to five letters and digits, one a letter.
-  if (/\.(?=[A-Za-z0-9]{1,5}$)[0-9]*[A-Za-z][A-Za-z0-9]*$/u.test(name)) return undefined;
-  return documentNames.has(lower) || documentPrefix.test(lower) ? undefined : "linux";
+  if (archiveForms.some((form) => lower.endsWith(form))) return undefined;
+  if (libraryName(lower) || nonProgramFile(name)) return undefined;
+  if (splitVolume(name)) return "container";
+  if (windowsForms.some((form) => lower.endsWith(form))) return "windows";
+  if (linuxForms.some((form) => lower.endsWith(form))) return "linux";
+  if (lower.endsWith(".dmg") || lower.endsWith(".pkg")) return "macos";
+  if ((nonDesktopForms as readonly string[]).some((form) => lower.endsWith(form))) return undefined;
+  // A file extension: a final `.` and letters and digits, one a letter, that
+  // are not a version (`v1`).
+  const extension = /\.([a-z0-9]+)$/u.exec(lower)?.[1];
+  if (extension === undefined || !/[a-z]/u.test(extension) || /^v[0-9]+$/u.test(extension))
+    return "linux";
+  return "container";
 }
 const windowsForms: readonly string[] = [
   ".exe",
@@ -2060,7 +2097,18 @@ export interface RegistrationQueues {
    * else, and the mirror case).
    */
   enrolled_beside_unoffered_forms: string[];
+  /**
+   * The `other-package-form-beside-archive` queue's evidence: per withheld
+   * identity, in port_id order, the names of the release assets that compete
+   * with its archive, in code-point order and at most
+   * `maxQueuedCompetingNames`. An unusual extra file listed here is how a
+   * person decides deliberately whether the closed non-program list
+   * (`nonProgramSuffixes`) should grow.
+   */
+  other_package_forms: Record<string, string[]>;
 }
+/** The most competing asset names the report lists for one identity. */
+export const maxQueuedCompetingNames = 10;
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
   const reasons = Object.fromEntries(blockedReasons.map((reason) => [reason, [] as string[]]));
@@ -2120,6 +2168,22 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       })
       .map((decision) => decision.port_id)
       .toSorted(compareCodePoints),
+    other_package_forms: Object.fromEntries(
+      generation.decisions
+        .filter(
+          (decision) => !decision.fit && decision.reason === "other-package-form-beside-archive",
+        )
+        .map((decision) => decision.port_id)
+        .toSorted(compareCodePoints)
+        .flatMap((id): [string, string[]][] => {
+          const entry = generation.facts.entries.find((candidate) => candidate.port_id === id);
+          if (!entry) return [];
+          const names = new Set(
+            competingPackages(entry).flatMap(([, foreign]) => foreign.map((other) => other.name)),
+          );
+          return [[id, [...names].toSorted(compareCodePoints).slice(0, maxQueuedCompetingNames)]];
+        }),
+    ),
   };
 }
 
@@ -2753,145 +2817,179 @@ function gateNameVetoes(named: NameSuggestion) {
 }
 
 /**
+ * The kind of another package form, restated independently of
+ * `otherPackageForm` with the same order: read archive, library, closed
+ * non-program list, split volume, single-system form, non-desktop package,
+ * and everything else an unread container. Exported for its unit table only.
+ */
+export function gateFormKind(
+  name: string,
+): "windows" | "linux" | "macos" | "container" | undefined {
+  const lower = name.toLowerCase();
+  const tail = (suffix: string) => lower.endsWith(suffix);
+  // 1. Archives the worker reads.
+  if ([".zip", ".tar.gz", ".tgz", ".tar.xz"].some(tail)) return undefined;
+  // 2. Shared libraries, also versioned (`libgame.so.1.0.123`).
+  if (tail(".dll") || tail(".dylib") || /\.so(?:\.\d+)*$/u.test(lower)) return undefined;
+  // 3. The closed non-program list: suffixes, exact names, license names.
+  const ignoredSuffixes = new Set([
+    "sha1",
+    "sha224",
+    "sha256",
+    "sha384",
+    "sha512",
+    "sha1sum",
+    "sha256sum",
+    "sha512sum",
+    "sha256sums",
+    "md5",
+    "md5sum",
+    "checksum",
+    "checksums",
+    "sig",
+    "asc",
+    "minisig",
+    "pem",
+    "gpg",
+    "sigstore",
+    "blockmap",
+    "zsync",
+    "yml",
+    "yaml",
+    "json",
+    "xml",
+    "plist",
+    "txt",
+    "md",
+    "markdown",
+    "rst",
+    "pdf",
+    "html",
+    "htm",
+    "rtf",
+    "nfo",
+    "log",
+    "csv",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+    "ico",
+    "mp4",
+    "webm",
+    "mov",
+    "pdb",
+    "dbg",
+    "debug",
+    "sym",
+    "torrent",
+    "patch",
+    "diff",
+  ]);
+  const dot = lower.lastIndexOf(".");
+  const last = dot < 0 ? "" : lower.slice(dot + 1);
+  if ((dot >= 0 && ignoredSuffixes.has(last)) || tail(".intoto.jsonl")) return undefined;
+  const ignoredNames = new Set([
+    "sha256sums",
+    "sha512sums",
+    "sha1sums",
+    "md5sums",
+    "b2sums",
+    "b3sums",
+    "shasums",
+    "shasums256",
+    "shasums512",
+    "checksum",
+    "checksums",
+    "hashes",
+    "signatures",
+    "sha1sum",
+    "sha256sum",
+    "sha512sum",
+    "md5sum",
+    "releases",
+    "version",
+    "manifest",
+    "license",
+    "licence",
+    "copying",
+    "readme",
+    "changelog",
+    "changes",
+    "notice",
+    "authors",
+    "credits",
+    "news",
+    "todo",
+    "install",
+    "makefile",
+    "dockerfile",
+  ]);
+  if (ignoredNames.has(lower)) return undefined;
+  if (
+    /^(a|l)?gpl-\d+(\.\d+)*(-only|-or-later)?$/u.test(lower) ||
+    /^(mpl|apache|epl|cddl|eupl|ofl|artistic|bsl|cc0|cc-by(-sa|-nc|-nd)*)-\d+(\.\d+)*(-only|-or-later)?$/u.test(
+      lower,
+    ) ||
+    /^bsd-\d-clause$/u.test(lower)
+  )
+    return undefined;
+  const word = /^(license|licence|copying|readme|changelog|changes|notice|authors)/u.exec(lower);
+  if (word) {
+    const rest = lower.slice(word[0].length);
+    const licenseId =
+      /^(third[-_]?party|3rd[-_]?party|(mit|bsd|isc|zlib|apache|gpl|lgpl|agpl|mpl|epl|ofl|cc0|cc-by(-sa)?|unlicense|boost|bsl)([-_.]?\d+(\.\d+)*)?([-_.]?(only|or-later|clause))?)$/u;
+    if (rest === ".lesser" || (/^[-_.]/u.test(rest) && licenseId.test(rest.slice(1))))
+      return undefined;
+  }
+  // 4. Split volumes: `.001`, `.1000`, `.z01`, `.r00`, `.part1.rar`.
+  if (/\.\d\d\d+$/u.test(lower) || /\.[zr]\d\d$/u.test(lower) || /\.part\d+\.rar$/u.test(lower))
+    return "container";
+  // 5. Single-system forms and bare binaries.
+  if (["exe", "msi", "msix", "appx", "msixbundle", "appxbundle"].includes(last)) return "windows";
+  if (
+    [
+      "appimage",
+      "deb",
+      "rpm",
+      "flatpak",
+      "snap",
+      "run",
+      "bin",
+      "sh",
+      "linux",
+      "x86",
+      "x86_64",
+      "arm64",
+      "aarch64",
+    ].includes(last)
+  )
+    return "linux";
+  if (last === "dmg" || last === "pkg") return "macos";
+  // 6. Non-desktop packages keep their own treatment.
+  if (["ipa", "apk", "aab", "vpk", "nro", "nsp", "3dsx", "cia", "wad"].includes(last))
+    return undefined;
+  // A name without an extension (none, a version such as `1`, `0-linux` or
+  // `v2`) is a bare Linux binary.
+  if (dot < 0 || !/^[a-z0-9]+$/u.test(last) || !/[a-z]/u.test(last) || /^v\d+$/u.test(last))
+    return "linux";
+  // 7. Everything else is an unread container.
+  return "container";
+}
+/**
  * The fixed platforms another package form serves by its own name, restated:
- * see `otherPackageForm`. A container or split-archive volume serves the
- * platforms its name verdict records; a non-program file serves none.
- * Exported for its unit table only.
+ * see `gateFormKind`. A container (any form the gate does not know, and any
+ * split volume) serves the platforms its name verdict records; a non-program
+ * file serves none. Exported for its unit table only.
  */
 export function gateFormPlatforms(name: string): string[] {
-  const lower = name.toLowerCase();
-  const windows = ["windows-x86-64"];
-  const linux = ["linux-x86-64"];
-  const macos = ["macos-x86-64", "macos-aarch64"];
-  const endsWithAny = (suffixes: string[]) => suffixes.some((suffix) => lower.endsWith(suffix));
-  // Split volumes (any `.<three or more digits>` ending: `.7z.001`,
-  // `.exe.001`, bare `.001`; and `.z01`, `.r00`, `.part1.rar`) and whole
-  // containers, compressed files and disk images the worker does not read:
-  // their platforms come from the recorded name verdict. The read archives
-  // `.tar.gz`, `.tgz` and `.tar.xz` are not containers here.
-  const readArchive = endsWithAny([".zip", ".tar.gz", ".tgz", ".tar.xz"]);
-  if (
-    /\.[0-9][0-9][0-9]+$/u.test(lower) ||
-    /\.[zr][0-9][0-9]$/u.test(lower) ||
-    /\.part[0-9]+\.rar$/u.test(lower) ||
-    endsWithAny([".7z", ".rar", ".jar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"]) ||
-    (!readArchive &&
-      endsWithAny([
-        ".gz",
-        ".xz",
-        ".bz2",
-        ".zst",
-        ".lz",
-        ".lzma",
-        ".lz4",
-        ".cab",
-        ".lzh",
-        ".ace",
-        ".cpio",
-        ".iso",
-        ".img",
-        ".love",
-      ]))
-  )
-    return [];
-  if (endsWithAny([".exe", ".msi", ".msix", ".appx", ".msixbundle", ".appxbundle"])) return windows;
-  if (endsWithAny([".dmg", ".pkg"])) return macos;
-  if (
-    endsWithAny([
-      ".appimage",
-      ".deb",
-      ".rpm",
-      ".flatpak",
-      ".snap",
-      ".run",
-      ".bin",
-      ".sh",
-      ".linux",
-      ".x86",
-      ".x86_64",
-      ".arm64",
-      ".aarch64",
-    ])
-  )
-    return linux;
-  // Never a program: checksums, signatures, update metadata, libraries and
-  // documentation names.
-  if (
-    endsWithAny([
-      ".blockmap",
-      ".sha1",
-      ".sha224",
-      ".sha256",
-      ".sha384",
-      ".sha512",
-      ".sha1sum",
-      ".sha256sum",
-      ".sha512sum",
-      ".sha256sums",
-      ".md5",
-      ".md5sum",
-      ".minisig",
-      ".torrent",
-      ".checksum",
-      ".checksums",
-      ".dll",
-      ".dylib",
-    ]) ||
-    /\.so(\.[0-9]+)*$/u.test(lower) ||
-    [
-      "sha256sums",
-      "sha512sums",
-      "sha1sums",
-      "md5sums",
-      "b2sums",
-      "b3sums",
-      "shasums",
-      "shasums256",
-      "shasums512",
-      "checksum",
-      "checksums",
-      "license",
-      "licence",
-      "readme",
-      "changelog",
-      "changes",
-      "copying",
-      "notice",
-      "authors",
-      "credits",
-      "releases",
-      "version",
-      "manifest",
-      "makefile",
-      "news",
-      "todo",
-      "install",
-      "dockerfile",
-      "hashes",
-      "signatures",
-      "sha1sum",
-      "sha256sum",
-      "sha512sum",
-      "md5sum",
-      "gpl-2.0",
-      "gpl-3.0",
-      "lgpl-2.1",
-      "lgpl-3.0",
-      "agpl-3.0",
-    ].includes(lower) ||
-    // `LICENSE-MIT`, `COPYING.LESSER`, `README.markdown`, `changelog_2026`.
-    /^(license|licence|copying|readme|changelog|changes|notice|authors)([-._]|$)/u.test(lower)
-  )
-    return [];
-  // Any other name without a short extension is a bare binary.
-  const dot = lower.lastIndexOf(".");
-  const extension = dot < 0 ? "" : lower.slice(dot + 1);
-  const hasExtension =
-    extension.length >= 1 &&
-    extension.length <= 5 &&
-    /^[a-z0-9]+$/u.test(extension) &&
-    /[a-z]/u.test(extension);
-  return hasExtension ? [] : linux;
+  const kind = gateFormKind(name);
+  if (kind === "windows") return ["windows-x86-64"];
+  if (kind === "linux") return ["linux-x86-64"];
+  if (kind === "macos") return ["macos-x86-64", "macos-aarch64"];
+  return [];
 }
 
 /** Problems with one enrollment, judged against its facts entry and listing only. */
@@ -3134,7 +3232,12 @@ function gateEnrollmentProblems(
 /**
  * Refuse a generation whose delta against the baseline (the merge base's
  * committed table, never the working tree) exceeds the bounds, or whose
- * enrollments do not rest on complete, current, digest-bound facts.
+ * enrollments do not rest on complete, current, digest-bound facts. The gate
+ * restates the release-asset classifier independently (`gateFormKind`) but
+ * sees only the assets the facts recorded as other package forms. Reproducing
+ * the facts re-lists the release with the worker's classifier, so an asset
+ * that classifier wrongly drops is dropped alike there; the inverted default
+ * (only the closed non-program list is ignored) bounds that mistake.
  */
 export function gateGeneration(
   baseline: unknown,

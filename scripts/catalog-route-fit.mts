@@ -564,6 +564,10 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
             "enrolled beside another package form for a platform without an archive (review)",
             report.registration_queues.enrolled_beside_unoffered_forms.length,
           ),
+          row(
+            "withheld beside another package form (asset names with --json)",
+            Object.keys(report.registration_queues.other_package_forms).length,
+          ),
         ]
       : []),
   ];

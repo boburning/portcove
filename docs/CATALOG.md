@@ -3963,37 +3963,86 @@ renamed repository cannot enroll for a listing that names another one.
 ##### Other package forms
 
 A release can offer its program in a form the worker does not read beside
-the archive it does read. The worker records every such asset of the release
-with the provider's name, size and SHA-256 (never its bytes) and the
-platforms its form can serve:
+the archive it does read. The classifier inverts the default: a release asset
+that is neither a readable archive nor on a closed list of non-program files
+competes with the archive. Only a read archive, a shared library, a
+non-desktop package and the closed non-program list are ever ignored; every
+other or unknown form (`.txz`, `.tar.Z`, `.zipx`, `.sit`, `.wim`, `.squashfs`,
+`.pck`, `.xyz`, …) is an unread container without being listed, so an
+unlisted form withholds the identity instead of letting a single non-game
+program enroll beside the real package. The honest cost: a release that
+carries an unusual extra file is withheld into the
+`other-package-form-beside-archive` queue, where the route-fit report lists
+the competing asset names of each withheld identity
+(`registration_queues.other_package_forms`, at most ten per identity), so the
+closed list is extended deliberately, in a reviewed change.
 
-| Form                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Serves                                                                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Windows                                                                                  |
-| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension (a bare binary)                                                                                                                                                                                                                                                                                                                                  | Linux                                                                                    |
-| `.dmg`, `.pkg`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | macOS                                                                                    |
-| a container, compressed file or disk image the worker does not read: `.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.tbz2`, `.tar.zst`, `.tar.lz`, `.tar.lzma`, `.tar.lz4`, `.gz`, `.xz`, `.bz2`, `.zst`, `.lz`, `.lzma`, `.lz4` (other than the read `.tar.gz`, `.tgz` and `.tar.xz`), `.cab`, `.lzh`, `.ace`, `.cpio`, `.iso`, `.img`, `.love`; or a volume of a split file: any name ending `.` and three or more digits (`.7z.001`, `.zip.001`, `.exe.001`, `.iso.001`, bare `Game.001`), and `.z01`, `.r00`, `.part1.rar` | every platform its name permits; all when the name is neutral or Core cannot classify it |
+The worker records every competing asset of the release with the provider's
+name, size and SHA-256 (never its bytes) and the platforms its form can
+serve. The lowercased name is judged in this order; the first match decides:
 
-A file without an extension has no final `.` followed by one to five letters
-and digits including a letter (`Game`, `Game-v1.0-linux`). A name whose
+1. A read archive (`.zip`, `.tar.gz`, `.tgz`, `.tar.xz`, including
+   `.app.zip`, `.app.tar.gz` and `.dSYM.zip`): read, never another form.
+2. A shared library (`*.so`, `*.so.<digits…>`, `*.dll`, `*.dylib`): ignored,
+   before the split-volume test, so `libgame.so.1.0.123` stays a library.
+3. The closed non-program list below: ignored.
+4. A volume of a split file: any name ending `.` and three or more digits
+   (`.7z.001`, `.zip.001`, `.exe.001`, `.iso.001`, bare `Game.001`), and
+   `.z01`, `.r00`, `.part1.rar`: a container.
+5. A single-system form, in the table below.
+6. A non-desktop package (`.apk`, `.aab`, `.ipa`, `.vpk`, `.nro`, `.nsp`,
+   `.3dsx`, `.cia`, `.wad`): its existing non-desktop treatment.
+7. Everything else, any other or unknown extension: an unread container.
+
+| Form                                                                                                                                                                        | Serves                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`                                                                                                              | Windows                                                                                  |
+| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension  | Linux                                                                                    |
+| `.dmg`, `.pkg`                                                                                                                                                              | macOS                                                                                    |
+| a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …) | every platform its name permits; all when the name is neutral or Core cannot classify it |
+
+A file without an extension has no final `.` followed by letters and digits
+including a letter (`Game`, `Game-v1.0-linux`, `installer`). A name whose
 apparent extension is only a version (`game-v1.0`, `Game.v1.2`,
-`game.1.2.3`) is such a file, so a Linux program; a split volume such as
-`Game.exe.001` is a container, never a bare binary.
-These are never programs: the names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`,
-`MD5SUMS`, `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`,
-`sha256sum`, `sha512sum`, `sha1sum`, `md5sum`, `hashes`, `signatures`,
-`CHECKSUM`, `CHECKSUMS`, `CREDITS`, `RELEASES`, `VERSION`, `NEWS`, `TODO`,
-`INSTALL`, `manifest`, `Makefile`, `Dockerfile`, `gpl-2.0`, `gpl-3.0`,
-`lgpl-2.1`, `lgpl-3.0` and `agpl-3.0`; any name that starts with `LICENSE`,
-`LICENCE`, `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE` or `AUTHORS`
-followed by the end, `.`, `-` or `_` (`LICENSE-MIT`, `COPYING.LESSER`,
-`README.markdown`); all in any letter case; the sidecar extensions
-`.blockmap`, `.sha256`, `.sha512`, `.sha384`, `.sha224`, `.sha1sum`,
-`.sha256sum`, `.sha512sum`, `.sha256sums`, `.md5sum`, `.minisig`, `.torrent`,
-`.checksum` and `.checksums`; and shared libraries (`*.so`, `*.so.<n>`,
-`*.dll`, `*.dylib`). Shorter extensions such as `.sig`, `.asc`, `.sha1`,
-`.md5`, `.pem`, `.txt`, `.json`, `.yml`, `.pdb` and `.zsync` are extensions,
-so never bare binaries.
+`game.1.2.3`, `Game.v1`) is such a file, so a Linux program; a split volume
+such as `Game.exe.001` is a container, never a bare binary.
+
+The closed non-program list, in any letter case, is the only way an asset is
+ignored:
+
+- suffixes for checksums and signatures: `.sha1`, `.sha224`, `.sha256`,
+  `.sha384`, `.sha512`, `.sha1sum`, `.sha256sum`, `.sha512sum`,
+  `.sha256sums`, `.md5`, `.md5sum`, `.checksum`, `.checksums`, `.sig`,
+  `.asc`, `.minisig`, `.pem`, `.gpg`, `.sigstore`, `.intoto.jsonl`;
+- update metadata: `.blockmap`, `.zsync`, `.yml`, `.yaml`, `.json`, `.xml`,
+  `.plist`;
+- text and documents: `.txt`, `.md`, `.markdown`, `.rst`, `.pdf`, `.html`,
+  `.htm`, `.rtf`, `.nfo`, `.log`, `.csv`;
+- images and media used as release decoration: `.png`, `.jpg`, `.jpeg`,
+  `.gif`, `.webp`, `.svg`, `.ico`, `.mp4`, `.webm`, `.mov`;
+- debug symbols: `.pdb`, `.dbg`, `.debug`, `.sym` (a `.dSYM.zip` is a read
+  archive with no players);
+- patches and torrents: `.torrent`, `.patch`, `.diff`;
+- the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
+  `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
+  `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
+  `md5sum`, `RELEASES`, `VERSION`, `manifest`, `LICENSE`, `LICENCE`,
+  `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`, `AUTHORS`,
+  `CREDITS`, `NEWS`, `TODO`, `INSTALL`, `Makefile` and `Dockerfile`;
+- SPDX-looking license names (`gpl-3.0`, `lgpl-2.1-or-later`, `agpl-3.0`,
+  `apache-2.0`, `mpl-2.0`, `bsd-3-clause`);
+- `LICENSE`, `LICENCE`, `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`
+  or `AUTHORS` followed only by `.lesser`, or by `-`, `_` or `.` and a
+  license identifier (`mit`, `bsd`, `isc`, `zlib`, `apache`, `gpl`, `lgpl`,
+  `agpl`, `mpl`, `epl`, `ofl`, `cc0`, `cc-by`, `cc-by-sa`, `unlicense`,
+  `boost`, `bsl`, `third-party`, `thirdparty`, `3rd-party`, optionally with a
+  version and `-only`, `-or-later` or `-clause`): `LICENSE-MIT`,
+  `COPYING.LESSER`, `LICENSE-APACHE-2.0`, `NOTICE-THIRD-PARTY`.
+  `README.markdown` and `LICENSE_THIRD_PARTY.txt` are ignored by their
+  suffix. Anything else after the word is classified by the other rules, the
+  safe direction: `Changes-Game-linux`, `Notice-Me-Senpai`,
+  `Readme-Launcher`, `Authors-Cut`, `readme_first` and `installer` are bare
+  Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
 
 The identity is excluded as a whole (`other-package-form-beside-archive`)
 when the release carries such an asset for a platform the release also
@@ -4150,14 +4199,15 @@ refused.
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
 version. The same reviewed change must therefore raise the `changed` bound in
 `deltaBounds` for that change only. #8569 raised the generator version and
-the facts parser version from 5 to 10 and the facts table format from 4 to 9
+the facts parser version from 5 to 11 and the facts table format from 4 to 10
 (iOS shape at any depth, glued numbers in program names, the gate's directory
 check, unreadable asset records, ARM64EC, release lines, shared
 repositories, one package per platform, per-archive Core refusals,
 per-platform archive counts, new tool tokens, the other-package-form rule
 excluding the identity where another form competes with an offered archive,
-split-file volumes, unread compressed and disk-image forms and the
-non-program file list). It landed with an empty facts table and no
+split-file volumes, unread compressed and disk-image forms, the
+non-program file list and the inverted default that makes every unlisted
+form compete). It landed with an empty facts table and no
 enrollment, so no bound changed. A curated change that adds integrations to
 more generated identities than the `withdrawn` bound must be split into
 changes within it.
