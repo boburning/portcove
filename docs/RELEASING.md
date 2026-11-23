@@ -191,6 +191,15 @@ also writes the Beta feed, so default installations learn of new previews.
   version signed by the updater key.
 - A nightly never tags a commit from before this rule, because that commit's
   build would refuse the new feed list after the tag exists.
+- The alias ends at the first Beta or Stable _tag_, not its publication. If
+  that release run fails, the Beta feed stays on the last aliased preview. If
+  the only Beta is later withdrawn, the Beta feed is removed. Either way,
+  previews never refill it, so default-channel players get no newer version
+  until a Beta release publishes.
+- #8619's passages that say the Beta channel has no feed become untrue once
+  the alias is live. Whichever of the two changes merges second updates them.
+  Start the listing cutover only after the first alias publication, confirmed
+  by reading `updates/beta/latest.json`.
 
 **Operator steps:** none. Once the change is on `main` and its `CI` run has
 succeeded, the next nightly preview writes both feeds. To publish sooner, start

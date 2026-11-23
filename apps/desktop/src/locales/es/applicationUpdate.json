@@ -28,7 +28,7 @@
     "libraryNeedsRecovery": "Tu biblioteca debe terminar primero una actualización o recuperación, así que no se instaló la actualización. Vuelve a abrir Portcove, deja que termine e inténtalo de nuevo.",
     "libraryRelocated": "Tu biblioteca se ha movido, así que no se instaló la actualización. Abre la biblioteca en su nueva ubicación e inténtalo de nuevo.",
     "packageManaged": "Esta copia de Portcove la instaló tu gestor de paquetes. Actualízala desde tu gestor de paquetes.",
-    "releaseNotFound": "Portcove no pudo obtener información de actualizaciones del servidor de actualizaciones. Inténtalo de nuevo más tarde.",
+    "releaseNotFound": "Portcove no pudo obtener información de actualizaciones. Inténtalo de nuevo más tarde.",
     "saveFailed": "Portcove no pudo guardar tus ajustes de actualización. Inténtalo de nuevo.",
     "stale": "Esta actualización ya no está disponible. Busca actualizaciones e inténtalo de nuevo.",
     "unavailable": "Las actualizaciones no están disponibles en esta versión de Portcove. Descarga la última versión desde el sitio web de Portcove."

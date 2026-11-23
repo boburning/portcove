@@ -229,10 +229,15 @@ jobs:
             for channel in $FEEDS; do
               target="site/updates/$channel/latest.json"
               current=$( [ -f "$target" ] && node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).version)' "$target" || true)
-              # A Preview fills Beta only while Beta serves no Beta release (#1422).
-              if node scripts/app-release.mts feed-accepts --channel "$channel" --candidate "$VERSION" ${current:+--current "$current"}; then
-                mkdir -p "$(dirname "$target")" && cp latest.json "$target" && changed=true
-              fi
+              # A Preview fills Beta only until a Beta release exists (#1422).
+              # 0 writes the feed, 1 keeps it, anything else is an error.
+              accepted=0
+              node scripts/app-release.mts feed-accepts --channel "$channel" --candidate "$VERSION" ${current:+--current "$current"} || accepted=$?
+              case "$accepted" in
+                0) mkdir -p "$(dirname "$target")" && cp latest.json "$target" && changed=true ;;
+                1) ;;
+                *) echo "::error::Could not decide whether to publish $VERSION to $channel"; exit 1 ;;
+              esac
             done
             if [ "$changed" = false ]; then echo "No feed is older than $VERSION."; exit 0; fi
             git -C site add updates

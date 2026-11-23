@@ -1389,15 +1389,22 @@ async function main(argv: string[]) {
     const current = rest.includes("--current") ? flag("current") : "";
     process.exitCode = current === "" || compareVersions(flag("candidate"), current) > 0 ? 0 : 1;
   } else if (command === "feed-accepts") {
-    // Exit 0 when publishing --candidate should replace --channel's feed (see feedAccepts).
-    const current = rest.includes("--current") ? flag("current") : "";
-    const channel = flag("channel");
-    if (!(channels as string[]).includes(channel)) throw new Error(`unknown channel ${channel}`);
-    // The publish job checks out full history, so every v* tag is visible here.
-    const released = betaReleased(listVersionTags());
-    process.exitCode = feedAccepts(channel as Channel, flag("candidate"), current || null, released)
-      ? 0
-      : 1;
+    // Exit 0: write --channel's feed (see feedAccepts). Exit 1: keep it. Exit 2:
+    // any error, so the publish step fails instead of silently skipping a feed.
+    try {
+      const current = rest.includes("--current") ? flag("current") : "";
+      const channel = flag("channel");
+      if (!(channels as string[]).includes(channel)) throw new Error(`unknown channel ${channel}`);
+      // The publish job checks out full history, so every v* tag is visible here.
+      const released = betaReleased(listVersionTags());
+      const candidate = flag("candidate");
+      process.exitCode = feedAccepts(channel as Channel, candidate, current || null, released)
+        ? 0
+        : 1;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exitCode = 2;
+    }
   } else if (command === "ci-status") {
     const conclusion = await ciConclusion(token(), flag("sha"));
     if (conclusion !== "success")

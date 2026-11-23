@@ -177,8 +177,6 @@ it("does not blame the connection when the update server returns no update infor
   await page.getByRole("button", { name: "Check for updates", exact: true }).click();
   await expect
     .element(page.getByRole("alert"))
-    .toHaveTextContent(
-      "Portcove couldn’t get update information from the update server. Try again later.",
-    );
+    .toHaveTextContent("Portcove couldn’t get update information. Try again later.");
   await expect.element(page.getByText(/internet connection/u)).not.toBeInTheDocument();
 });

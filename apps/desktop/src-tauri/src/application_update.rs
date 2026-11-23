@@ -371,14 +371,13 @@ fn unavailable_error() -> DesktopError {
 
 /// The plugin reports `ReleaseNotFound` when every feed request got an HTTP
 /// response without update information: a missing feed (404), a server error
-/// or a refusal. Connection failures report other errors. The player is told
-/// the facts that hold for all of these instead of blaming their connection.
+/// or a refusal, possibly from a proxy or firewall rather than the update
+/// server. Connection failures report other errors. The player is told only
+/// what holds for all of these, without blaming their connection.
 fn check_error(error: &tauri_plugin_updater::Error) -> DesktopError {
     match error {
         tauri_plugin_updater::Error::ReleaseNotFound => refusal(
-            PortcoveError::network(
-                "Portcove couldn't get update information from the update server. Try again later.",
-            ),
+            PortcoveError::network("Portcove couldn't get update information. Try again later."),
             "release-not-found",
         ),
         _ => check_failed_error(),

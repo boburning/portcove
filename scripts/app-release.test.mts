@@ -458,8 +458,11 @@ void test("the feed-accepts command reads the repository's tags", async (t) => {
   assert.equal(accepts("--channel", "beta", ...preview16), 0);
   assert.equal(accepts("--channel", "beta", ...preview16, "--current", "0.1.0-preview.15"), 0);
   assert.equal(accepts("--channel", "preview", ...preview16, "--current", "0.1.0-preview.15"), 0);
-  assert.equal(accepts("--channel", "nightly", ...preview16), 1);
-  assert.equal(accepts(...preview16), 1);
+  // Errors exit 2, so the publish step can fail rather than skip the feed.
+  assert.equal(accepts("--channel", "nightly", ...preview16), 2);
+  assert.equal(accepts(...preview16), 2);
+  assert.equal(accepts("--channel", "beta", "--candidate", "0.1.0-alpha.1"), 2);
+  assert.equal(accepts("--channel", "beta", ...preview16, "--current", "latest"), 2);
   git("tag", "v0.1.0");
   assert.equal(accepts("--channel", "beta", "--candidate", "0.1.1-preview.1"), 1);
   assert.equal(accepts("--channel", "preview", "--candidate", "0.1.1-preview.1"), 0);
@@ -1761,4 +1764,72 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
   assert.deepEqual(botIssue?.assignees, [{ login: "boburning" }]);
   assert.equal(warnings.length, 1);
   assert.equal(comments.length, 1);
+});
+
+void test("the feed publish step writes on 0, keeps on 1 and fails on any other feed-accepts exit", async (t) => {
+  const workflow = await readWorkflow("app-release-build.yml");
+  const step = workflow.jobs.publish!.steps!.find(
+    (candidate) => candidate.name === "Publish the feed to the Pages branch",
+  );
+  assert.ok(step?.run);
+  const repo = await pagesRepository(t);
+  // The stub stands in for the release script, so only the step's own shell is tested.
+  await mkdir(path.join(repo.clone, "scripts"));
+  await writeFile(
+    path.join(repo.clone, "scripts", "app-release.mts"),
+    [
+      "const command = process.argv[2];",
+      'if (command === "withdrawn") console.log("false");',
+      'else if (command === "feed-accepts") process.exitCode = Number(process.env.STUB_FEED_ACCEPTS);',
+      "else process.exitCode = 99;",
+      "",
+    ].join("\n"),
+  );
+  const version = "0.1.2-preview.1";
+  await writeFile(
+    path.join(repo.clone, "latest.json"),
+    `${JSON.stringify({ version, platforms: {} })}\n`,
+  );
+  const publish = (exit: number) => {
+    try {
+      const output = execFileSync("bash", ["-c", step.run!], {
+        cwd: repo.clone,
+        env: {
+          ...process.env,
+          VERSION: version,
+          FEEDS: "preview beta",
+          STUB_FEED_ACCEPTS: String(exit),
+        },
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      return { status: 0, output };
+    } catch (error) {
+      const failure = error as { status: number; stdout: string };
+      return { status: failure.status, output: failure.stdout };
+    }
+  };
+  const head = () => repo.git(repo.origin, "rev-parse", "gh-pages");
+  const feedVersion = (channel: string) =>
+    (JSON.parse(repo.show(`updates/${channel}/latest.json`)!) as { version: string }).version;
+  const before = head();
+
+  const failed = publish(2);
+  assert.equal(failed.status, 1);
+  assert.match(
+    failed.output,
+    /::error::Could not decide whether to publish 0\.1\.2-preview\.1 to preview/u,
+  );
+  assert.equal(head(), before);
+
+  const kept = publish(1);
+  assert.equal(kept.status, 0);
+  assert.match(kept.output, /No feed is older than 0\.1\.2-preview\.1/u);
+  assert.equal(head(), before);
+
+  const written = publish(0);
+  assert.equal(written.status, 0);
+  assert.notEqual(head(), before);
+  assert.equal(feedVersion("preview"), version);
+  assert.equal(feedVersion("beta"), version);
 });
