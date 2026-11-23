@@ -66,6 +66,11 @@ export interface LeadBackfill {
   sweeps_completed: number;
   /** The run that finished the last sweep; the next repair sweep starts in a later run. */
   finished_run?: string;
+  /**
+   * The current window's original start. Halving moves the slice through its
+   * pieces, so the next window steps back from here, not from the last piece.
+   */
+  window_since?: string;
 }
 export interface LeadState {
   format: 1;
@@ -169,6 +174,7 @@ export function parseLeadState(value: unknown): LeadState {
         !validSlice(raw.slice) ||
         !clock(raw.sweep_started_at) ||
         (raw.finished_run !== undefined && !clock(raw.finished_run)) ||
+        (raw.window_since !== undefined && !clock(raw.window_since)) ||
         !Number.isSafeInteger(raw.sweeps_completed) ||
         Number(raw.sweeps_completed) < 0
       )
@@ -602,23 +608,30 @@ export function nextBackfillPage(state: LeadState, now: string) {
     terms: contract,
   });
   const saved = state.backfill?.[family.id];
+  const opened = (until: string) => {
+    const slice = window(until);
+    return { slice, window_since: slice.since };
+  };
   let backfill: LeadBackfill;
   if (!saved || saved.slice.terms !== contract)
     backfill = {
-      slice: window(top),
+      ...opened(top),
       sweep_started_at: now,
       sweeps_completed: saved?.sweeps_completed ?? 0,
     };
   else if (!saved.slice.completed_at) backfill = saved;
-  else if (Date.parse(saved.slice.since) <= Date.parse(backfillEpoch)) {
-    // The sweep reached the epoch: a repair sweep starts from the top in a later run.
-    if (saved.finished_run === now) return undefined;
-    backfill = {
-      slice: window(top),
-      sweep_started_at: now,
-      sweeps_completed: saved.sweeps_completed + 1,
-    };
-  } else backfill = { ...saved, slice: window(saved.slice.since) };
+  else {
+    const reached = saved.window_since ?? saved.slice.since;
+    if (Date.parse(reached) <= Date.parse(backfillEpoch)) {
+      // The sweep reached the epoch: a repair sweep starts from the top in a later run.
+      if (saved.finished_run === now) return undefined;
+      backfill = {
+        ...opened(top),
+        sweep_started_at: now,
+        sweeps_completed: saved.sweeps_completed + 1,
+      };
+    } else backfill = { ...saved, ...opened(reached) };
+  }
   return {
     family: family.id,
     backfill,
@@ -640,7 +653,8 @@ export function acceptBackfillPage(
 ): LeadState {
   const { next, slice } = acceptSlicePage(state, plan, response, observedAt, evidence);
   const finished =
-    slice.completed_at !== undefined && Date.parse(slice.since) <= Date.parse(backfillEpoch);
+    slice.completed_at !== undefined &&
+    Date.parse(plan.backfill.window_since ?? slice.since) <= Date.parse(backfillEpoch);
   next.backfill = {
     ...next.backfill,
     [plan.family]: { ...plan.backfill, slice, ...(finished ? { finished_run: observedAt } : {}) },
@@ -654,19 +668,46 @@ export function passBackfillFamily(state: LeadState): LeadState {
   return { ...state, backfill_next: advanceLeadFamily(state.backfill_next ?? 0) };
 }
 
-/** A changed or capped backfill window restarts or moves on; it never claims coverage. */
+/**
+ * A changed window restarts; a capped piece is skipped for the next piece of
+ * its window, or completes the window when none remain. Neither claims coverage.
+ */
 export function skipBackfillWindow(
   state: LeadState,
   plan: BackfillPlan,
   reason: string,
   restart: boolean,
+  run: string,
 ): LeadState {
   const next = structuredClone(state);
-  const slice: LeadSlice = restart
-    ? { ...plan.slice, page: 1, seen: [], restart_reason: reason }
-    : { ...plan.slice, completed_at: plan.slice.until, restart_reason: reason };
+  let slice: LeadSlice;
+  let finished = false;
+  if (restart) slice = { ...plan.slice, page: 1, seen: [], restart_reason: reason };
+  else {
+    const [tail, ...rest] = plan.slice.remaining ?? [];
+    if (tail) {
+      slice = {
+        ...plan.slice,
+        since: tail.since,
+        until: tail.until,
+        page: 1,
+        seen: [],
+        restart_reason: reason,
+      };
+      delete slice.capped;
+      if (rest.length) slice.remaining = rest;
+      else delete slice.remaining;
+    } else {
+      slice = { ...plan.slice, completed_at: plan.slice.until, restart_reason: reason };
+      finished =
+        Date.parse(plan.backfill.window_since ?? plan.slice.since) <= Date.parse(backfillEpoch);
+    }
+  }
   delete slice.total;
-  next.backfill = { ...next.backfill, [plan.family]: { ...plan.backfill, slice } };
+  next.backfill = {
+    ...next.backfill,
+    [plan.family]: { ...plan.backfill, slice, ...(finished ? { finished_run: run } : {}) },
+  };
   next.backfill_next = advanceLeadFamily(state.backfill_next ?? 0);
   return boundLeadState(next);
 }
