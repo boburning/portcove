@@ -289,7 +289,7 @@ impl AuthenticatedDefinitionCandidate {
             self.content_bytes(indexed.target())?,
         ) {
             Ok(entry) => entry,
-            Err(error) if crate::definition_capabilities::is_unknown_required_feature(&error) => {
+            Err(error) if crate::definition_capabilities::requires_newer_engine(&error) => {
                 return Ok(DefinitionCandidateAvailability::Ineligible(
                     availability_eligibility(publisher.status, false, true, false),
                 ));

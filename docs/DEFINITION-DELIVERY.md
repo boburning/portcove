@@ -32,7 +32,11 @@ schema-4 entry must also name every applicable feature checked by Core's
 [feature registry](../crates/portcove-core/src/definition_capabilities.rs).
 For example, `port.release.linux_tar_xz` requires `native.linux-tar-xz`.
 A reader refuses unfamiliar required names and known operational uses that
-omit their feature. All operational fields still pass the complete typed
+omit their feature. An unfamiliar required name, or an entry schema above the
+reader's newest, records that one definition as needing a newer Portcove
+(`engine_capability_required`) on both manual and scheduled refresh. The
+reader checks the schema number before interpreting any other entry field,
+and siblings in the same index stay usable. All operational fields still pass the complete typed
 entry and catalog projection checks. New operational behavior needs a new
 feature name and its validator. When the feature itself is the reader gate,
 the validator requires entry schema 4 and the declared feature while the
@@ -1838,8 +1842,12 @@ when a first activation can proceed.
 
 Use the exact current authenticated bundle as `PRIOR`. The candidate changes
 only the representation of an existing nonempty launch argument list. Asset
-hints, archive layout, runtime executable, data roots and provider scope
-remain the same. Run the following from the repository with a validated
+hints, archive layout, runtime executable, data roots, provider scope and
+player-forwarded arguments remain the same. The tool refuses a subject whose
+launch would change: one with managed initialization, an external profile
+policy, a runtime data policy, managed shared preferences, a bundled runtime,
+a managed build or a player-prepared runtime, since Core reads or replaces the
+static argument list for those declarations. Run the following from the repository with a validated
 capable Core CLI and an existing private output directory.
 
 ```sh
@@ -1849,10 +1857,11 @@ node scripts/catalog-literal-launch-publication.mts draft --prior "$PRIOR" --por
 node scripts/catalog-literal-launch-publication.mts bind --prior "$PRIOR" --port "$PORT"   --projection "$OUT/typed.json" --feature native.package-layouts-v1 --output-parent "$OUT"
 ```
 
-For the Resurrection of Evil DUDE entry, also repeat `--feature` for
-`native.external-profile-policy-v1` and `runtime.windows-path-policy-v1`.
+Repeat `--feature` for every other named feature the current entry needs.
 Dungeon Crawl Stone Soup requires only the package layout feature alongside
-the new named feature, which the authoring command adds. Recheck the published
+the new named feature, which the authoring command adds. The Resurrection of
+Evil DUDE entry has an external profile policy whose validator requires its
+exact static argument list, so the tool refuses it. Recheck the published
 index and its selected definition before using these feature lists.
 
 The generated request and bundle are keyless review inputs. For normal

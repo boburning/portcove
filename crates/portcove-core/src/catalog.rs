@@ -2386,6 +2386,7 @@ pub(crate) fn is_safe_environment_name(value: &str) -> bool {
         && !value.starts_with("PORTCOVE_")
         && !crate::process::is_credential_name(value)
         && !crate::process::is_reviewed_session_variable(value)
+        && !crate::process::is_loader_injection_variable(value)
 }
 
 fn is_safe_basename(value: &str) -> bool {

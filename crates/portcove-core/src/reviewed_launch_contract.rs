@@ -181,17 +181,13 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             })
             || launch.environment.len() > 32
             || launch.environment.iter().any(|(name, value)| {
+                // The shared name check also refuses loader-injection names.
                 !crate::catalog::is_safe_environment_name(name)
-                    || matches!(
-                        name.as_str(),
-                        "SDL_DYNAMIC_API" | "QT_PLUGIN_PATH" | "QT_QPA_PLATFORM_PLUGIN_PATH"
-                    )
-                    || name.starts_with("LD_")
-                    || name.starts_with("DYLD_")
                     || port.launch_environment.contains_key(name)
                     || port.source_environment.as_ref() == Some(name)
                     || port.user_data_environment.as_ref() == Some(name)
                     || !value_safe(value)
+                    || matches!(value, LaunchValue::Text(text) if names_host_location(text))
             })
         {
             return Err(invalid("invalid or conflicting typed launch value"));
@@ -206,6 +202,22 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
+/// Whether environment text names a host location rather than leaving paths
+/// to the closed `LaunchPath` set. Each `;`-separated element is checked; an
+/// element counts when it starts with `/` or `\` (root-relative, UNC and
+/// device paths), with an ASCII drive letter and `:` (`C:\x` and drive-relative
+/// `C:x`), or with a case-insensitive `file:` URL scheme.
+fn names_host_location(text: &str) -> bool {
+    text.split(';').any(|element| {
+        let bytes = element.as_bytes();
+        element.starts_with(['/', '\\'])
+            || (bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
+            || bytes
+                .get(..5)
+                .is_some_and(|scheme| scheme.eq_ignore_ascii_case(b"file:"))
+    })
+}
+
 fn valid_term(term: &str) -> bool {
     !matches!(term, "" | "." | "..")
         && term.len() <= 128
@@ -216,4 +228,171 @@ fn valid_term(term: &str) -> bool {
 
 fn invalid(message: &str) -> PortcoveError {
     PortcoveError::verification(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn contract_port(name: &str, value: LaunchValue) -> PortDefinition {
+        let platform = Platform::WindowsX86_64;
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .ports()
+            .iter()
+            .find(|port| port.release.provider == ReleaseSource::Github)
+            .unwrap()
+            .clone();
+        port.adapter = AdapterKind::NativePortable;
+        port.platforms = vec![platform];
+        port.bundled_runtime.clear();
+        port.release.managed_build.clear();
+        port.release.curated.clear();
+        port.release.direct.clear();
+        port.managed_initialization = None;
+        port.launch_arguments.clear();
+        port.launch_environment.clear();
+        port.source_environment = None;
+        port.user_data_environment = None;
+        port.reviewed_launch_contract_v1 = Some(ReviewedLaunchContractV1 {
+            asset_rules: BTreeMap::new(),
+            package_format: BTreeMap::new(),
+            launch: [(
+                platform,
+                LaunchValues {
+                    arguments: None,
+                    environment: [(name.to_owned(), value)].into(),
+                },
+            )]
+            .into(),
+        });
+        port
+    }
+
+    fn text(value: &str) -> LaunchValue {
+        LaunchValue::Text(value.into())
+    }
+
+    #[test]
+    fn ordinary_environment_text_and_closed_paths_remain_valid() {
+        for value in [
+            text("1"),
+            text("data"),
+            text("diagnostics/journal.jsonl"),
+            text(".;assets"),
+            text("profile:fast"),
+            LaunchValue::Path(LaunchPathValue {
+                path: crate::launch_paths::LaunchPath::InstallRoot,
+            }),
+        ] {
+            validate(&contract_port("FIXTURE_SETTING", value.clone()))
+                .unwrap_or_else(|error| panic!("{value:?}: {error:?}"));
+        }
+    }
+
+    #[test]
+    fn environment_names_that_load_outside_code_are_refused() {
+        for name in [
+            "SDL_DYNAMIC_API",
+            "QT_PLUGIN_PATH",
+            "QT_QPA_PLATFORM_PLUGIN_PATH",
+            "LD_PRELOAD",
+            "DYLD_INSERT_LIBRARIES",
+            "PATH",
+            "COR_ENABLE_PROFILING",
+            "COR_PROFILER",
+            "COR_PROFILER_PATH",
+            "COR_PROFILER_PATH_64",
+            "CORECLR_ENABLE_PROFILING",
+            "CORECLR_PROFILER_PATH_32",
+            "DOTNET_STARTUP_HOOKS",
+            "DOTNET_ADDITIONAL_DEPS",
+            "DOTNET_SHARED_STORE",
+            "VK_LAYER_PATH",
+            "VK_ADD_LAYER_PATH",
+            "VK_INSTANCE_LAYERS",
+            "VK_ICD_FILENAMES",
+            "VK_DRIVER_FILES",
+            "LIBGL_DRIVERS_PATH",
+            "__EGL_VENDOR_LIBRARY_FILENAMES",
+            "__GLX_VENDOR_LIBRARY_NAME",
+            "__COMPAT_LAYER",
+            "GST_PLUGIN_PATH",
+            "GST_PLUGIN_PATH_1_0",
+            "GTK_PATH",
+            "GTK_MODULES",
+            "GIO_EXTRA_MODULES",
+            "PYTHONPATH",
+            "PYTHONHOME",
+            "PYTHONSTARTUP",
+            "NODE_OPTIONS",
+            "JAVA_TOOL_OPTIONS",
+            "_JAVA_OPTIONS",
+            "PERL5LIB",
+            "RUBYOPT",
+            "WINEDLLOVERRIDES",
+            "OPENSSL_CONF",
+            "SSLKEYLOGFILE",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "NO_PROXY",
+        ] {
+            assert!(
+                crate::process::is_loader_injection_variable(name)
+                    && crate::process::is_loader_injection_variable(&name.to_ascii_lowercase()),
+                "{name}"
+            );
+            assert!(validate(&contract_port(name, text("1"))).is_err(), "{name}");
+            assert!(!crate::catalog::is_safe_environment_name(name), "{name}");
+        }
+        for name in [
+            "PYTHONDONTWRITEBYTECODE",
+            "DOTNET_CLI_TELEMETRY_OPTOUT",
+            "GTK_THEME",
+        ] {
+            assert!(
+                !crate::process::is_loader_injection_variable(name),
+                "{name}"
+            );
+            assert!(crate::catalog::is_safe_environment_name(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn environment_text_cannot_name_a_host_location() {
+        for value in [
+            "/usr/lib/fixture.so",
+            "/",
+            "\\Windows\\fixture.dll",
+            "\\\\server\\share\\fixture.dll",
+            "//server/share/fixture.dll",
+            "\\\\?\\C:\\fixture.dll",
+            "C:\\fixture\\plugin.dll",
+            "c:/fixture/plugin.dll",
+            "C:fixture.dll",
+            "file:///C:/fixture.dll",
+            "FILE://server/share/fixture.dll",
+            "file:fixture.dll",
+            "data;C:\\fixture",
+            "data;\\\\server\\share",
+        ] {
+            assert!(names_host_location(value), "{value}");
+            assert!(
+                validate(&contract_port("FIXTURE_SETTING", text(value))).is_err(),
+                "{value}"
+            );
+        }
+        for value in [
+            "data",
+            "./data",
+            "..",
+            "profile:fast",
+            "1",
+            "a;b",
+            "files:x",
+        ] {
+            assert!(!names_host_location(value), "{value}");
+        }
+    }
 }

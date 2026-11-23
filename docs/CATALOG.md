@@ -117,6 +117,26 @@ Launch values are literal strings or objects with a `path` of `user_data`,
 `source`, `install_root` or `cache`. Each path occupies one argument or one
 environment value. Source expansion needs the verified launch source.
 Existing path, executable and environment policies still apply.
+A literal environment value cannot name a host location: no element of it,
+split at `;`, may start with `/` or `\` (root-relative, UNC or device paths),
+an ASCII drive letter and `:`, or a case-insensitive `file:` scheme. A path
+comes only from the closed `path` set.
+
+Neither a catalog `launch_environment`, source or user-data variable nor a
+reviewed launch environment may name a variable that makes the process or a
+library it loads take code, plug-ins, layers or configuration from elsewhere,
+or redirects its network or key material. Core's shared
+`process::is_loader_injection_variable` check owns that list, compared
+case-insensitively: for example `PATH`, `SDL_DYNAMIC_API`, Qt plugin paths,
+`LD_*`, `DYLD_*`, the .NET profiler and hosting variables, Vulkan and GL layer
+and driver paths, `__COMPAT_LAYER`, GStreamer, GTK and GIO module paths,
+Python, Node, Java, Perl and Ruby startup variables, `WINEDLLOVERRIDES`,
+OpenSSL configuration, `SSLKEYLOGFILE` and proxy variables.
+
+A reviewed launch contract whose platform entry has only literal text
+arguments keeps the previous decision about player-forwarded arguments, so
+moving an existing static list into it changes only the representation. A
+typed `path` value or any environment entry offers only the fixed launch.
 
 Reviewed forge qualification models the API dialect, API root, web host and
 exact asset hosts separately from the reviewed repository, release and artifact

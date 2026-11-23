@@ -394,6 +394,78 @@ pub(crate) fn is_credential_name(name: &str) -> bool {
         || normalized.ends_with("_ACCESS_KEY")
 }
 
+/// A variable that makes a launched process, its runtime or a library it loads
+/// load code, plug-ins, layers or configuration from outside the reviewed
+/// installation, or redirect its network or key material. Catalog and reviewed
+/// launch declarations never set these; comparison is case-insensitive because
+/// Windows environment names are.
+pub(crate) fn is_loader_injection_variable(name: &str) -> bool {
+    let normalized = name.to_ascii_uppercase();
+    matches!(
+        normalized.as_str(),
+        "PATH"
+            | "SDL_DYNAMIC_API"
+            | "QT_PLUGIN_PATH"
+            | "QT_QPA_PLATFORM_PLUGIN_PATH"
+            | "COR_ENABLE_PROFILING"
+            | "COR_PROFILER"
+            | "DOTNET_STARTUP_HOOKS"
+            | "DOTNET_ADDITIONAL_DEPS"
+            | "DOTNET_SHARED_STORE"
+            | "VK_LAYER_PATH"
+            | "VK_ADD_LAYER_PATH"
+            | "VK_IMPLICIT_LAYER_PATH"
+            | "VK_ADD_IMPLICIT_LAYER_PATH"
+            | "VK_INSTANCE_LAYERS"
+            | "VK_ICD_FILENAMES"
+            | "VK_DRIVER_FILES"
+            | "VK_ADD_DRIVER_FILES"
+            | "LIBGL_DRIVERS_PATH"
+            | "__EGL_VENDOR_LIBRARY_FILENAMES"
+            | "__EGL_VENDOR_LIBRARY_DIRS"
+            | "__GLX_VENDOR_LIBRARY_NAME"
+            | "__COMPAT_LAYER"
+            | "GTK_PATH"
+            | "GTK_MODULES"
+            | "GTK3_MODULES"
+            | "GIO_EXTRA_MODULES"
+            | "GIO_MODULE_DIR"
+            | "PYTHONPATH"
+            | "PYTHONHOME"
+            | "PYTHONSTARTUP"
+            | "NODE_OPTIONS"
+            | "NODE_PATH"
+            | "JAVA_TOOL_OPTIONS"
+            | "_JAVA_OPTIONS"
+            | "JDK_JAVA_OPTIONS"
+            | "PERL5LIB"
+            | "PERL5OPT"
+            | "PERLLIB"
+            | "RUBYOPT"
+            | "RUBYLIB"
+            | "WINEDLLOVERRIDES"
+            | "WINEDLLPATH"
+            | "OPENSSL_CONF"
+            | "OPENSSL_MODULES"
+            | "OPENSSL_ENGINES"
+            | "SSLKEYLOGFILE"
+            | "HTTP_PROXY"
+            | "HTTPS_PROXY"
+            | "ALL_PROXY"
+            | "FTP_PROXY"
+            | "NO_PROXY"
+    ) || [
+        "LD_",
+        "DYLD_",
+        "COR_PROFILER_PATH",
+        "CORECLR_",
+        "DOTNET_ROOT",
+        "GST_PLUGIN_",
+    ]
+    .iter()
+    .any(|prefix| normalized.starts_with(prefix))
+}
+
 pub(crate) fn is_reviewed_session_variable(name: &str) -> bool {
     let normalized = name.to_ascii_uppercase();
     // SDL interprets this as a native library to load, not an ordinary hint.
