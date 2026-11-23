@@ -386,7 +386,11 @@ pub use package_shape::{
     ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
     inspect_package_shape_archive_observed,
 };
-pub use package_shape::{ListingArtifactInspection, inspect_listing_artifact_archive};
+pub use package_shape::{
+    ListingArtifactInspection, ListingNameSuggestion, ListingNamesClassification,
+    ListingNamesInput, ListingPlayerCandidate, ListingReleaseName, ListingReleaseVerdict,
+    classify_listing_names, inspect_listing_artifact_archive,
+};
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
     PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,

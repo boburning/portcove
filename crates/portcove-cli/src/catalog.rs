@@ -152,6 +152,12 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         sha256: String,
     },
+    /// Classify listing release tags and asset names with Core's prerelease and
+    /// filename rules. Read-only; a filename never authorizes a runtime.
+    ClassifyListingNames {
+        /// JSON file with `releases` ({tag, provider_prerelease}) and `assets` (names).
+        input: PathBuf,
+    },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
     #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
@@ -314,6 +320,7 @@ impl CatalogCommand {
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
             Self::InspectListingArtifact { .. } => "catalog.inspect-listing-artifact",
+            Self::ClassifyListingNames { .. } => "catalog.classify-listing-names",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => DEFINITION_PUBLICATION_INSPECTION_COMMAND,
@@ -530,6 +537,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectListingArtifact { .. } => {
             unreachable!("listing artifact inspection executes before opening a library")
+        }
+        CatalogCommand::ClassifyListingNames { .. } => {
+            unreachable!("listing name classification executes before opening a library")
         }
         CatalogCommand::InspectSettingsQualification { .. } => {
             unreachable!("settings qualification executes before opening a library")

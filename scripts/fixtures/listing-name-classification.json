@@ -1,0 +1,237 @@
+{
+  "_comment": "Core's catalog classify-listing-names output for this input. Pinned by a portcove-core test; the facts worker tests replay it.",
+  "input": {
+    "releases": [
+      {
+        "tag": "v1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0-rc1",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0-alpha",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.1-preview",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.2-nightly",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "Version1.0.5beta12",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": true
+      },
+      {
+        "tag": "alphabet-1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v1.0\u202e",
+        "provider_prerelease": false
+      }
+    ],
+    "assets": [
+      "Game-v1.0-windows-x64.zip",
+      "Game-v1.0-linux-x86_64.tar.gz",
+      "Game-v1.0-macos-universal.zip",
+      "Game-v1.0-macos-arm64.zip",
+      "Game-v1.0.zip",
+      "MyGame-dedicated-server-win64.zip",
+      "Game-installer-windows-x64.zip",
+      "Game-builder-windows-x64.zip",
+      "Game-compiler-windows-x64.zip",
+      "Game-tools-windows-x64.zip",
+      "Game-importer-windows-x64.zip",
+      "Game-android-arm64.zip",
+      "Game-switch.zip",
+      "Game-notices.zip",
+      "Game-symbols-windows-x64.zip",
+      "Game-source.zip",
+      "Game-win32.zip",
+      "Game-linux-arm64.tar.gz",
+      "Game-windows-arm64.zip",
+      "Game-v1.0-linux-x86_64.tar.xz"
+    ]
+  },
+  "output": {
+    "filename_rule_version": 1,
+    "releases": [
+      {
+        "tag": "v1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v2.0-rc1",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.0-alpha",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.1-preview",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.2-nightly",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "Version1.0.5beta12",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": true,
+        "prerelease": true
+      },
+      {
+        "tag": "alphabet-1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v1.0\u202e",
+        "provider_prerelease": false,
+        "prerelease": false
+      }
+    ],
+    "assets": [
+      {
+        "name": "Game-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-v1.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-v1.0-macos-universal.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "universal"
+      },
+      {
+        "name": "Game-v1.0-macos-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "aarch64"
+      },
+      {
+        "name": "Game-v1.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown"
+      },
+      {
+        "name": "MyGame-dedicated-server-win64.zip",
+        "role": "dedicated-server",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-installer-windows-x64.zip",
+        "role": "installer",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-builder-windows-x64.zip",
+        "role": "builder",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-compiler-windows-x64.zip",
+        "role": "compiler",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-tools-windows-x64.zip",
+        "role": "dev-tool",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-importer-windows-x64.zip",
+        "role": "importer",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-android-arm64.zip",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "aarch64"
+      },
+      {
+        "name": "Game-switch.zip",
+        "role": "console-output",
+        "os": "console",
+        "arch": "unknown"
+      },
+      {
+        "name": "Game-notices.zip",
+        "role": "documentation",
+        "os": "unknown",
+        "arch": "unknown"
+      },
+      {
+        "name": "Game-symbols-windows-x64.zip",
+        "role": "debug-symbols",
+        "os": "windows",
+        "arch": "x86-64"
+      },
+      {
+        "name": "Game-source.zip",
+        "role": "source-archive",
+        "os": "unknown",
+        "arch": "unknown"
+      },
+      {
+        "name": "Game-win32.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86"
+      },
+      {
+        "name": "Game-linux-arm64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "aarch64"
+      },
+      {
+        "name": "Game-windows-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "aarch64"
+      },
+      {
+        "name": "Game-v1.0-linux-x86_64.tar.xz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64"
+      }
+    ]
+  }
+}

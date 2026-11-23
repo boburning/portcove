@@ -123,6 +123,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::InspectPackageLayout { .. }
             | CatalogCommand::InspectPackageShape { .. }
             | CatalogCommand::InspectListingArtifact { .. }
+            | CatalogCommand::ClassifyListingNames { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -429,6 +430,7 @@ mod tests {
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-listing-artifact file --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog classify-listing-names file",
             "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",

@@ -6,9 +6,9 @@ import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import {
-  enrollmentDelta,
   enrollmentTable,
   gateGeneration,
+  readGateBaseline,
   serializeEnrollmentTable,
 } from "./catalog-generated-registration.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
@@ -24,6 +24,7 @@ import {
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -781,13 +782,21 @@ if (preparing) {
   const generatedRegistrationOutput = serializeEnrollmentTable(
     enrollmentTable(authored.generation),
   );
-  const previousGeneratedRegistration = existsSync(generatedRegistrationPath)
-    ? readJson(generatedRegistrationPath)
-    : undefined;
+  // The gate's baseline is the committed table at the merge base (pull
+  // requests) or the previous commit (pushes), never the working tree, so
+  // repeated runs and hand edits cannot widen one change beyond the bounds.
+  const gateDelta = gateGeneration(
+    readGateBaseline(process.env, (args) => {
+      const result = spawnSync("git", args, {
+        cwd: root,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return result.status === 0 ? result.stdout : undefined;
+    }),
+    authored.generation,
+  );
   if (process.argv.includes("--check")) {
-    // Committed output must equal the generator's; the gate still checks every
-    // enrollment's facts and the committed table is the delta's baseline.
-    gateGeneration(previousGeneratedRegistration, authored.generation);
     if (
       !existsSync(generatedRegistrationPath) ||
       readFileSync(generatedRegistrationPath, "utf8") !== generatedRegistrationOutput ||
@@ -803,11 +812,10 @@ if (preparing) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
-    const delta = gateGeneration(previousGeneratedRegistration, authored.generation);
-    const changed = delta.added.length + delta.withdrawn.length + delta.changed.length;
+    const changed = gateDelta.added.length + gateDelta.withdrawn.length + gateDelta.changed.length;
     if (changed)
       process.stderr.write(
-        `Generated registration delta: ${JSON.stringify(enrollmentDelta(previousGeneratedRegistration, authored.generation))}\n`,
+        `Generated registration delta against the gate baseline: ${JSON.stringify(gateDelta)}\n`,
       );
     writeFileSync(generatedRegistrationPath, generatedRegistrationOutput);
     mkdirSync(routeTestRoot, { recursive: true });

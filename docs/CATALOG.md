@@ -3518,7 +3518,9 @@ prepares their own copy, and the player and upstream own runtime replacement.
 `scripts/catalog-generated-registration.mts` decides every identity from data
 only. No title, id or hand-kept list appears in it.
 
-An identity fits when all of these hold:
+Because no title-specific review happens, these rules are the review. An
+identity fits when all of these hold, and the first one that fails is its
+blocked reason:
 
 1. It has no authored integration and no reviewed prepared-player
    `route_facts_v1` enrollment.
@@ -3527,57 +3529,151 @@ An identity fits when all of these hold:
 4. Its project or release URL names a GitHub repository.
 5. One `listing-package-facts.generated.json` entry names it and that same
    repository, written by the current facts parser version.
-6. That entry's observation is `complete` and its asset list is complete.
-   Any other coverage is unknown, never eligible.
-7. For a supported desktop platform, an artifact has the typed role
-   `desktop-game-runtime` from an authorizing source. A filename suggestion or
-   stable declaration never authorizes it. No authorizing source contradicts it.
-   Its operating system and architecture are the platform's. It holds a player
-   candidate whose header machine runs on the platform.
-8. On that platform no restriction holds `register-external` or `launch`. A
+6. The worker did not complete the entry as ineligible. The ineligible
+   reasons are listed below.
+7. That entry's observation is `complete` and its asset list is complete.
+   Any other coverage is unknown, never eligible. The facts were confirmed at
+   most 30 days (`maxFactsAgeDays`) before the table's `generated_at`
+   (`stale-facts`). Any run of non-complete attempts since then is at most 14
+   days (`lastGoodRetentionDays`) long (`observation-unavailable`).
+8. For a supported desktop platform, an artifact has the role
+   `desktop-game-runtime` from an `exact-release-structured` fact. That fact
+   binds the archive's provider SHA-256 and holds player candidates with their
+   own SHA-256. No other fact source is accepted. The artifact is not
+   contradictory. Its operating system and architecture are the platform's.
+   It holds a player candidate whose header machine runs on the platform.
+9. On that platform no restriction holds `register-external` or `launch`. A
    `download` hold does not block registration. This route never offers a
    download.
-9. An authored listing guide leaves room for the generated selection step and
-   ownership reference within the eight-entry guide bound.
+10. An authored listing guide leaves room for the generated selection step and
+    ownership reference within the eight-entry guide bound.
 
-The route's platforms are every platform satisfying 7 and 8. The generated
+The route's platforms are every platform satisfying 8 and 9. The generated
 record is exactly the hand-authored form: `external_registration_v1: true`, the
 `user-prepared` provider and the `staged-source-portable` adapter. Generated
 records then pass the same validation as authored ones. The listing keeps
-only its other descriptive platforms. The guide names the selected program
-only when the facts name exactly one per platform. The working folder is that
-program's folder. Generic copy states what stays unknown, such as which
-original game files upstream needs. An authored listing guide stays first. The
-selection step, a warning that no title-specific review happened and the
-ownership reference follow it. The provenance reference and review step follow
-too when the bound leaves room.
+only its other descriptive platforms.
+
+##### What the player sees
+
+Upstream text reaches the guide only through a conservative name class. A name
+must be printable ASCII letters, digits, spaces or `._-+()[]`. It has no
+leading or trailing space and at most 120 characters. Format and bidi controls,
+zero-width and look-alike characters never pass. The selection step names the
+program only when the facts name exactly one player per platform, the same
+name everywhere, and that name passes the class. It uses the archive's own
+letter case, such as `Game.x86_64`, not Core's lowercase comparison key.
+Otherwise it says "Select the game program in your prepared copy." The working
+folder is the program's folder. The provenance reference names the repository,
+the release tag and release file when they pass the class, and the date facts
+were checked. It names at most three programs, then "and N more". Full paths,
+machines and digests stay in the facts table and the enrollment table. Generic
+copy states what stays unknown, such as which original game files upstream
+needs. An authored listing guide stays first. The selection step, a warning
+that no title-specific review happened and the ownership reference follow it.
+The provenance reference and review step follow too when the bound leaves room.
+
+##### Enrollment table and gate
 
 `generated-registration.generated.json` records each enrollment's facts digest,
-release, artifacts and players, plus blocked counts by reason. Generation is
-pure: when a fact stops holding, the next run omits that route. Examples are a
-removed asset, a contradicted role or incomplete coverage. The delta records
-the withdrawal reason. Withdrawal removes the offer to register new copies. It
-never touches external files. Core's existing
-[retained registration rules](ARCHITECTURE.md) keep a registered copy's
-listing identity. A run whose added, withdrawn or changed routes exceed
-`deltaBounds` is refused. A run is also refused when an enrollment rests on a
-non-authorizing fact. Raising a bound is a reviewed change. `--check` requires
-the committed table to equal the generator output. Generated routes are
-bookkept by this table rather than the curated
-`catalog-legacy-additions-fixture.json`. `catalog-route-fit.mts` and
-`maintenance-program-view.mts` count them as enrolled with no title-specific
-authority.
+repository and repository id, release, artifacts and players, plus blocked
+counts by reason. Generation is pure: when a fact stops holding, the next run
+omits that route. The delta records the withdrawal reason. Withdrawal removes
+the offer to register new copies. It never touches external files. Core's
+existing [retained registration rules](ARCHITECTURE.md) keep a registered
+copy's listing identity. Generated routes are bookkept by this table rather
+than the curated `catalog-legacy-additions-fixture.json`.
+`catalog-route-fit.mts` and `maintenance-program-view.mts` count them as
+enrolled with no title-specific authority.
+
+The gate compares the generation with a baseline. The baseline is the
+committed table at the merge base, never the working tree, so repeated runs and
+hand edits cannot widen one change. On a pull request or merge group it is the
+first parent of the checked-out merge commit, else the merge base with
+`origin/$GITHUB_BASE_REF`. On a push or scheduled run it is the previous
+commit. Locally it is the merge base with `origin/main`. A revision without the
+table is an empty baseline. Outside a git repository the baseline is empty.
+Inside one, an unresolvable baseline is an error, so CI's catalog jobs check
+out two commits. A change of more than 64 added, 32 withdrawn or 64 changed
+routes (`deltaBounds`) is refused. Raising a bound is a reviewed change, and
+there is no bypass. The gate also re-checks every enrollment against its facts
+entry with its own code, independent of the fit rule. It checks the facts
+digest, complete eligible coverage, the bound repository id and release, the
+age and retention bounds, the exact archive binding, the veto, the operating
+system, and that each player exists in the facts with a machine that runs on
+the platform. `--check` also requires the committed table to equal the
+generator output, so a hand-edited table is refused.
+
+##### Facts worker
 
 `scripts/listing-package-facts.mts derive` writes the facts from a listing
 observer report. It reads only digest-bound archives of the latest stable
-release, verifies their size and SHA-256 and runs
-`portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection)).
-Then it deletes the bytes. Each archive becomes an `exact-release-structured`
-fact. Its role is `desktop-game-runtime` only when Core found a native player
-outside any tool, installer or server location. One run is bounded by identity
-count and bytes. Unchanged archives are reused. The cursor moves past an
-identity only when its coverage is complete. A failed identity is recorded as
-unknown and is retried first next time. `--check` validates the committed table.
+release. The latest stable release follows Core's reviewed prerelease rule: the
+provider flag, or a tag such as `-alpha`, `-rc`, `-preview` or `-nightly`. It
+verifies each archive's size and SHA-256, runs
+`portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection))
+and then deletes the bytes. Core's temporary workspace is inside the worker's
+own scratch directory, and a timed-out run is killed, so nothing leaks. Each
+archive becomes an `exact-release-structured` fact with the player candidates
+Core found outside any tool, installer or server location.
+
+Core's filename classifier (`portcove --json catalog classify-listing-names`)
+can only veto. When an archive's name suggests a role other than a desktop game
+runtime, the archive is contradictory. Such roles include a server, installer,
+builder, compiler, development tool, importer, mobile package, console output,
+documentation, debug symbols or a source archive. A name suggesting another
+operating system or architecture than the players' header machines is
+contradictory too. A filename never authorizes a runtime. A release whose
+native archives are all vetoed does not enroll.
+
+The worker binds facts to the listing's repository and the observed numeric
+repository id. A rename that keeps the id continues. A different id withdraws
+the route as `repository-identity-changed` and keeps the bound id; a listing
+that names another repository rebinds. A non-complete observation, such as a
+rate limit, a missing repository or a partial listing, keeps the last-good
+complete facts. After 14 days of consecutive non-complete attempts it
+withdraws them as `observation-unavailable`. Only a complete observation that
+no longer fits withdraws immediately, for example one with no stable release.
+
+The worker never stalls on one identity. Every observed identity is evaluated
+each run. An unchanged release is reconfirmed from the facts already held,
+without reading bytes. These permanent cases complete as ineligible and are
+re-evaluated only when the release or its asset list changes:
+
+- `no-stable-release`, `no-release-archive`;
+- `unbound-archive`: an archive without a provider SHA-256;
+- `archive-too-large` (512 MiB) and `too-many-archives` (six);
+- `exceeds-run-budget`: more unread bytes than one whole run may read (2 GiB);
+- `inspection-refused`: Core refused the bytes, or they differ from the
+  provider's size or digest;
+- `repeated-inspection-failure`: three transient failures in a row;
+- `invalid-facts`: the identity's facts failed validation, such as a path with
+  a control character, `:` or `\`.
+
+These count in the enrollment table's blocked reasons. Each identity is
+validated alone, so one bad identity never fails the run. Identities that need
+bytes are inspected in port_id order after a cursor, at most 24 identities and
+2 GiB per run. The cursor moves past every identity it reaches. The pass stops
+at the first identity that does not fit the remaining bytes and resumes there
+next run. After the cursor's first identity, a retry queue retries transient
+failures, oldest first and at most a quarter of the identity budget. The
+worker state file (`--state`) holds the cursor, the retry queue and held facts.
+
+Facts land as one bounded batch per run, never per game. The worker keeps new
+facts in port_id order while the enrollment delta stays within `deltaBounds`.
+The rest are held in the worker state and offered again next run without
+reading bytes. An initial wave of a few hundred candidates therefore lands as
+successive batches of at most 64. The intended operation is a scheduled
+read-only job that runs the worker and uploads the facts table and state as an
+artifact. Each run lands through one ordinary pull request, gated by CI.
+`--check` validates the committed table.
+
+Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
+platform, so such a release stays `wrong-host`. A Linux tarball wrapped inside
+another archive is not unpacked, so its players stay unknown. Names Core's
+classifier does not type, such as `patcher` or `recompiler`, are not vetoed by
+name. Such an archive still enrolls only from a native player outside every
+tool, installer or server location.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.

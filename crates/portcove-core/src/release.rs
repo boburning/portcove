@@ -3556,11 +3556,18 @@ fn reviewed_is_beta_release(
 }
 
 fn is_beta_release(release: &GithubRelease) -> bool {
-    if release.prerelease {
+    is_prerelease(release.prerelease, &release.tag_name)
+}
+
+/// The reviewed default prerelease rule: the provider's prerelease flag, or a
+/// tag naming a prerelease stage (`-alpha`, `-preview`, `-nightly`, a numbered
+/// `beta` suffix and so on) when the flag is unset.
+pub(crate) fn is_prerelease(provider_prerelease: bool, tag: &str) -> bool {
+    if provider_prerelease {
         return true;
     }
 
-    let tag = release.tag_name.to_ascii_lowercase();
+    let tag = tag.to_ascii_lowercase();
     [
         "-alpha",
         "-beta",

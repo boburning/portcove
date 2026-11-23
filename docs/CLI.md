@@ -726,10 +726,20 @@ extracts the bytes with the same readers; `--platform` selects only the reader
 rules. It returns `catalog.inspect-listing-artifact` data: `sha256`,
 `shape_version`, the number of regular `files` and the `player_candidates`.
 A candidate is a regular file outside any tool, installer or server location
-whose header is a native executable, with its path, machine and SHA-256. It runs
-before opening a library, executes nothing and grants no release or launch
-authority. `scripts/listing-package-facts.mts` uses it
+whose header is a native executable. It has its lowercase comparison `path`,
+its `display_path` in the archive's own letter case, its machine and SHA-256.
+It runs before opening a library, executes nothing and grants no release or
+launch authority. `scripts/listing-package-facts.mts` uses it
 ([CATALOG](CATALOG.md#generated-user-selected-registration)).
+
+Run `portcove --json catalog classify-listing-names INPUT` with a JSON file of
+`releases` (`tag`, `provider_prerelease`) and asset names in `assets`. It
+returns `catalog.classify-listing-names` data: `filename_rule_version`, each
+release with Core's reviewed `prerelease` verdict, and each asset name with the
+`role`, `os` and `arch` its filename suggests. A filename suggestion never
+authorizes a runtime; the facts worker uses it only to veto one. The input is
+at most 8 MiB, 50,000 names and 1,024 bytes per name. It runs before opening a
+library and reads nothing else.
 
 `portcove --library PATH --json installation package-shape PORT_ID` lists each
 registered installation of the port with `install_id`, `version`, `active`,

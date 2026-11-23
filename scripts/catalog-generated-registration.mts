@@ -20,17 +20,24 @@
 //  4. its project or release URL names a GitHub repository (a readable upstream);
 //  5. one facts entry exists for it, names that same repository and was written
 //     by the current facts parser version;
-//  6. that entry's observation is `complete` with a complete asset list
-//     (anything else is UNKNOWN, never eligible);
-//  7. for at least one supported desktop platform P there is an artifact whose
-//     typed role is `desktop-game-runtime`, whose source authorizes (not a
-//     filename suggestion), which no authorizing source contradicts, whose
-//     operating system and architecture are P's, and which holds a player
-//     candidate whose header machine runs on P;
-//  8. on P no acquisition restriction holds `register-external` or `launch`
+//  6. the worker did not complete the entry as ineligible (no stable release,
+//     no digest-bound archive, an archive over the limits, a permanent Core
+//     refusal, a changed repository id, or upstream unknown for longer than
+//     the last-good retention);
+//  7. that entry's observation is `complete` with a complete asset list, its
+//     facts are at most `maxFactsAgeDays` older than the table, and any run of
+//     non-complete attempts since is at most `lastGoodRetentionDays` long
+//     (anything else is UNKNOWN or stale, never eligible);
+//  8. for at least one supported desktop platform P there is an artifact whose
+//     typed role is `desktop-game-runtime` from exact digest-bound archive
+//     bytes, which neither its asset name (Core's filename classifier, a veto
+//     only) nor another source contradicts, whose operating system and
+//     architecture are P's, and which holds a player candidate whose header
+//     machine runs on P;
+//  9. on P no acquisition restriction holds `register-external` or `launch`
 //     (a `download` hold does not block registration; this route never offers
 //     a download).
-// The route's platforms are every P satisfying 7 and 8.
+// The route's platforms are every P satisfying 8 and 9.
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -40,11 +47,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 1;
-export const FACTS_TABLE_FORMAT = 1;
+export const FACTS_PARSER_VERSION = 2;
+export const FACTS_TABLE_FORMAT = 2;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -52,20 +59,21 @@ export const factsGenerator = "scripts/listing-package-facts.mts";
 export const enrollmentGenerator = "scripts/generate-catalog.mts";
 
 /**
- * Bounds of one generation run's enrollment delta. A run beyond them is refused
- * until a person raises the bound here in a reviewed change.
+ * Bounds of one generation's enrollment delta against the merge-base table.
+ * A larger change lands as successive batches, one per worker run; a run
+ * beyond them is refused until a person raises the bound here in a reviewed
+ * change. There is no bypass.
  */
 export const deltaBounds = { added: 64, withdrawn: 32, changed: 64 } as const;
+/** Facts older than this, measured against the table's `generated_at`, are stale. */
+export const maxFactsAgeDays = 30;
+/** Last-good facts survive consecutive non-complete attempts for this long. */
+export const lastGoodRetentionDays = 14;
+const day = 86_400_000;
 
-/** Fact sources that may establish a desktop runtime role; never a filename. */
-export const authorizingSources = [
-  "release-metadata",
-  "exact-release-structured",
-  "provider-cross-reference",
-  "family-extractor",
-] as const;
-const sourceKinds = [...authorizingSources, "stable-declaration", "filename-suggestion"] as const;
-const roles = [
+/** The only fact source generator v1 accepts: exact, digest-bound archive bytes. */
+export const authorizingSource = "exact-release-structured";
+export const roles = [
   "desktop-game-runtime",
   "desktop-game-data",
   "dedicated-server",
@@ -83,47 +91,93 @@ const roles = [
   "debug-symbols",
   "unknown",
 ] as const;
+export type Role = (typeof roles)[number];
 const targetOs = ["windows", "linux", "macos", "android", "ios", "console", "web", "unknown"];
 const targetArch = ["x86-64", "aarch64", "x86", "universal", "unknown"];
 const coverages = ["complete", "partial", "unavailable", "failed"] as const;
+const attemptStatuses = ["partial", "unavailable", "failed", "pending-inspection"] as const;
+/**
+ * Reasons the worker completes an identity as ineligible. Each is positive
+ * evidence or a permanent bound; the worker re-evaluates it only when the
+ * release changes.
+ */
+export const ineligibleReasons = [
+  "no-stable-release",
+  "no-release-archive",
+  "unbound-archive",
+  "archive-too-large",
+  "too-many-archives",
+  "exceeds-run-budget",
+  "inspection-refused",
+  "repeated-inspection-failure",
+  "invalid-facts",
+  "repository-identity-changed",
+  "observation-unavailable",
+] as const;
+export type IneligibleReason = (typeof ineligibleReasons)[number];
 
 export interface PlayerFact {
+  /** Lowercase package-relative path: the comparison key. */
   path: string;
+  /** The same path with the archive's letter case, for display. */
+  display_path: string;
   machine: string;
   sha256: string;
 }
-export interface ArtifactFactV1 {
+export interface NameSuggestion {
+  rule_version: number;
+  role: Role;
+  os: string;
+  arch: string;
+}
+export interface ArtifactFactV2 {
   asset_id: number;
   name: string;
   size: number;
-  sha256: string | null;
-  role: (typeof roles)[number];
+  sha256: string;
+  role: Role;
   os: string;
   arch: string;
-  source: { kind: (typeof sourceKinds)[number] } & Record<string, unknown>;
+  source: { kind: typeof authorizingSource; shape_version: number; archive_sha256: string };
+  /** What Core's filename classifier suggests; it can only veto. */
+  name_suggestion: NameSuggestion;
   players: PlayerFact[];
   contradictory: boolean;
 }
 export interface ListingFactsEntry {
   port_id: string;
   provider: "github";
+  /** The repository the listing names; facts bind to it and to `repository_id`. */
   repository: string;
+  repository_id: number;
   parser: string;
   parser_version: number;
   observation: {
-    release_id: number;
-    tag: string;
+    release_id: number | null;
+    tag: string | null;
     published_at: string | null;
-    provider_prerelease: boolean;
+    /** When upstream last completely confirmed these facts. */
     observed_at: string;
     coverage: (typeof coverages)[number];
     assets_complete: boolean;
+    /** Digest of the release's asset list; a change re-evaluates the release. */
+    assets_sha256: string;
   };
-  artifacts: ArtifactFactV1[];
+  ineligible: { reason: IneligibleReason; detail: string } | null;
+  /** Consecutive non-complete attempts since `observed_at`; last-good facts stay. */
+  attempt: {
+    status: (typeof attemptStatuses)[number];
+    first_at: string;
+    last_at: string;
+    failures: number;
+  } | null;
+  artifacts: ArtifactFactV2[];
 }
 export interface ListingFactsTable {
   format: number;
   generator: string;
+  /** The worker run that wrote the table: the reference time for facts age. */
+  generated_at: string;
   entries: ListingFactsEntry[];
   entries_sha256: string;
 }
@@ -135,28 +189,31 @@ const positive = (value: unknown): value is number =>
 function bounded(value: unknown, maximum = 512): value is string {
   if (typeof value !== "string" || !value || value.trim() !== value) return false;
   if (Buffer.byteLength(value) > maximum) return false;
-  for (const character of value) {
-    const code = character.charCodeAt(0);
-    if (code < 32 || (code >= 127 && code <= 159)) return false;
-  }
-  return true;
+  // No control, format (bidi, zero-width), separator or unassigned characters.
+  return !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}]/u.test(value);
 }
+const timestamp = (value: unknown): value is string =>
+  bounded(value, 64) && !Number.isNaN(Date.parse(value));
 function exact(value: Record<string, unknown>, fields: readonly string[], where: string) {
   const unknown = Object.keys(value).find((key) => !fields.includes(key));
   if (unknown !== undefined) throw new Error(`${where} has an unknown field ${unknown}.`);
+  const missing = fields.find((key) => !Object.hasOwn(value, key));
+  if (missing !== undefined) throw new Error(`${where} is missing ${missing}.`);
 }
 function relativePath(value: unknown): value is string {
   return (
     bounded(value, 1024) &&
     !value.includes("\\") &&
     !value.includes(":") &&
-    value.split("/").every((part) => part !== "" && part !== "." && part !== "..")
+    value
+      .split("/")
+      .every((part) => part !== "" && part !== "." && part !== ".." && part.trim() === part)
   );
 }
 export const digestOf = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
-function checkArtifact(value: unknown, where: string): asserts value is ArtifactFactV1 {
+function checkArtifact(value: unknown, where: string): asserts value is ArtifactFactV2 {
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
   exact(
     value,
@@ -169,6 +226,7 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
       "os",
       "arch",
       "source",
+      "name_suggestion",
       "players",
       "contradictory",
     ],
@@ -178,106 +236,172 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
     !positive(value.asset_id) ||
     !bounded(value.name, 255) ||
     !Number.isSafeInteger(value.size) ||
-    Number(value.size) < 0 ||
-    !(value.sha256 === null || sha(value.sha256)) ||
+    Number(value.size) < 1 ||
+    !sha(value.sha256) ||
     !(roles as readonly unknown[]).includes(value.role) ||
     !targetOs.includes(value.os as string) ||
     !targetArch.includes(value.arch as string) ||
     typeof value.contradictory !== "boolean" ||
-    !isRecord(value.source) ||
-    !(sourceKinds as readonly unknown[]).includes(value.source.kind) ||
     !Array.isArray(value.players) ||
     value.players.length > 64
   )
     throw new Error(`${where} is not a typed artifact fact.`);
-  if (value.source.kind === "exact-release-structured") {
-    exact(value.source, ["kind", "shape_version", "archive_sha256"], `${where}.source`);
-    if (!positive(value.source.shape_version) || value.source.archive_sha256 !== value.sha256)
-      throw new Error(`${where} structural source must bind these exact archive bytes.`);
-  }
+  // Generator v1 trusts only exact structural observations of digest-bound bytes.
+  if (!isRecord(value.source) || value.source.kind !== authorizingSource)
+    throw new Error(`${where} must come from an exact-release-structured observation.`);
+  exact(value.source, ["kind", "shape_version", "archive_sha256"], `${where}.source`);
+  if (!positive(value.source.shape_version) || value.source.archive_sha256 !== value.sha256)
+    throw new Error(`${where} structural source must bind these exact archive bytes.`);
+  const suggestion = value.name_suggestion;
+  if (!isRecord(suggestion)) throw new Error(`${where}.name_suggestion must be an object.`);
+  exact(suggestion, ["rule_version", "role", "os", "arch"], `${where}.name_suggestion`);
+  if (
+    !positive(suggestion.rule_version) ||
+    !(roles as readonly unknown[]).includes(suggestion.role) ||
+    !targetOs.includes(suggestion.os as string) ||
+    !targetArch.includes(suggestion.arch as string)
+  )
+    throw new Error(`${where}.name_suggestion is not a filename classification.`);
   for (const [index, player] of value.players.entries()) {
     const at = `${where}.players[${index}]`;
     if (!isRecord(player)) throw new Error(`${at} must be an object.`);
-    exact(player, ["path", "machine", "sha256"], at);
-    if (!relativePath(player.path) || !bounded(player.machine, 64) || !sha(player.sha256))
+    exact(player, ["path", "display_path", "machine", "sha256"], at);
+    if (
+      !relativePath(player.path) ||
+      !relativePath(player.display_path) ||
+      player.display_path.toLowerCase() !== player.path ||
+      !bounded(player.machine, 64) ||
+      !sha(player.sha256)
+    )
       throw new Error(`${at} needs a package-relative path, header machine and SHA-256.`);
+  }
+}
+
+/** One entry's strict syntax; the worker checks each identity with it. */
+export function checkListingFactsEntry(
+  entry: unknown,
+  where = "Listing package facts entry",
+): asserts entry is ListingFactsEntry {
+  if (!isRecord(entry)) throw new Error(`${where} must be an object.`);
+  exact(
+    entry,
+    [
+      "port_id",
+      "provider",
+      "repository",
+      "repository_id",
+      "parser",
+      "parser_version",
+      "observation",
+      "ineligible",
+      "attempt",
+      "artifacts",
+    ],
+    where,
+  );
+  if (
+    !bounded(entry.port_id, 128) ||
+    entry.provider !== "github" ||
+    typeof entry.repository !== "string" ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(entry.repository) ||
+    !positive(entry.repository_id) ||
+    !bounded(entry.parser, 64) ||
+    !positive(entry.parser_version) ||
+    !isRecord(entry.observation) ||
+    !Array.isArray(entry.artifacts) ||
+    entry.artifacts.length > 256
+  )
+    throw new Error(`${where} needs an identity, GitHub repository id and parser.`);
+  const observation = entry.observation;
+  exact(
+    observation,
+    [
+      "release_id",
+      "tag",
+      "published_at",
+      "observed_at",
+      "coverage",
+      "assets_complete",
+      "assets_sha256",
+    ],
+    `${where}.observation`,
+  );
+  if (
+    !(observation.release_id === null || positive(observation.release_id)) ||
+    !(observation.tag === null || bounded(observation.tag, 256)) ||
+    (observation.release_id === null) !== (observation.tag === null) ||
+    !(observation.published_at === null || timestamp(observation.published_at)) ||
+    !timestamp(observation.observed_at) ||
+    !(coverages as readonly unknown[]).includes(observation.coverage) ||
+    typeof observation.assets_complete !== "boolean" ||
+    !sha(observation.assets_sha256)
+  )
+    throw new Error(`${where}.observation needs a release identity and stated coverage.`);
+  if (entry.ineligible !== null) {
+    if (!isRecord(entry.ineligible)) throw new Error(`${where}.ineligible must be an object.`);
+    exact(entry.ineligible, ["reason", "detail"], `${where}.ineligible`);
+    if (
+      !(ineligibleReasons as readonly unknown[]).includes(entry.ineligible.reason) ||
+      !bounded(entry.ineligible.detail, 512) ||
+      entry.artifacts.length
+    )
+      throw new Error(`${where}.ineligible needs a known reason and no artifacts.`);
+  } else if (observation.release_id === null)
+    throw new Error(`${where} without a release must be ineligible.`);
+  if (entry.attempt !== null) {
+    if (!isRecord(entry.attempt)) throw new Error(`${where}.attempt must be an object.`);
+    exact(entry.attempt, ["status", "first_at", "last_at", "failures"], `${where}.attempt`);
+    if (
+      !(attemptStatuses as readonly unknown[]).includes(entry.attempt.status) ||
+      !timestamp(entry.attempt.first_at) ||
+      !timestamp(entry.attempt.last_at) ||
+      Date.parse(entry.attempt.last_at) < Date.parse(entry.attempt.first_at) ||
+      !positive(entry.attempt.failures)
+    )
+      throw new Error(`${where}.attempt needs a status, a time span and a count.`);
+  }
+  const assets = new Set<number>();
+  for (const [artifactIndex, artifact] of entry.artifacts.entries()) {
+    checkArtifact(artifact, `${where}.artifacts[${artifactIndex}]`);
+    if (assets.has(artifact.asset_id))
+      throw new Error(`${where} names asset ${artifact.asset_id} twice.`);
+    assets.add(artifact.asset_id);
   }
 }
 
 /** Strict syntax of the generated facts table; content binding is the producer's. */
 export function checkListingFactsTable(value: unknown): asserts value is ListingFactsTable {
   if (!isRecord(value)) throw new Error("Listing package facts must be an object.");
-  exact(value, ["format", "generator", "entries", "entries_sha256"], "Listing package facts");
+  exact(
+    value,
+    ["format", "generator", "generated_at", "entries", "entries_sha256"],
+    "Listing package facts",
+  );
   if (
     value.format !== FACTS_TABLE_FORMAT ||
     value.generator !== factsGenerator ||
+    !timestamp(value.generated_at) ||
     !Array.isArray(value.entries) ||
     value.entries.length > 10000 ||
     value.entries_sha256 !== digestOf(value.entries)
   )
     throw new Error("Listing package facts need the current format, generator and entry digest.");
-  const seen = new Set<string>();
   for (const [index, entry] of value.entries.entries()) {
     const where = `Listing package facts entry ${index}`;
-    if (!isRecord(entry)) throw new Error(`${where} must be an object.`);
-    exact(
-      entry,
-      ["port_id", "provider", "repository", "parser", "parser_version", "observation", "artifacts"],
-      where,
-    );
-    if (
-      !bounded(entry.port_id, 128) ||
-      seen.has(entry.port_id) ||
-      entry.provider !== "github" ||
-      typeof entry.repository !== "string" ||
-      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(entry.repository) ||
-      !bounded(entry.parser, 64) ||
-      !positive(entry.parser_version) ||
-      !isRecord(entry.observation) ||
-      !Array.isArray(entry.artifacts) ||
-      entry.artifacts.length > 256
-    )
-      throw new Error(`${where} needs a unique identity, GitHub repository and parser.`);
-    if (
-      index > 0 &&
-      String((value.entries[index - 1] as ListingFactsEntry).port_id) >= entry.port_id
-    )
-      throw new Error("Listing package facts entries must be in ascending port_id order.");
-    seen.add(entry.port_id);
-    const observation = entry.observation;
-    exact(
-      observation,
-      [
-        "release_id",
-        "tag",
-        "published_at",
-        "provider_prerelease",
-        "observed_at",
-        "coverage",
-        "assets_complete",
-      ],
-      `${where}.observation`,
-    );
-    if (
-      !positive(observation.release_id) ||
-      !bounded(observation.tag, 256) ||
-      !(observation.published_at === null || bounded(observation.published_at, 64)) ||
-      typeof observation.provider_prerelease !== "boolean" ||
-      !bounded(observation.observed_at, 64) ||
-      Number.isNaN(Date.parse(observation.observed_at)) ||
-      !(coverages as readonly unknown[]).includes(observation.coverage) ||
-      typeof observation.assets_complete !== "boolean"
-    )
-      throw new Error(`${where}.observation needs a release identity and stated coverage.`);
-    for (const [artifactIndex, artifact] of entry.artifacts.entries())
-      checkArtifact(artifact, `${where}.artifacts[${artifactIndex}]`);
+    checkListingFactsEntry(entry, where);
+    if (index > 0 && (value.entries[index - 1] as ListingFactsEntry).port_id >= entry.port_id)
+      throw new Error("Listing package facts entries must be in ascending, unique port_id order.");
+    if (Date.parse(entry.observation.observed_at) > Date.parse(value.generated_at))
+      throw new Error(`${where} was observed after the table was generated.`);
   }
 }
 
-export function emptyFactsTable(): ListingFactsTable {
+export const initialFactsTime = "2026-11-23T00:00:00.000Z";
+export function emptyFactsTable(generated_at = initialFactsTime): ListingFactsTable {
   return {
     format: FACTS_TABLE_FORMAT,
     generator: factsGenerator,
+    generated_at,
     entries: [],
     entries_sha256: digestOf([]),
   };
@@ -318,7 +442,7 @@ export function machineRunsOn(machine: string, platform: string): boolean {
   }
 }
 
-function artifactArchFits(artifact: ArtifactFactV1, platform: string) {
+function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
   const wanted = platform === "macos-aarch64" ? "aarch64" : "x86-64";
   return (
     artifact.arch === wanted || (hostOs[platform] === "macos" && artifact.arch === "universal")
@@ -329,21 +453,19 @@ export interface PlatformRuntime {
   platform: string;
   asset_id: number;
   asset_name: string;
-  archive_sha256: string | null;
+  archive_sha256: string;
   source: string;
   players: PlayerFact[];
 }
 
-/** Artifacts that establish a runtime for P from authorizing facts, or the reason none does. */
+/** An artifact that establishes a runtime for P from exact bytes, or the reason none does. */
 function platformRuntime(
   entry: ListingFactsEntry,
   platform: string,
 ): { runtime: PlatformRuntime } | { reason: string } {
   const runtimes = entry.artifacts.filter((artifact) => artifact.role === "desktop-game-runtime");
   if (!runtimes.length) return { reason: "no-runtime-role" };
-  const authorized = runtimes.filter((artifact) =>
-    (authorizingSources as readonly string[]).includes(artifact.source.kind),
-  );
+  const authorized = runtimes.filter((artifact) => artifact.source.kind === authorizingSource);
   if (!authorized.length) return { reason: "no-authorizing-source" };
   const consistent = authorized.filter((artifact) => !artifact.contradictory);
   if (!consistent.length) return { reason: "contradictory-role" };
@@ -354,6 +476,7 @@ function platformRuntime(
   for (const artifact of hosted.toSorted((left, right) => left.asset_id - right.asset_id)) {
     const players = artifact.players
       .filter((player) => machineRunsOn(player.machine, platform))
+      .map((player) => ({ ...player }))
       .toSorted((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
     if (players.length)
       return {
@@ -381,7 +504,9 @@ export const blockedReasons = [
   "no-observation",
   "repository-mismatch",
   "stale-parser",
+  ...ineligibleReasons,
   "incomplete-coverage",
+  "stale-facts",
   "no-runtime-role",
   "no-authorizing-source",
   "contradictory-role",
@@ -398,6 +523,7 @@ export interface GeneratedEnrollment {
   generator_version: number;
   facts_sha256: string;
   repository: string;
+  repository_id: number;
   release: { id: number; tag: string; observed_at: string };
   runtimes: PlatformRuntime[];
 }
@@ -413,9 +539,33 @@ const reasonPriority: BlockedReason[] = [
   "no-runtime-role",
 ];
 
+/** Whether the entry's facts are too old or upstream has been unknown too long. */
+export function factsFreshness(
+  entry: ListingFactsEntry,
+  generatedAt: string,
+): { reason: "stale-facts" | "observation-unavailable"; detail: string } | undefined {
+  const reference = Date.parse(generatedAt);
+  const age = (reference - Date.parse(entry.observation.observed_at)) / day;
+  if (age > maxFactsAgeDays)
+    return {
+      reason: "stale-facts",
+      detail: `Facts were last confirmed ${Math.floor(age)} days before this table; the bound is ${maxFactsAgeDays}.`,
+    };
+  if (entry.attempt) {
+    const unknown = (reference - Date.parse(entry.attempt.first_at)) / day;
+    if (unknown > lastGoodRetentionDays)
+      return {
+        reason: "observation-unavailable",
+        detail: `Upstream has been ${entry.attempt.status} for ${Math.floor(unknown)} days; last-good facts are kept for ${lastGoodRetentionDays}.`,
+      };
+  }
+  return undefined;
+}
+
 export function fitDecision(
   record: AuthoredPort,
   entry: ListingFactsEntry | undefined,
+  generatedAt: string = entry?.observation.observed_at ?? initialFactsTime,
 ): FitDecision {
   const port_id = record.listing.id;
   const blocked = (reason: BlockedReason, detail: string): FitDecision => ({
@@ -444,11 +594,14 @@ export function fitDecision(
     );
   if (entry.parser !== FACTS_PARSER || entry.parser_version !== FACTS_PARSER_VERSION)
     return blocked("stale-parser", `Facts come from ${entry.parser} v${entry.parser_version}.`);
+  if (entry.ineligible) return blocked(entry.ineligible.reason, entry.ineligible.detail);
   if (entry.observation.coverage !== "complete" || !entry.observation.assets_complete)
     return blocked(
       "incomplete-coverage",
       `Observation coverage is ${entry.observation.coverage}${entry.observation.assets_complete ? "" : " with an incomplete asset list"}; UNKNOWN.`,
     );
+  const freshness = factsFreshness(entry, generatedAt);
+  if (freshness) return blocked(freshness.reason, freshness.detail);
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
@@ -487,9 +640,10 @@ export function fitDecision(
       generator_version: GENERATOR_VERSION,
       facts_sha256: digestOf(entry),
       repository: entry.repository,
+      repository_id: entry.repository_id,
       release: {
-        id: entry.observation.release_id,
-        tag: entry.observation.tag,
+        id: entry.observation.release_id!,
+        tag: entry.observation.tag!,
         observed_at: entry.observation.observed_at,
       },
       runtimes,
@@ -508,31 +662,64 @@ const platformLabels: Record<string, string> = {
 };
 const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-/** The concrete selection step: a named program only when the facts name exactly one. */
+/**
+ * Upstream text reaches the player only through this conservative class:
+ * printable ASCII letters, digits and `._-+()[]` plus inner spaces, at most
+ * 120 characters. Anything else (format and bidi controls, zero-width or
+ * look-alike characters) is never rendered; generic wording replaces it.
+ */
+export function displayableName(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 120 &&
+    /^[A-Za-z0-9._+()[\]-](?:[A-Za-z0-9 ._+()[\]-]*[A-Za-z0-9._+()[\]-])?$/u.test(value)
+  );
+}
+
+export const genericSelection =
+  "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some.";
+
+/**
+ * The concrete selection step. A program is named only when the facts name
+ * exactly one player per platform, the same everywhere, and its original-case
+ * name passes the display class; otherwise the wording stays generic.
+ */
 function selectionInstruction(enrollment: GeneratedEnrollment) {
-  const named = enrollment.runtimes.map((runtime) => {
-    const names = [...new Set(runtime.players.map((player) => basename(player.path)))];
-    return { platform: runtime.platform, names };
-  });
-  if (named.every(({ names }) => names.length === 1)) {
-    const distinct = new Set(named.map(({ names }) => names[0]));
-    const program =
-      distinct.size === 1
-        ? `Select ${named[0]!.names[0]} from your prepared copy.`
-        : `Select the game program from your prepared copy: ${named.map(({ platform, names }) => `${names[0]} on ${platformLabels[platform]}`).join("; ")}.`;
-    return `${program} Use its containing folder as the working folder. Leave arguments empty unless upstream documents some.`;
-  }
-  return "Select the game program from your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some.";
+  const names = enrollment.runtimes.map(
+    (runtime) => new Set(runtime.players.map((player) => basename(player.display_path))),
+  );
+  if (!names.every((set) => set.size === 1)) return genericSelection;
+  const distinct = new Set(names.map((set) => [...set][0]!));
+  const [name] = distinct;
+  if (distinct.size !== 1 || !displayableName(name!)) return genericSelection;
+  return `Select ${name} in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some.`;
+}
+
+/** At most three displayable names, then a count of the rest. */
+function summarizeNames(values: readonly string[], noun: string) {
+  const unique = [...new Set(values)];
+  const shown = unique.filter(displayableName).slice(0, 3);
+  const rest = unique.length - shown.length;
+  if (!shown.length) return `${unique.length} ${noun}${unique.length === 1 ? "" : "s"}`;
+  return rest ? `${shown.join(", ")} and ${rest} more` : shown.join(", ");
 }
 
 function evidenceReference(enrollment: GeneratedEnrollment) {
+  const release = displayableName(enrollment.release.tag)
+    ? `release ${enrollment.release.tag}`
+    : "its latest stable release";
   const runtimes = enrollment.runtimes
-    .map(
-      (runtime) =>
-        `${platformLabels[runtime.platform]}: release asset ${runtime.asset_name} contains ${runtime.players.map((player) => `${player.path} (${player.machine}, SHA-256 ${player.sha256})`).join(", ")}`,
-    )
+    .map((runtime) => {
+      const asset = displayableName(runtime.asset_name)
+        ? `release file ${runtime.asset_name}`
+        : "a release file";
+      return `${platformLabels[runtime.platform]}: ${asset} contains ${summarizeNames(
+        runtime.players.map((player) => basename(player.display_path)),
+        "program",
+      )}`;
+    })
     .join(". ");
-  return `Portcove added this registration from observed release facts, without a title-specific review. Upstream ${enrollment.repository}, release ${enrollment.release.tag}, observed ${enrollment.release.observed_at}. ${runtimes}. Your own copy may differ; Portcove does not compare it with these files.`;
+  return `Portcove added this registration from observed release facts, without a title-specific review. Upstream ${enrollment.repository}, ${release}, checked ${enrollment.release.observed_at.slice(0, 10)}. ${runtimes}. Your own copy may differ; Portcove does not compare it with these files.`;
 }
 
 /** Generic, honest guide. Title-specific facts that are unknown stay unknown. */
@@ -667,6 +854,8 @@ export interface Generation {
   records: AuthoredPort[];
   decisions: FitDecision[];
   enrollments: GeneratedEnrollment[];
+  /** The checked facts table the decisions read. */
+  facts: ListingFactsTable;
 }
 
 /** Pure: equal records and facts always produce the same records and decisions. */
@@ -680,7 +869,7 @@ export function generateRegistrations(
   for (const id of entries.keys())
     if (!known.has(id)) throw new Error(`Listing package facts name ${id}, which is not listed.`);
   const decisions = records
-    .map((record) => fitDecision(record, entries.get(record.listing.id)))
+    .map((record) => fitDecision(record, entries.get(record.listing.id), facts.generated_at))
     .toSorted((left, right) => (left.port_id < right.port_id ? -1 : 1));
   const fitting = new Map(
     decisions.flatMap((decision) =>
@@ -695,6 +884,7 @@ export function generateRegistrations(
     records: output,
     decisions,
     enrollments: [...fitting.values()].toSorted((a, b) => (a.port_id < b.port_id ? -1 : 1)),
+    facts,
   };
 }
 
@@ -734,17 +924,18 @@ export interface EnrollmentDelta {
 }
 
 function previousEnrollments(previous: unknown): GeneratedEnrollment[] {
-  if (previous === undefined) return [];
+  if (previous === undefined || previous === null) return [];
   if (
     !isRecord(previous) ||
     previous.format !== ENROLLMENT_TABLE_FORMAT ||
-    !Array.isArray(previous.enrollments)
+    !Array.isArray(previous.enrollments) ||
+    previous.enrollments.some((row: unknown) => !isRecord(row) || typeof row.port_id !== "string")
   )
-    throw new Error("The previous generated registration table is malformed.");
+    throw new Error("The baseline generated registration table is malformed.");
   return previous.enrollments as GeneratedEnrollment[];
 }
 
-/** Added, withdrawn and changed routes since the previous committed table, with reasons. */
+/** Added, withdrawn and changed routes since the baseline table, with reasons. */
 export function enrollmentDelta(previous: unknown, generation: Generation): EnrollmentDelta {
   const before = new Map(previousEnrollments(previous).map((row) => [row.port_id, row]));
   const after = new Map(generation.enrollments.map((row) => [row.port_id, row]));
@@ -789,36 +980,253 @@ export function enrollmentDelta(previous: unknown, generation: Generation): Enro
   return delta;
 }
 
+// ---------------------------------------------------------------------------
+// The gate: the safety net that replaces per-title review. Its checks are
+// written independently of the fit rule above and never call its helpers, so
+// a defect in one is not hidden by the same defect in the other.
+
+/** Header machines that run on each platform, restated for the gate. */
+const gateMachines: Record<
+  string,
+  { os: string; arch: string; exact: string[]; universal: string }
+> = {
+  "windows-x86-64": { os: "windows", arch: "x86-64", exact: ["pe-x86-64"], universal: "" },
+  "linux-x86-64": { os: "linux", arch: "x86-64", exact: ["elf64-x86-64"], universal: "" },
+  "macos-x86-64": { os: "macos", arch: "x86-64", exact: ["macho-x86-64"], universal: "x86-64" },
+  "macos-aarch64": { os: "macos", arch: "aarch64", exact: ["macho-arm64"], universal: "arm64" },
+};
+const gateDay = 24 * 60 * 60 * 1000;
+
+function gateMachineRuns(machine: string, platform: string) {
+  const host = gateMachines[platform];
+  if (!host) return false;
+  if (host.exact.includes(machine)) return true;
+  const prefix = "macho-universal-";
+  return (
+    host.universal !== "" &&
+    machine.startsWith(prefix) &&
+    machine.slice(prefix.length).split("+").includes(host.universal)
+  );
+}
+
+/** Problems with one enrollment, judged against its facts entry only. */
+function gateEnrollmentProblems(
+  enrollment: GeneratedEnrollment,
+  entry: ListingFactsEntry | undefined,
+  generatedAt: string,
+): string[] {
+  const id = enrollment.port_id;
+  if (!entry) return [`${id} has no facts entry.`];
+  const problems: string[] = [];
+  if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
+    problems.push(`${id} does not rest on the committed facts entry.`);
+  if (
+    entry.ineligible !== null ||
+    entry.observation.coverage !== "complete" ||
+    entry.observation.assets_complete !== true ||
+    entry.repository_id !== enrollment.repository_id ||
+    entry.repository !== enrollment.repository ||
+    entry.observation.release_id !== enrollment.release.id
+  )
+    problems.push(`${id} rests on facts that are not a complete, eligible, bound observation.`);
+  const reference = Date.parse(generatedAt);
+  if (reference - Date.parse(entry.observation.observed_at) > 30 * gateDay)
+    problems.push(`${id} rests on facts older than 30 days.`);
+  if (entry.attempt && reference - Date.parse(entry.attempt.first_at) > 14 * gateDay)
+    problems.push(`${id} rests on last-good facts kept beyond 14 days.`);
+  const platformsSeen = new Set<string>();
+  if (!enrollment.platforms.length) problems.push(`${id} has no platform.`);
+  for (const platform of enrollment.platforms) {
+    if (!gateMachines[platform] || platformsSeen.has(platform))
+      problems.push(`${id} names platform ${platform} twice or unsupported.`);
+    platformsSeen.add(platform);
+  }
+  if (enrollment.runtimes.length !== enrollment.platforms.length)
+    problems.push(`${id} has a platform without a runtime.`);
+  for (const runtime of enrollment.runtimes) {
+    const where = `${id} on ${runtime.platform}`;
+    const host = gateMachines[runtime.platform];
+    const artifact = entry.artifacts.find((candidate) => candidate.asset_id === runtime.asset_id);
+    if (!host || !enrollment.platforms.includes(runtime.platform) || !artifact) {
+      problems.push(`${where} names no observed artifact.`);
+      continue;
+    }
+    if (
+      runtime.source !== "exact-release-structured" ||
+      artifact.source.kind !== "exact-release-structured" ||
+      typeof artifact.sha256 !== "string" ||
+      artifact.sha256.length !== 64 ||
+      artifact.source.archive_sha256 !== artifact.sha256 ||
+      runtime.archive_sha256 !== artifact.sha256
+    )
+      problems.push(`${where} rests on a non-authorizing ${runtime.source} fact or unbound bytes.`);
+    if (artifact.role !== "desktop-game-runtime" || artifact.contradictory)
+      problems.push(`${where} rests on a contradicted or non-runtime artifact.`);
+    const named = artifact.name_suggestion;
+    if (
+      !["desktop-game-runtime", "unknown"].includes(named.role) ||
+      !["unknown", host.os].includes(named.os) ||
+      !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(named.arch)
+    )
+      problems.push(`${where} rests on an artifact its own name contradicts.`);
+    if (artifact.os !== host.os) problems.push(`${where} rests on another system's artifact.`);
+    if (!runtime.players.length) problems.push(`${where} has no matching player.`);
+    for (const player of runtime.players) {
+      const observed = artifact.players.find(
+        (candidate) =>
+          candidate.path === player.path &&
+          candidate.display_path === player.display_path &&
+          candidate.machine === player.machine &&
+          candidate.sha256 === player.sha256,
+      );
+      if (!observed || !gateMachineRuns(player.machine, runtime.platform))
+        problems.push(`${where} has no matching player.`);
+    }
+  }
+  return problems;
+}
+
 /**
- * The safety net that replaces per-title review: refuse a run whose delta
- * exceeds the configured bounds or whose enrollments rest on any fact that is
- * not from an authorizing source, not complete or not matching its host.
+ * Refuse a generation whose delta against the baseline (the merge base's
+ * committed table, never the working tree) exceeds the bounds, or whose
+ * enrollments do not rest on complete, current, digest-bound facts.
  */
 export function gateGeneration(
-  previous: unknown,
+  baseline: unknown,
   generation: Generation,
   bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
 ) {
-  const delta = enrollmentDelta(previous, generation);
+  const delta = enrollmentDelta(baseline, generation);
   const problems: string[] = [];
   for (const name of ["added", "withdrawn", "changed"] as const)
     if (delta[name].length > bounds[name])
-      problems.push(`${delta[name].length} ${name} routes exceed the bound of ${bounds[name]}.`);
-  for (const enrollment of generation.enrollments) {
-    if (!enrollment.platforms.length) problems.push(`${enrollment.port_id} has no platform.`);
-    for (const runtime of enrollment.runtimes) {
-      if (!(authorizingSources as readonly string[]).includes(runtime.source))
-        problems.push(
-          `${enrollment.port_id} on ${runtime.platform} rests on a non-authorizing ${runtime.source} fact.`,
-        );
-      if (
-        !runtime.players.length ||
-        runtime.players.some((p) => !machineRunsOn(p.machine, runtime.platform))
-      )
-        problems.push(`${enrollment.port_id} on ${runtime.platform} has no matching player.`);
-    }
-  }
+      problems.push(
+        `${delta[name].length} ${name} routes exceed the bound of ${bounds[name]}; land them as successive batches.`,
+      );
+  const entries = new Map(generation.facts.entries.map((entry) => [entry.port_id, entry]));
+  for (const enrollment of generation.enrollments)
+    problems.push(
+      ...gateEnrollmentProblems(
+        enrollment,
+        entries.get(enrollment.port_id),
+        generation.facts.generated_at,
+      ),
+    );
   if (problems.length)
     throw new Error(`Generated registration gate refused this run: ${problems.join(" ")}`);
   return delta;
+}
+
+// ---------------------------------------------------------------------------
+// The gate's baseline: the committed table at the merge base.
+
+export const enrollmentTablePath = `crates/portcove-core/catalog/${enrollmentTableName}`;
+/** Runs git and returns stdout, or undefined when the command fails. */
+export type GitRunner = (args: string[]) => string | undefined;
+
+/**
+ * The revision whose committed table is the gate's baseline. Pull requests and
+ * merge groups compare with the base they merge into (the first parent of the
+ * checked-out merge commit, else the merge base with `origin/$GITHUB_BASE_REF`);
+ * pushes and scheduled runs compare with the previous commit; a local run
+ * compares with the merge base of `origin/main`.
+ */
+export function gateBaselineRevision(env: NodeJS.ProcessEnv, git: GitRunner): string | undefined {
+  const event = env.GITHUB_EVENT_NAME;
+  const head = git(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])?.trim();
+  if (!head) return undefined;
+  const parents = (git(["rev-list", "--parents", "-n", "1", "HEAD"]) ?? "").trim().split(/\s+/u);
+  if (event === "pull_request" || event === "pull_request_target" || event === "merge_group") {
+    if (parents.length === 3) return parents[1];
+    const base = env.GITHUB_BASE_REF ? `origin/${env.GITHUB_BASE_REF}` : "origin/main";
+    return git(["merge-base", "HEAD", base])?.trim() || undefined;
+  }
+  if (event) return parents[1];
+  return git(["merge-base", "HEAD", "origin/main"])?.trim() || undefined;
+}
+
+/**
+ * The baseline table, or `null` for an empty one (no table at that revision,
+ * or no git repository at all). Inside a repository an unresolvable baseline
+ * is an error: the gate never falls back to the working tree.
+ */
+export function readGateBaseline(env: NodeJS.ProcessEnv, git: GitRunner): unknown {
+  if (git(["rev-parse", "--is-inside-work-tree"])?.trim() !== "true") return null;
+  const revision = gateBaselineRevision(env, git);
+  if (!revision)
+    throw new Error(
+      "The generated registration gate needs the merge base's history; fetch the base branch (CI: checkout fetch-depth 2 or more).",
+    );
+  const listed = git(["ls-tree", "--name-only", revision, "--", enrollmentTablePath]);
+  if (listed === undefined)
+    throw new Error(`The generated registration gate cannot read revision ${revision}.`);
+  if (!listed.trim()) return null;
+  const text = git(["show", `${revision}:${enrollmentTablePath}`]);
+  if (text === undefined) throw new Error(`Cannot read ${enrollmentTablePath} at ${revision}.`);
+  return JSON.parse(text) as unknown;
+}
+
+// ---------------------------------------------------------------------------
+// Batching: facts land through one bounded batch per worker run.
+
+/**
+ * Keep the new facts of identities in port_id order while the enrollment delta
+ * against the routes `previous` produces stays within the bounds; every other
+ * changed identity keeps its previous entry, and its new entry is returned as
+ * deferred so the next run offers it again without reading bytes. A change
+ * that time alone causes (facts ageing out) cannot be deferred and counts
+ * first. Deterministic and pure.
+ */
+export function boundFactsBatch(
+  records: readonly AuthoredPort[],
+  previous: ListingFactsTable,
+  next: ListingFactsTable,
+  bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
+): { table: ListingFactsTable; deferred: ListingFactsEntry[] } {
+  const byId = new Map(records.map((record) => [record.listing.id, record]));
+  const before = new Map(previous.entries.map((entry) => [entry.port_id, entry]));
+  const after = new Map(next.entries.map((entry) => [entry.port_id, entry]));
+  const enrolled = (id: string, entry: ListingFactsEntry | undefined, at: string) => {
+    const record = byId.get(id);
+    const decision = record ? fitDecision(record, entry, at) : undefined;
+    return decision?.fit ? JSON.stringify(decision.enrollment) : undefined;
+  };
+  const effect = (from: string | undefined, to: string | undefined) =>
+    from === to ? undefined : !from ? "added" : !to ? "withdrawn" : "changed";
+  const counts = { added: 0, withdrawn: 0, changed: 0 };
+  const ids = [...new Set([...before.keys(), ...after.keys()])].toSorted();
+  const accepted = new Map<string, ListingFactsEntry>();
+  const pending: string[] = [];
+  for (const id of ids) {
+    const old = before.get(id);
+    const proposed = after.get(id);
+    if (digestOf(old ?? null) === digestOf(proposed ?? null)) {
+      if (old) accepted.set(id, old);
+      const change = effect(
+        enrolled(id, old, previous.generated_at),
+        enrolled(id, old, next.generated_at),
+      );
+      if (change) counts[change]++;
+    } else pending.push(id);
+  }
+  const deferred: ListingFactsEntry[] = [];
+  for (const id of pending) {
+    const old = before.get(id);
+    const proposed = after.get(id);
+    const base = enrolled(id, old, previous.generated_at);
+    const change = effect(base, enrolled(id, proposed, next.generated_at));
+    if (!change || counts[change] < bounds[change]) {
+      if (change) counts[change]++;
+      if (proposed) accepted.set(id, proposed);
+      continue;
+    }
+    if (proposed) deferred.push(proposed);
+    if (old) accepted.set(id, old);
+    const kept = effect(base, enrolled(id, old, next.generated_at));
+    if (kept) counts[kept]++;
+  }
+  const sorted = [...accepted.values()].toSorted((left, right) =>
+    left.port_id < right.port_id ? -1 : 1,
+  );
+  return { table: { ...next, entries: sorted, entries_sha256: digestOf(sorted) }, deferred };
 }
