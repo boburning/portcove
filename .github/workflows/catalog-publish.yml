@@ -57,6 +57,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      reader_activation: ${{ steps.observe.outputs.reader_activation }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -167,7 +168,10 @@ jobs:
       - name: Build the catalog tools
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
-      - name: Project completed shared observations into the existing descriptive target
+      # Compact listing delivery (#1422): the anonymously selected and verified
+      # released reader decides activation; without one the prior carriers stay.
+      - name: Project completed shared observations into the descriptive listing targets
+        id: observe
         if: steps.decide.outputs.publish == 'true'
         run: |
           set -euo pipefail
@@ -178,7 +182,10 @@ jobs:
             --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
-            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            --official-released-reader
+          activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
+          echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
       - name: Inspect the bundle and plan the next versions
         id: prepare
@@ -274,6 +281,7 @@ jobs:
       PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
       PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
       HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+      CATALOG_READER_ACTIVATION: ${{ needs.prepare.outputs.reader_activation }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -333,6 +341,10 @@ jobs:
           for attempt in 1 2 3 4; do
             git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # A reader withdrawn or replaced on the fresh Pages base stops the push.
+            if [ -n "$CATALOG_READER_ACTIVATION" ]; then
+              node scripts/catalog-released-reader.mts site
+            fi
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \

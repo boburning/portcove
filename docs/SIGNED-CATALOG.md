@@ -154,7 +154,8 @@ own inventory and keeps the existing write-time and post-write readbacks.
 Each descriptive target has an 8 MiB wire limit. The compact carrier has a
 separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
-carrier body. Compact publication still requires explicit activation.
+carrier body. Scheduled publication activates compact delivery once it
+verifies a capable released reader (see [Activation checklist](#activation-checklist)).
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
@@ -256,10 +257,13 @@ but activating both makes compact delivery one-way (item 5).
    `portcove_listing_carrier::legacy_row_projection`; Core's tests prove the
    two are equal for every committed listing row and for fixture rows with
    restrictions, implementation, verified sources and typed IGDB scenes.
-   Still open: format-11 readers cannot receive a typed restriction's permit,
-   scope, second hold, non-download operation, `reason` or `tracking_issue`. A
-   hold that predates activation on a discovery row the legacy target does not
-   deliver stays with the reader's bundled row, as it does before activation.
+   _The residual gap is the accepted legacy-reader hold policy_ (lead decision
+   recorded on #1422): format-11 readers cannot receive a typed restriction's
+   permit, scope, second hold, non-download operation, `reason` or
+   `tracking_issue`. A hold that predates activation on a discovery row the
+   legacy target does not deliver stays with the reader's bundled row, as it
+   does before activation. Players who need typed restrictions update to a
+   capable release.
 4. **No enrichment fallback.** Legacy preparation drops all optional observer
    enrichment when Core refuses the candidate set and keeps publishing.
    _Satisfied by this repository's code and tests for compact preparation:_
@@ -286,14 +290,14 @@ but activating both makes compact delivery one-way (item 5).
    _Satisfied by this repository's code and tests:_ preparation publishes the
    first compact target above the legacy revision, and the rehearsal checks it.
 7. **Released reader.** Compact delivery must stay readable by the released
-   CLI players run. _Satisfied by this repository's code and tests, not
-   enabled:_ see [Automatic released-reader selection](#automatic-released-reader-selection).
+   CLI players run. _Satisfied by this repository's code and tests, and
+   enabled in `Catalog publish` (#1422):_ see [Automatic released-reader selection](#automatic-released-reader-selection).
    No caller-supplied path or SHA-256 is needed; the explicit
    `--released-reader` path remains an override for rehearsal and tests.
 8. **Publish-time reader recheck.** A reader withdrawn between Prepare and the
    Pages push must stop that push. _The script side is satisfied by code and
-   tests_ (`node scripts/catalog-released-reader.mts SITE`); the workflow step
-   that calls it is part of the activation change below.
+   tests_ (`node scripts/catalog-released-reader.mts SITE`), and the publish
+   job runs it on each fresh Pages base inside its push retry loop.
 
 #### Automatic released-reader selection
 
@@ -332,9 +336,11 @@ that prints what the selection would verify and the reader's capabilities.
 
 #### Activation checklist
 
-Nothing in this repository passes `--official-released-reader`,
-`--compact` or `--return-to-legacy`; scheduled publication stays legacy-only
-and unchanged. Activation is one reviewed workflow change:
+Since #1422, `Catalog publish` passes `--official-released-reader` on every
+publishing trigger. Nothing passes `--compact` or `--return-to-legacy`, and
+history bootstrap remains a separate owner activation. Compact delivery starts
+with the first publication whose released reader verifies; until then each
+publication stays legacy-only. Activation was one reviewed workflow change:
 
 1. **Verify.** On the `main` commit the change targets: the required checks
    are green, and
@@ -426,6 +432,42 @@ again with automatic released-reader selection, using a debug CLI for Core and
 a stripped copy of it as the published reader. A debug CLI's archive exceeds
 the selection's 64 MiB archive bound, so pass a release or stripped build with
 `--released-reader`.
+
+On November 23, 2026 at `main` commit `591b2b9` the rehearsal passed every
+step with a release CLI (debug info off) for Core and a stripped copy as the
+published reader. The committed catalog then had 155 restriction facts format
+11 cannot express: 152 download holds lose only `reason` and
+`tracking_issue`, and 3 listings (`chameleon-twist-recompiled`,
+`grand-theft-auto-san-andreas-unity`, `linewars-ii-sdl3`) also have a
+download permit scoped to reviewed artifacts. Format-11 readers hold the whole
+listing for those 3, which is stricter than compact readers.
+
+Activation readiness, November 23, 2026, against the served Pages commit
+`c912fc3` (timestamp 60, legacy target `0d20ba97…`, 8,388,398 bytes): an
+offline dry run of preparation with `--official-released-reader` selected
+`nightly-0.1.0-preview.14` (release 454576766, source `01f4b2c`, unwithdrawn,
+format 15 and `gzip-base64-json-v1`), kept the legacy bytes exactly and
+proposed compact revision 48 above legacy revision 47 with all 1,649 rows:
+2,745,010 wire bytes of 8 MiB and 9,602,327 decoded bytes of 32 MiB. When the
+anonymous attestation read was rate limited (HTTP 403), the same run stayed
+legacy-only and byte-identical, and an active compact prior renewed both
+carriers without any GitHub read. Simulating generated registrations that
+make listing-only identities operational, with compact active the legacy
+target stayed byte-identical and the compact target stayed under 2.8 MB wire
+and 10.1 MB decoded at 400 identities. Without compact, 400 identities the
+legacy target did not already deliver exceeded its bound in preparation, and
+200 left 87 bytes. The embedded `listings.json` guard is the next limit: 400
+simulated identities left 93,413 bytes below its 85% ceiling.
+
+Activation also slows retention growth. On that commit the retained catalog
+tree measured 404,914,714 of 805,306,368 bytes (768 MiB) and the Pages tree
+404,921,640 of 900,000,000 bytes. 47 retained legacy listing targets made up
+390,631,685 bytes; each listing change adds one 8.39 MB legacy target, about
+6.7 changes a day over the previous week, leaving roughly 47 changes before
+the 768 MiB bound. After activation a change adds a compact target of about
+2.75 MB instead, and the legacy target grows only for withdrawals and holds.
+Activation does not remove retained targets; the retention bound still needs
+its own plan.
 
 ### Legacy holds after compact activation
 

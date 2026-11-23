@@ -918,7 +918,7 @@ export async function prepareObservationBundle(options: {
   releasedReader?: { cli: string; sha256: string };
   /** Select and verify the reader from the protected Preview pointer, and
    * activate or advance compact delivery only when it is verified capable.
-   * No workflow passes it yet; enabling it is the activation step. */
+   * `Catalog publish` passes it (#1422). */
   officialReleasedReader?: boolean;
   /** Replaces the live, anonymous acquisition (rehearsal fixtures, tests). */
   acquireReleasedReader?: (privateRoot: string) => Promise<AcquiredReleasedReader>;

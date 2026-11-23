@@ -1032,6 +1032,52 @@ void test("the existing Pages readback emits the receipt only after matching liv
   assert.equal(upload.with?.["retention-days"], 7);
 });
 
+void test("compact listing activation selects the released reader and rechecks it before each push", () => {
+  const workflow = read("catalog-publish.yml");
+  const source = readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8");
+  // Only automatic selection decides activation; no route forces or reverses it.
+  assert.equal(source.match(/--official-released-reader/gu)?.length, 1);
+  assert.doesNotMatch(source, /--compact\b|--return-to-legacy|--released-reader\b/u);
+  const prepare = workflow.jobs.prepare!;
+  const steps = prepare.steps!;
+  const observe = steps.find(({ id }) => id === "observe")!;
+  assert.equal(observe.if, "steps.decide.outputs.publish == 'true'");
+  assert.equal(observe.env, undefined);
+  assert.match(
+    observe.run!,
+    /node scripts\/listing-observation-delivery\.mts [^]*--official-released-reader\n/u,
+  );
+  assert.match(observe.run!, /report\.released_reader_activation/u);
+  assert.match(observe.run!, /echo "reader_activation=\$activation" >> "\$GITHUB_OUTPUT"/u);
+  assert.doesNotMatch(observe.run!, /\$\{\{/u);
+  assert.ok(steps.indexOf(observe) < steps.findIndex(({ id }) => id === "prepare"));
+  const outputs = (prepare as Job & { outputs?: Record<string, string> }).outputs!;
+  assert.equal(outputs.reader_activation, "${{ steps.observe.outputs.reader_activation }}");
+  // The prepare job reads anonymously; activation adds no permission.
+  assert.deepEqual(prepare.permissions, { contents: "read", actions: "read" });
+
+  const publish = workflow.jobs.publish! as Job & { env?: Record<string, string> };
+  assert.equal(
+    publish.env?.CATALOG_READER_ACTIVATION,
+    "${{ needs.prepare.outputs.reader_activation }}",
+  );
+  assert.deepEqual(publish.permissions, { contents: "write" });
+  const push = publish.steps!.find((step) => step.run?.includes("for attempt in"))!;
+  // Each fresh Pages base is rechecked after the worktree is recreated and
+  // before anything is staged or pushed.
+  const loop = push.run!;
+  const worktree = loop.indexOf("git worktree add --quiet --force site");
+  const recheck = loop.indexOf("node scripts/catalog-released-reader.mts site");
+  assert.ok(loop.indexOf("for attempt in") < worktree && worktree < recheck);
+  assert.ok(recheck < loop.indexOf("catalog-pages-overlay.mts"));
+  assert.ok(recheck < loop.indexOf("git -C site push"));
+  assert.match(
+    loop,
+    /if \[ -n "\$CATALOG_READER_ACTIVATION" \]; then\n\s*node scripts\/catalog-released-reader\.mts site\n\s*fi/u,
+  );
+  assert.equal(source.match(/catalog-released-reader\.mts/gu)?.length, 1);
+});
+
 void test("late catalog readback stays in the existing read-only scheduled prepare lane", () => {
   const workflow = read("catalog-publish.yml");
   const { permissions, steps } = workflow.jobs.prepare!;

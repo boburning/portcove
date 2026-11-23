@@ -909,6 +909,7 @@ void test("automatic reader selection activates, advances or renews exact carrie
     ["unreachable", null],
     ["withdrawn", { binary: stub, version: "0.1.0", withdrawn: ["0.1.0"] }],
     ["version", { binary: stub, version: "0.1.1" }],
+    ["rate-limited", { binary: stub, version: "0.1.0", rateLimited: true }],
   ];
   for (const [name, official] of unverified) {
     const result = await prepare(`legacy-${name}`, legacyPrior, official);
@@ -936,6 +937,17 @@ void test("automatic reader selection activates, advances or renews exact carrie
   assert.match(String(renewed.released_reader_unavailable), /withdrawn/u);
   assert.deepEqual(read("renew", listingDeliveryTarget), legacy);
   assert.deepEqual(read("renew", compactListingDeliveryTarget), compact14);
+  // An anonymous API refusal (rate limit or outage) renews them the same way.
+  const limited = await prepare("renew-rate-limited", compactPrior, {
+    binary: stub,
+    version: "0.1.0",
+    rateLimited: true,
+  });
+  assert.equal(limited.listing_format, 14);
+  assert.equal(limited.changed, false);
+  assert.match(String(limited.released_reader_unavailable), /unavailable \(403\)/u);
+  assert.deepEqual(read("renew-rate-limited", listingDeliveryTarget), legacy);
+  assert.deepEqual(read("renew-rate-limited", compactListingDeliveryTarget), compact14);
   // A current compact target needs no reader: nothing is acquired.
   const before = acquisitions;
   const steady = await prepare("steady", current, null);
