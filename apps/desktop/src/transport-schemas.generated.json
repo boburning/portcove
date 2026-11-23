@@ -55894,7 +55894,7 @@
             "type": "array"
           },
           "may_have_more": {
-            "description": "A full page below the client limit suggests another page may be available.",
+            "description": "The provider returned a row beyond this page, so another page exists.\nFalse means the provider listed no further row for this query.",
             "type": "boolean"
           },
           "page": {

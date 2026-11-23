@@ -7347,7 +7347,8 @@ export interface QuaddictedPage {
   engine: QuakeEngine;
   entries: QuaddictedEntry[];
   /**
-   * A full page below the client limit suggests another page may be available.
+   * The provider returned a row beyond this page, so another page exists.
+   * False means the provider listed no further row for this query.
    */
   may_have_more: boolean;
   page: number;

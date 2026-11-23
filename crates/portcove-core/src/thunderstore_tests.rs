@@ -1,15 +1,9 @@
 use super::*;
-use crate::{ProviderFreshness, test_http::serve_http};
+use crate::ProviderFreshness;
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 
 const WEB: &str = "https://thunderstore.io";
-
-fn ok_json(body: &str, headers: &str) -> String {
-    format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    )
-}
 
 // Shapes captured from the live community listing on November 12, 2026 (values
 // synthetic).
@@ -229,34 +223,110 @@ fn browsing_pages_the_listing_without_claiming_a_page_is_everything() {
     assert!(page_of(projects, 9, 20).projects.is_empty());
 }
 
+fn simple_package(owner: &str, name: &str) -> Value {
+    package(
+        "WEB_ROOT_PLACEHOLDER",
+        owner,
+        name,
+        vec![version(
+            "WEB_ROOT_PLACEHOLDER",
+            owner,
+            name,
+            "1.0.0",
+            "2026-11-01T00:00:00Z",
+            true,
+        )],
+    )
+}
+
+/// A chunk of simulated packages whose canonical locations use `web`.
+fn chunk(web: &str, owner: &str, names: impl IntoIterator<Item = String>) -> Value {
+    let chunk = names
+        .into_iter()
+        .map(|name| simple_package(owner, &name))
+        .collect::<Vec<_>>();
+    serde_json::from_str(
+        &json!(chunk)
+            .to_string()
+            .replace("WEB_ROOT_PLACEHOLDER", web),
+    )
+    .unwrap()
+}
+
+fn host_root(request: &str) -> String {
+    let host = request
+        .lines()
+        .find_map(|line| {
+            line.split_once(':')
+                .filter(|(key, _)| key.eq_ignore_ascii_case("host"))
+        })
+        .map(|(_, value)| value.trim().to_owned())
+        .unwrap();
+    format!("http://{host}")
+}
+
+fn path_of(request: &str) -> String {
+    request.split_whitespace().nth(1).unwrap().to_owned()
+}
+
+const UNAVAILABLE: &[u8] =
+    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const MISSING: &[u8] = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
 #[tokio::test]
-async fn the_listing_is_read_conditionally_and_falls_back_to_earlier_data_on_outage() {
-    let (root, requests, server) = serve_http(vec![
-        ok_json("[]", "Last-Modified: Thu, 12 Nov 2026 13:54:50 GMT\r\n"),
-        "HTTP/1.1 304 Not Modified\r\nConnection: close\r\n\r\n".into(),
-        "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
-    ]);
+async fn read_chunks_are_reused_and_an_outage_serves_the_last_complete_listing() {
+    let calls = Arc::new(Mutex::new(0usize));
+    let seen = calls.clone();
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(4, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        let mut calls = seen.lock().unwrap();
+        if path.ends_with("package-listing-index/") {
+            *calls += 1;
+            if *calls == 3 {
+                return UNAVAILABLE.to_vec();
+            }
+        }
+        listing_fixture(
+            &path,
+            &web,
+            "zelda-64-recompiled",
+            &[chunk(&web, "A", ["One".to_owned(), "Two".to_owned()])],
+        )
+        .unwrap()
+    });
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path()).unwrap();
     let client = ThunderstoreClient::with_root(&root, Some(library)).unwrap();
     let first = client.community("zelda-64-recompiled").await.unwrap();
     assert_eq!(first.freshness, ProviderFreshness::Fresh);
-    assert!(first.value.is_empty());
+    assert_eq!(first.value.len(), 2);
     let second = client.community("zelda-64-recompiled").await.unwrap();
     assert_eq!(second.freshness, ProviderFreshness::Revalidated);
+    assert_eq!(second.value, first.value);
     let third = client.community("zelda-64-recompiled").await.unwrap();
     assert_eq!(
         third.freshness,
         ProviderFreshness::Stale,
         "an outage is earlier data, not empty"
     );
+    assert_eq!(third.value, first.value);
     server.join().unwrap();
-    let requests = requests.try_iter().collect::<Vec<_>>();
-    assert!(requests[0].starts_with("GET /c/zelda-64-recompiled/api/v1/package/ "));
+    let paths = requests
+        .try_iter()
+        .map(|request| path_of(&request))
+        .collect::<Vec<_>>();
+    // The content-addressed chunk is read once; later reads only check the index.
+    assert_eq!(paths.len(), 4, "{paths:?}");
+    assert_eq!(
+        paths[0],
+        "/c/zelda-64-recompiled/api/v1/package-listing-index/"
+    );
+    assert!(paths[1].starts_with("/listing-chunk/"));
     assert!(
-        requests[1]
-            .to_ascii_lowercase()
-            .contains("if-modified-since")
+        paths[2..]
+            .iter()
+            .all(|path| path.ends_with("/package-listing-index/"))
     );
     assert!(client.community("../x").await.is_err());
     assert!(
@@ -265,6 +335,166 @@ async fn the_listing_is_read_conditionally_and_falls_back_to_earlier_data_on_out
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn an_outage_before_any_complete_read_is_an_error_not_an_empty_community() {
+    let (root, _requests, server) =
+        crate::test_http::serve_routed_http_bytes(1, |_| UNAVAILABLE.to_vec());
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library)).unwrap();
+    assert!(client.community("zelda-64-recompiled").await.is_err());
+    server.join().unwrap();
+}
+
+// The removed single-response listing failed past `MAX_PACKAGES` (20,000) and,
+// first, past its 4 MiB response bound (about 1,700 packages).
+const OLD_PACKAGE_CEILING: usize = 20_000;
+
+#[tokio::test]
+async fn a_community_past_the_old_package_ceiling_is_read_completely_through_redirects() {
+    let per_chunk = 1_000;
+    let chunks = OLD_PACKAGE_CEILING / per_chunk + 1;
+    let fixture = move |web: &str| {
+        (0..chunks)
+            .map(|index| {
+                chunk(
+                    web,
+                    "A",
+                    (0..per_chunk)
+                        .map(move |position| format!("Mod{}", index * per_chunk + position)),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(
+        chunks + 2,
+        move |request| {
+            let web = host_root(request);
+            let path = path_of(request);
+            // Thunderstore answers the index with a redirect to a blob.
+            let index = format!("/c/{}/api/v1/package-listing-index/", "big");
+            if path == index {
+                return format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {web}/blob/index\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                )
+                .into_bytes();
+            }
+            let path = if path.ends_with("blob/index") {
+                index
+            } else {
+                path
+            };
+            listing_fixture(&path, &web, "big", &fixture(&web)).unwrap()
+        },
+    );
+    let client = ThunderstoreClient::with_root(&root, None).unwrap();
+    let observed = client.community_catalog("big").await.unwrap();
+    server.join().unwrap();
+    let (projects, total) = observed.value;
+    assert_eq!(total, chunks * per_chunk);
+    assert!(total > OLD_PACKAGE_CEILING);
+    assert_eq!(projects.len(), total);
+    let last = format!("A-Mod{}", total - 1);
+    assert!(projects.iter().any(|project| project.project_id == last));
+    assert_eq!(requests.try_iter().count(), chunks + 2);
+}
+
+#[tokio::test]
+async fn an_interrupted_listing_is_incomplete_and_the_next_read_continues_with_new_packages() {
+    // Three chunks. The first read stops at the second chunk; meanwhile a
+    // package is published, which changes only the last chunk. The next read
+    // reuses the chunk it already has, reads the rest and includes the new one.
+    let published = Arc::new(Mutex::new(false));
+    let state = published.clone();
+    let chunk_requests = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log = chunk_requests.clone();
+    let (root, _requests, server) = crate::test_http::serve_routed_http_bytes(6, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        let mut published = state.lock().unwrap();
+        let mut chunks = vec![
+            chunk(&web, "A", (0..3).map(|index| format!("First{index}"))),
+            chunk(&web, "A", (0..3).map(|index| format!("Second{index}"))),
+            chunk(&web, "A", (0..3).map(|index| format!("Third{index}"))),
+        ];
+        if *published {
+            chunks[2] = chunk(&web, "A", (0..4).map(|index| format!("Third{index}")));
+        }
+        if path.contains("listing-chunk/") {
+            let mut log = log.lock().unwrap();
+            log.push(path.clone());
+            if log.len() == 2 {
+                *published = true;
+                return MISSING.to_vec();
+            }
+        }
+        listing_fixture(&path, &web, "growing", &chunks).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library)).unwrap();
+    let error = client.community_catalog("growing").await.unwrap_err();
+    assert_eq!(
+        error.details.get("inventory").map(String::as_str),
+        Some("incomplete")
+    );
+    assert_eq!(
+        error.details.get("chunks_read").map(String::as_str),
+        Some("1")
+    );
+    assert_eq!(
+        error.details.get("chunks_total").map(String::as_str),
+        Some("3")
+    );
+    assert!(error.details.contains_key("provider_browse_url"));
+    let observed = client.community_catalog("growing").await.unwrap();
+    server.join().unwrap();
+    let (projects, total) = observed.value;
+    assert_eq!(total, 10);
+    assert!(
+        projects
+            .iter()
+            .any(|project| project.project_id == "A-Third3")
+    );
+    let chunk_requests = chunk_requests.lock().unwrap();
+    // First chunk once, second twice (failed, then read), new third once.
+    assert_eq!(chunk_requests.len(), 4, "{chunk_requests:?}");
+    assert_eq!(chunk_requests[1], chunk_requests[2]);
+    assert_ne!(chunk_requests[0], chunk_requests[3]);
+}
+
+#[test]
+fn a_chunk_naming_another_site_is_refused() {
+    let http = ProviderHttp::new(None, "Thunderstore", "thunderstore.io").unwrap();
+    let index =
+        reqwest::Url::parse("https://thunderstore.io/c/x/api/v1/package-listing-index/").unwrap();
+    let gzip = |value: Value| {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        std::io::Write::write_all(&mut encoder, value.to_string().as_bytes()).unwrap();
+        encoder.finish().unwrap()
+    };
+    let accepted = parse_index(
+        &gzip(json!([
+            "https://ccdn.thunderstore.io/live/blob-storage/sha256/a.blob"
+        ])),
+        &index,
+        &http,
+    )
+    .unwrap();
+    assert_eq!(accepted.len(), 1);
+    for refused in [
+        json!(["https://example.com/chunk"]),
+        json!(["http://ccdn.thunderstore.io/chunk"]),
+        json!(["https://user@ccdn.thunderstore.io/chunk"]),
+        json!([
+            "https://ccdn.thunderstore.io/a",
+            "https://ccdn.thunderstore.io/a"
+        ]),
+    ] {
+        assert!(parse_index(&gzip(refused), &index, &http).is_err());
+    }
 }
 
 #[test]

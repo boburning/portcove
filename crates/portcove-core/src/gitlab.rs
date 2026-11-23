@@ -38,12 +38,41 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+/// GitLab's documented maximum `per_page` for offset pagination.
 const PROVIDER_PAGE_SIZE: usize = 100;
-const GITLAB_MAX_RELEASE_PAGES: usize = 10;
-const GITLAB_MAX_PACKAGE_PAGES: usize = 10;
-const GITLAB_MAX_MATCHING_PACKAGES: usize = 16;
-const GITLAB_MAX_PACKAGE_FILE_PAGES: usize = 5;
+/// Package-file listings read at once for one release; bounds parallel requests,
+/// not how many matching packages a release may have.
 const GITLAB_PACKAGE_LOOKUP_CONCURRENCY: usize = 4;
+
+/// One GitLab list read page by page. Every list an operation reads shares the
+/// operation's deadline, so the work is bounded by time rather than by a count
+/// of releases, packages or files. Running out of that budget is reported as an
+/// incomplete inventory and never as an absent release, package or file.
+struct GitlabPages {
+    label: &'static str,
+    next_page: Option<usize>,
+    deadline: tokio::time::Instant,
+}
+
+impl GitlabPages {
+    fn new(label: &'static str, deadline: tokio::time::Instant) -> Self {
+        Self {
+            label,
+            next_page: Some(1),
+            deadline,
+        }
+    }
+
+    fn incomplete(&self, pages_read: usize) -> PortcoveError {
+        PortcoveError::network(format!(
+            "GitLab {} did not finish within the provider request budget. Try again.",
+            self.label
+        ))
+        .detail("gitlab_inventory", self.label)
+        .detail("inventory", "incomplete")
+        .detail("pages_read", pages_read.to_string())
+    }
+}
 
 impl GitlabReleaseProvider {
     pub fn for_library(library: &Library) -> Result<Self> {
@@ -191,54 +220,158 @@ impl GitlabReleaseProvider {
         Ok(Some(parsed))
     }
 
-    async fn releases(&self, project_url: &str) -> Result<Vec<GitlabRelease>> {
-        let mut releases = Vec::new();
-        for page in 1..=GITLAB_MAX_RELEASE_PAGES {
-            let url = paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)?;
-            let mut current: Vec<GitlabRelease> = self.get_json(&url).await?;
-            if current.len() > PROVIDER_PAGE_SIZE {
-                return Err(PortcoveError::verification(
-                    "GitLab release page exceeds its bound",
-                ));
-            }
-            let has_more = current.len() == PROVIDER_PAGE_SIZE;
-            releases.append(&mut current);
-            if !has_more {
-                return Ok(releases);
-            }
-        }
-        Err(PortcoveError::verification(format!(
-            "GitLab release discovery exceeds the supported {}-release bound",
-            GITLAB_MAX_RELEASE_PAGES * PROVIDER_PAGE_SIZE
-        )))
+    fn operation_deadline(&self) -> tokio::time::Instant {
+        tokio::time::Instant::now() + self.network_bounds.request
     }
 
-    async fn packages(&self, project_url: &str) -> Result<Vec<GitlabPackage>> {
-        let mut packages = Vec::new();
-        for page in 1..=GITLAB_MAX_PACKAGE_PAGES {
-            let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
-            let mut url = reqwest::Url::parse(&url)
-                .map_err(|error| PortcoveError::state(error.to_string()))?;
-            url.query_pairs_mut()
-                .append_pair("package_type", "generic")
-                .append_pair("order_by", "created_at")
-                .append_pair("sort", "desc");
-            let mut current: Vec<GitlabPackage> = self.get_json(url.as_str()).await?;
-            if current.len() > PROVIDER_PAGE_SIZE {
-                return Err(PortcoveError::verification(
-                    "GitLab package page exceeds its bound",
-                ));
-            }
-            let has_more = current.len() == PROVIDER_PAGE_SIZE;
-            packages.append(&mut current);
-            if !has_more {
-                return Ok(packages);
+    /// Reads the next page of `pages` from `url(page)`. Returns `None` once the
+    /// provider has listed everything. A short page ends the list; a full page
+    /// is followed by another read, so a list that ends exactly on a page
+    /// boundary is proven complete by the following empty page.
+    async fn next_page<T: DeserializeOwned>(
+        &self,
+        pages: &mut GitlabPages,
+        url: impl FnOnce(usize) -> Result<String>,
+    ) -> Result<Option<Vec<T>>> {
+        let Some(page) = pages.next_page else {
+            return Ok(None);
+        };
+        if tokio::time::Instant::now() >= pages.deadline {
+            return Err(pages.incomplete(page - 1));
+        }
+        let url = url(page)?;
+        let current: Vec<T> = tokio::time::timeout_at(pages.deadline, self.get_json(&url))
+            .await
+            .map_err(|_| pages.incomplete(page - 1))??;
+        if current.len() > PROVIDER_PAGE_SIZE {
+            return Err(PortcoveError::verification(format!(
+                "GitLab {} page exceeds the requested page size",
+                pages.label
+            )));
+        }
+        pages.next_page = (current.len() == PROVIDER_PAGE_SIZE).then_some(page + 1);
+        Ok(Some(current))
+    }
+
+    /// Newest-first release history, read only until `decided` holds for the
+    /// observed prefix (`true` as the second argument once the history is
+    /// complete). A release added upstream while the history is being read shifts
+    /// older entries onto the next page; the repeated entry is the same release
+    /// and is kept once, so the shift never hides one.
+    async fn release_prefix(
+        &self,
+        project_url: &str,
+        deadline: tokio::time::Instant,
+        mut decided: impl FnMut(&[GitlabRelease], bool) -> bool,
+    ) -> Result<Vec<GitlabRelease>> {
+        let mut pages = GitlabPages::new("release history", deadline);
+        let mut releases: Vec<GitlabRelease> = Vec::new();
+        let mut tags = HashSet::new();
+        while let Some(current) = self
+            .next_page::<GitlabRelease>(&mut pages, |page| {
+                paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)
+            })
+            .await?
+        {
+            releases.extend(
+                current
+                    .into_iter()
+                    .filter(|release| tags.insert(release.tag_name.clone())),
+            );
+            if decided(&releases, pages.next_page.is_none()) {
+                break;
             }
         }
-        Err(PortcoveError::verification(format!(
-            "GitLab package discovery exceeds the supported {}-package bound",
-            GITLAB_MAX_PACKAGE_PAGES * PROVIDER_PAGE_SIZE
-        )))
+        Ok(releases)
+    }
+
+    /// The complete release history within one operation budget.
+    #[cfg(test)]
+    async fn releases(&self, project_url: &str) -> Result<Vec<GitlabRelease>> {
+        self.release_prefix(project_url, self.operation_deadline(), |_, _| false)
+            .await
+    }
+
+    /// The release the channel selects. A rolling tag is looked up exactly
+    /// (`GET /projects/:id/releases/:tag_name`,
+    /// https://docs.gitlab.com/api/releases/#get-a-release-by-a-tag-name); other
+    /// channels read newest-first history only as far as the choice needs.
+    async fn channel_release(
+        &self,
+        project_url: &str,
+        channel: ReleaseChannel,
+        rolling_tag: Option<&str>,
+        deadline: tokio::time::Instant,
+    ) -> Result<Option<GitlabRelease>> {
+        if channel == ReleaseChannel::Rolling
+            && let Some(tag) = rolling_tag
+        {
+            let mut url = reqwest::Url::parse(project_url)
+                .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?;
+            url.path_segments_mut()
+                .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?
+                .extend(["releases", tag]);
+            let release: Option<GitlabRelease> =
+                tokio::time::timeout_at(deadline, self.get_optional_json(url.as_str()))
+                    .await
+                    .map_err(|_| GitlabPages::new("rolling release", deadline).incomplete(0))??;
+            return Ok(release.filter(|release| {
+                release.tag_name.eq_ignore_ascii_case(tag) && !release.upcoming_release
+            }));
+        }
+        let releases = self
+            .release_prefix(project_url, deadline, |releases, complete| {
+                channel_decided(releases, complete, channel, rolling_tag)
+            })
+            .await?;
+        Ok(select_gitlab_release(&releases, channel, rolling_tag).cloned())
+    }
+
+    /// Generic packages whose version is this release's tag, with or without a
+    /// leading `v`, using the registry's version filter
+    /// (`GET /projects/:id/packages?package_version=`,
+    /// https://docs.gitlab.com/api/packages/#for-a-project) instead of scanning
+    /// unrelated package history. The filter is applied again locally, so a
+    /// registry that ignores it still yields only matching packages after a
+    /// complete read.
+    async fn release_packages(
+        &self,
+        project_url: &str,
+        tag: &str,
+        deadline: tokio::time::Instant,
+    ) -> Result<Vec<GitlabPackage>> {
+        let normalized = tag.strip_prefix('v').unwrap_or(tag);
+        let mut versions = vec![tag];
+        if normalized != tag {
+            versions.push(normalized);
+        }
+        let mut packages = Vec::new();
+        let mut ids = HashSet::new();
+        for version in versions {
+            let mut pages = GitlabPages::new("package registry", deadline);
+            while let Some(current) = self
+                .next_page::<GitlabPackage>(&mut pages, |page| {
+                    let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
+                    let mut url = reqwest::Url::parse(&url)
+                        .map_err(|error| PortcoveError::state(error.to_string()))?;
+                    url.query_pairs_mut()
+                        .append_pair("package_type", "generic")
+                        .append_pair("package_version", version)
+                        .append_pair("order_by", "created_at")
+                        .append_pair("sort", "desc");
+                    Ok(url.into())
+                })
+                .await?
+            {
+                // A package published during the read shifts older ones onto the
+                // next page; the repeated row is the same package.
+                packages.extend(current.into_iter().filter(|package| {
+                    (package.version == tag || package.version == normalized)
+                        && ids.insert(package.id)
+                }));
+            }
+        }
+        Ok(packages)
     }
 
     async fn package_file(
@@ -247,27 +380,19 @@ impl GitlabReleaseProvider {
         project_id: u64,
         release: &GitlabRelease,
         link: &GitlabReleaseLink,
+        deadline: tokio::time::Instant,
     ) -> Result<Option<GitlabPackageFile>> {
         let Some(file_id) = package_file_id(&link.url) else {
             return Ok(None);
         };
-        let packages = self.packages(project_url).await?;
-        let normalized_tag = release.tag_name.trim_start_matches('v');
-        let package_ids: Vec<u64> = packages
+        let package_ids: Vec<u64> = self
+            .release_packages(project_url, &release.tag_name, deadline)
+            .await?
             .into_iter()
-            .filter(|package| {
-                package.version == release.tag_name || package.version == normalized_tag
-            })
             .map(|package| package.id)
             .collect();
-        if package_ids.len() > GITLAB_MAX_MATCHING_PACKAGES {
-            return Err(PortcoveError::verification(format!(
-                "GitLab release {} maps to more than {} matching packages",
-                release.tag_name, GITLAB_MAX_MATCHING_PACKAGES
-            )));
-        }
         let requests = package_ids.into_iter().map(|package_id| async move {
-            self.package_file_in_package(project_id, package_id, file_id)
+            self.package_file_in_package(project_id, package_id, file_id, deadline)
                 .await
         });
         let results = stream::iter(requests)
@@ -292,31 +417,31 @@ impl GitlabReleaseProvider {
         Ok(matched)
     }
 
+    /// GitLab has no read endpoint for one package file, so the package's own
+    /// file list is read until the file appears or the list ends.
     async fn package_file_in_package(
         &self,
         project_id: u64,
         package_id: u64,
         file_id: u64,
+        deadline: tokio::time::Instant,
     ) -> Result<Option<GitlabPackageFile>> {
         let package_url = format!(
             "{}/projects/{project_id}/packages/{package_id}",
             self.api_root
         );
-        for page in 1..=GITLAB_MAX_PACKAGE_FILE_PAGES {
-            let url = paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)?;
-            let files: Vec<GitlabPackageFile> = self.get_json(&url).await?;
-            let has_more = files.len() == PROVIDER_PAGE_SIZE;
+        let mut pages = GitlabPages::new("package files", deadline);
+        while let Some(files) = self
+            .next_page::<GitlabPackageFile>(&mut pages, |page| {
+                paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
+            })
+            .await?
+        {
             if let Some(file) = files.into_iter().find(|file| file.id == file_id) {
                 return Ok(Some(file));
             }
-            if !has_more {
-                return Ok(None);
-            }
         }
-        Err(PortcoveError::verification(format!(
-            "GitLab package {package_id} exceeds the supported {}-file lookup bound",
-            GITLAB_MAX_PACKAGE_FILE_PAGES * PROVIDER_PAGE_SIZE
-        )))
+        Ok(None)
     }
 
     async fn generic_package_file(
@@ -325,28 +450,18 @@ impl GitlabReleaseProvider {
         project_id: u64,
         release: &GitlabRelease,
         link: &GitlabReleaseLink,
+        deadline: tokio::time::Instant,
     ) -> Result<Option<(GitlabPackageFile, reqwest::Url)>> {
         let Some(url) = generic_package_url(project_url, &self.api_root, project_id, &link.url)?
         else {
             return Ok(None);
         };
-        let normalized_tag = release.tag_name.trim_start_matches('v');
-        let packages: Vec<_> = self
-            .packages(project_url)
-            .await?
-            .into_iter()
-            .filter(|package| {
-                package.version == release.tag_name || package.version == normalized_tag
-            })
-            .collect();
-        if packages.len() > GITLAB_MAX_MATCHING_PACKAGES {
-            return Err(PortcoveError::verification(
-                "GitLab generic release exceeds the matching-package lookup bound",
-            ));
-        }
+        let packages = self
+            .release_packages(project_url, &release.tag_name, deadline)
+            .await?;
         let selected = &url;
         let requests = packages.into_iter().map(|package| async move {
-            self.generic_files_in_package(project_url, project_id, &package, selected)
+            self.generic_files_in_package(project_url, project_id, &package, selected, deadline)
                 .await
         });
         let results = stream::iter(requests)
@@ -437,6 +552,7 @@ impl GitlabReleaseProvider {
         project_id: u64,
         package: &GitlabPackage,
         selected: &reqwest::Url,
+        deadline: tokio::time::Instant,
     ) -> Result<Vec<GitlabPackageFile>> {
         let package_url = format!(
             "{}/projects/{project_id}/packages/{}",
@@ -444,10 +560,13 @@ impl GitlabReleaseProvider {
         );
         let mut matched = Vec::new();
         let mut identities = HashSet::new();
-        for page in 1..=GITLAB_MAX_PACKAGE_FILE_PAGES {
-            let url = paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)?;
-            let files: Vec<GitlabPackageFile> = self.get_json(&url).await?;
-            let has_more = files.len() == PROVIDER_PAGE_SIZE;
+        let mut pages = GitlabPages::new("package files", deadline);
+        while let Some(files) = self
+            .next_page::<GitlabPackageFile>(&mut pages, |page| {
+                paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
+            })
+            .await?
+        {
             for file in files {
                 if !identities.insert(file.id) {
                     return Err(PortcoveError::verification(
@@ -476,13 +595,8 @@ impl GitlabReleaseProvider {
                     }
                 }
             }
-            if !has_more {
-                return Ok(matched);
-            }
         }
-        Err(PortcoveError::verification(
-            "GitLab generic upload exceeds the complete package-file lookup bound",
-        ))
+        Ok(matched)
     }
 
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
@@ -573,28 +687,29 @@ impl ReleaseProvider for GitlabReleaseProvider {
         if let Some(release) = self.cached_release(&key).await {
             return Ok(release);
         }
-        let releases = self.releases(&project_url).await?;
-        let release = crate::release::select_channel_candidate(
-            &releases,
-            channel,
-            port.release.rolling_tag.as_deref(),
-            |release| !release.upcoming_release,
-            |release| is_beta_tag(&release.tag_name),
-            |release| release.tag_name.as_str(),
-        )
-        .ok_or_else(|| {
-            PortcoveError::not_found(format!(
-                "no published {channel} release exists for {}",
-                port.name
-            ))
-        })?;
+        let deadline = self.operation_deadline();
+        let release = self
+            .channel_release(
+                &project_url,
+                channel,
+                port.release.rolling_tag.as_deref(),
+                deadline,
+            )
+            .await?
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!(
+                    "no published {channel} release exists for {}",
+                    port.name
+                ))
+            })?;
+        let release = &release;
         let link = choose_link(port, platform, &release.assets.links)?;
         let package_file = self
-            .package_file(&project_url, project.id, release, link)
+            .package_file(&project_url, project.id, release, link, deadline)
             .await?;
         let description_digest = digest_from_description(&release.description, &link.name);
         let generic = if package_file.is_none() && description_digest.is_none() {
-            self.generic_package_file(&project_url, project.id, release, link)
+            self.generic_package_file(&project_url, project.id, release, link, deadline)
                 .await?
         } else {
             None
@@ -639,8 +754,10 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 )
             });
         let project_url = self.project_url(&port.release.repository).ok()?;
+        // Only pages a resolution already read are cached; reading stops at the
+        // first uncached page, so no page count bounds the history.
         let releases: Vec<GitlabRelease> = crate::release_notes::cached_pages(
-            GITLAB_MAX_RELEASE_PAGES,
+            usize::MAX,
             PROVIDER_PAGE_SIZE,
             PROVIDER_JSON_MAX_BYTES,
             |page| {
@@ -695,7 +812,7 @@ struct GitlabCommit {
     id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GitlabRelease {
     tag_name: String,
     /// Informational only: shown as untrusted plain text in update reviews.
@@ -710,13 +827,13 @@ struct GitlabRelease {
     assets: GitlabReleaseAssets,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GitlabReleaseAssets {
     #[serde(default)]
     links: Vec<GitlabReleaseLink>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GitlabReleaseLink {
     #[serde(default)]
     id: Option<u64>,
@@ -742,6 +859,37 @@ struct GitlabPackageFile {
     file_name: String,
     size: u64,
     file_sha256: String,
+}
+
+fn select_gitlab_release<'a>(
+    releases: &'a [GitlabRelease],
+    channel: ReleaseChannel,
+    rolling_tag: Option<&str>,
+) -> Option<&'a GitlabRelease> {
+    crate::release::select_channel_candidate(
+        releases,
+        channel,
+        rolling_tag,
+        |release| !release.upcoming_release,
+        |release| is_beta_tag(&release.tag_name),
+        |release| release.tag_name.as_str(),
+    )
+}
+
+/// Whether the newest-first prefix already decides the channel's release.
+/// Stable and Rolling take the first match, which no older page can change.
+/// Beta prefers any prerelease and falls back to a stable release only when
+/// none exists, which only the complete history establishes.
+fn channel_decided(
+    releases: &[GitlabRelease],
+    complete: bool,
+    channel: ReleaseChannel,
+    rolling_tag: Option<&str>,
+) -> bool {
+    complete
+        || select_gitlab_release(releases, channel, rolling_tag).is_some_and(|release| {
+            channel != ReleaseChannel::Beta || is_beta_tag(&release.tag_name)
+        })
 }
 
 fn choose_link<'a>(
@@ -1724,10 +1872,15 @@ mod tests {
             return ok_json(&files.to_string(), "");
         }
         if request.contains("/packages?") {
-            return ok_json(
-                &serde_json::json!([{"id":501,"name":"game","version":tag.trim_start_matches('v')}]).to_string(),
-                "",
-            );
+            // The registry honors the version filter: only the unprefixed
+            // version names this package.
+            let version = tag.trim_start_matches('v');
+            let packages = if request.contains(&format!("package_version={version}&")) {
+                serde_json::json!([{"id":501,"name":"game","version":version}])
+            } else {
+                serde_json::json!([])
+            };
+            return ok_json(&packages.to_string(), "");
         }
         if request.contains("/releases?") {
             let host = request
@@ -1761,7 +1914,7 @@ mod tests {
     async fn generic_packages_follow_successors_with_one_unchanged_definition() {
         let version = Arc::new(AtomicUsize::new(1));
         let published = version.clone();
-        let (root, requests, server) = serve_routed_http(16, move |request| {
+        let (root, requests, server) = serve_routed_http(19, move |request| {
             let version = published.load(Ordering::SeqCst);
             let name = format!("game-v{version}-windows-x64.zip");
             let digest = if version == 1 { 'b' } else { 'd' };
@@ -1820,7 +1973,7 @@ mod tests {
         assert_eq!(serde_json::to_value(&port).unwrap(), original);
         server.join().unwrap();
         let requests: Vec<_> = requests.try_iter().collect();
-        assert_eq!(requests.len(), 16);
+        assert_eq!(requests.len(), 19);
         assert_eq!(
             requests
                 .iter()
@@ -1850,7 +2003,7 @@ mod tests {
             ),
             (format!("X-Checksum-Sha256: {valid}\r\n"), true),
         ] {
-            let (root, requests, server) = serve_routed_http(5, move |request| {
+            let (root, requests, server) = serve_routed_http(6, move |request| {
                 let name = "game-windows-x64.zip";
                 generic_test_response(
                     request,
@@ -1874,7 +2027,7 @@ mod tests {
             assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
             assert!(provider.cache.read().await.is_empty());
             server.join().unwrap();
-            assert_eq!(requests.try_iter().count(), 5);
+            assert_eq!(requests.try_iter().count(), 6);
         }
     }
 
@@ -1888,7 +2041,7 @@ mod tests {
             ("game-windows-x64.exe", 'b'),
             ("game-windows-x64.zip", 'z'),
         ] {
-            let (root, requests, server) = serve_routed_http(4, move |request| {
+            let (root, requests, server) = serve_routed_http(5, move |request| {
                 generic_test_response(
                     request,
                     "v1.0.0",
@@ -1916,14 +2069,14 @@ mod tests {
                 assert!(provider.cache.read().await.is_empty());
             }
             server.join().unwrap();
-            assert_eq!(requests.try_iter().count(), 4);
+            assert_eq!(requests.try_iter().count(), 5);
         }
     }
 
     #[tokio::test]
     async fn generic_packages_consume_later_pages_and_refuse_repeated_identities() {
         for repeated_id in [false, true] {
-            let (root, requests, server) = serve_routed_http(6, move |request| {
+            let (root, requests, server) = serve_routed_http(7, move |request| {
                 let name = "game-windows-x64.zip";
                 let files = if request.contains("&page=1 ") {
                     let mut files: Vec<_> = (100..199)
@@ -1967,7 +2120,7 @@ mod tests {
             assert!(provider.cache.read().await.is_empty());
             server.join().unwrap();
             let requests: Vec<_> = requests.try_iter().collect();
-            assert_eq!(requests.len(), if repeated_id { 5 } else { 6 });
+            assert_eq!(requests.len(), if repeated_id { 6 } else { 7 });
             assert!(
                 requests
                     .iter()
@@ -1984,8 +2137,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn generic_packages_refuse_incomplete_file_pagination_before_head() {
-        let (root, requests, server) = serve_routed_http(8, move |request| {
+    async fn generic_packages_read_file_pages_past_the_old_five_page_bound() {
+        // The removed bound stopped after 5 pages of 100 files. The upload is on
+        // page 7 of 8; a complete read finds it without a HEAD request.
+        let (root, requests, server) = serve_routed_http(13, move |request| {
             let name = "game-windows-x64.zip";
             let files = if request.contains("/package_files?") {
                 let target = request.split_whitespace().nth(1).unwrap();
@@ -1996,11 +2151,12 @@ mod tests {
                     .unwrap()
                     .parse()
                     .unwrap();
+                let count = if page == 8 { 3 } else { 100 };
                 serde_json::json!(
-                    (0..100)
+                    (0..count)
                         .map(|index| generic_test_file(
                             page * 100 + index,
-                            if page == 1 && index == 0 {
+                            if page == 7 && index == 42 {
                                 name
                             } else {
                                 "other-windows.zip"
@@ -2015,20 +2171,19 @@ mod tests {
             generic_test_response(request, "v1.0.0", name, &files, "unexpected HEAD")
         });
         let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
-        let error = provider
+        let resolved = provider
             .resolve(
                 &generic_test_port(),
                 ReleaseChannel::Stable,
                 Platform::WindowsX86_64,
             )
             .await
-            .unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Verification);
-        assert!(error.message.contains("complete package-file lookup bound"));
-        assert!(provider.cache.read().await.is_empty());
+            .unwrap();
+        assert_eq!(resolved.asset.sha256, "b".repeat(64));
         server.join().unwrap();
         let requests: Vec<_> = requests.try_iter().collect();
-        assert_eq!(requests.len(), 8);
+        // Project, releases, two filtered package reads and eight file pages.
+        assert_eq!(requests.len(), 12, "{requests:#?}");
         assert!(!requests.iter().any(|request| request.starts_with("HEAD ")));
     }
 
@@ -2038,7 +2193,7 @@ mod tests {
             let entered = Arc::new(tokio::sync::Notify::new());
             let observed = entered.clone();
             let (release, wait) = std::sync::mpsc::channel();
-            let (root, requests, server) = serve_routed_http(5, move |request| {
+            let (root, requests, server) = serve_routed_http(6, move |request| {
                 if request.starts_with("HEAD ") {
                     observed.notify_one();
                     wait.recv_timeout(Duration::from_secs(3)).unwrap();
@@ -2167,7 +2322,7 @@ mod tests {
 
     #[tokio::test]
     async fn generic_packages_do_not_follow_head_redirects_or_cache_them() {
-        let (root, requests, server) = serve_routed_http(6, move |request| {
+        let (root, requests, server) = serve_routed_http(7, move |request| {
             let name = "game-windows-x64.zip";
             if request.starts_with("HEAD /alternate ") {
                 return format!(
@@ -2200,7 +2355,7 @@ mod tests {
         assert!(provider.cache.read().await.is_empty());
         server.join().unwrap();
         let requests: Vec<_> = requests.try_iter().collect();
-        assert_eq!(requests.len(), 5);
+        assert_eq!(requests.len(), 6);
         assert!(
             !requests
                 .iter()
@@ -2598,6 +2753,8 @@ mod tests {
                 ok_json(r#"{"id":9,"archived":false}"#, ""),
                 ok_json(&releases.to_string(), ""),
                 ok_json(r#"[{"id":501,"version":"v1.4.8"}]"#, ""),
+                // The unprefixed version filter matches no further package.
+                ok_json("[]", ""),
                 ok_json(&files.to_string(), ""),
             ]);
             let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
@@ -2605,7 +2762,7 @@ mod tests {
                 .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
                 .await;
             server.join().unwrap();
-            assert_eq!(requests.try_iter().count(), 4);
+            assert_eq!(requests.try_iter().count(), 5);
             if name == selected_name {
                 assert_eq!(result.unwrap().asset.name, selected_name);
             } else {
@@ -2622,27 +2779,219 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn gitlab_package_lookup_paginates_and_has_a_hard_candidate_bound() {
-        let first_page = (0..PROVIDER_PAGE_SIZE)
-            .map(|index| serde_json::json!({"id": index + 1, "version": "v0.9.0"}))
+    fn release_row(tag: &str) -> serde_json::Value {
+        serde_json::json!({"tag_name": tag, "upcoming_release": false, "assets": {"links": []}})
+    }
+
+    fn query_number(request: &str, name: &str) -> usize {
+        let target = request.split_whitespace().nth(1).unwrap();
+        let url = reqwest::Url::parse(&format!("http://fixture{target}")).unwrap();
+        url.query_pairs()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.parse().unwrap())
+            .unwrap()
+    }
+
+    /// A simulated newest-first history of `total` releases: release `n` (1 is
+    /// the newest) is tagged by `tag(n)`.
+    fn release_history_page(request: &str, total: usize, tag: impl Fn(usize) -> String) -> String {
+        let page = query_number(request, "page");
+        let first = (page - 1) * PROVIDER_PAGE_SIZE + 1;
+        let rows = (first..=total.min(first + PROVIDER_PAGE_SIZE - 1))
+            .map(|index| release_row(&tag(index)))
             .collect::<Vec<_>>();
-        let second_page = serde_json::json!([{"id": 501, "version": "v1.0.0"}]);
-        let package_file = serde_json::json!({
-            "id": 77,
-            "file_name": "ExtremeG-Windows-RelWithDebInfo.zip",
-            "size": 42,
-            "file_sha256": "a".repeat(64)
+        ok_json(&serde_json::to_string(&rows).unwrap(), "")
+    }
+
+    // The removed `GITLAB_MAX_RELEASE_PAGES` stopped at 10 pages of 100.
+    const OLD_RELEASE_WINDOW: usize = 1_000;
+
+    #[tokio::test]
+    async fn gitlab_release_history_reads_ten_times_past_the_old_thousand_release_window() {
+        let total = 10 * OLD_RELEASE_WINDOW + 1;
+        let pages = total.div_ceil(PROVIDER_PAGE_SIZE);
+        let (root, requests, server) = serve_routed_http(pages, move |request| {
+            release_history_page(request, total, |index| format!("v0.0.{index}"))
         });
-        let responses = vec![
-            ok_json(&serde_json::to_string(&first_page).unwrap(), ""),
-            ok_json(&second_page.to_string(), ""),
-            ok_json(&serde_json::to_string(&vec![package_file]).unwrap(), ""),
-        ];
-        let (server_root, requests, server) = serve_http(responses);
-        let provider =
-            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
-        let project_url = provider.project_url("group/project").unwrap();
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let releases = provider
+            .releases(&provider.project_url("group/project").unwrap())
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(releases.len(), total);
+        assert_eq!(releases[total - 1].tag_name, format!("v0.0.{total}"));
+        assert_eq!(requests.try_iter().count(), pages);
+    }
+
+    #[tokio::test]
+    async fn gitlab_stable_selection_finds_a_release_beyond_the_old_window_and_stops_there() {
+        // Only prereleases inside the old window; the first stable release is
+        // the 1,001st. Selection reads that page and no further.
+        let total = 2 * OLD_RELEASE_WINDOW;
+        let (root, requests, server) = serve_routed_http(11, move |request| {
+            release_history_page(request, total, |index| {
+                if index <= OLD_RELEASE_WINDOW {
+                    format!("v9.0.{index}-beta")
+                } else {
+                    format!("v1.0.{index}")
+                }
+            })
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let release = provider
+            .channel_release(
+                &provider.project_url("group/project").unwrap(),
+                ReleaseChannel::Stable,
+                None,
+                provider.operation_deadline(),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(release.tag_name, "v1.0.1001");
+        assert_eq!(requests.try_iter().count(), 11);
+
+        // The newest release decides Stable on the first page.
+        let (root, requests, server) = serve_routed_http(1, move |request| {
+            release_history_page(request, total, |index| format!("v1.0.{index}"))
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let release = provider
+            .channel_release(
+                &provider.project_url("group/project").unwrap(),
+                ReleaseChannel::Stable,
+                None,
+                provider.operation_deadline(),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(release.tag_name, "v1.0.1");
+        assert_eq!(requests.try_iter().count(), 1);
+    }
+
+    #[tokio::test]
+    async fn gitlab_rolling_tag_is_looked_up_exactly_instead_of_scanning_history() {
+        // The rolling tag would sit far beyond the old window in history; the
+        // exact endpoint finds it with one request and reads no history.
+        let (root, requests, server) = serve_routed_http(1, |request| {
+            assert!(
+                request.starts_with("GET /api/v4/projects/group%2Fproject/releases/nightly "),
+                "{request}"
+            );
+            ok_json(&release_row("nightly").to_string(), "")
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let release = provider
+            .channel_release(
+                &provider.project_url("group/project").unwrap(),
+                ReleaseChannel::Rolling,
+                Some("nightly"),
+                provider.operation_deadline(),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(release.tag_name, "nightly");
+        assert_eq!(requests.try_iter().count(), 1);
+
+        // A missing rolling release is absent only because the exact lookup said so.
+        let (root, _requests, server) = serve_routed_http(1, |_| {
+            "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        assert!(
+            provider
+                .channel_release(
+                    &provider.project_url("group/project").unwrap(),
+                    ReleaseChannel::Rolling,
+                    Some("nightly"),
+                    provider.operation_deadline(),
+                )
+                .await
+                .unwrap()
+                .is_none()
+        );
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn gitlab_release_published_mid_read_neither_repeats_nor_hides_a_release() {
+        // 250 releases; after page 1 is read, three more are published, so every
+        // older release shifts three places onto later pages.
+        let published = Arc::new(AtomicUsize::new(0));
+        let observed = published.clone();
+        let (root, _requests, server) = serve_routed_http(3, move |request| {
+            let page = query_number(request, "page");
+            let added = if page == 1 { 0 } else { 3 };
+            observed.store(added, Ordering::SeqCst);
+            let first = (page - 1) * PROVIDER_PAGE_SIZE + 1;
+            let rows = (first..=(250 + added).min(first + PROVIDER_PAGE_SIZE - 1))
+                .map(|position| {
+                    // Positions 1..=added are the new releases.
+                    if position <= added {
+                        release_row(&format!("v2.0.{position}"))
+                    } else {
+                        release_row(&format!("v1.0.{}", position - added))
+                    }
+                })
+                .collect::<Vec<_>>();
+            ok_json(&serde_json::to_string(&rows).unwrap(), "")
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let releases = provider
+            .releases(&provider.project_url("group/project").unwrap())
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(published.load(Ordering::SeqCst), 3);
+        let tags = releases
+            .iter()
+            .map(|release| release.tag_name.as_str())
+            .collect::<HashSet<_>>();
+        assert_eq!(tags.len(), releases.len(), "no release is listed twice");
+        for index in 1..=250 {
+            assert!(
+                tags.contains(format!("v1.0.{index}").as_str()),
+                "v1.0.{index}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn gitlab_package_lookup_filters_by_release_version_and_checks_every_match() {
+        // Twenty matching packages: more than the removed 16-package ceiling. The
+        // registry is asked only for this release's versions, never for its
+        // unrelated package history; the file is in the last package.
+        let (root, requests, server) = serve_routed_http(22, |request| {
+            if request.contains("/package_files?") {
+                let files = if request.contains("packages/20/package_files") {
+                    serde_json::json!([{
+                        "id": 77, "file_name": "game.zip", "size": 42,
+                        "file_sha256": "a".repeat(64)
+                    }])
+                } else {
+                    serde_json::json!([])
+                };
+                return ok_json(&files.to_string(), "");
+            }
+            let packages = if request.contains("package_version=v1.0.0") {
+                (1..=10)
+                    .map(|id| serde_json::json!({"id": id, "version": "v1.0.0"}))
+                    .collect::<Vec<_>>()
+            } else {
+                assert!(request.contains("package_version=1.0.0&"), "{request}");
+                (11..=20)
+                    .map(|id| serde_json::json!({"id": id, "version": "1.0.0"}))
+                    .collect()
+            };
+            ok_json(&serde_json::to_string(&packages).unwrap(), "")
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
         let release = GitlabRelease {
             tag_name: "v1.0.0".into(),
             name: None,
@@ -2653,60 +3002,95 @@ mod tests {
         };
         let link = GitlabReleaseLink {
             id: None,
-            name: "ExtremeG-Windows-RelWithDebInfo.zip".into(),
-            url: format!("{server_root}/group/project/-/package_files/77/download"),
+            name: "game.zip".into(),
+            url: format!("{root}/group/project/-/package_files/77/download"),
             direct_asset_url: None,
             link_type: "package".into(),
         };
         let file = provider
-            .package_file(&project_url, 9, &release, &link)
+            .package_file(
+                &provider.project_url("group/project").unwrap(),
+                9,
+                &release,
+                &link,
+                provider.operation_deadline(),
+            )
             .await
             .unwrap()
             .unwrap();
         server.join().unwrap();
         assert_eq!(file.id, 77);
         let requests = requests.try_iter().collect::<Vec<_>>();
-        assert_eq!(requests.len(), 3);
-        assert!(requests[0].contains("page=1"));
-        assert!(requests[1].contains("page=2"));
-        assert!(requests[2].contains("/packages/501/package_files?"));
-
-        let too_many = (0..=GITLAB_MAX_MATCHING_PACKAGES)
-            .map(|index| serde_json::json!({"id": index + 1, "version": "v1.0.0"}))
-            .collect::<Vec<_>>();
-        let responses = vec![ok_json(&serde_json::to_string(&too_many).unwrap(), "")];
-        let (server_root, requests, server) = serve_http(responses);
-        let provider =
-            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
-        let project_url = provider.project_url("group/project").unwrap();
-        let error = provider
-            .package_file(&project_url, 9, &release, &link)
-            .await
-            .unwrap_err();
-        server.join().unwrap();
-        assert_eq!(error.code, crate::ErrorCode::Verification);
-        assert!(error.message.contains("more than 16 matching packages"));
-        assert_eq!(requests.try_iter().count(), 1);
+        assert_eq!(requests.len(), 22);
+        assert!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/packages?"))
+                .all(|request| request.contains("package_type=generic")
+                    && request.contains("package_version="))
+        );
     }
 
     #[tokio::test]
-    async fn gitlab_package_pagination_stops_at_the_documented_request_bound() {
-        let full_page = (0..PROVIDER_PAGE_SIZE)
-            .map(|index| serde_json::json!({"id": index + 1, "version": "v0.9.0"}))
-            .collect::<Vec<_>>();
-        let body = serde_json::to_string(&full_page).unwrap();
-        let responses = (0..GITLAB_MAX_PACKAGE_PAGES)
-            .map(|_| ok_json(&body, ""))
-            .collect();
-        let (server_root, requests, server) = serve_http(responses);
+    async fn gitlab_budget_exhaustion_is_incomplete_and_a_retry_resumes_from_cached_pages() {
+        // Four pages. The first read spends its whole budget after two pages; it
+        // reports an incomplete inventory, never a short history. Pages already
+        // read are revalidated with their validators (304, no body) on the
+        // retry, which then finishes the history.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let total = 3 * PROVIDER_PAGE_SIZE + 50;
+        let (root, requests, server) = serve_routed_http(6, move |request| {
+            let page = query_number(request, "page");
+            let etag = format!("\"page-{page}\"");
+            if request
+                .lines()
+                .any(|line| line.eq_ignore_ascii_case(&format!("if-none-match: {etag}")))
+            {
+                return "HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .into();
+            }
+            release_history_page(request, total, |index| format!("v0.0.{index}")).replacen(
+                "\r\n",
+                &format!("\r\nETag: {etag}\r\n"),
+                1,
+            )
+        });
         let provider =
-            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+            GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
+                .unwrap();
         let project_url = provider.project_url("group/project").unwrap();
-        let error = provider.packages(&project_url).await.unwrap_err();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        let error = provider
+            .release_prefix(&project_url, deadline, |releases, _| {
+                if releases.len() == 2 * PROVIDER_PAGE_SIZE {
+                    // Simulate the budget running out while the history continues.
+                    std::thread::sleep(deadline - tokio::time::Instant::now());
+                }
+                false
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert_eq!(
+            error.details.get("inventory").map(String::as_str),
+            Some("incomplete")
+        );
+        assert_eq!(
+            error.details.get("pages_read").map(String::as_str),
+            Some("2")
+        );
+        let releases = provider.releases(&project_url).await.unwrap();
         server.join().unwrap();
-        assert_eq!(error.code, crate::ErrorCode::Verification);
-        assert!(error.message.contains("1000-package bound"));
-        assert_eq!(requests.try_iter().count(), GITLAB_MAX_PACKAGE_PAGES);
+        assert_eq!(releases.len(), total);
+        assert_eq!(releases[total - 1].tag_name, format!("v0.0.{total}"));
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        let transferred = requests
+            .iter()
+            .filter(|request| !request.to_ascii_lowercase().contains("if-none-match"))
+            .count();
+        // Every page's body was transferred once; the retry only revalidated the prefix.
+        assert_eq!((requests.len(), transferred), (6, 4), "{requests:?}");
     }
 
     #[tokio::test]
@@ -2728,7 +3112,7 @@ mod tests {
             let mut request = [0_u8; 16 * 1024];
             let _ = stream.read(&mut request).unwrap();
             let packages = (1..=8)
-                .map(|id| serde_json::json!({"id": id, "version": "v1.0.0"}))
+                .map(|id| serde_json::json!({"id": id, "version": "1.0.0"}))
                 .collect::<Vec<_>>();
             stream
                 .write_all(ok_json(&serde_json::to_string(&packages).unwrap(), "").as_bytes())
@@ -2779,7 +3163,7 @@ mod tests {
         let provider =
             GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
         let release = GitlabRelease {
-            tag_name: "v1.0.0".into(),
+            tag_name: "1.0.0".into(),
             name: None,
             description: String::new(),
             released_at: None,
@@ -2799,7 +3183,8 @@ mod tests {
                     &provider.project_url("group/project").unwrap(),
                     9,
                     &release,
-                    &link
+                    &link,
+                    provider.operation_deadline(),
                 )
                 .await
                 .unwrap()
@@ -2818,6 +3203,17 @@ mod tests {
         let (server_root, requests, server) = serve_routed_http(9, move |request| {
             if request.contains("/releases?") {
                 ok_json(&releases, "")
+            } else if let Some(tag) = ["nightly-a", "nightly-b"]
+                .into_iter()
+                .find(|tag| request.contains(&format!("/releases/{tag} ")))
+            {
+                // A rolling tag is read by the exact release endpoint.
+                let releases: Vec<serde_json::Value> = serde_json::from_str(&releases).unwrap();
+                let release = releases
+                    .into_iter()
+                    .find(|release| release["tag_name"] == tag)
+                    .unwrap();
+                ok_json(&release.to_string(), "")
             } else {
                 ok_json(r#"{"id":9,"archived":false}"#, "")
             }
@@ -2874,12 +3270,21 @@ mod tests {
         assert_eq!(changed_rolling.version, "nightly-b");
         let requests = requests.try_iter().collect::<Vec<_>>();
         assert_eq!(requests.len(), 9);
+        // Two Stable selectors read history; the two rolling selectors use the
+        // exact release endpoint.
         assert_eq!(
             requests
                 .iter()
                 .filter(|request| request.contains("/releases?"))
                 .count(),
-            4
+            2
+        );
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/releases/nightly-"))
+                .count(),
+            2
         );
     }
 

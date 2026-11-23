@@ -387,6 +387,98 @@ impl ProviderHttp {
     }
 }
 
+impl ProviderHttp {
+    /// Whether `url` is on this provider's own site: the same origin as
+    /// `origin`, or HTTPS on the provider's registrable site or a subdomain.
+    pub(crate) fn on_provider_site(&self, origin: &reqwest::Url, url: &reqwest::Url) -> bool {
+        let same_origin = url.scheme() == origin.scheme()
+            && url.host_str() == origin.host_str()
+            && url.port_or_known_default() == origin.port_or_known_default();
+        let provider_host = url.scheme() == "https"
+            && url.port().is_none()
+            && url.host_str().is_some_and(|host| {
+                host == self.site || host.ends_with(&format!(".{}", self.site))
+            });
+        (same_origin || provider_host) && url.username().is_empty() && url.password().is_none()
+    }
+
+    /// Reads one bounded response body, following at most four redirects that
+    /// stay on the provider's own site, within `deadline`. Throttling and server
+    /// errors start the provider-wide backoff; while it lasts no request is made.
+    pub(crate) async fn read_site_bytes(
+        &self,
+        url: reqwest::Url,
+        max_bytes: usize,
+        deadline: tokio::time::Instant,
+    ) -> Result<Vec<u8>> {
+        if let Some(wait) = self.backoff_remaining() {
+            return Err(PortcoveError::network(format!(
+                "{} is rate limiting this client",
+                self.label
+            ))
+            .detail("retry_after_seconds", wait.as_secs().to_string()));
+        }
+        let origin = url.clone();
+        let mut current = url;
+        let read = async {
+            for _ in 0..=4 {
+                let response = self
+                    .client
+                    .get(current.clone())
+                    .send()
+                    .await
+                    .map_err(|error| PortcoveError::network(error.to_string()))?;
+                let status = response.status();
+                if status.is_redirection() {
+                    let next = response
+                        .headers()
+                        .get(header::LOCATION)
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(|location| current.join(location).ok())
+                        .ok_or_else(|| {
+                            PortcoveError::network(format!(
+                                "{} redirect has no location",
+                                self.label
+                            ))
+                        })?;
+                    if !self.on_provider_site(&origin, &next) {
+                        return Err(PortcoveError::verification(format!(
+                            "{} redirected away from its own site",
+                            self.label
+                        )));
+                    }
+                    current = next;
+                    continue;
+                }
+                if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
+                    self.start_backoff(response.headers());
+                }
+                if !status.is_success() {
+                    return Err(PortcoveError::network(format!(
+                        "{} returned {status}",
+                        self.label
+                    )));
+                }
+                return bounded_response_bytes(response, max_bytes, self.label).await;
+            }
+            Err(PortcoveError::network(format!(
+                "{} redirected too many times",
+                self.label
+            )))
+        };
+        tokio::time::timeout_at(deadline, read).await.map_err(|_| {
+            PortcoveError::network(format!(
+                "{} did not answer within the provider request budget",
+                self.label
+            ))
+        })?
+    }
+
+    pub(crate) fn library(&self) -> Option<&Library> {
+        self.library.as_ref()
+    }
+}
+
 /// Wall-clock allowance for one download: a floor plus time for the declared size at
 /// a deliberately slow 128 KiB/s, capped at six hours. A server dripping bytes just
 /// inside the idle bound cannot hold a worker indefinitely.
