@@ -49,9 +49,14 @@ import { isRecord } from "./runtime-values.mts";
  *   route the hold names changed.
  * - `owned-input-preparation`, `owner-review`: never machine-checkable.
  *
+ * The newest release is judged by provider publication time. When more than
+ * one release is observed and any lacks a publication time, it could be the
+ * newest, so `publisher-checksum` and `clean-upstream-package` are unknown.
+ *
  * Missing or incomplete evidence is `unknown`, never `satisfied`. A row with
  * any manual condition is flagged `manual` (it needs the owner) whatever its
  * other conditions say; its strongest machine result is reported beside it.
+ * Every manual, satisfied or unknown row is listed by name, grouped by flag.
  */
 
 export type ReconsiderCondition = (typeof reconsiderConditions)[number];
@@ -107,7 +112,12 @@ export interface RecheckReport {
     observer_report: "absent" | "applied";
     evidence: "absent" | "applied";
   };
-  /** Holds whose machine result is satisfied or unknown, in id order. */
+  /**
+   * Holds that need attention, in id order: every `manual` row (the owner
+   * decides, whatever its machine result) and every row whose machine result is
+   * satisfied or unknown. Only rows whose every condition is machine-checked
+   * and not satisfied are left out.
+   */
   flagged: RecheckRow[];
   /** Every hold with authored conditions, in id order. */
   rows: RecheckRow[];
@@ -221,15 +231,21 @@ function publishedAt(release: ObservedRelease) {
   return Number.isFinite(time) ? time : null;
 }
 
-/** Newest first by provider publication time; undated releases keep their order last. */
-function newest(releases: readonly ObservedRelease[]) {
-  return releases
-    .map((release, index) => ({ release, index, time: publishedAt(release) }))
-    .toSorted(
-      (left, right) =>
-        (right.time ?? Number.NEGATIVE_INFINITY) - (left.time ?? Number.NEGATIVE_INFINITY) ||
-        left.index - right.index,
-    )[0]?.release;
+/**
+ * The newest release by provider publication time. With more than one release,
+ * an undated release could be the newest, so the result is the undated
+ * versions instead of a guess; a single release is the newest whatever its date.
+ */
+function newest(
+  releases: readonly ObservedRelease[],
+): { release: ObservedRelease } | { undated: string[] } | undefined {
+  if (releases.length <= 1) return releases[0] && { release: releases[0] };
+  const undated = releases.filter((release) => publishedAt(release) === null);
+  if (undated.length) return { undated: undated.map((release) => release.version) };
+  const release = releases
+    .map((release, index) => ({ release, index, time: publishedAt(release)! }))
+    .toSorted((left, right) => right.time - left.time || left.index - right.index)[0]!.release;
+  return { release };
 }
 
 function successor(
@@ -319,9 +335,18 @@ function evaluate(
   const result = (status: ConditionStatus, detail: string) => ({ condition, status, detail });
   if (manualConditions.includes(condition))
     return result("manual", "Needs a person's review; no fact decides it.");
-  const latest = releases && newest(releases);
+  const candidate = releases && newest(releases);
+  const undated =
+    candidate && "undated" in candidate
+      ? result(
+          "unknown",
+          `Release(s) without a publication time could be the newest: ${candidate.undated.join(", ")}.`,
+        )
+      : undefined;
+  const latest = candidate && "release" in candidate ? candidate.release : undefined;
   switch (condition) {
     case "publisher-checksum": {
+      if (undated) return undated;
       if (!latest) return result("unknown", "No complete release observation.");
       if (!latest.assets.length)
         return result("unknown", `Release ${latest.version} lists no assets.`);
@@ -344,6 +369,7 @@ function evaluate(
       return result(...successor(reviewed, releases));
     }
     case "clean-upstream-package": {
+      if (undated) return undated;
       if (!latest) return result("unknown", "No complete release observation.");
       return result(...contentScan(latest, subject?.content_scan ?? []));
     }
@@ -432,10 +458,16 @@ export function restrictionRecheckReport(inputs: RecheckInputs): RecheckReport {
       observer_report: inputs.observerReport === undefined ? "absent" : "applied",
       evidence: inputs.evidence === undefined ? "absent" : "applied",
     },
-    flagged: rows.filter((row) => row.machine === "satisfied" || row.machine === "unknown"),
+    flagged: rows.filter((row) => row.flag !== "not-satisfied"),
     rows,
   };
 }
+
+const flaggedGroups = [
+  { flag: "manual", heading: "Needs the owner (manual)" },
+  { flag: "satisfied", heading: "Condition satisfied, review the hold" },
+  { flag: "unknown", heading: "Unknown, evidence missing" },
+] as const;
 
 export function renderRestrictionRecheck(report: RecheckReport): string {
   const { summary } = report;
@@ -445,12 +477,20 @@ export function renderRestrictionRecheck(report: RecheckReport): string {
       (status) => `  ${status.padEnd(16)} ${String(summary.by_flag[status]).padStart(5)}`,
     ),
     `Observer report: ${summary.observer_report}; evidence: ${summary.evidence}`,
-    ...report.flagged.map(
-      (row) =>
-        `${row.flag === "manual" ? `manual (owner; machine ${row.machine})` : row.flag}: ${row.port_id} ${row.carrier}/${row.restriction_id} (${row.reason}): ${row.conditions
-          .map((entry) => `${entry.condition} ${entry.status}`)
-          .join(", ")}`,
-    ),
+    ...flaggedGroups.flatMap(({ flag, heading }) => {
+      const group = report.flagged.filter((row) => row.flag === flag);
+      return group.length
+        ? [
+            `${heading} (${group.length}):`,
+            ...group.map(
+              (row) =>
+                `  ${row.port_id} ${row.carrier}/${row.restriction_id} (${row.reason})${row.flag === "manual" ? ` [machine ${row.machine ?? "none"}]` : ""}: ${row.conditions
+                  .map((entry) => `${entry.condition} ${entry.status}`)
+                  .join(", ")}`,
+            ),
+          ]
+        : [];
+    }),
   ];
   return `${lines.join("\n")}\n`;
 }

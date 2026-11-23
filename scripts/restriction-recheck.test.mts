@@ -94,12 +94,69 @@ void test("missing evidence is unknown, never satisfied", () => {
   assert.equal(result.flagged.length, 1);
 });
 
-void test("manual conditions are reported but not flagged", () => {
+void test("a hold with only owner conditions is flagged and named for the owner", () => {
   const result = report({ records: [port("a", [hold("download", [...manualConditions])])] });
   assert.equal(result.rows[0]?.flag, "manual");
   assert.equal(result.rows[0]?.machine, null);
-  assert.deepEqual(result.flagged, []);
+  assert.deepEqual(
+    result.flagged.map((row) => row.restriction_id),
+    ["download"],
+  );
   assert.equal(result.summary.by_flag.manual, 1);
+  assert.match(
+    renderRestrictionRecheck(result),
+    /^Needs the owner \(manual\) \(1\):\n  a listing\/download \(bundled-game-data\) \[machine none\]: owned-input-preparation manual, owner-review manual$/mu,
+  );
+});
+
+void test("a manual hold whose machine condition is not satisfied is still named", () => {
+  const records = [
+    port("a", [hold("download", ["attributable-grant", "owner-review"])]),
+    port("b", [hold("download", ["attributable-grant"])]),
+  ];
+  const result = report({
+    records,
+    evidence: evidence(
+      { port_id: "a", grant: { recorded: false, reference: "https://example.invalid/a" } },
+      { port_id: "b", grant: { recorded: false, reference: "https://example.invalid/b" } },
+    ),
+  });
+  assert.deepEqual(
+    result.rows.map((row) => [row.port_id, row.flag, row.machine]),
+    [
+      ["a", "manual", "not-satisfied"],
+      ["b", "not-satisfied", "not-satisfied"],
+    ],
+  );
+  // Only a row whose every condition is machine-checked and not satisfied is left out.
+  assert.deepEqual(
+    result.flagged.map((row) => row.port_id),
+    ["a"],
+  );
+  const text = renderRestrictionRecheck(result);
+  assert.match(text, /^  a listing\/download \(bundled-game-data\) \[machine not-satisfied\]:/mu);
+  assert.doesNotMatch(text, /^  b /mu);
+});
+
+void test("groups tell owner, satisfied and unknown rows apart", () => {
+  const records = [
+    port("a", [hold("download", ["owner-review"])]),
+    port("b", [hold("download", ["attributable-grant"])]),
+    port("c", [hold("download", ["upstream-route-change"])]),
+  ];
+  const text = renderRestrictionRecheck(
+    report({
+      records,
+      evidence: evidence({
+        port_id: "b",
+        grant: { recorded: true, reference: "https://example.invalid/b" },
+      }),
+    }),
+  );
+  assert.match(
+    text,
+    /Needs the owner \(manual\) \(1\):\n  a [^\n]+\nCondition satisfied, review the hold \(1\):\n  b [^\n]+\nUnknown, evidence missing \(1\):\n  c /u,
+  );
 });
 
 void test("a publisher checksum is satisfied only when every newest asset has a digest", () => {
@@ -127,6 +184,36 @@ void test("a publisher checksum is satisfied only when every newest asset has a 
     conditionsOf({ records, observerReport: listings([]) })["publisher-checksum"],
     "unknown",
   );
+});
+
+void test("an undated release that could be newest leaves newest-release checks unknown", () => {
+  const records = [port("a", [hold("download", ["publisher-checksum", "clean-upstream-package"])])];
+  const statuses = (...releases: [string, string | null, (string | null)[]][]) =>
+    conditionsOf({
+      records,
+      observerReport: { listings: [{ id: "a", upstream_observation: observation(...releases) }] },
+      evidence: evidence({ port_id: "a", content_scan: [{ version: "v1", findings: 0 }] }),
+    });
+  // The dated v1 is clean and fully digested, but the undated v2 could be newer.
+  assert.deepEqual(statuses(["v2", null, [null]], ["v1", "2026-10-01T00:00:00Z", [sha("a")]]), {
+    "publisher-checksum": "unknown",
+    "clean-upstream-package": "unknown",
+  });
+  // Order does not matter: an undated release listed last could still be newest.
+  assert.deepEqual(statuses(["v1", "2026-10-01T00:00:00Z", [sha("a")]], ["v2", null, [null]]), {
+    "publisher-checksum": "unknown",
+    "clean-upstream-package": "unknown",
+  });
+  // With every release dated, the newest is judged.
+  assert.deepEqual(
+    statuses(["v0", "2026-01-01T00:00:00Z", [null]], ["v1", "2026-10-01T00:00:00Z", [sha("a")]]),
+    { "publisher-checksum": "satisfied", "clean-upstream-package": "satisfied" },
+  );
+  // A single undated release is the newest.
+  assert.deepEqual(statuses(["v1", null, [sha("a")]]), {
+    "publisher-checksum": "satisfied",
+    "clean-upstream-package": "satisfied",
+  });
 });
 
 void test("an incomplete observation is not evidence", () => {
@@ -339,7 +426,7 @@ void test("any manual condition flags the row for the owner whatever else it say
   assert.equal(result.flagged.length, 2);
   assert.match(
     renderRestrictionRecheck(result),
-    /manual \(owner; machine satisfied\): a listing\/download/u,
+    /^Needs the owner \(manual\) \(1\):\n  a listing\/download \(bundled-game-data\) \[machine satisfied\]:/mu,
   );
 });
 

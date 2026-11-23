@@ -16,9 +16,10 @@
     "b-change": 15,
     "c": 48,
     "c-content": 22,
-    "b-owner": 6,
+    "b-owner": 5,
     "d": 1,
-    "a": 2
+    "a": 2,
+    "b-owner-decided": 1
   },
   "proposed_reconsider_when": {
     "note": "Proposed values for a follow-up data change; none is authored on main today. reviewed-successor-release needs a release or artifact scope to have a reviewed baseline; a hold scoped only by platform evaluates it as unknown, so pair it with a scoped permit or use owner-review.",
@@ -158,9 +159,26 @@
           "OpenSpades-0.1.3.pdb.7z"
         ],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "OpenSpades-0.1.3-OSX.zip",
+            "provider_sha256": null
+          },
+          {
+            "name": "OpenSpades-0.1.3-Windows.zip",
+            "provider_sha256": null
+          },
+          {
+            "name": "OpenSpades-0.1.3.pdb.7z",
+            "provider_sha256": null
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "none",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -413,9 +431,22 @@
         "assets_shown": 4,
         "asset_names_from_release_notes": ["parasite-eve-day1-preview-linux-x64.tar.gz"],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "parasite-eve-native-only-e26d98fd-linux-x64.tar.gz",
+            "provider_sha256": "3c9744c0e9da02993ed696eda1ee1580ccad2a752a59c6c0c09dff74b76514e1"
+          },
+          {
+            "name": "SHA256SUMS",
+            "provider_sha256": "b02415586dd68b05b70478864740cd1241b14ad18fd27a68ac79cf81e54c1dfe"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -537,7 +568,7 @@
         "host": "github.com",
         "repository": "BTFighter/Super-Mario-World-Remastered-Plus",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "ISC",
         "last_commit_date": "2026-01-16",
@@ -558,7 +589,9 @@
           "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
           "https://raw.githubusercontent.com/BTFighter/Super-Mario-World-Remastered-Plus/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/2841"
-        ]
+        ],
+        "fork_of": "JHDev2006/Super-Mario-World-Remastered-Public",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -802,7 +835,7 @@
         "host": "github.com",
         "repository": "Endprodukt/cannonball-dx",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": null,
         "license_spdx_by_text": null,
         "last_commit_date": "2026-10-07",
@@ -826,7 +859,10 @@
         "sources": [
           "https://github.com/Endprodukt/cannonball-dx",
           "https://github.com/boburning/portcove/issues/1132"
-        ]
+        ],
+        "fork_of": "J1mbo/cannonball-se",
+        "newest_release_published": "2026-09-29 (release page shows 29 Sep; year from the 2026-09-26 tag)",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -1066,7 +1102,7 @@
         "host": "github.com",
         "repository": "Rainchus/ChameleonTwist1-JP-Recomp",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "COPYING",
         "license_spdx_by_text": "GPL-3.0",
         "last_commit_date": "2025-03-10",
@@ -1084,13 +1120,23 @@
           "https://raw.githubusercontent.com/Rainchus/ChameleonTwist1-JP-Recomp/HEAD/COPYING",
           "https://github.com/boburning/portcove/issues/125",
           "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases"
+        ],
+        "fork_of": null,
+        "license_spdx_detected_by_github": "GPL-3.0",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page",
+        "newest_release_assets": [
+          {
+            "name": "ChameleonTwistJPRecompiled.zip",
+            "sha256": "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+            "digest_source": "recorded by an earlier review (the exact-byte acceptance); provider digest not published"
+          }
         ]
       },
       "classification": "rights-judgement",
-      "list": "b-owner",
+      "list": "b-owner-decided",
       "finding": "The hold says only the signed route can verify the approved v0.1 Windows ZIP. The rights basis for those bytes is an owner protected acceptance that is explicitly scoped: it accepts only official/chameleon-twist-jp-recompiled, Windows x86-64, with its curated acquisition and scoped launch checks (docs/qualification/chameleon-twist-jp-exact-byte-acceptance-2026-10-21.md line 7), and grants no mirror, repackaging, blanket redistribution right or automatic acceptance of a future asset identity (same file, line 19). #125's resume condition reserves additional download offers until 'the release, exact selected bytes, applicable rights and operation-specific checks are bound'. Extending that acceptance to a generic listing download permit is therefore owner authority, not a factual narrowing. Separately, the row's reason code bundled-game-data conflicts with the preparation record, which says the README requires the Japanese original, releases omit game assets, and the route uses separately supplied game data (docs/qualification/chameleon-twist-jp-curated-admission-preparation-2026-10-18.md lines 72-76). Today v0.1 is still the only release (2024-12-14); GPL-3.0 COPYING present.",
-      "recommendation": "Keep the whole hold. Owner: decide whether the exact-byte acceptance extends to a listing download permit for the same v0.1 ZIP (owner_option). If it does, also correct the reason code, which the preparation record contradicts.",
-      "proposed": "owner decision",
+      "recommendation": "Owner decided on 2026-11-23: keep the hold for everything else and permit the exact accepted v0.1 ZIP on the listing (owner_option), with the hold reason corrected to the bundled fonts. Implemented in a separate data change on branch ports/8538-exact-file-permits.",
+      "proposed": "owner decided 2026-11-23: permit the exact accepted v0.1 file",
       "owner_kind": "owner-acceptance-scope",
       "owner_option": [
         {
@@ -1115,7 +1161,12 @@
             ]
           }
         }
-      ]
+      ],
+      "owner_decision": {
+        "date": "2026-11-23",
+        "decision": "The owner approved permitting the exact accepted v0.1 file, ChameleonTwistJPRecompiled.zip (SHA-256 8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56), on the listing. The hold stays for every other release, asset and changed byte. The hold reason is corrected from bundled game data to the bundled fonts: releases omit game assets and the route uses separately supplied game data.",
+        "implementation": "A separate data pull request on branch ports/8538-exact-file-permits; this record changes no catalog data."
+      }
     },
     {
       "identity": "colobot",
@@ -1709,7 +1760,7 @@
         "host": "github.com",
         "repository": "Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "NOASSERTION",
         "last_commit_date": "2026-11-21",
@@ -1736,7 +1787,10 @@
           "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
           "https://raw.githubusercontent.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/4759"
-        ]
+        ],
+        "license_spdx_detected_by_github": "GPL-3.0",
+        "fork_of": null,
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "factual-unchanged",
       "list": "c",
@@ -2480,9 +2534,23 @@
         "assets_shown": 3,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "The newer tag v0.1.7 (2026-10-09) is not the release marked Latest.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "LCSNative-v0.1.6.zip",
+            "provider_sha256": "41b25e0a02849ceb9b3d65f0834b0fa62cc690e7f30023bb9a729d55c8451012"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true,
+        "newer_prerelease": {
+          "tag": "v0.1.7",
+          "published": "2026-10-09",
+          "note": "marked Pre-release; v0.1.6 carries the Latest label. A listing that offers v0.1.7 needs its own content listing."
+        }
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -2649,9 +2717,26 @@
         "assets_shown": 5,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "Release notes say the Mac and Windows downloads are 0.9.5 builds.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "EternalDarkness-linux-x86_64-202610242126-e9ff8d6.tar.gz",
+            "provider_sha256": "553b9ab78a65d56f00b702438fc7f1c925d5e9c0dbe9baf86dbc91c4ee482b48"
+          },
+          {
+            "name": "EternalDarkness-mac-202610200024-1cb3fe6.zip",
+            "provider_sha256": "09b96848c33f7475b8055562d5f77454bdff7ad87ee5b130aaf8fdf7f8ae632c"
+          },
+          {
+            "name": "EternalDarkness-windows-x64-202610200024-1cb3fe6.zip",
+            "provider_sha256": "010020309969752c50da8affb323d0e5e55fd1ba85bc738074423de092d7e331"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -2861,9 +2946,46 @@
           "FinFanTacRecomp-setup-0.1.0-macos-x64.zip"
         ],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "Release notes publish SHA-256 values for the four setup archives.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-linux-x64.zip",
+            "provider_sha256": "35261675e16a56e73e17faf23814d87746727971443677db4bf9734bf7586071"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-linux-x64.zip.sha256",
+            "provider_sha256": "bdbc765e4ec2f38b51c2f909758ab28220fae2425b944cda9e0938fd44349dd4"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-macos-arm64.zip",
+            "provider_sha256": "34cf6771fd10efa4e39baa227fa6ec66c75082a6a34b4fe26fe5450b1229a246"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-macos-arm64.zip.sha256",
+            "provider_sha256": "6e81ee176973b709f70902a9a64c5b7a931b80cb1b7b07412cefaa7d81fdd933"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-macos-x64.zip",
+            "provider_sha256": "056904aad79b38618d14ea3a83de6c6390d811f54318d72a3787c6b7f2586d48"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-macos-x64.zip.sha256",
+            "provider_sha256": "c8a1c28f9d549968febf7cdcf02692b464d3abecbcf3327708efc6196e830cdd"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-windows-x64.zip",
+            "provider_sha256": "24abba72fb9eeb74ab7b96c3b16ef66af528c8751cd8766a4693585a3bf4c4ce"
+          },
+          {
+            "name": "FinFanTacRecomp-setup-0.1.0-windows-x64.zip.sha256",
+            "provider_sha256": "17c726a9a550e327699b325098beee4fdc75dff250952db96c01f7335d19d70c"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -3175,7 +3297,7 @@
         "host": "github.com",
         "repository": "in0finite/SanAndreasUnity",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "MIT",
         "last_commit_date": "2022-09-30",
@@ -3207,7 +3329,27 @@
           "published": "24 May (year not shown; tag dated 2022)",
           "assets_shown": 5,
           "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
-        }
+        },
+        "fork_of": null,
+        "license_spdx_detected_by_github": "MIT",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page",
+        "newest_release_assets": [
+          {
+            "name": "SanAndreasUnity-4.0-windows.zip",
+            "sha256": "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+            "digest_source": "recorded by an earlier review (#6134); provider digest not published"
+          },
+          {
+            "name": "SanAndreasUnity-4.0-linux.zip",
+            "sha256": "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+            "digest_source": "recorded by an earlier review (#6134); provider digest not published"
+          },
+          {
+            "name": "SanAndreasUnity-4.0-android.apk",
+            "sha256": null,
+            "digest_source": "provider digest not published; stays held"
+          }
+        ]
       },
       "classification": "scope-too-broad",
       "list": "a",
@@ -3230,11 +3372,13 @@
             "artifacts": [
               {
                 "version": "v4.0",
-                "sha256": "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab"
+                "sha256": "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+                "asset_name": "SanAndreasUnity-4.0-windows.zip"
               },
               {
                 "version": "v4.0",
-                "sha256": "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a"
+                "sha256": "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+                "asset_name": "SanAndreasUnity-4.0-linux.zip"
               }
             ]
           }
@@ -3360,7 +3504,7 @@
         "host": "github.com",
         "repository": "leanndroguedes/re3-19feb21",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": true,
         "license_file": null,
         "license_spdx_by_text": null,
         "last_commit_date": "2021-02-19",
@@ -3375,19 +3519,80 @@
             "date": "2021-02-14"
           }
         ],
-        "release_assets": "unknown",
+        "release_assets": "see releases",
         "tracking_issue_state": "closed (last activity 2026-11-21)",
         "sources": [
           "https://github.com/leanndroguedes/re3-19feb21",
-          "https://github.com/boburning/portcove/issues/2852"
-        ]
+          "https://github.com/boburning/portcove/issues/2852",
+          "https://github.com/leanndroguedes/re3-19feb21/releases"
+        ],
+        "archived_on": "2021-06-27",
+        "releases": [
+          {
+            "tag": "re3_v1.0",
+            "title": "First Release re3",
+            "game": "Grand Theft Auto III",
+            "published": "2021-04-16",
+            "assets": [
+              {
+                "name": "re3-linux-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3-macos-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3-win-amd64-librw_d3d9-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3_win-amd64-librw_gl3_glfw-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3_win-x86-librw_d3d9-mss-1_0.zip",
+                "provider_digest": "none shown"
+              }
+            ]
+          },
+          {
+            "tag": "reVC_1.0",
+            "title": "First Release reVC",
+            "game": "Grand Theft Auto: Vice City",
+            "published": "2021-04-16",
+            "assets": [
+              {
+                "name": "reVC-linux-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-macos-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-amd64-librw_d3d9-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-amd64-librw_gl3_glfw-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-x86-librw_d3d9-mss-1_0.zip",
+                "provider_digest": "none shown"
+              }
+            ]
+          }
+        ],
+        "releases_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "content-unverified",
       "list": "c-content",
       "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
-      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag reVC_1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "recommendation": "Keep. Resolve by listing the contents of the GTA III package, release re3_v1.0 (published 2021-04-16; five desktop ZIPs such as re3-linux-gl3-1_0.zip), with the release-content scan; then classify the listed contents under the rights basis. reVC_1.0 is the Vice City package and does not resolve this row. The mirror was archived on 2021-06-27, so no newer package will appear.",
       "proposed": "unchanged",
-      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
+      "resolving_step": "List the package contents of release re3_v1.0, the GTA III package (release-content scan), and record them on the tracking issue."
     },
     {
       "identity": "gta-vice-city-revc",
@@ -3409,7 +3614,7 @@
         "host": "github.com",
         "repository": "leanndroguedes/re3-19feb21",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": true,
         "license_file": null,
         "license_spdx_by_text": null,
         "last_commit_date": "2021-02-19",
@@ -3424,19 +3629,80 @@
             "date": "2021-02-14"
           }
         ],
-        "release_assets": "unknown",
+        "release_assets": "see releases",
         "tracking_issue_state": "closed (last activity 2026-11-21)",
         "sources": [
           "https://github.com/leanndroguedes/re3-19feb21",
-          "https://github.com/boburning/portcove/issues/2853"
-        ]
+          "https://github.com/boburning/portcove/issues/2853",
+          "https://github.com/leanndroguedes/re3-19feb21/releases"
+        ],
+        "archived_on": "2021-06-27",
+        "releases": [
+          {
+            "tag": "re3_v1.0",
+            "title": "First Release re3",
+            "game": "Grand Theft Auto III",
+            "published": "2021-04-16",
+            "assets": [
+              {
+                "name": "re3-linux-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3-macos-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3-win-amd64-librw_d3d9-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3_win-amd64-librw_gl3_glfw-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "re3_win-x86-librw_d3d9-mss-1_0.zip",
+                "provider_digest": "none shown"
+              }
+            ]
+          },
+          {
+            "tag": "reVC_1.0",
+            "title": "First Release reVC",
+            "game": "Grand Theft Auto: Vice City",
+            "published": "2021-04-16",
+            "assets": [
+              {
+                "name": "reVC-linux-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-macos-gl3-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-amd64-librw_d3d9-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-amd64-librw_gl3_glfw-oal-1_0.zip",
+                "provider_digest": "none shown"
+              },
+              {
+                "name": "reVC-win-x86-librw_d3d9-mss-1_0.zip",
+                "provider_digest": "none shown"
+              }
+            ]
+          }
+        ],
+        "releases_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "content-unverified",
       "list": "c-content",
       "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
-      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag reVC_1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "recommendation": "Keep. Resolve by listing the contents of the Vice City package, release reVC_1.0 (published 2021-04-16; five desktop ZIPs such as reVC-linux-gl3-1_0.zip), with the release-content scan; then classify the listed contents under the rights basis. The mirror was archived on 2021-06-27, so no newer package will appear.",
       "proposed": "unchanged",
-      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
+      "resolving_step": "List the package contents of release reVC_1.0, the Vice City package (release-content scan), and record them on the tracking issue."
     },
     {
       "identity": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
@@ -3458,7 +3724,7 @@
         "host": "github.com",
         "repository": "noahbaxter/GHClassic",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "NOASSERTION",
         "last_commit_date": "2026-11-19",
@@ -3485,7 +3751,10 @@
           "https://github.com/noahbaxter/GHClassic",
           "https://raw.githubusercontent.com/noahbaxter/GHClassic/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/3000"
-        ]
+        ],
+        "license_spdx_detected_by_github": "GPL-3.0",
+        "fork_of": null,
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "content-unverified",
       "list": "c-content",
@@ -3673,7 +3942,7 @@
         "host": "github.com",
         "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": true,
         "license_file": "LICENSE",
         "license_spdx_by_text": "ISC",
         "last_commit_date": "2025-05-14",
@@ -3694,7 +3963,10 @@
           "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public",
           "https://raw.githubusercontent.com/JHDev2006/Super-Mario-World-Remastered-Public/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/1891"
-        ]
+        ],
+        "archived_on": "2025-05-14",
+        "fork_of": null,
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -3818,7 +4090,7 @@
         "host": "github.com",
         "repository": "sacredbanana/lab3d-sdl",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "NOASSERTION",
         "last_commit_date": "2026-09-30",
@@ -3845,7 +4117,9 @@
           "https://github.com/sacredbanana/lab3d-sdl",
           "https://raw.githubusercontent.com/sacredbanana/lab3d-sdl/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/6129"
-        ]
+        ],
+        "fork_of": "PinkPandaKatie/lab3d-sdl",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -4028,7 +4302,7 @@
         "host": "github.com",
         "repository": "fredangstadt-lang/LineWarsII-SDL",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE.md",
         "license_spdx_by_text": "PolyForm-Noncommercial-1.0.0",
         "last_commit_date": "2026-07-18",
@@ -4052,7 +4326,21 @@
           "published": "18 Jul (year not shown; tag dated 2026-07-17)",
           "assets_shown": 4,
           "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
-        }
+        },
+        "fork_of": null,
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page",
+        "newest_release_assets": [
+          {
+            "name": "LineWars2-SDL3-v1.0.0-win64.zip",
+            "sha256": "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+            "digest_source": "provider-confirmed: the release page shows this sha256"
+          },
+          {
+            "name": "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+            "sha256": "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+            "digest_source": "provider-confirmed: the release page shows this sha256"
+          }
+        ]
       },
       "classification": "scope-too-broad",
       "list": "a",
@@ -4335,7 +4623,7 @@
         "host": "github.com",
         "repository": "LostArtefacts/TRX",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "COPYING.md",
         "license_spdx_by_text": "NOASSERTION",
         "last_commit_date": "2026-11-22",
@@ -4360,7 +4648,10 @@
           "https://github.com/LostArtefacts/TRX",
           "https://raw.githubusercontent.com/LostArtefacts/TRX/HEAD/COPYING.md",
           "https://github.com/boburning/portcove/issues/1898"
-        ]
+        ],
+        "license_spdx_detected_by_github": "GPL-3.0",
+        "fork_of": null,
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -4531,9 +4822,18 @@
         "assets_shown": 3,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "Mercenaries.Recompiled.Public.1.1.1.zip",
+            "provider_sha256": "f83749a46d0c69a1f9020bef5ef01bfdc86b4d87ffb864c6232f6c7e0df520b3"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -4755,9 +5055,26 @@
         "assets_shown": 5,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "Android-MHGURecomp.0.18.3.apk",
+            "provider_sha256": "77fa4545a13fcacba9bdb060588aa27802f13a4cf7c816dc3d59c1b8468c8bef"
+          },
+          {
+            "name": "Linux-MHGURecomp.0.18.3.tar.gz",
+            "provider_sha256": "8db3f183fdb7d873bd3fe4ef0f269dbcf972538d1eff9f4c3c3a08bc8c76ccbd"
+          },
+          {
+            "name": "Windows-MHGURecomp.0.18.3.zip",
+            "provider_sha256": "a7b74da615abcf2953c17cf2ab2c575e9740d15fee6f4142ff7fe2a914ad6967"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -4820,9 +5137,18 @@
         "assets_shown": 3,
         "asset_names_from_release_notes": ["BattleArenaToshindenRecomp-v0.1.4-windows-x64.zip"],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "Release notes give 11,520,983 bytes and a SHA-256 for the Windows archive.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "BattleArenaToshindenRecomp-v0.1.4-windows-x64.zip",
+            "provider_sha256": "1b779c14fdeca26882c5fc1c72cae7acf369c31ddd1b49b133fac89e9f39fdb8"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -4977,7 +5303,7 @@
         "host": "github.com",
         "repository": "NeverCookFirst/DimensionsRecomp",
         "repository_readable": true,
-        "archived": "yes: 'This repository was archived by the owner on Nov 16, 2026' (release page)",
+        "archived": true,
         "license_file": "LICENSE",
         "license_spdx_by_text": "MIT",
         "last_commit_date": "2026-11-16",
@@ -5002,7 +5328,8 @@
           "https://github.com/NeverCookFirst/DimensionsRecomp",
           "https://raw.githubusercontent.com/NeverCookFirst/DimensionsRecomp/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/1817"
-        ]
+        ],
+        "archived_on": "2026-11-16"
       },
       "classification": "rights-judgement",
       "list": "b-change",
@@ -5015,9 +5342,22 @@
         "assets_shown": 4,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "The repository was archived on 2026-11-16; v0.2.0 is titled the final release.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "DimensionsRecompiled-NativeGPU-Setup.exe",
+            "provider_sha256": "d3479bca78cad1693c6d5a7c31a07953500d0945b8086bb9bf7dabad3b3aebb5"
+          },
+          {
+            "name": "SHA256SUMS.txt",
+            "provider_sha256": "567bd26adcdba9fb905d11afc4c684f21b7c8116216bfcb445277408c7750294"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -5136,9 +5476,22 @@
           "BloodyRoar2-linux-x64-0.7.1.zip"
         ],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "BloodyRoar2-linux-x64-0.7.1.zip",
+            "provider_sha256": "19892a26be947eef2fc21a7ed47bd8e7c239f26f5aa5968da84c66595a72f551"
+          },
+          {
+            "name": "BloodyRoar2-v0.7.1.zip",
+            "provider_sha256": "745c2ae512a37b6a02087b418710ba92833c900393b133293fde54269aefd779"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -5700,7 +6053,7 @@
         "host": "github.com",
         "repository": "cybervisi0n/pokeplatinum",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": null,
         "license_spdx_by_text": null,
         "last_commit_date": "2026-11-22",
@@ -5724,7 +6077,9 @@
         "sources": [
           "https://github.com/cybervisi0n/pokeplatinum",
           "https://github.com/boburning/portcove/issues/373"
-        ]
+        ],
+        "fork_of": "pret/pokeplatinum",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "rights-judgement",
       "list": "b-keep",
@@ -6011,7 +6366,7 @@
         "host": "github.com",
         "repository": "Paril/q2repro",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": false,
         "license_file": "LICENSE",
         "license_spdx_by_text": "GPL-2.0",
         "last_commit_date": "2026-11-18",
@@ -6030,7 +6385,9 @@
           "https://github.com/Paril/q2repro",
           "https://raw.githubusercontent.com/Paril/q2repro/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/6102"
-        ]
+        ],
+        "fork_of": "richard-allen/q2pro",
+        "repository_page_source": "release and repository pages read 2026-11-23 by a web fetch; the GitHub REST API refused third-party reads in this session, so provider digests are as displayed on the page"
       },
       "classification": "factual-unchanged",
       "list": "c",
@@ -6202,9 +6559,42 @@
         "assets_shown": 9,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "Rage-Racer-0.6.15-alpha-linux-x86_64.zip",
+            "provider_sha256": "ab937ef8c75deca8dc9e1b6eb944144d7a1451715390e30bd140a2f7af3a810b"
+          },
+          {
+            "name": "Rage-Racer-0.6.15-alpha-macos-arm64.zip",
+            "provider_sha256": "294fa7bf3d1c7b6f7d21864faabc7d9a652938a51a5d953ebd44f5da6784f6d4"
+          },
+          {
+            "name": "Rage-Racer-0.6.15-alpha-windows-x86_64.zip",
+            "provider_sha256": "abf390b11f29ef835da68a6e385bd63bde3c459bf4a212fbd24e4911abd0a415"
+          },
+          {
+            "name": "Rage-Racer-Editor-0.6.15-alpha-linux-amd64.deb",
+            "provider_sha256": "404eed597432142442b186a803c47c1b161beed9bdfc8743d7e8588f9de75ac4"
+          },
+          {
+            "name": "Rage-Racer-Editor-0.6.15-alpha-linux-x86_64.zip",
+            "provider_sha256": "27cb4e4a6a5277445e79e56dfffdb3e3f57287ccd3ccb7feeecb2b655e0bf418"
+          },
+          {
+            "name": "Rage-Racer-Editor-0.6.15-alpha-macos-arm64.zip",
+            "provider_sha256": "dd7b44f25ca485e85f1e54cfa75b74f231e938bd5b7441518798fa4706e1021c"
+          },
+          {
+            "name": "Rage-Racer-Editor-0.6.15-alpha-windows-x86_64.zip",
+            "provider_sha256": "d44e169feee49786ad6a926c8a3da5d056fc763bbc10e878c513b6ef8c2f759a"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -6481,9 +6871,26 @@
         "assets_shown": 5,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "R4-0.2.4-macOS-arm64.zip",
+            "provider_sha256": "52e6c64a201e60d6c0be6e435b5eb847cbeb388038689b4ee5cbfe3857dad2f0"
+          },
+          {
+            "name": "R4-0.2.4-Windows-x64.zip",
+            "provider_sha256": "f7f13b41848efe5a8bce00c3ce924d70d0122553895fc2b068c68de987d31bb8"
+          },
+          {
+            "name": "SHA256SUMS",
+            "provider_sha256": "73702ce179a34431afac41e8b37d9f5cb4d3b99c9980aafbbe9bf606d8e20ee1"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -6587,7 +6994,8 @@
         "contents_listed": false,
         "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
         "note": "The repository has no releases, so there is no package to list or download.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "releases_on_2026_11_23": "none (releases page: there aren't any releases)"
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -6891,9 +7299,54 @@
         "assets_shown": 12,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": "Release notes mention Android, iOS, Windows, Linux and macOS packages and a SHA256SUMS.txt.",
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "FreeRidersRecompiled-0.10.75-android-arm64-licenses.zip",
+            "provider_sha256": "eeba9832b9948ba04a4b27f671dbaf8f03441fa1006e101315ebba1438d54abf"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-android-arm64.apk",
+            "provider_sha256": "3a2c18e07525c45d0064857bf14e9f8821724b441c7dff3d5dadf5b48532da43"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-android-arm64.apk.idsig",
+            "provider_sha256": "44e426026c899d6f794f831989bde66a0ffa1097bd8d5c0fd4b9c4a1c3101def"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-android10-arm64.apk",
+            "provider_sha256": "04e5ba90443fbb0588613de8d5c87ef524c80d915814428c87b63089b420a983"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-android10-arm64.apk.idsig",
+            "provider_sha256": "536857a2a819b0b7967d2fcf6835ab263c5f114a0a56ebbc76e0998b677ef56e"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-ios-arm64.ipa",
+            "provider_sha256": "ccef849be561c56d88ade5fe6146c6721d02dc0e90743751fef9bb482c902f84"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-linux-x64.tar.gz",
+            "provider_sha256": "fc883d7032c82a356026da1496280404b4590fbb5a0a82909aeb4179b06c1fed"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-macos-arm64.zip",
+            "provider_sha256": "659890fabdce2031092891e9340790f90069d3cdcda7331e880f820421fb440b"
+          },
+          {
+            "name": "FreeRidersRecompiled-0.10.75-windows-x64.zip",
+            "provider_sha256": "8f1e3705b69c6acbc4d202c0bae0348d8d893922c1d4a98f0563aeba16ae5168"
+          },
+          {
+            "name": "SHA256SUMS.txt",
+            "provider_sha256": "6f162fccf2c59ac84a20db99165c84f4a0d9f95c4d5fdc7239609cbf52fffd8e"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -7900,9 +8353,30 @@
         "assets_shown": 6,
         "asset_names_from_release_notes": [],
         "contents_listed": false,
-        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "why_not_listed": "Archive contents were not listed: no archive was downloaded. Asset names and provider digests are recorded from the release page; they identify the package but do not list its contents.",
         "note": null,
-        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session",
+        "assets": [
+          {
+            "name": "toystory2-0.6.1-linux-x64.zip",
+            "provider_sha256": "758c6e253532c0e2de1bbdfec0d42f230a486062e7594e95c416df9a480d8160"
+          },
+          {
+            "name": "toystory2-0.6.1-macos-arm64.zip",
+            "provider_sha256": "77a6d185359ee5d8ec9c073b126bb6d00ca10351391aee8a175db0e04af69c62"
+          },
+          {
+            "name": "toystory2-0.6.1-macos-x64.zip",
+            "provider_sha256": "8f2f21aeb20a3b131fa95c2cb8d22aa888014a99aeecafdbf7c426b144690466"
+          },
+          {
+            "name": "toystory2-0.6.1-windows-x64.zip",
+            "provider_sha256": "6be2b4e28ad87f87f1286ab3b00a0132e390f82636ecb2936a43418ad891199a"
+          }
+        ],
+        "assets_source": "expanded release-asset page read 2026-11-23 by a web fetch; provider digests as displayed there (the GitHub REST API refused third-party reads in this session); no archive downloaded",
+        "provider_digests": "all assets",
+        "still_newest_on_2026_11_23": true
       },
       "owner_kind": "conditional-clear",
       "proposed_if_condition_met": []
@@ -8603,5 +9077,6 @@
       "thandor-the-invasion-open-thandor",
       "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue"
     ]
-  }
+  },
+  "method_addendum_2026_11_23": "A delta update on 2026-11-23 read GitHub repository pages (fork parent, archived banner, GitHub's detected licence) and expanded release-asset pages (asset names and the sha256 digests GitHub displays) by web fetch for the rows it names: the GitHub REST API still refused third-party reads, so a digest recorded as absent means none was displayed on the page. No archive was downloaded. Entries updated: gta-iii-re3, gta-vice-city-revc, the 15 conditional clears, the a-list rows, chameleon-twist-recompiled (owner decision), and the fork, licence and archived facts the independent delta review named. No classification changed."
 }
