@@ -542,10 +542,69 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
           ...Object.entries(report.registration_queues.unread_forms).map(([form, ids]) =>
             row(`unread form ${form}`, ids.length),
           ),
+          ...Object.entries(report.registration_queues.refusals).map(([refusal, ids]) =>
+            row(`refused archive ${refusal}`, ids.length),
+          ),
+          row(
+            "repositories named by more than one identity",
+            Object.keys(report.registration_queues.shared_repositories).length,
+          ),
+          row(
+            "identities on a shared repository",
+            Object.values(report.registration_queues.shared_repositories).reduce(
+              (sum, ids) => sum + ids.length,
+              0,
+            ),
+          ),
+          row(
+            "generated-route candidates among them",
+            sharedCandidates(report.registration_queues).length,
+          ),
+          row(
+            "enrolled beside another package form for a platform without an archive (review)",
+            report.registration_queues.enrolled_beside_unoffered_forms.length,
+          ),
+          row(
+            "withheld beside another package form (asset names with --json)",
+            Object.keys(report.registration_queues.other_package_forms).length,
+          ),
+          row(
+            "withheld for a bundled toolchain (helper names with --json)",
+            Object.keys(report.registration_queues.bundled_toolchains).length,
+          ),
+          ...Object.entries(report.registration_queues.inspection_failures).map(([cause, ids]) =>
+            row(`repeated inspection failure: ${cause}`, ids.length),
+          ),
         ]
       : []),
   ];
   return lines.join("\n");
+}
+
+/**
+ * Identities on a shared repository that the generated route could otherwise
+ * serve: everything but operational, deferred-engine, unavailable and
+ * unreadable identities. Without a reviewed release-line binding these stay
+ * `shared-repository`.
+ */
+export function sharedCandidates(queues: RegistrationQueues): string[] {
+  const outside = new Set(
+    (
+      [
+        "operational-route",
+        "scummvm-engine",
+        "upstream-unavailable",
+        "no-readable-upstream",
+      ] as const
+    ).flatMap((reason) => queues.reasons[reason]),
+  );
+  return [
+    ...new Set(
+      Object.values(queues.shared_repositories)
+        .flat()
+        .filter((id) => !outside.has(id)),
+    ),
+  ].toSorted();
 }
 
 /** Every catalog identity appears exactly once, with a known disposition and a reason. */

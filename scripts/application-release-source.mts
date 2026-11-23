@@ -286,8 +286,8 @@ async function selectForQualification() {
   );
   const latest = releases[0];
   assert.ok(latest, "an actual published dependency-review baseline is required");
-  const tag = (await reader.tags()).find((value) => value.name === latest.tag_name);
-  assert.ok(tag);
+  const tag = await reader.tag(latest.tag_name);
+  assert.ok(tag, "the published baseline tag is required");
   const base = peelReleaseReference(tag);
   const details = await (await openApplicationSourceMetadata(token)).release(latest.id);
   assert.ok(
@@ -444,7 +444,7 @@ async function prepare() {
   const history = retained?.published_versions ?? publishedHistory;
   // Reuse/retirement of a previously published prepared source is handled by the
   // immutable-release recovery path, never by allocating the source twice.
-  const tags = await publicationReader.tags();
+  const tags = await publicationReader.namespaceTags("portcove-production");
   const allocations = await publicationReader.readAllocations(tags, "portcove-production");
   assert.ok(
     !allocations.allocations.some((value) => value.source_commit === run.head_sha),

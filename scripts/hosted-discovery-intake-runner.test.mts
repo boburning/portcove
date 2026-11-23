@@ -11,7 +11,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   auditDispatchRequest,
-  scheduledAuditRequests,
   scheduledIntakeReceipts,
   scheduledReceiptOutcome,
   scheduledReceiptRequestKey,
@@ -20,6 +19,7 @@ import {
   runHostedIntakePasses,
   runHostedIntakeWorker,
 } from "./hosted-discovery-intake-runner.mts";
+import { scheduledAuditRequests } from "./hosted-discovery-intake-audits.mts";
 
 const outcome = (
   request: number,

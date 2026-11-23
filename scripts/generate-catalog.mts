@@ -6,7 +6,6 @@ import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import {
-  deltaBounds,
   enrollmentTable,
   factsTablePath,
   gateGeneration,
@@ -798,7 +797,6 @@ if (preparing) {
   const gateDelta = gateGeneration(
     readGateBaseline(process.env, gitRunner),
     authored.generation,
-    deltaBounds,
     readGateBaseline(process.env, gitRunner, factsTablePath),
   );
   if (process.argv.includes("--check")) {

@@ -745,7 +745,11 @@ Run `portcove --json catalog inspect-listing-artifact ARCHIVE --platform PLATFOR
 for a listing's release archive. It needs no catalog route. It verifies and
 extracts the bytes with the same readers; `--platform` selects only the reader
 rules. It returns `catalog.inspect-listing-artifact` data: `sha256`,
-`shape_version`, the number of regular `files` and the `player_candidates`.
+`shape_version`, the number of regular `files`, the `player_candidates` and
+the archive's listing as `names`: every distinct lowercase path component
+(directory and file name) of its regular files, sorted, and `leaves`: every
+distinct lowercase file name (the last component of each regular file, never
+a directory), sorted.
 A candidate is a regular file outside any tool, installer or server location
 whose header is a native executable. It has its lowercase comparison `path`,
 its `display_path` in the archive's own letter case, its platform-true machine

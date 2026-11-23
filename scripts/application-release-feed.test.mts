@@ -629,13 +629,14 @@ void test("locked application Release notes inventory retains exact records and 
           return Response.json([fault === "duplicate" ? release : next]);
         },
       });
+    // A completed walk re-reads each earlier page once and requires it unchanged.
     if (fault === "short-pages") {
       assert.equal((await read()).length, 17);
-      assert.equal(routes.length, 18);
+      assert.equal(routes.length, 1 + 17 + 16);
     } else {
       if (fault) await assert.rejects(read());
       else assert.deepEqual(await read(), [release, next]);
-      assert.equal(routes.length, fault && fault !== "duplicate" ? 2 : 3);
+      assert.equal(routes.length, fault === "" ? 4 : fault === "duplicate" ? 3 : 2);
     }
   }
 });

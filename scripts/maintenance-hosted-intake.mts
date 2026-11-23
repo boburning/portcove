@@ -12,7 +12,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
-import type { AuditContinuation } from "./hosted-discovery-intake-runner.mts";
+import type { AuditContinuation } from "./hosted-discovery-intake-audits.mts";
 import type { HostedCandidateSlot, HostedStatusAll } from "./hosted-discovery-intake.mts";
 
 export interface HostedIntakeGap {
