@@ -54,7 +54,12 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import {
   createPublicationInventoryWithSdk,
+  mergeVerifiedReceipts,
   peelReleaseReference,
+} from "./release-publication-inventory.mts";
+import type {
+  PublicationAllocation,
+  PublicationReceipt,
 } from "./release-publication-inventory.mts";
 import {
   recoverRemoteCoordinator,
@@ -1119,7 +1124,7 @@ function guardedCoordinatorJournal(
 export function deriveCoordinatorPublication(
   tags: Awaited<ReturnType<Reader["tags"]>>,
   releases: Awaited<ReturnType<Reader["releases"]>>,
-  allocations: Awaited<ReturnType<Reader["readAllocations"]>>["allocations"],
+  allocations: readonly (PublicationReceipt | PublicationAllocation)[],
   now: string,
   active?: unknown,
 ) {
@@ -1130,12 +1135,33 @@ export function deriveCoordinatorPublication(
   if (active != null) {
     if (!isRecord(active)) throw new Error("active reservation identity invalid");
     const matches = allocations.filter((entry) => entry.version === active.version);
+    // The active reservation is compared field by field against its verified
+    // raw-commit allocation; a bare receipt pair cannot stand in for it.
+    const verifiedKeys = [
+      "version",
+      "source_commit",
+      "source_tree",
+      "prepared_commit",
+      "prepared_tree",
+      "intent_sha256",
+    ];
     if (
       matches.length !== 1 ||
+      Object.keys(matches[0]!).sort().join(",") !== [...verifiedKeys].sort().join(",") ||
       Object.entries(matches[0]!).some(([key, value]) => active[key] !== value)
     )
       throw new Error("active reservation differs from complete immutable allocation receipts");
   }
+  // Exact lookups by tag name and version keep derivation linear in history.
+  const tagsByName = new Map<string, (typeof tags)[number][]>();
+  for (const tag of tags)
+    tagsByName.set(String(tag.name), [...(tagsByName.get(String(tag.name)) ?? []), tag]);
+  const allocationsByVersion = new Map<string, (typeof allocations)[number][]>();
+  for (const allocation of allocations)
+    allocationsByVersion.set(allocation.version, [
+      ...(allocationsByVersion.get(allocation.version) ?? []),
+      allocation,
+    ]);
   let latest: number | null = null;
   for (const release of releases) {
     if (release.draft || !isApplicationReviewReleaseTag(release.tag_name)) continue;
@@ -1146,10 +1172,10 @@ export function deriveCoordinatorPublication(
       !release.prerelease,
     ).version;
     if (versions.has(version)) throw new Error("duplicate published application version");
-    const refs = tags.filter((tag) => tag.name === release.tag_name);
+    const refs = tagsByName.get(release.tag_name) ?? [];
     if (refs.length !== 1) throw new Error("published application Release has no exact unique tag");
     const commit = peelReleaseReference(refs[0]!);
-    const prepared = allocations.filter((allocation) => allocation.version === version);
+    const prepared = allocationsByVersion.get(version) ?? [];
     if (prepared.length > 1 || (prepared[0] && prepared[0].prepared_commit !== commit))
       throw new Error("published Release differs from immutable preparation receipt");
     sources.add(prepared[0]?.source_commit ?? commit);
@@ -1171,6 +1197,24 @@ export function deriveCoordinatorPublication(
     last_routine_preview_at: latest === null ? null : new Date(latest).toISOString(),
     last_routine_preview_bound: "all-published-previews",
   };
+}
+
+/** Every receipt pair of the namespace, with raw-commit verification only for
+ * the active reservation, the one receipt whose full allocation a coordinator
+ * decision compares. Historical receipts contribute their pair identity. */
+export async function readDecisionAllocations(
+  inventory: Pick<Reader, "readAllocations">,
+  tags: Awaited<ReturnType<Reader["tags"]>>,
+  namespace: string,
+  active: unknown,
+) {
+  const version = isRecord(active) && typeof active.version === "string" ? active.version : null;
+  const { receipts, allocations } = await inventory.readAllocations(
+    tags,
+    namespace,
+    version === null ? [] : [version],
+  );
+  return mergeVerifiedReceipts(receipts, allocations);
 }
 
 /** The existing semantic baseline is the uniquely latest actual publication;
@@ -1331,7 +1375,12 @@ async function coordinateTrustedReleaseAt(
     });
     const tags = await inventory.tags();
     const releases = await inventory.releases();
-    const { allocations } = await inventory.readAllocations(tags, namespace);
+    const allocations = await readDecisionAllocations(
+      inventory,
+      tags,
+      namespace,
+      recovered.input.active_candidate,
+    );
     const changes = await collectReleaseSourceChangesWithSdk(sourceOptions, opportunity);
     if (changes.change_set_sha256 !== opportunity.change_set_sha256)
       throw new Error("independent complete source delta differs from reviewed opportunity");
@@ -2106,9 +2155,11 @@ async function prepareTrustedCoordinatorRenewalAt(
     });
     const tags = await inventory.tags();
     const releases = await inventory.releases();
-    const { allocations } = await inventory.readAllocations(
+    const allocations = await readDecisionAllocations(
+      inventory,
       tags,
       inspectCoordinatorRemoteNamespace(selected.remote_configuration),
+      recovered.input.active_candidate,
     );
     const publication = deriveCoordinatorPublication(
       tags,
@@ -4061,7 +4112,7 @@ async function requestTrustedSemanticReviewAt(
     });
     const tags = await inventory.tags();
     const releases = await inventory.releases();
-    const { allocations } = await inventory.readAllocations(tags, namespace);
+    const allocations = await readDecisionAllocations(inventory, tags, namespace, null);
     const now = new Date().toISOString();
     const baselineReleases = releases.filter((release) =>
       isApplicationReviewReleaseTag(release.tag_name),

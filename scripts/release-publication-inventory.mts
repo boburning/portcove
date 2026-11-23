@@ -7,6 +7,7 @@ import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
+import { isDeepStrictEqual } from "node:util";
 import type { GitHubClientOptions } from "./github-client.mts";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
@@ -242,7 +243,7 @@ async function runSequence<R, T>(
   return step.value;
 }
 
-type PublicationAllocation = {
+export type PublicationAllocation = {
   version: string;
   source_commit: string;
   source_tree: string;
@@ -272,7 +273,11 @@ function* readTags(
       head.totalCount !== scan.total ||
       !Array.isArray(head.nodes) ||
       head.nodes.length !== scan.head.length ||
-      head.nodes.some((node, index) => record(node).id !== scan.head[index])
+      head.nodes.some(
+        (node, index) =>
+          record(node).id !== scan.head[index] ||
+          !isDeepStrictEqual(projectTag(record(node), tagPrefix), scan.rows[index]),
+      )
     )
       throw new Error("admission refs changed before their resume point");
   }
@@ -309,11 +314,7 @@ function* readTags(
         names.has(tagPrefix + ref.name)
       )
         throw new Error("admission refs duplicate identities or names");
-      const row = structuredClone(ref);
-      // A namespace scan reports names relative to its prefix; keep the
-      // complete-scan shape so allocation checks see identical records.
-      row.name = tagPrefix + ref.name;
-      row.prefix = tagsRefPrefix;
+      const row = projectTag(ref, tagPrefix);
       ids.add(ref.id);
       names.add(row.name);
       accepted.push(row);
@@ -341,6 +342,15 @@ function* readTags(
     scan.cursors.push(info.endCursor);
     scan.cursor = info.endCursor;
   }
+}
+
+/** A namespace scan reports names relative to its prefix; keep the
+ * complete-scan shape so allocation checks see identical records. */
+function projectTag(ref: Record<string, unknown>, tagPrefix: string) {
+  const row = structuredClone(ref);
+  row.name = tagPrefix + String(ref.name);
+  row.prefix = tagsRefPrefix;
+  return row;
 }
 
 function namespaceRefPrefixes(namespace: string) {
@@ -383,15 +393,88 @@ function inspectExactTag(data: unknown, nodeId: string, name: string) {
   return structuredClone(ref);
 }
 
-function* readAllocationPairs(
-  initialTags: Record<string, unknown>[],
+/** One complete receipt pair of a reservation namespace, established from the
+ * two receipt tags alone: the version tag and the source tag point to the same
+ * raw prepared commit. It costs no provider request beyond the tag listing. */
+export type PublicationReceipt = {
+  version: string;
+  source_commit: string;
+  prepared_commit: string;
+};
+
+/** Pairs every receipt in a namespace from tag names and direct targets. The
+ * pair structure, unique sources, direct commit targets and version identity
+ * are checked for every receipt; no receipt is dropped or capped. */
+function receiptPairs(
+  initialTags: readonly Record<string, unknown>[],
   namespace: string,
+): PublicationReceipt[] {
+  inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace });
+  const versionPrefix = `${namespace}-prepared/`;
+  const sourcePrefix = `${namespace}-prepared-source/`;
+  const versions = initialTags.filter((r) => String(r.name).startsWith(versionPrefix));
+  const sources = initialTags.filter((r) => String(r.name).startsWith(sourcePrefix));
+  if ([...versions, ...sources].some((ref) => record(ref.target).__typename !== "Commit"))
+    throw new Error("preparation receipts must point directly to raw commits");
+  if (versions.length !== sources.length)
+    throw new Error("reservation namespace has incomplete receipt pairs");
+  const sourcesByPrepared = new Map<string, string[]>();
+  for (const ref of sources) {
+    const prepared = peel(ref);
+    sourcesByPrepared.set(prepared, [
+      ...(sourcesByPrepared.get(prepared) ?? []),
+      String(ref.name).slice(sourcePrefix.length),
+    ]);
+  }
+  const receipts: PublicationReceipt[] = [];
+  const seenSources = new Set<string>();
+  const seenVersions = new Set<string>();
+  for (const ref of versions) {
+    const tag = String(ref.name).slice(versionPrefix.length);
+    if (!tag.startsWith("v")) throw new Error("reservation version prefix differs");
+    const version = classifyApplicationVersion(tag.slice(1)).version;
+    if (seenVersions.has(version)) throw new Error("reservation version allocated more than once");
+    seenVersions.add(version);
+    const prepared = peel(ref);
+    const matches = sourcesByPrepared.get(prepared) ?? [];
+    if (matches.length !== 1) throw new Error("reservation source pair is missing or ambiguous");
+    const source = matches[0]!;
+    oid(source);
+    if (seenSources.has(source)) throw new Error("reservation source allocated more than once");
+    seenSources.add(source);
+    receipts.push({ version, source_commit: source, prepared_commit: prepared });
+  }
+  return receipts;
+}
+
+/** Selects which receipts a decision reads beyond their pair identity. */
+export type ReceiptVerification = "all" | readonly string[];
+
+/** Reads both raw commits of each selected receipt and checks the prepared
+ * intent against its pair. A receipt's raw commits are immutable and were
+ * verified when it was allocated and again when it was published; a decision
+ * that consumes only a historical receipt's pair identity does not re-read
+ * them, so this work is proportional to the selection, not to history. */
+function* readAllocationPairs(
+  initialTags: readonly Record<string, unknown>[],
+  namespace: string,
+  verify: ReceiptVerification = "all",
 ): Generator<
   string,
-  { allocations: PublicationAllocation[]; intents: Map<string, string> },
+  {
+    receipts: PublicationReceipt[];
+    allocations: PublicationAllocation[];
+    intents: Map<string, string>;
+  },
   unknown
 > {
-  inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace });
+  const receipts = receiptPairs(initialTags, namespace);
+  if (verify !== "all") {
+    if (!Array.isArray(verify) || verify.some((version) => typeof version !== "string"))
+      throw new Error("receipt verification selection is invalid");
+    for (const version of verify) classifyApplicationVersion(version);
+  }
+  const selected = verify === "all" ? null : new Set(verify);
   const intents = new Map<string, string>();
   const commits = new Map<string, ReturnType<typeof inspectRemoteCommitObject>>();
   function* commit(
@@ -404,28 +487,11 @@ function* readAllocationPairs(
     }
     return value;
   }
-  const versionPrefix = `${namespace}-prepared/`;
-  const sourcePrefix = `${namespace}-prepared-source/`;
-  const versions = initialTags.filter((r) => String(r.name).startsWith(versionPrefix));
-  const sources = initialTags.filter((r) => String(r.name).startsWith(sourcePrefix));
-  if ([...versions, ...sources].some((ref) => record(ref.target).__typename !== "Commit"))
-    throw new Error("preparation receipts must point directly to raw commits");
-  if (versions.length !== sources.length)
-    throw new Error("reservation namespace has incomplete receipt pairs");
   const allocations: PublicationAllocation[] = [];
-  const seenSources = new Set<string>();
-  for (const ref of versions) {
-    const tag = String(ref.name).slice(versionPrefix.length);
-    if (!tag.startsWith("v")) throw new Error("reservation version prefix differs");
-    const allocated = classifyApplicationVersion(tag.slice(1)).version;
-    const prepared = peel(ref);
+  for (const receipt of receipts) {
+    if (selected && !selected.has(receipt.version)) continue;
+    const { version: allocated, source_commit: source, prepared_commit: prepared } = receipt;
     const object = yield* commit(prepared);
-    const matches = sources.filter((r) => peel(r) === prepared);
-    if (matches.length !== 1) throw new Error("reservation source pair is missing or ambiguous");
-    const source = String(matches[0]!.name).slice(sourcePrefix.length);
-    oid(source);
-    if (seenSources.has(source)) throw new Error("reservation source allocated more than once");
-    seenSources.add(source);
     const original = yield* commit(source);
     const text = Buffer.from(object.object.bytes).toString("utf8");
     const intent = text.match(/\nPortcove-Preparation-SHA256: ([a-f0-9]{64})\n/u)?.[1];
@@ -457,7 +523,26 @@ function* readAllocationPairs(
     });
   }
 
-  return { allocations, intents };
+  return { receipts, allocations, intents };
+}
+
+/** The decision-ready receipt list: every receipt, with the verified
+ * allocation in place of the bare pair wherever one was read. */
+export function mergeVerifiedReceipts(
+  receipts: readonly PublicationReceipt[],
+  allocations: readonly PublicationAllocation[],
+): (PublicationReceipt | PublicationAllocation)[] {
+  const verified = new Map(allocations.map((allocation) => [allocation.version, allocation]));
+  return receipts.map((receipt) => {
+    const allocation = verified.get(receipt.version);
+    if (
+      allocation &&
+      (allocation.source_commit !== receipt.source_commit ||
+        allocation.prepared_commit !== receipt.prepared_commit)
+    )
+      throw new Error("verified allocation differs from its receipt pair");
+    return structuredClone(allocation ?? receipt);
+  });
 }
 
 function inspectPublicationReleaseRecord(r: Record<string, unknown>) {
@@ -552,8 +637,12 @@ export function createReleasePublicationReader(rawApi: Api) {
     ).sort((a, b) => a.id - b.id);
   };
 
-  const readAllocations = (initialTags: Record<string, unknown>[], namespace: string) =>
-    runLegacySequence(readAllocationPairs(initialTags, namespace), (sha) =>
+  const readAllocations = (
+    initialTags: readonly Record<string, unknown>[],
+    namespace: string,
+    verify?: ReceiptVerification,
+  ) =>
+    runLegacySequence(readAllocationPairs(initialTags, namespace, verify), (sha) =>
       get(`git/commits/${sha}`),
     );
   return { tags, namespaceTags, tag, releases, readAllocations };
@@ -728,8 +817,14 @@ export async function createPublicationInventoryWithSdk(options: {
         rows: rows.sort((a, b) => a.id - b.id),
       };
     },
-    readAllocations: (tags: Record<string, unknown>[], namespace: string) =>
-      runSequence(readAllocationPairs(tags, namespace), async (sha) => {
+    /** Every receipt pair, with raw-commit intent verification limited to
+     * `verify` (all receipts when omitted). */
+    readAllocations: (
+      tags: readonly Record<string, unknown>[],
+      namespace: string,
+      verify?: ReceiptVerification,
+    ) =>
+      runSequence(readAllocationPairs(tags, namespace, verify), async (sha) => {
         const data: unknown = (await read(`GET /${base}/git/commits/${sha}`)).data;
         return data;
       }),
@@ -860,25 +955,35 @@ function* walkReleaseInventory<T>(
   const { suffix } = scan;
   const first = `https://api.github.com/${base}${suffix}?per_page=100`;
   const ids = new Set(scan.ids);
-  const sameIds = (body: unknown, ids: number[]) =>
+  // A re-read page must hold the identical IDs in the identical order and the
+  // identical projected rows, so an in-place edit of an already-read record
+  // (draft, prerelease, tag or publication time) is detected at no extra cost.
+  const samePage = (body: unknown, page: { ids: number[]; rows: unknown[] }) =>
     Array.isArray(body) &&
-    body.length === ids.length &&
-    body.every((raw, index) => record(raw).id === ids[index]);
+    body.length === page.ids.length &&
+    body.every((raw, index) => {
+      const row = record(raw);
+      return row.id === page.ids[index] && isDeepStrictEqual(project(row), page.rows[index]);
+    });
   // Pages that end-of-walk verification re-reads, in the order they were read.
-  const verify: { route: string; ids: number[] }[] = [];
+  const verify: { route: string; ids: number[]; rows: unknown[] }[] = [];
   if (scan.previous) {
-    const previous = scan.previous;
+    const previous = {
+      ...scan.previous,
+      rows: scan.rows.slice(scan.rows.length - scan.previous.ids.length),
+    };
+    const headPage = { route: first, ids: scan.head, rows: scan.rows.slice(0, scan.head.length) };
     if (scan.page > 2) {
       const head = yield new URL(first);
-      if (!sameIds(head.data, scan.head))
+      if (!samePage(head.data, headPage))
         throw new Error("release inventory changed before its resume point");
-      verify.push({ route: first, ids: scan.head });
+      verify.push(headPage);
     }
     const response = yield new URL(previous.route);
     const body: unknown = response.data;
     if (
       !Array.isArray(body) ||
-      !sameIds(body, previous.ids) ||
+      !samePage(body, previous) ||
       nextInventoryRoute(response.headers.link, scan.page - 1, suffix, body.length) !== scan.route
     )
       throw new Error("release inventory changed before its resume point");
@@ -921,7 +1026,7 @@ function* walkReleaseInventory<T>(
       }
       for (const page of verify) {
         const again = yield new URL(page.route);
-        if (!sameIds(again.data, page.ids))
+        if (!samePage(again.data, page))
           throw new PublicationInventoryIncompleteError(
             new Error("release inventory changed during the scan"),
             scan,
@@ -933,7 +1038,7 @@ function* walkReleaseInventory<T>(
     scan.ids.push(...pageIds);
     scan.rows.push(...pageRows);
     if (next === null) return scan.rows as T[];
-    verify.push({ route: route.href, ids: pageIds });
+    verify.push({ route: route.href, ids: pageIds, rows: pageRows });
     scan.previous = { route: route.href, ids: pageIds };
     scan.page++;
     scan.route = next;

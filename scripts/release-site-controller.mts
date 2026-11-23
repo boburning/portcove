@@ -567,9 +567,12 @@ export async function runSitePublicationController(
       });
       const tags = await inventory.tags();
       const releases = await inventory.releases();
-      const { allocations } = await inventory.readAllocations(
+      // Completion compares only receipt pair identities (version, source,
+      // prepared commit); no historical raw receipt commit is re-read.
+      const { receipts: allocations } = await inventory.readAllocations(
         tags,
         inspectCoordinatorRemoteNamespace(remote),
+        [],
       );
       const nextPublication = deriveCoordinatorPublication(
         tags,

@@ -81,7 +81,7 @@ void test("public allocation inventory reads only the namespace receipt prefixes
         "refs/tags/portcove-public-prepared/",
       ]);
     } else {
-      assert.deepEqual(await result, { allocations: [], intents: new Map() });
+      assert.deepEqual(await result, { receipts: [], allocations: [], intents: new Map() });
       assert.deepEqual(prefixes, [
         "refs/tags/portcove-public-prepared/",
         "refs/tags/portcove-public-prepared-source/",

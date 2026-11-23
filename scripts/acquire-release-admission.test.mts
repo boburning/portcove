@@ -1974,3 +1974,227 @@ void test("incomplete provider evidence is refused rather than read as absence",
   await assert.rejects(reader.tag("v0.0.2"), /timeout/u);
   await assert.rejects(reader.tag("refs/tags/v0.0.3"), /requires one valid tag name/u);
 });
+
+/** Adds `count` published historical versions, each with its published tag
+ * and its complete receipt pair, to an admission fixture. */
+function publishHistory(f: Awaited<ReturnType<typeof fixture>>, count: number) {
+  const oidOf = (value: number) => value.toString(16).padStart(40, "0");
+  for (let i = 0; i < count; i++) {
+    const version = `0.0.${i + 1}`;
+    const prepared = oidOf(0x1000000 + 2 * i);
+    const source = oidOf(0x1000001 + 2 * i);
+    const target = { __typename: "Commit", oid: prepared };
+    f.tags.push(
+      { id: `Ref_published_${i}`, name: `v${version}`, prefix: "refs/tags/", target },
+      {
+        id: `Ref_receipt_${i}`,
+        name: `portcove-fixture-prepared/v${version}`,
+        prefix: "refs/tags/",
+        target,
+      },
+      {
+        id: `Ref_receipt_source_${i}`,
+        name: `portcove-fixture-prepared-source/${source}`,
+        prefix: "refs/tags/",
+        target,
+      },
+    );
+    f.releases.push({
+      id: 100000 + i,
+      tag_name: `v${version}`,
+      draft: false,
+      prerelease: false,
+      published_at: "2026-10-01T00:00:00Z",
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+  }
+  f.tags.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+for (const count of [256, 257])
+  void test(`admission verifies only the active receipt's raw commits with ${count} published historical versions`, async (t) => {
+    const commits = (calls: string[]) => calls.filter((call) => call.includes("/git/commits/"));
+    const empty = await fixture(t);
+    await acquireReleaseAdmission(empty.root, empty.config, empty.options);
+    const f = await fixture(t);
+    publishHistory(f, count);
+    const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+    // Before receipt pairing every historical receipt cost two raw-commit
+    // reads (2 x 258 more here), which exhausted the 160-request admission
+    // budget at roughly sixty published versions. History adds none now.
+    assert.deepEqual(commits(f.calls), commits(empty.calls));
+    assert.equal(result.decision, "hold");
+    assert.ok(result.holds.includes("routine-preview-publication-history-unresolved"));
+    assert.equal(result.allocations.length, count + 1);
+    const publication = result.publication as {
+      published_versions: string[];
+      published_sources: string[];
+      reserved_versions: string[];
+    };
+    assert.equal(publication.published_versions.length, count);
+    assert.equal(publication.published_sources.length, count);
+    // The complete reservation inventory still finds exactly the active
+    // reservation unpublished past the former 256-entry coordinator bound.
+    assert.deepEqual(publication.reserved_versions, [f.input.active_candidate.version]);
+  });
+
+void test("admission still refuses a historical receipt that does not pair beyond the former bound", async (t) => {
+  const f = await fixture(t);
+  publishHistory(f, 257);
+  const unpaired = f.tags.findIndex((tag) =>
+    tag.name.startsWith("portcove-fixture-prepared-source/"),
+  );
+  f.tags.splice(unpaired, 1);
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, f.options),
+    /repository-and-reservation/u,
+  );
+});
+
+for (const count of [1600, 1601])
+  void test(`admission's synchronous reader reads a ${count}-Release inventory past the former 16-page guard`, async (t) => {
+    const f = await fixture(t);
+    for (let i = 0; i < count; i++)
+      f.releases.push({
+        id: 200000 + i,
+        tag_name: `v0.1.0-alpha.${100 + i}`,
+        draft: true,
+        prerelease: true,
+        published_at: null,
+        updated_at: "2026-10-18T00:00:00Z",
+      });
+    const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+    assert.equal(result.decision, "hold");
+    const last = Math.ceil(count / 100);
+    // The final page is read once by the walk and once by the freshness
+    // bracket; page 17 was refused as an escaped traversal before.
+    assert.equal(
+      f.calls.filter((call) => call.endsWith(`releases?per_page=100&page=${last}`)).length,
+      2,
+    );
+  });
+
+void test("an in-place edit of an already-read Release is refused as changed, never accepted stale", async () => {
+  const provider = simulatedPublicationProvider(350);
+  let edited = false;
+  provider.fault = (url) => {
+    // After the walk has accepted page 1, the newest Release is edited in
+    // place: same ID, same position, different publication facts.
+    if (!edited && url.searchParams.get("page") === "3") {
+      const newest = provider.releases.at(-1)!;
+      newest.prerelease = false;
+      newest.updated_at = "2026-11-05T00:00:00Z";
+      edited = true;
+    }
+    return undefined;
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /changed during the scan/u.test(error.message),
+  );
+  const rows = await (await openSimulatedInventory(provider)).releases();
+  assert.equal(rows.at(-1)?.prerelease, false);
+});
+
+void test("a resumed inventory whose already-read rows were edited is refused as incomplete", async () => {
+  const provider = simulatedPublicationProvider(9000);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  provider.releases.at(-1)!.draft = true;
+  // The continuation is discarded, not completed from stale rows; a fresh
+  // single-pass read is the only way forward.
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).resumeReleases(interrupted.checkpoint),
+    /changed before its resume point/u,
+  );
+  const tagProvider = simulatedPublicationProvider(20000);
+  const tags = await interruptedScan(tagProvider, (reader) => reader.tags());
+  // Same ref ID and name, moved to another commit: an in-place tag edit.
+  tagProvider.tags[0]!.target = { __typename: "Commit", oid: "e".repeat(40) };
+  await assert.rejects(
+    (await openSimulatedInventory(tagProvider)).resumeTags(tags.checkpoint),
+    /changed before their resume point/u,
+  );
+});
+
+for (const count of [256, 257, 1600, 1601, 20000])
+  void test(`receipt pairing reads ${count} receipts with no per-receipt request and still detects a late conflict`, async () => {
+    const oidOf = (value: number) => value.toString(16).padStart(40, "0");
+    const provider = simulatedPublicationProvider(1);
+    for (let i = 0; i < count; i++) {
+      const target = { __typename: "Commit", oid: oidOf(0x1000000 + 2 * i) };
+      provider.tags.push(
+        {
+          id: `receipt-${i}`,
+          name: `portcove-fixture-prepared/v1.${Math.floor(i / 1000)}.${i % 1000}`,
+          prefix: "refs/tags/",
+          target,
+        },
+        {
+          id: `receipt-source-${i}`,
+          name: `portcove-fixture-prepared-source/${oidOf(0x1000001 + 2 * i)}`,
+          prefix: "refs/tags/",
+          target,
+        },
+      );
+    }
+    provider.tags.sort((a, b) => a.name.localeCompare(b.name));
+    const pagesNeeded = 1 + 2 * Math.ceil(count / 100);
+    if (pagesNeeded > 160)
+      // One default reader's 160-request budget cannot list this namespace in
+      // a single pass; it fails visibly as incomplete, never as absence.
+      await assert.rejects(
+        (await openSimulatedInventory(provider)).namespaceTags("portcove-fixture"),
+        PublicationInventoryIncompleteError,
+      );
+    let granted = 0;
+    const reader = await createPublicationInventoryWithSdk({
+      token: "synthetic-scale-inventory",
+      deadline: performance.now() + 120000,
+      recheck: async () => {},
+      fetch: provider.fetch,
+      // A caller-owned budget sized to the namespace (as admission supplies).
+      accounting: {
+        reserve() {
+          if (++granted > pagesNeeded) throw new Error("caller budget exceeded");
+          return { consumeBytes() {}, settle() {} };
+        },
+        elapsed() {},
+        currentDeadline: () => performance.now() + 120000,
+      },
+    });
+    const before = provider.requests;
+    const namespace = await reader.namespaceTags("portcove-fixture");
+    const pages = 2 * Math.ceil(count / 100);
+    assert.equal(provider.requests - before, pages);
+    const { receipts, allocations } = await reader.readAllocations(
+      namespace,
+      "portcove-fixture",
+      [],
+    );
+    // Receipt pairs come from the tag listing alone: no raw-commit reads,
+    // where every receipt previously cost two.
+    assert.equal(provider.requests - before, pages);
+    assert.equal(receipts.length, count);
+    assert.equal(allocations.length, 0);
+    const last = `1.${Math.floor((count - 1) / 1000)}.${(count - 1) % 1000}`;
+    assert.deepEqual(
+      receipts.find((receipt) => receipt.version === last),
+      {
+        version: last,
+        source_commit: oidOf(0x1000001 + 2 * (count - 1)),
+        prepared_commit: oidOf(0x1000000 + 2 * (count - 1)),
+      },
+    );
+    // A source receipt paired twice past every former bound is a conflict.
+    const conflicting = structuredClone(namespace);
+    const lastSource = conflicting.findLastIndex((row) =>
+      String(row.name).startsWith("portcove-fixture-prepared-source/"),
+    );
+    conflicting[lastSource]!.target = structuredClone(conflicting[0]!.target);
+    await assert.rejects(
+      reader.readAllocations(conflicting, "portcove-fixture", []),
+      /source pair is missing or ambiguous/u,
+    );
+  });

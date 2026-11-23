@@ -467,8 +467,13 @@ async function authorizeRiskSubject706(
   });
   const beforeTags = await reader.tags();
   const beforeReleases = await reader.releases();
-  const { allocations } = await reader.readAllocations(beforeTags, authorities.namespace);
-  if (allocations.length > 256) throw new Error("risk allocation inventory exceeds existing bound");
+  // Exposure history needs every allocated version's destination, which the
+  // receipt pairs name; no raw receipt commit is a decision input here.
+  const { receipts: allocations } = await reader.readAllocations(
+    beforeTags,
+    authorities.namespace,
+    [],
+  );
   const publicationDestinations = new Set(
     allocations.map((allocation) =>
       digest(`github-release:boburning/portcove:v${allocation.version}:publish`),
