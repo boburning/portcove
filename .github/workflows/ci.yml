@@ -809,8 +809,9 @@ jobs:
 
   fast_catalog:
     # 45 before listing facts reproduction, plus its CLI build (20), plan (2)
-    # and verification (42) when a change touches the facts table.
-    timeout-minutes: 110
+    # and verification (45: a 2-minute canonical check, the 30-minute
+    # reproduction deadline, one 10-minute item and headroom).
+    timeout-minutes: 115
     name: fast-catalog (linux-x86_64)
     needs: classify
     # actions: read lets a facts batch's provenance be read from its run.
@@ -870,7 +871,7 @@ jobs:
       # claims to be a batch keeps the path allowlist and its run provenance.
       - name: Verify changed listing package facts
         if: steps.listing-facts.outputs.reproduce == 'true' || steps.listing-facts.outputs.batch == 'true'
-        timeout-minutes: 42
+        timeout-minutes: 45
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove
@@ -1680,7 +1681,7 @@ jobs:
       # claims to be a batch keeps the path allowlist and its run provenance.
       - name: Verify changed listing package facts
         if: steps.listing-facts.outputs.reproduce == 'true' || steps.listing-facts.outputs.batch == 'true'
-        timeout-minutes: 42
+        timeout-minutes: 45
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove

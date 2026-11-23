@@ -1920,7 +1920,7 @@ export interface ReproductionBudget {
  * delta bound; 4 GiB is two worker runs' byte budget, and an archive is never
  * larger than the worker reads (512 MiB). The 30-minute deadline is checked
  * before each archive, and one download or Core run stops after 10 minutes,
- * so a reproduction ends within 40 minutes, inside its 42-minute CI step.
+ * so a reproduction ends within 40 minutes, inside its 45-minute CI step.
  */
 export const reproductionBudget: ReproductionBudget = {
   maxEntries: Math.max(deltaBounds.added, deltaBounds.changed),
