@@ -804,7 +804,8 @@ void test("receipt tag protection fails closed when absent, weaker or narrower",
         creator,
       ],
     ],
-    ["open creation", [immutable, policy(["creation"], [])]],
+    ["creation without the writer", [immutable, policy(["creation"], [])]],
+    ["writer and owner creation", [immutable, policy(["creation"], [writer, owner])]],
     ["owner creation", [immutable, policy(["creation"], [owner])]],
   ] as const) {
     assert.equal(

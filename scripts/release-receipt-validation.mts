@@ -125,7 +125,9 @@ export async function validateReleaseReceipts(namespace: string, reader: Receipt
     seenVersions.add(pair.version);
     seenSources.add(pair.source_commit);
   }
-  const pairs = verified.toSorted((a, b) => a.version.localeCompare(b.version));
+  // Code-unit order keeps the inventory digest identical across environments.
+  const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const pairs = verified.toSorted((a, b) => byCodeUnit(a.version, b.version));
   const inventory = {
     schema_version: 1,
     namespace,
@@ -137,9 +139,7 @@ export async function validateReleaseReceipts(namespace: string, reader: Receipt
     ...inventory,
     empty: tags.length === 0,
     inventory_sha256: createHash("sha256").update(canonical(inventory)).digest("hex"),
-    discrepancies: discrepancies.toSorted((a, b) =>
-      a.tags.join(" ").localeCompare(b.tags.join(" ")),
-    ),
+    discrepancies: discrepancies.toSorted((a, b) => byCodeUnit(a.tags.join(" "), b.tags.join(" "))),
   };
 }
 

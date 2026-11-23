@@ -144,6 +144,12 @@ pattern's `*` against one path component, which is exactly one receipt name.
 weaker, and release operations interpret the observer's inventory through
 `requireReceiptTagProtectionPolicy`. Exact raw-commit verification remains at
 allocation time, for the active reservation, and in the published-source proof.
+Before applying the receipt immutability policy, confirm that GitHub accepts a
+same-object `updateRefs` assertion (`beforeOid` equal to `afterOid`) on a tag
+covered by an `update` rule with no bypass: every coordinator checkpoint after
+an allocation re-asserts both receipts that way inside its signed atomic
+transaction. If GitHub refuses it, do not apply the policy; the next checkpoint
+of every active reservation would fail closed and stall releases.
 `node scripts/release-receipt-validation.mts` is the read-only cutover check:
 it verifies every existing pair against its source commit, prepared commit and
 preparation intent and prints the covered inventory, its digest and every
