@@ -161,7 +161,10 @@ function applicationSourceControlOptions(token = fixedReleaseReaderToken()) {
 
 function openApplicationSourceMetadata(token = fixedReleaseReaderToken()) {
   const options = applicationSourceControlOptions(token);
-  return createReleaseCustodyProvider({ ...options, beforeDispatch: options.guard });
+  return createReleaseCustodyProvider({
+    ...options,
+    beforeDispatch: options.guard,
+  });
 }
 
 export async function readApplicationSemanticSelection(source: string) {
@@ -286,8 +289,8 @@ async function selectForQualification() {
   );
   const latest = releases[0];
   assert.ok(latest, "an actual published dependency-review baseline is required");
-  const tag = (await reader.tags()).find((value) => value.name === latest.tag_name);
-  assert.ok(tag);
+  const tag = await reader.tag(latest.tag_name);
+  assert.ok(tag, "the published baseline tag is required");
   const base = peelReleaseReference(tag);
   const details = await (await openApplicationSourceMetadata(token)).release(latest.id);
   assert.ok(
@@ -444,7 +447,7 @@ async function prepare() {
   const history = retained?.published_versions ?? publishedHistory;
   // Reuse/retirement of a previously published prepared source is handled by the
   // immutable-release recovery path, never by allocating the source twice.
-  const tags = await publicationReader.tags();
+  const tags = await publicationReader.namespaceTags("portcove-production");
   const allocations = await publicationReader.readAllocations(tags, "portcove-production");
   assert.ok(
     !allocations.allocations.some((value) => value.source_commit === run.head_sha),
@@ -507,7 +510,10 @@ async function prepare() {
     {
       open: (deadline) => createNativePreparedObjectTransport(fixedReleaseReaderToken(), deadline),
       beforeWrite: () =>
-        beforeWrite(registration.known_run_ids, { release_id: registration.release_id, custody }),
+        beforeWrite(registration.known_run_ids, {
+          release_id: registration.release_id,
+          custody,
+        }),
     },
   );
   const packet = {
@@ -584,7 +590,10 @@ async function recoverImmutableFeed() {
     published_versions: preparation.published_versions,
     semantic: selected,
     qualification,
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -671,14 +680,20 @@ async function bootstrap() {
     opportunity: expected.descriptor_sha256,
     bootstrap_descriptor: raw,
     bootstrap_appointment: expected,
-    bootstrap_preimage: { inventory_sha256: retained.inventory_sha256, authority: "none" },
+    bootstrap_preimage: {
+      inventory_sha256: retained.inventory_sha256,
+      authority: "none",
+    },
     ...(originalSite
       ? {
           bootstrap_draft_recovery: recoveryAppointment,
           bootstrap_draft_site_base64: originalSite.toString("base64"),
         }
       : {}),
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -741,8 +756,14 @@ async function recoverImmutableBootstrapFeed() {
     opportunity: original.opportunity,
     bootstrap_descriptor: raw,
     bootstrap_appointment: expected,
-    bootstrap_preimage: { inventory_sha256: preimage.inventory_sha256, authority: "none" },
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    bootstrap_preimage: {
+      inventory_sha256: preimage.inventory_sha256,
+      authority: "none",
+    },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -852,7 +873,10 @@ async function renewPublishedMetadata() {
     opportunity,
     renewal_basis: basis,
     renewal_clock: "native-context-reservation-v1",
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -959,7 +983,10 @@ async function renewUnservedMetadata() {
     renewal_public_prior_repository_sha256: prior.receipt.publication.repository_sha256,
     renewal_clock: "native-context-reservation-v1",
     ...(semantic ? { renewal_semantic: semantic } : {}),
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -1030,7 +1057,10 @@ async function recoverRetainedMetadataDraftFeed(
     opportunity,
     renewal_basis: basis,
     renewal_clock: "native-context-reservation-v1",
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,
@@ -1115,7 +1145,11 @@ async function recoverImmutableMetadataFeed() {
     assert.equal(opportunity, retainedServedRenewal.opportunity);
     assert.equal(execution.run_attempt, 1);
     const { id, control_commit, control_ref, attempt } = appointed.assembly;
-    assert.deepEqual(prior.receipt.producer, { id, control_commit, control_ref });
+    assert.deepEqual(prior.receipt.producer, {
+      id,
+      control_commit,
+      control_ref,
+    });
     assert.equal(prior.receipt.producer_attempt, attempt);
     assert.equal(prior.receipt.site.generation, appointed.generation);
     assert.equal(prior.metadata.context_sha256, appointed.context.context_sha256);
@@ -1210,7 +1244,10 @@ async function recoverImmutableMetadataFeed() {
     ...forward,
     ...(semantic ? { renewal_semantic: semantic } : {}),
     renewal_clock: "native-context-reservation-v1",
-    run_custody: { release_id: registration.release_id, custody: registration.custody },
+    run_custody: {
+      release_id: registration.release_id,
+      custody: registration.custody,
+    },
     control_commit: execution.source,
     control_ref: execution.ref,
     run_id: execution.run_id,

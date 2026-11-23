@@ -24,8 +24,10 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import {
+  PublicationInventoryIncompleteError,
   createPublicationInventoryWithSdk,
   readPublicationAllocationsWithSdk,
+  releasePublicationPrefixRefsQuery,
   releasePublicationRefsQuery,
 } from "./release-publication-inventory.mts";
 
@@ -211,7 +213,11 @@ void test("imported or frozen zero-hold descriptors cannot mint an actual stage-
       stage: "release-publication",
       facts: {},
       controls: { evidence_scope: "github.com" },
-      admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
+      admission: {
+        decision: "admitted",
+        holds: [],
+        evidence_scope: "github.com",
+      },
       checkpoint: "a".repeat(40),
       pending_obligations: [],
     }),
@@ -268,7 +274,9 @@ void test("admission cannot relabel injected provenance when the caller mutates 
   const f = await fixture(t);
   const original = f.options.recover;
   assert.ok(original);
-  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = { ...f.options };
+  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
+    ...f.options,
+  };
   options.recover = async (...args) => {
     delete options.api;
     delete options.download;
@@ -331,7 +339,11 @@ import {
 
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function commit(tree: string, parents: string[], message: string) {
-  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
+  const actor = {
+    name: "Fixture",
+    email: "fixture@example.invalid",
+    date: "2026-10-18T00:00:00Z",
+  };
   const header = `tree ${tree}\n${parents.map((p) => `parent ${p}\n`).join("")}author Fixture <fixture@example.invalid> 1792281600 +0000\ncommitter Fixture <fixture@example.invalid> 1792281600 +0000`;
   const raw = Buffer.from(`${header}\n\n${message}`);
   const sha = createHash("sha1").update(`commit ${raw.length}\0`).update(raw).digest("hex");
@@ -610,16 +622,35 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
         if (route === `/commits/${prepared.sha}/check-runs`)
           return response({ total_count: checks.length, check_runs: checks });
         if (route === `/commits/${prepared.sha}/status`)
-          return response({ sha: prepared.sha, total_count: statuses.length, statuses });
+          return response({
+            sha: prepared.sha,
+            total_count: statuses.length,
+            statuses,
+          });
         throw Error(`unexpected fixture route ${route}`);
       },
       graphql: (query: string, variables?: Readonly<Record<string, unknown>>) => {
         calls.push("GraphQL refs");
-        assert.match(query, /query AdmissionRefs/u);
+        assert.match(query, /query Admission(?:Prefix)?Refs/u);
         assert.doesNotMatch(query, /mutation/u);
         const offset = variables?.cursor === null ? 0 : Number(variables?.cursor);
-        if (offset === 0) tagRounds++;
-        const rows = structuredClone(tags.slice(offset, offset + 100));
+        // A namespace scan reads one ref prefix, with names relative to it.
+        const scoped =
+          typeof variables?.prefix === "string"
+            ? String(variables.prefix).slice("refs/tags/".length)
+            : null;
+        if (offset === 0 && scoped === null) tagRounds++;
+        const matching =
+          scoped === null
+            ? tags
+            : tags
+                .filter((tag) => tag.name.startsWith(scoped))
+                .map((tag) => ({
+                  ...tag,
+                  name: tag.name.slice(scoped.length),
+                  prefix: `refs/tags/${scoped}`,
+                }));
+        const rows = structuredClone(matching.slice(offset, offset + 100));
         if (faults.value === "tag-drift" && tagRounds > 1 && rows[0])
           rows[0].target.oid = "e".repeat(40);
         if (faults.value === "duplicate-tag" && rows[1]) rows[1].id = rows[0]!.id;
@@ -632,10 +663,10 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
               databaseId: 1354613114,
               nameWithOwner: "boburning/portcove",
               refs: {
-                totalCount: tags.length + (faults.value === "truncated" ? 1 : 0),
+                totalCount: matching.length + (faults.value === "truncated" ? 1 : 0),
                 nodes: rows,
                 pageInfo: {
-                  hasNextPage: offset + 100 < tags.length,
+                  hasNextPage: offset + 100 < matching.length,
                   endCursor: String(offset + rows.length),
                 },
               },
@@ -662,7 +693,11 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
     config:
       profile === "full"
         ? { schema_version: 1, namespace: "portcove-fixture" }
-        : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
+        : {
+            schema_version: 2,
+            namespace: "portcove-fixture",
+            release_profile: profile,
+          },
   };
 }
 
@@ -688,10 +723,12 @@ void test("locked allocation reader joins the exact raw prepared and source comm
         assert.ok(typeof init?.body === "string");
         const raw: unknown = JSON.parse(init.body);
         assert.ok(
-          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          isRecord(raw) &&
+            raw.query === releasePublicationPrefixRefsQuery &&
+            isRecord(raw.variables),
         );
         return Response.json({
-          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          data: api.graphql(releasePublicationPrefixRefsQuery, raw.variables).data,
         });
       }
       return Response.json(api.request("GET", pathname.slice(1)).body);
@@ -710,6 +747,7 @@ void test("locked allocation reader joins the exact raw prepared and source comm
   ]);
   assert.deepEqual(paths, [
     "/repos/boburning/portcove",
+    "/graphql",
     "/graphql",
     `/repos/boburning/portcove/git/commits/${f.prepared.sha}`,
     `/repos/boburning/portcove/git/commits/${f.original.sha}`,
@@ -807,7 +845,11 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
     },
     graphql: (query: string, variables: Readonly<Record<string, unknown>> = {}) => {
       if (query !== releaseControlRefQuery) return baseApi.graphql(query, variables);
-      const response = { status: 200, headers: new Map<string, string>(), body: {} };
+      const response = {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: {},
+      };
       return {
         data: control.api.graphql(query, variables).data,
         response,
@@ -950,7 +992,13 @@ void test("schema3 admission independently selects and verifies immutable public
   await assert.rejects(
     acquireReleaseAdmission(
       f.root,
-      { ...config, public_build_inputs: { ...p.configuration, manifest_sha256: "f".repeat(64) } },
+      {
+        ...config,
+        public_build_inputs: {
+          ...p.configuration,
+          manifest_sha256: "f".repeat(64),
+        },
+      },
       options,
     ),
   );
@@ -1105,7 +1153,11 @@ void test("refusal retains its owned directory and bounded phase without provide
   let evidence: { directory: string; phase: string; checkpoint: string } | undefined;
   await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options), (error: unknown) => {
     assert.ok(error instanceof CoordinatorRemoteError);
-    evidence = error.evidence as { directory: string; phase: string; checkpoint: string };
+    evidence = error.evidence as {
+      directory: string;
+      phase: string;
+      checkpoint: string;
+    };
     assert.equal(evidence.phase, "archive-acquisition");
     assert.equal(evidence.checkpoint, "c".repeat(40));
     return true;
@@ -1121,7 +1173,10 @@ void test("bounded capacity eligibility cannot clear unrelated admission holds o
     capacity = capacityFixture();
   const result = await acquireReleaseAdmission(f.root, f.config, {
     ...f.options,
-    capacity: { ratification: capacity.ratification, readBoundary: async () => capacity.boundary },
+    capacity: {
+      ratification: capacity.ratification,
+      readBoundary: async () => capacity.boundary,
+    },
   });
   assert.equal(result.capacity.eligibility, "eligible");
   assert.equal(result.capacity.availability, "unknown");
@@ -1215,7 +1270,11 @@ void test("source publication inventory keeps ordered short pages, exact repo al
             },
           ],
           first
-            ? { headers: { link: `<https://api.github.com${second}>; rel="next"` } }
+            ? {
+                headers: {
+                  link: `<https://api.github.com${second}>; rel="next"`,
+                },
+              }
             : undefined,
         );
       },
@@ -1315,7 +1374,10 @@ for (const failure of ["releases", "comparison"] as const)
     if (failure === "comparison") {
       assert.match(events.at(-1) ?? "", /^\/repos\/boburning\/portcove\/compare\//u);
       assert.equal(events.filter((event) => event.includes("/compare/")).length, 1);
-    } else assert.equal(events.length, 4);
+    } else
+      // A transient inventory refusal retries with bounded backoff (three
+      // attempts in total) and then fails; it is never read as an empty list.
+      assert.deepEqual(events.slice(3), Array(3).fill("/repos/boburning/portcove/releases"));
   });
 
 void test("default admission journal uses a separate scoped SDK read through a stalled body", async (t) => {
@@ -1355,7 +1417,9 @@ void test("default admission journal uses a separate scoped SDK read through a s
     },
   );
   await assert.rejects(
-    acquireReleaseAdmission(f.root, f.config, { deadline: performance.now() + 250 }),
+    acquireReleaseAdmission(f.root, f.config, {
+      deadline: performance.now() + 250,
+    }),
     (error: unknown) => {
       assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
       assert.equal(error.evidence.phase, "repository-and-reservation");
@@ -1466,7 +1530,10 @@ void test("default admission brackets exact SDK check pages and statuses across 
       },
     );
     try {
-      const result = acquireReleaseAdmission(f.root, f.config, { recover, download });
+      const result = acquireReleaseAdmission(f.root, f.config, {
+        recover,
+        download,
+      });
       if (drift) await assert.rejects(result, /freshness-bracket/u);
       else assert.equal((await result).decision, "hold");
       assert.deepEqual(
@@ -1479,4 +1546,294 @@ void test("default admission brackets exact SDK check pages and statuses across 
       mocked.mock.restore();
     }
   }
+});
+
+/** Simulated provider for lifetime-scale inventory behavior. It models GitHub
+ * page and cursor semantics only; it does not measure a real provider quota. */
+function simulatedPublicationProvider(count: number, extraTags: string[] = []) {
+  const time = "2026-11-04T00:00:00Z";
+  const releases = Array.from({ length: count }, (_, index) => ({
+    id: index + 1,
+    tag_name: `v0.${Math.floor(index / 1000)}.${index % 1000}`,
+    draft: false,
+    prerelease: true,
+    published_at: time,
+    updated_at: time,
+  }));
+  const tag = (name: string, index: number) => ({
+    id: `ref-${index}`,
+    name,
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: index.toString(16).padStart(40, "0") },
+  });
+  const tags = [...releases.map((release) => release.tag_name), ...extraTags]
+    .map(tag)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const provider = {
+    releases,
+    tags,
+    tag,
+    requests: 0,
+    fault: undefined as
+      | ((url: URL, body: Record<string, unknown> | null) => Response | undefined)
+      | undefined,
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      provider.requests++;
+      const body: unknown = request.method === "POST" ? await request.json() : null;
+      assert.ok(body === null || isRecord(body));
+      const fault = provider.fault?.(url, body);
+      if (fault) return fault;
+      if (url.pathname === "/repos/boburning/portcove")
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_scale",
+        });
+      if (url.pathname === "/repos/boburning/portcove/releases") {
+        const page = Number(url.searchParams.get("page") ?? "1");
+        const listing = [...provider.releases].reverse();
+        const rows = listing.slice((page - 1) * 100, page * 100);
+        return Response.json(
+          rows,
+          page * 100 < listing.length
+            ? {
+                headers: {
+                  link: `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                },
+              }
+            : undefined,
+        );
+      }
+      assert.equal(url.pathname, "/graphql");
+      assert.ok(isRecord(body) && typeof body.query === "string" && isRecord(body.variables));
+      const variables = body.variables;
+      const repository = {
+        id: "R_scale",
+        databaseId: 1354613114,
+        nameWithOwner: "boburning/portcove",
+      };
+      if (/query AdmissionExactRef/u.test(body.query)) {
+        const name = String(variables.name).slice("refs/tags/".length);
+        const ref = provider.tags.find((value) => value.name === name) ?? null;
+        return Response.json({ data: { repository: { ...repository, ref } } });
+      }
+      const scoped =
+        typeof variables.prefix === "string" ? variables.prefix.slice("refs/tags/".length) : "";
+      const matching = provider.tags
+        .filter((value) => value.name.startsWith(scoped))
+        .map((value) => ({
+          ...value,
+          name: value.name.slice(scoped.length),
+          prefix: `refs/tags/${scoped}`,
+        }));
+      const offset = variables.cursor === null ? 0 : Number(variables.cursor);
+      const nodes = matching.slice(offset, offset + 100);
+      return Response.json({
+        data: {
+          repository: {
+            ...repository,
+            refs: {
+              totalCount: matching.length,
+              pageInfo: {
+                hasNextPage: offset + 100 < matching.length,
+                endCursor: String(offset + nodes.length),
+              },
+              nodes,
+            },
+          },
+        },
+      });
+    },
+  };
+  return provider;
+}
+
+function openSimulatedInventory(provider: ReturnType<typeof simulatedPublicationProvider>) {
+  return createPublicationInventoryWithSdk({
+    token: "synthetic-scale-inventory",
+    deadline: performance.now() + 120000,
+    recheck: async () => {},
+    fetch: provider.fetch,
+  });
+}
+
+/** Reads to provider exhaustion, opening a fresh budget for each checkpoint. */
+async function readThroughBudgets<T>(
+  provider: ReturnType<typeof simulatedPublicationProvider>,
+  scan: (
+    reader: Awaited<ReturnType<typeof openSimulatedInventory>>,
+    resume: PublicationInventoryIncompleteError["checkpoint"] | undefined,
+  ) => Promise<T[]>,
+) {
+  let resume: PublicationInventoryIncompleteError["checkpoint"] | undefined;
+  for (let readers = 1; readers <= 8; readers++) {
+    try {
+      return {
+        rows: await scan(await openSimulatedInventory(provider), resume),
+        readers,
+      };
+    } catch (error) {
+      assert.ok(error instanceof PublicationInventoryIncompleteError);
+      assert.match(error.message, /publication inventory budget exceeded/u);
+      resume = error.checkpoint;
+    }
+  }
+  throw new Error("simulated inventory did not finish");
+}
+
+for (const count of [1000, 5000, 20000])
+  void test(`release and tag inventories reach provider exhaustion past the former 1,600-record ceiling at ${count} records`, async () => {
+    const provider = simulatedPublicationProvider(count);
+    const releases = await readThroughBudgets(provider, (reader, resume) =>
+      reader.releases(resume),
+    );
+    assert.deepEqual(
+      releases.rows.map((row) => row.id),
+      Array.from({ length: count }, (_, index) => index + 1),
+    );
+    const tags = await readThroughBudgets(provider, (reader, resume) => reader.tags(resume));
+    assert.deepEqual(
+      tags.rows.map((row) => row.name),
+      provider.tags.map((row) => row.name),
+    );
+    // The per-reader request budget paces large scans; it never excludes records.
+    assert.equal(releases.readers, count > 15000 ? 2 : 1);
+    assert.equal(tags.readers, count > 15000 ? 2 : 1);
+  });
+
+void test("a budget-interrupted inventory is never returned as complete and resumes without gaps or repeats", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const first = await openSimulatedInventory(provider);
+  const interrupted = await first.releases().then(
+    () => assert.fail("a partial Release inventory resolved"),
+    (error: unknown) => error,
+  );
+  assert.ok(interrupted instanceof PublicationInventoryIncompleteError);
+  assert.match(interrupted.message, /incomplete after 15900 records; resumable/u);
+  assert.equal(interrupted.checkpoint.kind, "releases");
+  assert.equal(interrupted.checkpoint.rows.length, 15900);
+  const resumed = await (await openSimulatedInventory(provider)).releases(interrupted.checkpoint);
+  assert.equal(new Set(resumed.map((row) => row.id)).size, 20000);
+  assert.deepEqual(
+    resumed.map((row) => row.id),
+    Array.from({ length: 20000 }, (_, index) => index + 1),
+  );
+  const tagError = await (await openSimulatedInventory(provider)).tags().then(
+    () => assert.fail("a partial tag inventory resolved"),
+    (error: unknown) => error,
+  );
+  assert.ok(tagError instanceof PublicationInventoryIncompleteError);
+  assert.equal(tagError.checkpoint.kind, "tags");
+  const tags = await (await openSimulatedInventory(provider)).tags(tagError.checkpoint);
+  assert.equal(new Set(tags.map((row) => row.id)).size, 20000);
+  // A checkpoint belongs to one scan kind and namespace.
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(tagError.checkpoint),
+    /checkpoint does not match this scan/u,
+  );
+});
+
+void test("resuming after the provider listing changed fails visibly instead of skipping records", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const releases = await (
+    await openSimulatedInventory(provider)
+  )
+    .releases()
+    .catch((error: unknown) => error);
+  assert.ok(releases instanceof PublicationInventoryIncompleteError);
+  const tags = await (
+    await openSimulatedInventory(provider)
+  )
+    .tags()
+    .catch((error: unknown) => error);
+  assert.ok(tags instanceof PublicationInventoryIncompleteError);
+  // Deleting an already-read Release shifts every later page by one row.
+  provider.releases.splice(provider.releases.length - 10, 1);
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(releases.checkpoint),
+    /release inventory changed before its resume point/u,
+  );
+  provider.tags.unshift(provider.tag("a-new-tag", 99999));
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).tags(tags.checkpoint),
+    /admission ref count changed/u,
+  );
+});
+
+void test("exact identity and namespace receipt reads detect conflicts beyond the former bound at 20,000 tags", async () => {
+  const receipts = Array.from({ length: 2000 }, (_, index) => [
+    `portcove-fixture-prepared/v1.0.${index}`,
+    ...(index === 1999
+      ? []
+      : [`portcove-fixture-prepared-source/${index.toString(16).padStart(40, "0")}`]),
+  ]).flat();
+  const provider = simulatedPublicationProvider(20000, receipts);
+  const reader = await openSimulatedInventory(provider);
+  const before = provider.requests;
+  const last = await reader.tag("v0.19.999");
+  assert.equal(last?.name, "v0.19.999");
+  assert.equal(await reader.tag("v9.9.9"), null);
+  assert.equal(provider.requests - before, 2);
+  const namespace = await reader.namespaceTags("portcove-fixture");
+  assert.equal(namespace.length, 3999);
+  assert.ok(namespace.every((row) => row.prefix === "refs/tags/"));
+  assert.equal(provider.requests - before, 2 + 20 + 20);
+  // The unpaired receipt sorts past position 1,600 and is still a conflict.
+  await assert.rejects(
+    reader.readAllocations(namespace, "portcove-fixture"),
+    /incomplete receipt pairs/u,
+  );
+});
+
+void test("incomplete provider evidence is refused rather than read as absence", async () => {
+  const provider = simulatedPublicationProvider(5000);
+  provider.fault = (url, body) => {
+    if (
+      url.pathname === "/repos/boburning/portcove/releases" &&
+      url.searchParams.get("page") === "30"
+    )
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.cursor === "2500")
+      return Response.json({
+        data: {
+          repository: {
+            id: "R_scale",
+            databaseId: 1354613114,
+            nameWithOwner: "boburning/portcove",
+            refs: {
+              totalCount: 5000,
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: [],
+            },
+          },
+        },
+      });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.name === "refs/tags/v0.0.1")
+      return Response.json({
+        data: {
+          repository: {
+            id: "R_scale",
+            databaseId: 1354613114,
+            nameWithOwner: "boburning/portcove",
+          },
+        },
+      });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.name === "refs/tags/v0.0.2")
+      return Response.json({ data: null, errors: [{ message: "timeout" }] });
+    return undefined;
+  };
+  const reader = await openSimulatedInventory(provider);
+  await assert.rejects(
+    reader.releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError && error.checkpoint.rows.length === 2900,
+  );
+  await assert.rejects(reader.tags(), /admission refs omit records/u);
+  await assert.rejects(reader.tag("v0.0.1"), /exact tag lookup response is incomplete/u);
+  // A provider GraphQL error is a failed lookup, never a null (absent) ref.
+  await assert.rejects(reader.tag("v0.0.2"), /timeout/u);
+  await assert.rejects(reader.tag("refs/tags/v0.0.3"), /requires one valid tag name/u);
 });
