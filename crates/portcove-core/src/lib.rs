@@ -89,6 +89,8 @@ mod managed_tfe;
 mod mechanism_fixtures;
 mod n64_graphics;
 mod native_external_profile;
+#[cfg(test)]
+mod native_external_profile_consumer_tests;
 mod native_portable_data;
 mod native_temp;
 mod operation;
