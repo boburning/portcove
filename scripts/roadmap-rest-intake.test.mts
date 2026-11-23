@@ -565,8 +565,10 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
 });
 
 await test("REST issue inventory tolerates provider created-order skew but refuses real inversions", async () => {
+  // Row 3 sets the running maximum at 00:00:04; row 2's timestamp is checked against it.
   for (const [skew, accepted] of [
-    ["2026-01-01T00:00:01Z", true],
+    ["2026-01-01T00:00:02Z", true],
+    ["2026-01-01T00:00:01Z", false],
     ["2025-12-31T00:00:00Z", false],
   ] as const) {
     const pr = (number: number, created_at: string) => ({
@@ -575,8 +577,14 @@ await test("REST issue inventory tolerates provider created-order skew but refus
       html_url: `https://github.com/${config.repository}/pull/${number}`,
       created_at,
     });
-    const newest = { ...issue(4), created_at: "2026-01-01T00:00:03Z" };
-    const rows = [issue(1), pr(3, "2026-01-01T00:00:02Z"), pr(2, skew), newest];
+    const newest = { ...issue(4), created_at: "2026-01-01T00:00:05Z" };
+    const rows = [
+      issue(1),
+      pr(5, "2026-01-01T00:00:04Z"),
+      pr(3, "2026-01-01T00:00:03Z"),
+      pr(2, skew),
+      newest,
+    ];
     const read: RestInventoryReader = async (endpoint) => {
       const url = new URL(endpoint, base + "/");
       if (url.pathname === `/repos/${config.repository}`)

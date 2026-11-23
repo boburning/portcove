@@ -233,7 +233,8 @@ const verified = new WeakMap<
 /**
  * GitHub's `sort=created` key can place a row up to a second ahead of an older
  * exposed `created_at` (observed: pull request 8156 at 19:34:13 listed before
- * 8155 at 19:34:12). Completeness still rests on unique numbers, unchanged
+ * 8155 at 19:34:12); the 2-second bound is that observation plus headroom.
+ * Completeness still rests on unique numbers, unchanged
  * before/after markers and the newest-created final row; larger inversions
  * remain an unordered inventory.
  */
