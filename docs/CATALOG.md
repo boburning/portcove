@@ -5693,74 +5693,30 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 Optional authoring-only `n64_recomp_persistence_v1` expands the reviewed
 root-level N64Recomp persistence layout for managed GitHub packages. Use `true`
 for the shared mod, save and settings paths with the declared
-`runtime_source_filename`. Dinosaur Planet's `config-directory` adds `config`
-after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
-`technical.json.bak` before the original file. Keep the source profile, ROM
-filename, repository, asset selectors and executable hints in the integration.
-Dinosaur Planet and Donkey Kong 64 require their named variants when using the
-recipe. A nested layout, different provider, optional settings declaration or
-different writer set uses an explicit integration. URL preparation proposes the
-family form when its expanded integration reproduces the reviewed explicit bytes.
+`runtime_source_filename`. A record whose player also writes a `config`
+directory declares `config-directory`, which adds `config` after `saves`; one
+whose player writes technical settings declares `technical-settings`, which
+adds `technical.json` and `technical.json.bak` before the original file. The
+variant is the record's declaration, not its identity. Keep the source profile,
+ROM filename, repository, asset selectors and executable hints in the
+integration. A nested layout, different provider, optional settings
+declaration or different writer set uses an explicit integration, and the
+refusal names the missing precondition. URL preparation proposes the variant
+whose expanded integration reproduces the reviewed explicit bytes.
 
-Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
-shared portable-root persistence list for the reviewed ReflectionHLE route.
-Keep the original editions, platform packages, launch arguments and reviewed
-package layouts explicit. Preparation proposes the shared form only when it
-can reproduce the exact reviewed integration bytes. A different writer scope
-or additional runtime layout declaration uses explicit paths.
+#### Retired single-upstream shorthands
 
-Optional authoring-only `crispy_doom_windows_persistence_v1: true` expands the
-reviewed Windows persistent paths and filename patterns shared by the Crispy
-Doom, Heretic, Hexen and Strife player routes. Keep each game mode, package
-selector, executable, original edition, launch values and qualification
-explicit. Preparation compacts only integrations that expand byte for byte.
-A fork or a different writer layout uses explicit paths.
-
-Optional authoring-only `chocolate_family_windows_persistence_v1: true`
-expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
-The recipe keeps each title's configuration and screenshots with its saves
-and treats the two engine logs as runtime output. Keep each official package
-selector, executable, original IWAD profile and launch arguments explicit.
-Preparation compacts a route only when expansion reproduces its exact bytes.
-
-The authoring-only `gen2recomp_windows_persistence_v1: true` expands the
-reviewed Windows player data and generated import paths for the Gold, Silver
-and Crystal routes. Each original profile, release selector, executable and
-edition launch value stays explicit. URL preparation uses the recipe when
-expansion reproduces the existing integration byte for byte.
-
-The authoring-only `rsdkv4_portable_data_v1: true` supplies the reviewed
-portable data paths for Sonic the Hedgehog and Sonic the Hedgehog 2 (2013).
-Each game keeps its own identity, original-file instructions, official package
-selector, executable and installed data. URL preparation uses the recipe when
-its expansion reproduces the reviewed integration byte for byte. A different
-writer layout uses explicit paths.
-
-Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
-Jak trilogy setup. The generator supplies the extractor, launcher, and setup
-and portable data paths from the matching game identity. Keep the reviewed
-disc profile, release authority, support and presentation in each record.
-URL preparation compacts an exact match. A reviewed setup that differs uses
-the explicit integration fields.
-
-The authoring-only `openmohaa_portable_v1` generates the official stable
-OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
-It supplies the four platform selectors, shared Windows archive layout,
-edition-specific Unix launcher checks, and original-data paths. Keep each
-edition’s original requirements, instructions, support and qualification
-explicit. The engine still owns the external player profile. Preparation
-compacts a route only when the generated integration reproduces it byte for
-byte. A different source, package, launcher or writer layout uses an explicit
-integration.
-
-Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
-(as a string) for portable routes with matching GitHub lineage,
-reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
-TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
-path. Each title keeps its original-data picker instructions, executable,
-reviewed package layout, external SDL profile and qualification explicit.
-URL preparation uses the recipe only when it reproduces the full integration
-byte for byte.
+Shorthands must expand by declared fields, never by a repository or identity
+literal, so a new title that fits a mechanism needs data only. Eleven earlier
+shorthands carried the facts of exactly one upstream: Aleph One pinned Windows,
+Chocolate and Crispy Doom Windows persistence, Gen2Recomped persistence, the
+BStone/DevilutionX managed profile, OpenGOAL setup, OpenMoHAA, OpenX, Raze,
+ReflectionHLE and RSDKv4. Their records now author those integration fields
+explicitly, with byte-identical generated output. `checkedAuthoredPort` refuses
+the retired `*_v1` fields so a stale declaration cannot silently drop the
+fields it used to supply. A GitHub-hosted Direct pin must be a canonical
+`<project_url>/releases/download/<tag>/<file>` URL of the record's own project,
+with no query or fragment.
 
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
@@ -5784,15 +5740,12 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
-single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
-`psx_crash.txt`. Their remaining split-mods fields are the same.
-Use `"split-mods-diagnostics"` for the reviewed MediEvil and Mortal Kombat 4
-kits. It retains `diagnostics-location.txt` alongside the standard split-mods
-paths. Keep the exact selectors, executables, discs and retail SCPH-1001 BIOS
-explicit. MediEvil keeps managed Windows and Linux routes with separate Mac
-setup. Mortal Kombat 4 keeps its two declared managed Mac routes and existing
-qualification limits.
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for reviewed
+single-disc kits with SCPH-1001 BIOS whose writer omits `psx_crash.txt`; the
+release repository must be the listing project. Their remaining split-mods
+fields are the same. The MediEvil and Mortal Kombat 4 routes, whose writers
+also keep `diagnostics-location.txt`, author their complete integrations
+explicitly.
 `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
@@ -5804,16 +5757,18 @@ split mod rules still apply. For the reviewed retail multidisc split-mods kits,
 keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
 integration.
 
-Use `"technically-computers"` for the reviewed TechnicallyComputers GitHub
-kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
+Use `"technically-computers"` for GitHub kits with the TechnicallyComputers
+layout: Windows x64, Intel macOS and Apple silicon macOS platforms in that
+order with the `windows-x64`, `macos-x64` and `macos-arm64` selectors. This
 variant supplies only the `build-portcove` runtime root and eight persistent
 paths. Each record retains its repository, asset selectors, executable hints,
-original disc profile, guide and qualification. A different upstream or writer
-layout uses explicit fields. Bomberman Party Edition and Final Fantasy VII can
-use `"technically-computers-input-files"` for the same eight persistent paths
-plus `input.ini` and `keybinds.ini`. Both keep the runtime root and mutable
-files explicit. Final Fantasy VII also keeps its three-disc source
-materialization and launch arguments explicit.
+original disc profile, guide and qualification. A different writer layout uses
+explicit fields. Kits that declare their `build-portcove` runtime root and
+`runtime_mutable_paths` use `"technically-computers-input-files"` for the same
+eight persistent paths plus `input.ini` and `keybinds.ini`. A raw disc set also
+declares its `runtime-discs` source, `psx-raw-set` materialization and launch
+arguments. No variant depends on the kit's repository or identity; a refusal
+names the missing precondition.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
@@ -6134,21 +6089,6 @@ folder, and player or upstream ownership in the authored record. Use explicit
 `user_prepared` entries for accepted packages and per-platform distinctions.
 The CPS2Recomp routes use this shared registration form.
 
-The `alephone_pinned_windows_v1` recipe supplies the reviewed bundled-scenario
-launch arguments, environment, Windows path policy and external profile
-ownership for Marathon, Marathon 2 and Marathon Infinity. Each integration
-keeps its exact Direct archive pin and scenario executable. Each listing keeps
-its game, setup instructions and release-maintenance conditions.
-`prepare-port.mts` compacts only an exact match. The pins offer no automatic
-updates, and Portcove backups exclude the upstream profiles.
-
-The `native_managed_profile_v1` recipe supplies the managed `profile`
-directory, Windows temporary directory and relative-file path policy for the
-reviewed BStone and DevilutionX routes. The official selector, original-file
-contract, launch arguments and package-layout review remain explicit.
-`prepare-port.mts` compacts an exact match. Use the explicit integration when
-the title uses a different writer path or a player-owned profile.
-
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
@@ -6204,15 +6144,6 @@ Shared upstream families retain independent per-ID records. The authoring tests
 compare Raze's platform, profile and update guide facts and Namco's common upstream
 and platform links. Original-file requirements, canonical issues, identities and
 independently reviewed acquisition restrictions stay local to each record.
-
-For the reviewed stable `ZDoom/Raze` Windows x64 native-portable route,
-`raze_windows_profile_v1: true` expands the shared release asset selector,
-executable, package layout, portable marker and persistent paths. Keep the
-repository, platforms, channels, support tier, qualification and guide explicit.
-A different repository, package or write scope requires an explicit integration.
-Preparation proposes the compact profile when it regenerates the existing
-integration byte for byte. Core receives each complete definition through the
-existing catalog validation.
 
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation

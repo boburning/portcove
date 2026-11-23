@@ -123,7 +123,9 @@
       "linux-x86-64": ["bstone"],
       "macos-x86-64": ["bstone"]
     },
+    "windows_runtime_path_policy": "relative-file-max-path",
     "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "profile"],
+    "persistent_paths": ["profile"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [
@@ -189,7 +191,7 @@
         "destination": "originals/vswap.vsi",
         "materialization": "copy"
       }
-    ]
-  },
-  "native_managed_profile_v1": true
+    ],
+    "windows_temp_directory": "profile"
+  }
 }
