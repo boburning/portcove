@@ -41,19 +41,34 @@ void test("public allocation inventory reads only the namespace receipt prefixes
         const wire: unknown = JSON.parse(init.body);
         assert.ok(isRecord(wire) && isRecord(wire.variables) && typeof wire.query === "string");
         assert.match(wire.query, /query AdmissionPrefixRefs/u);
-        assert.equal(wire.variables.cursor, null);
         prefixes.push(wire.variables.prefix);
+        // The identity case continues the cursor and changes repository on the
+        // later page; the complete case has an empty namespace.
+        const later = wrongIdentity && routes.length === 3;
+        assert.equal(wire.variables.cursor, later ? "next-fixture" : null);
         return Response.json({
           data: {
             repository: {
-              id: wrongIdentity ? "R_other" : "R_fixture",
+              id: later ? "R_other" : "R_fixture",
               databaseId: 1354613114,
               nameWithOwner: "boburning/portcove",
-              refs: {
-                totalCount: 0,
-                pageInfo: { hasNextPage: false, endCursor: null },
-                nodes: [],
-              },
+              refs: wrongIdentity
+                ? {
+                    totalCount: 2,
+                    pageInfo: { hasNextPage: !later, endCursor: later ? null : "next-fixture" },
+                    nodes: [
+                      {
+                        id: `ref-${routes.length}`,
+                        name: `v0.0.${routes.length}`,
+                        prefix: "refs/tags/portcove-public-prepared/",
+                      },
+                    ],
+                  }
+                : {
+                    totalCount: 0,
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                    nodes: [],
+                  },
             },
           },
         });
@@ -61,7 +76,10 @@ void test("public allocation inventory reads only the namespace receipt prefixes
     });
     if (wrongIdentity) {
       await assert.rejects(result, /ref repository identity differs/u);
-      assert.deepEqual(prefixes, ["refs/tags/portcove-public-prepared/"]);
+      assert.deepEqual(prefixes, [
+        "refs/tags/portcove-public-prepared/",
+        "refs/tags/portcove-public-prepared/",
+      ]);
     } else {
       assert.deepEqual(await result, { allocations: [], intents: new Map() });
       assert.deepEqual(prefixes, [

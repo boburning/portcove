@@ -160,17 +160,11 @@ async function fixture(server = false) {
       })),
       failure: null,
     },
-    {
-      request_sha256: prepared.request_sha256,
-      harness: request.expected.producer.harness,
-    },
+    { request_sha256: prepared.request_sha256, harness: request.expected.producer.harness },
   );
   // Complete retained data, not a raw success flag, goes through both existing
   // reconstructions. The fixture has no actual execution/authentication claim.
-  const rawEvidence = {
-    ...evidence,
-    capture: structuredClone(captured.capture),
-  };
+  const rawEvidence = { ...evidence, capture: structuredClone(captured.capture) };
   const report = reconstructHostedNativeWindowsPreSignReport(
     prepared,
     rawEvidence,
@@ -301,10 +295,7 @@ void test("report cannot select a privileged/fixture actor or arbitrary protocol
   for (const account of ["S-1-5-18", "S-1-5-21-1-2-3-500"])
     assert.throws(() =>
       inspectApplicationNativeHost(
-        {
-          ...f.expected.host,
-          account: { ...f.expected.host.account, qualification: account },
-        },
+        { ...f.expected.host, account: { ...f.expected.host.account, qualification: account } },
         f.expected.minimum_platform,
       ),
     );
@@ -406,11 +397,7 @@ void test("fresh native attester has no candidate execution, operational key or 
     jobs: {
       attest: {
         "timeout-minutes": number;
-        steps: {
-          run?: string;
-          uses?: string;
-          with?: Record<string, unknown>;
-        }[];
+        steps: { run?: string; uses?: string; with?: Record<string, unknown> }[];
       };
     };
   };
@@ -486,11 +473,7 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
         "utf8",
       ),
     ) as {
-      jobs: {
-        execute: {
-          steps: ((typeof steps)[number] & { id?: string; name?: string })[];
-        };
-      };
+      jobs: { execute: { steps: ((typeof steps)[number] & { id?: string; name?: string })[] } };
     };
     const workerSteps = workerWorkflow.jobs.execute.steps;
     const workerIndex = workerSteps.findIndex((entry) => entry.uses === step.uses);
@@ -602,12 +585,7 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
     runInNewContext(`(async () => { ${script} })()`, {
       require: createRequire(import.meta.url),
       github: new Octokit({ auth: "inert-native-attester" }),
-      context: {
-        repo: { owner: "boburning", repo: "portcove" },
-        runId: 14,
-        sha: source,
-        ref,
-      },
+      context: { repo: { owner: "boburning", repo: "portcove" }, runId: 14, sha: source, ref },
       process: {
         env: {
           RUNNER_TEMP: root,
@@ -643,10 +621,7 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
             mode === "wrong-source"
               ? {
                   ...metadata,
-                  workflow_run: {
-                    ...metadata.workflow_run,
-                    head_sha: "b".repeat(40),
-                  },
+                  workflow_run: { ...metadata.workflow_run, head_sha: "b".repeat(40) },
                 }
               : metadata,
           );
@@ -661,9 +636,7 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
   assert.equal(calls.length, 1);
   mode = "overlong";
   await assert.rejects(run(), /acquisition refused/u);
-  await assert.rejects(readFile(path.join(scratch, "archive.zip")), {
-    code: "ENOENT",
-  });
+  await assert.rejects(readFile(path.join(scratch, "archive.zip")), { code: "ENOENT" });
   mode = "valid";
   await run();
   await assert.rejects(receiveStagedApplicationToolData(output, { ...expected, id: 10 }, scratch));
@@ -808,10 +781,7 @@ void test("native capture collector reuses actual retained fragments and cannot 
     const bindingBytes = Buffer.from(JSON.stringify(f.evidence.binding));
     const expected = {
       ...f.expected,
-      host: {
-        ...f.expected.host,
-        account_binding_sha256: sha256(bindingBytes),
-      },
+      host: { ...f.expected.host, account_binding_sha256: sha256(bindingBytes) },
     };
     const request = applicationNativeRequest(expected);
     const prepared = {
@@ -849,10 +819,7 @@ void test("native capture collector reuses actual retained fragments and cannot 
         sha256: root.image.sha256,
         created_filetime: root.creation.value,
         started_at: root.started_at,
-        teardown: {
-          ...root.teardown,
-          root_created_filetime: root.teardown!.root_creation.value,
-        },
+        teardown: { ...root.teardown, root_created_filetime: root.teardown!.root_creation.value },
       })),
     };
     const installer = {
@@ -938,17 +905,10 @@ void test("canonical native producer and signing DAG keeps candidate execution b
       new URL("../.github/workflows/application-release-native.yml", import.meta.url),
       "utf8",
     ),
-  ) as {
-    on: { workflow_call: { inputs: Record<string, unknown> } };
-    jobs: Record<string, Job>;
-  };
+  ) as { on: { workflow_call: { inputs: Record<string, unknown> } }; jobs: Record<string, Job> };
   const execute = workflow.jobs.execute!,
     attest = workflow.jobs.attest!;
-  assert.deepEqual(execute.permissions, {
-    contents: "read",
-    actions: "read",
-    checks: "read",
-  });
+  assert.deepEqual(execute.permissions, { contents: "read", actions: "read", checks: "read" });
   assert.equal(attest.needs, "execute");
   assert.ok(
     execute.steps?.some(
@@ -1081,9 +1041,7 @@ void test("signed payload inventory joins exact native installer and the complet
     { source_commit: "f".repeat(40) },
     { run_id: "41800000999" },
     { package_attempt: 3 },
-    {
-      files: manifest.files.filter((file) => !file.filename.startsWith("portcove-cli-")),
-    },
+    { files: manifest.files.filter((file) => !file.filename.startsWith("portcove-cli-")) },
     { files: [...manifest.files, manifest.files[0]!] },
     { profile: "fixture-profile" },
   ])
@@ -1217,11 +1175,7 @@ async function recordContextFixture() {
     unchanged_records_sha256: digest(
       oldFiles
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([name, bytes]) => ({
-          path: name,
-          bytes: bytes.length,
-          sha256: sha256(bytes),
-        })),
+        .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: sha256(bytes) })),
     ),
     current_versions: Object.fromEntries(roles.map((role) => [role, "1"])),
     next_versions: Object.fromEntries(roles.map((role) => [role, role === "targets" ? "1" : "2"])),
@@ -1255,11 +1209,7 @@ async function recordContextFixture() {
     ...native.candidate,
     source_commit: nextManifest.source_commit,
     source_tree: nextManifest.source_tree,
-    package: {
-      filename: `Portcove_${version}_x64-setup.exe`,
-      bytes: 12,
-      sha256: "f".repeat(64),
-    },
+    package: { filename: `Portcove_${version}_x64-setup.exe`, bytes: 12, sha256: "f".repeat(64) },
   };
   const inventory = createApplicationUpdaterInventory(
     nextManifest,
@@ -1362,10 +1312,7 @@ void test("application attempt Jobs use the captured locked SDK scope and refuse
       assert.equal(request.headers.get("authorization"), "token application-original-job-reader");
       assert.equal(url.origin, "https://api.github.com");
       assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/2/jobs");
-      assert.deepEqual(Object.fromEntries(url.searchParams), {
-        page: "1",
-        per_page: "100",
-      });
+      assert.deepEqual(Object.fromEntries(url.searchParams), { page: "1", per_page: "100" });
       if (fault === "stalled")
         return new Response(
           new ReadableStream({
@@ -1413,11 +1360,7 @@ void test("application attempt Jobs use the captured locked SDK scope and refuse
 
 void test("public installed readback requires the exact successful Windows attempt and positive teardown", async () => {
   const { expected: base } = await fixture(true);
-  const identity = {
-    source: base.control_commit,
-    run_id: base.run_id,
-    run_attempt: 2,
-  };
+  const identity = { source: base.control_commit, run_id: base.run_id, run_attempt: 2 };
   const job = {
     id: 23,
     runner_id: 5,
@@ -1470,14 +1413,7 @@ void test("public installed readback requires the exact successful Windows attem
     preferences_path: "D:\\fixture\\desktop-ordinary-public-update\\preferences.json",
   };
   const journeyManifest = {
-    library: [
-      {
-        path: "portcove.sqlite3",
-        type: "file",
-        bytes: 4096,
-        sha256: "c".repeat(64),
-      },
-    ],
+    library: [{ path: "portcove.sqlite3", type: "file", bytes: 4096, sha256: "c".repeat(64) }],
     preferences: { present: true, bytes: 128, sha256: "d".repeat(64) },
   };
 
@@ -1490,11 +1426,7 @@ void test("public installed readback requires the exact successful Windows attem
       persistent_data_preserved: true,
       preservation_manifest_before_uninstall: preserved,
       preservation_manifest_after_uninstall: preserved,
-      journey_profile_preservation: {
-        ...profile,
-        before: journeyManifest,
-        after: journeyManifest,
-      },
+      journey_profile_preservation: { ...profile, before: journeyManifest, after: journeyManifest },
       isolated_account_boundary: {
         native_invocation_id: invocation,
         installed_executable_sha256: inputs.candidate_executable_sha256,
@@ -1512,14 +1444,8 @@ void test("public installed readback requires the exact successful Windows attem
     outcome: "observed",
     profile,
     user_state: {
-      before: {
-        application_version: inputs.prior_version,
-        library_root: profile.library_root,
-      },
-      after: {
-        application_version: inputs.candidate_version,
-        library_root: profile.library_root,
-      },
+      before: { application_version: inputs.prior_version, library_root: profile.library_root },
+      after: { application_version: inputs.candidate_version, library_root: profile.library_root },
     },
     automatic_relaunch: {
       title: "Portcove",
@@ -1597,10 +1523,7 @@ void test("public installed readback requires the exact successful Windows attem
   ]) {
     const changed = {
       ...installer,
-      details: {
-        ...installer.details,
-        journey_profile_preservation: preservation,
-      },
+      details: { ...installer.details, journey_profile_preservation: preservation },
     };
     assert.throws(() =>
       inspectApplicationPublicInstalledProof(
@@ -1613,24 +1536,12 @@ void test("public installed readback requires the exact successful Windows attem
   }
   for (const invalid of [
     { ...proof, completed_at: "2026-11-05T01:11:00Z" },
+    { ...proof, stage_settlement: { ...proof.stage_settlement, disabled: false } },
     {
       ...proof,
-      stage_settlement: { ...proof.stage_settlement, disabled: false },
+      stage_settlement: { ...proof.stage_settlement, broker_job_remaining_pids: [31, 32] },
     },
-    {
-      ...proof,
-      stage_settlement: {
-        ...proof.stage_settlement,
-        broker_job_remaining_pids: [31, 32],
-      },
-    },
-    {
-      ...proof,
-      owner_teardown: {
-        ...proof.owner_teardown,
-        cleanup_failures: ["profile busy"],
-      },
-    },
+    { ...proof, owner_teardown: { ...proof.owner_teardown, cleanup_failures: ["profile busy"] } },
     { ...proof, candidate: { release_id: 12 } },
   ])
     assert.throws(() =>
@@ -2165,10 +2076,7 @@ void test("reviewed Preview withdrawal keeps the exact release and Stable bytes 
     release_sha256: release.sha256,
     reason: "Controlled forward repair",
   };
-  const classification = {
-    ...f.input.classification,
-    preview_withdrawals: [request],
-  };
+  const classification = { ...f.input.classification, preview_withdrawals: [request] };
   const result = await composeApplicationRecordContext(f.prior, f.descriptor, {
     ...f.input,
     classification,
@@ -2199,10 +2107,7 @@ void test("reviewed Preview withdrawal keeps the exact release and Stable bytes 
   await assert.rejects(
     composeApplicationRecordContext(f.prior, f.descriptor, {
       ...f.input,
-      qualification: {
-        ...f.input.qualification,
-        workflow_commit: "0".repeat(40),
-      },
+      qualification: { ...f.input.qualification, workflow_commit: "0".repeat(40) },
     }),
   );
   const bad = new Map(f.prior);
@@ -2227,9 +2132,7 @@ void test("JSON receipt cannot appoint an authenticated prior or create an appli
       ),
       /not prepared/u,
     );
-    await assert.rejects(readFile(path.join(output, "context.json")), {
-      code: "ENOENT",
-    });
+    await assert.rejects(readFile(path.join(output, "context.json")), { code: "ENOENT" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2283,11 +2186,7 @@ void test("actual qualification selection reads the locked SDK inventory without
     baseline = "c".repeat(40);
   const output = path.join(root, "outputs");
   const repo = "/repos/boburning/portcove";
-  const metadata = {
-    id: 1354613114,
-    full_name: "boburning/portcove",
-    node_id: "R_fixture",
-  };
+  const metadata = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
   const pages = {
     [`GET ${repo}/git/commits/${source}`]: { sha: source, tree: { sha: tree } },
     [`GET ${repo}`]: metadata,
@@ -2316,11 +2215,7 @@ void test("actual qualification selection reads the locked SDK inventory without
         },
       },
     },
-    [`GET ${repo}/releases/1`]: {
-      immutable: true,
-      tag_name: "v0.1.0-alpha.1",
-      draft: false,
-    },
+    [`GET ${repo}/releases/1`]: { immutable: true, tag_name: "v0.1.0-alpha.1", draft: false },
   };
   const fixture = path.join(root, "provider.mjs");
   await writeFile(

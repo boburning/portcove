@@ -213,11 +213,7 @@ void test("imported or frozen zero-hold descriptors cannot mint an actual stage-
       stage: "release-publication",
       facts: {},
       controls: { evidence_scope: "github.com" },
-      admission: {
-        decision: "admitted",
-        holds: [],
-        evidence_scope: "github.com",
-      },
+      admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
       checkpoint: "a".repeat(40),
       pending_obligations: [],
     }),
@@ -274,9 +270,7 @@ void test("admission cannot relabel injected provenance when the caller mutates 
   const f = await fixture(t);
   const original = f.options.recover;
   assert.ok(original);
-  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
-    ...f.options,
-  };
+  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = { ...f.options };
   options.recover = async (...args) => {
     delete options.api;
     delete options.download;
@@ -339,11 +333,7 @@ import {
 
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function commit(tree: string, parents: string[], message: string) {
-  const actor = {
-    name: "Fixture",
-    email: "fixture@example.invalid",
-    date: "2026-10-18T00:00:00Z",
-  };
+  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
   const header = `tree ${tree}\n${parents.map((p) => `parent ${p}\n`).join("")}author Fixture <fixture@example.invalid> 1792281600 +0000\ncommitter Fixture <fixture@example.invalid> 1792281600 +0000`;
   const raw = Buffer.from(`${header}\n\n${message}`);
   const sha = createHash("sha1").update(`commit ${raw.length}\0`).update(raw).digest("hex");
@@ -622,11 +612,7 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
         if (route === `/commits/${prepared.sha}/check-runs`)
           return response({ total_count: checks.length, check_runs: checks });
         if (route === `/commits/${prepared.sha}/status`)
-          return response({
-            sha: prepared.sha,
-            total_count: statuses.length,
-            statuses,
-          });
+          return response({ sha: prepared.sha, total_count: statuses.length, statuses });
         throw Error(`unexpected fixture route ${route}`);
       },
       graphql: (query: string, variables?: Readonly<Record<string, unknown>>) => {
@@ -693,11 +679,7 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
     config:
       profile === "full"
         ? { schema_version: 1, namespace: "portcove-fixture" }
-        : {
-            schema_version: 2,
-            namespace: "portcove-fixture",
-            release_profile: profile,
-          },
+        : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
   };
 }
 
@@ -845,11 +827,7 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
     },
     graphql: (query: string, variables: Readonly<Record<string, unknown>> = {}) => {
       if (query !== releaseControlRefQuery) return baseApi.graphql(query, variables);
-      const response = {
-        status: 200,
-        headers: new Map<string, string>(),
-        body: {},
-      };
+      const response = { status: 200, headers: new Map<string, string>(), body: {} };
       return {
         data: control.api.graphql(query, variables).data,
         response,
@@ -992,13 +970,7 @@ void test("schema3 admission independently selects and verifies immutable public
   await assert.rejects(
     acquireReleaseAdmission(
       f.root,
-      {
-        ...config,
-        public_build_inputs: {
-          ...p.configuration,
-          manifest_sha256: "f".repeat(64),
-        },
-      },
+      { ...config, public_build_inputs: { ...p.configuration, manifest_sha256: "f".repeat(64) } },
       options,
     ),
   );
@@ -1153,11 +1125,7 @@ void test("refusal retains its owned directory and bounded phase without provide
   let evidence: { directory: string; phase: string; checkpoint: string } | undefined;
   await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options), (error: unknown) => {
     assert.ok(error instanceof CoordinatorRemoteError);
-    evidence = error.evidence as {
-      directory: string;
-      phase: string;
-      checkpoint: string;
-    };
+    evidence = error.evidence as { directory: string; phase: string; checkpoint: string };
     assert.equal(evidence.phase, "archive-acquisition");
     assert.equal(evidence.checkpoint, "c".repeat(40));
     return true;
@@ -1173,10 +1141,7 @@ void test("bounded capacity eligibility cannot clear unrelated admission holds o
     capacity = capacityFixture();
   const result = await acquireReleaseAdmission(f.root, f.config, {
     ...f.options,
-    capacity: {
-      ratification: capacity.ratification,
-      readBoundary: async () => capacity.boundary,
-    },
+    capacity: { ratification: capacity.ratification, readBoundary: async () => capacity.boundary },
   });
   assert.equal(result.capacity.eligibility, "eligible");
   assert.equal(result.capacity.availability, "unknown");
@@ -1270,11 +1235,7 @@ void test("source publication inventory keeps ordered short pages, exact repo al
             },
           ],
           first
-            ? {
-                headers: {
-                  link: `<https://api.github.com${second}>; rel="next"`,
-                },
-              }
+            ? { headers: { link: `<https://api.github.com${second}>; rel="next"` } }
             : undefined,
         );
       },
@@ -1417,9 +1378,7 @@ void test("default admission journal uses a separate scoped SDK read through a s
     },
   );
   await assert.rejects(
-    acquireReleaseAdmission(f.root, f.config, {
-      deadline: performance.now() + 250,
-    }),
+    acquireReleaseAdmission(f.root, f.config, { deadline: performance.now() + 250 }),
     (error: unknown) => {
       assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
       assert.equal(error.evidence.phase, "repository-and-reservation");
@@ -1530,10 +1489,7 @@ void test("default admission brackets exact SDK check pages and statuses across 
       },
     );
     try {
-      const result = acquireReleaseAdmission(f.root, f.config, {
-        recover,
-        download,
-      });
+      const result = acquireReleaseAdmission(f.root, f.config, { recover, download });
       if (drift) await assert.rejects(result, /freshness-bracket/u);
       else assert.equal((await result).decision, "hold");
       assert.deepEqual(
@@ -1660,106 +1616,132 @@ function openSimulatedInventory(provider: ReturnType<typeof simulatedPublication
   });
 }
 
-/** Reads to provider exhaustion, opening a fresh budget for each checkpoint. */
-async function readThroughBudgets<T>(
+async function interruptedScan(
   provider: ReturnType<typeof simulatedPublicationProvider>,
-  scan: (
-    reader: Awaited<ReturnType<typeof openSimulatedInventory>>,
-    resume: PublicationInventoryIncompleteError["checkpoint"] | undefined,
-  ) => Promise<T[]>,
+  scan: (reader: Awaited<ReturnType<typeof openSimulatedInventory>>) => Promise<unknown>,
 ) {
-  let resume: PublicationInventoryIncompleteError["checkpoint"] | undefined;
-  for (let readers = 1; readers <= 8; readers++) {
-    try {
-      return {
-        rows: await scan(await openSimulatedInventory(provider), resume),
-        readers,
-      };
-    } catch (error) {
-      assert.ok(error instanceof PublicationInventoryIncompleteError);
-      assert.match(error.message, /publication inventory budget exceeded/u);
-      resume = error.checkpoint;
-    }
-  }
-  throw new Error("simulated inventory did not finish");
+  const error = await scan(await openSimulatedInventory(provider)).then(
+    () => assert.fail("a budget-interrupted inventory resolved as complete"),
+    (cause: unknown) => cause,
+  );
+  assert.ok(error instanceof PublicationInventoryIncompleteError);
+  assert.match(error.message, /publication inventory budget exceeded/u);
+  return error;
 }
 
 for (const count of [1000, 5000, 20000])
-  void test(`release and tag inventories reach provider exhaustion past the former 1,600-record ceiling at ${count} records`, async () => {
+  void test(`release and tag inventories read past the former 1,600-record ceiling to provider exhaustion at ${count} records`, async () => {
     const provider = simulatedPublicationProvider(count);
-    const releases = await readThroughBudgets(provider, (reader, resume) =>
-      reader.releases(resume),
-    );
+    const ids = Array.from({ length: count }, (_, index) => index + 1);
+    const names = provider.tags.map((row) => row.name);
+    if (count <= 15000) {
+      // Within one reader's request budget the read is a single pass.
+      const reader = await openSimulatedInventory(provider);
+      assert.deepEqual(
+        (await reader.releases()).map((row) => row.id),
+        ids,
+      );
+      assert.deepEqual(
+        (await (await openSimulatedInventory(provider)).tags()).map((row) => row.name),
+        names,
+      );
+      return;
+    }
+    // Past one budget the single pass fails visibly; continuation reaches the
+    // end and is labeled a composite rather than a single snapshot.
+    const releases = await interruptedScan(provider, (reader) => reader.releases());
+    const resumed = await (
+      await openSimulatedInventory(provider)
+    ).resumeReleases(releases.checkpoint);
+    assert.equal(resumed.snapshot, "composite-across-budget-windows");
     assert.deepEqual(
-      releases.rows.map((row) => row.id),
-      Array.from({ length: count }, (_, index) => index + 1),
+      resumed.rows.map((row) => row.id),
+      ids,
     );
-    const tags = await readThroughBudgets(provider, (reader, resume) => reader.tags(resume));
+    const tags = await interruptedScan(provider, (reader) => reader.tags());
+    const resumedTags = await (await openSimulatedInventory(provider)).resumeTags(tags.checkpoint);
+    assert.equal(resumedTags.snapshot, "composite-across-budget-windows");
     assert.deepEqual(
-      tags.rows.map((row) => row.name),
-      provider.tags.map((row) => row.name),
+      resumedTags.rows.map((row) => row.name),
+      names,
     );
-    // The per-reader request budget paces large scans; it never excludes records.
-    assert.equal(releases.readers, count > 15000 ? 2 : 1);
-    assert.equal(tags.readers, count > 15000 ? 2 : 1);
   });
 
-void test("a budget-interrupted inventory is never returned as complete and resumes without gaps or repeats", async () => {
+void test("a budget-interrupted inventory is refused as complete and continues only from its own checkpoint", async () => {
   const provider = simulatedPublicationProvider(20000);
-  const first = await openSimulatedInventory(provider);
-  const interrupted = await first.releases().then(
-    () => assert.fail("a partial Release inventory resolved"),
-    (error: unknown) => error,
-  );
-  assert.ok(interrupted instanceof PublicationInventoryIncompleteError);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
   assert.match(interrupted.message, /incomplete after 15900 records; resumable/u);
   assert.equal(interrupted.checkpoint.kind, "releases");
   assert.equal(interrupted.checkpoint.rows.length, 15900);
-  const resumed = await (await openSimulatedInventory(provider)).releases(interrupted.checkpoint);
-  assert.equal(new Set(resumed.map((row) => row.id)).size, 20000);
-  assert.deepEqual(
-    resumed.map((row) => row.id),
-    Array.from({ length: 20000 }, (_, index) => index + 1),
-  );
-  const tagError = await (await openSimulatedInventory(provider)).tags().then(
-    () => assert.fail("a partial tag inventory resolved"),
-    (error: unknown) => error,
-  );
-  assert.ok(tagError instanceof PublicationInventoryIncompleteError);
+  const resumed = await (
+    await openSimulatedInventory(provider)
+  ).resumeReleases(interrupted.checkpoint);
+  assert.equal(new Set(resumed.rows.map((row) => row.id)).size, 20000);
+  const tagError = await interruptedScan(provider, (reader) => reader.tags());
   assert.equal(tagError.checkpoint.kind, "tags");
-  const tags = await (await openSimulatedInventory(provider)).tags(tagError.checkpoint);
-  assert.equal(new Set(tags.map((row) => row.id)).size, 20000);
-  // A checkpoint belongs to one scan kind and namespace.
+  const tags = await (await openSimulatedInventory(provider)).resumeTags(tagError.checkpoint);
+  assert.equal(new Set(tags.rows.map((row) => row.id)).size, 20000);
+  // A checkpoint belongs to one scan kind, row projection and position.
+  const reader = await openSimulatedInventory(provider);
   await assert.rejects(
-    (await openSimulatedInventory(provider)).releases(tagError.checkpoint),
+    reader.resumeReleases(tagError.checkpoint),
     /checkpoint does not match this scan/u,
   );
+  assert.equal(interrupted.checkpoint.kind, "releases");
+  for (const forged of [
+    { ...interrupted.checkpoint, projection: "notes" as const },
+    { ...interrupted.checkpoint, previous: { route: interrupted.checkpoint.route, ids: [1] } },
+    { ...interrupted.checkpoint, head: [] },
+  ])
+    await assert.rejects(reader.resumeReleases(forged), /checkpoint does not match this scan/u);
 });
 
-void test("resuming after the provider listing changed fails visibly instead of skipping records", async () => {
+void test("resuming fails visibly when the head page or the last accepted page changed", async () => {
+  for (const change of ["older-deleted", "added-and-deleted", "tag-added-and-deleted"] as const) {
+    const provider = simulatedPublicationProvider(20000);
+    const tags = change === "tag-added-and-deleted";
+    const interrupted = await interruptedScan(provider, (reader) =>
+      tags ? reader.tags() : reader.releases(),
+    );
+    const reader = await openSimulatedInventory(provider);
+    if (change === "older-deleted") {
+      // Deleting an already-read Release shifts every later page by one row.
+      provider.releases.splice(provider.releases.length - 1000, 1);
+    } else if (change === "added-and-deleted") {
+      // A new Release plus a deleted one keeps every page count unchanged.
+      provider.releases.splice(provider.releases.length - 5, 1);
+      provider.releases.push({ ...provider.releases.at(-1)!, id: 99999, tag_name: "v9.9.9" });
+    } else {
+      // A new tag plus a deleted already-read tag keeps totalCount unchanged.
+      provider.tags.splice(500, 1);
+      provider.tags.unshift(provider.tag("a-new-tag", 99999));
+    }
+    await assert.rejects(
+      tags
+        ? reader.resumeTags(interrupted.checkpoint)
+        : reader.resumeReleases(interrupted.checkpoint),
+      tags
+        ? /admission refs changed before their resume point/u
+        : /release inventory changed before its resume point/u,
+    );
+  }
+});
+
+void test("a composite continuation does not re-observe edits to already-read records", async () => {
   const provider = simulatedPublicationProvider(20000);
-  const releases = await (
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  // Publishing an older draft in place moves no row and changes no count.
+  const edited = provider.releases[15000]!;
+  edited.draft = true;
+  const resumed = await (
     await openSimulatedInventory(provider)
-  )
-    .releases()
-    .catch((error: unknown) => error);
-  assert.ok(releases instanceof PublicationInventoryIncompleteError);
-  const tags = await (
-    await openSimulatedInventory(provider)
-  )
-    .tags()
-    .catch((error: unknown) => error);
-  assert.ok(tags instanceof PublicationInventoryIncompleteError);
-  // Deleting an already-read Release shifts every later page by one row.
-  provider.releases.splice(provider.releases.length - 10, 1);
+  ).resumeReleases(interrupted.checkpoint);
+  // This is why a composite is labeled and is not conflict authority alone.
+  assert.equal(resumed.snapshot, "composite-across-budget-windows");
+  assert.equal(resumed.rows.find((row) => row.id === edited.id)?.draft, false);
   await assert.rejects(
-    (await openSimulatedInventory(provider)).releases(releases.checkpoint),
-    /release inventory changed before its resume point/u,
-  );
-  provider.tags.unshift(provider.tag("a-new-tag", 99999));
-  await assert.rejects(
-    (await openSimulatedInventory(provider)).tags(tags.checkpoint),
-    /admission ref count changed/u,
+    (await openSimulatedInventory(provider)).releases(),
+    PublicationInventoryIncompleteError,
   );
 });
 

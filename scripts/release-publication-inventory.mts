@@ -48,18 +48,34 @@ export type PublicationInventoryCheckpoint =
       total: number | null;
       cursor: string | null;
       cursors: string[];
+      head: string[];
       rows: Record<string, unknown>[];
     }
   | {
       schema_version: 1;
       kind: "releases";
+      projection: ReleaseProjection;
       suffix: string;
       page: number;
       route: string;
       previous: { route: string; ids: number[] } | null;
+      head: number[];
       ids: number[];
       rows: unknown[];
     };
+type ReleaseProjection = "publication" | "notes" | "raw";
+
+/** Rows of a scan continued across budget windows from a checkpoint. Every
+ * page was read and the provider reported exhaustion, and the resume re-read
+ * the head page and the last accepted page unchanged. Pages read before the
+ * interruption are not re-observed, so an in-place edit of an older record, or
+ * an add and a delete that cancel out behind the head page, can go unseen. A
+ * composite is therefore not allocation or conflict authority on its own:
+ * confirm it with a single-pass read or the caller's freshness bracket. */
+export type CompositePublicationInventory<T> = {
+  snapshot: "composite-across-budget-windows";
+  rows: T[];
+};
 
 /** A scan ended before the provider reported exhaustion. Callers must treat
  * the inventory as incomplete; `checkpoint` lets a later reader continue. */
@@ -88,6 +104,7 @@ function tagScan(refPrefix: string, resume?: PublicationInventoryCheckpoint): Ta
       total: null,
       cursor: null,
       cursors: [],
+      head: [],
       rows: [],
     };
   const scan = structuredClone(resume);
@@ -97,7 +114,10 @@ function tagScan(refPrefix: string, resume?: PublicationInventoryCheckpoint): Ta
     scan.ref_prefix !== refPrefix ||
     !Array.isArray(scan.rows) ||
     !Array.isArray(scan.cursors) ||
-    (scan.cursor === null) !== (scan.rows.length === 0) ||
+    !Array.isArray(scan.head) ||
+    scan.rows.length === 0 ||
+    scan.cursor === null ||
+    scan.head.some((id, index) => scan.rows[index]?.id !== id) ||
     (scan.cursor !== null && scan.cursors.at(-1) !== scan.cursor) ||
     (scan.total !== null && (!Number.isSafeInteger(scan.total) || scan.rows.length > scan.total))
   )
@@ -105,16 +125,22 @@ function tagScan(refPrefix: string, resume?: PublicationInventoryCheckpoint): Ta
   return scan;
 }
 
-function releaseScan(suffix: string, resume?: PublicationInventoryCheckpoint): ReleaseScan {
+function releaseScan(
+  suffix: string,
+  projection: ReleaseProjection,
+  resume?: PublicationInventoryCheckpoint,
+): ReleaseScan {
   const first = `https://api.github.com/${base}${suffix}?per_page=100`;
   if (resume === undefined)
     return {
       schema_version: 1,
       kind: "releases",
+      projection,
       suffix,
       page: 1,
       route: first,
       previous: null,
+      head: [],
       ids: [],
       rows: [],
     };
@@ -122,15 +148,25 @@ function releaseScan(suffix: string, resume?: PublicationInventoryCheckpoint): R
   if (
     scan.schema_version !== 1 ||
     scan.kind !== "releases" ||
+    scan.projection !== projection ||
     scan.suffix !== suffix ||
     !Number.isSafeInteger(scan.page) ||
-    scan.page < 1 ||
+    // Only a scan that accepted at least one page has anything to continue.
+    scan.page < 2 ||
+    scan.previous === null ||
+    typeof scan.previous.route !== "string" ||
+    !Array.isArray(scan.previous.ids) ||
+    !Array.isArray(scan.head) ||
+    !scan.head.length ||
     !Array.isArray(scan.ids) ||
     !Array.isArray(scan.rows) ||
     scan.ids.length !== scan.rows.length ||
     new Set(scan.ids).size !== scan.ids.length ||
-    (scan.page === 1) !== (scan.previous === null) ||
-    (scan.page === 1 && (scan.route !== first || scan.rows.length !== 0))
+    scan.head.some((id, index) => scan.ids[index] !== id) ||
+    scan.previous.ids.some(
+      (id, index) => scan.ids[scan.ids.length - scan.previous!.ids.length + index] !== id,
+    ) ||
+    (scan.page === 2 && scan.previous.route !== first)
   )
     throw new Error("publication release inventory checkpoint does not match this scan");
   return scan;
@@ -224,6 +260,20 @@ function* readTags(
   const ids = new Set(scan.rows.map((row) => row.id));
   const names = new Set(scan.rows.map((row) => row.name));
   const cursors = new Set(scan.cursors);
+  if (scan.rows.length) {
+    // Continuing: the head page must be unchanged before later pages count.
+    const repo = record(record(yield null).repository);
+    if (repo.id !== nodeId || repo.databaseId !== 1354613114 || repo.nameWithOwner !== repository)
+      throw new Error("admission ref repository identity differs");
+    const head = record(repo.refs);
+    if (
+      head.totalCount !== scan.total ||
+      !Array.isArray(head.nodes) ||
+      head.nodes.length !== scan.head.length ||
+      head.nodes.some((node, index) => record(node).id !== scan.head[index])
+    )
+      throw new Error("admission refs changed before their resume point");
+  }
   for (;;) {
     const data = record(yield scan.cursor);
     const r = record(data.repository);
@@ -283,6 +333,7 @@ function* readTags(
     )
       throw new Error("admission ref cursor did not advance");
     cursors.add(info.endCursor);
+    if (!scan.rows.length) scan.head = accepted.map((row) => String(row.id));
     scan.total = total;
     scan.rows.push(...accepted);
     scan.cursors.push(info.endCursor);
@@ -487,7 +538,7 @@ export function createReleasePublicationReader(rawApi: Api) {
       scan,
     );
   };
-  const tags = (resume?: PublicationInventoryCheckpoint) => scanTags(tagsRefPrefix, resume);
+  const tags = () => scanTags(tagsRefPrefix);
   const namespaceTags = (namespace: string) =>
     namespaceRefPrefixes(namespace)
       .flatMap((prefix) => scanTags(prefix))
@@ -630,8 +681,17 @@ export async function createPublicationInventoryWithSdk(options: {
     );
   };
   return {
-    /** Complete lifetime tag inventory, continued until the provider is exhausted. */
-    tags: (resume?: PublicationInventoryCheckpoint) => scanTags(tagsRefPrefix, resume),
+    /** Single-pass lifetime tag inventory, read until the provider is exhausted. */
+    tags: () => scanTags(tagsRefPrefix),
+    /** Continues an interrupted lifetime tag scan; see CompositePublicationInventory. */
+    async resumeTags(
+      checkpoint: PublicationInventoryCheckpoint,
+    ): Promise<CompositePublicationInventory<Record<string, unknown>>> {
+      return {
+        snapshot: "composite-across-budget-windows",
+        rows: await scanTags(tagsRefPrefix, checkpoint),
+      };
+    },
     /** Complete receipt tags of one reservation namespace (its two prefixes). */
     async namespaceTags(namespace: string) {
       const rows: Record<string, unknown>[] = [];
@@ -647,14 +707,30 @@ export async function createPublicationInventoryWithSdk(options: {
         name,
       );
     },
-    async releases(resume?: PublicationInventoryCheckpoint) {
+    /** Single-pass Release inventory, read until the provider is exhausted. */
+    async releases() {
       const rows = await readReleaseInventoryPages(
         (url) => read(`GET ${url.pathname}${url.search}`),
         inspectPublicationReleaseRecord,
-        "/releases",
-        resume,
+        "publication",
       );
       return rows.sort((a, b) => a.id - b.id);
+    },
+    /** Continues an interrupted Release scan; see CompositePublicationInventory. */
+    async resumeReleases(
+      checkpoint: PublicationInventoryCheckpoint,
+    ): Promise<CompositePublicationInventory<ReturnType<typeof inspectPublicationReleaseRecord>>> {
+      const rows = await readReleaseInventoryPages(
+        (url) => read(`GET ${url.pathname}${url.search}`),
+        inspectPublicationReleaseRecord,
+        "publication",
+        "/releases",
+        checkpoint,
+      );
+      return {
+        snapshot: "composite-across-budget-windows",
+        rows: rows.sort((a, b) => a.id - b.id),
+      };
     },
     readAllocations: (tags: Record<string, unknown>[], namespace: string) =>
       runSequence(readAllocationPairs(tags, namespace), async (sha) => {
@@ -685,7 +761,6 @@ export async function readReleaseNotesWithSdk(options: {
   deadline: number;
   guard: () => void;
   fetch?: typeof globalThis.fetch;
-  resume?: PublicationInventoryCheckpoint;
 }) {
   const { token, guard, fetch } = options;
   const deadline = Math.min(
@@ -717,25 +792,18 @@ export async function readReleaseNotesWithSdk(options: {
     return response;
   };
   repositoryNodeId((await read(new URL(`https://api.github.com/${base}`))).data);
-  return readReleaseInventoryPages(read, inspectReleaseNotes, "/releases", options.resume);
+  return readReleaseInventoryPages(read, inspectReleaseNotes, "notes");
 }
 
 type InventoryRead = (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>;
 
-export function readPublicationReleases(
-  read: InventoryRead,
-  resume?: PublicationInventoryCheckpoint,
-) {
-  return readReleaseInventoryPages(read, (row) => row, "/releases", resume);
+export function readPublicationReleases(read: InventoryRead) {
+  return readReleaseInventoryPages(read, (row) => row, "raw");
 }
 
-export function readPublicationReleaseAssets(
-  releaseId: number,
-  read: InventoryRead,
-  resume?: PublicationInventoryCheckpoint,
-) {
+export function readPublicationReleaseAssets(releaseId: number, read: InventoryRead) {
   integer(releaseId);
-  return readReleaseInventoryPages(read, (row) => row, `/releases/${releaseId}/assets`, resume);
+  return readReleaseInventoryPages(read, (row) => row, "raw", `/releases/${releaseId}/assets`);
 }
 
 /** Validates one page's `next` relation and returns its URL, or null at the end. */
@@ -770,15 +838,17 @@ function nextInventoryRoute(link: unknown, page: number, suffix: string, rows: n
 
 /** Reads a Release collection until the provider has no next page. There is no
  * record or page ceiling; the caller's request and time budgets pace the scan.
- * A failed read ends with a resumable checkpoint, and resuming first re-reads
- * the last accepted page so a shifted listing fails instead of skipping rows. */
+ * A failed read ends with a resumable checkpoint. Resuming first re-reads the
+ * head page (where a new Release appears) and the last accepted page (which a
+ * deletion shifts), and fails if either changed instead of skipping rows. */
 async function readReleaseInventoryPages<T>(
   read: InventoryRead,
   project: (row: Record<string, unknown>) => T,
+  projection: ReleaseProjection,
   suffix = "/releases",
   resume?: PublicationInventoryCheckpoint,
 ) {
-  const scan = releaseScan(suffix, resume);
+  const scan = releaseScan(suffix, projection, resume);
   const ids = new Set(scan.ids);
   const step = async (route: URL) => {
     try {
@@ -787,14 +857,22 @@ async function readReleaseInventoryPages<T>(
       throw new PublicationInventoryIncompleteError(error, scan);
     }
   };
+  const sameIds = (body: unknown, ids: number[]) =>
+    Array.isArray(body) &&
+    body.length === ids.length &&
+    body.every((raw, index) => record(raw).id === ids[index]);
   if (scan.previous) {
     const previous = scan.previous;
+    if (scan.page > 2) {
+      const head = await step(new URL(`https://api.github.com/${base}${suffix}?per_page=100`));
+      if (!sameIds(head.data, scan.head))
+        throw new Error("release inventory changed before its resume point");
+    }
     const response = await step(new URL(previous.route));
     const body: unknown = response.data;
     if (
       !Array.isArray(body) ||
-      body.length !== previous.ids.length ||
-      body.some((raw, index) => record(raw).id !== previous.ids[index]) ||
+      !sameIds(body, previous.ids) ||
       nextInventoryRoute(response.headers.link, scan.page - 1, suffix, body.length) !== scan.route
     )
       throw new Error("release inventory changed before its resume point");
@@ -818,6 +896,7 @@ async function readReleaseInventoryPages<T>(
     }
     const next = nextInventoryRoute(response.headers.link, scan.page, suffix, body.length);
     for (const id of pageIds) ids.add(id);
+    if (scan.page === 1) scan.head = pageIds;
     scan.ids.push(...pageIds);
     scan.rows.push(...pageRows);
     if (next === null) return scan.rows as T[];
