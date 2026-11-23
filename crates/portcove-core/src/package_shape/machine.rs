@@ -56,7 +56,10 @@ pub(crate) struct ExecutableImage {
 }
 
 /// Non-Windows PE systems: an Xbox or EFI subsystem, or any other subsystem.
-pub(crate) const PE_SYSTEMS: &[&str] = &["xbox", "efi", "unknown"];
+/// `arm64ec` is an x64-headed Windows image whose load configuration carries
+/// CHPE (hybrid ARM64EC) metadata: it is built for Windows on Arm, not for an
+/// x86-64 host, so it is never reported as a plain `pe-x86-64`.
+pub(crate) const PE_SYSTEMS: &[&str] = &["xbox", "efi", "arm64ec", "unknown"];
 /// Non-Linux ELF systems, from the OSABI byte and the program interpreter.
 /// `unknown` includes a static image without a GNU/Linux OSABI.
 pub(crate) const ELF_SYSTEMS: &[&str] = &[
@@ -257,6 +260,13 @@ fn pe<R: Read + Seek>(reader: &mut R, header: &[u8]) -> io::Result<Option<Execut
         .then(|| u16_at(&coff, 24 + 68, Endian::Little))
         .flatten();
     let system = match subsystem {
+        Some(2 | 3) if machine == 0x8664 && magic == Some(0x020b) => {
+            if pe_has_hybrid_metadata(reader, u64::from(offset), &coff)? {
+                Some("arm64ec")
+            } else {
+                None
+            }
+        }
         Some(2 | 3) => None,
         Some(14) => Some("xbox"),
         Some(10..=13) => Some("efi"),
@@ -267,6 +277,72 @@ fn pe<R: Read + Seek>(reader: &mut R, header: &[u8]) -> io::Result<Option<Execut
         machine: format!("pe-{arch}"),
         system,
     }))
+}
+
+/// Largest PE section table read: 96 sections of 40 bytes fit one read.
+const MAXIMUM_PE_SECTIONS: usize = 96;
+/// The 64-bit load configuration's `CHPEMetadataPointer` offset.
+const CHPE_METADATA_POINTER: usize = 0xc8;
+
+/// Whether an x64-headed PE32+ image carries hybrid (CHPE) metadata in its
+/// load configuration, which marks an ARM64EC or ARM64X image. It performs at
+/// most three more bounded reads (optional header, section table, load
+/// configuration). Anything malformed or out of bounds is not hybrid; a
+/// genuinely hybrid image always has a well-formed load configuration.
+fn pe_has_hybrid_metadata<R: Read + Seek>(
+    reader: &mut R,
+    offset: u64,
+    coff: &[u8],
+) -> io::Result<bool> {
+    let (Some(sections), Some(optional_size)) = (
+        u16_at(coff, 6, Endian::Little),
+        u16_at(coff, 20, Endian::Little),
+    ) else {
+        return Ok(false);
+    };
+    let optional_size = usize::from(optional_size);
+    // PE32+ data directories start at optional header offset 112; the load
+    // configuration is directory 10.
+    let directory = 112 + 10 * 8;
+    if optional_size < directory + 8 || optional_size > MAXIMUM_READ - 24 {
+        return Ok(false);
+    }
+    let optional = read_at(reader, offset + 24, optional_size)?;
+    let (Some(count), Some(rva), Some(size)) = (
+        u32_at(&optional, 108, Endian::Little),
+        u32_at(&optional, directory, Endian::Little),
+        u32_at(&optional, directory + 4, Endian::Little),
+    ) else {
+        return Ok(false);
+    };
+    let needed = CHPE_METADATA_POINTER + 8;
+    if count <= 10 || rva == 0 || (size as usize) < needed {
+        return Ok(false);
+    }
+    let sections = usize::from(sections);
+    if sections == 0 || sections > MAXIMUM_PE_SECTIONS {
+        return Ok(false);
+    }
+    let table = read_at(reader, offset + 24 + optional_size as u64, sections * 40)?;
+    let file_offset = (0..sections).find_map(|index| {
+        let at = index * 40;
+        let virtual_size = u32_at(&table, at + 8, Endian::Little)?;
+        let virtual_address = u32_at(&table, at + 12, Endian::Little)?;
+        let raw_size = u32_at(&table, at + 16, Endian::Little)?;
+        let raw_pointer = u32_at(&table, at + 20, Endian::Little)?;
+        let extent = virtual_size.max(raw_size);
+        let within = rva.checked_sub(virtual_address)?;
+        (within < extent && within.checked_add(needed as u32)? <= raw_size)
+            .then(|| u64::from(raw_pointer) + u64::from(within))
+    });
+    let Some(file_offset) = file_offset else {
+        return Ok(false);
+    };
+    let load_config = read_at(reader, file_offset, needed)?;
+    let declared = u32_at(&load_config, 0, Endian::Little).unwrap_or(0) as usize;
+    Ok(declared >= needed
+        && u64_at(&load_config, CHPE_METADATA_POINTER, Endian::Little)
+            .is_some_and(|value| value != 0))
 }
 
 fn elf<R: Read + Seek>(reader: &mut R, header: &[u8]) -> io::Result<Option<ExecutableImage>> {
@@ -642,6 +718,29 @@ pub(crate) mod fixtures {
         bytes[0x96..0x98].copy_from_slice(&characteristics.to_le_bytes());
         bytes[0x98..0x9a].copy_from_slice(&0x020b_u16.to_le_bytes());
         bytes[0x98 + 68..0x98 + 70].copy_from_slice(&subsystem.to_le_bytes());
+        bytes
+    }
+
+    /// An x64-headed PE32+ console program whose load configuration names
+    /// CHPE metadata (`chpe` non-zero, an ARM64EC image) or none.
+    pub(crate) fn pe_hybrid(chpe: u64) -> Vec<u8> {
+        let mut bytes = pe_subsystem(0x8664, 0x0002, 3);
+        // One section `.rdata` at RVA 0x1000, raw data at file offset 0x400.
+        bytes[0x86..0x88].copy_from_slice(&1_u16.to_le_bytes());
+        let optional = 0x98;
+        bytes[optional + 108..optional + 112].copy_from_slice(&16_u32.to_le_bytes());
+        let directory = optional + 112 + 10 * 8;
+        bytes[directory..directory + 4].copy_from_slice(&0x1000_u32.to_le_bytes());
+        bytes[directory + 4..directory + 8].copy_from_slice(&0x140_u32.to_le_bytes());
+        let section = optional + 0xf0;
+        bytes.resize(0x400 + 0x200, 0);
+        bytes[section..section + 6].copy_from_slice(b".rdata");
+        bytes[section + 8..section + 12].copy_from_slice(&0x200_u32.to_le_bytes());
+        bytes[section + 12..section + 16].copy_from_slice(&0x1000_u32.to_le_bytes());
+        bytes[section + 16..section + 20].copy_from_slice(&0x200_u32.to_le_bytes());
+        bytes[section + 20..section + 24].copy_from_slice(&0x400_u32.to_le_bytes());
+        bytes[0x400..0x404].copy_from_slice(&0x140_u32.to_le_bytes());
+        bytes[0x400 + 0xc8..0x400 + 0xd0].copy_from_slice(&chpe.to_le_bytes());
         bytes
     }
 

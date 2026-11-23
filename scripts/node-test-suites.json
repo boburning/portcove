@@ -550,6 +550,13 @@
       ]
     },
     {
+      "file": "scripts/listing-facts-batch.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8927],
+        ["repository-tools-2", 3927]
+      ]
+    },
+    {
       "file": "scripts/maintenance-program-view.test.mts",
       "memberships": [
         ["catalog-full-2", 8924],

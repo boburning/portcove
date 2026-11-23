@@ -45,7 +45,7 @@
 //   node scripts/listing-package-facts.mts --check
 //   node scripts/listing-package-facts.mts derive --observations REPORT.json \
 //     --cli PORTCOVE [--state STATE.json] [--output TABLE.json] [--cadence-hours N] \
-//     [--workflow-run-id ID --source-commit SHA]
+//     [--workflow-run-id ID --source-commit SHA --inputs-sha256 SHA] [--report FILE]
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -121,13 +121,15 @@ export interface ObservedAsset {
   size: number;
   sha256: string | null;
 }
-interface ObservedRelease {
+export interface ObservedRelease {
   id: number;
   version: string;
   published_at: string | null;
   provider_prerelease: boolean;
   assets_complete: boolean;
   assets: ObservedAsset[];
+  /** Asset records in this release the worker cannot read; never dropped silently. */
+  malformed_assets: number;
 }
 /** A failed inspection. `permanent` failures are not retried for this release. */
 export class InspectionError extends Error {
@@ -137,6 +139,12 @@ export class InspectionError extends Error {
     this.permanent = permanent;
   }
 }
+/**
+ * The caller's wall-clock deadline (epoch ms) ran out before or during one
+ * download or Core run. Reproduction names it an `over-budget` refusal; it is
+ * never a fact about the bytes.
+ */
+export class OverBudgetError extends Error {}
 /** Reads verified archive bytes and returns their player candidates; throws on failure. */
 export type ByteInspector = (asset: ObservedAsset, readerPlatform: string) => Promise<PlayerFact[]>;
 /** Core's `catalog.classify-listing-names` data. */
@@ -213,6 +221,47 @@ function observations(candidates: Map<string, string>, report: unknown) {
   return result;
 }
 
+/** An asset record the worker can read: positive id, name, URL and size. */
+function readableAsset(asset: unknown) {
+  return (
+    isRecord(asset) &&
+    Number.isSafeInteger(asset.id) &&
+    Number(asset.id) > 0 &&
+    typeof asset.name === "string" &&
+    typeof asset.url === "string" &&
+    Number.isSafeInteger(asset.size)
+  );
+}
+
+/**
+ * Why the release list cannot be ordered or read, if it cannot: the newest
+ * release (highest id) has no parseable publication time, so the latest
+ * stable release is unknown; or the release that would be offered, or a newer
+ * one, holds an asset record the worker cannot read.
+ */
+export function unreadableReleases(
+  releases: readonly ObservedRelease[],
+  chosen: ObservedRelease | undefined,
+): string | undefined {
+  const newest = releases.toSorted((left, right) => right.id - left.id)[0];
+  if (newest && Number.isNaN(Date.parse(newest.published_at ?? "")))
+    return `The newest release (id ${newest.id}) has no parseable publication time, so the latest stable release is unknown.`;
+  const relevant = releases.filter(
+    (release) =>
+      release === chosen ||
+      (chosen !== undefined &&
+        (Date.parse(release.published_at ?? "") || 0) >=
+          (Date.parse(chosen.published_at ?? "") || 0)),
+  );
+  const malformed = (chosen ? relevant : releases).reduce(
+    (sum, release) => sum + release.malformed_assets,
+    0,
+  );
+  if (malformed > 0)
+    return `The observation holds ${malformed} release asset record(s) the worker cannot read, so the release's packages are unknown.`;
+  return undefined;
+}
+
 function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
   return (Array.isArray(observation.releases) ? observation.releases : []).flatMap(
     (release: unknown) =>
@@ -228,6 +277,8 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
               published_at: typeof release.published_at === "string" ? release.published_at : null,
               provider_prerelease: release.provider_prerelease === true,
               assets_complete: release.assets_complete === true,
+              malformed_assets: release.assets.filter((asset: unknown) => !readableAsset(asset))
+                .length,
               assets: release.assets.flatMap((asset: unknown) =>
                 isRecord(asset) &&
                 Number.isSafeInteger(asset.id) &&
@@ -261,7 +312,7 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
  * skipped as a prerelease: it is returned as `unclassified`, so the identity
  * records invalid facts instead of silently falling back to an older release.
  */
-function latestStable(
+export function latestStable(
   releases: readonly ObservedRelease[],
   verdict: (r: ObservedRelease) => boolean | undefined,
 ): { release?: ObservedRelease; unclassified?: ObservedRelease } {
@@ -278,7 +329,7 @@ function latestStable(
   return {};
 }
 
-const isArchive = (name: string) =>
+export const isArchive = (name: string) =>
   (archiveForms as readonly string[]).includes(packageFormOf(name) ?? "");
 /** Sorted, unique package forms of these assets that the worker does not read. */
 const unreadFormsOf = (release: ObservedRelease | undefined) =>
@@ -291,7 +342,7 @@ const unreadFormsOf = (release: ObservedRelease | undefined) =>
     ),
   ].toSorted(compareCodePoints);
 /** Reader rules only; TAR.XZ is read by the Linux reader. */
-const readerPlatform = (name: string) =>
+export const readerPlatform = (name: string) =>
   name.toLowerCase().endsWith(".tar.xz") ? "linux-x86-64" : "windows-x86-64";
 
 const agreed = (values: string[]) =>
@@ -406,10 +457,10 @@ export interface DeriveResult {
 }
 
 /** Display-safe placeholder for a value that failed validation. */
-const safeText = (value: string, fallback: string) =>
+export const safeText = (value: string, fallback: string) =>
   /^[\x20-\x7e]{1,256}$/u.test(value) && value.trim() === value ? value : fallback;
 
-const assetsDigest = (release: ObservedRelease | undefined) =>
+export const assetsDigest = (release: ObservedRelease | undefined) =>
   digestOf(
     (release?.assets ?? [])
       .map(({ id, name, size, sha256 }) => [id, name, size, sha256])
@@ -537,7 +588,9 @@ export class NameVerdicts {
     let result: unknown;
     try {
       result = await this.#classify(input);
-    } catch {
+    } catch (error) {
+      // A deadline is the caller's budget, not a verdict on these names.
+      if (error instanceof OverBudgetError) throw error;
       return false;
     }
     if (
@@ -921,6 +974,14 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         undefined,
         `The observation holds ${observation.malformedReleases} release record(s) the worker cannot read, so the latest stable release is unknown.`,
       );
+      return;
+    }
+    const unreadable = unreadableReleases(
+      observation.releases,
+      choice.get(id)?.release ?? choice.get(id)?.unclassified,
+    );
+    if (unreadable) {
+      invalid(id, repositoryId, undefined, unreadable);
       return;
     }
     const unclassifiedRelease = choice.get(id)?.unclassified;
@@ -1351,6 +1412,22 @@ function sanitizeState(state: WorkerState): WorkerState {
 // I/O shell: bounded download, Core inspection, then delete the bytes.
 
 const timeoutMs = 10 * 60_000;
+/**
+ * One download or Core run's timeout: 10 minutes, cut to what is left of an
+ * optional deadline. With no time left it throws `OverBudgetError` before
+ * anything starts, so a caller with a deadline is never held past it by more
+ * than the scheduling of this process.
+ */
+export function boundedTimeout(deadline: number | undefined, now = Date.now()) {
+  if (deadline === undefined) return timeoutMs;
+  const left = deadline - now;
+  if (left <= 0)
+    throw new OverBudgetError("The deadline passed before the next download or Core run.");
+  return Math.min(timeoutMs, left);
+}
+/** Whether a deadline has passed: an interrupted run then becomes `OverBudgetError`. */
+const pastDeadline = (deadline: number | undefined) =>
+  deadline !== undefined && Date.now() >= deadline;
 
 export interface CoreRun {
   stdout: string;
@@ -1406,7 +1483,12 @@ function coreData(run: CoreRun, what: string): Record<string, unknown> {
   throw new InspectionError(`Core refused the archive during ${what}.`, run.exited);
 }
 
-export function cliInspector(cli: string, workDirectory: string): ByteInspector {
+export function cliInspector(
+  cli: string,
+  workDirectory: string,
+  options: { deadline?: number } = {},
+): ByteInspector {
+  const { deadline } = options;
   return async (asset, platform) => {
     if (!asset.sha256 || !/^https:\/\/github\.com\//u.test(asset.url))
       throw new InspectionError("Only digest-bound GitHub release assets are inspected.", true);
@@ -1420,9 +1502,10 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
       try {
         response = await fetch(asset.url, {
           redirect: "follow",
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: AbortSignal.timeout(boundedTimeout(deadline)),
         });
       } catch {
+        if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
         throw new InspectionError("Download failed.", false);
       }
       if (!response.ok || !response.body)
@@ -1440,29 +1523,33 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
       } catch {
         if (received > asset.size)
           throw new InspectionError("Archive bytes exceed the provider's size.", true);
+        if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
         throw new InspectionError("Download was interrupted.", false);
       }
       if (received !== asset.size || hash.digest("hex") !== asset.sha256)
         throw new InspectionError("Archive bytes differ from the provider's size or digest.", true);
-      const data = coreData(
-        await runCore(
-          cli,
-          [
-            "--json",
-            "catalog",
-            "inspect-listing-artifact",
-            file,
-            "--platform",
-            platform,
-            "--size",
-            String(asset.size),
-            "--sha256",
-            asset.sha256,
-          ],
-          directory,
-        ),
-        "inspection",
+      // The deadline is checked again before Core starts: a download that
+      // used the time left never starts a Core run past the deadline.
+      const inspection = await runCore(
+        cli,
+        [
+          "--json",
+          "catalog",
+          "inspect-listing-artifact",
+          file,
+          "--platform",
+          platform,
+          "--size",
+          String(asset.size),
+          "--sha256",
+          asset.sha256,
+        ],
+        directory,
+        boundedTimeout(deadline),
       );
+      if (!inspection.exited && pastDeadline(deadline))
+        throw new OverBudgetError("The Core inspection reached the deadline.");
+      const data = coreData(inspection, "inspection");
       if (data.sha256 !== asset.sha256 || !Array.isArray(data.player_candidates))
         throw new InspectionError("Core returned no inspection for these bytes.", false);
       return data.player_candidates.flatMap((player: unknown) =>
@@ -1487,16 +1574,26 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
   };
 }
 
-export function cliClassifier(cli: string, workDirectory: string): NameClassifier {
+export function cliClassifier(
+  cli: string,
+  workDirectory: string,
+  options: { deadline?: number } = {},
+): NameClassifier {
+  const { deadline } = options;
   return async (input) => {
     const directory = await mkdtemp(path.join(workDirectory, "names-"));
     try {
       const file = path.join(directory, "names.json");
       await writeFile(file, JSON.stringify(input), { flag: "wx" });
-      const data = coreData(
-        await runCore(cli, ["--json", "catalog", "classify-listing-names", file], directory),
-        "name classification",
+      const run = await runCore(
+        cli,
+        ["--json", "catalog", "classify-listing-names", file],
+        directory,
+        boundedTimeout(deadline),
       );
+      if (!run.exited && pastDeadline(deadline))
+        throw new OverBudgetError("The Core name classification reached the deadline.");
+      const data = coreData(run, "name classification");
       return data as unknown as NameClassification;
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -1508,7 +1605,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const catalogRoot = path.join(root, "crates/portcove-core/catalog");
 export const factsTablePath = path.join(catalogRoot, "listing-package-facts.generated.json");
 const usage =
-  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE] [--cadence-hours N] [--workflow-run-id ID --source-commit SHA]";
+  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE] [--cadence-hours N] [--workflow-run-id ID --source-commit SHA --inputs-sha256 SHA] [--report FILE]";
 
 function parseState(text: string): WorkerState {
   const value: unknown = JSON.parse(text);
@@ -1537,8 +1634,13 @@ async function main(argv: string[]) {
     options[name.slice(2)] = value;
   }
   if (!options.observations || !options.cli) throw new Error(usage);
-  if (Boolean(options["workflow-run-id"]) !== Boolean(options["source-commit"]))
-    throw new Error("Provenance needs both --workflow-run-id and --source-commit.");
+  const provenanceOptions = ["workflow-run-id", "source-commit", "inputs-sha256"].map((name) =>
+    Boolean(options[name]),
+  );
+  if (provenanceOptions.some((given) => given !== provenanceOptions[0]))
+    throw new Error(
+      "Provenance needs --workflow-run-id, --source-commit and --inputs-sha256 together.",
+    );
   const cadenceHours = options["cadence-hours"] ? Number(options["cadence-hours"]) : undefined;
   if (cadenceHours !== undefined && !(cadenceHours > 0)) throw new Error(usage);
   const output = options.output ?? factsTablePath;
@@ -1553,6 +1655,7 @@ async function main(argv: string[]) {
           cli_sha256: createHash("sha256")
             .update(await readFile(cli))
             .digest("hex"),
+          inputs_sha256: options["inputs-sha256"]!,
         }
       : undefined;
     const result = await deriveListingFacts({
@@ -1574,6 +1677,8 @@ async function main(argv: string[]) {
     });
     await writeFile(output, `${JSON.stringify(result.table, null, 2)}\n`);
     if (options.state) await writeFile(options.state, `${JSON.stringify(result.state)}\n`);
+    const summary = `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, backlog: result.backlog, ineligible: result.ineligible, identities: result.report })}\n`;
+    if (options.report) await writeFile(options.report, summary);
     return `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, backlog: result.backlog, ineligible: result.ineligible, identities: result.report })}\n`;
   } finally {
     await rm(work, { recursive: true, force: true });

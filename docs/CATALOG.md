@@ -3778,19 +3778,27 @@ supported platform; every qualified name runs on none.
 
 | Format | Desktop when                                                                                                                           | Other names                                                                                                                                                                  |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PE     | Windows GUI or console subsystem                                                                                                       | `xbox`, `efi`, or `unknown` for any other or missing subsystem                                                                                                               |
+| PE     | Windows GUI or console subsystem, without ARM64EC hybrid metadata                                                                      | `xbox`, `efi`, `arm64ec` (an x64 header whose load configuration names CHPE metadata: Windows on Arm), or `unknown` for any other or missing subsystem                       |
 | ELF    | A glibc or musl `/lib…/ld-linux…`/`ld-musl-…` interpreter with a System V or GNU OSABI, or a static image branded GNU/Linux            | `android` (`/system/bin/linker*`), `freebsd`, `openbsd`, `netbsd`, `haiku`, `solaris` by OSABI or interpreter; `unknown` for a static System V image or disagreeing evidence |
 | Mach-O | `LC_BUILD_VERSION` macOS or Mac Catalyst, or `LC_VERSION_MIN_MACOSX`, outside an iOS-shaped location; every universal slice must agree | `ios`, `tvos`, `watchos`, `visionos` (simulators count as their device), `other` (bridgeOS, DriverKit), `unknown`, and `unplatformed` for no platform load command           |
 
-An iOS-shaped location is inside a top-level `Payload/` directory, or directly
-inside an `.app` bundle root, where a macOS bundle never puts its program. A
-Mach-O image with no platform load command is macOS only under
-`*.app/Contents/MacOS/` or as a bare program outside any iOS-shaped location;
-otherwise it stays `macho-unplatformed-…`. A macOS image in an iOS-shaped
+An iOS-shaped location is inside a `Payload/` directory at any depth (an
+`.ipa` layout, also repacked inside another folder), or below an `.app` or
+`.appex` bundle that is not a macOS bundle: the innermost bundle around a macOS
+program is always followed by `Contents/MacOS/` and every outer one by
+`Contents/`, while an iOS bundle holds its program and nested extensions
+directly. A Mach-O image with no platform load command is macOS only outside
+every iOS-shaped location, such as under `*.app/Contents/MacOS/` or as a bare
+program; otherwise it stays `macho-unplatformed-…`. A macOS image in an iOS-shaped
 location is `macho-unknown-…`. Core reads at most 64 KiB of Mach-O load
 commands per slice; a platform command past that leaves the system unknown.
-The historical unqualified `machine` that reviewed package shapes record keeps
-its meaning, so managed routes are unchanged.
+An ARM64EC image keeps an x64 header machine, so its load configuration
+decides: a non-zero CHPE metadata pointer makes it `pe-arm64ec-x86-64`, a
+Windows program for an Arm host that runs on no supported platform. Core reads
+at most three more bounded headers for this (optional header, section table,
+load configuration); anything malformed is not hybrid. The historical
+unqualified `machine` that reviewed package shapes record keeps its meaning, so
+managed routes are unchanged.
 
 Players with only non-desktop machines block the identity as
 `non-desktop-platform`; players with only `unknown` or `unplatformed` machines
@@ -3805,11 +3813,16 @@ one program: at most `maxDistinctPrograms` (1) distinct program names, across
 every archive whose name allows the platform, and each archive's players under
 one top-level directory. Anything else is `ambiguous-player`. Two program names
 are the same program when they differ only in build-variant words: an
-architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`, a
-bare `64` or `32`), `console`, `debug` or `exe`. So `openjk.x86_64.exe` and
-`openjk.x86.exe` are one program, `Game.exe`, `Game64.exe` and
-`Game.console.exe` are one program, and `openjk.x86_64.exe` beside
-`openjo.x86_64.exe` is two.
+architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`),
+`console`, `debug` or `exe`, and a bare `64`, `32` or `86` only when it stands
+alone between separators. So `openjk.x86_64.exe` and `openjk.x86.exe` are one
+program, `Game.exe`, `Game-64.exe` and `Game.console.exe` are one program, and
+`openjk.x86_64.exe` beside `openjo.x86_64.exe` is two. A number glued to the
+name is part of the name: `Doom64.exe` is Doom 64, a different game from
+`Doom.exe`, and nothing in the names proves otherwise, so `Doom.exe` beside
+`Doom64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
+`ambiguous-player`. A reviewed `route_facts_v1` enrollment can still offer
+such a release.
 
 The bound is one because a second distinct name cannot be told apart from a
 second title by name alone. That includes `Game.exe` beside `Launcher.exe`:
@@ -3900,7 +3913,8 @@ age and retention bounds, the exact archive binding, the veto, tool and system t
 the name's operating system and architecture, that each player exists in the
 facts with a machine that runs on the platform and was not excluded by the
 tool veto, that every player of the artifact running there is named, and the
-one-program rule. The facts
+one-program rule, including one top-level directory for the players of every
+artifact whose name permits the platform, as the generator checks. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
 because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
@@ -3908,7 +3922,10 @@ refused.
 
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
 version. The same reviewed change must therefore raise the `changed` bound in
-`deltaBounds` for that change only. A curated change that adds integrations to
+`deltaBounds` for that change only. Generator version 5 and facts parser
+version 5 (#8569: iOS shape at any depth, glued numbers in program names, the
+gate's directory check, unreadable asset records and ARM64EC) landed with an
+empty facts table and no enrollment, so no bound changed. A curated change that adds integrations to
 more generated identities than the `withdrawn` bound must be split into
 changes within it.
 
@@ -3926,12 +3943,12 @@ it fail. A classifier or tool-token change therefore needs a refreshed facts
 table in the same change.
 
 The facts table may carry a table-level `provenance` object with
-`workflow_run_id`, the 40-digit `source_commit` and the CLI binary's
-`cli_sha256`. A local run omits it. When present, its shape is checked and it
-is carried into the enrollment table. None of these checks can tell real
-upstream bytes from facts someone wrote by hand. Whoever can merge a change
-to the facts table remains trusted for the facts' truth. The checks bound what
-such a change can do and make it visible.
+`workflow_run_id`, the 40-digit `source_commit`, the CLI binary's `cli_sha256`
+and the run's `inputs_sha256`. A local run omits it. When present, its shape is
+checked and it is carried into the enrollment table. The checks above cannot
+tell real upstream bytes from facts someone wrote by hand, so pull-request CI
+reproduces facts from the bytes
+([reproducible facts](#reproducible-facts-and-the-path-allowlist)).
 
 ##### Facts worker
 
@@ -4026,9 +4043,11 @@ re-evaluated only when the release or its asset list changes:
 - `repeated-inspection-failure`: three transient failures in a row;
 - `invalid-facts`: the identity's facts failed validation, such as a path with
   a control character, `:` or `\`, a release file or program name Core could
-  not classify, a release record the worker cannot read, a newer release
-  whose tag Core could not classify, or any other unexpected failure while
-  evaluating it.
+  not classify, a release record the worker cannot read, an asset record it
+  cannot read in the offered release or a newer one, a newest release (highest
+  id) without a parseable publication time, a newer release whose tag Core
+  could not classify, or any other unexpected failure while evaluating it. An
+  unreadable record is never dropped silently.
 
 Every entry also records `unread_forms`: the sorted package forms of its
 release that the worker does not read, also when a supported archive sits
@@ -4101,8 +4120,8 @@ facts in port_id order while the enrollment delta stays within `deltaBounds`.
 The rest are held in the worker state and offered again next run without
 reading bytes. An initial wave of a few hundred candidates therefore lands as
 successive batches of at most 64. `--check` validates the committed table. An
-unattended run records provenance with `--workflow-run-id` and
-`--source-commit`; the worker adds the CLI binary's SHA-256 itself.
+unattended run records provenance with `--workflow-run-id`, `--source-commit`
+and `--inputs-sha256`; the worker adds the CLI binary's SHA-256 itself.
 
 Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
 platform, so a release with only 32-bit players stays `wrong-host`; a 32-bit
@@ -4113,32 +4132,307 @@ another archive is not unpacked, so its players stay unknown.
 
 ##### Scheduled facts batch job
 
-The scheduled job that will run the worker unattended is not part of this
-change. It must meet all of these requirements:
+`.github/workflows/listing-facts-batch.yml` runs the worker unattended, with
+its checks and decisions in `scripts/listing-facts-batch.mts`. It is built
+disabled: the schedule does nothing and nothing is written until the owner
+sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`. A
+manual dispatch defaults to a dry run, which may run while disabled: it
+derives, generates and verifies one batch with read-only permissions, reports
+it in the job summary and artifacts, and saves no worker state, branch, pull
+request or issue. The job uses only the built-in workflow token, no secret,
+no paid runner and no external service other than GitHub and the upstream
+release downloads the worker already reads.
 
-- Path allowlist: a batch changes only `listing-package-facts.generated.json`,
-  `generated-registration.generated.json` and the outputs
-  `scripts/generate-catalog.mts` itself rewrites. It never changes
-  `deltaBounds`, `GENERATOR_VERSION`, scripts, workflows or listings.
-- Reproduce from its own run: it never accepts a facts file from a pull
-  request, an issue or a foreign artifact. It reruns catalog generation on the
-  facts its own worker run wrote and requires zero diff against the batch.
-- Provenance: the facts table records the workflow run id, source commit and
-  CLI SHA-256, and the job checks them against its own run.
-- One batch at a time: at most one open batch pull request, one concurrency
-  group, each run starting from the tip of `main`, with the worker state
-  persisted between runs.
-- Auto-merge only when every required check is green at the exact head, the
-  delta is within `deltaBounds` and the author is the job's own identity.
-- Stop and wait for a person when the gate refuses, when one batch withdraws
-  more than about 16 routes, on any repository identity change, on a worker
-  error, when the classifier, CLI or generator version changes, when observer
-  coverage drops, or when budget saturation lasts beyond one pass.
-- A wall-clock freshness watchdog: facts age is otherwise measured only
-  against the table's own `generated_at`, so the job alerts when that time
-  falls behind the real clock.
-- Cadence sized from the backlog report so a full pass finishes well within
-  the 30-day facts age.
+Each run, in one concurrency group (`listing-facts-batch`):
+
+1. Any open issue titled `Listing facts batch stopped: …` stops the run.
+2. An open batch pull request is evaluated instead of starting another. Only
+   a pull request the workflow token opened from a batch branch of this
+   repository counts, so a fork or a person cannot hold or stop the job. When
+   all five required checks (`catalog`, `dependency-review`, `frontend`,
+   `rust`, `rust-quality`) passed on its exact head, the job composes it onto
+   the current `main` tip as the squash will be, requires that composition to
+   keep the allowlist and pass the gate and `generate-catalog.mts --check`
+   against that tip, and merges through the guarded route
+   (`scripts/pr-delivery.mts merge`, exact head, that target and tree checked
+   from local objects with `--verify-local-composition`, since GitHub rebuilds
+   its merge preview lazily, closure intent and merge message). The merge is
+   bound with `--run`/`--attempt` to the head's newest successful
+   `pull_request` CI run, so every required context must be a successful job
+   of that run attempt; without such a run the batch still waits. The merged
+   batch branch is then deleted (a failed deletion changes nothing else). A
+   failed check stops the job. Missing or pending checks wait, and a batch
+   that has waited more than 3 days (`batchWaitDays`) files `batch-waiting`.
+3. Otherwise the job derives one batch from the tip of `main`: the newest
+   main observer handoff (`catalog-upstream-observations-*`) and the worker
+   state restored from the Actions cache. It retains the run's inputs (the
+   observations, the prior state and `inputs.json` with their digests) as the
+   `listing-facts-batch-inputs-<run id>` artifact before the worker runs,
+   then runs the worker once with `--workflow-run-id`, `--source-commit` and
+   `--inputs-sha256`, regenerates the catalog and commits locally. A batch it
+   can propose is retained with its outputs record
+   (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
+   of the batch patch, and whether the run was a dry run). It refuses
+   its own batch on a path outside the allowlist, a gate refusal, an entry it
+   cannot reproduce, or any stop condition, and proposes nothing when the
+   change is not material: no enrollment changed, no entry appeared,
+   disappeared or changed other than by reconfirmation, and no offered entry
+   was last confirmed more than 14 days before.
+4. A ready batch is pushed as the one-commit branch
+   `automation/listing-facts-batch-<run id>` and opened as a pull request,
+   after the deliver job checks that the applied patch and facts table are
+   the ones the outputs record names. Only then is the worker state saved.
+5. Stop conditions and the freshness alert are filed; a deriving run also
+   publishes the exception queues.
+
+A dry run never saves the worker state, so it cannot move the cursor real
+runs follow. A refused batch saves none either, so the next run derives it
+again. A ready batch's state goes to the deliver job as a one-day artifact
+and is saved there only after its pull request opened, so a failed push or
+pull request leaves the cursor where it was and the next run derives the same
+identities again (a pushed branch whose pull request failed stays behind,
+unused). A batch a person closes unmerged has already moved the cursor: its
+new identities wait for the next pass, and changed releases are offered
+again when the release changes or its facts are next reconfirmed. Its branch
+is not deleted; delete it by hand.
+
+###### Reproducible facts and the path allowlist
+
+A batch may change only `listing-package-facts.generated.json`,
+`generated-registration.generated.json`, `catalog.json` and `listings.json`:
+the facts table and exactly the outputs `scripts/generate-catalog.mts`
+rewrites from it. The allowlist is by name, so each of those paths must also
+stay a regular, non-executable file on both sides (`git diff --raw` modes
+`000000` or `100644`): a symlink, an executable bit or a gitlink at an
+allowed name is a violation. It never changes `deltaBounds`, `GENERATOR_VERSION`, a
+script, a workflow or an authored listing, and `generate-catalog.mts --check`
+still requires every output to equal what the facts produce.
+
+Pull-request CI (`fast-catalog`, and `catalog-full` in qualification) runs
+`listing-facts-batch.mts plan` and `verify` for every pull request, whoever
+opened it. For every eligible entry the change adds or changes against the
+gate's baseline, CI reads the release by numeric repository and release id
+from the GitHub REST API, requires those ids to name the listing's own
+repository, the recorded tag, publication time, Core's stable verdict and the
+asset-list digest, lists the repository's releases by id (one page of 100,
+the observer's page size) and re-applies the worker's `latestStable` and
+`unreadableReleases` to require the release to be still the newest stable
+one (an older release whose bytes reproduce does not enroll; a full page,
+an unclassified newer tag or an unreadable newer release refuses as
+`not-latest-stable`), requires the entry to record exactly
+the release's archives, re-downloads each digest-bound archive, re-runs
+`inspect-listing-artifact` and Core's name classification, and requires a
+byte-equal artifact fact. Any change to an eligible entry other than its
+`observed_at` and the worker's `attempt` record is reproduced, including the
+parser version, coverage, repository binding and unread forms. A
+reconfirmation re-reads nothing, so whoever can merge can keep a
+reconfirmation's date moving; an ineligible entry offers nothing, and its
+withdrawals stay bounded by the gate. One change may reproduce at most 64
+entries and 4 GiB with no archive over 512 MiB (`reproductionBudget`). The
+30-minute deadline is checked before each entry and archive, and every
+download, Core inspection and name classification is cut to the time left
+(at most 10 minutes each) and not started past it, so an item that reaches
+the deadline is an `over-budget` refusal, never a step timeout. After the
+deadline only the two release reads of the entry in hand remain (30 seconds
+each). The worker's batch bound (`boundFactsBatch`) keeps every batch inside
+that budget. A change over budget, an oversized or unavailable asset or a
+changed release refuses the entry: it is never trusted. A facts change may
+not record `generated_at`, or any added or changed `observed_at`, more than
+10 minutes ahead of the clock (`clockProblems`): facts age is measured from
+those times. A push to `main` was verified on its pull request and re-reads
+nothing.
+
+The pull-request check runs the pull request's own code. So `plan` and
+`verify` refuse a change that edits the facts table together with any path
+the check depends on (`checkerPaths`): the two workflows and their Rust
+setup, `Cargo.lock`, the CLI's `main.rs` and `catalog.rs`, the relative
+import closure of `listing-facts-batch.mts`, `listing-package-facts.mts`,
+`catalog-generated-registration.mts`, `generate-catalog.mts` and
+`validation-plan.mts`, and Core's `package_shape` module with its
+submodules and every Core module they name directly. The two must be
+separate changes, checker first. The enrollment table alone is not refused:
+a rule change regenerates it in the same change, from facts that change
+cannot edit. This catches accidents only. The list is derived from the
+checked-out code, Core's deeper dependencies are not in it, and a deliberate
+change that loosens the checker and edits the facts in one pull request,
+or that removes this refusal, is held only by review.
+
+A change claims to be a batch when its branch is a batch branch or it
+changes the table's `provenance`. CI then also holds it to the path allowlist
+and checks the provenance against the run it names: that run must be this
+repository's batch workflow, started by the schedule or a dispatch, on `main`
+at the recorded source commit, the pull request branch must be that run's
+batch branch, and the run's retained `inputs.json` must have the recorded
+digest and match the observations and state retained beside it. The
+provenance is also bound to the run's outputs: the run's outputs record must
+name that run, must not be a dry run, and must hold the SHA-256 of exactly
+the facts table under check. The inputs and outputs artifacts are kept 30
+days. CI reads the change's paths from the committed range, so files earlier
+CI steps leave behind do not count. Both artifacts are read with CI's own
+built-in token (`actions: read`, a same-repository run); no credential is
+added. That read is not yet observed live: if GitHub refuses it on a batch
+pull request, the check refuses the batch, never passes it.
+
+###### Stop and wait
+
+Each condition files or reuses one issue titled
+`Listing facts batch stopped: <condition>`, opened by the workflow token,
+with the grouped reason and the run. A recurrence after it was closed reopens
+and comments on the same issue; an open issue is not commented again. No
+further run starts while any such issue is open; closing it is how a person
+clears the stop. An unreadable issue list, or more than 1,000 open workflow
+issues, fails the run rather than reading as "not stopped"; past 1,000 closed
+workflow issues and pull requests, a recurrence may open a new issue instead
+of reopening the old one. A `reproduction-refused` issue names up to five
+refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
+`path-allowlist`, `required-check-failed` (or a job batch that is not a
+well-formed one-commit pull request), `batch-waiting` (an open batch whose
+required checks have not all finished more than 3 days after it was opened,
+most likely because its runs wait for approval), `no-progress` (three
+consecutive runs settled nothing while work waited), `backlog-growing` (four
+consecutive runs grew the backlog), `large-withdrawal` (more than 16 routes in
+one batch), `repository-identity-changed`, `rule-version-changed` (the facts
+parser, generator or Core filename rule version changed since the previous
+run), `observer-coverage-dropped` (a quarter fewer observed identities than
+the previous run), `drain-exceeds-facts-age` (refreshing the offered
+identities whose release changed takes 30 days or more, counting two runs per
+landed batch) and `worker-error` (also any job, the `gate` job included, that
+failed, timed out or was cancelled). A stop condition found while deriving also withholds that run's
+batch. An open batch pull request that still fails stops the job again after
+its issue is closed; close that pull request too.
+
+The freshness watchdog compares the committed facts' `generated_at` with the
+real clock on every enabled run, also while a batch waits or a stop issue is
+open. When the table is more than 21 days old, including the empty table
+before the first batch lands, or records a time more than 10 minutes ahead
+of the clock, the job files
+`Listing facts batch: facts are falling behind the clock`. It does not stop
+the job, whose next batch is the remedy. Every job and every step has a
+finite timeout, and each job's timeout is at least the sum of its steps', so
+a slow step fails inside the job and the stop assessment still runs: the CLI
+build 30 minutes; the worker 60 (each download and Core run stops at 10
+minutes, but the worker has no overall deadline, so a run past 60 minutes
+fails as `worker-error`); reproduction 45 (the 2-minute canonical check, the
+provenance reads of about 6 minutes in pull-request CI, the 30-minute
+deadline and about a minute of release reads); the derive job 250 and the
+deliver job 40.
+
+###### Exception queues
+
+Every deriving run publishes `catalog-route-fit.mts --json` as the
+`registration-queues-<run id>` artifact and a job summary with the count per
+blocked reason, the most frequent unread package forms and the most frequent
+name vetoes. That report stays computed from the committed catalog and facts.
+
+###### What the built-in token does
+
+Events the built-in `GITHUB_TOKEN` causes create no workflow run, with two
+exceptions
+([GitHub documentation](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs)):
+`workflow_dispatch` and `repository_dispatch` always do, and a `pull_request`
+event with the `opened`, `synchronize` or `reopened` activity type creates
+its runs in an approval-required state, which a user with write access starts
+with **Approve workflows to run**. CI declares `pull_request`, so a batch pull
+request the job opens gets CI runs that wait for that approval; the job waits
+with it, and an approval counts as a human intervention. Whether the
+`pull_request_target` `closing-inventory` check runs for such a pull request
+is not stated there; the guarded merge needs it only when it falls back from
+GitHub's GraphQL closing inventory to the REST reconstruction. Approving the
+runs is CI permission, not merge eligibility: the guarded merge separately
+requires the five exact-head contexts, a complete closing inventory and the
+composition checks. The `Protect main` ruleset requires the five contexts,
+zero approving reviews and no required workflow. GitHub matches a required
+context by its name only, so a check run of that name from any source with
+`checks: write` on the repository satisfies it; the job's own merge is
+stricter, because it is bound to the five jobs of the head's CI run. Its extra approval applies
+only to Copilot pull requests not attributed to a person and has no effect
+when the ruleset requires zero approvals
+([GitHub documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#additional-approval-for-unattributed-copilot-pull-requests)),
+so it adds no requirement for a batch. A push with the built-in token, including its merge,
+starts no `push` run, so `main` CI, and the catalog publication that follows
+a green `main` run, pick the batch up only with the next ordinary qualifying
+`main` run. Runs without approval need a GitHub App installation token or a
+personal token, which is an owner decision and a new secret.
+
+The first authorized pilot batch records, on that pull request: whether the
+approval banner appears; which of the five required gates and
+`closing-inventory` start and attach to the exact bot head; whether the
+guarded merge is eligible, confirmed separately from the CI approval; every
+actual approval or other intervention; and whether the next ordinary
+qualifying `main` run selects and publishes the batch. Only
+that publication makes the batch delivered.
+
+###### Cadence and drain
+
+The schedule runs every 6 hours (`--cadence-hours 6`). A run reads at most
+I = 24 identities and 2 GiB; a batch lands at most 64 added, 32 withdrawn and
+64 changed routes and reproduces at most 64 entries and 4 GiB. A run derives
+only while no batch is open, so each landed batch costs two runs, the one
+that derives it and the one that merges it, plus the wait until a person
+approves its workflow runs.
+
+When this job was added, 1,110 listing-only GitHub identities had no facts
+(`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47
+deriving runs while the byte budget does not bind (an average below
+2 GiB / 24, about 85 MiB of archives per identity; identities settled without
+bytes, such as those without a release archive, need none). Almost every
+deriving run of that pass settles new identities and is therefore a batch,
+so the pass takes about 2 × 47 = 94 runs: 23.5 days at this cadence when
+each batch's runs are approved before the next run, plus every approval that
+waits longer. The pass itself has no 30-day limit: new identities are not yet
+offered. What the 30-day facts age bounds is the offered facts, which every
+landed batch reconfirms; they stay fresh while a batch lands at least every
+30 days. A quiet catalog proposes a reconfirmation batch once an offered
+entry was last confirmed 14 days earlier, and the freshness alert fires after
+21 days, above that hold and inside the 30-day age. Offered identities whose
+release changed drain at 18 per run, two runs per batch:
+`drain-exceeds-facts-age` stops the job when that alone reaches 30 days.
+Each run's `backlog` report gives the current numbers.
+
+###### Switching it on
+
+The job stays disabled until the real cohort, independent review, exact
+gates, base-relative bounds and an activation decision are in place. Before
+activation, the owner decides the path scope: the recorded direction on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
+names only the facts and enrollment tables, while a batch that enrolls also
+rewrites `catalog.json` and `listings.json`, because catalog generation
+writes each generated route into the operational catalog and keeps only the
+listing's other platforms in the discovery directory. Those two paths are
+never authored by the batch: CI requires each of them, and the enrollment
+table, to be the byte-for-byte output of `generate-catalog.mts` from the
+facts table and the unchanged sources (`derivedBatchPaths`). Without them a
+batch could not offer a route. Then the owner, in the repository settings:
+
+1. Accept that a hand-written pull request changing both the facts checker
+   and the facts table is held only by review (the separation refusal above
+   catches accidents), and decide whether the checker paths should need a
+   review.
+2. Actions, General, Workflow permissions: allow GitHub Actions to create and
+   approve pull requests (the built-in token cannot open the batch pull
+   request otherwise). This setting is repository-wide: it lets every
+   workflow's built-in token in this repository create and approve pull
+   requests, not only this job's. The job requests its own write permissions
+   per job.
+3. Optionally dispatch the workflow once with the default dry run and read
+   its summary and artifacts.
+4. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true` (unset
+   or any other value is off).
+5. For each batch pull request, approve its workflow runs (**Approve
+   workflows to run**). That approval is a human intervention, and it grants
+   CI permission only: the job merges later through the guarded route when
+   the exact-head checks pass. A merged batch reaches `main` CI and catalog
+   publication with the next ordinary qualifying `main` run. The pilot
+   records what else, if anything, a batch needs; close and reopen is not
+   documented as required unless the pilot shows it.
+6. Watch the first live batch and record the actual behaviour, including
+   whether the guarded merge of a bot-authored squash is eligible.
+7. Removing the per-batch approval needs a GitHub App installation or another
+   credential: an owner decision, not part of this job.
+
+Nothing else changes: no ruleset, required check, environment, secret or
+signing setting. To switch it off, delete the variable or set it to anything
+else.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
