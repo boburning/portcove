@@ -5,7 +5,8 @@
 // The job runs the facts worker (`scripts/listing-package-facts.mts`) over
 // the whole candidate set, sharded across a job matrix, regenerates the
 // catalog and proposes one batch: every entry that needs no reproduction, and
-// at most one hour's reproduction share of those that do (`carryOver`); the
+// at most half an hour's reproduction share of those that do (`carryOver`:
+// the job and the batch's CI each reproduce them, possibly in one hour); the
 // rest is carried to the next batch, never dropped. Nothing here is a
 // second status or backlog authority: the facts table, the enrollment table
 // and `catalog-route-fit.mts --json` stay the record; the job keeps only the
@@ -33,7 +34,8 @@
 //  - Quota: GitHub calls honour the stated quota and GitHub's retry guidance
 //    inside the step's deadline (`githubRequest`); reproduction plans half of
 //    the hourly GITHUB_TOKEN quota (`reproductionHourlyRequests`), and one
-//    batch lands only what fits it (`carryOver`).
+//    batch lands only what fits it twice, once for the job's reproduction and
+//    once for its pull request's CI (`reproductionBatchEntries`, `carryOver`).
 //  - Capacity: a batch past a released-reader bound is never proposed
 //    (`batchCapacity`).
 //  - Provenance: a batch names the workflow run, source commit and inputs
@@ -1092,6 +1094,8 @@ export function quotaResumeAt(
     ? Math.max(now + 1000, reset * 1000)
     : now + githubFirstRetryMs;
 }
+/** A response past `githubResponseBytes`: the provider's answer, never retried. */
+class OversizedResponseError extends Error {}
 /**
  * A response body read up to `githubResponseBytes`: reading stops, and the
  * request fails, as soon as the bound is passed, so an oversized answer is
@@ -1101,7 +1105,7 @@ async function boundedBody(response: Response, url: string): Promise<Buffer> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > githubResponseBytes) {
     await response.body?.cancel();
-    throw new Error(`${url} answered more than ${githubResponseBytes} bytes.`);
+    throw new OversizedResponseError(`${url} answered more than ${githubResponseBytes} bytes.`);
   }
   if (!response.body) return Buffer.alloc(0);
   const reader = response.body.getReader();
@@ -1113,7 +1117,7 @@ async function boundedBody(response: Response, url: string): Promise<Buffer> {
     length += value.byteLength;
     if (length > githubResponseBytes) {
       await reader.cancel();
-      throw new Error(`${url} answered more than ${githubResponseBytes} bytes.`);
+      throw new OversizedResponseError(`${url} answered more than ${githubResponseBytes} bytes.`);
     }
     chunks.push(value);
   }
@@ -1129,9 +1133,12 @@ const rateLimited = (status: number, resume: number | undefined, body: Buffer) =
  * (`quotaResumeAt`) is waited out before the next request. A network failure,
  * a server error (5xx) or a rate-limit refusal is retried after the stated
  * wait, or after at least a minute with exponential backoff
- * (`githubFirstRetryMs`). A retry or wait that would pass the deadline ends
- * with `TransientGithubError` naming its cause; any other refusal is an
- * ordinary error. Returns the parsed JSON body, or null for an empty one.
+ * (`githubFirstRetryMs`). A body whose reading fails (an abort, a connection
+ * closed early) or a successful answer whose body does not parse (a truncated
+ * body) is a network failure too, retried the same way. A retry or wait that
+ * would pass the deadline ends with `TransientGithubError` naming its cause;
+ * any other refusal, and an answer past `githubResponseBytes`, is an ordinary
+ * error. Returns the parsed JSON body, or null for an empty one.
  */
 export async function githubRequest(
   method: string,
@@ -1192,7 +1199,15 @@ export async function githubRequest(
     }
     const resume = quotaResumeAt(response.status, response.headers, now());
     if (resume !== undefined) quota.resumeAt = Math.max(quota.resumeAt, resume);
-    const body = await boundedBody(response, url);
+    let body: Buffer;
+    try {
+      body = await boundedBody(response, url);
+    } catch (error) {
+      if (error instanceof OversizedResponseError) throw error;
+      cause = `a network failure while reading the response (${error instanceof Error ? error.message : "unknown"})`;
+      stated = false;
+      continue;
+    }
     if (rateLimited(response.status, resume, body)) {
       // A stated wait (`retry-after`, a reset) is waited exactly; a secondary
       // limit that states none backs off from a minute.
@@ -1206,7 +1221,14 @@ export async function githubRequest(
       continue;
     }
     if (!response.ok) throw new Error(`${method} ${url} answered ${response.status}.`);
-    return body.length ? (JSON.parse(body.toString("utf8")) as unknown) : null;
+    if (!body.length) return null;
+    try {
+      return JSON.parse(body.toString("utf8")) as unknown;
+    } catch (error) {
+      cause = `a truncated or unreadable response body (${error instanceof Error ? error.message : "unknown"})`;
+      stated = false;
+      continue;
+    }
   }
 }
 /** Bounded JSON GET of the GitHub REST API (`githubRequest`). */
@@ -1749,7 +1771,7 @@ export function batchPullBody(input: {
     `- The job reproduced ${input.reproduced} eligible entries from their exact release bytes, kept the path allowlist and passed the generated registration gate; pull-request CI repeats all three on the exact head.`,
     ...(input.carried
       ? [
-          `- ${input.carried} further entries are carried to the next batch: one batch lands at most ${reproductionBatchEntries} entries that need reproduction, so this CI never waits for a quota reset. They are not complete and keep their previous facts until then.`,
+          `- ${input.carried} further entries are carried to the next batch: one batch lands at most ${reproductionBatchEntries} entries that need reproduction (half an hour's reproduction share, because the batch job and this CI each reproduce them), so neither waits for a quota reset. They are not complete and keep their previous facts until then.`,
         ]
       : []),
     "",
@@ -1766,8 +1788,10 @@ export function batchPullBody(input: {
 
 /**
  * The batch a run may propose: at most `limit` entries that need reproduction
- * (`reproductionBatchEntries`, one hour's reproduction share of the quota), so
- * the batch's pull-request CI never waits for a quota reset and each CI shard
+ * (`reproductionBatchEntries`: one hour's reproduction share of the quota
+ * divided by the two reproductions each entry gets, the job's own and the
+ * batch pull request's CI, which may fall in one hour), so neither waits for
+ * a quota reset and each CI shard
  * keeps its whole deadline. Entries past the limit, in port_id order, are
  * carried: each keeps its baseline entry (or stays absent when it is new), so
  * the next run derives it again and a later batch lands it. Carried work is
@@ -3106,7 +3130,7 @@ async function main(argv: string[]): Promise<string> {
     }
     case "carry": {
       // Before generation: keep in this batch only what its pull-request CI
-      // can reproduce within one hour's reproduction share of the quota.
+      // and the job can both reproduce within one hour's reproduction share.
       if (!option.report) throw new Error("carry needs --report.");
       const { table, carried } = carryOver(baselineFacts(option.base), currentFacts());
       if (carried.length) {

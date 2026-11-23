@@ -24,6 +24,7 @@ import {
   matrixJobLimit,
   reproductionDeadlineMinutes,
   reproductionBatchEntries,
+  reproductionsPerBatch,
   digestOf,
   emptyFactsTable,
   FACTS_PARSER,
@@ -2373,7 +2374,12 @@ void test("byte-identical archives are not re-read; a changed one, or another pa
 });
 
 void test("a batch lands only what its CI can reproduce in one hour's share; the rest is carried (J-B1)", () => {
-  assert.equal(reproductionBatchEntries, 500);
+  // The batch job and the batch's pull-request CI each reproduce every entry,
+  // possibly in one hour: both together fit one hour's share at one request
+  // per entry, so a batch lands half of it.
+  assert.equal(reproductionsPerBatch, 2);
+  assert.equal(reproductionBatchEntries, 250);
+  assert.equal(reproductionBatchEntries * reproductionsPerBatch, reproductionHourlyRequests);
   const ids = ["zz-carry-a", "zz-carry-b", "zz-carry-c", "zz-carry-d"];
   const fresh = ids.map((id) => fixture(id).entry);
   // zz-carry-c had an older offered entry; zz-carry-d is new.
@@ -2574,6 +2580,9 @@ void test("one shared reproduction deadline bounds CI, the job and each identity
   assert.equal(identityBudgetMinutes(500), 42.5);
   assert.equal(identityBudgetMinutes(501), (85 - 60) / 2);
   assert.equal(identityBudgetMinutes(1_100), 5);
+  // The worker's budget is computed for one batch, which keeps a whole
+  // deadline per entry.
+  assert.equal(identityBudgetMinutes(reproductionBatchEntries), 85);
   const ci = parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")) as {
     jobs: Record<
       string,
@@ -2846,6 +2855,54 @@ void test("GitHub calls follow the retry guidance inside their deadline and clas
   await assert.rejects(call(oversized.fetcher, clock + 60_000), /answered more than/u);
   assert.ok(cancelled);
   assert.ok(pulled <= githubResponseBytes / chunk.length + 2);
+  // An oversized answer is the provider's answer, never a transient failure.
+  const oversizedAgain = scripted([
+    new Response("[]", {
+      status: 200,
+      headers: { "content-length": String(githubResponseBytes + 1) },
+    }),
+  ]);
+  await assert.rejects(
+    call(oversizedAgain.fetcher, clock + 3_600_000),
+    (error: unknown) =>
+      !(error instanceof TransientGithubError) && /answered more than/u.test(String(error)),
+  );
+  assert.equal(oversizedAgain.calls(), 1);
+  // A body whose reading aborts, and a truncated body that does not parse,
+  // are network failures: retried after a minute, never a verdict (B3).
+  resetQuota();
+  waits.length = 0;
+  const aborted = () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('[{"id":'));
+          controller.error(new Error("terminated"));
+        },
+      }),
+      { status: 200 },
+    );
+  const recovering = scripted([
+    aborted(),
+    new Response('[{"id":', { status: 200 }),
+    new Response("[1]", { status: 200 }),
+  ]);
+  assert.deepEqual(await call(recovering.fetcher, clock + 3_600_000), [1]);
+  assert.equal(recovering.calls(), 3);
+  assert.deepEqual(waits, [githubFirstRetryMs, 2 * githubFirstRetryMs]);
+  // Past the deadline they end transiently, naming the cause.
+  await assert.rejects(
+    call(scripted([aborted()]).fetcher, clock + 30_000),
+    (error: unknown) =>
+      error instanceof TransientGithubError &&
+      /network failure while reading the response/u.test(error.message),
+  );
+  await assert.rejects(
+    call(scripted([new Response('[{"id":', { status: 200 })]).fetcher, clock + 30_000),
+    (error: unknown) =>
+      error instanceof TransientGithubError &&
+      /truncated or unreadable response body/u.test(error.message),
+  );
   resetQuota();
   // Reproduction reports network and runner-disk failures as transient.
   assert.equal(

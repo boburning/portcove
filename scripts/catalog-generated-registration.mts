@@ -55,7 +55,7 @@
 //     listing-only tool and system vetoes, vetoes only) nor another source
 //     contradicts, whose name holds no role word (`archiveRoleToken`: an
 //     update, patch, delta or symbols archive, also with trailing digits,
-//     unless the product's own name holds the word) and names no other system or
+//     whatever the product's own name) and names no other system or
 //     architecture than P's,
 //     and which holds a player candidate whose platform-true header machine
 //     runs on P and whose name carries no tool token. Each player's own
@@ -89,7 +89,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 14;
+export const GENERATOR_VERSION = 15;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 16;
@@ -1145,8 +1145,8 @@ export const maxDistinctPrograms = 1;
  * Words that name a build variant of the same program, not another program,
  * when they stand alone between separators. A bare `64`, `32` or `86` is
  * dropped only in that position (`Game-64.exe`, `skyrun.x86_64.exe`), never
- * when it is glued to the name: `Quest64.exe` can be a different game
- * from `Quest.exe`, and `Game64.exe` cannot be told apart from it by name, so
+ * when it is glued to the name: `Lantern64.exe` can be a different game
+ * from `Lantern.exe`, and `Game64.exe` cannot be told apart from it by name, so
  * such a pair stays two programs (`ambiguous-player`).
  */
 const variantWords = new Set([
@@ -1185,7 +1185,7 @@ const gluedVariantWords = new Set([...variantWords].filter((word) => !/^[0-9]+$/
 /**
  * A program's name without its build-variant words: `skyrun.x86_64.exe` and
  * `skyrun.x86.exe` are both `skyrun`, `Game.console.exe` and `Game-64.exe`
- * are `game`, `Quest3.exe` stays `quest-3` and `Quest64.exe` stays `quest-64`.
+ * are `game`, `Lantern3.exe` stays `lantern-3` and `Lantern64.exe` stays `lantern-64`.
  */
 export function programStem(path: string) {
   const name = basename(path).toLowerCase();
@@ -1491,8 +1491,8 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
 
 /**
  * The words of a name: split at separators, camel-case humps and letter/digit
- * changes, lowercase (`OpenQuestPS1` is `open`, `quest`, `ps`, `1`;
- * `quest64recomp` is `quest`, `64`, `recomp`).
+ * changes, lowercase (`OpenLanternPS1` is `open`, `lantern`, `ps`, `1`;
+ * `lantern64recomp` is `lantern`, `64`, `recomp`).
  */
 export function nameWords(value: string): string[] {
   return value
@@ -1511,7 +1511,7 @@ export function nameWords(value: string): string[] {
  * a line of at least three letters and digits that equals one whole word, or a
  * contiguous run of whole words, of the repository name or the listing's id,
  * name or original title (`nameWords`). A part of a word never counts: `rec`
- * does not name `quest64recomp`. Without a listing binding, only such a line
+ * does not name `lantern64recomp`. Without a listing binding, only such a line
  * may be offered: a line of other product words (a level editor's
  * `level-editor-v1.0`) is never taken for the game.
  */
@@ -2035,15 +2035,13 @@ const toolRoles = new Set([
  * also with a trailing number (`update2`, `patch01`). The archive name is
  * split into words like product names are (`nameWords`: separators,
  * camel-case humps, letter/digit changes), so `GameUpdate-linux.tar.gz` holds
- * `update`. An archive holding the game's own program under such a name (an
- * update archive beside the full game) is never offered. One occurrence of a
- * role word names the product instead, and is not matched, only when it sits
- * inside a contiguous run of the archive name's words that equals a
- * contiguous run of at least two words of one product name, or the whole of a
- * one-word product name (`productNames`): `Mega-Update-Edition-v1.zip` for a
- * listing named "Mega Update Edition". Every other occurrence still vetoes:
- * `update-0.5.10.zip` for that listing, or a trailing `-delta` after the
- * product's name.
+ * `update` and `DeltaSquadron-win64.zip` holds `delta`. Every occurrence
+ * vetoes, whatever the product's or repository's own name: the archive name
+ * alone cannot tell a title word from a role suffix, so a game whose title
+ * holds one of these words as a separate word of its archive name is
+ * withheld as `contradictory-role` until attribution data vouches for the
+ * archive. A glued word that only contains the letters (`Deltaforce`,
+ * `Patchwork`) is one other word and does not match.
  */
 export const archiveRoleTokens = [
   "update",
@@ -2055,71 +2053,14 @@ export const archiveRoleTokens = [
   "symbols",
   "debug",
 ] as const;
-/**
- * The names of an identity's product, each as its words (`nameWords`): its
- * repository's name and the listing's id, name and original title.
- */
-export function productNames(
-  repository: string,
-  listing: Record<string, unknown> | undefined,
-): readonly (readonly string[])[] {
-  const values = [
-    repository.split("/")[1],
-    listing?.id,
-    listing?.name,
-    listing?.original_game_title,
-  ];
-  return values
-    .map((value) => (typeof value === "string" ? nameWords(value) : []))
-    .filter((words) => words.length > 0);
-}
-/**
- * Whether the archive word at `index` lies inside a contiguous run of
- * `words` that equals a contiguous run of one product name's words: at least
- * two words, or the whole of a one-word product name.
- */
-function inProductRun(
-  words: readonly string[],
-  index: number,
-  names: readonly (readonly string[])[],
-): boolean {
-  for (const name of names) {
-    const shortest = Math.min(2, name.length);
-    for (let start = 0; start < name.length; start++)
-      for (let end = start + shortest; end <= name.length; end++)
-        for (let at = start; at < end; at++) {
-          // Align the run's word at `at` with the archive word at `index`.
-          const first = index - (at - start);
-          if (name[at] !== words[index] || first < 0 || first + end - start > words.length)
-            continue;
-          if (name.slice(start, end).every((word, offset) => words[first + offset] === word))
-            return true;
-        }
-  }
-  return false;
-}
-/**
- * The first role token among an archive name's words, or null. A role word
- * occurrence inside the product's own name (`inProductRun`) does not match.
- */
-export function archiveRoleToken(
-  name: string,
-  names: readonly (readonly string[])[] = [],
-): string | null {
-  const words = nameWords(name);
-  const found = new Set<string>();
-  words.forEach((word, index) => {
-    if (
-      (archiveRoleTokens as readonly string[]).includes(word) &&
-      !inProductRun(words, index, names)
-    )
-      found.add(word);
-  });
-  return archiveRoleTokens.find((token) => found.has(token)) ?? null;
+/** The first role token among an archive name's words, or null. */
+export function archiveRoleToken(name: string): string | null {
+  const words = new Set(nameWords(name));
+  return archiveRoleTokens.find((token) => words.has(token)) ?? null;
 }
 /** Whether an artifact is vetoed by its own name or its contradiction flag. */
-const vetoed = (artifact: ArtifactFactV2, productWords: readonly (readonly string[])[]) =>
-  artifact.contradictory || archiveRoleToken(artifact.name, productWords) !== null;
+const vetoed = (artifact: ArtifactFactV2) =>
+  artifact.contradictory || archiveRoleToken(artifact.name) !== null;
 
 /** Why an archive's own name vetoes it. */
 function vetoReason(artifact: ArtifactFactV2): BlockedReason {
@@ -2182,15 +2123,12 @@ function ambiguity(
 }
 
 /** The `ambiguous-player` exclusions of an entry: one per kind, from the first platform that has it. */
-function ambiguityExclusions(
-  entry: ListingFactsEntry,
-  productWords: readonly (readonly string[])[],
-): Exclusion[] {
+function ambiguityExclusions(entry: ListingFactsEntry): Exclusion[] {
   const usable = entry.artifacts.filter(
     (artifact) =>
       artifact.role === "desktop-game-runtime" &&
       artifact.source.kind === authorizingSource &&
-      !vetoed(artifact, productWords),
+      !vetoed(artifact),
   );
   const found = new Map<string, Exclusion>();
   for (const platform of platforms) {
@@ -2205,18 +2143,11 @@ function ambiguityExclusions(
   return [...found.values()];
 }
 
-/**
- * Every exclusion of an entry: name-based vetoes and ambiguous players. The
- * listing supplies the product's own name words for the role-word veto.
- */
-export function entryExclusions(
-  entry: ListingFactsEntry,
-  listing?: Record<string, unknown>,
-): Exclusion[] {
-  const productWords = productNames(entry.repository, listing);
+/** Every exclusion of an entry: name-based vetoes and ambiguous players. */
+export function entryExclusions(entry: ListingFactsEntry): Exclusion[] {
   return [
-    ...entry.artifacts.flatMap((artifact) => artifactExclusions(artifact, productWords)),
-    ...ambiguityExclusions(entry, productWords),
+    ...entry.artifacts.flatMap((artifact) => artifactExclusions(artifact)),
+    ...ambiguityExclusions(entry),
   ];
 }
 
@@ -2224,7 +2155,6 @@ export function entryExclusions(
 function platformRuntime(
   entry: ListingFactsEntry,
   platform: string,
-  productWords: readonly (readonly string[])[],
 ): { runtime: PlatformRuntime } | { reason: BlockedReason } {
   // A refused archive whose own name allows P could be P's game or a second
   // one: P is never decided around it.
@@ -2244,7 +2174,7 @@ function platformRuntime(
     };
   const authorized = runtimes.filter((artifact) => artifact.source.kind === authorizingSource);
   if (!authorized.length) return { reason: "no-authorizing-source" };
-  const consistent = authorized.filter((artifact) => !vetoed(artifact, productWords));
+  const consistent = authorized.filter((artifact) => !vetoed(artifact));
   if (!consistent.length)
     return {
       reason:
@@ -2436,9 +2366,8 @@ export function fitDecision(
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
-  const productWords = productNames(entry.repository, record.listing);
   for (const platform of platforms) {
-    const found = platformRuntime(entry, platform, productWords);
+    const found = platformRuntime(entry, platform);
     if ("reason" in found) {
       misses.add(found.reason);
       continue;
@@ -2456,7 +2385,7 @@ export function fitDecision(
     if (held.length)
       return blocked("route-held", `Registration or launch is held on ${held.join(", ")}.`);
     const reason = reasonPriority.find((candidate) => misses.has(candidate)) ?? "no-player";
-    const vetoes = entryExclusions(entry, record.listing).map(
+    const vetoes = entryExclusions(entry).map(
       (item) => `${item.reason} ${item.token} (${item.name})`,
     );
     return blocked(
@@ -2515,10 +2444,7 @@ export interface Exclusion {
 }
 
 /** The name-based vetoes that excluded a native runtime or player of one artifact. */
-export function artifactExclusions(
-  artifact: ArtifactFactV2,
-  productWords: readonly (readonly string[])[] = [],
-): Exclusion[] {
+export function artifactExclusions(artifact: ArtifactFactV2): Exclusion[] {
   const named = artifact.name_suggestion;
   const exclusions: Exclusion[] = [];
   // An archive name vetoes only an archive that holds native programs.
@@ -2537,7 +2463,7 @@ export function artifactExclusions(
         token: named.role,
         name: artifact.name,
       });
-    const roleToken = archiveRoleToken(artifact.name, productWords);
+    const roleToken = archiveRoleToken(artifact.name);
     if (roleToken !== null)
       exclusions.push({ reason: "asset-role-name", token: roleToken, name: artifact.name });
   }
@@ -2575,15 +2501,6 @@ export interface ExclusionGroup {
 }
 export const exclusionExamples = 5;
 
-/** The generation's listings by id, for the product's own name words. */
-const listingsById = (generation: Generation) =>
-  new Map(
-    generation.records.map((record) => [
-      record.listing.id,
-      record.listing as Record<string, unknown>,
-    ]),
-  );
-
 /** Exclusions grouped by reason and token, most frequent first. */
 export function failSafeExclusions(generation: Generation): ExclusionGroup[] {
   const outcomes = new Map(
@@ -2593,10 +2510,9 @@ export function failSafeExclusions(generation: Generation): ExclusionGroup[] {
     ]),
   );
   const groups = new Map<string, ExclusionGroup>();
-  const listings = listingsById(generation);
   for (const entry of generation.facts.entries) {
     const seen = new Set<string>();
-    for (const exclusion of entryExclusions(entry, listings.get(entry.port_id))) {
+    for (const exclusion of entryExclusions(entry)) {
       const key = `${exclusion.reason}\u0000${exclusion.token}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -2681,7 +2597,6 @@ export interface RegistrationQueues {
 }
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
-  const listings = listingsById(generation);
   const reasons = Object.fromEntries(blockedReasons.map((reason) => [reason, [] as string[]]));
   for (const decision of generation.decisions)
     if (!decision.fit) reasons[decision.reason]!.push(decision.port_id);
@@ -2704,7 +2619,7 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
     ),
     exclusions: grouped(
       generation.facts.entries.flatMap((entry) =>
-        entryExclusions(entry, listings.get(entry.port_id)).map((item): [string, string] => [
+        entryExclusions(entry).map((item): [string, string] => [
           `${item.reason}:${item.token}`,
           entry.port_id,
         ]),
@@ -3179,7 +3094,7 @@ function gateProgram(path: string) {
   const kept: string[] = [];
   for (const word of file.split(/[^a-z0-9]+/u)) {
     if (!word || gateVariantWords.includes(word)) continue;
-    // A number glued to a name is part of it (`quest64`): only a separate
+    // A number glued to a name is part of it (`lantern64`): only a separate
     // `64`, `32` or `86` is a build variant.
     for (const part of word.match(/[a-z]+|[0-9]+/gu) ?? [])
       if (/^[0-9]+$/u.test(part) || !gateVariantWords.includes(part)) kept.push(part);
@@ -3570,12 +3485,10 @@ function gateBoundLine(listing: Record<string, unknown>): string | null {
 /**
  * Whether an archive's own name holds a role word, restated: see
  * `archiveRoleToken`. The archive name is split into whole words like product
- * names are (`gateNameWords`). An occurrence is exempt only when a common run
- * of the archive's words and one product name's words (repository name,
- * listing id, name or original title) covers it, the run being at least two
- * words long or the whole one-word name. Exported for its unit table only.
+ * names are (`gateNameWords`); every occurrence vetoes, whatever the product's
+ * own name. Exported for its unit table only.
  */
-export function gateRoleWord(name: string, listing: Record<string, unknown>, repository: string) {
+export function gateRoleWord(name: string) {
   const roleWords = [
     "update",
     "updater",
@@ -3586,32 +3499,7 @@ export function gateRoleWord(name: string, listing: Record<string, unknown>, rep
     "symbols",
     "debug",
   ];
-  const words = gateNameWords(name);
-  const exempt = new Set<number>();
-  for (const value of [
-    repository.split("/")[1],
-    listing.id,
-    listing.name,
-    listing.original_game_title,
-  ]) {
-    if (typeof value !== "string") continue;
-    const own = gateNameWords(value);
-    if (own.length === 0) continue;
-    const needed = own.length === 1 ? 1 : 2;
-    // Every maximal common run starting at archive word `i` and name word `j`.
-    for (let i = 0; i < words.length; i++)
-      for (let j = 0; j < own.length; j++) {
-        let length = 0;
-        while (
-          i + length < words.length &&
-          j + length < own.length &&
-          words[i + length] === own[j + length]
-        )
-          length++;
-        if (length >= needed) for (let k = i; k < i + length; k++) exempt.add(k);
-      }
-  }
-  return words.some((word, index) => roleWords.includes(word) && !exempt.has(index));
+  return gateNameWords(name).some((word) => roleWords.includes(word));
 }
 /**
  * Toolchain helper names, restated: see `toolchainHelpers`, `fileOnlyHelpers`
@@ -4056,7 +3944,7 @@ function gateEnrollmentProblems(
     if (
       artifact.role !== "desktop-game-runtime" ||
       artifact.contradictory ||
-      gateRoleWord(artifact.name, own, entry.repository)
+      gateRoleWord(artifact.name)
     )
       problems.push(`${where} rests on a contradicted, role-named or non-runtime artifact.`);
     const named = artifact.name_suggestion;
@@ -4098,7 +3986,7 @@ function gateEnrollmentProblems(
       const candidateName = candidate.name_suggestion;
       if (
         candidate.contradictory ||
-        gateRoleWord(candidate.name, own, entry.repository) ||
+        gateRoleWord(candidate.name) ||
         candidate.role !== "desktop-game-runtime" ||
         !["unknown", host.os].includes(candidateName.os) ||
         !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
@@ -4129,7 +4017,7 @@ function gateEnrollmentProblems(
       const candidateName = candidate.name_suggestion;
       if (
         candidate.contradictory ||
-        gateRoleWord(candidate.name, own, entry.repository) ||
+        gateRoleWord(candidate.name) ||
         candidate.role !== "desktop-game-runtime" ||
         !["unknown", host.os].includes(candidateName.os) ||
         !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
@@ -4329,12 +4217,20 @@ export const reproductionHourlyRequests = githubTokenHourlyRequests / 2;
  */
 export const quotaResetWaitMinutes = 60;
 /**
- * The reproduction entries one facts change may plan without waiting for a
- * quota reset: one hour's reproduction share. The batch job lands at most
- * this many per batch and carries the rest to its next batch, so its
- * pull-request CI never waits for the quota.
+ * How many times one batch's entries are reproduced: once by the batch job
+ * before it proposes the batch and once by the batch pull request's CI. The
+ * two can fall in the same hour, so both count against one hour's share.
  */
-export const reproductionBatchEntries = reproductionHourlyRequests;
+export const reproductionsPerBatch = 2;
+/**
+ * The reproduction entries one batch may land: one hour's reproduction share
+ * divided by the reproductions each entry gets (`reproductionsPerBatch`), at
+ * one request per entry. The batch job lands at most this many per batch and
+ * carries the rest to its next batch, so its own reproduction and its pull
+ * request's CI together stay within the share even in one hour, and neither
+ * waits for the quota.
+ */
+export const reproductionBatchEntries = reproductionHourlyRequests / reproductionsPerBatch;
 /**
  * The quota wait, in minutes, a reproduction of `entries` entries must expect
  * inside its shard deadline: none while one hour's share covers every

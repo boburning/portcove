@@ -56,7 +56,6 @@ import {
   gateLineNamesProduct,
   gateRoleWord,
   gateHelper,
-  productNames,
   otherPackageForm,
   otherPackagePlatforms,
   listedRepositories,
@@ -3633,9 +3632,10 @@ void test("an update archive holding the game's program is never chosen over the
   assert.equal(fullChosen.enrollment.runtimes[0]!.asset_id, 11);
   assert.equal(forcedGate(updateBeside, 11), "accepted");
   assert.match(forcedGate(updateBeside, 12), /role-named/u);
-  // A role word that is also a word of the product's own name names the
-  // product, not a role: the listing's name, original title or id, and the
-  // repository's name (R1). Fit and gate each drop it.
+  // A role word that is also a word of the product's own name still vetoes:
+  // the earlier own-name exemption is removed, and these rows assert the
+  // opposite of the exemption rows it replaced (B1). The archive name alone
+  // cannot tell a title word from a role suffix, so the title is withheld.
   const ownNames: [string, Record<string, unknown>][] = [
     ["Delta-Force-win64.zip", { name: "Delta Force" }],
     ["Mega-Update-Edition-v1.zip", { name: "Mega Update Edition" }],
@@ -3646,111 +3646,114 @@ void test("an update archive holding the game's program is never chosen over the
     const id = typeof fields.id === "string" ? fields.id : unseen;
     const record = listing(id, fields);
     const facts = entry([named(title, [game], 12)], {}, id);
-    assert.ok(decide(record, facts).fit, title);
+    assert.equal(reasonOf(decide(record, facts)), "contradictory-role", title);
     assert.ok(
-      !artifactExclusions(facts.artifacts[0]!, productNames(facts.repository, record.listing))
-        .length,
+      artifactExclusions(facts.artifacts[0]!).some((item) => item.reason === "asset-role-name"),
       title,
     );
-    if (record.listing.id === unseen)
-      assert.equal(forcedGate(facts, 12, record), "accepted", title);
-    // The same name is vetoed for a listing whose names do not hold the word.
-    assert.equal(
-      reasonOf(decide(listing(), entry([named(title, [game], 12)]))),
-      "contradictory-role",
-    );
-    assert.match(forcedGate(entry([named(title, [game], 12)]), 12), /role-named/u, title);
+    assert.match(forcedGate(facts, 12, record), /role-named/u, title);
   }
   const repositoryNamed = entry([named("Patch-Quest-v1.zip", [game], 12)], {}, unseen, {
     repository: "fixture-owner/patch-quest",
   });
-  assert.ok(
-    decide(
-      listing(unseen, {
-        project_url: "https://github.com/fixture-owner/patch-quest",
-      }),
-      repositoryNamed,
-    ).fit,
+  assert.equal(
+    reasonOf(
+      decide(
+        listing(unseen, {
+          project_url: "https://github.com/fixture-owner/patch-quest",
+        }),
+        repositoryNamed,
+      ),
+    ),
+    "contradictory-role",
   );
-  // The rule's two copies agree word by word.
-  for (const [name, record, repository] of [
-    ["Game-update.zip", listing(), "o/game"],
-    ["Game-update7.zip", listing(), "o/game"],
-    ["Game-2update.zip", listing(), "o/game"],
-    ["Game-updates.zip", listing(), "o/game"],
-    ["Delta-Force.zip", listing(unseen, { name: "Delta Force" }), "o/game"],
-    ["Delta-Force.zip", listing(), "o/delta-force"],
-    ["DeltaForce.zip", listing(unseen, { name: "DeltaForce" }), "o/game"],
-    ["Patch-Patch.zip", listing(unseen, { name: "Patch" }), "o/game"],
-  ] as const) {
-    const fit = archiveRoleToken(name, productNames(repository, record.listing)) !== null;
-    assert.equal(gateRoleWord(name, record.listing, repository), fit, name);
-  }
-  // Only an occurrence inside a run of the product's own name is exempt
-  // (R-B1), and camel-case archive names are split into words (R-F1). Each
-  // row: archive name, listing fields, repository, whether it is vetoed.
-  const occurrenceRows: [string, Record<string, unknown>, string, boolean][] = [
-    ["Delta-Force-win64.zip", { name: "Delta Force" }, "o/game", false],
-    ["DeltaForce-win64.zip", { name: "Delta Force" }, "o/game", false],
-    ["Mega-Update-Edition-v1.zip", { name: "Mega Update Edition" }, "o/game", false],
-    ["Update-Edition-v1.zip", { name: "Mega Update Edition" }, "o/game", false],
-    ["update-0.5.10.zip", { name: "Mega Update Edition" }, "o/game", true],
-    ["Mega-Update-Edition-update2.zip", { name: "Mega Update Edition" }, "o/game", true],
-    ["DeltaSquadron-1.1-win64.zip", { name: "Delta Squadron" }, "o/delta-squadron", false],
-    ["Delta-Squadron-1.1-linux-delta.tar.gz", { name: "Delta Squadron" }, "o/delta-squadron", true],
-    ["Delta-Squadron-1.1-linux-delta.tar.gz", { name: "Delta Squadron" }, "o/game", true],
-    ["Squadron-Delta-1.1.zip", { name: "Delta Squadron" }, "o/game", true],
-    ["Game-1.1-linux-update1.tar.gz", { name: "Game" }, "o/update-tools", true],
-    ["Update-Tools-1.1-win64.zip", { name: "Game" }, "o/update-tools", false],
-    ["Game-1.1-win64.zip", { name: "Game" }, "o/update-tools", false],
-    ["Patch-1.0.zip", { name: "Patch" }, "o/game", false],
-    ["Patch-1.0-patch.zip", { name: "Patch" }, "o/game", false],
-    ["GameUpdate-linux.tar.gz", { name: "Game" }, "o/game", true],
-    ["GameDebug-win64.zip", { name: "Game" }, "o/game", true],
-    ["Game-Win64-Hotfix3.zip", { name: "Game" }, "o/game", true],
-    ["PatchWork-v1.zip", { name: "Game" }, "o/game", true],
-    ["Patchwork-v1.zip", { name: "Game" }, "o/game", false],
-    ["Updated-Game.zip", { name: "Game" }, "o/game", false],
-    ["Debug-Quest-v1.zip", {}, "o/debug-quest", false],
-    ["DebugQuest-v1.zip", {}, "o/debug-quest", false],
-    ["Debug-v1.zip", {}, "o/debug-quest", true],
+  // The rule's two copies agree word by word. Camel case splits into words:
+  // `DeltaSquadron` is `delta` + `squadron` and is vetoed; a glued word that
+  // stays one word (`Deltaforce`, `Patchwork`, `Updated`) is not a role word.
+  const occurrenceRows: [string, boolean][] = [
+    ["Game-update.zip", true],
+    ["Game-update7.zip", true],
+    ["Game-2update.zip", true],
+    ["Game-updates.zip", false],
+    ["Delta-Force.zip", true],
+    ["DeltaForce.zip", true],
+    ["Deltaforce-v1.zip", false],
+    ["Patch-Patch.zip", true],
+    ["Delta-Force-win64.zip", true],
+    ["DeltaSquadron-1.1-win64.zip", true],
+    ["Delta-Squadron-1.1-win64.zip", true],
+    ["Delta-Squadron-1.1-linux-delta.tar.gz", true],
+    ["Mega-Update-Edition-v1.zip", true],
+    ["update-0.5.10.zip", true],
+    ["Game-1.1-linux-update1.tar.gz", true],
+    ["Game-1.1-win64.zip", false],
+    ["Patch-1.0.zip", true],
+    ["GameUpdate-linux.tar.gz", true],
+    ["GameDebug-win64.zip", true],
+    ["Game-Win64-Hotfix3.zip", true],
+    ["PatchWork-v1.zip", true],
+    ["Patchwork-v1.zip", false],
+    ["Updated-Game.zip", false],
+    ["DebugQuest-v1.zip", true],
+    ["Debuggery-v1.zip", false],
   ];
-  for (const [name, fields, repository, expected] of occurrenceRows) {
-    const record = listing(unseen, fields);
-    const fit = archiveRoleToken(name, productNames(repository, record.listing)) !== null;
-    assert.equal(fit, expected, `fit ${name} on ${repository}`);
-    assert.equal(gateRoleWord(name, record.listing, repository), expected, `gate ${name}`);
+  for (const [name, expected] of occurrenceRows) {
+    assert.equal(archiveRoleToken(name) !== null, expected, `fit ${name}`);
+    assert.equal(gateRoleWord(name), expected, `gate ${name}`);
   }
   // The gate refuses the update archive independently.
   assert.match(forcedGate(both, 12), /role-named/u);
   assert.equal(forcedGate(both, 11), "accepted");
 });
 
-void test("a role word after the product's name still vetoes its archive end to end (R-B1)", () => {
+void test("a role word vetoes its archive whatever the product's or repository's name (B1)", () => {
   const windows = player("Game/Game.exe", "pe-x86-64", "scenario-game");
   const linux = player("Game/Game", "elf64-x86-64", "scenario-game-linux");
-  const scenarios: [string, string, Record<string, unknown>, string, string][] = [
+  // Repository, listing name, Windows archive, Linux role archive, and whether
+  // the Windows archive name is itself free of role words.
+  const scenarios: [string, string, string, string, boolean][] = [
     [
       "fixture-owner/delta-squadron",
       "Delta Squadron",
-      {},
       "DeltaSquadron-1.1-win64.zip",
       "Delta-Squadron-1.1-linux-delta.tar.gz",
+      false,
     ],
     [
       "fixture-owner/update-tools",
       "Game",
-      {},
       "Game-1.1-win64.zip",
       "Game-1.1-linux-update1.tar.gz",
+      true,
+    ],
+    // A one-word repository name equal to the role word exempts nothing.
+    [
+      "o/delta",
+      "Delta Squadron",
+      "Delta-Squadron-1.1-win64.zip",
+      "Delta-Squadron-1.1-linux-delta.tar.gz",
+      false,
+    ],
+    [
+      "o/update",
+      "Space Game",
+      "Space-Game-1.1-win64.zip",
+      "Space-Game-1.1-linux-update.tar.gz",
+      true,
+    ],
+    [
+      "o/Patch",
+      "Patch Quest",
+      "Patch-Quest-1.1-win64.zip",
+      "Patch-Quest-1.1-linux-patch.tar.gz",
+      false,
     ],
   ];
-  for (const [repository, name, fields, windowsName, linuxName] of scenarios) {
+  for (const [repository, name, windowsName, linuxName, windowsClean] of scenarios) {
     const record = listing(unseen, {
       name,
       project_url: `https://github.com/${repository}`,
       platforms: ["windows-x86-64", "linux-x86-64"],
-      ...fields,
     });
     const both = entry(
       [named(windowsName, [windows], 11, "windows"), named(linuxName, [linux], 12, "linux")],
@@ -3758,17 +3761,33 @@ void test("a role word after the product's name still vetoes its archive end to 
       unseen,
       { repository },
     );
-    // Windows enrolls from its own archive; Linux never from the role archive.
+    // Linux never enrolls from the role archive; Windows only from a name
+    // without a role word.
     const decision = decide(record, both);
-    assert.ok(decision.fit, repository);
-    assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64"], repository);
+    if (windowsClean) {
+      assert.ok(decision.fit, repository);
+      assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64"], repository);
+      assert.equal(forcedGate(both, 11, record), "accepted", repository);
+    } else {
+      assert.equal(reasonOf(decision), "contradictory-role", repository);
+      assert.match(forcedGate(both, 11, record), /role-named/u, repository);
+    }
     // The role archive alone ends `contradictory-role`.
     const alone = entry([named(linuxName, [linux], 12, "linux")], {}, unseen, { repository });
     assert.equal(reasonOf(decide(record, alone)), "contradictory-role", repository);
     // A forged Linux enrollment from the role archive is refused by the gate.
     assert.match(forcedGate(both, 12, record, "linux-x86-64"), /role-named/u, repository);
-    assert.equal(forcedGate(both, 11, record), "accepted", repository);
   }
+  // A title holding a role word as its own word is withheld until
+  // attribution data vouches for the archive; a glued word is not vetoed.
+  const titled = listing(unseen, { name: "Delta Squadron" });
+  const only = entry([named("Delta-Squadron-1.1-win64.zip", [windows], 11, "windows")]);
+  assert.equal(reasonOf(decide(titled, only)), "contradictory-role");
+  assert.match(forcedGate(only, 11, titled), /role-named/u);
+  const glued = listing(unseen, { name: "Deltaforce" });
+  const gluedOnly = entry([named("Deltaforce-1.1-win64.zip", [windows], 11, "windows")]);
+  assert.ok(decide(glued, gluedOnly).fit);
+  assert.equal(forcedGate(gluedOnly, 11, glued), "accepted");
 });
 
 void test("several archives for a platform are ambiguous, whatever their names say (A1, R1)", () => {
