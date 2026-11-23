@@ -1,0 +1,408 @@
+{
+  "format": 4,
+  "generator": "scripts/listing-package-facts.mts",
+  "generated_at": "2026-11-21T00:00:00.000Z",
+  "entries": [
+    {
+      "port_id": "zz-sample-a-windows",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-a-windows",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "6b54441dcc18620d08de40cd165d529d65f838201c67f0c12a1a9b6172d507ac"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Game-v1.0-windows-x64.zip",
+          "size": 100,
+          "sha256": "fa75673d9414beeb25d5b66d479c4b844fedb1ba66828d0f48aa874a35fdbf46",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "fa75673d9414beeb25d5b66d479c4b844fedb1ba66828d0f48aa874a35fdbf46"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "game/game.exe",
+              "display_path": "Game/Game.exe",
+              "machine": "pe-x86-64",
+              "sha256": "aadd8a312bb43b14eb8d86aa934747453293b5cee4752507fc47e5c26da3f1c1"
+            }
+          ],
+          "excluded_players": [
+            {
+              "path": "game/patcher.exe",
+              "display_path": "Game/Patcher.exe",
+              "machine": "pe-x86-64",
+              "sha256": "5a5480a2ffd731bb9661cb4b246b348773db42a38e0ba1d4773d764471cd2fd8",
+              "token": "patcher"
+            },
+            {
+              "path": "game/unitycrashhandler64.exe",
+              "display_path": "Game/UnityCrashHandler64.exe",
+              "machine": "pe-x86-64",
+              "sha256": "c01a46dd8ef718eccb053133d61f8b782e4f3fab14c5acdd5d5a1496e41bcae4",
+              "token": "crashhandler"
+            }
+          ],
+          "contradictory": false
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-b-patcher-only",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-b-patcher-only",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "38a86ff8efa4a6d06be7e22cbca6ffaa10b383bd8dc2cd67ac7cb6bf8986000b"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Patcher-v1.0-windows-x64.zip",
+          "size": 100,
+          "sha256": "ed66563164f8e403492076b9a615103cfead0dbb2e3b02e020e1cefd0df67d53",
+          "role": "unknown",
+          "os": "unknown",
+          "arch": "unknown",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "ed66563164f8e403492076b9a615103cfead0dbb2e3b02e020e1cefd0df67d53"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": "patcher",
+            "system_token": null
+          },
+          "players": [],
+          "excluded_players": [
+            {
+              "path": "patcher.exe",
+              "display_path": "Patcher.exe",
+              "machine": "pe-x86-64",
+              "sha256": "b0a74d139bae2e8359f76d17f9438006f540e8517d588003e97dc145d7d9d1d8",
+              "token": "patcher"
+            }
+          ],
+          "contradictory": false
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-c-patcher-archive",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-c-patcher-archive",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "e05932cc55de24015f906c1835500eaad2ac7744f8d9ac99d95d466680d1d0d4"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Patcher-v1.0-windows-x64.zip",
+          "size": 100,
+          "sha256": "906f900f9334920576a9520d19e0289889e8da307019582c7c6dd202f76cc0eb",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "906f900f9334920576a9520d19e0289889e8da307019582c7c6dd202f76cc0eb"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": "patcher",
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "game.exe",
+              "display_path": "Game.exe",
+              "machine": "pe-x86-64",
+              "sha256": "f6ec03fd353d47bb6cf5663d1d92855d05fd3a26eda3e2645d5339cfef3094c3"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": true
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-d-several",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-d-several",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "e6cd878f0ef82b2e4dcccabebaff2fa48dcc97baff8b8372b1a578f4401c4766"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Game-v1.0-windows-x64.zip",
+          "size": 100,
+          "sha256": "cb8ff9e2bbe8fa22d2447c15047ddaf5756b6dd25799cf172d896778214e7295",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "cb8ff9e2bbe8fa22d2447c15047ddaf5756b6dd25799cf172d896778214e7295"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "game.exe",
+              "display_path": "Game.exe",
+              "machine": "pe-x86-64",
+              "sha256": "f6ec03fd353d47bb6cf5663d1d92855d05fd3a26eda3e2645d5339cfef3094c3"
+            },
+            {
+              "path": "launcher.exe",
+              "display_path": "Launcher.exe",
+              "machine": "pe-x86-64",
+              "sha256": "cab29fa967486e68dff50535dc2e65fc16e513405273a0f745359df37dd7ca1c"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-e-recomp",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-e-recomp",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "34c0269c7f1d201d7828c1ffd5f4be817127a768292d726eccad4098844b08ad"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "MarioKart64Recomp-v1.0-windows-x64.zip",
+          "size": 100,
+          "sha256": "1e4d426e97217172b44d2b29038afb48568564bfee52402e112fc68ddc4d35bc",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "1e4d426e97217172b44d2b29038afb48568564bfee52402e112fc68ddc4d35bc"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "zelda64recompiled.exe",
+              "display_path": "Zelda64Recompiled.exe",
+              "machine": "pe-x86-64",
+              "sha256": "45e45b5c5c1a0b1cec40113aba988d9d82c6c8eeb1d4e60fd54156a7906adb33"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-f-linux",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-f-linux",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "7968e05874852887b838b3b7f0d0a6124b6e3de2c7f44ca38584c2cf9be73802"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Game-v1.0-linux-x86_64.tar.gz",
+          "size": 100,
+          "sha256": "9e709efbed0d73dd8219338e651f001f1dd1a6050e24d7354a3452760914a6a4",
+          "role": "desktop-game-runtime",
+          "os": "linux",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "9e709efbed0d73dd8219338e651f001f1dd1a6050e24d7354a3452760914a6a4"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "linux",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "game/game.x86_64",
+              "display_path": "Game/Game.x86_64",
+              "machine": "elf64-x86-64",
+              "sha256": "5bf9716f60c00ce46a614767d8ef86ab0f84f87f565e535c719ff6fdcf3fc43f"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false
+        }
+      ]
+    },
+    {
+      "port_id": "zz-sample-g-mac",
+      "provider": "github",
+      "repository": "fixture-owner/zz-sample-g-mac",
+      "repository_id": 4242,
+      "parser": "listing-package-facts",
+      "parser_version": 4,
+      "observation": {
+        "release_id": 8,
+        "tag": "v1.0",
+        "published_at": "2026-11-01T00:00:00.000Z",
+        "observed_at": "2026-11-20T00:00:00.000Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "56e28c7801b3b2464146dcecc7182190a17db268010c8dadd3653715ab3c907e"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 21,
+          "name": "Game-v1.0-macos-universal.zip",
+          "size": 100,
+          "sha256": "ef93c48bacd44d1e3bdc431452a82674c308268f4f02a2513821d275235e08bd",
+          "role": "desktop-game-runtime",
+          "os": "macos",
+          "arch": "universal",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "ef93c48bacd44d1e3bdc431452a82674c308268f4f02a2513821d275235e08bd"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "macos",
+            "arch": "universal",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "unseen.app/contents/macos/unseen",
+              "display_path": "Unseen.app/Contents/MacOS/Unseen",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "73f4ffd4877d1d651e1dc3c5463b30abc2f7869793023ce4ae3e1ccfb06c7047"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false
+        }
+      ]
+    }
+  ],
+  "entries_sha256": "60c6bb964d06f2b200aa9a6a07c7a675066b3662070a528c14ff915c3d2257ab"
+}

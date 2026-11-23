@@ -400,6 +400,66 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
+        command: CatalogCommand::ClassifyListingNames { input },
+    } = &cli.command
+    {
+        const MAXIMUM_INPUT_BYTES: u64 = 8 * 1024 * 1024;
+        let file = std::fs::File::open(input)?;
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(
+            &mut std::io::Read::take(file, MAXIMUM_INPUT_BYTES + 1),
+            &mut bytes,
+        )?;
+        if bytes.len() as u64 > MAXIMUM_INPUT_BYTES {
+            return Err(portcove_core::PortcoveError::usage(
+                "listing name classification input exceeds 8 MiB",
+            )
+            .into());
+        }
+        let names: portcove_core::ListingNamesInput = serde_json::from_slice(&bytes)
+            .map_err(|_| portcove_core::PortcoveError::usage("invalid listing names input"))?;
+        render_read_success(
+            mode,
+            "catalog.classify-listing-names",
+            portcove_core::classify_listing_names(&names)?,
+            |classification| {
+                format!(
+                    "Listing names: {} releases, {} assets, {} programs classified.",
+                    classification.releases.len(),
+                    classification.assets.len(),
+                    classification.programs.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectListingArtifact {
+                archive,
+                platform,
+                size,
+                sha256,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        render_read_success(
+            mode,
+            "catalog.inspect-listing-artifact",
+            portcove_core::inspect_listing_artifact_archive(archive, platform, *size, sha256)?,
+            |inspection| {
+                format!(
+                    "Listing artifact: {} files, {} player candidates.",
+                    inspection.files,
+                    inspection.player_candidates.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command:
             CatalogCommand::InspectPackageLayout {
                 archive,

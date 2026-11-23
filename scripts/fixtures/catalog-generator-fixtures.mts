@@ -113,7 +113,24 @@ export function isolatedGenerator() {
   mkdirSync(catalogs, { recursive: true });
   // The committed aggregate is a generated output. Fixtures edit a scratch copy of it
   // and explode that into source records; production never reads an aggregate as source.
-  copyFileSync(join(catalogRoot, "catalog.json"), join(catalogs, "catalog-fixture-input.json"));
+  // Generated registration routes come from listing facts, not authored
+  // records; the historical fixtures assemble only the authored definitions.
+  const generated = new Set(
+    (
+      JSON.parse(
+        readFileSync(join(catalogRoot, "generated-registration.generated.json"), "utf8"),
+      ) as { enrollments: { port_id: string }[] }
+    ).enrollments.map(({ port_id }) => port_id),
+  );
+  const aggregate = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8")) as {
+    ports: { id: string }[];
+  };
+  writeFileSync(
+    join(catalogs, "catalog-fixture-input.json"),
+    generated.size
+      ? `${JSON.stringify({ ...aggregate, ports: aggregate.ports.filter(({ id }) => !generated.has(id)) }, null, 2)}\n`
+      : readFileSync(join(catalogRoot, "catalog.json")),
+  );
   for (const name of [
     "catalog-schema2-migration-fixture.json",
     "catalog-schema1-fixture.json",

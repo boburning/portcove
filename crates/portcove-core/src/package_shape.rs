@@ -25,8 +25,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AdapterKind, Catalog, Platform, PortDefinition, PortcoveError, Result};
 
+mod listing;
 pub(crate) mod machine;
 pub(crate) mod withheld;
+
+pub use listing::{
+    ListingArtifactInspection, ListingNameSuggestion, ListingNamesClassification,
+    ListingNamesInput, ListingPlayerCandidate, ListingProgramVerdict, ListingReleaseName,
+    ListingReleaseVerdict, classify_listing_names, inspect_listing_artifact_archive,
+};
 
 /// Version of the derivation rules the generated table records. Version 2
 /// adds machine-typed player candidates to the six shape components; the

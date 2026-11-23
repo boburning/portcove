@@ -8,11 +8,13 @@ import {
   type AuthoredPort,
   type CatalogPort,
 } from "./catalog-authoring.mts";
-import type {
-  AcquisitionRestriction,
-  RestrictedOperation,
-  RestrictionScope,
-} from "./catalog-acquisition-restrictions.mts";
+import type { RestrictedOperation, RestrictionScope } from "./catalog-acquisition-restrictions.mts";
+import {
+  registrationQueues,
+  type Generation,
+  type RegistrationQueues,
+} from "./catalog-generated-registration.mts";
+import { carriers, heldAt, usesScummvmEngine } from "./catalog-route-holds.mts";
 import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import {
   observerListingObservations,
@@ -21,6 +23,8 @@ import {
 } from "./listing-observation-reader.mts";
 import { packagePlayerProjection } from "./package-player-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+
+export { heldAt };
 
 /**
  * Report-only route fit for every catalog identity. It reads committed catalog
@@ -33,6 +37,8 @@ import { isRecord } from "./runtime-values.mts";
  * 1. `excluded-scummvm`: the declared runtime engine is the ScummVM project,
  *    whether or not an operational route also exists (`enrolled` says so).
  * 2. `enrolled`: an operational definition or a generated route enrollment exists.
+ *    A generated user-selected registration (`generated: true`) is an operational
+ *    definition produced from observed facts with no title-specific authority.
  *
  * Every remaining identity is listing-only. Its candidate route is the existing
  * non-owning user-selected registration route (`register-external`, `launch`).
@@ -78,8 +84,6 @@ export const registrationRouteOperations: readonly RestrictedOperation[] = [
   "launch",
 ];
 
-/** The engine identity behind every ScummVM-hosted listing, compared as a URL. */
-const scummvmEngineProject = "github.com/scummvm/scummvm";
 /** Route facts describe a Windows prepared-player basename. */
 const preparedPlayerPlatform = "windows-x86-64";
 const desktopPlatforms: readonly string[] = platforms;
@@ -104,6 +108,8 @@ export interface RouteFitRecord {
   reason: string;
   /** An operational definition or generated route enrollment exists. */
   enrolled: boolean;
+  /** Present only for a generated user-selected registration route. */
+  generated?: true;
   observation: ObservationState;
   restrictions: RouteFitRestriction[];
   /** Operations Core's offer check holds, by platform, among the declared ones. */
@@ -117,6 +123,8 @@ export interface RouteFitSummary {
   by_family: Record<string, number>;
   listing_only_github_packages_windows_x86_64: number;
   data_only_windows_x86_64: number;
+  /** Enrolled through a generated user-selected registration; no title-specific authority. */
+  generated_registrations: number;
   restricted_identities: number;
   listing_only_download_held: number;
   observations: Record<ObservationState, number>;
@@ -126,12 +134,22 @@ export interface RouteFitReport {
   format_version: 2;
   summary: RouteFitSummary;
   identities: RouteFitRecord[];
+  /**
+   * The generated registration route's exception queues: every identity per
+   * blocked reason, unread package form and name veto. Present when the
+   * catalog generation is an input.
+   */
+  registration_queues?: RegistrationQueues;
 }
 export interface RouteFitInputs {
   records: readonly AuthoredPort[];
   ports: readonly CatalogPort[];
   packageShapes: unknown;
   routeEnrollment: unknown;
+  /** The generated registration table; absent means no generated routes. */
+  generatedRegistration?: unknown;
+  /** The catalog generation, for the generated route's exception queues. */
+  generation?: Generation;
   observerReport?: unknown;
 }
 
@@ -145,119 +163,12 @@ function portEntries(value: unknown, field: string, name: string): Record<string
   });
 }
 
-function engineProject(url: unknown): string | undefined {
-  if (typeof url !== "string") return undefined;
-  try {
-    const parsed = new URL(url);
-    return `${parsed.hostname}${parsed.pathname}`
-      .toLowerCase()
-      .replace(/\.git$/u, "")
-      .replace(/\/+$/u, "");
-  } catch {
-    return undefined;
-  }
-}
-
-/** Engine identity from the implementation's declared runtime, never the title. */
-function usesScummvmEngine(record: AuthoredPort): boolean {
-  const implementation: unknown = record.listing.implementation;
-  if (!isRecord(implementation) || !Array.isArray(implementation.dependencies)) return false;
-  return implementation.dependencies.some(
-    (dependency: unknown) =>
-      isRecord(dependency) &&
-      dependency.kind === "runtime" &&
-      engineProject(dependency.project_url) === scummvmEngineProject,
-  );
-}
-
 function hostOf(url: unknown): string {
   try {
     return new URL(String(url)).hostname;
   } catch {
     return "an unparseable host";
   }
-}
-
-// ---------------------------------------------------------------------------
-// Restrictions: an offer-time port of Core's evaluate_carrier/evaluate.
-
-type CarrierRestrictions = { carrier: "listing" | "managed"; list: AcquisitionRestriction[] };
-
-/** Core's PortListing::effective_restrictions and definition_restrictions. */
-function carriers(record: AuthoredPort): CarrierRestrictions[] {
-  const listing = record.listing as Record<string, unknown>;
-  const authored = Array.isArray(listing.restrictions)
-    ? (listing.restrictions as AcquisitionRestriction[])
-    : [];
-  const legacy =
-    !authored.length && typeof listing.download_block_reason === "string"
-      ? [{ id: "legacy-download-block", effect: "hold", operations: ["download"] } as const]
-      : [];
-  const integration = isRecord(record.integration) ? record.integration : undefined;
-  const managed = Array.isArray(integration?.acquisition_restrictions)
-    ? (integration.acquisition_restrictions as AcquisitionRestriction[])
-    : [];
-  return [
-    { carrier: "managed", list: managed },
-    {
-      carrier: "listing",
-      list: authored.length ? authored : (legacy as unknown as AcquisitionRestriction[]),
-    },
-  ];
-}
-
-const filled = (values: readonly unknown[] | undefined) => (values?.length ?? 0) > 0;
-
-/** Artifacts > releases > inputs = components > platforms > whole. */
-function specificity(scope: RestrictionScope = {}): number {
-  if (filled(scope.artifacts)) return 5;
-  if (filled(scope.releases)) return 4;
-  if (filled(scope.inputs) || filled(scope.components)) return 3;
-  if (filled(scope.platforms)) return 2;
-  return 1;
-}
-
-type Fit = "no" | "possible" | "yes";
-
-/**
- * Subject: a known operation and platform at offer time, with the release and
- * artifact deferred. Core resolves no input or component yet, so those
- * dimensions use its final rule: a hold fails closed, a permit never matches.
- */
-function fit(restriction: AcquisitionRestriction, operation: string, platform: string): Fit {
-  if (!(restriction.operations as readonly string[]).includes(operation)) return "no";
-  const hold = restriction.effect === "hold";
-  const scope = restriction.scope ?? {};
-  if (filled(scope.platforms) && !scope.platforms!.includes(platform)) return "no";
-  if ((filled(scope.inputs) || filled(scope.components)) && !hold) return "no";
-  return filled(scope.releases) || filled(scope.artifacts) ? "possible" : "yes";
-}
-
-function evaluateCarrier(list: readonly AcquisitionRestriction[], op: string, platform: string) {
-  let best: { rank: number; hold: boolean; restriction: AcquisitionRestriction } | undefined;
-  let possiblePermit = 0;
-  for (const restriction of list) {
-    const rank = specificity(restriction.scope);
-    const hold = restriction.effect === "hold";
-    const result = fit(restriction, op, platform);
-    if (result === "possible" && !hold) possiblePermit = Math.max(possiblePermit, rank);
-    if (
-      result === "yes" &&
-      (!best || rank > best.rank || (rank === best.rank && hold && !best.hold))
-    )
-      best = { rank, hold, restriction };
-  }
-  if (!best || (best.hold && possiblePermit > best.rank)) return undefined;
-  return best;
-}
-
-/** Any held carrier wins; a permit cancels only its own carrier's holds. */
-export function heldAt(record: AuthoredPort, operation: string, platform: string) {
-  for (const { list } of carriers(record)) {
-    const decision = evaluateCarrier(list, operation, platform);
-    if (decision?.hold) return decision.restriction;
-  }
-  return undefined;
 }
 
 function reportedRestrictions(record: AuthoredPort): RouteFitRestriction[] {
@@ -355,7 +266,9 @@ function playerFacts(record: AuthoredPort, shapes: readonly Record<string, unkno
   return facts;
 }
 
-type Fitted = Pick<RouteFitRecord, "disposition" | "reason"> & { packagePlatforms: string[] };
+type Fitted = Pick<RouteFitRecord, "disposition" | "reason"> & {
+  packagePlatforms: string[];
+};
 
 function classifyListing(
   record: AuthoredPort,
@@ -469,6 +382,14 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
   for (const id of [...ports.keys(), ...shapes.keys(), ...enrolled.keys()])
     if (!known.has(id)) throw new Error(`${id} is not a catalog identity.`);
   const reported = observerListingObservations(inputs.observerReport, known);
+  const generated = new Map(
+    (inputs.generatedRegistration === undefined
+      ? []
+      : portEntries(inputs.generatedRegistration, "enrollments", "Generated registrations")
+    ).map((entry) => [entry.port_id as string, entry]),
+  );
+  for (const id of generated.keys())
+    if (!ports.has(id)) throw new Error(`${id} is a generated registration without a definition.`);
 
   const dataOnlyWindows = new Set<string>();
   const identities = records.map((record): RouteFitRecord => {
@@ -506,6 +427,18 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
         disposition: "excluded-scummvm",
         reason: `Runs on the ScummVM engine; ScummVM onboarding is deferred.${isEnrolled ? " An operational route also exists." : ""}${heldText}`,
       };
+    const generatedRoute = generated.get(id);
+    if (port && generatedRoute) {
+      const release = isRecord(generatedRoute.release) ? generatedRoute.release : {};
+      const on = Array.isArray(generatedRoute.platforms) ? generatedRoute.platforms.join(", ") : "";
+      return {
+        ...common,
+        generated: true as const,
+        family,
+        disposition: "enrolled",
+        reason: `Generated user-selected registration from observed ${String(generatedRoute.repository)} ${String(release.tag)} facts on ${on}; no title-specific authority.${heldText}`,
+      };
+    }
     if (port) {
       const details = [
         enrolled.has(id) ? " Reviewed prepared-player route enrolled." : "",
@@ -544,7 +477,13 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
     number
   >;
   for (const identity of identities) byDisposition[identity.disposition]++;
-  const observations = { complete: 0, incomplete: 0, unavailable: 0, failed: 0, none: 0 };
+  const observations = {
+    complete: 0,
+    incomplete: 0,
+    unavailable: 0,
+    failed: 0,
+    none: 0,
+  };
   for (const identity of identities) observations[identity.observation]++;
   return {
     format_version: 2,
@@ -563,6 +502,7 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
           listingProviderIdentity(listing)?.provider === "github",
       ).length,
       data_only_windows_x86_64: dataOnlyWindows.size,
+      generated_registrations: identities.filter((identity) => identity.generated).length,
       restricted_identities: identities.filter((identity) => identity.restrictions.length).length,
       listing_only_download_held: identities.filter(
         (identity) => !ports.has(identity.id) && identity.held_operations.download,
@@ -571,6 +511,7 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
       observer_report: inputs.observerReport === undefined ? "absent" : "applied",
     },
     identities,
+    ...(inputs.generation ? { registration_queues: registrationQueues(inputs.generation) } : {}),
   };
 }
 
@@ -586,11 +527,23 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
     ...dispositions.map((name) => row(name, summary.by_disposition[name])),
     `Listing-only GitHub packages declared for windows-x86-64: ${summary.listing_only_github_packages_windows_x86_64}`,
     `Data-only for windows-x86-64: ${summary.data_only_windows_x86_64}`,
+    `Enrolled through generated registration (no title-specific authority): ${summary.generated_registrations}`,
     `Identities with restrictions: ${summary.restricted_identities}; listing-only with download held: ${summary.listing_only_download_held}`,
     `Observations (${summary.observer_report === "applied" ? "observer report applied" : "committed only"}):`,
     ...Object.entries(summary.observations).map(([state, count]) => row(state, count)),
     "Families:",
     ...Object.entries(summary.by_family).map(([family, count]) => row(family, count)),
+    ...(report.registration_queues
+      ? [
+          "Generated registration queues (identity lists with --json):",
+          ...Object.entries(report.registration_queues.reasons)
+            .filter(([, ids]) => ids.length)
+            .map(([reason, ids]) => row(reason, ids.length)),
+          ...Object.entries(report.registration_queues.unread_forms).map(([form, ids]) =>
+            row(`unread form ${form}`, ids.length),
+          ),
+        ]
+      : []),
   ];
   return lines.join("\n");
 }
@@ -611,13 +564,15 @@ const catalogDirectory = "crates/portcove-core/catalog";
 
 export function readRouteFitInputs(repositoryRoot: string, observerReportPath?: string) {
   const catalogRoot = join(repositoryRoot, catalogDirectory);
-  const { records, catalog } = readCatalogSource(catalogRoot);
+  const { records, catalog, generation } = readCatalogSource(catalogRoot);
   const read = (file: string): unknown => parseCatalogSource(readFileSync(file, "utf8"));
   return {
     records,
     ports: catalog.ports,
     packageShapes: read(join(catalogRoot, "package-shapes.generated.json")),
     routeEnrollment: read(join(catalogRoot, "route-enrollment.generated.json")),
+    generatedRegistration: read(join(catalogRoot, "generated-registration.generated.json")),
+    generation,
     ...(observerReportPath === undefined ? {} : { observerReport: read(observerReportPath) }),
   } satisfies RouteFitInputs;
 }

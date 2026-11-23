@@ -3711,6 +3711,435 @@ artifacts deferred, and name each held operation. A download hold does not
 remove the registration route. The report grants no admission and changes no
 catalog data.
 
+#### Generated user-selected registration
+
+Catalog generation adds the shared registration-only route to a listing-only
+identity when its observed facts fit. This follows the owner decision on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7083831868).
+Portcove downloads and executes nothing on this route. The player keeps and
+prepares their own copy, and the player and upstream own runtime replacement.
+`scripts/catalog-generated-registration.mts` decides every identity from data
+only. No title, id or hand-kept list appears in it.
+
+Because no title-specific review happens, these rules are the review. An
+identity fits when all of these hold, and the first one that fails is its
+blocked reason:
+
+1. It has no authored integration and no reviewed prepared-player
+   `route_facts_v1` enrollment.
+2. Its declared runtime engine is not the ScummVM project.
+3. Its availability is not `source-only` or `unavailable`.
+4. Its project or release URL names a GitHub repository.
+5. One `listing-package-facts.generated.json` entry names it and that same
+   repository, written by the current facts parser version.
+6. The worker did not complete the entry as ineligible. The ineligible
+   reasons are listed below.
+7. That entry's observation is `complete` and its asset list is complete.
+   Any other coverage is unknown, never eligible. The facts were confirmed at
+   most 30 days (`maxFactsAgeDays`) before the table's `generated_at`
+   (`stale-facts`). Any run of non-complete upstream attempts since then is at
+   most 14 days (`lastGoodRetentionDays`) long (`observation-unavailable`).
+   The worker's own inspection backlog (`pending-inspection`) is not an
+   upstream attempt; only the facts age bounds it.
+8. For a supported desktop platform, an artifact has the role
+   `desktop-game-runtime` from an `exact-release-structured` fact. That fact
+   binds the archive's provider SHA-256 and holds player candidates with their
+   own SHA-256. No other fact source is accepted. The artifact is not
+   contradictory, and its name carries no tool or system token and names no
+   other system or architecture than the platform's. It holds a player
+   candidate whose platform-true machine runs on the platform and whose name
+   carries no tool token. Each player's own machine decides where it runs:
+   another player in the same archive, such as a 32-bit helper or the other
+   system of a combined Windows and Linux archive, neither helps nor blocks
+   the platform.
+9. On that platform the players are one program
+   ([one program per platform](#one-program-per-platform)).
+10. On that platform no restriction holds `register-external` or `launch`. A
+    `download` hold does not block registration. This route never offers a
+    download.
+11. An authored listing guide leaves room for the generated selection step and
+    ownership reference within the eight-entry guide bound.
+
+The route's platforms are every platform satisfying 8 to 10. The generated
+record is exactly the hand-authored form: `external_registration_v1: true`, the
+`user-prepared` provider and the `staged-source-portable` adapter. Generated
+records then pass the same validation as authored ones. The listing keeps
+only its other descriptive platforms.
+
+##### Platform-true player machines
+
+A header machine alone does not say which system a program is for: an arm64
+Mach-O can be an iPhone app and an x86-64 ELF can be a FreeBSD or Android
+program. Core's listing inspection therefore reads the system from the header
+and names any other system in the machine (`ExecutableImage::platform_machine`
+in `crates/portcove-core/src/package_shape/machine.rs`). Only an unqualified
+`pe-x86-64`, `elf64-x86-64`, `macho-<arch>` or `macho-universal-…` runs on a
+supported platform; every qualified name runs on none.
+
+| Format | Desktop when                                                                                                                           | Other names                                                                                                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PE     | Windows GUI or console subsystem                                                                                                       | `xbox`, `efi`, or `unknown` for any other or missing subsystem                                                                                                               |
+| ELF    | A glibc or musl `/lib…/ld-linux…`/`ld-musl-…` interpreter with a System V or GNU OSABI, or a static image branded GNU/Linux            | `android` (`/system/bin/linker*`), `freebsd`, `openbsd`, `netbsd`, `haiku`, `solaris` by OSABI or interpreter; `unknown` for a static System V image or disagreeing evidence |
+| Mach-O | `LC_BUILD_VERSION` macOS or Mac Catalyst, or `LC_VERSION_MIN_MACOSX`, outside an iOS-shaped location; every universal slice must agree | `ios`, `tvos`, `watchos`, `visionos` (simulators count as their device), `other` (bridgeOS, DriverKit), `unknown`, and `unplatformed` for no platform load command           |
+
+An iOS-shaped location is inside a top-level `Payload/` directory, or directly
+inside an `.app` bundle root, where a macOS bundle never puts its program. A
+Mach-O image with no platform load command is macOS only under
+`*.app/Contents/MacOS/` or as a bare program outside any iOS-shaped location;
+otherwise it stays `macho-unplatformed-…`. A macOS image in an iOS-shaped
+location is `macho-unknown-…`. Core reads at most 64 KiB of Mach-O load
+commands per slice; a platform command past that leaves the system unknown.
+The historical unqualified `machine` that reviewed package shapes record keeps
+its meaning, so managed routes are unchanged.
+
+Players with only non-desktop machines block the identity as
+`non-desktop-platform`; players with only `unknown` or `unplatformed` machines
+block it as `unknown-platform`. Desktop players for another architecture or
+system than any supported platform remain `wrong-host`.
+
+##### One program per platform
+
+A release archive can hold several titles, such as two games built from one
+engine. After the tool veto, the kept players that run on a platform must be
+one program: at most `maxDistinctPrograms` (1) distinct program names, across
+every archive whose name allows the platform, and each archive's players under
+one top-level directory. Anything else is `ambiguous-player`. Two program names
+are the same program when they differ only in build-variant words: an
+architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`, a
+bare `64` or `32`), `console`, `debug` or `exe`. So `openjk.x86_64.exe` and
+`openjk.x86.exe` are one program, `Game.exe`, `Game64.exe` and
+`Game.console.exe` are one program, and `openjk.x86_64.exe` beside
+`openjo.x86_64.exe` is two.
+
+The bound is one because a second distinct name cannot be told apart from a
+second title by name alone. That includes `Game.exe` beside `Launcher.exe`:
+`launcher` is not a tool token, because a launcher is often the documented
+entry point, so vetoing it could leave the wrong program as the only player.
+Such a release is excluded as `ambiguous-player`. A reviewed `route_facts_v1`
+enrollment can still offer it. The gate checks the same rule with its own code
+and also requires an enrollment to name every player of its artifact that runs
+on the platform.
+
+##### What the player sees
+
+Upstream text reaches the guide only through a conservative name class. A name
+must be printable ASCII letters, digits, spaces or `._-+()[]`. It has no
+leading or trailing space and at most 120 characters. Format and bidi controls,
+zero-width and look-alike characters never pass. The selection step names the
+program only when the facts name exactly one player per platform, the same
+name everywhere, and that name passes the class. It uses the archive's own
+letter case, such as `Game.x86_64`, not Core's lowercase comparison key.
+Otherwise it says "Select the game program in your prepared copy." The working
+folder is the program's folder. The provenance reference names the repository,
+the release tag and release file when they pass the class, and the date facts
+were checked. It names at most three programs, then "and N more". Full paths,
+machines and digests stay in the facts table and the enrollment table. Generic
+copy states what stays unknown, such as which original game files upstream
+needs. An authored listing guide stays first. The selection step, a warning
+that no title-specific review happened and the ownership reference follow it.
+The provenance reference and review step follow too when the bound leaves room.
+
+##### Enrollment table and gate
+
+`generated-registration.generated.json` records each enrollment's facts digest,
+repository and repository id, release, artifacts and players, plus blocked
+counts by reason. `blocked_exclusions` lists every name-based veto, grouped by
+reason and token, most frequent first. Each group has the number of identities
+and up to five examples with port id, vetoed name and outcome. The reasons are
+`asset-tool-name`, `asset-system-token`, `asset-role-name`,
+`asset-system-name`, `asset-architecture-name` and `player-tool-name`.
+`ambiguous-player` groups the identities whose players are not one program,
+with token `several-programs` or `several-directories` and the program names
+as the example. A group of real games
+excluded by one token means the rule needs fixing, not a single game.
+`facts_provenance` carries the facts table's provenance, or `null`. Generation is pure: when a fact stops holding, the next run
+omits that route. The delta records the withdrawal reason. Withdrawal removes
+the offer to register new copies. It never touches external files. Core's
+existing [retained registration rules](ARCHITECTURE.md) keep a registered
+copy's listing identity. Generated routes are bookkept by this table rather
+than the curated `catalog-legacy-additions-fixture.json`.
+`catalog-route-fit.mts` and `maintenance-program-view.mts` count them as
+enrolled with no title-specific authority.
+
+The owner reads exceptions as grouped queues. The table keeps only counts and
+examples; `node scripts/catalog-route-fit.mts --json` adds
+`registration_queues` with complete identity lists in port_id order, computed
+from the committed catalog and facts, so any checkout reproduces them:
+`reasons` (every blocked reason with its identities), `unread_forms` (every
+release package form the worker does not read with the identities whose
+release has it, also beside a supported archive) and `exclusions` (every
+name-based veto as `reason:token`). The text summary prints the counts. The
+identity-level reasons are distinct and machine-readable. Upstream and
+release: `no-stable-release`, `no-release-archive` (no package file at all),
+`unsupported-archive-format` (only desktop forms the worker does not read, such
+as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`; the forms are
+in the detail and `unread_forms`), `non-desktop-platform`, `no-digest`,
+`too-many-assets`, `too-large`, `exceeds-run-budget`, `core-refused`,
+`repeated-inspection-failure` and `invalid-facts`. Fit: `no-player`,
+`tool-not-game` (only tool-named programs or a tool or tool-role archive name),
+`contradictory-role`, `non-desktop-platform`, `unknown-platform`,
+`wrong-host`, `ambiguous-player` and `guide-bound`. When no platform fits, the
+reason is the first of `ambiguous-player`, `wrong-host`, `unknown-platform`,
+`non-desktop-platform`, `contradictory-role`, `tool-not-game`,
+`no-authorizing-source` and `no-player` that any platform gave.
+
+The gate compares the generation with a baseline. The baseline is the
+committed table at the merge base, never the working tree, so repeated runs and
+hand edits cannot widen one change. On a pull request or merge group it is the
+first parent of the checked-out merge commit, else the merge base with
+`origin/$GITHUB_BASE_REF`. On a push or scheduled run it is the previous
+commit. Locally it is the merge base with `origin/main`. A revision without the
+table is an empty baseline. Outside a git repository the baseline is empty.
+Inside one, an unresolvable baseline is an error, so CI's catalog jobs check
+out two commits. A change of more than 64 added, 32 withdrawn or 64 changed
+routes (`deltaBounds`) is refused. Raising a bound is a reviewed change, and
+there is no bypass. The gate also re-checks every enrollment against its facts
+entry with its own code, independent of the fit rule. It checks the facts
+digest, complete eligible coverage, the bound repository id and release, the
+age and retention bounds, the exact archive binding, the veto, tool and system tokens,
+the name's operating system and architecture, that each player exists in the
+facts with a machine that runs on the platform and was not excluded by the
+tool veto, that every player of the artifact running there is named, and the
+one-program rule. The facts
+table's `generated_at` may not be earlier than the baseline facts table's,
+because facts age is measured against that time. `--check` also requires the
+committed table to equal the generator output, so a hand-edited table is
+refused.
+
+Raising `GENERATOR_VERSION` changes every enrollment, because each records the
+version. The same reviewed change must therefore raise the `changed` bound in
+`deltaBounds` for that change only. A curated change that adds integrations to
+more generated identities than the `withdrawn` bound must be split into
+changes within it.
+
+A portcove-core test re-runs Core's own rules on every fact of the committed
+facts table, without network access. For each artifact it reclassifies the
+recorded release file name and each program name, and it recomputes the role,
+system, architecture and contradiction flags from each player's platform-true
+machine. A macOS machine recorded for an iOS-shaped path is refused. It checks that each player path
+is a player candidate by Core's path rule. Each machine must be one Core's
+header reader can produce, and a `.exe` program must have a PE machine and
+only a `.exe` may. The release tag must not be a prerelease by Core's rule. The
+same test checks the worker's pinned sample output
+(`scripts/fixtures/listing-package-facts-sample.json`), and forged variants of
+it fail. A classifier or tool-token change therefore needs a refreshed facts
+table in the same change.
+
+The facts table may carry a table-level `provenance` object with
+`workflow_run_id`, the 40-digit `source_commit` and the CLI binary's
+`cli_sha256`. A local run omits it. When present, its shape is checked and it
+is carried into the enrollment table. None of these checks can tell real
+upstream bytes from facts someone wrote by hand. Whoever can merge a change
+to the facts table remains trusted for the facts' truth. The checks bound what
+such a change can do and make it visible.
+
+##### Facts worker
+
+`scripts/listing-package-facts.mts derive` writes the facts from a listing
+observer report. It reads only digest-bound archives of the latest stable
+release. The latest stable release follows Core's reviewed prerelease rule: the
+provider flag, or a tag such as `-alpha`, `-rc`, `-preview` or `-nightly`. It
+verifies each archive's size and SHA-256, runs
+`portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection))
+and then deletes the bytes. Core's temporary workspace is inside the worker's
+own scratch directory, and a timed-out run is killed, so nothing leaks. Each
+archive becomes an `exact-release-structured` fact with the player candidates
+Core found outside any tool, installer or server location.
+
+Core's filename classifier (`portcove --json catalog classify-listing-names`)
+can only veto. When an archive's name suggests a role other than a desktop game
+runtime, the archive is contradictory. Such roles include a server, installer,
+builder, compiler, development tool, importer, mobile package, console output,
+documentation, debug symbols or a source archive. A name suggesting an
+operating system or architecture that none of the players' machines has is
+contradictory too, and so is a listing-only `system_token`: a whole
+separator-delimited word or two adjacent words joined naming a system with no
+desktop route (`android`, `androidtv`, `ios`, `iphone`, `ipad`, `ipados`,
+`tvos`, `watchos`, `visionos`, `freebsd`, `openbsd`, `netbsd`, `haiku`,
+`switch`, `wii`, `wiiu`, `vita`, `psvita`, `ps3`, `ps4`, `ps5`, `psp`, `xbox`,
+`3ds`, `nds`, `portmaster`). It never matches a camel-case part or substring,
+so `HaikuQuest` and `Switchblade` are not vetoed. A filename never authorizes a
+runtime. A release whose native archives are all vetoed does not enroll.
+
+##### Listing-only tool veto
+
+The shared classifier types only some tool names, and only as whole words.
+Managed routes depend on it, so it stays unchanged. Core adds a listing-only
+veto to the same command. It reports a `tool_token` for each release file name
+and for each player program's file name. A token in the release file name
+vetoes the whole archive. A token in a program's name excludes only that
+player candidate, so another plausible player in the same archive still
+counts. Excluded players stay in the facts as `excluded_players` with their
+token. When several players remain, the guide names none. When exactly one
+remains, it may name that one.
+
+A token matches case-insensitively as a whole word between separators, as a
+camel-case or letter/digit part (`GamePatcher`, `UnityCrashHandler64`), or as
+two adjacent words joined (`Mod-Manager`, `Crash` `Handler`). The tokens and
+why each is vetoed:
+
+| Tokens                                                                    | Why                                                                               |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `patcher`, `randomizer`                                                   | Patch or randomize the player's own input; not the game.                          |
+| `recompiler`, `decompiler`, `disassembler`, `n64recomp`                   | Recompilation and reverse-engineering tools, such as the N64Recomp tool itself.   |
+| `setup`, `installer`, `uninstall`, `uninstaller`                          | Install or remove; registering them would start the wrong program.                |
+| `updater`, `autoupdater`                                                  | Update programs beside the game.                                                  |
+| `crashhandler`, `crashreporter`, `crashpad`, `crashsender`                | Crash handling helpers shipped beside engines.                                    |
+| `builder`, `compiler`, `importer`, `extractor`, `unpacker`, `converter`   | Asset preparation and build tools.                                                |
+| `editor`, `viewer`, `debugger`, `benchmark`, `configurator`, `modmanager` | Development, inspection and configuration tools.                                  |
+| `sdk`, `devkit`, `tool`, `tools`, `toolkit`                               | Development kits and generic tools.                                               |
+| `server`                                                                  | A server is not the player's program.                                             |
+| `patch` (whole word only)                                                 | A patch archive; as a camel-case part it also starts titles such as `PatchQuest`. |
+
+These words stay allowed, because they also name real game programs:
+`recomp`, `recompiled` and `psxrecomp` (game ports are often named
+`…Recomp` or `…Recompiled`), `launcher` (often the documented entry point)
+and `demo` (a demo is still a game). A missed tool still needs a native
+program outside every tool, installer or server location to enroll. A name
+written as one lowercase word, such as `gamepatcher`, is not split and is not
+vetoed.
+
+The worker binds facts to the listing's repository and the observed numeric
+repository id. A rename that keeps the id continues. A different id withdraws
+the route as `repository-identity-changed` and keeps the bound id; a listing
+that names another repository rebinds. A non-complete observation, such as a
+rate limit, a missing repository or a partial listing, keeps the last-good
+complete facts. After 14 days of consecutive non-complete attempts it
+withdraws them as `observation-unavailable`. Only a complete observation that
+no longer fits withdraws immediately, for example one with no stable release.
+
+The worker never stalls on one identity. Every observed identity is evaluated
+each run. An unchanged release is reconfirmed from the facts already held,
+without reading bytes. These permanent cases complete as ineligible and are
+re-evaluated only when the release or its asset list changes:
+
+- `no-stable-release`, `no-release-archive` (no package file at all);
+- `unsupported-archive-format`: no ZIP, TAR.GZ or TAR.XZ archive, but desktop
+  package forms the worker does not read;
+- `non-desktop-platform`: only mobile or console package forms (`.ipa`,
+  `.apk`, `.aab`, `.vpk`, `.nro`, `.nsp`, `.3dsx`, `.cia`, `.wad`);
+- `no-digest`: an archive without a provider SHA-256;
+- `too-large` (512 MiB) and `too-many-assets` (six archives);
+- `exceeds-run-budget`: more unread bytes than one whole run may read (2 GiB);
+- `core-refused`: Core refused the bytes, or they differ from the
+  provider's size or digest;
+- `repeated-inspection-failure`: three transient failures in a row;
+- `invalid-facts`: the identity's facts failed validation, such as a path with
+  a control character, `:` or `\`, a release file or program name Core could
+  not classify, a release record the worker cannot read, a newer release
+  whose tag Core could not classify, or any other unexpected failure while
+  evaluating it.
+
+Every entry also records `unread_forms`: the sorted package forms of its
+release that the worker does not read, also when a supported archive sits
+beside them.
+
+These count in the enrollment table's blocked reasons. Each identity is
+evaluated and validated alone, so one bad identity never fails the run. The
+worker never sends Core a name Core refuses: a tag or name over 1,024 bytes or
+with malformed Unicode stays unclassified. An unclassified tag is never
+skipped as a prerelease: when it is newer than every stable release, the
+identity is `invalid-facts` for that release rather than silently falling back
+to an older one. An unclassified release file or program name makes its identity
+`invalid-facts` before any bytes are read. Requests are split by count and
+size below Core's 8 MiB input bound. If Core still refuses a request, it is
+split until the refused name is isolated. Only a refused known-good probe,
+meaning an unusable CLI, fails the whole run.
+
+##### Inspection order and backlog
+
+Identities that need bytes share one budget per run: at most `maxIdentities`
+(24) identities and `maxBytes` (2 GiB). Let I be `maxIdentities`, R the share
+reserved for new identities (a quarter of I, at least one; 6) and Q the new
+identities' retry cap (half of R; 3). Each run inspects, in this order:
+
+1. The cursor pass's next new identity, so the pass always advances.
+2. Offered identities whose release changed, oldest pending first, at most
+   I − R of them. Keeping what is already offered fresh comes before growth.
+3. New identities' transient failures, oldest first, at most Q.
+4. The cursor pass, in port_id order, with the rest of the budget. It stops
+   at the first identity that does not fit the remaining bytes and resumes
+   there next run.
+5. Offered identities again, with any budget the cursor pass did not use.
+
+The worker state file (`--state`) holds the cursor, the retry queue and held
+facts. An offered identity the run did not reach keeps its last-good facts
+with an `attempt` of status `pending-inspection`. That is the worker's own
+backlog, not an upstream attempt. It starts no `observation-unavailable`
+clock, and the entry stays unchanged until the identity is inspected. Only
+`stale-facts` (30 days after the facts were last confirmed) withdraws it.
+
+Each run reports its `backlog`: `enrolled_pending`, `new_pending`,
+`bytes_pending`, and the runs and days to drain each at the configured
+`--cadence-hours` (default 24). Facts held for the batch bound are backlog
+too, named apart because they need no bytes: `held_for_batch` and
+`runs_to_land_held` (at most the smallest `deltaBounds` value land per run).
+Each run also reports `settled`, the identities it settled into the landed
+table (newly complete or newly ineligible), and `no_progress`, which is true
+when work waits but the run settled nothing. A run reconfirming the same
+verdict for the same release is not progress. Orders in the facts and
+enrollment tables use Unicode code points, never the running Node's locale
+data. With cadence c days, E pending offered
+identities totalling S_E bytes, and C new identities totalling S_C bytes:
+
+- Offered drain: runs_E = max(⌈E / (I − R)⌉, ⌈S_E / maxBytes⌉), or ⌈E / I⌉
+  when no new identity waits. It must stay below 30 / c runs.
+- Cursor pass: N = c × max(⌈C / I⌉, ⌈S_C / maxBytes⌉) days without an offered
+  backlog. With a saturating offered backlog it is c × ⌈C / (R − Q)⌉ days. In
+  the worst case, when each new identity needs nearly a whole run's bytes, it
+  is c × C days.
+
+The invariant is that a full cursor pass completes within N days at the
+configured cadence, and that N and the offered drain stay well within the
+30-day facts age. With the defaults and a daily cadence, 18 changed offered
+releases drain per run. An initial wave of 1,110 new identities takes about
+47 runs, so it runs at a shorter cadence, such as every 6 hours, until the
+first pass completes.
+
+Facts land as one bounded batch per run, never per game. The worker keeps new
+facts in port_id order while the enrollment delta stays within `deltaBounds`.
+The rest are held in the worker state and offered again next run without
+reading bytes. An initial wave of a few hundred candidates therefore lands as
+successive batches of at most 64. `--check` validates the committed table. An
+unattended run records provenance with `--workflow-run-id` and
+`--source-commit`; the worker adds the CLI binary's SHA-256 itself.
+
+Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
+platform, so a release with only 32-bit players stays `wrong-host`; a 32-bit
+helper beside a 64-bit game no longer blocks it. A static Linux program with a
+System V OSABI is `unknown-platform`, because nothing in its header names
+Linux. A Linux tarball wrapped inside
+another archive is not unpacked, so its players stay unknown.
+
+##### Scheduled facts batch job
+
+The scheduled job that will run the worker unattended is not part of this
+change. It must meet all of these requirements:
+
+- Path allowlist: a batch changes only `listing-package-facts.generated.json`,
+  `generated-registration.generated.json` and the outputs
+  `scripts/generate-catalog.mts` itself rewrites. It never changes
+  `deltaBounds`, `GENERATOR_VERSION`, scripts, workflows or listings.
+- Reproduce from its own run: it never accepts a facts file from a pull
+  request, an issue or a foreign artifact. It reruns catalog generation on the
+  facts its own worker run wrote and requires zero diff against the batch.
+- Provenance: the facts table records the workflow run id, source commit and
+  CLI SHA-256, and the job checks them against its own run.
+- One batch at a time: at most one open batch pull request, one concurrency
+  group, each run starting from the tip of `main`, with the worker state
+  persisted between runs.
+- Auto-merge only when every required check is green at the exact head, the
+  delta is within `deltaBounds` and the author is the job's own identity.
+- Stop and wait for a person when the gate refuses, when one batch withdraws
+  more than about 16 routes, on any repository identity change, on a worker
+  error, when the classifier, CLI or generator version changes, when observer
+  coverage drops, or when budget saturation lasts beyond one pass.
+- A wall-clock freshness watchdog: facts age is otherwise measured only
+  against the table's own `generated_at`, so the job alerts when that time
+  falls behind the real clock.
+- Cadence sized from the backlog report so a full pass finishes well within
+  the 30-day facts age.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
