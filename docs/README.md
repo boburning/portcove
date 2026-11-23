@@ -118,6 +118,14 @@ measured Node, frontend unit, or Chromium branches with retained source mappings
 - [Brand assets](BRAND-ASSETS.md)
 - [Development storage](DEVELOPMENT-STORAGE.md)
 
+## Proposed designs
+
+Design records are proposals, not current contracts. Each names the contracts it
+would change and stays proposed until its own pull requests land.
+
+- [Supported capability contracts as the unit of integration](design/INTEGRATION-CONTRACTS.md)
+- [Scaling signed catalog distribution](design/CATALOG-DISTRIBUTION-SCALING.md)
+
 ## Historical evidence
 
 Look in [qualification](qualification/) for dated port and platform observations,
