@@ -531,7 +531,15 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     split in half, down to single ports; a single port that still exceeds it
     is a gap (`batch-time-budget` or `batch-output-budget`), so the run is
     partial and the next one reads everything. `collect` reports the largest
-    batch output and the number of splits. A batch process whose output is
+    batch output and the number of splits. Splitting alone could run up to
+    2n-1 processes for an n-port chunk (399 for 200 ports, about 13 hours at
+    120 seconds each), so the whole Core read also has a 15-minute deadline:
+    no process starts after it, each process's time budget is cut to what
+    remains, and every port not yet read is a gap (`core-read-deadline`).
+    The worst case is therefore the 15-minute read plus the 15-minute
+    collection transaction, inside the hosted step's 40 minutes; the run is
+    then partial and the next one is full. The one-process-per-port fallback
+    starts no process after the deadline either. A batch process whose output is
     otherwise not a valid envelope stops the collection, which then records
     nothing. On the 1,649-port catalog (debug build,
     Linux x86-64) that is 9 processes and about 16 seconds instead of 1,649

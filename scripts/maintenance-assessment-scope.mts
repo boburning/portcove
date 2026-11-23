@@ -101,6 +101,13 @@ export function collectorIdentity(): Record<string, string> {
   );
 }
 
+/**
+ * The collector identity read once, when this module loaded: the code that is
+ * actually running, even if the files change on disk during a collection.
+ */
+export const loadedCollectorIdentity: Readonly<Record<string, string>> =
+  Object.freeze(collectorIdentity());
+
 /** Paths whose content defines every build (in addition to dep-info). */
 export const buildDefinitionPaths = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "vendor"];
 

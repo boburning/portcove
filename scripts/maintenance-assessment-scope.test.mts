@@ -10,6 +10,7 @@ import {
   boundVisible,
   collectorIdentity,
   collectorSources,
+  loadedCollectorIdentity,
   gitBlobId,
   catalogPath,
   declaredCatalogKeys,
@@ -306,6 +307,8 @@ void test("a binding records its clock value only when it did not move during th
 void test("the collector's own code is keyed by the Git blob IDs of what is running", () => {
   const identity = collectorIdentity();
   assert.deepEqual(Object.keys(identity), [...collectorSources]);
+  // Read once at load: the identity of the code that is running.
+  assert.deepEqual(loadedCollectorIdentity, identity);
   for (const file of collectorSources) {
     // The same ID Git gives the file's bytes.
     const expected = execFileSync("git", ["hash-object", file], { encoding: "utf8" }).trim();

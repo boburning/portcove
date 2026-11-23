@@ -44,7 +44,7 @@ import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   assessmentScope,
   boundVisible,
-  collectorIdentity,
+  loadedCollectorIdentity,
   listingsPath,
   mechanismOf,
   type AssessmentScope,
@@ -319,6 +319,15 @@ export interface CoreBudget {
   timeoutMs: number;
   maxBufferBytes: number;
 }
+/**
+ * The whole Core read's deadline. Splitting can run up to 2n-1 processes for an
+ * n-port chunk, so the read as a whole is bounded too: no process starts after
+ * the deadline, each process's time budget is cut to what remains, and ports
+ * not read by then are gaps. With the 15-minute collection transaction this
+ * stays inside the hosted step's 40 minutes.
+ */
+export const coreReadDeadlineMs = 15 * 60_000;
+
 export const defaultCoreBudget: CoreBudget = {
   timeoutMs: 120_000,
   maxBufferBytes: 16 * 1024 * 1024,
@@ -425,11 +434,26 @@ export async function coreCapabilitiesMany(
     /** Each batch process's output size, and each split of a chunk that exceeded a budget. */
     onOutputBytes?: (bytes: number) => void;
     onSplit?: (ports: number) => void;
+    /** Milliseconds the whole read may take; `coreReadDeadlineMs` otherwise. */
+    deadlineMs?: number;
   },
 ): Promise<Map<string, CapabilityObservation>> {
+  const deadline = performance.now() + (options.deadlineMs ?? coreReadDeadlineMs);
   const results = new Map<string, CapabilityObservation>();
   if (!options.batch) {
     const read = await mapBounded(ids, options.concurrency, async (id) => {
+      // An older CLI reads one port per process; no process starts after the deadline.
+      if (performance.now() >= deadline)
+        return [
+          id,
+          {
+            ok: false,
+            error: {
+              code: "core-read-deadline",
+              message: "The Core read reached its deadline before this port",
+            },
+          },
+        ] as const;
       options.onProcess?.();
       return [id, await coreCapabilities(cli, id)] as const;
     });
@@ -461,17 +485,35 @@ export async function coreCapabilitiesMany(
   // A single port that still exceeds it is a gap: the run is partial and the
   // next one reads everything again.
   const read = async (chunk: string[]): Promise<void> => {
+    const remaining = Math.floor(deadline - performance.now());
+    if (remaining <= 0) {
+      for (const id of chunk)
+        results.set(
+          id,
+          failure("core-read-deadline", "The Core read reached its deadline before this port"),
+        );
+      return;
+    }
     options.onProcess?.();
+    const budget = options.budget ?? defaultCoreBudget;
     let envelope: Awaited<ReturnType<typeof isolatedCli>>;
     try {
       envelope = await isolatedCli(
         cli,
         ["port-capabilities-batch", ...chunk.flatMap((id) => ["--port", id])],
-        options.budget,
+        { ...budget, timeoutMs: Math.min(budget.timeoutMs, remaining) },
         options.onOutputBytes,
       );
     } catch (error) {
       if (!(error instanceof CoreBudgetExceeded)) throw error;
+      if (performance.now() >= deadline) {
+        for (const id of chunk)
+          results.set(
+            id,
+            failure("core-read-deadline", "The Core read reached its deadline before this port"),
+          );
+        return;
+      }
       if (chunk.length === 1) {
         results.set(
           chunk[0]!,
@@ -2301,7 +2343,7 @@ export async function collect(options: {
             platform: `${platform};cli-doctor-platform-v1`,
             isolation: isolationScope,
           },
-          collector: collectorIdentity(),
+          collector: loadedCollectorIdentity,
           nowSeconds: Math.floor(Date.now() / 1000),
         })
       : null;

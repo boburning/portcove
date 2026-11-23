@@ -4485,18 +4485,15 @@ void test("each subject names its assessment inputs, when they last changed and 
   );
 });
 
-void test(
-  "a batch over its time or output budget is split down to single ports, and a port that still exceeds it is a gap",
-  { timeout: 60_000 },
-  async (context) => {
-    const root = mkdtempSync(path.join(os.tmpdir(), "portcove-batch-budget-"));
-    context.after(() => rmSync(root, { recursive: true, force: true }));
-    const cli = path.join(root, "portcove");
-    // A stub Core: "slow" outlasts the time budget and "huge" overflows the output budget
-    // whenever they are in the batch; every other port reports normally.
-    writeFileSync(
-      cli,
-      `#!/usr/bin/env node
+/** A stub Core whose "slow" port outlasts a time budget and "huge" port overflows an output budget. */
+function budgetStubCli(context: { after: (cleanup: () => void) => void }) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-batch-budget-"));
+  const cli = path.join(root, "portcove");
+  // A stub Core: "slow" outlasts the time budget and "huge" overflows the output budget
+  // whenever they are in the batch; every other port reports normally.
+  writeFileSync(
+    cli,
+    `#!/usr/bin/env node
 const args = process.argv.slice(2);
 const ports = args.flatMap((arg, index) => (args[index - 1] === "--port" ? [arg] : []));
 const finish = () => {
@@ -4507,8 +4504,17 @@ const finish = () => {
 if (ports.includes("slow")) setTimeout(finish, 5000);
 else finish();
 `,
-    );
-    chmodSync(cli, 0o755);
+  );
+  chmodSync(cli, 0o755);
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  return cli;
+}
+
+void test(
+  "a batch over its time or output budget is split down to single ports, and a port that still exceeds it is a gap",
+  { timeout: 60_000 },
+  async (context) => {
+    const cli = budgetStubCli(context);
     const splits: number[] = [];
     let largest = 0;
     const results = await coreCapabilitiesMany(cli, ["a", "b", "slow", "c", "huge", "d"], {
@@ -4525,6 +4531,43 @@ else finish();
     // 6 -> 3 + 3; [a, b, slow] -> [a, b] + [slow]; [c, huge, d] -> [c, huge] + [d]; [c, huge] -> [c] + [huge].
     assert.deepEqual(splits, [6, 3, 3, 2]);
     assert.ok(largest > 0 && largest < 100_000, String(largest));
+  },
+);
+
+void test(
+  "the Core read stops at its deadline and leaves unread ports as gaps",
+  { timeout: 60_000 },
+  async (context) => {
+    const cli = budgetStubCli(context);
+    // Past the deadline no process starts at all.
+    let processes = 0;
+    const none = await coreCapabilitiesMany(cli, ["a", "b"], {
+      batch: true,
+      concurrency: 1,
+      deadlineMs: 0,
+      onProcess: () => processes++,
+    });
+    assert.equal(processes, 0);
+    for (const id of ["a", "b"]) assert.equal(none.get(id)?.error?.code, "core-read-deadline");
+    // A process running into the deadline is cut at the deadline, not at its own
+    // longer budget, and nothing is split or started after it.
+    const started = performance.now();
+    const cut = await coreCapabilitiesMany(cli, ["a", "slow", "b"], {
+      batch: true,
+      concurrency: 1,
+      budget: { timeoutMs: 30_000, maxBufferBytes: 1_000_000 },
+      deadlineMs: 1_500,
+    });
+    assert.ok(performance.now() - started < 4_000, "the read ends near its deadline");
+    for (const id of ["a", "slow", "b"])
+      assert.equal(cut.get(id)?.error?.code, "core-read-deadline", id);
+    // The fallback that reads one port per process honours the deadline too.
+    const fallback = await coreCapabilitiesMany(cli, ["a"], {
+      batch: false,
+      concurrency: 1,
+      deadlineMs: 0,
+    });
+    assert.equal(fallback.get("a")?.error?.code, "core-read-deadline");
   },
 );
 
@@ -4670,15 +4713,15 @@ void test(
       ).trim();
     respond(report("automatic"));
     const first = await run("changed");
+    // A clean, committed Core tree is a precondition, asserted rather than skipped.
+    assert.notEqual(
+      first.reassessment.reuse_key,
+      null,
+      "reuse needs a verified Core binding: run from a checkout whose Core sources are committed and clean",
+    );
     // No earlier complete read: the first run is full and binds each subject's key.
     assert.equal(first.reassessment.mode, "full");
     assert.match(first.reassessment.reason, /complete read/u);
-    if (first.reassessment.reuse_key === null) {
-      // Uncommitted Core sources here leave the binding unverified; reuse is refused.
-      assert.match((await run("changed")).reassessment.reason, /not verified/u);
-      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
-      return;
-    }
     assert.deepEqual(latestCore(), {
       coverage: "complete",
       reassessment: "full",
@@ -4863,10 +4906,11 @@ void test(
       ) as Record<string, unknown>;
     respond(report("automatic"));
     const first = await run("changed");
-    if (first.reassessment.reuse_key === null) {
-      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
-      return;
-    }
+    assert.notEqual(
+      first.reassessment.reuse_key,
+      null,
+      "reuse needs a verified Core binding: run from a checkout whose Core sources are committed and clean",
+    );
     assert.equal(first.reassessment.mechanism, "dep-info");
     const bound = binding();
     // An unchanged full read finds the same key, fact, result and clock: the
