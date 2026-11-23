@@ -46,8 +46,12 @@
     "write": "تعذر على Portcove تأكيد التغييرات. تُعرض آخر اختياراتك المؤكدة."
   },
   "favorite": {
+    "count_zero": "لا توجد ألعاب",
     "count_one": "{{count, number}} لعبة",
-    "count_other": "{{count, number}} ألعاب",
+    "count_two": "لعبتان",
+    "count_few": "{{count, number}} ألعاب",
+    "count_many": "{{count, number}} لعبةً",
+    "count_other": "{{count, number}} لعبة",
     "countUnavailable": "غير متاح",
     "favorite": "مفضلة",
     "label": "إضافة {{game}} إلى المفضلة",

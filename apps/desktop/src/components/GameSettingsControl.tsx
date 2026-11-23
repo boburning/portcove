@@ -4,13 +4,14 @@ import type { GameSettingsChangeSetView } from "../types";
 import { useAppTranslation } from "../localization";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
-import { GameSettingsPanel } from "./GameSettingsPanel";
+import { GameSettingsPanel, type ReportSettingsDraft } from "./GameSettingsPanel";
 
 type Props = {
   portId: string;
   installId: string;
   generation: number;
   busy: boolean;
+  reportDraft?: ReportSettingsDraft | undefined;
 };
 
 export function GameSettingsControl(props: Props) {
@@ -22,7 +23,7 @@ export function GameSettingsControl(props: Props) {
   );
 }
 
-function BoundGameSettingsControl({ portId, installId, generation, busy }: Props) {
+function BoundGameSettingsControl({ portId, installId, generation, busy, reportDraft }: Props) {
   const [view, setView] = useState<GameSettingsChangeSetView>();
   const [error, setError] = useState<{ kind: "changed" } | { kind: "failure"; text: string }>();
   const { t } = useAppTranslation("gameSettings");
@@ -120,6 +121,7 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
           view={view}
           generation={generation}
           fileReadRevisions={fileReadRevisions}
+          reportDraft={reportDraft}
           disabled={busy || loading || !!error}
           actions={{
             review: (fileId, edits) =>
