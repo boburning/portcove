@@ -3142,7 +3142,12 @@ the opened file's location/object/size/mtime before and after reading, and reche
 retained handles, library identity, catalog and registrations before returning.
 Profiles, individual/aggregate hashing, response size and cooperative elapsed
 work are bounded. The elapsed limit does not interrupt blocked filesystem calls;
-adapters must await the worker before terminal settlement. These dated facts
+adapters must await the worker before terminal settlement. When it runs out, the
+original being read and every later one are reported as `NotChecked` with state
+`source_not_checked_yet`, never as missing, unreadable or unsupported, and the
+originals already checked keep their results. The final fences recheck only the
+retained handles, so they run to completion past the deadline and stop only for
+cancellation. These dated facts
 write no registrations and establish neither continuous freshness nor route,
 platform or selected-release eligibility. Legacy identity remains unknown.
 Public CLI/Desktop transport and complete game-file query predicates remain

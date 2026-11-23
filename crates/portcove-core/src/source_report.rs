@@ -198,6 +198,15 @@ pub(crate) fn unavailable_report(
             "Portcove can’t find these files at their saved location.",
             "Reconnect the drive or choose an unchanged copy at its new location. To use different files, add them again so Portcove can check them.",
         ),
+        SourceHealth::NotChecked
+            if problem.details.get("scan_limit").map(String::as_str) == Some("time") =>
+        {
+            (
+                "source_not_checked_yet",
+                "Portcove hasn’t finished checking these files yet.",
+                "Check them again to finish. Nothing is wrong with the files as far as Portcove knows.",
+            )
+        }
         _ => (
             "source_could_not_be_checked",
             "Portcove couldn’t check the selected files.",

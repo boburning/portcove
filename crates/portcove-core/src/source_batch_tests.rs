@@ -1006,3 +1006,52 @@ fn redirected_directory_root_is_refused_before_inventory_and_hashing() {
         assert_eq!(inventory.entries, 0);
     }
 }
+
+#[test]
+fn an_exhausted_time_budget_reports_not_yet_checked_rows_instead_of_failing() {
+    let (_temporary, service, mut record) = fixture();
+    record.profile_id = "star-fox-64".into();
+    service.library().register_source(&record).unwrap();
+    let mut bounded = limits();
+    // The shortest budget allowed: the batch reliably runs past it.
+    bounded.max_elapsed_ms = 1;
+    let mut not_checked = 0;
+    for _ in 0..8 {
+        let batch = service
+            .inspect_registered_sources_bounded(
+                &["ocarina-of-time".into(), "star-fox-64".into()],
+                &bounded,
+                &operation(),
+            )
+            .expect("an exhausted time budget never fails checked originals");
+        assert_eq!(batch.observations.len(), 2);
+        for observation in &batch.observations {
+            let RegisteredSourceObservation::Inspected { report } = observation else {
+                panic!("both originals are registered");
+            };
+            match report.health {
+                SourceHealth::Current => {}
+                SourceHealth::NotChecked => {
+                    not_checked += 1;
+                    assert_eq!(report.state_code, "source_not_checked_yet");
+                }
+                other => panic!("budget exhaustion became {other:?}"),
+            }
+        }
+    }
+    assert!(not_checked > 0, "a 1 ms budget must leave work unchecked");
+}
+
+#[test]
+fn time_budget_reports_are_not_missing_or_unreadable() {
+    let (_temporary, service, record) = fixture();
+    let report = crate::source_report::unavailable_report(
+        service.catalog(),
+        record,
+        SourceHealth::NotChecked,
+        &time_budget_error(),
+    )
+    .unwrap();
+    assert_eq!(report.health, SourceHealth::NotChecked);
+    assert_eq!(report.state_code, "source_not_checked_yet");
+}
