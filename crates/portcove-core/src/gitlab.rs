@@ -1060,7 +1060,14 @@ fn resolve_observed_asset(
     )
     .is_some()
     {
-        return Err(wrong_role_refusal(port, platform));
+        // The link was chosen by its label; its real file contradicts it.
+        return Err(PortcoveError::verification(
+            "the GitLab package file is not the game package its release link names; nothing was downloaded",
+        )
+        .detail(
+            "route_hold",
+            crate::route_facts::RouteHold::WrongRole.as_str(),
+        ));
     }
     if port.n64_runtime_at_executable_parent
         && native_archive_score(
