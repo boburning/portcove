@@ -2073,9 +2073,10 @@ The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-intege
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
 The legacy target is bounded to 8 MiB and each listing
-uses the existing descriptive validator. The current reader processes every
-listing and withdrawal within that byte bound; released readers also refuse
-more than 10,000 of either, which the publisher keeps honoring. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
+uses the existing descriptive validator. The current reader charges each
+listing and withdrawal against one measured working-memory element budget per
+admission (about 10,400 listings or 616,000 withdrawals); released readers
+instead refuse more than 10,000 of either, which the publisher keeps honoring. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
@@ -2083,8 +2084,9 @@ execution consent and managed installation retain their existing boundaries.
 The compact target uses the same delegation and an 8 MiB authenticated carrier.
 A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
 of decoded directory data. Compact parsing checks each record separately and
-accepts up to 1 MiB per record, with no count ceiling on records or withdrawals
-(released readers: 10,000 each). Admission and
+accepts up to 1 MiB per record. Records and withdrawals are charged against the
+element budget while they are parsed (released readers: 10,000 each). See
+[Reader generations](SIGNED-CATALOG.md#reader-generations). Admission and
 local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including

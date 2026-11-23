@@ -2933,8 +2933,9 @@ pub struct CapabilityDocument {
     pub port_operation_locking: String,
 }
 
-/// Byte limits a client applies to signed descriptive delivery. Every record
-/// and withdrawal within them is processed: this reader has no count ceiling.
+/// Limits a client applies to signed descriptive delivery. Instead of the
+/// released 10,000-entry count, each listing and withdrawal is charged against
+/// one measured working-memory element budget per admission.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListingDeliveryLimits {
@@ -2946,6 +2947,12 @@ pub struct ListingDeliveryLimits {
     pub record_bytes: u64,
     /// Largest signed definition index.
     pub definition_index_bytes: u64,
+    /// Working-memory element budget of one directory admission.
+    pub element_budget_bytes: u64,
+    /// Charge per listing against the element budget.
+    pub listing_charge_bytes: u64,
+    /// Charge per withdrawal against the element budget.
+    pub withdrawal_charge_bytes: u64,
 }
 
 impl ListingDeliveryLimits {
@@ -2956,6 +2963,9 @@ impl ListingDeliveryLimits {
             decoded_bytes: listing_delivery::MAX_COMPACT_DECODED_BYTES as u64,
             record_bytes: portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES as u64,
             definition_index_bytes: crate::definition_index::MAX_INDEX_BYTES as u64,
+            element_budget_bytes: listing_delivery::ELEMENT_WORKING_BUDGET as u64,
+            listing_charge_bytes: listing_delivery::LISTING_WORKING_BYTES as u64,
+            withdrawal_charge_bytes: listing_delivery::WITHDRAWAL_WORKING_BYTES as u64,
         }
     }
 }

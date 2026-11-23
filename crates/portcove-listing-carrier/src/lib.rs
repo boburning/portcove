@@ -39,6 +39,8 @@ pub fn decode(bytes: &[u8]) -> Result<(Vec<u8>, String), InvalidCarrier> {
 /// `decode` under a caller-stated wire and decoded working-memory budget.
 /// The decoded allocation never exceeds `max_decoded`, whatever the carrier
 /// declares, so the budget is also the decompression-ratio protection.
+/// Readers use [`decode`]; this form exists for measurement scenarios.
+#[doc(hidden)]
 pub fn decode_within(
     bytes: &[u8],
     max_wire: usize,

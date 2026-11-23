@@ -17,8 +17,10 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
-export const catalogGuideCopyMaxBytes = 8 * 1024 * 1024;
+// Aggregates include the canonical listing directory, so they share its text bound.
+export const catalogGuideCopyMaxBytes = listingDirectoryTextMaximum;
 
 export function decodeGuideCopyBlob(blob: unknown) {
   if (!Buffer.isBuffer(blob) || blob.length > catalogGuideCopyMaxBytes)

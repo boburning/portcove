@@ -5612,7 +5612,7 @@
       },
       "ListingDeliveryLimits": {
         "additionalProperties": false,
-        "description": "Byte limits a client applies to signed descriptive delivery. Every record\nand withdrawal within them is processed: this reader has no count ceiling.",
+        "description": "Limits a client applies to signed descriptive delivery. Instead of the\nreleased 10,000-entry count, each listing and withdrawal is charged against\none measured working-memory element budget per admission.",
         "properties": {
           "decoded_bytes": {
             "description": "Largest decoded compact directory admitted and retained.",
@@ -5622,6 +5622,18 @@
           },
           "definition_index_bytes": {
             "description": "Largest signed definition index.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "element_budget_bytes": {
+            "description": "Working-memory element budget of one directory admission.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listing_charge_bytes": {
+            "description": "Charge per listing against the element budget.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -5637,13 +5649,22 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "withdrawal_charge_bytes": {
+            "description": "Charge per withdrawal against the element budget.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "target_bytes",
           "decoded_bytes",
           "record_bytes",
-          "definition_index_bytes"
+          "definition_index_bytes",
+          "element_budget_bytes",
+          "listing_charge_bytes",
+          "withdrawal_charge_bytes"
         ],
         "type": "object"
       },

@@ -2609,7 +2609,29 @@ mod observation_metadata_tests {
                 .message
                 .contains("exceeds its byte limit")
         );
-        // The bundled directory is parsed without the external text bound.
+        // The bundled directory is parsed without the external text bound,
+        // including above the former 8 MiB ceiling.
         assert!(CatalogListingDocument::from_trusted_text(&text).is_ok());
+        let summary = "A descriptive listing summary sentence for scale. ".repeat(18);
+        let large = json!({
+            "format_version": 15,
+            "listings": (0..10_001)
+                .map(|index| json!({
+                    "id": format!("listing-{index}"),
+                    "name": "Listing",
+                    "summary": summary.trim(),
+                    "project_url": "https://example.org/project",
+                }))
+                .collect::<Vec<_>>(),
+        })
+        .to_string();
+        assert!(large.len() > 8 * 1024 * 1024);
+        assert_eq!(
+            CatalogListingDocument::from_trusted_text(&large)
+                .unwrap()
+                .listings
+                .len(),
+            10_001
+        );
     }
 }

@@ -448,8 +448,8 @@ and `listing_formats` independently from the API and event schemas.
 `listing_delivery_carriers` identifies the independently versioned signed
 directory carriers a client consumes. `listing_delivery_limits` states the
 target, decoded-directory, per-record and definition-index byte bounds the
-client applies; a client that reports it processes every listing, withdrawal
-and definition within those bounds without a count ceiling. Older clients omit
+client applies, and the working-memory element budget with its per-listing and
+per-withdrawal charges that replace the released 10,000-entry count. Older clients omit
 it and enforce the released bounds in
 [Reader generations](SIGNED-CATALOG.md#reader-generations). The `gzip-base64-json-v1` carrier
 authenticates the compressed envelope under the existing delegated policy role.

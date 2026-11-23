@@ -5663,6 +5663,9 @@ mod tests {
                 decoded_bytes: 32 * 1024 * 1024,
                 record_bytes: 1024 * 1024,
                 definition_index_bytes: 4 * 1024 * 1024,
+                element_budget_bytes: 40 * 1024 * 1024,
+                listing_charge_bytes: 4_027,
+                withdrawal_charge_bytes: 68,
             })
         );
         assert!(

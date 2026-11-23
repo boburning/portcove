@@ -2779,8 +2779,9 @@ export interface EngineTemplateCapability {
   template: AdapterKind;
 }
 /**
- * Byte limits a client applies to signed descriptive delivery. Every record
- * and withdrawal within them is processed: this reader has no count ceiling.
+ * Limits a client applies to signed descriptive delivery. Instead of the
+ * released 10,000-entry count, each listing and withdrawal is charged against
+ * one measured working-memory element budget per admission.
  */
 export interface ListingDeliveryLimits {
   /**
@@ -2792,6 +2793,14 @@ export interface ListingDeliveryLimits {
    */
   definition_index_bytes: number;
   /**
+   * Working-memory element budget of one directory admission.
+   */
+  element_budget_bytes: number;
+  /**
+   * Charge per listing against the element budget.
+   */
+  listing_charge_bytes: number;
+  /**
    * Largest single compact listing record.
    */
   record_bytes: number;
@@ -2799,6 +2808,10 @@ export interface ListingDeliveryLimits {
    * Largest authenticated listing target body, either carrier.
    */
   target_bytes: number;
+  /**
+   * Charge per withdrawal against the element budget.
+   */
+  withdrawal_charge_bytes: number;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];

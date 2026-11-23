@@ -160,9 +160,17 @@ export interface ListingDeliveryBounds {
   text: number;
   /** Canonical `listings.json` read by the listing publisher. */
   publisherText: number;
+  /** Current generation's per-admission element budget and charges. */
+  elementBudget: number;
+  listingCharge: number;
+  withdrawalCharge: number;
 }
 
-export function listingDeliveryBounds(carrierSource: string, listingsSource: string) {
+export function listingDeliveryBounds(
+  carrierSource: string,
+  listingsSource: string,
+  deliverySource: string,
+) {
   return {
     wire: capacityConstant(carrierSource, "MAX_BYTES"),
     decoded: capacityConstant(carrierSource, "MAX_COMPACT_DECODED_BYTES"),
@@ -170,32 +178,99 @@ export function listingDeliveryBounds(carrierSource: string, listingsSource: str
     entries: capacityConstant(carrierSource, "MAX_LISTING_ENTRIES"),
     text: capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
     publisherText: listingDeliveryMaximum,
+    elementBudget: capacityConstant(deliverySource, "ELEMENT_WORKING_BUDGET"),
+    listingCharge: capacityConstant(deliverySource, "LISTING_WORKING_BYTES"),
+    withdrawalCharge: capacityConstant(deliverySource, "WITHDRAWAL_WORKING_BYTES"),
   } satisfies ListingDeliveryBounds;
 }
 
 /**
+ * Mirror of `portcove_listing_carrier::legacy_row_projection`: the format-11
+ * row a legacy reader receives. Core's tests prove the Rust projection equals
+ * Core's format-11 export.
+ */
+export function legacyRowProjection(row: unknown): unknown {
+  if (!isRecord(row)) return row;
+  const projected: Record<string, unknown> = structuredClone(row);
+  for (const field of ["restrictions", "implementation", "upstream_observation"])
+    delete projected[field];
+  if (Array.isArray(projected.media)) {
+    const media = projected.media.filter(
+      (asset: unknown) =>
+        !(
+          isRecord(asset) &&
+          asset.igdb !== undefined &&
+          asset.igdb !== null &&
+          (asset.role === "header" || asset.role === "screenshot")
+        ),
+    );
+    if (media.length) projected.media = media;
+    else delete projected.media;
+  }
+  const game = projected.original_game;
+  if (isRecord(game) && Array.isArray(game.source_editions))
+    for (const edition of game.source_editions)
+      if (isRecord(edition)) delete edition.verified_sources;
+  return projected;
+}
+
+/** Signed upstream observations by listing id, read from a delivered listing
+ * target (legacy JSON or a decoded compact directory). */
+export function signedObservations(target: unknown) {
+  const directory = isRecord(target) ? target.directory : undefined;
+  const rows = isRecord(directory) && Array.isArray(directory.listings) ? directory.listings : [];
+  return new Map(
+    rows.flatMap((row: unknown) =>
+      isRecord(row) && typeof row.id === "string" && row.upstream_observation !== undefined
+        ? [[row.id, row.upstream_observation] as const]
+        : [],
+    ),
+  );
+}
+
+/**
  * The listing directory against every consumer that can stop its delivery:
- * Core's inspection of the authored text and the compact carrier bounds that
- * released readers enforce, which the publisher honors until they are no
- * longer supported. The compact projection here omits observations; the
- * publisher measures the exact carrier before signing.
+ * Core's inspection of the authored text, the listing publisher's canonical
+ * read, the legacy target (still the only live carrier) and the compact
+ * carrier bounds released readers enforce, which the publisher honors until
+ * they are no longer supported. Without `observations` the carrier rows omit
+ * observer enrichment and are lower bounds; pass the observations of a signed
+ * target to measure the real carriers.
  */
 export function listingDirectoryMeasures(
   text: Buffer,
   bounds: ListingDeliveryBounds,
+  observations?: ReadonlyMap<string, unknown>,
 ): CapacityMeasure[] {
   const directory: unknown = JSON.parse(text.toString("utf8"));
   if (!isRecord(directory) || !Array.isArray(directory.listings))
     throw new Error("Capacity diagnostics require a listing directory");
-  const listings: unknown[] = directory.listings;
-  const decoded = Buffer.from(
-    JSON.stringify({
-      listing_delivery_schema: 1,
-      revision: Number.MAX_SAFE_INTEGER,
-      withdrawn_ids: [],
-      directory,
-    }),
+  const listings: unknown[] = directory.listings.map((row: unknown) =>
+    observations && isRecord(row) && typeof row.id === "string" && observations.has(row.id)
+      ? { ...row, upstream_observation: observations.get(row.id) }
+      : row,
   );
+  const scope = observations ? "with signed observations" : "without observations";
+  const delivery = (document: unknown) =>
+    Buffer.from(
+      JSON.stringify({
+        listing_delivery_schema: 1,
+        revision: Number.MAX_SAFE_INTEGER,
+        withdrawn_ids: [],
+        directory: document,
+      }),
+    );
+  const decoded = delivery({ ...directory, listings });
+  // The legacy target carries observations beside format-11 rows.
+  const legacy = delivery({
+    format_version: 11,
+    listings: listings.map((row) => {
+      const projected = legacyRowProjection(row);
+      return isRecord(row) && row.upstream_observation !== undefined && isRecord(projected)
+        ? { ...projected, upstream_observation: row.upstream_observation }
+        : projected;
+    }),
+  });
   const compressed = gzipSync(decoded);
   const carrier = Buffer.byteLength(
     JSON.stringify({
@@ -212,18 +287,29 @@ export function listingDirectoryMeasures(
   return [
     ["generated listings.json bytes", text.length, bounds.text, "Core listing inspection bound"],
     [
-      "canonical listings.json publisher read",
+      "canonical listings.json read by listing-observation-delivery",
       text.length,
       bounds.publisherText,
       "listing publisher canonical read bound",
     ],
     [
-      "compact listing directory decoded bytes",
+      `complete legacy listing target bytes (${scope})`,
+      legacy.length,
+      bounds.wire,
+      "released legacy target bound",
+    ],
+    [
+      `compact listing directory decoded bytes (${scope})`,
       decoded.length,
       bounds.decoded,
       "released compact reader decoded bound",
     ],
-    ["compact listing carrier bytes", carrier, bounds.wire, "released listing target bound"],
+    [
+      `compact listing carrier bytes (${scope})`,
+      carrier,
+      bounds.wire,
+      "released listing target bound",
+    ],
     [
       "largest listing record bytes",
       largestRecord,
@@ -231,6 +317,42 @@ export function listingDirectoryMeasures(
       "released compact reader record bound",
     ],
     ["listing records", listings.length, bounds.entries, "released reader entry count"],
+    [
+      "listing element charge",
+      listings.length * bounds.listingCharge,
+      bounds.elementBudget,
+      "current reader element budget",
+    ],
+  ];
+}
+
+/** The signed definition index against Core's whole-index bounds. Neither
+ * has continuation: the index is one authenticated target. */
+export function definitionIndexMeasures(
+  indexBytes: Buffer,
+  definitionIndexSource: string,
+): CapacityMeasure[] {
+  const index: unknown = JSON.parse(indexBytes.toString("utf8"));
+  if (!isRecord(index) || !Array.isArray(index.contents))
+    throw new Error("Capacity diagnostics require a definition index");
+  const aggregate = index.contents.reduce((total: number, content: unknown) => {
+    if (!isRecord(content) || !Number.isSafeInteger(content.length))
+      throw new Error("Capacity diagnostics require definition content lengths");
+    return total + Number(content.length);
+  }, 0);
+  return [
+    [
+      "definition index bytes",
+      indexBytes.length,
+      capacityConstant(definitionIndexSource, "MAX_INDEX_BYTES"),
+      "definition index bound",
+    ],
+    [
+      "definition content aggregate bytes",
+      aggregate,
+      capacityConstant(definitionIndexSource, "MAX_TOTAL_BYTES"),
+      "definition content aggregate bound",
+    ],
   ];
 }
 
@@ -286,6 +408,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     options: {
       catalog: { type: "string" },
       check: { type: "boolean" },
+      "observed-target": { type: "string" },
       help: { type: "boolean" },
     },
   });
@@ -295,7 +418,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   );
   if (values.help)
     process.stdout.write(
-      "Usage: node scripts/catalog-capacity.mts --catalog FILE\n       node scripts/catalog-capacity.mts --check [--catalog FILE]\nOffline byte/headroom diagnostics; no signing, provider access or admission.\n--check fails when a measure exceeds its stated margin (default: the generated catalog).\n",
+      "Usage: node scripts/catalog-capacity.mts --catalog FILE\n       node scripts/catalog-capacity.mts --check [--catalog FILE] [--observed-target FILE]\nOffline byte/headroom diagnostics; no signing, provider access or admission.\n--check fails when a measure exceeds its stated margin (default: the generated catalog).\n--observed-target merges the observations of a delivered listing target (legacy JSON or a\ndecoded compact directory) into the listing carrier measures.\n",
     );
   else if (values.check) {
     const bounds = catalogSizeBounds(signedCatalogSource);
@@ -303,6 +426,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       values.catalog ??
       fileURLToPath(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url));
     const bytes = boundedInput(filename, bounds.current);
+    const definitionIndexSource = readFileSync(
+      new URL("../crates/portcove-core/src/definition_index.rs", import.meta.url),
+      "utf8",
+    );
     const repositoryListings = new URL(
       "../crates/portcove-core/catalog/listings.json",
       import.meta.url,
@@ -316,17 +443,43 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
         "utf8",
       ),
+      readFileSync(
+        new URL("../crates/portcove-core/src/listing_delivery.rs", import.meta.url),
+        "utf8",
+      ),
     );
+    const observations = values["observed-target"]
+      ? signedObservations(
+          JSON.parse(
+            boundedInput(values["observed-target"], listingBounds.decoded).toString("utf8"),
+          ),
+        )
+      : undefined;
     const result = catalogSizeGuard(
       bytes.length,
       JSON.parse(bytes.toString("utf8")),
       bounds,
       values.catalog
         ? []
-        : listingDirectoryMeasures(
-            boundedInput(fileURLToPath(repositoryListings), listingBounds.text),
-            listingBounds,
-          ),
+        : [
+            ...listingDirectoryMeasures(
+              boundedInput(fileURLToPath(repositoryListings), listingBounds.text),
+              listingBounds,
+              observations,
+            ),
+            ...definitionIndexMeasures(
+              boundedInput(
+                fileURLToPath(
+                  new URL(
+                    "../release/catalog-publication/bundle/definitions/index.json",
+                    import.meta.url,
+                  ),
+                ),
+                capacityConstant(definitionIndexSource, "MAX_INDEX_BYTES"),
+              ),
+              definitionIndexSource,
+            ),
+          ],
     );
     process.stdout.write(`${formatCatalogSizeGuard(result)}\n`);
     if (!result.ok) {
