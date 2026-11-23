@@ -70,8 +70,12 @@ export interface DiscoveryStore {
       state: Record<string, unknown>;
       observations: readonly DiscoveryProviderObservation[];
       watches: readonly DiscoveryWatchChange[];
+      /** Lead records that changed since the last commit; each carries its numeric `id`. */
+      leadRecords: readonly { id: number }[];
     },
   ): { revision: number; bytes: number };
+  /** The scope's stored lead records, read after acquire. */
+  loadLeadRecords(scope: string): { records: unknown[]; bytes: number };
   finish(
     lease: DiscoveryLease,
     outcome: "complete" | "partial" | "failed",
@@ -127,7 +131,8 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
         ${uuid(lease.attempt)}, ${uuid(lease.token)}, ${expectedRevision},
         ${sqlLiteral(options.definition)}, ${sqlLiteral(JSON.stringify(options.state))}::jsonb,
         ${options.leaseSeconds}, ${sqlLiteral(JSON.stringify(options.observations))}::jsonb,
-        ${sqlLiteral(JSON.stringify(options.watches))}::jsonb);`;
+        ${sqlLiteral(JSON.stringify(options.watches))}::jsonb,
+        ${sqlLiteral(JSON.stringify(options.leadRecords))}::jsonb);`;
       try {
         const revision = Number(runSql(environment, sql, { timeoutMs: 300_000 }).trim());
         if (revision !== expectedRevision + 1)
@@ -136,6 +141,19 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
       } catch (error) {
         return classify(error);
       }
+    },
+    loadLeadRecords(scope) {
+      const output = runSql(
+        environment,
+        `SET TRANSACTION READ ONLY;
+         SELECT coalesce(json_agg(record ORDER BY lead_id), '[]')::text
+           FROM portcove_maintenance.discovery_lead_records WHERE scope = ${sqlLiteral(scope)};`,
+        { timeoutMs: 300_000 },
+      ).trim();
+      const records: unknown = JSON.parse(output);
+      if (!Array.isArray(records))
+        throw new MaintenanceStoreError("Malformed discovery lead records");
+      return { records, bytes: Buffer.byteLength(output) };
     },
     finish(lease, outcome, summary) {
       try {

@@ -27,7 +27,7 @@ import {
   leadPaths,
 } from "./discovery-external-lists.mts";
 import { discoveryGitHubScope } from "./discovery-github.mts";
-import { leadFamilyIds, parseLeadState } from "./discovery-leads.mts";
+import { leadFamilyIds, parseLeadState, replaceLeadStateEnvelope } from "./discovery-leads.mts";
 import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
 import {
@@ -231,6 +231,8 @@ export interface DiscoveryWorkerResult {
     state_bytes: number;
     sent_bytes: number;
     received_bytes: number;
+    /** Lead records written as rows in this pass. */
+    lead_records?: number;
   };
   budget: { requests: number; bytes: number; milliseconds_remaining: number };
 }
@@ -256,7 +258,7 @@ export async function runDiscoveryWorker(
   const interval = options.commitIntervalMs ?? (leaseSeconds * 1000) / 2;
   const transferBytes = options.transferBytes ?? Number.POSITIVE_INFINITY;
   const lease: DiscoveryLease = { scope, attempt: randomUUID(), token: randomUUID() };
-  const committed = {
+  const committed: DiscoveryWorkerResult["committed"] = {
     pages: 0,
     observations: 0,
     watch_changes: 0,
@@ -296,6 +298,21 @@ export async function runDiscoveryWorker(
     throw error;
   }
   const state = parseWorkerState(grant.state);
+  // Lead records live in rows; the state document carries everything else.
+  // Records still embedded in an older document are kept and move into rows
+  // with the first commit.
+  const loaded = options.store.loadLeadRecords(scope);
+  const recordDigests = new Map<string, string>();
+  const storedRecords: Record<string, unknown> = {};
+  for (const raw of loaded.records)
+    if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
+      storedRecords[String(raw.id)] = raw;
+      recordDigests.set(String(raw.id), sha256(raw));
+    }
+  state.leads = parseLeadState({
+    ...state.leads,
+    records: { ...storedRecords, ...state.leads.records },
+  });
   const initialDigest = learnedDigest({ leads: state.leads, checkpoint: state.checkpoint });
   let revision = grant.revision;
   // Stored state and its observations commit together, so everything in the
@@ -305,7 +322,9 @@ export async function runDiscoveryWorker(
   const remember = (leads: LeadState) => {
     const observations: DiscoveryProviderObservation[] = [];
     const watches: DiscoveryWatchChange[] = [];
+    const records: DiscoveryLead[] = [];
     for (const lead of Object.values(leads.records)) {
+      if (recordDigests.get(String(lead.id)) !== sha256(lead)) records.push(lead);
       const observation = leadObservation(lead);
       if (observation && observed.get(observation.provider_id) !== observation.content_sha256)
         observations.push(observation);
@@ -313,9 +332,9 @@ export async function runDiscoveryWorker(
       if (watch && watched.get(watch.provider_id) !== `${watch.status}:${watch.evidence_sha256}`)
         watches.push(watch);
     }
-    return { observations, watches };
+    return { observations, watches, records };
   };
-  committed.received_bytes = grant.received_bytes ?? 0;
+  committed.received_bytes = (grant.received_bytes ?? 0) + loaded.bytes;
   // State written under other collector definitions (for example an earlier
   // parser version) is not assumed to have rows under this one; the first commit
   // resends them and the store keeps one row per identical content.
@@ -343,7 +362,7 @@ export async function runDiscoveryWorker(
   };
   const nextState = () => ({
     format: discoveryWorkerStateFormat,
-    leads: host.leads,
+    leads: { ...host.leads, records: {} },
     checkpoint: host.checkpoint,
     research_progress: state.research_progress,
     ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
@@ -393,7 +412,7 @@ export async function runDiscoveryWorker(
       // Size the next and final commits from everything they carry.
       const pending = remember(host.leads);
       const stateBytes = Buffer.byteLength(
-        JSON.stringify([nextState(), pending.observations, pending.watches]),
+        JSON.stringify([nextState(), pending.observations, pending.watches, pending.records]),
       );
       if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes > transferBytes * 0.7) {
         spent = new GitHubApiError(
@@ -426,7 +445,7 @@ export async function runDiscoveryWorker(
   };
   const flush = () => {
     if (stale) return;
-    const { observations, watches } = remember(host.leads);
+    const { observations, watches, records } = remember(host.leads);
     const next = nextState();
     try {
       const saved = options.store.commit(lease, revision, {
@@ -435,12 +454,17 @@ export async function runDiscoveryWorker(
         state: next,
         observations,
         watches,
+        leadRecords: records,
       });
       revision = saved.revision;
       committed.pages++;
       committed.observations += observations.length;
       committed.watch_changes += watches.length;
-      committed.state_bytes = Buffer.byteLength(JSON.stringify(next));
+      committed.state_bytes =
+        Buffer.byteLength(JSON.stringify(next)) +
+        Buffer.byteLength(JSON.stringify(host.leads.records));
+      committed.lead_records = (committed.lead_records ?? 0) + records.length;
+      for (const record of records) recordDigests.set(String(record.id), sha256(record));
       committed.sent_bytes += saved.bytes;
       for (const o of observations) observed.set(o.provider_id, o.content_sha256);
       for (const w of watches) watched.set(w.provider_id, `${w.status}:${w.evidence_sha256}`);
@@ -593,7 +617,24 @@ const cancellableSleep = (milliseconds: number, signal?: AbortSignal) =>
  * waits for an exhausted provider quota to reset. A pass that changed nothing is
  * not repeated.
  */
+/**
+ * The retained lead envelope for unattended collection: a quarter of the
+ * runner's memory, within the longest string the runtime can serialize.
+ */
+export function physicalLeadEnvelope(memory = os.totalmem()) {
+  return Math.min(Math.floor(memory / 4), 2 ** 29 - 24);
+}
+
 export async function runDiscoveryPasses(options: DiscoveryPassOptions) {
+  const restoreEnvelope = replaceLeadStateEnvelope(physicalLeadEnvelope());
+  try {
+    return await collectPasses(options);
+  } finally {
+    restoreEnvelope();
+  }
+}
+
+async function collectPasses(options: DiscoveryPassOptions) {
   const now = options.now ?? Date.now;
   const sleep = options.sleep ?? cancellableSleep;
   const runStartedAt = new Date(now()).toISOString();
@@ -767,12 +808,13 @@ export function importLocalState(
     leaseSeconds: 600,
     state: {
       format: discoveryWorkerStateFormat,
-      leads,
+      leads: { ...leads, records: {} },
       checkpoint: emptyCheckpoint(),
       research_progress: {},
     },
     observations,
     watches,
+    leadRecords: records,
   });
   const summary = {
     file,
@@ -789,6 +831,8 @@ export function importLocalState(
 export const discoveryTransferForecastQuery = `SELECT json_build_object(
   'state_bytes', coalesce((SELECT max(octet_length(state::text))
     FROM portcove_maintenance.discovery_collection_state), 0),
+  'record_bytes', coalesce((SELECT sum(octet_length(record::text))
+    FROM portcove_maintenance.discovery_lead_records), 0),
   'previous_transfer_bytes', coalesce((SELECT max(
       coalesce((result->'committed'->>'sent_bytes')::bigint, 0) +
       coalesce((result->'committed'->>'received_bytes')::bigint, 0))
@@ -956,7 +1000,7 @@ export async function discoveryWorkerMain(argv: string[]) {
   };
   try {
     // Size every pass from measured state and transfer rather than fixed limits.
-    let forecast: { state_bytes: number; previous_transfer_bytes: number };
+    let forecast: { state_bytes: number; record_bytes: number; previous_transfer_bytes: number };
     try {
       forecast = (await withMaintenanceAdmission(
         environment,
@@ -973,7 +1017,9 @@ export async function discoveryWorkerMain(argv: string[]) {
     }
     const deadlineEpoch = Number(process.env.PORTCOVE_DISCOVERY_DEADLINE_EPOCH);
     const disk = statfsSync(runDir);
-    const finalizationMs = finalizationMilliseconds(forecast.state_bytes);
+    const finalizationMs = finalizationMilliseconds(forecast.state_bytes + forecast.record_bytes);
+    // A pass reads the whole state and its lead records once.
+    let acquireBytes = forecast.state_bytes + forecast.record_bytes;
     const store = postgresDiscoveryStore(environment);
     const covered = (() => {
       let cache: Set<string> | undefined;
@@ -1006,12 +1052,14 @@ export async function discoveryWorkerMain(argv: string[]) {
         return { sdk, http: createDiscoveryTransport(budget, token) };
       },
       admit: async (pass, collect) => {
-        // The acquire read, a commit every half lease across the admission window
-        // and the final commit, each with a margin for its checkpoint and
-        // observations; the admission meters 70% of a reservation as payload.
-        const transfers = 1 + Math.ceil(admissionTimeout / (3600 * 500)) + 1;
+        // The acquire read, then a commit every half lease across the admission
+        // window and the final commit. Each commit carries the state document
+        // and only changed records and observations, estimated from the
+        // previous pass. The admission meters 70% of a reservation as payload.
+        const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
         const reservationBytes = Math.ceil(
-          (forecast.state_bytes * 1.25 * transfers + previousTransfer * 0.25) / 0.7 + 1024 * 1024,
+          (acquireBytes + commits * forecast.state_bytes * 1.25 + previousTransfer) / 0.7 +
+            1024 * 1024,
         );
         try {
           const result = await withMaintenanceAdmission(
@@ -1028,7 +1076,7 @@ export async function discoveryWorkerMain(argv: string[]) {
             },
           );
           previousTransfer = result.committed.sent_bytes + result.committed.received_bytes;
-          forecast.state_bytes = Math.max(forecast.state_bytes, result.committed.state_bytes);
+          acquireBytes = Math.max(acquireBytes, result.committed.state_bytes);
           return result;
         } catch (error) {
           if (error instanceof MaintenanceResourceDeferred) return undefined;

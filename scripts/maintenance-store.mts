@@ -73,9 +73,21 @@ export const storeTables = [
     "portcove_maintenance.discovery_watch_transitions",
     'provider COLLATE "C", provider_id COLLATE "C", reason COLLATE "C", generation',
   ],
+  ["portcove_maintenance.discovery_lead_records", 'scope COLLATE "C", lead_id'],
 ] as const;
-/** Tables added by migration 0007; older backups do not contain them. */
-const discoveryCollectionTables = 5;
+
+/** The migration that introduced each table added after the original store. */
+const tableIntroducedIn: Partial<Record<(typeof storeTables)[number][0], number>> = {
+  "portcove_maintenance.discovery_intake_batches": 5,
+  "portcove_maintenance.discovery_intake_candidates": 5,
+  "portcove_maintenance_meta.resource_admissions": 6,
+  "portcove_maintenance.discovery_collection_state": 7,
+  "portcove_maintenance.discovery_collection_attempts": 7,
+  "portcove_maintenance.discovery_observations": 7,
+  "portcove_maintenance.discovery_watches": 7,
+  "portcove_maintenance.discovery_watch_transitions": 7,
+  "portcove_maintenance.discovery_lead_records": 9,
+};
 
 const queryParameters = new Map([
   ["host", "PGHOST"],
@@ -690,14 +702,9 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
 function validTableDigests(tables: unknown, schemaVersion: number): tables is StoreDigest {
   if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
   const entries: [string, unknown][] = Object.entries(tables);
-  const expected =
-    schemaVersion < 5
-      ? storeTables.slice(0, -3 - discoveryCollectionTables)
-      : schemaVersion < 6
-        ? storeTables.slice(0, -1 - discoveryCollectionTables)
-        : schemaVersion < 7
-          ? storeTables.slice(0, -discoveryCollectionTables)
-          : storeTables;
+  const expected = storeTables.filter(
+    ([table]) => (tableIntroducedIn[table] ?? 0) <= schemaVersion,
+  );
   return (
     entries.length === expected.length &&
     expected.every(([table]) => Object.hasOwn(tables, table)) &&

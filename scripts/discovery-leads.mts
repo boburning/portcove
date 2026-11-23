@@ -67,8 +67,23 @@ export interface LeadState {
   retired_slices?: Record<string, LeadSlice>;
   external?: ExternalLeadState;
 }
+let leadStateEnvelope = discoveryCheckpointBytes;
+/**
+ * Replace the retained lead byte envelope. The interactive runner keeps the
+ * default, which also bounds its local journal files; unattended collection,
+ * whose records live in database rows, uses the runner's physical memory.
+ * Returns a function that restores the previous envelope.
+ */
+export function replaceLeadStateEnvelope(bytes: number) {
+  if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("Invalid lead envelope");
+  const prior = leadStateEnvelope;
+  leadStateEnvelope = bytes;
+  return () => {
+    leadStateEnvelope = prior;
+  };
+}
 function boundLeadState<T>(value: T): T {
-  if (Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes)
+  if (Buffer.byteLength(JSON.stringify(value)) > leadStateEnvelope)
     throw new Error("Retained lead byte envelope exceeded; preserve prior continuation");
   return value;
 }
@@ -78,7 +93,7 @@ export function parseLeadState(value: unknown): LeadState {
   if (
     !isRecord(value) ||
     value.format !== 1 ||
-    Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes ||
+    Buffer.byteLength(JSON.stringify(value)) > leadStateEnvelope ||
     !isRecord(value.slices) ||
     !isRecord(value.records) ||
     !Number.isSafeInteger(value.next_family) ||

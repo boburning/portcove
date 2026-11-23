@@ -67,6 +67,10 @@ It adds the concepts the history tables cannot represent:
   current typed waiting condition per provider subject and one row per episode.
   Changed evidence or status opens a new generation, so A to B to A remains three
   episodes; unchanged evidence is quiet.
+- `discovery_lead_records` (migration `0009`): the collector's lead records,
+  one row per provider repository ID in a scope. The state document keeps the
+  rest of the continuation. A commit upserts only records that changed and
+  rewrites no unchanged row.
 
 Writes go only through `discovery_acquire`, `discovery_commit` and
 `discovery_finish`. They check collection activation, the lease token and the
