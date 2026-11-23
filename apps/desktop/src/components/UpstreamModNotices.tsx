@@ -1,20 +1,28 @@
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
-import type { ModDbFileNotices, QuaddictedCatalog } from "../types";
+import type { ModDbFileNotices, ModSetupsView, QuaddictedCatalog } from "../types";
 import { Button } from "./ui/button";
 
-type BrowserSource = "quaddicted" | "mod-db-arcane-dimensions";
+type ExternalModBrowser = NonNullable<
+  NonNullable<ModSetupsView["external_mod_portals"]>[number]["browser"]
+>;
+
 type Result =
-  | { source: "quaddicted"; observation: QuaddictedCatalog }
-  | { source: "mod-db-arcane-dimensions"; observation: ModDbFileNotices };
+  | { browser: "quaddicted"; observation: QuaddictedCatalog }
+  | { browser: "mod_db_feed"; observation: ModDbFileNotices };
 
 export function UpstreamModNotices({
+  browser,
   source,
+  name,
   port,
   generation,
 }: {
-  source: BrowserSource;
+  browser: ExternalModBrowser;
+  /** The declared source ID Core rechecks before opening a page. */
+  source: string;
+  name: string;
   port: string;
   generation: number;
 }) {
@@ -36,9 +44,9 @@ export function UpstreamModNotices({
     setQuery(term);
     try {
       const next: Result =
-        source === "quaddicted"
+        browser === "quaddicted"
           ? {
-              source,
+              browser,
               observation: await desktopApi.quaddictedCatalog(
                 port,
                 generation,
@@ -46,7 +54,7 @@ export function UpstreamModNotices({
                 term || undefined,
               ),
             }
-          : { source, observation: await desktopApi.modDbFileNotices(port, generation) };
+          : { browser, observation: await desktopApi.modDbFileNotices(port, generation) };
       if (id === request.current) setResult(next);
     } catch {
       if (id === request.current) setFailed(true);
@@ -67,16 +75,16 @@ export function UpstreamModNotices({
   const stale = result?.observation.freshness === "stale";
   const hasEntries =
     result &&
-    (result.source === "quaddicted"
+    (result.browser === "quaddicted"
       ? result.observation.value.entries.length > 0
       : result.observation.value.notices.length > 0);
   const rowsIncomplete =
-    result?.source === "quaddicted" && result.observation.value.unreadable_rows > 0;
+    result?.browser === "quaddicted" && result.observation.value.unreadable_rows > 0;
   const observation = result?.observation;
-  const currentPage = result?.source === "quaddicted" ? result.observation.value.page : 0;
+  const currentPage = result?.browser === "quaddicted" ? result.observation.value.page : 0;
   return (
     <div className="space-y-2">
-      {source === "quaddicted" ? (
+      {browser === "quaddicted" ? (
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
@@ -100,7 +108,7 @@ export function UpstreamModNotices({
         </form>
       ) : (
         <Button variant="outline" disabled={busy} onClick={() => void read(0, "")}>
-          {t("mods.external.notices")}
+          {t("mods.external.notices", { name })}
         </Button>
       )}
       {busy && <p role="status">{t("mods.external.loading")}</p>}
@@ -117,7 +125,7 @@ export function UpstreamModNotices({
       {stale && <p role="status">{t("mods.external.cached")}</p>}
       {rowsIncomplete && <p role="status">{t("mods.external.incomplete")}</p>}
       {result && !stale && !hasEntries && !rowsIncomplete && <p>{t("mods.external.empty")}</p>}
-      {result?.source === "quaddicted" && (
+      {result?.browser === "quaddicted" && (
         <>
           <ul>
             {result.observation.value.entries.map((row) => (
@@ -150,7 +158,7 @@ export function UpstreamModNotices({
           </div>
         </>
       )}
-      {result?.source === "mod-db-arcane-dimensions" && (
+      {result?.browser === "mod_db_feed" && (
         <ul>
           {result.observation.value.notices.map((row) => (
             <li key={row.source_id} className="border-b py-2">

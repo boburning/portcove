@@ -1713,11 +1713,12 @@ GitHub repository name or family key, with the catalog as the dictionary
 (`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
 prepared runtime contracts) matched against definition values; the
 `native_external_profile` modules, covered through `ExternalProfilePolicy`;
-compiled provider binding tables; the `github_mods.rs` source table,
-`external-mod-portals.json` and the bundled frozen artifact registries
-(`historical-artifact-registry`). That kind reads every section of Core's
-`historical-artifacts.json` and the reviewed `tool-artifacts.json` builder
-packs as declared members. A historical row covers its `port_id` or
+compiled provider binding tables; the bundled frozen artifact registries
+(`historical-artifact-registry`); and the retired `github_mods.rs` source
+table and `external-mod-portals.json`, which #8567 replaced with catalog
+`mod_sources` data and which must stay absent. The registry kind reads every
+section of Core's `historical-artifacts.json` and the reviewed
+`tool-artifacts.json` builder packs as declared members. A historical row covers its `port_id` or
 `projection`, the catalog definition whose release repository equals its
 `repository`, or the identity whose definition or port-scoped `source_catalog`
 record declares its exact `sha256`; otherwise the catalog title keys its text

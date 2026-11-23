@@ -20,6 +20,7 @@ fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
         port.release.reviewed_package_choices_v2 = None;
         port.mod_provider_bindings = None;
         port.mod_loader = None;
+        port.mod_sources.clear();
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
         for pattern in &mut port.persistent_file_patterns {

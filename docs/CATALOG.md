@@ -3628,6 +3628,49 @@ wait for a current authenticated selection. Use the
 [indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
 when delivering a binding through the signed feed.
 
+#### Declare mod sources
+
+Declare the mod websites and release feeds a port can use in
+`integration.mod_sources`. Core reads only this data to decide which sources a
+port offers; no port ID, game or repository name in code selects them. Adding,
+correcting or removing a source is a catalog change. Each entry has:
+
+- `id`: lowercase letters, digits and hyphens, unique in the port. Clients
+  use it to open the source.
+- `authority`: the most the source may do. `link_out` opens the source page in
+  the player's browser. `browse` also reads a bounded, attributed provider
+  listing. `inspect` also downloads one exact file privately and reviews it.
+- `platforms`: a sorted, non-empty list of host platforms. Core offers a
+  source on a platform the integration manages, or one the matching listing
+  presents.
+- `name` and `instructions`: the player-facing site or collection name and a
+  setup guide for files from this source. Follow
+  [content design](CONTENT-DESIGN.md). GitHub release sources omit both.
+- `source`: one typed kind.
+
+| Kind              | Fields                                                    | Highest authority | Rules                                                                                                                                                                                                                                                |
+| ----------------- | --------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `external_portal` | `site`, `url`                                             | `link_out`        | `nexus_mods` uses `www.nexusmods.com`, `mod_io` uses `mod.io`, `mod_db` uses `www.moddb.com`. `community_site` takes any public HTTPS DNS host.                                                                                                      |
+| `quaddicted`      | `engine` (`vk_quake` or `ironwail`)                       | `browse`          | The link is Quaddicted's database. Browsing needs a NativePortable GitHub release route on Windows or Linux.                                                                                                                                         |
+| `mod_db_feed`     | `url`                                                     | `browse`          | `url` is `https://www.moddb.com/mods/<slug>/downloads` or `/games/<slug>/downloads`. Core derives the feed address from it. Browsing has the Quaddicted platform rule.                                                                               |
+| `github_release`  | `repository`, `repository_id`, `asset_name`, `companions` | `inspect`         | The numeric repository ID must match GitHub. `asset_name` is the exact release asset. `inspect` needs a reviewed N64 Recomp loader with a native game and one `companions` layout per inspected platform. Other authority levels declare no layouts. |
+
+No source kind can install, update or activate anything. Install authority
+comes only from `mod_provider_bindings`, and Core's install helpers never read
+`mod_sources`. Private inspection of a GitHub release also needs the exact
+installed build's own retained loader. Compound activation stays behind
+managed custody.
+
+Every address in data is checked: HTTPS only, canonical spelling, no
+credentials, port, query, fragment or dot segments, a public DNS host, and the
+fixed host of its site. Core's provider readers fetch only fixed provider
+endpoints or addresses it derives, and refuse redirects. The browser follows
+its own redirects after a player opens a link-out page. A port may declare at
+most eight sources and at most one source of each browsing kind.
+
+[DEFINITION-DELIVERY](DEFINITION-DELIVERY.md#catalog-declared-mod-sources)
+describes the reader feature that guards this field.
+
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored
 `original_game_review` records deliberate multi-game, framework or unresolved

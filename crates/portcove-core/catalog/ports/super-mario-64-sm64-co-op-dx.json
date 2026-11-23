@@ -147,6 +147,20 @@
   },
   "external_registration_v1": true,
   "integration": {
+    "mod_sources": [
+      {
+        "id": "coop-dx",
+        "authority": "link_out",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "name": "CoopDX Mods",
+        "instructions": "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+        "source": {
+          "kind": "external_portal",
+          "site": "community_site",
+          "url": "https://mods.sm64coopdx.com/mods/"
+        }
+      }
+    ],
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],

@@ -299,6 +299,7 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         }
         port.mod_provider_bindings
             .clone_from(&original.mod_provider_bindings);
+        crate::mod_source::retain_from_baseline(port, original)?;
 
         if port.windows_shipwright_persistence {
             return Err(PortcoveError::verification(

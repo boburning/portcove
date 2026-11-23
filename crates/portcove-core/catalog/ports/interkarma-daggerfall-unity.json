@@ -65,6 +65,20 @@
     }
   },
   "integration": {
+    "mod_sources": [
+      {
+        "id": "nexus-daggerfall-unity",
+        "authority": "link_out",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+        "name": "Nexus Mods",
+        "instructions": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+        "source": {
+          "kind": "external_portal",
+          "site": "nexus_mods",
+          "url": "https://www.nexusmods.com/games/daggerfallunity/mods"
+        }
+      }
+    ],
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],

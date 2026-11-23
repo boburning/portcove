@@ -343,6 +343,7 @@ pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::Catal
     }
     for port in &mut document.ports {
         port.mod_loader = None;
+        port.mod_sources.clear();
     }
     document
 }
@@ -459,6 +460,12 @@ impl<'a> IndexedCatalogFixture<'a> {
         Self {
             port: if port_id == "opentyrian-opentyrian" {
                 std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
+            } else if !port.mod_sources.is_empty() {
+                // These fixtures model definitions published before mod
+                // sources were catalog data, like their projection document.
+                let mut port = port.clone();
+                port.mod_sources.clear();
+                std::borrow::Cow::Owned(port)
             } else {
                 std::borrow::Cow::Borrowed(port)
             },

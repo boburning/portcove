@@ -789,8 +789,9 @@ export const authorityKinds: readonly AuthorityKind[] = [
     kind: "github-mod-source-table",
     description: "Compiled reviewed GitHub mod source rows keyed by runtime repository and game.",
     detector: `\`const SOURCES: &[ReviewedSource]\` rows in ${coreSource}/github_mods.rs`,
-    retired: false,
-    members: [{ name: "SOURCES" }],
+    // #8567 moved these rows into each port's `mod_sources` catalog data.
+    retired: true,
+    members: [{ name: "SOURCES", retired: true }],
     detect(root, context) {
       const file = `${coreSource}/github_mods.rs`;
       const table = /const\s+SOURCES\s*:\s*&\[ReviewedSource\]\s*=\s*&\[([\s\S]*?)\];/u.exec(
@@ -927,8 +928,9 @@ export const authorityKinds: readonly AuthorityKind[] = [
     kind: "external-mod-portals",
     description: "Reviewed per-port external mod portal bindings.",
     detector: "crates/portcove-core/catalog/external-mod-portals.json entries",
-    retired: false,
-    members: [{ name: "external-mod-portals.json" }],
+    // #8567 moved these bindings into each port's `mod_sources` catalog data.
+    retired: true,
+    members: [{ name: "external-mod-portals.json", retired: true }],
     detect(root, context) {
       const file = "crates/portcove-core/catalog/external-mod-portals.json";
       const text = readText(root, file);

@@ -494,6 +494,48 @@ export type ModProviderBinding =
       community: string;
       provider: "thunderstore";
     };
+/**
+ * The most a declared source may do. The order is meaningful: each level
+ * includes the levels before it.
+ */
+export type ModSourceAuthority = "link_out" | "browse" | "inspect";
+/**
+ * The typed kinds of mod source. A new kind needs a new named definition
+ * feature, so older readers refuse only the definition that uses it.
+ */
+export type ModSourceKind =
+  | {
+      kind: "external_portal";
+      site: ModPortalSite;
+      url: string;
+    }
+  | {
+      engine: QuakeEngine;
+      kind: "quaddicted";
+    }
+  | {
+      kind: "mod_db_feed";
+      url: string;
+    }
+  | {
+      /**
+       * The exact release asset name.
+       */
+      asset_name: string;
+      /**
+       * Reviewed per-platform companion files. Required for `inspect`.
+       */
+      companions?: ModCompanionLayout[];
+      kind: "github_release";
+      repository: string;
+      repository_id: number;
+    };
+/**
+ * Community mod sites that a link-out portal may point to. The host for each
+ * site is fixed in Core; a definition cannot choose another host.
+ */
+export type ModPortalSite = ("nexus_mods" | "mod_io" | "mod_db") | "community_site";
+export type QuakeEngine = "vk_quake" | "ironwail";
 export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
@@ -950,15 +992,13 @@ export type PendingSetupStageKind =
   "artifact-obtained" | "upstream-setup-opened" | "final-selected" | "registration-reviewed" | "invalidated";
 export type OutputListingStatuses = PortListingStatus[];
 /**
- * Upstream-owned browser routes. These grant no download or import capability.
+ * A read-only provider browser Core can run for a portal.
  */
-export type ExternalModPortalSource =
-  | "nexus-daggerfall-unity"
-  | "coop-dx"
-  | "mod-io-open-xcom"
-  | "quaddicted"
-  | "mod-db-open-xcom"
-  | "mod-db-arcane-dimensions";
+export type ExternalModBrowser = "quaddicted" | "mod_db_feed";
+/**
+ * The site family a portal belongs to, for its link label.
+ */
+export type ExternalModSite = "nexus_mods" | "mod_io" | "mod_db" | "quaddicted" | "community_site";
 /**
  * `Present` is limited to ordinary setup metadata previews; it does not
  * establish current immutable payload integrity. Strict inspection uses `Verified`.
@@ -1220,7 +1260,6 @@ export type ProfileRecoveryProgress = "keep_current";
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
-export type QuakeEngine = "vk_quake" | "ironwail";
 export type QuaddictedEngineCompatibility = "unverified" | "declares_another_required_engine";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
@@ -2819,6 +2858,12 @@ export interface PortDefinition {
    */
   mod_provider_bindings?: ModProviderBinding[] | null;
   /**
+   * Catalog-declared mod sources and the authority each one carries. None
+   * of them can install: install authority comes only from
+   * `mod_provider_bindings`.
+   */
+  mod_sources?: ModSource[];
+  /**
    * Keep a reviewed N64 package's runtime and data beside its selected player,
    * including when upstream changes the outer archive wrapper name.
    */
@@ -3086,6 +3131,40 @@ export interface LoaderContractRef {
 export interface ModLoaderArtifact {
   identity: ArtifactIdentity1;
   tag: string;
+}
+/**
+ * One catalog-declared mod source for a port.
+ */
+export interface ModSource {
+  authority: ModSourceAuthority;
+  /**
+   * Stable within the port. Clients address the source by this ID.
+   */
+  id: string;
+  /**
+   * Catalog-authored setup guide shown beside the link. Not used for GitHub releases.
+   */
+  instructions?: string | null;
+  /**
+   * Player-facing name of the site or collection. Not used for GitHub releases.
+   */
+  name?: string | null;
+  /**
+   * Host platforms the source is offered on, in sorted order.
+   */
+  platforms: Platform[];
+  source: ModSourceKind;
+}
+/**
+ * Exact companion files one reviewed platform loads beside a Recomp mod.
+ */
+export interface ModCompanionLayout {
+  /**
+   * Manifest-declared library stem and its exact same-folder dependencies.
+   */
+  declared_library: string;
+  files: string[];
+  platform: Platform;
 }
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
@@ -6167,7 +6246,23 @@ export interface ExternalModPortal {
    * The current port and platform qualify for the optional read-only provider browser.
    */
   browse_available?: boolean;
-  source: ExternalModPortalSource;
+  /**
+   * The read-only browser this source can use, when it has one.
+   */
+  browser?: ExternalModBrowser | null;
+  /**
+   * Catalog-authored setup guide for files from this source.
+   */
+  instructions: string;
+  /**
+   * Player-facing site or collection name from the catalog.
+   */
+  name: string;
+  site: ExternalModSite;
+  /**
+   * The declared source ID. Clients pass it back to open a page.
+   */
+  source: string;
   url: string;
   [k: string]: unknown;
 }
@@ -6232,7 +6327,8 @@ export interface OutputModdbFileNotices {
   [k: string]: unknown;
 }
 /**
- * Provider-attributed Arcane Dimensions file notices, including nonrelease notices.
+ * Provider-attributed file notices from one declared Mod DB collection,
+ * including nonrelease notices.
  */
 export interface ModDbFileNotices {
   attribution: string;

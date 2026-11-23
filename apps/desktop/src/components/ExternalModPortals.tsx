@@ -39,14 +39,14 @@ export function ExternalModPortals({
 }) {
   const { t } = useAppTranslation("gameSettings");
   if (portals.length === 0) return null;
-  const actions = {
-    "nexus-daggerfall-unity": [t("mods.external.nexus"), t("mods.external.daggerfallSetup")],
-    "coop-dx": [t("mods.external.coopDx"), t("mods.external.coopSetup")],
-    "mod-io-open-xcom": [t("mods.external.modIo"), t("mods.external.openXcomSetup")],
-    "mod-db-arcane-dimensions": [t("mods.external.modDb"), t("mods.external.quakeSetup")],
-    "mod-db-open-xcom": [t("mods.external.modDb"), t("mods.external.openXcomSetup")],
-    quaddicted: [t("mods.external.quaddicted"), t("mods.external.quakeSetup")],
-  } satisfies Record<Portals[number]["source"], [string, string]>;
+  const label = (portal: Portals[number]) =>
+    ({
+      nexus_mods: t("mods.external.nexus"),
+      mod_io: t("mods.external.modIo"),
+      mod_db: t("mods.external.modDb"),
+      quaddicted: t("mods.external.quaddicted"),
+      community_site: t("mods.external.site", { name: portal.name }),
+    })[portal.site];
   return (
     <section aria-label={t("mods.external.heading")}>
       <p>{t("mods.external.owner")}</p>
@@ -59,18 +59,19 @@ export function ExternalModPortals({
                 desktopApi.openUpstreamModNotice(port, generation, portal.source, href)
               }
             >
-              {actions[portal.source][0]}
+              {label(portal)}
             </ExternalLink>
-            <p>{actions[portal.source][1]}</p>
-            {portal.browse_available &&
-              (portal.source === "quaddicted" || portal.source === "mod-db-arcane-dimensions") && (
-                <UpstreamModNotices
-                  key={JSON.stringify([port, generation, portal.source])}
-                  source={portal.source}
-                  port={port}
-                  generation={generation}
-                />
-              )}
+            <p>{portal.instructions}</p>
+            {portal.browse_available && portal.browser && (
+              <UpstreamModNotices
+                key={JSON.stringify([port, generation, portal.source])}
+                browser={portal.browser}
+                source={portal.source}
+                name={portal.name}
+                port={port}
+                generation={generation}
+              />
+            )}
           </li>
         ))}
       </ul>

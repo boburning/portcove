@@ -508,7 +508,7 @@ void test("an authority detector that matches nothing must be declared retired",
   try {
     const context = { ids: new Set(["x"]), ports: [] };
     const errors = authorityInventoryErrors(detectAuthorities(root, context));
-    for (const kind of authorityKinds)
+    for (const kind of authorityKinds.filter((kind) => !kind.retired))
       assert.ok(
         errors.some((error) =>
           new RegExp(
@@ -524,6 +524,13 @@ void test("an authority detector that matches nothing must be declared retired",
         "Authority kind provider-binding-table cannot find GAMEBANANA_BINDINGS; fix the detector or declare that member retired.",
       ),
     );
+
+    // A kind declared retired stays quiet while its detector finds nothing.
+    for (const kind of authorityKinds.filter((kind) => kind.retired))
+      assert.ok(
+        !errors.some((error) => error.startsWith(`Authority kind ${kind.kind} `)),
+        kind.kind,
+      );
 
     const retired: AuthorityKind[] = authorityKinds.map((kind) => ({
       ...kind,

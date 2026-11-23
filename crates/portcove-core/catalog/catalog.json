@@ -29986,6 +29986,42 @@
           "community": "zelda-64-recompiled"
         }
       ],
+      "mod_sources": [
+        {
+          "id": "mm-recomp-rando",
+          "authority": "inspect",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "source": {
+            "kind": "github_release",
+            "repository": "RecompRando/MMRecompRando",
+            "repository_id": 854379059,
+            "asset_name": "MMRecompRando.zip",
+            "companions": [
+              {
+                "platform": "windows-x86-64",
+                "declared_library": "APCpp-Glue",
+                "files": [
+                  "APCpp-Glue.dll",
+                  "python311.dll"
+                ]
+              },
+              {
+                "platform": "linux-x86-64",
+                "declared_library": "APCpp-Glue",
+                "files": [
+                  "APCpp-Glue.so",
+                  "libpython3.11.so.1.0"
+                ]
+              }
+            ]
+          }
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -67797,6 +67833,24 @@
       "name": "Daggerfall Unity",
       "summary": "Play The Elder Scrolls II: Daggerfall with Daggerfall Unity and your own compatible game folder. Choose your original files in the game’s first-run setup wizard; keep external saves and originals recoverable.",
       "project_url": "https://github.com/Interkarma/daggerfall-unity",
+      "mod_sources": [
+        {
+          "id": "nexus-daggerfall-unity",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64"
+          ],
+          "name": "Nexus Mods",
+          "instructions": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+          "source": {
+            "kind": "external_portal",
+            "site": "nexus_mods",
+            "url": "https://www.nexusmods.com/games/daggerfallunity/mods"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"
@@ -76381,6 +76435,22 @@
       "name": "Quake (Ironwail)",
       "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "project_url": "https://github.com/andrei-drexler/ironwail",
+      "mod_sources": [
+        {
+          "id": "quaddicted",
+          "authority": "browse",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64"
+          ],
+          "name": "Quaddicted",
+          "instructions": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+          "source": {
+            "kind": "quaddicted",
+            "engine": "ironwail"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"
@@ -76517,6 +76587,40 @@
       "name": "Quake (vkQuake)",
       "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "project_url": "https://github.com/Novum/vkQuake",
+      "mod_sources": [
+        {
+          "id": "quaddicted",
+          "authority": "browse",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "Quaddicted",
+          "instructions": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+          "source": {
+            "kind": "quaddicted",
+            "engine": "vk_quake"
+          }
+        },
+        {
+          "id": "mod-db-arcane-dimensions",
+          "authority": "browse",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "Arcane Dimensions",
+          "instructions": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+          "source": {
+            "kind": "mod_db_feed",
+            "url": "https://www.moddb.com/mods/arcane-dimensions/downloads"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"
@@ -80954,6 +81058,25 @@
       "name": "Super Mario 64 / SM64 Co-op DX",
       "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/coop-deluxe/sm64coopdx",
+      "mod_sources": [
+        {
+          "id": "coop-dx",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "CoopDX Mods",
+          "instructions": "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+          "source": {
+            "kind": "external_portal",
+            "site": "community_site",
+            "url": "https://mods.sm64coopdx.com/mods/"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"
@@ -83486,6 +83609,42 @@
       "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
       "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
+      "mod_sources": [
+        {
+          "id": "mod-io-open-xcom",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "mod.io",
+          "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+          "source": {
+            "kind": "external_portal",
+            "site": "mod_io",
+            "url": "https://mod.io/g/openxcom/"
+          }
+        },
+        {
+          "id": "mod-db-open-xcom",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "Mod DB",
+          "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+          "source": {
+            "kind": "external_portal",
+            "site": "mod_db",
+            "url": "https://www.moddb.com/games/openxcom/mods"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"
@@ -85347,6 +85506,42 @@
       "name": "X-COM: Terror from the Deep (OpenXcom)",
       "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
+      "mod_sources": [
+        {
+          "id": "mod-io-open-xcom",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "mod.io",
+          "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+          "source": {
+            "kind": "external_portal",
+            "site": "mod_io",
+            "url": "https://mod.io/g/openxcom/"
+          }
+        },
+        {
+          "id": "mod-db-open-xcom",
+          "authority": "link_out",
+          "platforms": [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64"
+          ],
+          "name": "Mod DB",
+          "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+          "source": {
+            "kind": "external_portal",
+            "site": "mod_db",
+            "url": "https://www.moddb.com/games/openxcom/mods"
+          }
+        }
+      ],
       "support_tier": "beta",
       "channels": [
         "stable"

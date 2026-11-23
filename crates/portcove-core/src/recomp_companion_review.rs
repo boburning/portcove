@@ -25,12 +25,12 @@ const LIMITS: zip_read::Limits = zip_read::Limits {
     prefix: false,
 };
 
-#[derive(Clone, Copy)]
-pub(crate) struct CompanionLayout {
-    pub platform: Platform,
-    /// Manifest-declared library stem and its exact same-folder dependencies.
-    pub declared_library: &'static str,
-    pub files: &'static [&'static str],
+pub(crate) type CompanionLayout = crate::ModCompanionLayout;
+
+impl CompanionLayout {
+    fn names(&self, name: &str) -> bool {
+        self.files.iter().any(|file| file == name)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -99,7 +99,7 @@ pub(crate) fn review(
     archive_size: u64,
     expected_sha256: &str,
     game: &str,
-    layout: CompanionLayout,
+    layout: &CompanionLayout,
     all_layouts: &[CompanionLayout],
 ) -> Result<RecompCompoundReview> {
     Ok(stage(
@@ -118,7 +118,7 @@ pub(crate) fn stage(
     archive_size: u64,
     expected_sha256: &str,
     game: &str,
-    layout: CompanionLayout,
+    layout: &CompanionLayout,
     all_layouts: &[CompanionLayout],
 ) -> Result<StagedCompoundReview> {
     if !(1..=MAX_WRAPPER_BYTES).contains(&archive_size) || !fs::symlink_metadata(path)?.is_file() {
@@ -173,13 +173,9 @@ pub(crate) fn stage(
         };
         let lower = name.to_ascii_lowercase();
         let is_mod = lower.ends_with(".nrm");
-        let is_selected_companion = layout.files.contains(&name.as_str());
+        let is_selected_companion = layout.names(&name);
         if !is_mod && !is_selected_companion {
-            if host_file(&lower)
-                && !all_layouts
-                    .iter()
-                    .any(|other| other.files.contains(&name.as_str()))
-            {
+            if host_file(&lower) && !all_layouts.iter().any(|other| other.names(&name)) {
                 return Err(invalid(
                     "the wrapper includes a host executable outside its reviewed layout",
                 ));
@@ -221,7 +217,7 @@ pub(crate) fn stage(
                 || inspection
                     .native_libraries
                     .keys()
-                    .any(|name| name != layout.declared_library)
+                    .any(|name| *name != layout.declared_library)
                 || !native_ids.insert(inspection.native_id.clone())
             {
                 return Err(invalid(
@@ -255,7 +251,7 @@ pub(crate) fn stage(
     if companions.len() != layout.files.len()
         || mods
             .iter()
-            .filter(|m| m.native_libraries.contains_key(layout.declared_library))
+            .filter(|m| m.native_libraries.contains_key(&layout.declared_library))
             .count()
             != 1
     {
@@ -289,18 +285,20 @@ pub(crate) mod fixtures {
 
     pub(crate) const GAME: &str = "mm";
     pub(crate) const LIBRARY: &str = "Glue";
-    pub(crate) const LAYOUTS: [CompanionLayout; 2] = [
+    pub(crate) fn layout(platform: Platform, library: &str, files: &[&str]) -> CompanionLayout {
         CompanionLayout {
-            platform: Platform::WindowsX86_64,
-            declared_library: LIBRARY,
-            files: &["Glue.dll", "dep.dll"],
-        },
-        CompanionLayout {
-            platform: Platform::LinuxX86_64,
-            declared_library: LIBRARY,
-            files: &["Glue.so", "libdep.so.1"],
-        },
-    ];
+            platform,
+            declared_library: library.into(),
+            files: files.iter().map(|file| (*file).into()).collect(),
+        }
+    }
+
+    pub(crate) fn layouts() -> [CompanionLayout; 2] {
+        [
+            layout(Platform::WindowsX86_64, LIBRARY, &["Glue.dll", "dep.dll"]),
+            layout(Platform::LinuxX86_64, LIBRARY, &["Glue.so", "libdep.so.1"]),
+        ]
+    }
 
     pub(crate) enum Entry<'a> {
         File(&'a str, Vec<u8>),
@@ -392,7 +390,7 @@ pub(crate) mod fixtures {
 
     pub(crate) fn stage_for(
         entries: &[Entry<'_>],
-        layout: CompanionLayout,
+        layout: &CompanionLayout,
     ) -> Result<StagedCompoundReview> {
         let wrapper = write(entries);
         stage(
@@ -401,7 +399,7 @@ pub(crate) mod fixtures {
             &wrapper.sha256,
             GAME,
             layout,
-            &LAYOUTS,
+            &layouts(),
         )
     }
 }
@@ -409,10 +407,10 @@ pub(crate) mod fixtures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fixtures::{Entry, GAME, LAYOUTS, elf, nrm, pe, stage_for};
+    use fixtures::{Entry, GAME, elf, nrm, pe, stage_for};
     use std::io::Write as _;
 
-    fn refusal(entries: &[Entry<'_>], layout: CompanionLayout) -> String {
+    fn refusal(entries: &[Entry<'_>], layout: &CompanionLayout) -> String {
         match stage_for(entries, layout) {
             Ok(_) => panic!("the wrapper must be refused"),
             Err(error) => error.message,
@@ -435,7 +433,7 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_stages_exact_members_for_each_reviewed_platform() {
-        for layout in LAYOUTS {
+        for layout in &fixtures::layouts() {
             let staged = stage_for(&fixtures::complete(), layout).unwrap();
             assert_eq!(staged.review.platform, layout.platform);
             assert_eq!(
@@ -447,7 +445,7 @@ mod tests {
                     .collect::<Vec<_>>(),
                 ["glue_mod", "plain_mod"]
             );
-            let mut expected = layout.files.to_vec();
+            let mut expected: Vec<_> = layout.files.iter().map(String::as_str).collect();
             expected.sort_unstable();
             assert_eq!(
                 staged
@@ -459,7 +457,7 @@ mod tests {
                 expected
             );
             let mut stored = vec!["glue_mod.nrm", "plain_mod.nrm"];
-            stored.extend(layout.files);
+            stored.extend(layout.files.iter().map(String::as_str));
             stored.sort_unstable();
             assert_eq!(
                 staged
@@ -483,7 +481,8 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_refuses_non_regular_entries() {
-        let linux = LAYOUTS[1];
+        let layouts = fixtures::layouts();
+        let linux = &layouts[1];
         let mut directory = fixtures::complete();
         directory.push(Entry::Directory("extras/"));
         assert!(refusal(&directory, linux).contains("regular, unencrypted files"));
@@ -496,7 +495,8 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_refuses_unsafe_and_repeated_names() {
-        let linux = LAYOUTS[1];
+        let layouts = fixtures::layouts();
+        let linux = &layouts[1];
         let mut nested = fixtures::complete();
         nested.push(Entry::File("docs/notes.txt", b"x".to_vec()));
         assert!(refusal(&nested, linux).contains("unsafe or repeated member name"));
@@ -517,7 +517,7 @@ mod tests {
         ] {
             let mut entries = fixtures::complete();
             entries.push(Entry::File(name, image));
-            for layout in LAYOUTS {
+            for layout in &fixtures::layouts() {
                 assert!(
                     refusal(&entries, layout)
                         .contains("host executable outside its reviewed layout"),
@@ -529,7 +529,8 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_refuses_a_different_companion_set_or_owner() {
-        let linux = LAYOUTS[1];
+        let layouts = fixtures::layouts();
+        let linux = &layouts[1];
         let missing = fixtures::complete()
             .into_iter()
             .filter(|entry| !matches!(entry, Entry::File("libdep.so.1", _)))
@@ -555,7 +556,8 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_refuses_duplicate_identity_other_games_and_external_code() {
-        let linux = LAYOUTS[1];
+        let layouts = fixtures::layouts();
+        let linux = &layouts[1];
         let mut duplicate = fixtures::complete();
         duplicate.push(Entry::File("Again.nrm", nrm("plain_mod", GAME, None)));
         assert!(refusal(&duplicate, linux).contains("native identity"));
@@ -573,7 +575,8 @@ mod tests {
 
     #[test]
     fn synthetic_wrapper_refuses_a_companion_image_for_another_platform() {
-        let (windows, linux) = (LAYOUTS[0], LAYOUTS[1]);
+        let layouts = fixtures::layouts();
+        let (windows, linux) = (&layouts[0], &layouts[1]);
         let windows_image_on_linux = replacing("Glue.so", Entry::File("Glue.so", pe()));
         assert!(refusal(&windows_image_on_linux, linux).contains("reviewed platform"));
         let linux_image_on_windows = replacing("dep.dll", Entry::File("dep.dll", elf()));
@@ -585,14 +588,15 @@ mod tests {
     #[test]
     fn synthetic_wrapper_refuses_changed_bytes_and_non_regular_sources() {
         let wrapper = fixtures::write(&fixtures::complete());
-        let linux = LAYOUTS[1];
+        let layouts = fixtures::layouts();
+        let linux = &layouts[1];
         let error = stage(
             &wrapper.path,
             wrapper.bytes - 1,
             &wrapper.sha256,
             GAME,
             linux,
-            &LAYOUTS,
+            &layouts,
         )
         .err()
         .unwrap();
@@ -608,7 +612,7 @@ mod tests {
             &wrapper.sha256,
             GAME,
             linux,
-            &LAYOUTS,
+            &layouts,
         )
         .err()
         .unwrap();
@@ -635,12 +639,16 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let file = directory.path().join("invalid.zip");
         fs::write(&file, b"not ZIP").unwrap();
-        let layout = CompanionLayout {
-            platform: Platform::LinuxX86_64,
-            declared_library: "mod",
-            files: &["mod.so"],
-        };
-        let error = review(&file, 7, &"0".repeat(64), "mm", layout, &[layout]).unwrap_err();
+        let layout = fixtures::layout(Platform::LinuxX86_64, "mod", &["mod.so"]);
+        let error = review(
+            &file,
+            7,
+            &"0".repeat(64),
+            "mm",
+            &layout,
+            std::slice::from_ref(&layout),
+        )
+        .unwrap_err();
         assert!(
             error
                 .message
@@ -654,18 +662,18 @@ mod tests {
         let dir =
             std::path::PathBuf::from(std::env::var_os("PORTCOVE_GITHUB_MOD_ARCHIVES").unwrap());
         let layouts = [
-            CompanionLayout {
-                platform: Platform::WindowsX86_64,
-                declared_library: "APCpp-Glue",
-                files: &["APCpp-Glue.dll", "python311.dll"],
-            },
-            CompanionLayout {
-                platform: Platform::LinuxX86_64,
-                declared_library: "APCpp-Glue",
-                files: &["APCpp-Glue.so", "libpython3.11.so.1.0"],
-            },
+            fixtures::layout(
+                Platform::WindowsX86_64,
+                "APCpp-Glue",
+                &["APCpp-Glue.dll", "python311.dll"],
+            ),
+            fixtures::layout(
+                Platform::LinuxX86_64,
+                "APCpp-Glue",
+                &["APCpp-Glue.so", "libpython3.11.so.1.0"],
+            ),
         ];
-        for layout in layouts {
+        for layout in &layouts {
             let old = review(
                 &dir.join("319816241.zip"),
                 23_814_109,

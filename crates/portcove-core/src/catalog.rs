@@ -553,6 +553,19 @@ impl Catalog {
         }
     }
 
+    /// A definition's mod sources apply only to its own port. A projection
+    /// cannot appoint, change or withdraw another port's sources, including
+    /// a projection published before sources were catalog data.
+    pub(crate) fn retain_unrelated_mod_sources(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_sources.clone_from(&original.mod_sources);
+            }
+        }
+    }
+
     /// A sibling projection cannot appoint or remove package-only settings.
     pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
         for port in &mut Arc::make_mut(&mut self.document).ports {
@@ -927,6 +940,7 @@ impl Catalog {
             }
             crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
+            crate::mod_source::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
@@ -4998,6 +5012,7 @@ mod tests {
             assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
             port.mod_loader = None;
             port.mod_provider_bindings = None;
+            port.mod_sources.clear();
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;

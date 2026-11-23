@@ -312,6 +312,17 @@ impl DefinitionContentIndex {
             settings.validate_port(&port)?;
         }
         crate::provider_binding::validate(&port)?;
+        if !port.mod_sources.is_empty() {
+            // Older readers do not know this field. The named feature makes
+            // them refuse only this definition as needing a newer engine.
+            if required_features.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "mod sources require definition schema 4",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ModSources)?;
+            crate::mod_source::validate(&port)?;
+        }
         port.release.validate_github_streams(&port.platforms)?;
         if port.mod_provider_bindings.is_some() {
             let (template, minimum) = crate::provider_binding::capability(&port)

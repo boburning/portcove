@@ -100,6 +100,12 @@ fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::Catalo
         if port.id != selected && package_only_settings(port) {
             port.game_settings = None;
         }
+        // Like a mod loader, a port's mod sources describe only that port.
+        // Other ports' sources stay out, so their captures keep the bytes an
+        // older reader wrote. Core reads sources from the current definition.
+        if port.id != selected {
+            port.mod_sources.clear();
+        }
     }
     let excluded_ports = document
         .ports
@@ -1368,6 +1374,8 @@ mod tests {
                     .all(|port| port.mod_loader.is_none())
             );
             expected.mod_loader = None;
+            // Other ports' mod sources stay out of the capture, like loaders.
+            expected.mod_sources.clear();
             assert_eq!(
                 serde_json::to_value(retained.port(loader_port).unwrap()).unwrap(),
                 serde_json::to_value(expected).unwrap(),
@@ -1533,6 +1541,7 @@ mod tests {
                 // mod loader or reviewed predecessor layout is interpreted only
                 // for its own installed port, never for this contract's port.
                 port.mod_loader = None;
+                port.mod_sources.clear();
                 port.reviewed_predecessor_package_layouts_v1.clear();
             }
             if package_only_settings(port) {

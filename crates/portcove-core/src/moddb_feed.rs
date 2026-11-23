@@ -11,12 +11,7 @@ use time::{
     format_description::well_known::{Rfc2822, Rfc3339},
 };
 
-pub(crate) const PORT_ID: &str = "quake-vkquake";
 pub(crate) const ATTRIBUTION: &str = "Mod DB - Game Development";
-pub(crate) const FEED_URL: &str =
-    "https://rss.moddb.com/mods/arcane-dimensions/downloads/feed/rss.xml";
-pub(crate) const FILES_PAGE: &str = "https://www.moddb.com/mods/arcane-dimensions/downloads";
-const SELF_LINK: &str = "https://www.moddb.com/mods/arcane-dimensions/downloads/feed/rss.xml";
 pub(crate) const MAX_BODY_BYTES: usize = 128 * 1024;
 const MAX_DEPTH: usize = 12;
 const MAX_NOTICES: usize = 32;
@@ -31,6 +26,30 @@ pub struct FileNotice {
     pub title: String,
     pub page_url: String,
     pub published_at: Option<String>,
+}
+
+/// One declared Mod DB files collection and the two feed addresses derived
+/// from it. Only the files page comes from catalog data, and it has already
+/// passed `mod_source::moddb_feed_page`; the hosts are fixed here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FeedScope {
+    pub page: String,
+    pub feed: String,
+    self_link: String,
+}
+
+impl FeedScope {
+    pub(crate) fn for_page(page: &str) -> Option<Self> {
+        if !crate::mod_source::moddb_feed_page(page) {
+            return None;
+        }
+        let path = page.strip_prefix("https://www.moddb.com")?;
+        Some(Self {
+            page: page.into(),
+            feed: format!("https://rss.moddb.com{path}/feed/rss.xml"),
+            self_link: format!("{page}/feed/rss.xml"),
+        })
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -52,7 +71,7 @@ struct Item {
 }
 
 impl Item {
-    fn into_notice(self) -> Result<FileNotice, &'static str> {
+    fn into_notice(self, scope: &FeedScope) -> Result<FileNotice, &'static str> {
         let title = self.title.ok_or("Mod DB title is missing")?;
         if title.is_empty() || title.contains(['<', '>']) || title.chars().any(char::is_control) {
             return Err("Mod DB title is invalid");
@@ -69,7 +88,7 @@ impl Item {
             return Err("Mod DB file identity is invalid");
         }
         let url = self.link.ok_or("Mod DB file page is missing")?;
-        if !valid_notice_url(&url) {
+        if !valid_notice_url(scope, &url) {
             return Err("Mod DB file page is outside the reviewed scope");
         }
         let published_at = self
@@ -91,8 +110,8 @@ impl Item {
     }
 }
 
-pub(crate) fn valid_notice_url(url: &str) -> bool {
-    url.strip_prefix(FILES_PAGE)
+pub(crate) fn valid_notice_url(scope: &FeedScope, url: &str) -> bool {
+    url.strip_prefix(scope.page.as_str())
         .and_then(|rest| rest.strip_prefix('/'))
         .is_some_and(|slug| {
             slug.len() <= 128
@@ -120,8 +139,8 @@ fn attribute(tag: &BytesStart<'_>, key: &str) -> Result<Option<String>, &'static
     Ok(value)
 }
 
-#[derive(Default)]
-struct Feed {
+struct Feed<'a> {
+    scope: &'a FeedScope,
     depth: usize,
     root: bool,
     channel: bool,
@@ -133,7 +152,7 @@ struct Feed {
     notices: Vec<FileNotice>,
 }
 
-impl Feed {
+impl Feed<'_> {
     fn open(
         &mut self,
         namespace: &ResolveResult<'_>,
@@ -179,7 +198,8 @@ impl Feed {
                 if attribute(tag, "rel")?.as_deref() == Some("self") {
                     let url = attribute(tag, "href")?;
                     if self.self_link
-                        || ![Some(SELF_LINK), Some(FEED_URL)].contains(&url.as_deref())
+                        || ![Some(&self.scope.self_link), Some(&self.scope.feed)]
+                            .contains(&url.as_ref())
                         || attribute(tag, "type")?.as_deref() != Some("application/rss+xml")
                     {
                         return Err("Mod DB RSS self link differs from the reviewed feed");
@@ -240,7 +260,7 @@ impl Feed {
         if self.depth == 2
             && let Some(item) = self.item.take()
         {
-            self.notices.push(item.into_notice()?);
+            self.notices.push(item.into_notice(self.scope)?);
         }
         Ok(())
     }
@@ -250,7 +270,7 @@ impl Feed {
             || !self.root
             || !self.channel
             || !self.self_link
-            || self.channel_link.as_deref() != Some(FILES_PAGE)
+            || self.channel_link.as_deref() != Some(self.scope.page.as_str())
             || self.category.as_deref() != Some("Downloads")
         {
             return Err("Mod DB RSS channel differs from the reviewed Files source");
@@ -268,10 +288,10 @@ impl Feed {
     }
 }
 
-/// The caller retrieves only FEED_URL with a bounded, credential-free request
-/// and refuses redirects. This parser performs no I/O and does not read media,
-/// descriptions, enclosures or URLs outside the canonical file-page scope.
-pub(crate) fn parse_files(body: &[u8]) -> Result<Vec<FileNotice>, &'static str> {
+/// The caller retrieves only the scope's feed with a bounded, credential-free
+/// request and refuses redirects. This parser performs no I/O and does not read
+/// media, descriptions, enclosures or URLs outside the canonical file-page scope.
+pub(crate) fn parse_files(body: &[u8], scope: &FeedScope) -> Result<Vec<FileNotice>, &'static str> {
     if body.len() > MAX_BODY_BYTES {
         return Err("Mod DB RSS body exceeds its bound");
     }
@@ -279,7 +299,18 @@ pub(crate) fn parse_files(body: &[u8]) -> Result<Vec<FileNotice>, &'static str> 
     let mut reader = NsReader::from_str(text);
     reader.config_mut().expand_empty_elements = true;
     reader.config_mut().check_comments = true;
-    let mut feed = Feed::default();
+    let mut feed = Feed {
+        scope,
+        depth: 0,
+        root: false,
+        channel: false,
+        self_link: false,
+        channel_link: None,
+        category: None,
+        capture: None,
+        item: None,
+        notices: Vec::new(),
+    };
     let mut declaration = false;
     loop {
         let (namespace, event) = reader

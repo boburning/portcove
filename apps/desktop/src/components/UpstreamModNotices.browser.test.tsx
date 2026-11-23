@@ -36,7 +36,18 @@ it.each([
         <ExternalModPortals
           port={port}
           generation={2}
-          portals={[{ source: "quaddicted", url, browse_available: true }]}
+          portals={[
+            {
+              source: "quaddicted",
+              site: "quaddicted",
+              name: "Quaddicted",
+              url,
+              instructions:
+                "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+              browser: "quaddicted",
+              browse_available: true,
+            },
+          ]}
         />,
       );
       await expect.element(page.getByText(/supports your Quake engine/)).toBeVisible();
@@ -85,7 +96,18 @@ it("opens a Mod DB file notice through the scoped verifier and labels a refusal"
       <ExternalModPortals
         port={port}
         generation={3}
-        portals={[{ source: "mod-db-arcane-dimensions", url, browse_available: true }]}
+        portals={[
+          {
+            source: "mod-db-arcane-dimensions",
+            site: "mod_db",
+            name: "Arcane Dimensions",
+            url,
+            instructions:
+              "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+            browser: "mod_db_feed",
+            browse_available: true,
+          },
+        ]}
       />,
     );
     await page.getByRole("button", { name: "Show Arcane Dimensions file notices" }).click();
