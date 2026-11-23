@@ -62,12 +62,23 @@ pub struct InstallBatchItem {
     pub temporary: Option<crate::TemporaryFailure>,
 }
 
-impl InstallBatchItem {
+impl InstallBatchRecord {
     /// The temporary failure of a failed or interrupted item, if it was one.
-    pub(crate) fn temporary_failure(&self) -> Option<crate::TemporaryFailure> {
-        match self.state {
+    /// An item interrupted after its batch recorded a clean stop was stopped,
+    /// not crashed.
+    pub(crate) fn temporary_failure(
+        &self,
+        item: &InstallBatchItem,
+    ) -> Option<crate::TemporaryFailure> {
+        match item.state {
+            InstallBatchItemState::Interrupted if self.clean_stop_at.is_some() => {
+                Some(crate::TemporaryFailure {
+                    cause: crate::TemporaryCause::CleanStop,
+                    stated_reset: None,
+                })
+            }
             InstallBatchItemState::Interrupted => Some(crate::TemporaryFailure::INTERRUPTED),
-            InstallBatchItemState::Failed => self.temporary,
+            InstallBatchItemState::Failed => item.temporary,
             _ => None,
         }
     }
@@ -82,6 +93,11 @@ pub struct InstallBatchRecord {
     pub updated_at: i64,
     pub cancel_requested: bool,
     pub items: Vec<InstallBatchItem>,
+    /// Unix seconds Portcove recorded that it was closing, restarting or told
+    /// to stop while this unattended batch ran. An item the process then left
+    /// unsettled was stopped cleanly, which never counts as a crash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clean_stop_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -293,6 +309,7 @@ impl Library {
             created_at: now,
             updated_at: now,
             cancel_requested: false,
+            clean_stop_at: None,
             items: items
                 .iter()
                 .map(|item| InstallBatchItem {
@@ -605,10 +622,23 @@ impl PortcoveService {
     /// Stops unstarted work. A running item keeps its existing cancellation and
     /// cleanup boundaries; successful installs stay intact.
     pub fn cancel_install_batch(&self, batch_id: &str) -> Result<InstallBatchRecord> {
-        self.library.update_install_batch(batch_id, |record| {
+        let record = self.library.update_install_batch(batch_id, |record| {
             record.cancel_requested = true;
             cancel_queued(record);
             record.clone()
+        })?;
+        super::unattended_setup::player_cancelled_batch(batch_id);
+        Ok(record)
+    }
+
+    /// Durably records that Portcove is stopping this unattended batch cleanly,
+    /// and starts no further items. See `InstallBatchRecord::clean_stop_at`.
+    pub(crate) fn mark_install_batch_clean_stop(&self, batch_id: &str) -> Result<()> {
+        let now = Library::now();
+        self.library.update_install_batch(batch_id, |record| {
+            record.clean_stop_at.get_or_insert(now);
+            record.cancel_requested = true;
+            cancel_queued(record);
         })
     }
 

@@ -50,8 +50,14 @@ pub enum TemporaryCause {
     /// A list Portcove needed (releases, assets, packages) could not be read
     /// completely yet. Incomplete is never treated as absent.
     InventoryIncomplete,
-    /// Portcove stopped before the work finished.
+    /// Portcove ended without settling the run (a crash, a forced end or a
+    /// power loss). Consecutive ones of an unchanged plan that made no
+    /// download progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].
     Interrupted,
+    /// Portcove was closed, restarted or told to stop, and settled the run
+    /// first. Says nothing about the plan: it never counts toward any limit,
+    /// ends a run of unclean stops, and continues on the next pass.
+    CleanStop,
 }
 
 /// What a temporary failure was, as recorded where it happened.
@@ -83,10 +89,36 @@ impl TemporaryFailure {
 const REPEATED_INTERRUPTIONS: u32 = 2;
 
 /// Consecutive unclean stops (Portcove ended without settling the run) of one
-/// unchanged plan after which the failure becomes lasting. A setup that
-/// deterministically ends Portcove must not repeat forever; a clean stop,
-/// cancellation or any other temporary cause never counts here.
+/// unchanged plan, with no download progress between them, after which the
+/// failure becomes lasting. A setup that deterministically ends Portcove must
+/// not repeat forever. A clean stop, a cancellation, any other temporary cause,
+/// or kept download bytes that grew since the previous stop all start the
+/// count again: progress means the stops are not a deterministic crash.
 pub const MAX_CONSECUTIVE_UNCLEAN_STOPS: u32 = 3;
+
+/// Retained download bytes per partial-download entry, as found when an
+/// unclean stop was recorded. Compared at the next unclean stop: an entry that
+/// grew, or a new one, is progress. Entries that left the store (finished,
+/// evicted) are not progress on their own.
+pub type KeptDownloads = std::collections::BTreeMap<String, u64>;
+
+fn kept_downloads_advanced(before: &KeptDownloads, now: &KeptDownloads) -> bool {
+    now.iter()
+        .any(|(key, bytes)| *bytes > before.get(key).copied().unwrap_or(0))
+}
+
+/// An attempt count written by a Portcove that did not separate temporary
+/// from lasting failures (`classified == false`) may have counted outages.
+/// Before such a record is classified it keeps at most one attempt below
+/// `limit`, so it gets exactly one more try: a temporary failure now waits
+/// instead of finding the limit already reached, and a lasting one reaches it.
+pub(crate) fn classified_attempts(attempts: u32, classified: bool, limit: u32) -> u32 {
+    if classified {
+        attempts
+    } else {
+        attempts.min(limit.saturating_sub(1))
+    }
+}
 
 /// How one failed unattended attempt is recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,15 +133,29 @@ pub(crate) enum FailedAttempt {
 }
 
 impl FailedAttempt {
+    /// `kept` is the partial-download store as it is now; it is read only for
+    /// an unclean stop, to tell a stalled crash loop from progress.
     pub(crate) fn of(
         previous: Option<&TemporaryRetry>,
         temporary: Option<TemporaryFailure>,
+        kept: impl FnOnce() -> KeptDownloads,
         now: i64,
     ) -> Self {
         let Some(failure) = temporary else {
             return Self::Lasting;
         };
-        let next = TemporaryRetry::after(previous, failure, now);
+        let next = if failure.cause == TemporaryCause::Interrupted {
+            let kept = kept();
+            // Bytes kept since the last unclean stop: the run was moving, so
+            // this stop starts a new count instead of extending a crash loop.
+            let previous = previous
+                .filter(|previous| !kept_downloads_advanced(&previous.kept_downloads, &kept));
+            let mut next = TemporaryRetry::after(previous, failure, now);
+            next.kept_downloads = kept;
+            next
+        } else {
+            TemporaryRetry::after(previous, failure, now)
+        };
         if failure.cause == TemporaryCause::Interrupted
             && next.attempts >= MAX_CONSECUTIVE_UNCLEAN_STOPS
         {
@@ -131,6 +177,18 @@ pub struct TemporaryRetry {
     pub attempts: u32,
     /// Unix seconds before which the work is not tried again.
     pub retry_after: i64,
+    /// Unix seconds this failure was recorded. Unattended passes take games
+    /// with a pending retry after the others, oldest attempt first. Zero for
+    /// records written before it was kept.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub attempted_at: i64,
+    /// For an unclean stop: the kept download bytes when it was recorded.
+    #[serde(default, skip_serializing_if = "KeptDownloads::is_empty")]
+    pub kept_downloads: KeptDownloads,
+}
+
+fn is_zero(value: &i64) -> bool {
+    *value == 0
 }
 
 impl TemporaryRetry {
@@ -153,7 +211,7 @@ impl TemporaryRetry {
         // A spent time budget is fair scheduling, not a failure: the game
         // continues on the very next pass, with no growing wait.
         let waits = match cause {
-            TemporaryCause::TimeBudget => 0,
+            TemporaryCause::TimeBudget | TemporaryCause::CleanStop => 0,
             TemporaryCause::Interrupted => attempts.saturating_sub(1),
             _ => attempts,
         };
@@ -174,6 +232,8 @@ impl TemporaryRetry {
             cause,
             attempts,
             retry_after,
+            attempted_at: now,
+            kept_downloads: KeptDownloads::new(),
         }
     }
 
@@ -215,6 +275,9 @@ impl TemporaryRetry {
             }
             TemporaryCause::Interrupted => {
                 "Setup stopped before it finished. Portcove will try again automatically."
+            }
+            TemporaryCause::CleanStop => {
+                "Setup paused when Portcove closed. Portcove will continue it automatically."
             }
         }
     }
@@ -307,7 +370,7 @@ impl PortcoveError {
                 | KnownFailureCause::DestinationCapacity
                 | KnownFailureCause::DiscSpace { .. },
             ) => return Some((TemporaryCause::StorageFull, None)),
-            Some(KnownFailureCause::InventoryIncomplete { resets_at }) => {
+            Some(KnownFailureCause::InventoryIncomplete { resets_at, .. }) => {
                 return Some((TemporaryCause::InventoryIncomplete, *resets_at));
             }
             // Arm reserved for #8638: its
@@ -528,6 +591,8 @@ mod tests {
             cause: TemporaryCause::RateLimited,
             attempts: 1,
             retry_after: 1_800_000_000,
+            attempted_at: 0,
+            kept_downloads: KeptDownloads::new(),
         };
         assert_eq!(
             retry.explanation(),
@@ -537,6 +602,8 @@ mod tests {
             cause: TemporaryCause::Interrupted,
             attempts: REPEATED_INTERRUPTIONS,
             retry_after: 1_800_000_000,
+            attempted_at: 0,
+            kept_downloads: KeptDownloads::new(),
         };
         assert_eq!(
             stopping.explanation(),
@@ -590,10 +657,129 @@ mod tests {
         assert_eq!(
             PortcoveError::network("partial listing")
                 .with_known_cause(KnownFailureCause::InventoryIncomplete {
-                    resets_at: Some(42)
+                    provider: crate::failure::FailureProvider::Github,
+                    inventory: "release history",
+                    read: 3,
+                    total: Some(9),
+                    resets_at: Some(42),
                 })
                 .temporary_cause(),
             Some((TemporaryCause::InventoryIncomplete, Some(42)))
         );
+    }
+
+    fn unclean(previous: Option<&TemporaryRetry>, kept: &KeptDownloads, now: i64) -> FailedAttempt {
+        FailedAttempt::of(
+            previous,
+            Some(TemporaryFailure::INTERRUPTED),
+            || kept.clone(),
+            now,
+        )
+    }
+
+    #[test]
+    fn unclean_stops_without_progress_become_lasting_and_progress_restarts_the_count() {
+        let kept = KeptDownloads::from([("aa-10".to_owned(), 4)]);
+        // No progress between stops: a crash loop reaches the limit.
+        let mut previous = None;
+        for stop in 1..MAX_CONSECUTIVE_UNCLEAN_STOPS {
+            let FailedAttempt::Temporary(retry) = unclean(previous.as_ref(), &kept, 100) else {
+                panic!("stop {stop} must stay temporary");
+            };
+            assert_eq!(retry.attempts, stop);
+            assert_eq!(retry.kept_downloads, kept);
+            previous = Some(retry);
+        }
+        assert_eq!(
+            unclean(previous.as_ref(), &kept, 100),
+            FailedAttempt::RepeatedUncleanStops
+        );
+
+        // Kept bytes that grew (or a new entry) between every stop: the run
+        // keeps moving, so no number of stops becomes lasting.
+        let mut previous = None;
+        for stop in 0..4 * MAX_CONSECUTIVE_UNCLEAN_STOPS {
+            let grown = KeptDownloads::from([
+                ("aa-10".to_owned(), 4 + u64::from(stop)),
+                (format!("new-{stop}"), 1),
+            ]);
+            let FailedAttempt::Temporary(retry) = unclean(previous.as_ref(), &grown, 100) else {
+                panic!("an unclean stop after progress must stay temporary");
+            };
+            assert_eq!(retry.attempts, 1);
+            previous = Some(retry);
+        }
+
+        // An entry that left the store (finished or evicted) alone is not progress.
+        let before = KeptDownloads::from([("aa-10".to_owned(), 4), ("bb-10".to_owned(), 9)]);
+        assert!(!kept_downloads_advanced(
+            &before,
+            &KeptDownloads::from([("aa-10".to_owned(), 4)])
+        ));
+    }
+
+    #[test]
+    fn clean_stops_never_count_and_end_a_run_of_unclean_ones() {
+        let kept = KeptDownloads::new();
+        let mut previous = None;
+        for _ in 0..4 * MAX_CONSECUTIVE_UNCLEAN_STOPS {
+            let FailedAttempt::Temporary(retry) = FailedAttempt::of(
+                previous.as_ref(),
+                Some(TemporaryFailure {
+                    cause: TemporaryCause::CleanStop,
+                    stated_reset: None,
+                }),
+                || unreachable!("a clean stop never reads the store"),
+                100,
+            ) else {
+                panic!("a clean stop is never lasting");
+            };
+            // It continues on the next pass, with no wait.
+            assert_eq!(retry.retry_after, 100);
+            assert!(!retry.waiting(100));
+            previous = Some(retry);
+        }
+        // Two unclean stops, a clean one, then two more: never three in a row.
+        let mut previous = None;
+        for cause in [
+            TemporaryCause::Interrupted,
+            TemporaryCause::Interrupted,
+            TemporaryCause::CleanStop,
+            TemporaryCause::Interrupted,
+            TemporaryCause::Interrupted,
+        ] {
+            let FailedAttempt::Temporary(retry) = FailedAttempt::of(
+                previous.as_ref(),
+                Some(TemporaryFailure {
+                    cause,
+                    stated_reset: None,
+                }),
+                || kept.clone(),
+                100,
+            ) else {
+                panic!("a clean stop ends the run of unclean stops");
+            };
+            previous = Some(retry);
+        }
+    }
+
+    #[test]
+    fn an_unclassified_count_keeps_exactly_one_more_attempt() {
+        let limit = 3;
+        assert_eq!(classified_attempts(7, false, limit), 2);
+        assert_eq!(classified_attempts(3, false, limit), 2);
+        assert_eq!(classified_attempts(1, false, limit), 1);
+        // Once classified, the count is trusted as written.
+        assert_eq!(classified_attempts(3, true, limit), 3);
+    }
+
+    #[test]
+    fn retries_written_before_attempt_times_and_progress_marks_still_read() {
+        let old = r#"{"cause":"time_budget","attempts":1,"retry_after":5}"#;
+        let retry: TemporaryRetry = serde_json::from_str(old).unwrap();
+        assert_eq!(retry.attempted_at, 0);
+        assert!(retry.kept_downloads.is_empty());
+        // Unchanged shape when re-written.
+        assert_eq!(serde_json::to_string(&retry).unwrap(), old);
     }
 }

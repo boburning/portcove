@@ -26,6 +26,16 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod partial_download;
+/// The library's partial-download store for install, update and catalog assets.
+const PARTIAL_DOWNLOADS_DIR: &str = "partial-v1";
+
+impl crate::Library {
+    /// Kept partial-download bytes per entry, for telling an unattended run
+    /// that keeps moving from one that keeps ending at the same point.
+    pub(crate) fn kept_downloads(&self) -> crate::temporary_failure::KeptDownloads {
+        partial_download::kept_downloads(&self.downloads_dir().join(PARTIAL_DOWNLOADS_DIR))
+    }
+}
 mod transfer;
 
 #[derive(Debug, Clone)]
@@ -2502,7 +2512,7 @@ impl Installer {
         // The library store checks its own capacity. The caller still verifies
         // the complete archive after it reaches private install staging.
         let partials = partial_download::PartialDownloads::new(
-            self.library.downloads_dir().join("partial-v1"),
+            self.library.downloads_dir().join(PARTIAL_DOWNLOADS_DIR),
         );
         let retained = if let Some((port_id, operation_id)) = download.install_owner {
             let library = self.library.clone();

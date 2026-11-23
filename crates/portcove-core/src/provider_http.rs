@@ -20,12 +20,20 @@ use crate::{
     transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch},
 };
 
+/// In-process pause after throttling or a server error with no stated wait.
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
+/// The longest in-process pause (class 3: a bounded, in-memory request pause
+/// that expires and is never stored). A longer stated wait is still honored
+/// by unattended work: the failure keeps the provider's `Retry-After`, and the
+/// durable retry schedule reads it through the one parser, up to
+/// `STATED_WAIT_CEILING_SECONDS`. This cap only keeps one process from
+/// refusing the provider's cached reads for longer than this.
 const MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
 
-/// Shared request backoff for a provider across short-lived client instances.
+/// Shared request backoff for a provider across short-lived client instances:
+/// until when, and the HTTP status that started it.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ProviderBackoff(Arc<Mutex<Option<Instant>>>);
+pub(crate) struct ProviderBackoff(Arc<Mutex<Option<(Instant, u16)>>>);
 
 #[derive(Clone)]
 pub(crate) struct ProviderHttp {
@@ -41,6 +49,8 @@ pub(crate) struct ProviderHttp {
     blocked_until: ProviderBackoff,
     /// Minimum progress a download connection must sustain.
     progress_floor: ProgressFloor,
+    #[cfg(test)]
+    progress_clock: Option<crate::transfer_progress::ByteClock>,
 }
 
 impl ProviderHttp {
@@ -73,6 +83,8 @@ impl ProviderHttp {
             site,
             blocked_until: ProviderBackoff::default(),
             progress_floor: PROGRESS_FLOOR,
+            #[cfg(test)]
+            progress_clock: None,
         })
     }
 
@@ -85,6 +97,20 @@ impl ProviderHttp {
     pub(crate) fn with_progress_floor(mut self, floor: ProgressFloor) -> Self {
         self.progress_floor = floor;
         self
+    }
+
+    #[cfg(test)]
+    fn with_progress_clock(mut self, clock: crate::transfer_progress::ByteClock) -> Self {
+        self.progress_clock = Some(clock);
+        self
+    }
+
+    fn progress_watch(&self) -> ProgressWatch {
+        #[cfg(test)]
+        if let Some(clock) = &self.progress_clock {
+            return ProgressWatch::with_clock(self.progress_floor, clock.clone());
+        }
+        ProgressWatch::new(self.progress_floor)
     }
 
     /// Streams one file to `destination`, following at most four redirects that stay
@@ -200,14 +226,15 @@ impl ProviderHttp {
                 continue;
             }
             if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
-                self.start_backoff(response.headers());
+                self.start_backoff(status, response.headers());
             }
             if !status.is_success() {
-                return Err(
+                return Err(with_retry_after(
                     PortcoveError::network(format!("download returned {status}")).with_upstream(
                         Some(crate::failure::UpstreamObservation::Status(status.as_u16())),
                     ),
-                );
+                    response.headers(),
+                ));
             }
             if response
                 .content_length()
@@ -224,7 +251,7 @@ impl ProviderHttp {
             // No whole-transfer deadline: a progressing download finishes at
             // any size or link speed. The transport's read-idle bound cuts a
             // silent connection and the progress floor cuts a trickle.
-            let mut progress = ProgressWatch::new(self.progress_floor);
+            let mut progress = self.progress_watch();
             while let Some(chunk) = stream.next().await {
                 let chunk = chunk.map_err(|error| transport(&error))?;
                 if let Err(error) = progress.record(chunk.len() as u64) {
@@ -253,10 +280,13 @@ impl ProviderHttp {
         Err(PortcoveError::network("too many download redirects"))
     }
 
-    fn backoff_remaining(&self) -> Option<Duration> {
+    /// The remaining pause and the status that started it.
+    fn backoff_remaining(&self) -> Option<(Duration, u16)> {
         let mut guard = self.blocked_until.0.lock().ok()?;
         match *guard {
-            Some(until) if until > Instant::now() => Some(until - Instant::now()),
+            Some((until, status)) if until > Instant::now() => {
+                Some((until - Instant::now(), status))
+            }
             Some(_) => {
                 *guard = None;
                 None
@@ -265,15 +295,21 @@ impl ProviderHttp {
         }
     }
 
-    fn start_backoff(&self, headers: &header::HeaderMap) {
+    /// Pauses this provider's requests for its stated `Retry-After` (read by
+    /// the one shared parser, every HTTP form), or [`DEFAULT_BACKOFF`] when it
+    /// stated none, at most [`MAX_BACKOFF`].
+    fn start_backoff(&self, status: StatusCode, headers: &header::HeaderMap) {
+        let now = crate::Library::now();
         let wait = headers
             .get(header::RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<u64>().ok())
-            .map_or(DEFAULT_BACKOFF, Duration::from_secs)
+            .and_then(|value| crate::temporary_failure::parse_retry_after(value, now))
+            .map_or(DEFAULT_BACKOFF, |until| {
+                Duration::from_secs(u64::try_from(until.saturating_sub(now)).unwrap_or(0))
+            })
             .min(MAX_BACKOFF);
         if let Ok(mut guard) = self.blocked_until.0.lock() {
-            *guard = Some(Instant::now() + wait);
+            *guard = Some((Instant::now() + wait, status.as_u16()));
         }
     }
 
@@ -314,11 +350,17 @@ impl ProviderHttp {
                 freshness: ProviderFreshness::Stale,
             })
         };
-        if let Some(wait) = self.backoff_remaining() {
+        if let Some((wait, status)) = self.backoff_remaining() {
+            // The answer that started this back-off is what is recorded: a
+            // throttle stays a rate limit, a server error stays one.
+            let message = if status >= 500 {
+                format!("{} is unavailable right now", self.label)
+            } else {
+                format!("{} is rate limiting this client", self.label)
+            };
             return stale(
-                PortcoveError::network(format!("{} is rate limiting this client", self.label))
-                    // The provider's own throttling started this back-off.
-                    .with_upstream(Some(crate::failure::UpstreamObservation::Status(429)))
+                PortcoveError::network(message)
+                    .with_upstream(Some(crate::failure::UpstreamObservation::Status(status)))
                     .detail("retry_after", wait.as_secs().max(1).to_string()),
             );
         }
@@ -363,19 +405,13 @@ impl ProviderHttp {
                     .get("x-ratelimit-remaining")
                     .is_some_and(|remaining| remaining == "0"));
         if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() || github_throttle {
-            self.start_backoff(response.headers());
-            let mut error = PortcoveError::network(format!("{} returned {status}", self.label))
-                .with_upstream(Some(crate::failure::UpstreamObservation::Status(
-                    status.as_u16(),
-                )));
-            if let Some(retry_after) = response
-                .headers()
-                .get(header::RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-            {
-                error = error.detail("retry_after", retry_after);
-            }
-            return stale(error);
+            self.start_backoff(status, response.headers());
+            return stale(with_retry_after(
+                PortcoveError::network(format!("{} returned {status}", self.label)).with_upstream(
+                    Some(crate::failure::UpstreamObservation::Status(status.as_u16())),
+                ),
+                response.headers(),
+            ));
         }
         if !status.is_success() {
             return Err(
@@ -394,7 +430,11 @@ impl ProviderHttp {
             .get(header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let body = bounded_response_bytes(response, max_bytes, self.label).await?;
+        // A connection that ends mid-body is an interruption (temporary); a
+        // body over the limit keeps its own lasting verification failure.
+        let body = bounded_response_bytes(response, max_bytes, self.label)
+            .await
+            .map_err(PortcoveError::mark_interrupted_body)?;
         // Parse before caching: a malformed success never replaces a good entry.
         let parsed = parse(&body)?;
         if let (Some(library), Ok(text)) = (&self.library, std::str::from_utf8(&body)) {
@@ -410,6 +450,18 @@ impl ProviderHttp {
 
 fn transport(error: &reqwest::Error) -> PortcoveError {
     PortcoveError::from_transport(error)
+}
+
+/// Keeps the provider's stated wait on a failed answer, raw, for the one
+/// `Retry-After` parser to read when the failure is classified.
+fn with_retry_after(error: PortcoveError, headers: &header::HeaderMap) -> PortcoveError {
+    match headers
+        .get(header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+    {
+        Some(retry_after) => error.detail("retry_after", retry_after),
+        None => error,
+    }
 }
 
 #[cfg(test)]
@@ -436,7 +488,9 @@ mod tests {
                 return;
             }
             for part in body.chunks(piece) {
-                tokio::time::sleep(every).await;
+                if !every.is_zero() {
+                    tokio::time::sleep(every).await;
+                }
                 if stream.write_all(part).await.is_err() || stream.flush().await.is_err() {
                     return;
                 }
@@ -456,32 +510,43 @@ mod tests {
         minimum_bytes: 100,
     };
 
-    /// One 60-byte piece per one-second window keeps the slow transfer above
-    /// the floor however unevenly the scheduler delivers its pieces.
+    /// A 250 ms window that needs 60 bytes: the slow transfer below carries
+    /// 600 bytes per window, ten times the floor, over twelve windows.
     const SLOW_FLOOR: ProgressFloor = ProgressFloor {
-        window: Duration::from_secs(1),
+        window: Duration::from_millis(250),
         minimum_bytes: 60,
     };
 
     #[tokio::test]
     async fn a_slow_download_that_keeps_progressing_completes() {
         // Under the removed size-derived deadline the same shape (scaled) was
-        // cut although bytes kept flowing.
-        let body: Vec<u8> = (0..2400u32).map(|value| value as u8).collect();
-        let url = paced(body.clone(), 60, Duration::from_millis(25)).await;
+        // cut although bytes kept flowing. Time here is the transfer's own:
+        // each byte advances a virtual clock at exactly 2,400 bytes per second
+        // (60 bytes every 25 ms), so the result depends on neither scheduler
+        // timing nor real waiting, however the bytes are split into reads.
+        let body: Vec<u8> = (0..7200u32).map(|value| value as u8).collect();
+        let url = paced(body.clone(), 60, Duration::ZERO).await;
         let temporary = tempfile::tempdir().unwrap();
         let destination = temporary.path().join("download.bin");
-        let started = Instant::now();
+        let start = Instant::now();
+        let latest = Arc::new(Mutex::new(start));
+        let clock = {
+            let latest = latest.clone();
+            crate::transfer_progress::ByteClock(Arc::new(move |received: u64| {
+                let now = start + Duration::from_millis(received * 25 / 60);
+                *latest.lock().unwrap() = now;
+                now
+            }))
+        };
         let (sha256, size) = client(SLOW_FLOOR)
+            .with_progress_clock(clock)
             .download_exact(&url, body.len() as u64, &destination, 1 << 20, false)
             .await
             .unwrap();
-        // Forty pieces 25 ms apart: the transfer really was slow.
-        assert!(
-            started.elapsed() >= Duration::from_millis(900),
-            "{:?}",
-            started.elapsed()
-        );
+        // The transfer's own time spanned twelve floor windows.
+        let spanned = latest.lock().unwrap().duration_since(start);
+        assert_eq!(spanned, Duration::from_secs(3));
+        assert!(spanned >= SLOW_FLOOR.window * 12);
         assert_eq!(size, body.len() as u64);
         assert_eq!(sha256, hex::encode(Sha256::digest(&body)));
         assert_eq!(std::fs::read(&destination).unwrap(), body);
@@ -512,5 +577,181 @@ mod tests {
             crate::TemporaryFailure::of(&error).map(|failure| failure.cause),
             Some(crate::TemporaryCause::Network)
         );
+    }
+
+    /// Answers one request with `head` and then `body`, then closes.
+    async fn answer_once(head: String, body: Vec<u8>) -> reqwest::Url {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                request.push(stream.read_u8().await.unwrap());
+            }
+            let _ = stream.write_all(head.as_bytes()).await;
+            let _ = stream.write_all(&body).await;
+            let _ = stream.flush().await;
+        });
+        reqwest::Url::parse(&format!("http://{address}/listing.json")).unwrap()
+    }
+
+    fn echo(value: &Value) -> Result<Value> {
+        Ok(value.clone())
+    }
+
+    fn direct() -> reqwest::Client {
+        reqwest::Client::builder().no_proxy().build().unwrap()
+    }
+
+    fn json(body: &[u8]) -> Result<Value> {
+        serde_json::from_slice(body).map_err(|error| PortcoveError::network(error.to_string()))
+    }
+
+    #[tokio::test]
+    async fn a_listing_cut_off_mid_body_is_temporary_and_a_malformed_one_is_lasting() {
+        // The connection closes after 10 of the 1,000 declared bytes.
+        let url = answer_once(
+            "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nConnection: close\r\n\r\n".into(),
+            b"{\"files\":[".to_vec(),
+        )
+        .await;
+        let error = client(FLOOR)
+            .observe(url, |value| Ok(value.clone()))
+            .await
+            .unwrap_err();
+        assert_eq!(
+            crate::TemporaryFailure::of(&error).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::Network),
+            "{error:?}"
+        );
+
+        // A complete answer that is not the expected document stays lasting.
+        let body = b"<html>maintenance</html>".to_vec();
+        let url = answer_once(
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            ),
+            body,
+        )
+        .await;
+        let error = ProviderHttp::new(None, "Fixture", "127.0.0.1")
+            .unwrap()
+            .observe_bytes(url, PROVIDER_JSON_MAX_BYTES, json)
+            .await
+            .unwrap_err();
+        assert_eq!(crate::TemporaryFailure::of(&error), None, "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn a_back_off_keeps_the_status_that_started_it_and_reads_any_retry_after_form() {
+        // A server error with an HTTP-date wait: the pause follows that date
+        // (the one parser), and the refusals while it lasts stay a server
+        // error, never a rate limit.
+        let now = crate::Library::now();
+        let date = time::OffsetDateTime::from_unix_timestamp(now + 120)
+            .unwrap()
+            .format(&time::format_description::well_known::Rfc2822)
+            .unwrap()
+            .replace("+0000", "GMT");
+        let url = answer_once(
+            format!(
+                "HTTP/1.1 503 Service Unavailable\r\nRetry-After: {date}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            ),
+            Vec::new(),
+        )
+        .await;
+        let provider = client(FLOOR);
+        let first = provider.observe(url.clone(), echo).await.unwrap_err();
+        assert_eq!(
+            crate::TemporaryFailure::of(&first).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::ServerUnavailable)
+        );
+        let (wait, status) = provider.backoff_remaining().unwrap();
+        assert_eq!(status, 503);
+        assert!(
+            wait > Duration::from_secs(60) && wait <= Duration::from_secs(121),
+            "{wait:?}"
+        );
+        // No second connection: the back-off answers.
+        let during = provider.observe(url, echo).await.unwrap_err();
+        assert!(
+            !during.message.contains("rate limiting"),
+            "{}",
+            during.message
+        );
+        let failure = crate::TemporaryFailure::of(&during).unwrap();
+        assert_eq!(failure.cause, crate::TemporaryCause::ServerUnavailable);
+        assert!(failure.stated_reset.is_some_and(|reset| reset > now));
+
+        // A throttle stays a rate limit, and a stated wait over the in-process
+        // cap still pauses for at most the cap.
+        let url = answer_once(
+            "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 7200\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
+            Vec::new(),
+        )
+        .await;
+        let provider = client(FLOOR);
+        let first = provider.observe(url.clone(), echo).await.unwrap_err();
+        let failure = crate::TemporaryFailure::of(&first).unwrap();
+        assert_eq!(failure.cause, crate::TemporaryCause::RateLimited);
+        // The durable schedule keeps the provider's full stated wait.
+        assert!(
+            failure
+                .stated_reset
+                .is_some_and(|reset| reset >= now + 7200)
+        );
+        let (wait, status) = provider.backoff_remaining().unwrap();
+        assert_eq!(status, 429);
+        assert!(wait <= MAX_BACKOFF);
+        let during = provider.observe(url, echo).await.unwrap_err();
+        assert_eq!(
+            crate::TemporaryFailure::of(&during).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::RateLimited)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_truncated_body_is_an_interruption_and_an_undecodable_complete_one_is_not() {
+        let truncated = answer_once(
+            "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nConnection: close\r\n\r\n".into(),
+            vec![1; 10],
+        )
+        .await;
+        use futures_util::StreamExt;
+        let response = direct().get(truncated).send().await.unwrap();
+        let mut stream = response.bytes_stream();
+        let error = loop {
+            match stream.next().await {
+                Some(Ok(_)) => {}
+                Some(Err(error)) => break error,
+                None => panic!("a truncated body must end in an error"),
+            }
+        };
+        assert!(!error.is_decode());
+        assert!(PortcoveError::from_transport(&error).is_transient_transport());
+
+        let body = b"not json".to_vec();
+        let malformed = answer_once(
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            ),
+            body,
+        )
+        .await;
+        let error = direct()
+            .get(malformed)
+            .send()
+            .await
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap_err();
+        assert!(error.is_decode());
+        let converted = PortcoveError::from_transport(&error);
+        assert!(!converted.is_transient_transport());
+        assert_eq!(crate::TemporaryFailure::of(&converted), None);
     }
 }

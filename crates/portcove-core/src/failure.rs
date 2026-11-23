@@ -259,10 +259,11 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
-    /// An enumeration the decision depends on could not be read completely
-    /// this time (a page budget, a partial listing or a mixed-time snapshot).
-    /// Incomplete is never absent: the work waits and tries again, after
-    /// `resets_at` when the source stated one. Always temporary.
+    /// A provider listing the decision depends on was read only in part this
+    /// time (a page budget, a partial listing or a mixed-time snapshot): the
+    /// work continues from where it stopped on the next attempt. Incomplete
+    /// is never an absent release, package or file. Always temporary, and it
+    /// waits until `resets_at` when the provider stated one.
     #[cfg_attr(
         not(test),
         expect(
@@ -271,6 +272,13 @@ pub(crate) enum KnownFailureCause {
         )
     )]
     InventoryIncomplete {
+        provider: FailureProvider,
+        /// What was being listed, such as `release history`.
+        inventory: &'static str,
+        /// Pages or chunks already read and kept for the next attempt.
+        read: u64,
+        /// Pages or chunks the provider listed, when it said.
+        total: Option<u64>,
         resets_at: Option<i64>,
     },
 }
@@ -279,6 +287,15 @@ pub(crate) enum KnownFailureCause {
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+}
+
+impl FailureProvider {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Github => "GitHub",
+            Self::Gitlab => "GitLab",
+        }
+    }
 }
 
 fn decimal_gigabytes(bytes: u64) -> String {
@@ -493,10 +510,25 @@ impl KnownFailureCause {
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
             ),
-            Self::InventoryIncomplete { .. } => (
-                "inventory_incomplete",
-                "Portcove could not read everything it needs from the download site yet. Nothing was changed, and Portcove will try again.",
-            ),
+            Self::InventoryIncomplete {
+                provider,
+                inventory,
+                read,
+                total,
+                ..
+            } => {
+                let progress = total.map_or_else(
+                    || format!(" ({read} parts read)"),
+                    |total| format!(" ({read} of {total} parts read)"),
+                );
+                return (
+                    "inventory_incomplete",
+                    format!(
+                        "Portcove read only part of the {} {inventory} this time{progress}. Nothing was concluded from the missing part, and Portcove will try again from where it stopped.",
+                        provider.name()
+                    ),
+                );
+            }
             Self::StorageFull => (
                 "storage_full",
                 "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
@@ -579,10 +611,7 @@ impl KnownFailureCause {
                 rate_limited,
                 resets_at,
             } => {
-                let provider = match provider {
-                    FailureProvider::Github => "GitHub",
-                    FailureProvider::Gitlab => "GitLab",
-                };
+                let provider = provider.name();
                 if *status == 401 {
                     return (
                         "provider_sign_in_rejected",
@@ -722,13 +751,19 @@ impl PortcoveError {
 
     /// The one conversion for a failed HTTP exchange: it records the
     /// transport observation, and marks connection interruptions (resets,
-    /// early closes, stalls, DNS/TLS/connect failures) temporary. Builder,
-    /// redirect-policy and status errors stay lasting; a status is recorded
-    /// separately by the caller.
+    /// early closes, a body cut off mid-stream, stalls, DNS/TLS/connect
+    /// failures) temporary. Builder, redirect-policy and status errors stay
+    /// lasting; a status is recorded separately by the caller.
+    ///
+    /// A decode error stays lasting too. Portcove's client decodes no content
+    /// encoding, so reqwest reports one only for a body that arrived complete
+    /// but could not be read as what was expected (`Response::json`/`text`):
+    /// a well-formed answer that is wrong does not pass by trying again. A
+    /// truncated body is a body-stream error (`is_body`), which is temporary.
     pub(crate) fn from_transport(error: &reqwest::Error) -> Self {
         let converted = Self::network(error.to_string())
             .with_upstream(UpstreamObservation::from_reqwest(error));
-        if error.is_builder() || error.is_redirect() || error.is_status() {
+        if error.is_builder() || error.is_redirect() || error.is_status() || error.is_decode() {
             converted
         } else {
             converted.transient_transport()

@@ -157,6 +157,8 @@ mod install_batch;
 mod port_intent;
 #[path = "root_setup.rs"]
 mod root_setup;
+#[path = "unattended_setup.rs"]
+mod unattended_setup;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchCapacity, InstallBatchItem, InstallBatchItemState,
     InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
@@ -172,6 +174,7 @@ pub use root_setup::{
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
     RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
 };
+pub(crate) use unattended_setup::player_cancelled_activity as unattended_player_cancelled_activity;
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;

@@ -81,6 +81,33 @@ pub(crate) struct Lease {
     resumed: Option<Received>,
 }
 
+/// The kept bytes of every entry that can continue (its bytes and its
+/// representation record are both present), keyed by entry. A snapshot taken
+/// without the index lock: it is only compared with an earlier snapshot to
+/// tell whether downloads advanced, so a racing writer only makes it later.
+pub(crate) fn kept_downloads(root: &Path) -> crate::temporary_failure::KeptDownloads {
+    let mut kept = crate::temporary_failure::KeptDownloads::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return kept;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(key) = name.strip_suffix(".part") else {
+            continue;
+        };
+        if !root.join(format!("{key}.json")).is_file() {
+            continue;
+        }
+        if let Ok(metadata) = fs::symlink_metadata(entry.path())
+            && metadata.is_file()
+            && metadata.len() > 0
+        {
+            kept.insert(key.to_owned(), metadata.len());
+        }
+    }
+    kept
+}
+
 impl PartialDownloads {
     pub(crate) fn new(root: PathBuf) -> Self {
         Self {

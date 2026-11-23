@@ -1030,7 +1030,8 @@ export default interface Resources {
         "detail": "Portcove only shows what it finds here.",
         "label": "Don't set up games from this folder automatically"
       },
-      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits.",
+      "waiting": "<game/> didn't finish setting up: <reason/>. Portcove will try again automatically."
     },
     "intent": {
       "discoverOnly": {
@@ -1038,11 +1039,13 @@ export default interface Resources {
         "label": "Only show it in discovery"
       },
       "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+      "failedTemporary": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically.",
       "ignored": {
         "detail": "Portcove doesn't suggest, notify about or set up this game.",
         "label": "Ignore this game"
       },
       "legend": "When this game's files are ready",
+      "nextAttempt": "Next attempt: <time/>",
       "notify": {
         "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
         "label": "Tell me when it's ready"

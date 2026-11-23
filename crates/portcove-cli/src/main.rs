@@ -851,6 +851,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 | Commands::Setup {
                     command: setup::SetupCommand::Download { .. }
                 }
+                // An interrupt stops unattended setup cleanly, so it is never
+                // counted against the game as a crash.
+                | Commands::Games {
+                    command: GamesCommand::SetupReady
+                }
         ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;

@@ -3474,7 +3474,17 @@ pub fn run() -> std::process::ExitCode {
         })
         .build(context);
     match application {
-        Ok(application) => application.run(move |_, event| {
+        Ok(application) => application.run(move |app, event| {
+            // Closing or restarting stops unattended setup cleanly, so it is
+            // never counted as a crash. Desktop never prevents an exit request,
+            // so stopping already at ExitRequested gives the install the most
+            // time to settle; Exit repeats it for exits without a request.
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                stop_unattended_setup_for_exit(app);
+            }
             // Tauri exits the process directly, without dropping local guards.
             // ExitRequested can be prevented; only the actual Exit closes the
             // diagnostic producer and waits for its finite best-effort flush.
@@ -3488,6 +3498,33 @@ pub fn run() -> std::process::ExitCode {
         }
     }
     std::process::ExitCode::SUCCESS
+}
+
+/// Asks Core to stop this process's unattended (standing and folder) setup
+/// cleanly before Portcove closes or restarts: each run durably records the
+/// clean stop, then its install is asked to stop at its cancellation boundary.
+/// Best effort and quick; a library that is not open has nothing running.
+pub(crate) fn stop_unattended_setup_for_exit(app: &tauri::AppHandle) {
+    if !PortcoveService::unattended_setups_active() {
+        return;
+    }
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
+    match service(state.inner()) {
+        Ok(service) => {
+            let stopped = service.stop_unattended_setups();
+            tracing::info!(
+                component = "standing_setup",
+                stopped,
+                message = "unattended setup stopped cleanly for exit"
+            );
+        }
+        Err(_) => tracing::warn!(
+            component = "standing_setup",
+            message = "unattended setup could not be stopped cleanly for exit"
+        ),
+    }
 }
 
 type StartupResult = Result<(), Box<dyn std::error::Error>>;

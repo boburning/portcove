@@ -7,6 +7,7 @@ import { useAppTranslation } from "../localization";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
+import { NextAttemptTime, waitingRetry } from "../features/game-file-discovery/next-attempt";
 
 const choices: readonly PortIntentMode[] = [
   "discover_only",
@@ -161,12 +162,23 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
       )}
       {intent?.failure && (
         <p>
-          {/* Core's failure text is exact, never interpolated. */}
+          {/* Core's failure text is exact, never interpolated. A temporary
+              failure runs again on its own; only a lasting one waits for a change. */}
           <Trans
             t={t}
-            i18nKey="intent.failed"
+            i18nKey={intent.temporary_retry ? "intent.failedTemporary" : "intent.failed"}
             components={{ reason: <bdi>{intent.failure}</bdi> }}
           />
+          {waitingRetry(intent.temporary_retry) && (
+            <>
+              {" "}
+              <Trans
+                t={t}
+                i18nKey="intent.nextAttempt"
+                components={{ time: <NextAttemptTime at={intent.temporary_retry.retry_after} /> }}
+              />
+            </>
+          )}
         </p>
       )}
       {error && <p role="alert">{error}</p>}

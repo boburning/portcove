@@ -107,7 +107,8 @@
       "detail": "Portcove solo muestra lo que encuentra aquí.",
       "label": "No configurar automáticamente los juegos de esta carpeta"
     },
-    "sharedFiles": "Más de un juego puede usar algunos archivos de aquí. Elige cuál configurar; hasta que lo hagas, Portcove espera."
+    "sharedFiles": "Más de un juego puede usar algunos archivos de aquí. Elige cuál configurar; hasta que lo hagas, Portcove espera.",
+    "waiting": "<game/> no terminó de configurarse: <reason/>. Portcove lo volverá a intentar automáticamente."
   },
   "intent": {
     "discoverOnly": {
@@ -115,11 +116,13 @@
       "label": "Mostrarlo solo en Descubrir"
     },
     "failed": "La última configuración automática no terminó: <reason/>. Portcove lo vuelve a intentar cuando cambian los archivos del juego, el catálogo o los requisitos.",
+    "failedTemporary": "La última configuración automática no terminó: <reason/>. Portcove lo volverá a intentar automáticamente.",
     "ignored": {
       "detail": "Portcove no sugiere este juego, no avisa sobre él ni lo configura.",
       "label": "Ignorar este juego"
     },
     "legend": "Cuando los archivos de este juego estén listos",
+    "nextAttempt": "Próximo intento: <time/>",
     "notify": {
       "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
       "label": "Avisarme cuando esté listo"

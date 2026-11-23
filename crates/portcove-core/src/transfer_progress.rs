@@ -33,26 +33,60 @@ pub const PROGRESS_FLOOR: ProgressFloor = ProgressFloor {
     minimum_bytes: 16 * 1024,
 };
 
+/// A test clock driven by the bytes a connection has delivered, so a transfer
+/// test can model an exact rate over many windows without real waiting.
+#[cfg(test)]
+#[derive(Clone)]
+pub(crate) struct ByteClock(pub(crate) std::sync::Arc<dyn Fn(u64) -> Instant + Send + Sync>);
+
+#[cfg(test)]
+impl std::fmt::Debug for ByteClock {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ByteClock")
+    }
+}
+
 /// Tracks one connection's bytes against a [`ProgressFloor`].
 #[derive(Debug)]
 pub struct ProgressWatch {
     floor: ProgressFloor,
     window_start: Instant,
     window_bytes: u64,
+    #[cfg(test)]
+    clock: Option<(ByteClock, u64)>,
 }
 
 impl ProgressWatch {
     pub fn new(floor: ProgressFloor) -> Self {
+        Self::starting_at(floor, Instant::now())
+    }
+
+    fn starting_at(floor: ProgressFloor, start: Instant) -> Self {
         Self {
             floor,
-            window_start: Instant::now(),
+            window_start: start,
             window_bytes: 0,
+            #[cfg(test)]
+            clock: None,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_clock(floor: ProgressFloor, clock: ByteClock) -> Self {
+        let mut watch = Self::starting_at(floor, (clock.0)(0));
+        watch.clock = Some((clock, 0));
+        watch
     }
 
     /// Records received bytes. Each completed window must have carried at least
     /// the floor's bytes; a window that did not cuts the connection.
     pub fn record(&mut self, bytes: u64) -> std::result::Result<(), PortcoveError> {
+        #[cfg(test)]
+        if let Some((clock, received)) = &mut self.clock {
+            *received = received.saturating_add(bytes);
+            let now = (clock.0)(*received);
+            return self.record_at(bytes, now);
+        }
         self.record_at(bytes, Instant::now())
     }
 
@@ -91,11 +125,7 @@ mod tests {
     #[test]
     fn steady_slow_progress_never_reaches_the_floor_regardless_of_total_time() {
         let start = Instant::now();
-        let mut watch = ProgressWatch {
-            floor: FLOOR,
-            window_start: start,
-            window_bytes: 0,
-        };
+        let mut watch = ProgressWatch::starting_at(FLOOR, start);
         // Twelve hours at 20 bytes per second: far longer than any former
         // whole-transfer deadline, still above the floor in every window.
         for second in 1..=12 * 60 * 60 {
@@ -108,11 +138,7 @@ mod tests {
     #[test]
     fn a_trickle_below_the_floor_is_cut_after_one_window() {
         let start = Instant::now();
-        let mut watch = ProgressWatch {
-            floor: FLOOR,
-            window_start: start,
-            window_bytes: 0,
-        };
+        let mut watch = ProgressWatch::starting_at(FLOOR, start);
         for second in (14..60).step_by(14) {
             watch
                 .record_at(1, start + Duration::from_secs(second))
@@ -128,11 +154,7 @@ mod tests {
     #[test]
     fn a_fast_window_does_not_excuse_a_later_starved_one() {
         let start = Instant::now();
-        let mut watch = ProgressWatch {
-            floor: FLOOR,
-            window_start: start,
-            window_bytes: 0,
-        };
+        let mut watch = ProgressWatch::starting_at(FLOOR, start);
         watch
             .record_at(1_000_000, start + Duration::from_secs(61))
             .unwrap();

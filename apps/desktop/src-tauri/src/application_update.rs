@@ -558,6 +558,9 @@ pub(crate) async fn install_application_update(
     // The library stays closed and new work stays refused in this process; the
     // exclusive leases are released so the restarted build can start.
     admission.finish_for_exit();
+    // Admission already refused while setup ran; stop anything that started
+    // since, cleanly, in case this restart does not pass through Exit.
+    crate::stop_unattended_setup_for_exit(&app);
     app.restart()
 }
 
