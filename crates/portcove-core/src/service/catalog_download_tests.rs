@@ -861,14 +861,144 @@ async fn assert_embedded_download_holds(
     }
 }
 
+/// Embedded listings that keep a whole download hold but permit their reviewed
+/// files (#8538, #1422): (port, [(host, release tag, SHA-256, asset name)]).
+const REVIEWED_EMBEDDED_PERMITS: &[(&str, &[(Platform, &str, &str, &str)])] = &[
+    (
+        "chameleon-twist-recompiled",
+        &[(
+            Platform::WindowsX86_64,
+            "v0.1",
+            "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+            "ChameleonTwistJPRecompiled.zip",
+        )],
+    ),
+    (
+        "grand-theft-auto-san-andreas-unity",
+        &[
+            (
+                Platform::WindowsX86_64,
+                "v4.0",
+                "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+                "SanAndreasUnity-4.0-windows.zip",
+            ),
+            (
+                Platform::LinuxX86_64,
+                "v4.0",
+                "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+                "SanAndreasUnity-4.0-linux.zip",
+            ),
+        ],
+    ),
+    (
+        "linewars-ii-sdl3",
+        &[
+            (
+                Platform::WindowsX86_64,
+                "v1.0.0",
+                "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+                "LineWars2-SDL3-v1.0.0-win64.zip",
+            ),
+            (
+                Platform::LinuxX86_64,
+                "v1.0.0",
+                "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+                "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+            ),
+        ],
+    ),
+];
+
+/// A reviewed file is offered only when the provider reports its exact
+/// SHA-256; other bytes under the same tag and name stay withheld, and the
+/// downloaded bytes decide the download.
 #[tokio::test]
-async fn upstream_registrations_keep_unrestricted_asset_downloads_held() {
-    assert_embedded_download_holds(
-        &["grand-theft-auto-san-andreas-unity", "linewars-ii-sdl3"],
-        true,
-        Some(crate::ReleaseSource::UserPrepared),
-    )
-    .await;
+async fn reviewed_embedded_permits_offer_only_their_exact_files() {
+    let Ok(host) = Platform::current() else {
+        return;
+    };
+    for (id, files) in REVIEWED_EMBEDDED_PERMITS {
+        let Some((_, tag, reviewed, name)) = files.iter().find(|file| file.0 == host) else {
+            continue;
+        };
+        let catalog = Catalog::embedded().unwrap();
+        let listing = catalog.listing(id).unwrap();
+        let explanation = listing.download_block_reason.clone().unwrap();
+        let repository = crate::release::catalog_download_repository(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )
+        .unwrap();
+        let bytes = archive();
+        let actual = crate::signed_catalog::digest(&bytes);
+        assert_ne!(actual, *reviewed);
+        // (provider digest, offered, refusal of these non-reviewed bytes)
+        let cases = [
+            (
+                Some(*reviewed),
+                true,
+                "downloaded package failed SHA-256 verification",
+            ),
+            (Some(actual.as_str()), false, ""),
+            (None, true, explanation.as_str()),
+        ];
+        for (digest, offered, refusal) in cases {
+            let (_temporary, mut service, mut request) = fixture();
+            service.catalog = catalog.clone();
+            request.port_id = (*id).into();
+            let github = GithubFixture::for_repository(
+                &repository,
+                bytes.clone(),
+                digest.map(|digest| format!("sha256:{digest}")),
+                None,
+            );
+            github.assets.lock().unwrap()[0]["name"] = json!(name);
+            github.releases.lock().unwrap()[0]["tag_name"] = json!(tag);
+            let options = service
+                .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+                .await
+                .unwrap();
+            assert!(github.requests.load(Ordering::SeqCst) > 0, "{id}");
+            let names: Vec<_> = options.candidates.iter().map(|c| c.name.as_str()).collect();
+            if !offered {
+                assert!(names.is_empty(), "{id}");
+                assert!(
+                    options
+                        .coverage
+                        .unwrap()
+                        .limitations
+                        .contains(&format!("{name}: {explanation}")),
+                    "{id}"
+                );
+                continue;
+            }
+            assert!(options.allowed, "{id} {:?}", options.reason);
+            assert_eq!(names, [*name], "{id}");
+            // A provider digest decides only the offer; these bytes are not the
+            // reviewed file, so the download is refused before publication.
+            let preview = service
+                .catalog_download_preview_with_provider(&request, &github.provider)
+                .await
+                .unwrap();
+            let error = service
+                .download_catalog_package_with_provider(
+                    &request,
+                    &preview.preview_sha256,
+                    |_| {},
+                    &github.provider,
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.message, refusal, "{id}");
+            assert_eq!(
+                fs::read_dir(&request.destination_parent).unwrap().count(),
+                0,
+                "{id}"
+            );
+        }
+    }
 }
 
 #[tokio::test]
