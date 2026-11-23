@@ -26,6 +26,31 @@ const GLOBAL: &[&str] = &[
 ];
 
 const SCOPED: &[(&str, &[&str])] = &[
+    // ELF PT_INTERP program-interpreter names a header declares. Core compares
+    // them as identifiers to classify an executable's host; it never opens them.
+    (
+        "crates/portcove-core/src/package_shape/machine.rs",
+        &[
+            "/lib",
+            "/libexec/ld-elf.so.1",
+            "/usr/libexec/ld.so",
+            "/usr/libexec/ld.elf_so",
+            "/system/runtime_loader",
+            "/lib64/ld-linux-x86-64.so.2",
+        ],
+    ),
+    (
+        "crates/portcove-core/src/package_shape/listing.rs",
+        &[
+            "/lib/ld-musl-x86_64.so.1",
+            "/system/bin/linker64",
+            "/libexec/ld-elf.so.1",
+            "/usr/libexec/ld.so",
+            "/usr/libexec/ld.elf_so",
+            "/system/runtime_loader",
+            "/opt/loader",
+        ],
+    ),
     // This dedicated test file intentionally rejects the exact hostile selector below.
     (
         "crates/portcove-core/src/external_runtime/tfe_settings_tests.rs",
