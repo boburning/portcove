@@ -1,0 +1,421 @@
+# Unattended listing facts batch (#8569; docs/CATALOG.md, scheduled facts batch job).
+#
+# Built disabled. Nothing runs on the schedule, and nothing writes, until the
+# owner sets the repository variable PORTCOVE_FACTS_BATCH_ENABLED to `true`.
+# A manual dispatch may always dry-run: it derives, generates and verifies one
+# batch with read-only permissions and saves no state, pull request or issue.
+#
+# One run, in one concurrency group:
+#  1. `gate`: any open "Listing facts batch stopped: ..." issue stops the run;
+#     an open batch pull request is evaluated instead of starting another.
+#  2. `merge`: a batch whose five required checks pass on its exact head, whose
+#     paths stay inside the allowlist and whose delta the gate accepts is
+#     merged through the guarded delivery route (`scripts/pr-delivery.mts`).
+#  3. `derive`: the facts worker reads the newest main observer handoff with
+#     its persisted state, catalog generation writes the outputs, and the job
+#     refuses its own batch on a path outside the allowlist, a gate refusal
+#     or an entry it cannot reproduce from the exact release bytes.
+#  4. `deliver`: pushes the one-commit batch branch and opens the pull request.
+#  5. `notify`: files one issue per stop condition and the freshness alert.
+#
+# Only the built-in workflow token is used. GitHub starts no workflow for a
+# pull request that token opens, so a person closes and reopens each batch
+# pull request to start its required checks (see the pull request body).
+name: Listing facts batch
+
+on:
+  schedule:
+    # Every six hours: see the drain math in docs/CATALOG.md.
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run - derive, generate and verify one batch; write nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listing-facts-batch
+  cancel-in-progress: false
+
+env:
+  # A scheduled run is never a dry run; a dispatch is one unless unchecked.
+  DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+
+jobs:
+  gate:
+    # Disabled unless the owner set the variable; a dispatch may still dry-run.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      checks: read
+    outputs:
+      blocked: ${{ steps.blocked.outputs.blocked }}
+      pr_state: ${{ steps.pull.outputs.state }}
+      pr_number: ${{ steps.pull.outputs.number }}
+      pr_head: ${{ steps.pull.outputs.head }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Stop while a stop issue is open
+        id: blocked
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts blocked
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Read the open batch pull request and its exact-head checks
+        id: pull
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts pull-request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  merge:
+    needs: gate
+    if: >-
+      vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
+      !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
+      needs.gate.outputs.blocked == 'false' && needs.gate.outputs.pr_state == 'green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      actions: read
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Recheck the batch paths and gate bounds at its exact head
+        timeout-minutes: 8
+        env:
+          NUMBER: ${{ needs.gate.outputs.pr_number }}
+          HEAD: ${{ needs.gate.outputs.pr_head }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/pull/${NUMBER}/head:refs/remotes/batch/head"
+          test "$(git rev-parse refs/remotes/batch/head)" = "$HEAD"
+          base=$(git merge-base "$HEAD" origin/main)
+          # The trusted main scripts check the paths before any batch file runs.
+          node scripts/listing-facts-batch.mts paths --base "$base" --head "$HEAD"
+          # The batch changes no script, so its own checkout runs main's gate.
+          git worktree add --detach "$RUNNER_TEMP/batch" "$HEAD"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/batch/node_modules"
+          cd "$RUNNER_TEMP/batch"
+          env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts --check
+      - name: Merge through the guarded delivery route
+        timeout-minutes: 5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NUMBER: ${{ needs.gate.outputs.pr_number }}
+          HEAD: ${{ needs.gate.outputs.pr_head }}
+        run: |
+          set -euo pipefail
+          node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
+            --closure "$RUNNER_TEMP/closure.json" --message "$RUNNER_TEMP/message.json"
+          node scripts/pr-delivery.mts merge --pr "$NUMBER" --head "$HEAD" \
+            --closure-intent-file "$RUNNER_TEMP/closure.json" \
+            --merge-message-file "$RUNNER_TEMP/message.json"
+
+  derive:
+    needs: gate
+    # A batch starts only when no stop issue and no batch pull request is open.
+    if: >-
+      needs.gate.outputs.blocked == 'false' &&
+      (needs.gate.outputs.pr_state == 'none' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+      reproduced: ${{ steps.verify.outputs.reproduced }}
+    env:
+      WORK: ${{ github.workspace }}/work/listing-facts-batch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: false
+          shared-key: upstream-observer-cli
+      - name: Build the Portcove CLI that inspects release bytes
+        timeout-minutes: 30
+        run: cargo build --locked -p portcove-cli
+      - name: Find the newest main observer handoff
+        id: observer
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts observer-run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: ${{ steps.observer.outputs.artifact }}
+          path: ${{ env.WORK }}/handoff
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.observer.outputs.run_id }}
+      - name: Restore the worker state and run history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: |
+            work/listing-facts-batch/state.json
+            work/listing-facts-batch/history.json
+          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: listing-facts-batch-v1-
+      - name: Record this run's inputs
+        id: inputs
+        timeout-minutes: 2
+        env:
+          OBSERVER_RUN: ${{ steps.observer.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK/inputs"
+          node scripts/listing-facts-batch.mts observations --handoff "$WORK/handoff" --output "$WORK/inputs/observations.json"
+          if [ -f "$WORK/state.json" ]; then cp "$WORK/state.json" "$WORK/inputs/state-before.json"; else : > "$WORK/inputs/state-before.json"; fi
+          node scripts/listing-facts-batch.mts inputs --observations "$WORK/inputs/observations.json" \
+            --state "$WORK/inputs/state-before.json" --observer-run "$OBSERVER_RUN" \
+            --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --output "$WORK/inputs/inputs.json"
+      # Retained before the worker runs, so the digest it records is checkable.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-inputs-${{ github.run_id }}
+          path: ${{ env.WORK }}/inputs/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Run the facts worker once
+        id: worker
+        timeout-minutes: 60
+        env:
+          INPUTS_SHA256: ${{ steps.inputs.outputs.inputs_sha256 }}
+        run: |
+          set -euo pipefail
+          node scripts/listing-package-facts.mts derive --observations "$WORK/inputs/observations.json" \
+            --cli target/debug/portcove --state "$WORK/state.json" --cadence-hours 6 \
+            --workflow-run-id "$GITHUB_RUN_ID" --source-commit "$GITHUB_SHA" \
+            --inputs-sha256 "$INPUTS_SHA256" --report "$WORK/worker-report.json" > /dev/null
+      - name: Regenerate the catalog from the new facts
+        id: generate
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          # The baseline is this checkout's main tip: compare as a local run.
+          env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts > /dev/null
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --allow-empty -am "chore(catalog): listing facts batch ${GITHUB_RUN_ID}"
+          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/delta.json"
+      - name: Refuse paths outside the batch allowlist
+        id: paths
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts paths --base HEAD~1
+      - name: Refuse a generation the gate does not accept
+        id: gate
+        timeout-minutes: 10
+        # Compared with the previous commit: the main tip this batch starts from.
+        run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+      - name: Reproduce every changed eligible entry from its exact bytes
+        id: verify
+        timeout-minutes: 45
+        run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove --base HEAD~1 --own-run true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Decide whether this batch can be proposed
+        id: ready
+        timeout-minutes: 1
+        env:
+          PATHS: ${{ steps.paths.outcome }}
+          GATE: ${{ steps.gate.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only HEAD~1 HEAD | wc -l)
+          ready=false
+          if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$VERIFY" = success ] && [ "$changed" -gt 0 ]; then ready=true; fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          git format-patch -1 --stdout HEAD > "$WORK/batch.patch"
+      - name: Publish the registration exception queues
+        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          node scripts/catalog-route-fit.mts --json --output "$WORK/route-fit.json"
+          node scripts/listing-facts-batch.mts queues --route-fit "$WORK/route-fit.json" --output "$WORK/queue-counts.json" > /dev/null
+      - name: Assess the stop conditions
+        if: ${{ !cancelled() }}
+        timeout-minutes: 2
+        env:
+          PATHS: ${{ steps.paths.outcome == 'failure' && 'violated' || steps.paths.outcome == 'success' && 'ok' || 'skipped' }}
+          GATE: ${{ steps.gate.outcome == 'failure' && 'refused' || steps.gate.outcome == 'success' && 'ok' || 'skipped' }}
+          VERIFY: ${{ steps.verify.outcome == 'failure' && 'refused' || steps.verify.outcome == 'success' && 'ok' || 'skipped' }}
+        run: |
+          set -euo pipefail
+          versions=$(node scripts/listing-facts-batch.mts versions --cli target/debug/portcove || echo unknown)
+          delta=()
+          if [ -f "$WORK/delta.json" ]; then delta=(--delta "$WORK/delta.json"); fi
+          report=()
+          if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
+          node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
+            --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
+            --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --output "$WORK/conditions.json" > /dev/null
+      - name: Retain the batch, its report and the exception queues
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-${{ github.run_id }}
+          path: |
+            ${{ env.WORK }}/batch.patch
+            ${{ env.WORK }}/delta.json
+            ${{ env.WORK }}/worker-report.json
+            ${{ env.WORK }}/conditions.json
+            ${{ env.WORK }}/queue-counts.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Retain the complete registration queues
+        if: ${{ !cancelled() && hashFiles('work/listing-facts-batch/route-fit.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: registration-queues-${{ github.run_id }}
+          path: ${{ env.WORK }}/route-fit.json
+          retention-days: 30
+      # A dry run saves no state: it must not move the cursor of real runs.
+      - name: Persist the worker state and run history
+        if: ${{ !cancelled() && env.DRY_RUN != 'true' && hashFiles('work/listing-facts-batch/state.json') != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: |
+            work/listing-facts-batch/state.json
+            work/listing-facts-batch/history.json
+          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+
+  deliver:
+    needs: derive
+    if: >-
+      vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
+      !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
+      needs.derive.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install locked dependencies before credentials
+        timeout-minutes: 5
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 3
+        with:
+          name: listing-facts-batch-${{ github.run_id }}
+          path: work/listing-facts-batch
+      - name: Push the one-commit batch branch and open its pull request
+        timeout-minutes: 4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            am --quiet work/listing-facts-batch/batch.patch
+          node scripts/listing-facts-batch.mts paths --base HEAD~1
+          git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
+          node scripts/listing-facts-batch.mts open-pull-request --branch "$branch" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --delta work/listing-facts-batch/delta.json --reproduced "${{ needs.derive.outputs.reproduced }}"
+
+  notify:
+    needs: [gate, derive, merge, deliver]
+    if: >-
+      always() && vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
+      !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
+      needs.gate.result == 'success' && needs.gate.outputs.blocked == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.derive.result != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 3
+        with:
+          name: listing-facts-batch-${{ github.run_id }}
+          path: work/listing-facts-batch
+      - name: File one issue per stop condition
+        timeout-minutes: 4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_STATE: ${{ needs.gate.outputs.pr_state }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          DERIVE: ${{ needs.derive.result }}
+          MERGE: ${{ needs.merge.result }}
+          DELIVER: ${{ needs.deliver.result }}
+        run: |
+          set -euo pipefail
+          node scripts/listing-facts-batch.mts collect --conditions work/listing-facts-batch/conditions.json \
+            --pr-state "$PR_STATE" --pr-number "${PR_NUMBER:-none}" \
+            --derive "$DERIVE" --merge "$MERGE" --deliver "$DELIVER"
+          node scripts/listing-facts-batch.mts issues --conditions work/listing-facts-batch/conditions.json \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

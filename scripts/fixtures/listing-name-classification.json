@@ -110,7 +110,15 @@
       "Other.exe",
       "Game.x86",
       "openjk.x86_64",
-      "openjo.x86_64"
+      "openjo.x86_64",
+      "Game-64.exe",
+      "Game.x64.exe",
+      "Game_win64.exe",
+      "Game.debug.exe",
+      "Doom.exe",
+      "Doom64.exe",
+      "Quake.exe",
+      "Quake32.exe"
     ]
   },
   "output": {
@@ -579,6 +587,38 @@
       },
       {
         "name": "openjo.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "Game-64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game_win64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Quake.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Quake32.exe",
         "tool_token": null
       }
     ]

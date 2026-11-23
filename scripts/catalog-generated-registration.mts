@@ -57,10 +57,10 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 4;
+export const GENERATOR_VERSION = 5;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 4;
+export const FACTS_PARSER_VERSION = 5;
 export const FACTS_TABLE_FORMAT = 4;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -215,6 +215,12 @@ export interface FactsProvenance {
   source_commit: string;
   /** SHA-256 of the Portcove CLI binary the worker ran. */
   cli_sha256: string;
+  /**
+   * SHA-256 of the run's `inputs.json` (the observer report, prior worker
+   * state, budget and cadence digests), retained as that run's
+   * `listing-facts-batch-inputs-<run id>` artifact.
+   */
+  inputs_sha256: string;
 }
 export interface ListingFactsTable {
   format: number;
@@ -345,7 +351,12 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
 const toolToken = (value: unknown): value is string =>
   typeof value === "string" && /^[a-z0-9]{1,32}$/u.test(value);
 
-const provenanceFields = ["workflow_run_id", "source_commit", "cli_sha256"] as const;
+const provenanceFields = [
+  "workflow_run_id",
+  "source_commit",
+  "cli_sha256",
+  "inputs_sha256",
+] as const;
 /** The optional table-level provenance an unattended worker run records. */
 export function checkFactsProvenance(value: unknown): asserts value is FactsProvenance {
   if (!isRecord(value)) throw new Error("Listing package facts provenance must be an object.");
@@ -355,10 +366,11 @@ export function checkFactsProvenance(value: unknown): asserts value is FactsProv
     !/^[1-9][0-9]{0,19}$/u.test(value.workflow_run_id) ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/u.test(value.source_commit) ||
-    !sha(value.cli_sha256)
+    !sha(value.cli_sha256) ||
+    !sha(value.inputs_sha256)
   )
     throw new Error(
-      "Listing package facts provenance needs a workflow run id, a 40-digit source commit and the CLI SHA-256.",
+      "Listing package facts provenance needs a workflow run id, a 40-digit source commit, the CLI SHA-256 and the inputs SHA-256.",
     );
 }
 
@@ -588,7 +600,7 @@ const hostArch: Record<string, string> = {
  * name is its format's desktop host; a qualifier names another system.
  */
 const machineQualifiers: Record<string, readonly string[]> = {
-  pe: ["xbox", "efi", "unknown"],
+  pe: ["xbox", "efi", "arm64ec", "unknown"],
   elf: ["android", "freebsd", "openbsd", "netbsd", "haiku", "solaris", "unknown"],
   macho: ["ios", "tvos", "watchos", "visionos", "other", "unplatformed", "unknown"],
 };
@@ -631,6 +643,11 @@ export function machineSystem(machine: string): MachineSystem {
   if (qualifier) {
     system = qualifier;
     rest = rest.slice(qualifier.length + 1);
+  }
+  // An ARM64EC image has an x64 header but is built for Windows on Arm.
+  if (system === "arm64ec") {
+    system = "windows";
+    rest = "arm64";
   }
   const arch = rest.startsWith("universal-")
     ? "universal"
@@ -716,7 +733,14 @@ function namePermits(artifact: ArtifactFactV2, platform: string) {
  * beside its game), so it is `ambiguous-player`, never enrolled.
  */
 export const maxDistinctPrograms = 1;
-/** Words that name a build variant of the same program, not another program. */
+/**
+ * Words that name a build variant of the same program, not another program,
+ * when they stand alone between separators. A bare `64`, `32` or `86` is
+ * dropped only in that position (`Game-64.exe`, `openjk.x86_64.exe`), never
+ * when it is glued to the name: `Doom64.exe` is Doom 64, a different game
+ * from `Doom.exe`, and `Game64.exe` cannot be told apart from it by name, so
+ * such a pair stays two programs (`ambiguous-player`).
+ */
 const variantWords = new Set([
   "exe",
   "bin",
@@ -748,10 +772,12 @@ const variantWords = new Set([
   "console",
   "debug",
 ]);
+/** Variant words that may also be split off a glued word: never bare numbers. */
+const gluedVariantWords = new Set([...variantWords].filter((word) => !/^[0-9]+$/u.test(word)));
 /**
  * A program's name without its build-variant words: `openjk.x86_64.exe` and
- * `openjk.x86.exe` are both `openjk`, `Game64.exe` and `Game.console.exe` are
- * `game`, `Doom3.exe` stays `doom-3`.
+ * `openjk.x86.exe` are both `openjk`, `Game.console.exe` and `Game-64.exe`
+ * are `game`, `Doom3.exe` stays `doom-3` and `Doom64.exe` stays `doom-64`.
  */
 export function programStem(path: string) {
   const name = basename(path).toLowerCase();
@@ -759,7 +785,7 @@ export function programStem(path: string) {
     .split(/[^a-z0-9]+/u)
     .filter((word) => word && !variantWords.has(word))
     .flatMap((word) => word.split(/(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/u))
-    .filter((word) => !variantWords.has(word));
+    .filter((word) => !gluedVariantWords.has(word));
   return words.join("-") || name;
 }
 const topDirectory = (path: string) => (path.includes("/") ? path.slice(0, path.indexOf("/")) : "");
@@ -1627,8 +1653,10 @@ function gateProgram(path: string) {
   const kept: string[] = [];
   for (const word of file.split(/[^a-z0-9]+/u)) {
     if (!word || gateVariantWords.includes(word)) continue;
+    // A number glued to a name is part of it (`doom64`): only a separate
+    // `64`, `32` or `86` is a build variant.
     for (const part of word.match(/[a-z]+|[0-9]+/gu) ?? [])
-      if (!gateVariantWords.includes(part)) kept.push(part);
+      if (/^[0-9]+$/u.test(part) || !gateVariantWords.includes(part)) kept.push(part);
   }
   return kept.length ? kept.join("-") : file;
 }
@@ -1731,12 +1759,12 @@ function gateEnrollmentProblems(
       problems.push(`${where} does not name every player of its artifact that runs there.`);
     const topLevel = (path: string) => {
       const parts = path.split("/");
-      return parts.length > 1 ? parts[0] : "";
+      return parts.length > 1 ? (parts[0] ?? "") : "";
     };
-    if (new Set(running.map((player) => topLevel(player.path))).size > 1)
-      problems.push(`${where} has players under several top-level directories.`);
-    // One program on this platform across every artifact whose name allows it.
+    // One program on this platform across every artifact whose name allows
+    // it, each such artifact's players under one top-level directory.
     const programs = new Set<string>();
+    let severalDirectories = false;
     for (const candidate of entry.artifacts) {
       const candidateName = candidate.name_suggestion;
       if (
@@ -1748,10 +1776,16 @@ function gateEnrollmentProblems(
         )
       )
         continue;
+      const directories = new Set<string>();
       for (const player of candidate.players)
-        if (gateMachineRuns(player.machine, runtime.platform))
+        if (gateMachineRuns(player.machine, runtime.platform)) {
           programs.add(gateProgram(player.path));
+          directories.add(topLevel(player.path));
+        }
+      if (directories.size > 1) severalDirectories = true;
     }
+    if (severalDirectories)
+      problems.push(`${where} has players under several top-level directories.`);
     if (programs.size !== 1)
       problems.push(
         `${where} rests on ${programs.size} distinct programs; only one program may enroll.`,
@@ -1868,6 +1902,78 @@ export function readGateBaseline(
 }
 
 // ---------------------------------------------------------------------------
+// Reproduction: CI re-reads the exact bytes behind every eligible entry a
+// change adds or changes (`scripts/listing-facts-batch.mts reproduce`).
+
+export interface ReproductionBudget {
+  /** Eligible entries one change may add or change. */
+  maxEntries: number;
+  /** Archive bytes one reproduction may download in total. */
+  maxBytes: number;
+  /** Largest single archive; a larger one is refused, never trusted. */
+  maxArchiveBytes: number;
+  /** Wall-clock budget of one reproduction, in milliseconds. */
+  maxMilliseconds: number;
+}
+/**
+ * One change's reproduction budget. The entry bound is the gate's largest
+ * delta bound; 4 GiB is two worker runs' byte budget, and an archive is never
+ * larger than the worker reads (512 MiB). Forty minutes of downloads and
+ * inspection stay inside CI's 45-minute catalog job.
+ */
+export const reproductionBudget: ReproductionBudget = {
+  maxEntries: Math.max(deltaBounds.added, deltaBounds.changed),
+  maxBytes: 4 * 1024 ** 3,
+  maxArchiveBytes: 512 * 1024 ** 2,
+  maxMilliseconds: 40 * 60_000,
+};
+
+/** The fields of an eligible entry that its exact bytes and release decide. */
+const reproducedFields = (entry: ListingFactsEntry) =>
+  digestOf([
+    entry.repository_id,
+    entry.observation.release_id,
+    entry.observation.tag,
+    entry.observation.published_at,
+    entry.observation.assets_sha256,
+    entry.artifacts,
+  ]);
+/**
+ * Whether `next` must be reproduced from its bytes: it is eligible (it can
+ * offer a route) and it is new or its release, assets or artifact facts
+ * differ from `previous`. A reconfirmation that only moves `observed_at`
+ * re-reads nothing; an ineligible entry offers nothing (its withdrawals stay
+ * bounded by the gate).
+ */
+export function needsReproduction(
+  previous: ListingFactsEntry | undefined,
+  next: ListingFactsEntry,
+): boolean {
+  if (next.ineligible !== null) return false;
+  return (
+    !previous ||
+    previous.ineligible !== null ||
+    reproducedFields(previous) !== reproducedFields(next)
+  );
+}
+/** Archive bytes reproducing an entry downloads. */
+export const reproductionCost = (entry: ListingFactsEntry) =>
+  entry.artifacts.reduce((sum, artifact) => sum + artifact.size, 0);
+/** Entries of `next` that must be reproduced against `previous`, in port_id order. */
+export function reproductionPlan(previous: unknown, next: ListingFactsTable) {
+  const before = new Map(
+    (isRecord(previous) && Array.isArray(previous.entries)
+      ? (previous.entries as ListingFactsEntry[])
+      : []
+    ).map((entry) => [entry.port_id, entry]),
+  );
+  const entries = next.entries.filter((entry) =>
+    needsReproduction(before.get(entry.port_id), entry),
+  );
+  return { entries, bytes: entries.reduce((sum, entry) => sum + reproductionCost(entry), 0) };
+}
+
+// ---------------------------------------------------------------------------
 // Batching: facts land through one bounded batch per worker run.
 
 /**
@@ -1876,13 +1982,16 @@ export function readGateBaseline(
  * changed identity keeps its previous entry, and its new entry is returned as
  * deferred so the next run offers it again without reading bytes. A change
  * that time alone causes (facts ageing out) cannot be deferred and counts
- * first. Deterministic and pure.
+ * first. Eligible entries that need reproduction also stay within
+ * `reproduction` (entries and archive bytes), so CI can always re-read every
+ * one of them. Deterministic and pure.
  */
 export function boundFactsBatch(
   records: readonly AuthoredPort[],
   previous: ListingFactsTable,
   next: ListingFactsTable,
   bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
+  reproduction: ReproductionBudget = reproductionBudget,
 ): { table: ListingFactsTable; deferred: ListingFactsEntry[] } {
   const byId = new Map(records.map((record) => [record.listing.id, record]));
   const before = new Map(previous.entries.map((entry) => [entry.port_id, entry]));
@@ -1911,12 +2020,25 @@ export function boundFactsBatch(
     } else pending.push(id);
   }
   const deferred: ListingFactsEntry[] = [];
+  // Every eligible entry this batch adds or changes is re-read from its exact
+  // bytes in CI; the batch never asks for more than that check may read.
+  let reproduceEntries = 0;
+  let reproduceBytes = 0;
   for (const id of pending) {
     const old = before.get(id);
     const proposed = after.get(id);
     const base = enrolled(id, old, previous.generated_at);
     const change = effect(base, enrolled(id, proposed, next.generated_at));
-    if (!change || counts[change] < bounds[change]) {
+    const cost = proposed && needsReproduction(old, proposed) ? reproductionCost(proposed) : null;
+    const reproducible =
+      cost === null ||
+      (reproduceEntries < reproduction.maxEntries &&
+        reproduceBytes + cost <= reproduction.maxBytes);
+    if (reproducible && (!change || counts[change] < bounds[change])) {
+      if (cost !== null) {
+        reproduceEntries++;
+        reproduceBytes += cost;
+      }
       if (change) counts[change]++;
       if (proposed) accepted.set(id, proposed);
       continue;

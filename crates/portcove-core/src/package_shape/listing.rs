@@ -128,16 +128,31 @@ pub fn inspect_listing_artifact_archive(
     })
 }
 
-/// Whether a lowercase package path is shaped like an iOS application: inside
-/// a top-level `Payload/` directory (an `.ipa` layout), or directly inside an
-/// `.app` bundle root, where a macOS bundle never puts its program.
+/// Whether a lowercase package path is shaped like an iOS application: any
+/// directory named `Payload` at any depth (an `.ipa` layout, also when the
+/// `.ipa` was repacked inside another folder), or an `.app`/`.appex` bundle
+/// ancestor that is not a macOS bundle. The innermost bundle ancestor of a
+/// macOS program is always followed by `Contents/MacOS/`, and every outer one
+/// by `Contents/`; an iOS bundle holds its program and nested extensions
+/// directly.
 fn ios_shaped(path: &str) -> bool {
     let parts = path.split('/').collect::<Vec<_>>();
-    parts.first() == Some(&"payload")
-        || parts
-            .len()
-            .checked_sub(2)
-            .is_some_and(|parent| parts[parent].ends_with(".app"))
+    let directories = &parts[..parts.len().saturating_sub(1)];
+    if directories.contains(&"payload") {
+        return true;
+    }
+    let bundles = directories
+        .iter()
+        .enumerate()
+        .filter(|(_, part)| part.ends_with(".app") || part.ends_with(".appex"))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    bundles.iter().enumerate().any(|(position, &index)| {
+        let innermost = position + 1 == bundles.len();
+        let contents = parts.get(index + 1) == Some(&"contents");
+        let macos = parts.get(index + 2) == Some(&"macos");
+        !(contents && (!innermost || macos))
+    })
 }
 
 /// The system a Mach-O player is placed on by its package structure. An
@@ -147,14 +162,10 @@ fn ios_shaped(path: &str) -> bool {
 /// bare program outside any iOS-shaped location; otherwise it stays
 /// `unplatformed`.
 pub(crate) fn mach_o_structure(path: &str, system: Option<&'static str>) -> Option<&'static str> {
-    let in_mac_bundle =
-        path.split('/').collect::<Vec<_>>().windows(3).any(|parts| {
-            parts[0].ends_with(".app") && parts[1] == "contents" && parts[2] == "macos"
-        });
     match system {
         None if ios_shaped(path) => Some("unknown"),
         None => None,
-        Some("unplatformed") if in_mac_bundle || !ios_shaped(path) => None,
+        Some("unplatformed") if !ios_shaped(path) => None,
         other => other,
     }
 }
@@ -588,6 +599,13 @@ mod tests {
             (pe_subsystem(0x8664, EXECUTABLE, 14), "pe-xbox-x86-64"),
             (pe_subsystem(0x8664, EXECUTABLE, 10), "pe-efi-x86-64"),
             (pe_subsystem(0x8664, EXECUTABLE, 1), "pe-unknown-x86-64"),
+            // An x64-headed image with CHPE metadata is ARM64EC, built for
+            // Windows on Arm; without the metadata it stays plain x86-64.
+            (
+                super::super::machine::fixtures::pe_hybrid(0x1_4000_2000),
+                "pe-arm64ec-x86-64",
+            ),
+            (super::super::machine::fixtures::pe_hybrid(0), "pe-x86-64"),
             (elf64(3, 62, true), "elf64-x86-64"),
             (
                 elf64_for(2, 62, 0, Some("/lib/ld-musl-x86_64.so.1")),
@@ -699,6 +717,28 @@ mod tests {
             ("payload/game.app/game", Some("unplatformed")),
             ("payload/game", Some("unplatformed")),
             ("game.app/game", Some("unplatformed")),
+            // A `Payload` directory at any depth is an iOS layout.
+            ("release/payload/game.app/game", Some("unplatformed")),
+            ("dist/ios/payload/game", Some("unplatformed")),
+            ("payload/game.app/contents/macos/game", Some("unplatformed")),
+            // A bundle not followed by `Contents/MacOS` is iOS-shaped at any
+            // depth, also an app extension.
+            ("dist/game.app/game", Some("unplatformed")),
+            ("game.app/plugins/widget.appex/widget", Some("unplatformed")),
+            ("widget.appex/widget", Some("unplatformed")),
+            ("game.app/contents/resources/game", Some("unplatformed")),
+            // macOS bundles, including nested helpers and extensions.
+            ("dist/game.app/contents/macos/game", None),
+            (
+                "game.app/contents/plugins/widget.appex/contents/macos/widget",
+                None,
+            ),
+            (
+                "game.app/contents/frameworks/helper.app/contents/macos/helper",
+                None,
+            ),
+            // A file merely named like a bundle is not a bundle ancestor.
+            ("dist/payload", None),
         ] {
             assert_eq!(
                 mach_o_structure(path, Some("unplatformed")),
@@ -712,6 +752,14 @@ mod tests {
             Some("unknown")
         );
         assert_eq!(mach_o_structure("game.app/contents/macos/game", None), None);
+        assert_eq!(
+            mach_o_structure("build/payload/game.app/game", None),
+            Some("unknown")
+        );
+        assert_eq!(
+            mach_o_structure("game.app/plugins/widget.appex/widget", None),
+            Some("unknown")
+        );
         assert_eq!(mach_o_structure("x/payload/game", Some("ios")), Some("ios"));
     }
 
@@ -957,11 +1005,14 @@ mod tests {
             .unwrap_or((host, rest));
         let os = match system {
             "windows" | "linux" | "macos" | "android" => system,
+            "arm64ec" => "windows",
             "ios" | "tvos" | "watchos" | "visionos" => "ios",
             "xbox" => "console",
             _ => "unknown",
         };
-        let arch = if rest.starts_with("universal-") {
+        let arch = if system == "arm64ec" {
+            "aarch64"
+        } else if rest.starts_with("universal-") {
             "universal"
         } else {
             match rest {

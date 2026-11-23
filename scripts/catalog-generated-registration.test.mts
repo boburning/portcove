@@ -761,6 +761,72 @@ void test("the gate independently refuses enrollments that do not rest on their 
   assert.equal(gateGeneration(null, generation).added.length, 1);
 });
 
+void test("the gate checks one top-level directory across every name-permitted artifact (H3)", () => {
+  const generation = generateRegistrations([listing()], table(entry()));
+  assert.equal(gateGeneration(null, generation).added.length, 1);
+  // A second archive the name allows for the same platform holds the same
+  // program under two top-level directories: the generator calls that
+  // ambiguous, and the gate must refuse it too even though the enrolled
+  // runtime's own archive is clean.
+  const copy = structuredClone(generation);
+  copy.facts.entries[0]!.artifacts.push(
+    artifact(windowsZip, [player("A/Unseen.exe"), player("B/Unseen.exe")], 12),
+  );
+  copy.enrollments[0]!.facts_sha256 = digestOf(copy.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, copy), /several top-level directories/u);
+  assert.equal(
+    reasonOf(decide(listing(), copy.facts.entries[0])),
+    "ambiguous-player",
+    "the generator agrees",
+  );
+});
+
+void test("malformed asset records and an undated newest release are invalid facts, never dropped (H4)", async () => {
+  const id = unseen;
+  const malformed = observerReport({ [id]: {} });
+  const assets = malformed.listings[0]!.listing_update.upstream_observation.releases[0]!
+    .assets as unknown[];
+  assets.push({ id: "not-a-number", name: "Game-v1.0-linux-x86_64.tar.gz", url: "x", size: 1 });
+  const first = await derive([listing()], malformed);
+  assert.equal(outcome(first, id)?.reason, "invalid-facts");
+  assert.match(first.table.entries[0]!.ineligible!.detail, /asset record/u);
+  // A malformed asset in an older, superseded release does not matter.
+  const older = observerReport({
+    [id]: {
+      releases: [
+        {
+          id: 9,
+          tag: "v1.0",
+          published_at: "2026-11-02T00:00:00Z",
+          assets: [{ id: 31, name: windowsZip }],
+        },
+        { id: 8, tag: "alphabet-1.0", assets: [{ id: 21, name: windowsZip }] },
+      ],
+    },
+  });
+  (older.listings[0]!.listing_update.upstream_observation.releases[1]!.assets as unknown[]).push({
+    name: "broken",
+  });
+  assert.equal((await derive([listing()], older)).table.entries[0]!.ineligible, null);
+  // The newest release (highest id) without a parseable publication time
+  // makes the latest stable release unknown.
+  for (const published of [null, "not-a-date"]) {
+    const undated = observerReport({
+      [id]: {
+        releases: [
+          { id: 9, tag: "v1.0", assets: [{ id: 31, name: windowsZip }] },
+          { id: 8, tag: "alphabet-1.0", assets: [{ id: 21, name: windowsZip }] },
+        ],
+      },
+    });
+    undated.listings[0]!.listing_update.upstream_observation.releases[0]!.published_at =
+      published as unknown as string;
+    const result = await derive([listing()], undated);
+    assert.equal(outcome(result, id)?.reason, "invalid-facts", String(published));
+    assert.match(result.table.entries[0]!.ineligible!.detail, /publication time/u);
+  }
+});
+
 void test("facts land as successive bounded batches in port_id order", () => {
   const { ids, records, facts } = fittingFacts(150, "zz-wave");
   const empty = { ...emptyFactsTable(generatedAt) };
@@ -1226,14 +1292,14 @@ void test("players are shown only through a conservative name class, at most thr
   );
   // Five builds of one program enroll; the guide names none and lists three.
   const many = guideOf(
-    ["Game.exe", "Game32.exe", "Game64.exe", "Game.console.exe", "Game.x86_64.exe"].map((path) =>
+    ["Game.exe", "Game-64.exe", "Game.x64.exe", "Game.console.exe", "Game.x86_64.exe"].map((path) =>
       player(path),
     ),
   );
   assert.equal(many.steps[2]!.instruction, genericSelection);
   assert.match(
     many.references[1]!.instruction,
-    /contains Game\.console\.exe, Game\.exe, Game\.x86_64\.exe and 2 more\./u,
+    /contains Game-64\.exe, Game\.console\.exe, Game\.exe and 2 more\./u,
   );
   const hidden = guideOf([player("game.exe")], windowsZip);
   assert.match(hidden.references[1]!.instruction, /release v1\.0/u);
@@ -1837,13 +1903,16 @@ void test("table provenance is optional, checked when present and carried into t
     workflow_run_id: "123456789",
     source_commit: "a".repeat(40),
     cli_sha256: sha("cli"),
+    inputs_sha256: sha("inputs"),
   };
   checkFactsProvenance(provenance);
   for (const bad of [
     { ...provenance, workflow_run_id: "0x1" },
     { ...provenance, source_commit: "abc" },
     { ...provenance, cli_sha256: "z".repeat(64) },
+    { ...provenance, inputs_sha256: "z".repeat(64) },
     { ...provenance, extra: 1 },
+    { workflow_run_id: "1", source_commit: "a".repeat(40), cli_sha256: sha("cli") },
     { workflow_run_id: "1", source_commit: "a".repeat(40) },
   ])
     assert.throws(() => checkFactsProvenance(bad), /provenance/u);
@@ -2177,7 +2246,13 @@ void test("two distinct programs on a platform are ambiguous; builds of one prog
     [[exe("A/Game.exe"), exe("B/Game.exe")], "ambiguous-player"],
     // Architecture, console and debug builds of one program.
     [[exe("openjk.x86_64.exe"), exe("openjk.x86.exe", "pe-x86")], "fit"],
-    [[exe("Game/Game.exe"), exe("Game/Game64.exe"), exe("Game/Game.console.exe")], "fit"],
+    [[exe("Game/Game.exe"), exe("Game/Game-64.exe"), exe("Game/Game.console.exe")], "fit"],
+    [[exe("Game/Game.x64.exe"), exe("Game/Game_win64.exe"), exe("Game/Game.debug.exe")], "fit"],
+    // A number glued to the name is part of the name (H2): Doom 64 is not
+    // Doom, and `Game64.exe` cannot be told from such a title by name alone.
+    [[exe("Doom.exe"), exe("Doom64.exe")], "ambiguous-player"],
+    [[exe("Game/Game.exe"), exe("Game/Game64.exe")], "ambiguous-player"],
+    [[exe("Quake.exe"), exe("Quake32.exe")], "ambiguous-player"],
     // A tool beside the game is vetoed by name, not counted.
     [[exe("Game.exe"), exe("Patcher.exe")], "fit"],
   ];
