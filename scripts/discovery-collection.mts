@@ -13,6 +13,10 @@ import {
 } from "./daily-discovery-sources.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
 import {
+  acceptBackfillPage,
+  nextBackfillPage,
+  passBackfillFamily,
+  skipBackfillWindow,
   acceptLeadPage,
   advanceLeadFamily,
   leadSearchFamilyCount,
@@ -605,6 +609,99 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
   return host.leadSummary();
 }
 
+/**
+ * Historical backfill and repair sweeps (unattended only), after forward
+ * searches and release rechecks, until every family is done for this run or a
+ * physical budget stops it. Each page commits through the same persistence.
+ */
+async function backfillLeadFamilies(host: DiscoveryCollectionHost) {
+  const deferred = new Set<string>();
+  let idle = 0;
+  while (idle < leadSearchFamilyCount) {
+    const plan = nextBackfillPage(host.leads, host.journal.started_at);
+    if (!plan || deferred.has(plan.family)) {
+      host.leads = passBackfillFamily(host.leads);
+      idle++;
+      continue;
+    }
+    if (plan.capped) {
+      host.leads = skipBackfillWindow(
+        host.leads,
+        plan,
+        "Narrower windows still exceed the provider's result ceiling; no complete coverage claim",
+        false,
+        host.journal.started_at,
+      );
+      host.journal.notes.push({
+        phase: "backfill",
+        status: "capped",
+        family: plan.family,
+        query: plan.query,
+      });
+      host.persist();
+      continue;
+    }
+    const reserve = researchReserve(host, 17);
+    if (
+      host.budget.remaining().requests < reserve.requests ||
+      host.budget.remaining().bytes < reserve.bytes
+    )
+      // A budget boundary: the exact window resumes on the next admitted pass.
+      break;
+    await host.budget.admit(1, 1);
+    const response = await host.source.sdk.request({
+      method: "GET",
+      url: new URL(
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
+        "https://api.github.com/",
+      ).href,
+    });
+    const name = `backfill-search-${++host.searches}`;
+    host.save(name, { ...object(response.data), query: plan.query, page: plan.page });
+    try {
+      host.leads = acceptBackfillPage(
+        host.leads,
+        plan,
+        response.data,
+        host.journal.started_at,
+        path.join(host.runDir, `${name}.json`),
+      );
+    } catch (error) {
+      // A page whose membership moved, or that the provider marked incomplete, says
+      // nothing about coverage: keep its validated identities and recollect later.
+      const incomplete = /Incomplete or malformed lead search page/u.test(errorMessage(error));
+      if (!(error instanceof LeadSearchChanged) && !incomplete) throw error;
+      const items: unknown = object(response.data).items;
+      if (Array.isArray(items))
+        host.leads = retainLeadResults(
+          host.leads,
+          items,
+          host.journal.started_at,
+          path.join(host.runDir, `${name}.json`),
+          plan.family,
+        );
+      host.leads = skipBackfillWindow(
+        host.leads,
+        plan,
+        errorMessage(error),
+        true,
+        host.journal.started_at,
+      );
+      host.journal.notes.push({
+        phase: "backfill",
+        status: "partial",
+        family: plan.family,
+        query: plan.query,
+        error: errorMessage(error),
+        resume: "Recollect this backfill window on a later run",
+      });
+      deferred.add(plan.family);
+    }
+    idle = 0;
+    host.persist();
+  }
+}
+
 /** One collection pass: curated lists, lead searches, then reviewed source collectors. */
 export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
   if (host.journal.collection_done)
@@ -636,6 +733,8 @@ export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
   } finally {
     host.budget.reserve = reserve;
   }
+  // Historical backfill takes what remains once the reviewed sources have run.
+  if (host.unattended) await backfillLeadFamilies(host);
   host.checkpoint = advanceDiscovery(host.checkpoint, {
     observed_at: new Date().toISOString(),
     sources: host.journal.sources,

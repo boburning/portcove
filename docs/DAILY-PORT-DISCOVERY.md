@@ -821,6 +821,21 @@ lead state, source checkpoint and research progress by the runner: a quarter of
 its memory, within the longest string the runtime can serialize. Each commit sends the state document with only the records that
 changed.
 
+Unattended runs also backfill history. Once forward searches, release rechecks
+and the reviewed source collectors have run, each search family has a second
+window that moves backward from where
+its forward coverage starts, a year at a time, to 2008-01-01 (GitHub's launch;
+no repository is older). A window past GitHub's 1,000-result search ceiling
+halves itself, as forward windows do, and the next window steps back from the
+original start. A piece that still cannot be narrowed is recorded as capped,
+never as covered, and the rest of its window continues. A page whose membership
+moves or that GitHub marks incomplete keeps its identities and is recollected
+on a later run. Families take turns. When a family's sweep
+reaches the epoch, a repair sweep starts again from the top in a later run, so a
+repository that became searchable late, through a metadata or topic change,
+visibility or delayed indexing, is still found. Backfill progress is part of the
+collector state, so it resumes across passes and runs.
+
 Canonical ownership is `unknown` in this path. The worker reads catalog lineage
 but not the Roadmap inventory. A retained observation is a lead, not intake,
 identity resolution or admission; the hosted bridge and its receipts still own

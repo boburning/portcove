@@ -59,12 +59,33 @@ export interface DiscoveryLead {
   external_change?: { fingerprint: string; observed_at: string };
   release_hint?: { assets_observed: boolean; observed_at: string; evidence: string };
 }
+export interface LeadBackfill {
+  slice: LeadSlice;
+  /** When the current sweep started; a sweep ends when its window reaches the epoch. */
+  sweep_started_at: string;
+  sweeps_completed: number;
+  /** The run that finished the last sweep; the next repair sweep starts in a later run. */
+  finished_run?: string;
+  /**
+   * The current window's original start. Halving moves the slice through its
+   * pieces, so the next window steps back from here, not from the last piece.
+   */
+  window_since?: string;
+}
 export interface LeadState {
   format: 1;
   next_family: number;
   slices: Record<string, LeadSlice>;
   records: Record<string, DiscoveryLead>;
   retired_slices?: Record<string, LeadSlice>;
+  /**
+   * Historical backfill per search family: a window moving backward from where
+   * forward coverage starts to GitHub's launch, then starting again from the top
+   * as a repair sweep. Unattended collection only.
+   */
+  backfill?: Record<string, LeadBackfill>;
+  /** Next family the backfill visits, round robin. */
+  backfill_next?: number;
   external?: ExternalLeadState;
 }
 let leadStateEnvelope = discoveryCheckpointBytes;
@@ -88,6 +109,32 @@ function boundLeadState<T>(value: T): T {
   return value;
 }
 const clock = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
+function validSlice(raw: unknown): boolean {
+  return !(
+    !isRecord(raw) ||
+    !clock(raw.since) ||
+    !clock(raw.until) ||
+    Date.parse(raw.since) > Date.parse(raw.until) ||
+    !Number.isSafeInteger(raw.page) ||
+    Number(raw.page) < 1 ||
+    Number(raw.page) > 21 ||
+    !Array.isArray(raw.seen) ||
+    !raw.seen.every((n) => Number.isSafeInteger(n) && Number(n) > 0) ||
+    new Set(raw.seen).size !== raw.seen.length ||
+    (raw.completed_at !== undefined && !clock(raw.completed_at)) ||
+    (raw.capped !== undefined && raw.capped !== true) ||
+    (raw.remaining !== undefined &&
+      (!Array.isArray(raw.remaining) ||
+        raw.remaining.length > 64 ||
+        !raw.remaining.every(
+          (r) => isRecord(r) && clock(r.since) && clock(r.until) && r.since <= r.until,
+        ))) ||
+    (raw.window_until !== undefined && !clock(raw.window_until)) ||
+    (raw.restart_reason !== undefined && typeof raw.restart_reason !== "string") ||
+    (raw.terms !== undefined && typeof raw.terms !== "string") ||
+    (raw.total !== undefined && (!Number.isSafeInteger(raw.total) || Number(raw.total) < 0))
+  );
+}
 export function parseLeadState(value: unknown): LeadState {
   if (value === undefined) return { format: 1, next_family: 0, slices: {}, records: {} };
   if (
@@ -108,32 +155,30 @@ export function parseLeadState(value: unknown): LeadState {
     ...Object.entries(value.slices),
     ...Object.entries(value.retired_slices ?? {}),
   ]) {
-    if (
-      !families.some((f) => f.id === id) ||
-      !isRecord(raw) ||
-      !clock(raw.since) ||
-      !clock(raw.until) ||
-      Date.parse(raw.since) > Date.parse(raw.until) ||
-      !Number.isSafeInteger(raw.page) ||
-      Number(raw.page) < 1 ||
-      Number(raw.page) > 21 ||
-      !Array.isArray(raw.seen) ||
-      !raw.seen.every((n) => Number.isSafeInteger(n) && Number(n) > 0) ||
-      new Set(raw.seen).size !== raw.seen.length ||
-      (raw.completed_at !== undefined && !clock(raw.completed_at)) ||
-      (raw.capped !== undefined && raw.capped !== true) ||
-      (raw.remaining !== undefined &&
-        (!Array.isArray(raw.remaining) ||
-          raw.remaining.length > 64 ||
-          !raw.remaining.every(
-            (r) => isRecord(r) && clock(r.since) && clock(r.until) && r.since <= r.until,
-          ))) ||
-      (raw.window_until !== undefined && !clock(raw.window_until)) ||
-      (raw.restart_reason !== undefined && typeof raw.restart_reason !== "string") ||
-      (raw.terms !== undefined && typeof raw.terms !== "string") ||
-      (raw.total !== undefined && (!Number.isSafeInteger(raw.total) || Number(raw.total) < 0))
-    )
+    if (!families.some((f) => f.id === id) || !validSlice(raw))
       throw new Error("Invalid retained lead search slice");
+  }
+  if (
+    value.backfill_next !== undefined &&
+    (!Number.isSafeInteger(value.backfill_next) ||
+      Number(value.backfill_next) < 0 ||
+      Number(value.backfill_next) >= families.length)
+  )
+    throw new Error("Invalid retained backfill rotation");
+  if (value.backfill !== undefined) {
+    if (!isRecord(value.backfill)) throw new Error("Invalid retained backfill");
+    for (const [id, raw] of Object.entries(value.backfill))
+      if (
+        !families.some((f) => f.id === id) ||
+        !isRecord(raw) ||
+        !validSlice(raw.slice) ||
+        !clock(raw.sweep_started_at) ||
+        (raw.finished_run !== undefined && !clock(raw.finished_run)) ||
+        (raw.window_since !== undefined && !clock(raw.window_since)) ||
+        !Number.isSafeInteger(raw.sweeps_completed) ||
+        Number(raw.sweeps_completed) < 0
+      )
+        throw new Error("Invalid retained backfill window");
   }
   for (const [id, raw] of Object.entries(value.records)) {
     if (
@@ -440,13 +485,14 @@ export function nextLeadPage(state: LeadState, now: string) {
     retired,
   };
 }
-export function acceptLeadPage(
+/** One search page within a slice: retained results and the slice's next position. */
+function acceptSlicePage(
   state: LeadState,
-  plan: ReturnType<typeof nextLeadPage>,
+  plan: { family: string; slice: LeadSlice; page: number; capped: boolean },
   response: unknown,
   observedAt: string,
   evidence: string,
-): LeadState {
+) {
   if (
     !clock(observedAt) ||
     !isRecord(response) ||
@@ -463,11 +509,6 @@ export function acceptLeadPage(
   const next = retainLeadResults(state, response.items, observedAt, evidence, plan.family);
   if (slice.total !== undefined && slice.total !== total)
     throw new LeadSearchChanged("Lead search count changed; retain prior continuation");
-  if (plan.retired)
-    next.retired_slices = {
-      ...next.retired_slices,
-      [plan.family]: structuredClone(state.slices[plan.family]!),
-    };
   const ids = new Set(slice.seen);
   for (const raw of response.items as unknown[]) {
     if (
@@ -517,10 +558,160 @@ export function acceptLeadPage(
       delete slice.total;
     } else slice.completed_at = slice.window_until ?? slice.until;
   }
+  return { next, slice };
+}
+export function acceptLeadPage(
+  state: LeadState,
+  plan: ReturnType<typeof nextLeadPage>,
+  response: unknown,
+  observedAt: string,
+  evidence: string,
+): LeadState {
+  const { next, slice } = acceptSlicePage(state, plan, response, observedAt, evidence);
+  if (plan.retired)
+    next.retired_slices = {
+      ...next.retired_slices,
+      [plan.family]: structuredClone(state.slices[plan.family]!),
+    };
   next.slices[plan.family] = slice;
   next.next_family = advanceLeadFamily(state.next_family);
   return boundLeadState(next);
 }
+
+/** GitHub launched in 2008; no repository can be older, so a backfill sweep ends here. */
+export const backfillEpoch = "2008-01-01T00:00:00.000Z";
+/** A backfill window's initial span; a window past the provider ceiling halves itself. */
+const backfillSpanMs = 366 * 86400000;
+
+/**
+ * The next historical backfill page, round robin over families. Each family's
+ * window moves backward from where its forward coverage starts to the epoch,
+ * then a new repair sweep starts again from the top, so a repository that
+ * became searchable late is still found.
+ */
+export function nextBackfillPage(state: LeadState, now: string) {
+  if (!clock(now)) throw new Error("Invalid backfill clock");
+  const index = state.backfill_next ?? 0;
+  const family = families[index]!;
+  const includeForks = ecosystemSearchFamilies.some((f) => f.id === family.id);
+  const sort = "sort" in family ? family.sort : undefined;
+  const contract = `${family.terms} [${sort ? `${sort} desc` : "best-match"}]${includeForks ? " [fork:true]" : ""}`;
+  // Forward coverage starts at the family's first forward window, or its baseline.
+  const top = state.slices[family.id]?.since ?? investigationWindow(undefined, now).since;
+  const window = (until: string) => ({
+    since: new Date(
+      Math.max(Date.parse(backfillEpoch), Date.parse(until) - backfillSpanMs),
+    ).toISOString(),
+    until,
+    page: 1,
+    seen: [],
+    terms: contract,
+  });
+  const saved = state.backfill?.[family.id];
+  const opened = (until: string) => {
+    const slice = window(until);
+    return { slice, window_since: slice.since };
+  };
+  let backfill: LeadBackfill;
+  if (!saved || saved.slice.terms !== contract)
+    backfill = {
+      ...opened(top),
+      sweep_started_at: now,
+      sweeps_completed: saved?.sweeps_completed ?? 0,
+    };
+  else if (!saved.slice.completed_at) backfill = saved;
+  else {
+    const reached = saved.window_since ?? saved.slice.since;
+    if (Date.parse(reached) <= Date.parse(backfillEpoch)) {
+      // The sweep reached the epoch: a repair sweep starts from the top in a later run.
+      if (saved.finished_run === now) return undefined;
+      backfill = {
+        ...opened(top),
+        sweep_started_at: now,
+        sweeps_completed: saved.sweeps_completed + 1,
+      };
+    } else backfill = { ...saved, ...opened(reached) };
+  }
+  return {
+    family: family.id,
+    backfill,
+    slice: backfill.slice,
+    query: `${family.terms} ${family.clock}:${backfill.slice.since}..${backfill.slice.until} fork:${includeForks}`,
+    sort,
+    page: backfill.slice.page,
+    capped: backfill.slice.capped === true,
+  };
+}
+
+export type BackfillPlan = NonNullable<ReturnType<typeof nextBackfillPage>>;
+export function acceptBackfillPage(
+  state: LeadState,
+  plan: BackfillPlan,
+  response: unknown,
+  observedAt: string,
+  evidence: string,
+): LeadState {
+  const { next, slice } = acceptSlicePage(state, plan, response, observedAt, evidence);
+  const finished =
+    slice.completed_at !== undefined &&
+    Date.parse(plan.backfill.window_since ?? slice.since) <= Date.parse(backfillEpoch);
+  next.backfill = {
+    ...next.backfill,
+    [plan.family]: { ...plan.backfill, slice, ...(finished ? { finished_run: observedAt } : {}) },
+  };
+  next.backfill_next = advanceLeadFamily(state.backfill_next ?? 0);
+  return boundLeadState(next);
+}
+
+/** Moves the backfill rotation past a family with nothing more to do in this run. */
+export function passBackfillFamily(state: LeadState): LeadState {
+  return { ...state, backfill_next: advanceLeadFamily(state.backfill_next ?? 0) };
+}
+
+/**
+ * A changed window restarts; a capped piece is skipped for the next piece of
+ * its window, or completes the window when none remain. Neither claims coverage.
+ */
+export function skipBackfillWindow(
+  state: LeadState,
+  plan: BackfillPlan,
+  reason: string,
+  restart: boolean,
+  run: string,
+): LeadState {
+  const next = structuredClone(state);
+  let slice: LeadSlice;
+  let finished = false;
+  if (restart) slice = { ...plan.slice, page: 1, seen: [], restart_reason: reason };
+  else {
+    const [tail, ...rest] = plan.slice.remaining ?? [];
+    if (tail) {
+      slice = {
+        ...plan.slice,
+        since: tail.since,
+        until: tail.until,
+        page: 1,
+        seen: [],
+        restart_reason: reason,
+      };
+      delete slice.capped;
+      if (rest.length) slice.remaining = rest;
+      else delete slice.remaining;
+    } else {
+      slice = { ...plan.slice, completed_at: plan.slice.until, restart_reason: reason };
+      finished =
+        Date.parse(plan.backfill.window_since ?? plan.slice.since) <= Date.parse(backfillEpoch);
+    }
+  }
+  delete slice.total;
+  next.backfill = {
+    ...next.backfill,
+    [plan.family]: { ...plan.backfill, slice, ...(finished ? { finished_run: run } : {}) },
+  };
+  next.backfill_next = advanceLeadFamily(state.backfill_next ?? 0);
+  return boundLeadState(next);
+}
+
 export function pendingLeads(
   state: LeadState,
   known: ReadonlySet<string> = new Set(),
