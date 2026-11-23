@@ -260,10 +260,17 @@ pub(super) async fn inspect_prior(
     let roles = current_roles(&files)?;
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
     let thin = context.thin_history && pointer.is_some();
-    let mut floors = HistoricalRevisionFloors::default();
+    let mut floors = HistoricalRevisionFloors {
+        ledger: context
+            .listing_ledger
+            .as_ref()
+            .and_then(|state| state.prior.clone()),
+        ..Default::default()
+    };
     verify_history(&context.into(), &files, |role, version, targets| {
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.check_ledger_floors()?;
     let ledger = context
         .listing_ledger
         .as_ref()
@@ -543,7 +550,12 @@ struct HistoricalRevisionFloors {
     listing_revisions: BTreeMap<u64, String>,
     legacy_listing: Option<(super::history_checkpoint::ListingFloor, Vec<u8>)>,
     compact_listing: Option<super::history_checkpoint::ListingFloor>,
+    /// Published listing-floor ledger, consulted only for a listing body that
+    /// is absent from the retained tree (#1422 body window).
+    ledger: Option<Ledger>,
     recorder: listing_floor_ledger::Recorder,
+    /// Highest revision per listing target known only from the ledger.
+    ledger_floors: BTreeMap<String, u64>,
 }
 
 impl HistoricalRevisionFloors {
@@ -569,11 +581,19 @@ impl HistoricalRevisionFloors {
             let digest = hex::encode(&identity.hashes.sha256);
             let path = format!("targets/{digest}.{}", target.raw());
             let listing = portcove_listing_carrier::is_listing_target(target.raw());
-            let raw = files.get(&path).ok_or_else(|| {
-                TufRepositoryError::Invalid(format!(
-                    "catalog public repository file missing: {path}"
-                ))
-            })?;
+            let Some(raw) = files.get(&path) else {
+                if listing
+                    && let Some(entry) = self
+                        .ledger
+                        .as_ref()
+                        .and_then(|ledger| ledger.get(target.raw(), &digest))
+                {
+                    let entry = entry.clone();
+                    self.observe_ledger(entry, identity.length, path, version)?;
+                    continue;
+                }
+                return invalid(&format!("catalog public repository file missing: {path}"));
+            };
             let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
                 portcove_listing_carrier::MAX_BYTES
             } else if target.raw() == "definitions/index.json" {
@@ -670,6 +690,57 @@ impl HistoricalRevisionFloors {
                 }
                 self.policies
                     .insert(target.raw().into(), (revision, raw.digest().to_owned()));
+            }
+        }
+        Ok(())
+    }
+
+    /// A pruned body's ledger entry: its signed descriptor must name exactly
+    /// the recorded bytes, and its revision joins the shared equivocation map.
+    fn observe_ledger(
+        &mut self,
+        entry: listing_floor_ledger::Entry,
+        length: u64,
+        path: String,
+        version: u64,
+    ) -> Result<()> {
+        if entry.length != length {
+            return invalid("catalog historical target identity/bound differs");
+        }
+        self.recorder
+            .reference(&entry.target, &entry.sha256, Some(version));
+        if !self.seen.insert(path) {
+            return Ok(());
+        }
+        if let Some(prior) = self
+            .listing_revisions
+            .insert(entry.revision, entry.decoded_sha256.clone())
+            && prior != entry.decoded_sha256
+        {
+            return invalid("catalog retained listing carrier history equivocates");
+        }
+        let floor = self.ledger_floors.entry(entry.target.clone()).or_default();
+        *floor = (*floor).max(entry.revision);
+        self.recorder.facts(entry, false);
+        Ok(())
+    }
+
+    /// Every successor is checked against the newest body of each listing
+    /// target, so that body must be served: a pruned body above it fails closed.
+    fn check_ledger_floors(&self) -> Result<()> {
+        for (target, revision) in &self.ledger_floors {
+            let served = if target == portcove_listing_carrier::COMPACT_TARGET {
+                self.compact_listing.as_ref().map(|floor| floor.revision)
+            } else {
+                self.legacy_listing
+                    .as_ref()
+                    .map(|(floor, _)| floor.revision)
+            };
+            if served.is_none_or(|served| *revision > served) {
+                return invalid(
+                    "catalog newest listing body is outside the served tree; restore it from a \
+pinned publication (docs/RELEASING.md) before publishing",
+                );
             }
         }
         Ok(())
@@ -1113,7 +1184,10 @@ pub async fn verify_definition_history(path: &Path) -> Result<DefinitionHistoryR
             &io::read(&io::resolve(base, prior)?, listing_floor_ledger::MAX_BYTES)?,
         )?)),
     };
-    let mut floors = HistoricalRevisionFloors::default();
+    let mut floors = HistoricalRevisionFloors {
+        ledger: ledger.clone().flatten(),
+        ..Default::default()
+    };
     let mut policy_versions = 0;
     let trust = HistoryTrust {
         root_bytes: &root_bytes,
@@ -1126,6 +1200,7 @@ pub async fn verify_definition_history(path: &Path) -> Result<DefinitionHistoryR
         policy_versions += usize::from(role == "official-policy.json");
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.check_ledger_floors()?;
     let ledger_report = match &ledger {
         Some(prior) => {
             let (bytes, report) = listing_floor_ledger::next(&floors.recorder, prior.as_ref())?;
@@ -1359,6 +1434,9 @@ fn verify_history(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod ledger_simulation;
 
 #[cfg(test)]
 mod capacity_tests {

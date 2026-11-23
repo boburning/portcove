@@ -142,6 +142,12 @@ impl Ledger {
         Ok(bytes)
     }
 
+    pub(super) fn get(&self, target: &str, sha256: &str) -> Option<&Entry> {
+        self.index
+            .get(&(target.to_owned(), sha256.to_owned()))
+            .map(|position| &self.entries[*position])
+    }
+
     pub(super) fn len(&self) -> usize {
         self.entries.len()
     }
