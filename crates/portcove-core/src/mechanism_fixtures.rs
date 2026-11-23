@@ -1,8 +1,8 @@
 //! Synthetic fixture identities for the mechanism evidence suites (#8555).
 //!
 //! Each port here is selected by its declared adapter and route facts only.
-//! None of the identities below may appear in non-test `src/` or `scripts/`
-//! files; `identities_are_test_only` enforces that, so passing suites prove
+//! None of the identities below may appear in non-test Core, CLI or Desktop
+//! host sources or `scripts/`; `identities_are_test_only` enforces that, so passing suites prove
 //! the mechanism and not a title-specific branch.
 use std::{
     collections::BTreeMap,
@@ -265,6 +265,41 @@ pub(crate) fn served_releases(member: &str) -> Value {
     releases
 }
 
+/// Each non-game asset the member's recorded releases publish (installer,
+/// builder, debug build, source archive, checksum list, mobile or console
+/// package), renamed for this host where it names a desktop platform. The
+/// recorded decoys name Windows; on another host they would be refused by
+/// host before their role mattered, so each decoy is offered for this host.
+/// Returns `(tag, asset)` pairs with each release's own asset metadata.
+pub(crate) fn same_host_decoys(member: &str) -> Vec<(String, Value)> {
+    let host = asset_token(Platform::current().unwrap());
+    let games = DESKTOP
+        .iter()
+        .flat_map(|platform| [setup_asset_name(*platform), disc_asset_name(*platform)])
+        .collect::<Vec<_>>();
+    let mut decoys = Vec::<(String, Value)>::new();
+    for release in release_lists()[member].as_array().unwrap() {
+        let tag = release["tag_name"].as_str().unwrap();
+        for asset in release["assets"].as_array().unwrap() {
+            let name = asset["name"].as_str().unwrap();
+            if games.iter().any(|game| game == name) {
+                continue;
+            }
+            let renamed = name.replace(asset_token(Platform::WindowsX86_64), host);
+            if decoys
+                .iter()
+                .any(|(_, decoy)| decoy["name"] == renamed.as_str())
+            {
+                continue;
+            }
+            let mut decoy = asset.clone();
+            decoy["name"] = json!(renamed);
+            decoys.push((tag.to_owned(), decoy));
+        }
+    }
+    decoys
+}
+
 /// One package served by [`ReleaseServer`] for `tag` and `asset`.
 pub(crate) struct ServedPackage {
     pub(crate) tag: String,
@@ -443,6 +478,29 @@ impl ReleaseServer {
     }
 }
 
+/// `path` in one comparable form: the nearest existing ancestor resolved by
+/// the platform, the remaining components appended. On Windows this removes
+/// the difference between verbatim (`\\?\`) and plain drive prefixes and
+/// between short (8.3) and long names, so paths compare by identity rather
+/// than spelling.
+pub(crate) fn canonical(path: &Path) -> PathBuf {
+    assert!(path.is_absolute(), "{path:?} is not absolute");
+    let mut existing = path;
+    let mut rest = Vec::new();
+    while !existing.exists() {
+        rest.push(existing.file_name().unwrap().to_owned());
+        existing = existing.parent().unwrap();
+    }
+    let mut resolved = std::fs::canonicalize(existing).unwrap();
+    resolved.extend(rest.iter().rev());
+    resolved
+}
+
+/// Whether `path` is `root` or inside it, compared by [`canonical`] form.
+pub(crate) fn within(path: &Path, root: &Path) -> bool {
+    canonical(path).starts_with(canonical(root))
+}
+
 /// A file's bytes and length, read back for "never modified" comparisons.
 pub(crate) fn file_identity(path: &Path) -> (Vec<u8>, u64, std::time::SystemTime) {
     let metadata = std::fs::metadata(path).unwrap();
@@ -515,7 +573,16 @@ fn identities_are_test_only() {
         "mechanism-fixture",
     ];
     let mut offenders = Vec::new();
-    for root in [manifest.join("src"), repository.join("scripts")] {
+    for root in [
+        manifest.join("src"),
+        repository.join("crates").join("portcove-cli").join("src"),
+        repository
+            .join("apps")
+            .join("desktop")
+            .join("src-tauri")
+            .join("src"),
+        repository.join("scripts"),
+    ] {
         let mut pending = vec![root];
         while let Some(directory) = pending.pop() {
             for entry in std::fs::read_dir(&directory).unwrap() {

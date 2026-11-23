@@ -114,10 +114,17 @@ fn no_library_copy(library: &Library, original: &Original) {
     );
 }
 
+/// A launch argument names `expected`, compared by canonical components so
+/// Windows verbatim prefixes and short names do not decide the result.
 fn same_path(argument: &str, expected: &Path) {
     assert_eq!(
-        Path::new(argument).components().collect::<Vec<_>>(),
-        expected.components().collect::<Vec<_>>()
+        fixture::canonical(Path::new(argument))
+            .components()
+            .collect::<Vec<_>>(),
+        fixture::canonical(expected)
+            .components()
+            .collect::<Vec<_>>(),
+        "{argument} does not name {expected:?}"
     );
 }
 
@@ -151,7 +158,7 @@ fn assert_launch_references(
         spec.executable.file_name().unwrap().to_string_lossy(),
         fixture::disc_player_program(host())
     );
-    assert!(spec.executable.starts_with(&install.path));
+    assert!(fixture::within(&spec.executable, &install.path));
     assert_eq!(spec.arguments.len(), 4, "{:?}", spec.arguments);
     assert_eq!(spec.arguments[0], "--user-dir");
     same_path(&spec.arguments[1], &library.user_dir(DISC_PORT));
@@ -280,7 +287,9 @@ async fn refusal_unsupported_platform_downloads_nothing() {
 
 /// Typed route facts: a mobile package and another host's player are never
 /// offered as this host's game. Tool and debug decoys are excluded from the
-/// served list; see `mechanism_fixtures::tool_or_debug_decoy`.
+/// served list (see `mechanism_fixtures::tool_or_debug_decoy`); each recorded
+/// decoy is then offered alone under this host's name, and the builder and
+/// debug cases record an observed, tracked defect.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let temporary = tempfile::tempdir().unwrap();
@@ -307,6 +316,76 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
     assert_eq!(error.code, ErrorCode::NotFound, "{error:?}");
     assert!(server.downloads().is_empty());
     assert!(service.status(DISC_PORT).unwrap().active.is_none());
+
+    // Each decoy alone, named for this host and serving a real player
+    // package, so the outcome depends on its role and not on host filtering.
+    original.assert_untouched();
+    let decoys = fixture::same_host_decoys("referenced_disc");
+    let names = decoys
+        .iter()
+        .map(|(_, decoy)| decoy["name"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(names.len(), 3, "{names:?}");
+    for (tag, decoy) in decoys {
+        let name = decoy["name"].as_str().unwrap().to_owned();
+        let server = ReleaseServer::start_with_releases(
+            DISC_REPOSITORY,
+            decoy_only_release("referenced_disc", &tag, &decoy),
+            vec![ServedPackage {
+                asset: name.clone(),
+                ..package(&tag)
+            }],
+        );
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_for(&library, &server, &document, None);
+        service
+            .register_source(DISC_PROFILE, &original.path)
+            .unwrap();
+        let result = service
+            .install(DISC_PORT, None, None, None, true, |_| {})
+            .await;
+        if name.contains("-builder-") || name.ends_with("-debug.zip") {
+            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // contract: a builder or debug package that is the only host
+            // archive is selected, downloaded and installed as the player.
+            // The generic package choice (`release.rs`,
+            // `choose_asset_for_variant`) applies the typed-role gate only for
+            // portable adapters.
+            let install = result.unwrap();
+            assert_eq!(install.artifact.asset_name, name);
+            assert_eq!(
+                server.downloads(),
+                [format!("{DISC_REPOSITORY}/releases/download/{tag}/{name}")],
+                "{name}"
+            );
+        } else {
+            // Mobile package.
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
+            assert!(server.downloads().is_empty(), "{name}");
+            assert!(
+                service.status(DISC_PORT).unwrap().active.is_none(),
+                "{name}"
+            );
+        }
+        original.assert_untouched();
+        no_library_copy(&library, &original);
+    }
+}
+
+/// One recorded release (`tag`) that publishes only `decoy`, renamed for this
+/// host, with real game bytes served under the decoy's name.
+fn decoy_only_release(member: &str, tag: &str, decoy: &Value) -> Value {
+    let mut release = fixture::release_lists()[member]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|release| release["tag_name"] == tag)
+        .unwrap()
+        .clone();
+    release["assets"] = json!([decoy]);
+    json!([release])
 }
 
 #[tokio::test]
@@ -431,15 +510,32 @@ async fn update_and_rollback_keep_player_data_and_the_original() {
     no_library_copy(&library, &original);
 }
 
-/// A crash after the new version is staged but before metadata commits rolls
-/// back to the active version on recovery; player data and the original stay.
+/// Directory names beside the active installation: every published version
+/// folder of this port, whether or not it is registered.
+fn version_folders(install: &InstallRecord) -> std::collections::BTreeSet<std::ffi::OsString> {
+    fs::read_dir(install.path.parent().unwrap())
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .filter(|entry| entry.file_type().unwrap().is_dir())
+        .map(|entry| entry.file_name())
+        .collect()
+}
+
+/// A crash at each update boundary resolves to exactly one state. Before the
+/// verified install is journaled as `Prepared`, the failed update discards its
+/// private work itself (`install.rs`, the `LifecyclePhase::Preparing` failure
+/// branch), so v1 stays active and nothing of v2 is published. From
+/// `Prepared` on, restart recovery finishes publication, registration and
+/// cleanup (`recovery.rs`, `recover_published_install`), so v2 is active and
+/// v1 is kept as the rollback version. Player data and the original are kept
+/// in every case.
 #[tokio::test]
 async fn interrupted_update_recovers_with_player_data_and_original_intact() {
-    for point in [
-        LifecycleFaultPoint::InstallPrepared,
-        LifecycleFaultPoint::InstallReadyToPublish,
-        LifecycleFaultPoint::InstallPublished,
-        LifecycleFaultPoint::InstallMetadataCommitted,
+    for (point, v2_published) in [
+        (LifecycleFaultPoint::InstallReadyToPublish, false),
+        (LifecycleFaultPoint::InstallPrepared, true),
+        (LifecycleFaultPoint::InstallPublished, true),
+        (LifecycleFaultPoint::InstallMetadataCommitted, true),
     ] {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -458,6 +554,7 @@ async fn interrupted_update_recovers_with_player_data_and_original_intact() {
         fs::create_dir_all(user.join("saves")).unwrap();
         fs::write(user.join("saves/slot1.sav"), b"player progress").unwrap();
         let user_before = fixture::tree(&user);
+        let v1_tree = fixture::tree(&v1.path);
 
         let server =
             ReleaseServer::start(DISC_REPOSITORY, "referenced_disc", vec![package("v2.0.0")]);
@@ -476,11 +573,29 @@ async fn interrupted_update_recovers_with_player_data_and_original_intact() {
         let restarted = service_for(&library, &server, &document, None);
         restarted.recover_pending_operations().unwrap();
         let status = restarted.status(DISC_PORT).unwrap();
-        let active = status.active.unwrap();
-        assert!(
-            active.id == v1.id || active.version == "v2.0.0",
-            "{point:?}: unexpected active {active:?}"
-        );
+        let active = status.active.clone().unwrap();
+        if v2_published {
+            assert_eq!(active.version, "v2.0.0", "{point:?}");
+            assert_ne!(active.id, v1.id, "{point:?}");
+            assert_eq!(status.previous.unwrap().id, v1.id, "{point:?}");
+            assert_eq!(
+                version_folders(&v1),
+                [&v1, &active]
+                    .iter()
+                    .map(|install| install.path.file_name().unwrap().to_owned())
+                    .collect(),
+                "{point:?}"
+            );
+        } else {
+            assert_eq!(active.id, v1.id, "{point:?}");
+            assert!(status.previous.is_none(), "{point:?}");
+            assert_eq!(
+                version_folders(&v1),
+                [v1.path.file_name().unwrap().to_owned()].into(),
+                "{point:?}"
+            );
+        }
+        assert_eq!(fixture::tree(&v1.path), v1_tree, "{point:?}");
         assert!(restarted.verify(DISC_PORT).unwrap().valid, "{point:?}");
         assert!(
             crate::operation::OperationStore::new(library.clone())
@@ -492,6 +607,7 @@ async fn interrupted_update_recovers_with_player_data_and_original_intact() {
         assert_eq!(fixture::tree(&user), user_before, "{point:?}");
         assert_launch_references(&restarted, &library, &active, &source);
         original.assert_untouched();
+        no_library_copy(&library, &original);
     }
 }
 
@@ -513,7 +629,7 @@ async fn removal_leaves_the_referenced_original_untouched() {
     let removed = service.remove(DISC_PORT, &authorization.token).unwrap();
     for path in &removed {
         assert!(
-            !original.path.starts_with(path) && !path.starts_with(&original.directory),
+            !fixture::within(&original.path, path) && !fixture::within(path, &original.directory),
             "removal reached the original: {path:?}"
         );
     }

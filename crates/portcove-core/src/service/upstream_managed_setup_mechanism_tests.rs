@@ -179,19 +179,38 @@ fn no_journals(library: &Library) -> bool {
         .is_empty()
 }
 
+/// Whether Portcove records the setup process tree as proven quiet after the
+/// upstream setup ran. Before any setup process starts, the journal records
+/// `Some(true)` (`preparation_execution.rs`, `prepare_derivative`). Starting
+/// the setup records `Some(false)`; only a Windows job object can then prove
+/// the tree quiet (`tool_process.rs`, `proves_tree_quiescence` is `false` on
+/// Unix because a helper may leave its process group).
+const SETUP_RAN_QUIESCED: bool = cfg!(windows);
+
 /// A failed or interrupted private preparation keeps its work for review: one
-/// `Preparing` journal whose final path was never published. Reviewed cleanup
-/// discards exactly that private tree and journal.
-fn review_and_clean_retained_preparation(service: &PortcoveService, context: &str) {
+/// `Preparing` journal whose final path was never published. Cleanup is offered
+/// only once the setup process tree is proven quiet; otherwise the private work
+/// stays for manual review, unchanged.
+///
+/// `recorded_quiesced` is the state this host must have recorded. Both
+/// decisions are then exercised on every host by writing each recorded state
+/// into the journal: first unproven (refused, nothing changes), then proven
+/// (reviewed cleanup discards exactly that private tree and journal).
+fn review_and_clean_retained_preparation(
+    service: &PortcoveService,
+    context: &str,
+    recorded_quiesced: bool,
+) {
     let store = OperationStore::new(service.library().clone());
     let journals = store.all().unwrap();
     assert_eq!(journals.len(), 1, "{context}");
-    let journal = &journals[0];
+    let mut journal = journals[0].clone();
     assert_eq!(
         journal.phase,
         crate::operation::LifecyclePhase::Preparing,
         "{context}"
     );
+    assert!(journal.install.is_none(), "{context}");
     assert!(
         journal
             .paths
@@ -200,33 +219,48 @@ fn review_and_clean_retained_preparation(service: &PortcoveService, context: &st
             .is_none_or(|path| !path.exists()),
         "{context}"
     );
+    assert_eq!(
+        journal.preparation_process_quiesced,
+        Some(recorded_quiesced),
+        "{context}"
+    );
     let retained = journal
         .paths
         .staging
         .as_ref()
         .map(|path| fixture::tree(path))
         .unwrap_or_default();
-    // Cleanup is offered only once the setup process tree is proven quiet;
-    // otherwise the private work stays for manual review, unchanged.
-    if journal.preparation_process_quiesced != Some(true) {
-        let refused = service
-            .preview_preparation_cleanup(&journal.id)
-            .unwrap_err();
-        assert_eq!(refused.code, ErrorCode::Conflict, "{context}: {refused:?}");
-        assert_eq!(
-            refused.details.get("recovery_action").map(String::as_str),
-            Some("manual_review"),
-            "{context}"
-        );
-        let after = OperationStore::new(service.library().clone())
-            .all()
-            .unwrap();
-        assert_eq!(after.len(), 1, "{context}");
-        if let Some(staging) = &after[0].paths.staging {
-            assert_eq!(fixture::tree(staging), retained, "{context}");
-        }
-        return;
-    }
+
+    // Unproven quiescence: cleanup is refused for manual review.
+    journal.preparation_process_quiesced = Some(false);
+    store.put(&mut journal).unwrap();
+    let refused = service
+        .preview_preparation_cleanup(&journal.id)
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict, "{context}: {refused:?}");
+    assert_eq!(
+        refused.details.get("recovery_action").map(String::as_str),
+        Some("manual_review"),
+        "{context}"
+    );
+    let after = store.all().unwrap();
+    assert_eq!(after.len(), 1, "{context}");
+    assert_eq!(after[0].id, journal.id, "{context}");
+    assert_eq!(
+        after[0]
+            .paths
+            .staging
+            .as_ref()
+            .map(|path| fixture::tree(path))
+            .unwrap_or_default(),
+        retained,
+        "{context}"
+    );
+
+    // Proven quiescence: reviewed cleanup removes only the private work.
+    let mut journal = after[0].clone();
+    journal.preparation_process_quiesced = Some(true);
+    store.put(&mut journal).unwrap();
     let preview = service.preview_preparation_cleanup(&journal.id).unwrap();
     let authorization = service
         .authorize_preparation_cleanup(&journal.id, &preview.preview_sha256)
@@ -235,6 +269,9 @@ fn review_and_clean_retained_preparation(service: &PortcoveService, context: &st
         .cleanup_preparation(&journal.id, &authorization.token)
         .unwrap();
     assert!(no_journals(service.library()), "{context}");
+    if let Some(staging) = &journal.paths.staging {
+        assert!(!staging.exists(), "{context}");
+    }
 }
 
 async fn install_and_prepare(
@@ -318,7 +355,7 @@ async fn success_runs_setup_once_as_explicit_preparation_and_play_never_reruns_i
             spec.executable.file_name().unwrap().to_string_lossy(),
             fixture::game_program(host())
         );
-        assert!(spec.executable.starts_with(&prepared.path));
+        assert!(fixture::within(&spec.executable, &prepared.path));
     }
     assert_eq!(fixture::tree(&prepared.path), before);
     harness.assert_original_untouched();
@@ -396,8 +433,10 @@ async fn refusal_unsupported_platform_downloads_nothing() {
 
 /// Typed route facts: a checksum list, a mobile or console package and another
 /// host's package are never offered as this host's game. Tool, source and
-/// debug decoys are excluded from the served list; see
-/// `mechanism_fixtures::tool_or_debug_decoy`.
+/// debug decoys are excluded from the served list (see
+/// `mechanism_fixtures::tool_or_debug_decoy`); each recorded decoy is then
+/// offered alone under this host's name, and the installer (on Windows) and
+/// source-archive cases record an observed, tracked defect.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let harness = Harness::new();
@@ -419,10 +458,86 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::NotFound, "{error:?}");
     assert!(server.downloads().is_empty());
+
+    // Each decoy alone, named for this host and serving real game bytes, so
+    // the outcome depends on its role and not on host filtering.
+    let decoys = fixture::same_host_decoys("upstream_setup");
+    let names = decoys
+        .iter()
+        .map(|(_, decoy)| decoy["name"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(names.len(), 5, "{names:?}");
+    for (tag, decoy) in decoys {
+        let name = decoy["name"].as_str().unwrap().to_owned();
+        let server = ReleaseServer::start_with_releases(
+            SETUP_REPOSITORY,
+            decoy_only_release("upstream_setup", &tag, &decoy),
+            vec![ServedPackage {
+                asset: name.clone(),
+                ..harness.package(&tag, "success")
+            }],
+        );
+        let service = harness.service(&server, &document, None);
+        let result = service
+            .install(SETUP_PORT, None, None, None, true, |_| {})
+            .await;
+        let selected = [format!("{SETUP_REPOSITORY}/releases/download/{tag}/{name}")];
+        if name.ends_with("-source.tar.gz") {
+            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // contract: a source archive that is the only supported archive
+            // is selected and downloaded as the game. The generic package
+            // choice (`release.rs`, `choose_asset_for_variant`) applies the
+            // typed-role gate only for portable adapters. Here it is refused
+            // only because the served bytes are not a TAR, and nothing is
+            // published.
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::Verification, "{name}: {error:?}");
+            assert_eq!(server.downloads(), selected, "{name}");
+        } else if name.contains("-installer-") && cfg!(windows) {
+            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // contract: `.exe` is a supported package form on Windows, and the
+            // same generic choice selects the installer as the game. Only the
+            // selection is pinned here; what install then does with the
+            // misnamed package has not been observed on this branch.
+            assert_eq!(server.downloads(), selected, "{name}: {result:?}");
+            if let Ok(install) = &result {
+                assert_eq!(install.artifact.asset_name, name);
+            }
+            continue;
+        } else {
+            // Checksum list, mobile and console packages, and the installer
+            // where `.exe` is not a supported package form.
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
+            assert!(server.downloads().is_empty(), "{name}");
+        }
+        assert!(
+            service.status(SETUP_PORT).unwrap().active.is_none(),
+            "{name}"
+        );
+        assert!(
+            fixture::tree(&harness.library.versions_dir()).is_empty(),
+            "{name}"
+        );
+    }
+}
+
+/// One recorded release (`tag`) that publishes only `decoy`, renamed for this
+/// host, with real game bytes served under the decoy's name.
+fn decoy_only_release(member: &str, tag: &str, decoy: &Value) -> Value {
+    let mut release = fixture::release_lists()[member]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|release| release["tag_name"] == tag)
+        .unwrap()
+        .clone();
+    release["assets"] = json!([decoy]);
+    json!([release])
 }
 
 #[tokio::test]
-async fn refusal_missing_original_or_missing_setup_program() {
+async fn refusal_missing_or_moved_original() {
     // Without a registered original, install is refused before any download.
     let harness = Harness::new();
     let server = ReleaseServer::start(
@@ -459,9 +574,21 @@ async fn refusal_missing_original_or_missing_setup_program() {
     );
     assert!(no_journals(&harness.library));
     fs::rename(&moved, &harness.original).unwrap();
+}
 
-    // A package without its declared setup program installs its player but
-    // cannot be prepared: preparation is refused before anything runs.
+/// Observed behavior, tracked as a defect (TRACKING-ISSUE), not a contract.
+///
+/// A package that lacks its declared setup program installs successfully and
+/// then can never be prepared, so the player gets an installed game that is
+/// permanently waiting for setup. Install qualification only resolves the
+/// game executable (`install.rs`, `InstallQualification` built from
+/// `executable_hints`); the setup program is first resolved when preparation
+/// is planned (`preparation.rs`, `setup_executable_hints` in the plan). The
+/// safety properties asserted here are contract: preparation is refused
+/// before anything runs, nothing is published or journaled, and the
+/// installed package and the player's original are unchanged.
+#[tokio::test]
+async fn observed_setupless_package_installs_but_cannot_be_prepared() {
     let harness = Harness::new();
     let mut setupless = harness.package("v2.0.0", "success");
     setupless.bytes = fixture::zip(&[(
@@ -470,15 +597,25 @@ async fn refusal_missing_original_or_missing_setup_program() {
         true,
     )]);
     let server = ReleaseServer::start(SETUP_REPOSITORY, "upstream_setup", vec![setupless]);
+    let document = fixture::document();
     let service = harness.service(&server, &document, None);
     harness.register_original(&service);
+    // Observed (tracked defect): install accepts the package.
     let installed = service
         .install(SETUP_PORT, None, None, None, true, |_| {})
         .await
         .unwrap();
     let before = fixture::tree(&installed.path);
     let error = prepare(&service).unwrap_err();
+    assert!(
+        error.message.contains("setup executable"),
+        "preparation is refused while resolving the setup program: {error:?}"
+    );
     assert_eq!(fixture::tree(&installed.path), before, "{error:?}");
+    assert_eq!(
+        service.status(SETUP_PORT).unwrap().active.unwrap().id,
+        installed.id
+    );
     assert!(pending_setup(&service));
     assert!(service.prepare_launch(SETUP_PORT, None).is_err());
     assert!(no_journals(&harness.library), "{error:?}");
@@ -553,26 +690,75 @@ async fn refusal_setup_rejection_or_unowned_writes_keep_the_active_installation(
         let status = service.status(SETUP_PORT).unwrap();
         assert_eq!(status.active.unwrap().id, installed.id, "{mode}");
         assert!(pending_setup(&service), "{mode}");
-        review_and_clean_retained_preparation(&service, mode);
+        review_and_clean_retained_preparation(&service, mode, SETUP_RAN_QUIESCED);
         assert_eq!(fixture::tree(&installed.path), before, "{mode}");
         harness.assert_original_untouched();
     }
 }
 
-/// A crash at each preparation boundary resolves on restart to either the
-/// previous installation or the verified prepared copy, never a mixture, with
-/// player progress and the original intact.
+/// The state a restart must reach after a crash at one preparation boundary.
+#[derive(Debug, Clone, Copy)]
+enum AfterRecovery {
+    /// The journal is still `Preparing`: recovery refuses to resume it
+    /// (`preparation_execution.rs`, `recover`, `LifecyclePhase::Preparing`).
+    /// The unprepared installation stays active and needs setup; the private
+    /// work is retained for review and nothing was published.
+    Unpublished {
+        /// Whether the private working folder had been created.
+        staging_exists: bool,
+        /// The recorded process state (see [`SETUP_RAN_QUIESCED`]).
+        quiesced: bool,
+    },
+    /// The verified prepared installation was journaled as `Prepared` or
+    /// later: recovery finishes publication and registration
+    /// (`recovery.rs`, `recover_published_install`), so the prepared copy is
+    /// active, the unprepared installation becomes previous, and no journal or
+    /// private work remains.
+    Published,
+}
+
+/// A crash at each preparation boundary resolves on restart to exactly one
+/// expected state, never a mixture, with player progress and the original
+/// intact. Faults are deterministic, so each point has one outcome.
 #[tokio::test]
 async fn interrupted_preparation_recovers_with_player_data_intact() {
-    for point in [
-        LifecycleFaultPoint::PreparationJournaled,
-        LifecycleFaultPoint::PreparationCopied,
-        LifecycleFaultPoint::PreparationToolCompleted,
-        LifecycleFaultPoint::PreparationOutputsValidated,
-        LifecycleFaultPoint::PreparationPrepared,
-        LifecycleFaultPoint::PreparationPublished,
-        LifecycleFaultPoint::PreparationRegistered,
+    use AfterRecovery::{Published, Unpublished};
+    for (point, expected) in [
+        // Journal persisted; the private working folder is created after it.
+        (
+            LifecycleFaultPoint::PreparationJournaled,
+            Unpublished {
+                staging_exists: false,
+                quiesced: true,
+            },
+        ),
+        // Reviewed copy made; no setup process has started.
+        (
+            LifecycleFaultPoint::PreparationCopied,
+            Unpublished {
+                staging_exists: true,
+                quiesced: true,
+            },
+        ),
+        (
+            LifecycleFaultPoint::PreparationToolCompleted,
+            Unpublished {
+                staging_exists: true,
+                quiesced: SETUP_RAN_QUIESCED,
+            },
+        ),
+        (
+            LifecycleFaultPoint::PreparationOutputsValidated,
+            Unpublished {
+                staging_exists: true,
+                quiesced: SETUP_RAN_QUIESCED,
+            },
+        ),
+        (LifecycleFaultPoint::PreparationPrepared, Published),
+        (LifecycleFaultPoint::PreparationPublished, Published),
+        (LifecycleFaultPoint::PreparationRegistered, Published),
     ] {
+        let context = format!("{point:?}");
         let harness = Harness::new();
         let server = ReleaseServer::start(
             SETUP_REPOSITORY,
@@ -587,56 +773,105 @@ async fn interrupted_preparation_recovers_with_player_data_intact() {
             .await
             .unwrap();
         write_save(&installed, b"player progress");
+        let installed_tree = fixture::tree(&installed.path);
         drop(service);
         let faulted = harness.service(&server, &document, Some(point));
         let error = prepare(&faulted).unwrap_err();
         assert!(
             error.message.contains("injected mechanism fault"),
-            "{point:?}: {error:?}"
+            "{context}: {error:?}"
         );
         drop(faulted);
 
         let restarted = harness.service(&server, &document, None);
         restarted.recover_pending_operations().unwrap();
-        let active = restarted.status(SETUP_PORT).unwrap().active.unwrap();
-        assert!(restarted.verify(SETUP_PORT).unwrap().valid, "{point:?}");
-        if active.id == installed.id {
-            assert!(pending_setup(&restarted), "{point:?}");
-            assert!(!installed.path.join(SETUP_MARKER).exists(), "{point:?}");
-        } else {
-            assert!(active.path.join(SETUP_MARKER).is_file(), "{point:?}");
-            assert!(!pending_setup(&restarted), "{point:?}");
-        }
-        assert_eq!(
-            fs::read(active.path.join(SETUP_SAVE)).unwrap(),
-            b"player progress",
-            "{point:?}"
-        );
+        let status = restarted.status(SETUP_PORT).unwrap();
+        let active = status.active.clone().unwrap();
+        assert!(restarted.verify(SETUP_PORT).unwrap().valid, "{context}");
+        // The installed package is never changed by preparation or recovery.
+        assert_eq!(fixture::tree(&installed.path), installed_tree, "{context}");
+        assert!(!installed.path.join(SETUP_MARKER).exists(), "{context}");
         harness.assert_original_untouched();
-        if active.id == installed.id {
-            // Unpublished private work is retained for review; a retry
-            // succeeds beside it, then reviewed cleanup removes only it.
-            let retried = prepare(&restarted).unwrap();
-            assert!(!pending_setup(&restarted), "{point:?}");
-            assert_eq!(
-                fs::read(retried.path.join(SETUP_SAVE)).unwrap(),
-                b"player progress",
-                "{point:?}"
-            );
-            review_and_clean_retained_preparation(&restarted, &format!("{point:?}"));
-            assert_eq!(
-                restarted.status(SETUP_PORT).unwrap().active.unwrap().id,
-                retried.id,
-                "{point:?}"
-            );
-        } else {
-            assert!(no_journals(&harness.library), "{point:?}");
+        match expected {
+            Unpublished {
+                staging_exists,
+                quiesced,
+            } => {
+                assert_eq!(active.id, installed.id, "{context}");
+                assert!(status.previous.is_none(), "{context}");
+                assert!(pending_setup(&restarted), "{context}");
+                let journals = OperationStore::new(harness.library.clone()).all().unwrap();
+                assert_eq!(journals.len(), 1, "{context}");
+                let journal = &journals[0];
+                assert_eq!(
+                    journal.phase,
+                    crate::operation::LifecyclePhase::Preparing,
+                    "{context}"
+                );
+                assert_eq!(
+                    journal
+                        .paths
+                        .staging
+                        .as_ref()
+                        .is_some_and(|path| path.is_dir()),
+                    staging_exists,
+                    "{context}"
+                );
+                // A retry succeeds beside the retained work; reviewed cleanup
+                // then removes only that work.
+                let retried = prepare(&restarted).unwrap();
+                assert!(!pending_setup(&restarted), "{context}");
+                assert_eq!(
+                    fs::read(retried.path.join(SETUP_SAVE)).unwrap(),
+                    b"player progress",
+                    "{context}"
+                );
+                review_and_clean_retained_preparation(&restarted, &context, quiesced);
+                assert_eq!(
+                    restarted.status(SETUP_PORT).unwrap().active.unwrap().id,
+                    retried.id,
+                    "{context}"
+                );
+                assert!(retried.path.join(SETUP_MARKER).is_file(), "{context}");
+            }
+            Published => {
+                assert_ne!(active.id, installed.id, "{context}");
+                assert_eq!(active.artifact, installed.artifact, "{context}");
+                assert_eq!(status.previous.unwrap().id, installed.id, "{context}");
+                assert!(!pending_setup(&restarted), "{context}");
+                assert!(active.path.join(SETUP_MARKER).is_file(), "{context}");
+                assert!(
+                    active.path.join(crate::preparation::RECEIPT_FILE).is_file(),
+                    "{context}"
+                );
+                assert_eq!(
+                    fs::read(active.path.join(SETUP_SAVE)).unwrap(),
+                    b"player progress",
+                    "{context}"
+                );
+                assert!(no_journals(&harness.library), "{context}");
+                restarted.prepare_launch(SETUP_PORT, None).unwrap();
+            }
         }
     }
 }
 
+/// Update never runs setup and leaves the previous prepared copy and the
+/// player's progress intact; the new package needs its own preparation.
+///
+/// The rollback part records observed behavior, tracked as a defect
+/// (TRACKING-ISSUE), not a contract. After update and preparation, rollback
+/// activates the unprepared v2 package that the preparation was derived from:
+/// that copy cannot be launched, and the last working version (prepared v1)
+/// is no longer reachable by rollback. Publishing a prepared copy records the
+/// copy it was derived from as the rollback version
+/// (`library.rs`, `register_prepared_install`, `previous_install_id`), and
+/// rollback is a single-slot swap of active and previous
+/// (`library.rs`, `Library::rollback`). The safety properties asserted here
+/// are contract: nothing the upstream setup or the player owns is deleted and
+/// collected progress is kept.
 #[tokio::test]
-async fn update_needs_its_own_preparation_and_rollback_keeps_prepared_copies() {
+async fn update_needs_its_own_preparation_and_observed_rollback_reaches_unprepared_package() {
     let harness = Harness::new();
     let document = fixture::document();
     let server = ReleaseServer::start_with_releases(
@@ -665,6 +900,10 @@ async fn update_needs_its_own_preparation_and_rollback_keeps_prepared_copies() {
     // folder, and the previous prepared copy is kept unchanged.
     assert!(pending_setup(&service));
     assert!(!v2.path.join(SETUP_MARKER).exists());
+    assert_eq!(
+        service.status(SETUP_PORT).unwrap().previous.unwrap().id,
+        prepared_v1.id
+    );
     let user = harness.library.user_dir(SETUP_PORT);
     assert_eq!(fs::read(user.join(SETUP_SAVE)).unwrap(), b"player progress");
     assert_eq!(
@@ -675,33 +914,40 @@ async fn update_needs_its_own_preparation_and_rollback_keeps_prepared_copies() {
     let prepared_v2 = prepare(&service).unwrap();
     assert_eq!(prepared_v2.version, "v2.0.0");
     service.prepare_launch(SETUP_PORT, None).unwrap();
-
     assert_eq!(
         fs::read(prepared_v2.path.join(SETUP_SAVE)).unwrap(),
         b"player progress"
     );
+
+    // Observed (tracked defect): publishing prepared v2 replaced prepared v1
+    // as the rollback version with the unprepared v2 package.
     let status = service.status(SETUP_PORT).unwrap();
     assert_eq!(status.previous.as_ref().unwrap().id, v2.id);
-
-    // Rollback swaps to the recorded previous installation: the unprepared
-    // package this preparation was derived from. It is reported as needing
-    // setup and is not launched; nothing is deleted.
     let rolled_back = service.rollback(SETUP_PORT).unwrap();
     assert_eq!(rolled_back.id, v2.id);
     assert!(pending_setup(&service));
     assert!(service.prepare_launch(SETUP_PORT, None).is_err());
-    assert!(prepared_v2.path.join(SETUP_MARKER).is_file());
-    assert!(prepared_v1.path.join(SETUP_MARKER).is_file());
-    assert_eq!(fs::read(user.join(SETUP_SAVE)).unwrap(), b"player progress");
-    // Rolling back again returns to the prepared copy, launchable with progress.
+    // Rolling back again only returns to prepared v2; prepared v1 is never
+    // offered again.
     let restored = service.rollback(SETUP_PORT).unwrap();
     assert_eq!(restored.id, prepared_v2.id);
+    assert_eq!(
+        service.status(SETUP_PORT).unwrap().previous.unwrap().id,
+        v2.id
+    );
+
+    // Contract: nothing is deleted and progress is kept throughout.
     assert!(!pending_setup(&service));
     service.prepare_launch(SETUP_PORT, None).unwrap();
-    assert_eq!(
-        fs::read(prepared_v2.path.join(SETUP_SAVE)).unwrap(),
-        b"player progress"
-    );
+    for copy in [&prepared_v1, &prepared_v2] {
+        assert!(copy.path.join(SETUP_MARKER).is_file());
+        assert_eq!(
+            fs::read(copy.path.join(SETUP_SAVE)).unwrap(),
+            b"player progress"
+        );
+    }
+    assert!(v2.path.is_dir());
+    assert_eq!(fs::read(user.join(SETUP_SAVE)).unwrap(), b"player progress");
     harness.assert_original_untouched();
     assert!(no_journals(&harness.library));
 }
@@ -727,7 +973,7 @@ async fn removal_preserves_the_original_and_player_progress() {
     let removed = service.remove(SETUP_PORT, &authorization.token).unwrap();
     for path in &removed {
         assert!(
-            !harness.original.starts_with(path),
+            !fixture::within(&harness.original, path),
             "removal reached the original: {path:?}"
         );
     }
