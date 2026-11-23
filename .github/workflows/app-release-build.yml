@@ -229,7 +229,8 @@ jobs:
             for channel in $FEEDS; do
               target="site/updates/$channel/latest.json"
               current=$( [ -f "$target" ] && node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).version)' "$target" || true)
-              if node scripts/app-release.mts compare --candidate "$VERSION" ${current:+--current "$current"}; then
+              # A Preview fills Beta only while Beta serves no Beta release (#1422).
+              if node scripts/app-release.mts feed-accepts --channel "$channel" --candidate "$VERSION" ${current:+--current "$current"}; then
                 mkdir -p "$(dirname "$target")" && cp latest.json "$target" && changed=true
               fi
             done

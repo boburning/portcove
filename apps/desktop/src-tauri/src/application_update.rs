@@ -348,7 +348,7 @@ async fn check(
                 error = %error,
                 message = "application update check failed"
             );
-            check_failed_error()
+            check_error(&error)
         })?;
     let mut activity = state.activity()?;
     // A channel change during the check makes this answer irrelevant.
@@ -367,6 +367,21 @@ fn unavailable_error() -> DesktopError {
         ),
         "unavailable",
     )
+}
+
+/// The plugin reports `ReleaseNotFound` when the update server answered but
+/// had no update information for the channel (for example, a missing feed).
+/// That is not a connection problem, so the player is not told to check it.
+fn check_error(error: &tauri_plugin_updater::Error) -> DesktopError {
+    match error {
+        tauri_plugin_updater::Error::ReleaseNotFound => refusal(
+            PortcoveError::network(
+                "Portcove couldn't find update information for this update channel. Try again later.",
+            ),
+            "release-not-found",
+        ),
+        _ => check_failed_error(),
+    }
 }
 
 fn check_failed_error() -> DesktopError {
@@ -649,6 +664,16 @@ mod tests {
             ApplicationUpdateChannel::default(),
             ApplicationUpdateChannel::Beta
         );
+    }
+
+    #[test]
+    fn a_missing_feed_is_not_reported_as_a_connection_problem() {
+        let missing = check_error(&tauri_plugin_updater::Error::ReleaseNotFound);
+        assert!(!missing.message.contains("internet connection"));
+        assert!(missing.message.contains("update information"));
+        let offline = check_error(&tauri_plugin_updater::Error::Network("offline".into()));
+        assert_eq!(offline.message, check_failed_error().message);
+        assert!(offline.message.contains("internet connection"));
     }
 
     #[test]

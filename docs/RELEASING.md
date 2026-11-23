@@ -33,10 +33,12 @@ calls the shared jobs in
 
 | Tag                       | Channel          | Feeds updated         | Approval                   |
 | ------------------------- | ---------------- | --------------------- | -------------------------- |
-| `vX.Y.Z-preview.N`        | Preview (opt-in) | preview               | none                       |
-| `nightly-X.Y.Z-preview.N` | Preview (opt-in) | preview               | none; built from `main`    |
+| `vX.Y.Z-preview.N`        | Preview (opt-in) | preview, beta alias¹  | none                       |
+| `nightly-X.Y.Z-preview.N` | Preview (opt-in) | preview, beta alias¹  | none; built from `main`    |
 | `v0.Y.Z`                  | Beta (default)   | beta, preview         | none                       |
 | `v1.Y.Z` and later        | Stable           | stable, beta, preview | owner, on `release-stable` |
+
+¹ See [interim Beta alias](#interim-beta-alias).
 
 Previews are pre-releases of the _next_ version, for example
 `0.2.0-preview.1`. That keeps them above every earlier release in SemVer order.
@@ -161,7 +163,8 @@ they could run a changed copy of the workflow from a branch. The workflow:
 2. Adds the version to `updates/withdrawn.json` on `gh-pages`.
 3. Repoints each feed that serves a withdrawn version to the newest published,
    non-withdrawn release that channel accepts (Preview: any; Beta: any
-   non-pre-release; Stable: 1.0.0 and later). A candidate without all four
+   non-pre-release, or the newest preview when none remains; Stable: 1.0.0
+   and later). A candidate without all four
    updater signatures is skipped for the next older one. If no release
    qualifies, it deletes that feed.
 4. Prefixes the release notes with "⚠️ Withdrawn — do not install." and the
@@ -173,6 +176,26 @@ a feed for a withdrawn version, so re-running a release cannot bring the version
 back. Re-running the withdrawal is safe. Installed clients only update to a
 version higher than their own. Clients already on a withdrawn version stay on it
 until a fix release with a higher version ships.
+
+<a id="interim-beta-alias"></a>
+**Interim Beta alias (#1422).** Every released build checks the Beta feed by
+default, but no Beta release exists yet. So a preview publication also writes
+the Beta feed, but only while that feed is missing or serves a preview. The
+first Beta release replaces it, and later previews never overwrite a Beta or
+Stable release. The Beta file is a byte-identical copy of the Preview feed and
+uses the same signatures. Installed clients accept a preview version from the
+Beta feed because they only require a higher version signed by the updater key.
+
+- **Operator steps:** none. After the change is on `main`, the next nightly
+  preview writes both feeds. To publish sooner, start Nightly preview by hand
+  on `main`. Then check that
+  `https://boburning.github.io/portcove/updates/beta/latest.json` and
+  `.../updates/preview/latest.json` name the same version.
+- **Rollback:** revert the change on `main`. Later previews then write only the
+  Preview feed. The Beta file keeps its last preview until a Beta release
+  replaces it or a withdrawal repoints it. Deleting that file from `gh-pages`
+  makes default installations stop finding updates again, so it needs the
+  owner's decision.
 
 **Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
 and `release-stable` environments, and the owner keeps an offline backup. If

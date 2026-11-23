@@ -23,6 +23,7 @@ import {
   readMainCiConclusions,
   mainCiConclusion,
   compareVersions,
+  feedAccepts,
   isWithdrawn,
   nextPreviewVersion,
   newestConclusions,
@@ -50,7 +51,7 @@ void test("tags map to the owner-approved channels and environments", () => {
     channel: "preview",
     prerelease: true,
     environment: "release",
-    feeds: ["preview"],
+    feeds: ["preview", "beta"],
   });
   assert.equal(classifyRelease("0.1.0").channel, "beta");
   assert.deepEqual(classifyRelease("0.2.3").feeds, ["beta", "preview"]);
@@ -244,7 +245,7 @@ void test("shared build inputs must match the version's channel, tag and signing
     tag: "nightly-0.1.0-preview.1",
     version: "0.1.0-preview.1",
     prerelease: "true",
-    feeds: "preview",
+    feeds: "preview beta",
     environment: "release",
     commit,
   };
@@ -270,6 +271,8 @@ void test("shared build inputs must match the version's channel, tag and signing
     [{ tag: "refs/tags/v0.1.0-preview.1" }, /does not name/u],
     [{ environment: "release-stable" }, /environment/u],
     [{ feeds: "beta preview" }, /feeds/u],
+    // A build from before the interim Beta alias (#1422) no longer matches.
+    [{ feeds: "preview" }, /feeds/u],
     [{ prerelease: "false" }, /prerelease/u],
     [{ commit: "main" }, /full SHA/u],
   ];
@@ -385,6 +388,64 @@ void test("the compare command exits 0 only for a newer candidate or a missing f
   assert.equal(compare("--candidate", "0.1.1", "--current", "0.1.0"), 0);
   assert.equal(compare("--candidate", "0.1.0", "--current", "0.1.0"), 1);
   assert.equal(compare("--candidate", "0.1.0-preview.3", "--current", "0.1.0"), 1);
+});
+
+void test("a preview fills the Beta feed only while Beta serves no Beta or Stable release", () => {
+  // Preview and Stable/Beta rules are unchanged.
+  assert.equal(feedAccepts("preview", "0.1.0-preview.16", null), true);
+  assert.equal(feedAccepts("preview", "0.1.0-preview.16", "0.1.0-preview.15"), true);
+  assert.equal(feedAccepts("preview", "0.1.0-preview.15", "0.1.0-preview.15"), false);
+  assert.equal(feedAccepts("preview", "0.1.0-preview.3", "0.1.0"), false);
+  assert.equal(feedAccepts("beta", "0.1.0", null), true);
+  assert.equal(feedAccepts("beta", "0.1.0", "0.1.0-preview.16"), true);
+  assert.equal(feedAccepts("beta", "0.1.0", "0.1.0"), false);
+  assert.equal(feedAccepts("stable", "0.1.0", null), false);
+  assert.equal(feedAccepts("stable", "0.1.0-preview.16", null), false);
+  // The interim alias: a missing Beta feed or one serving a preview follows Preview.
+  assert.equal(feedAccepts("beta", "0.1.0-preview.16", null), true);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.16", "0.1.0-preview.15"), true);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.15", "0.1.0-preview.15"), false);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.14", "0.1.0-preview.15"), false);
+  // Once Beta serves a Beta or Stable release, a newer preview never replaces it.
+  assert.equal(feedAccepts("beta", "0.1.1-preview.1", "0.1.0"), false);
+  assert.equal(feedAccepts("beta", "1.0.1-preview.1", "1.0.0"), false);
+});
+
+void test("the feed-accepts command applies the per-channel rule", () => {
+  const accepts = (...args: string[]) => {
+    try {
+      execFileSync(
+        process.execPath,
+        [path.join(import.meta.dirname, "app-release.mts"), "feed-accepts", ...args],
+        { stdio: "pipe" },
+      );
+      return 0;
+    } catch (error) {
+      return (error as { status: number }).status;
+    }
+  };
+  assert.equal(accepts("--channel", "beta", "--candidate", "0.1.0-preview.16"), 0);
+  assert.equal(
+    accepts(
+      "--channel",
+      "beta",
+      "--candidate",
+      "0.1.0-preview.16",
+      "--current",
+      "0.1.0-preview.15",
+    ),
+    0,
+  );
+  assert.equal(
+    accepts("--channel", "beta", "--candidate", "0.1.1-preview.1", "--current", "0.1.0"),
+    1,
+  );
+  assert.equal(
+    accepts("--channel", "preview", "--candidate", "0.1.1-preview.1", "--current", "0.1.0"),
+    0,
+  );
+  assert.equal(accepts("--channel", "nightly", "--candidate", "0.1.0-preview.16"), 1);
+  assert.equal(accepts("--candidate", "0.1.0-preview.16"), 1);
 });
 
 const existingTags = ["v0.1.0-alpha.1", "v0.1.0-alpha.2", "v0.0.0-rehearsal.41788540335.1"];
@@ -842,7 +903,19 @@ void test("withdraw replacements are the newest published, non-withdrawn release
   assert.equal(pick("stable", ["1.0.0"]), null);
   assert.equal(pick("beta", ["1.0.0", "0.1.1"]), "0.1.0");
   assert.equal(pick("preview", ["1.0.1-preview.1", "1.0.0", "0.1.1"]), "0.1.1-preview.1");
-  assert.equal(pick("beta", ["1.0.0", "0.1.1", "0.1.0"]), null);
+  // With every Beta and Stable release withdrawn, Beta falls back to the newest preview (#1422).
+  assert.equal(pick("beta", ["1.0.0", "0.1.1", "0.1.0"]), "1.0.1-preview.1");
+  assert.equal(pick("stable", ["1.0.0", "0.1.1", "0.1.0"]), null);
+  // Before any Beta exists, Beta offers previews, newest first.
+  const previewsOnly = publishedReleases([
+    release(1, "0.1.0-preview.1", false, "nightly-"),
+    release(2, "0.1.0-preview.2", false, "nightly-"),
+  ]);
+  assert.deepEqual(
+    replacementCandidates("beta", previewsOnly, []).map((entry) => entry.version),
+    ["0.1.0-preview.2", "0.1.0-preview.1"],
+  );
+  assert.deepEqual(replacementCandidates("stable", previewsOnly, []), []);
 });
 
 const gitIdentity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"];
@@ -979,10 +1052,11 @@ void test("withdraw repoints every feed serving the version, records it and mark
   assert.deepEqual(fake.edits[2], [4, { make_latest: "false" }]);
   assert.equal(fake.edits.length, 3);
 
-  // Withdrawing the only remaining Beta removes the Beta feed and leaves Latest unset.
+  // Withdrawing the only remaining Beta points Beta at the newest preview (#1422)
+  // instead of removing the feed, and leaves Latest unset.
   const last = await withdrawRelease({ ...options, version: "0.1.0", note: "" });
-  assert.deepEqual(last.feeds, { beta: "removed" });
-  assert.equal(repo.show("updates/beta/latest.json"), null);
+  assert.deepEqual(last.feeds, { beta: "0.1.1-preview.1" });
+  assert.equal(version("updates/beta/latest.json"), "0.1.1-preview.1");
   assert.equal(version("updates/preview/latest.json"), "0.1.1-preview.1");
   assert.deepEqual(JSON.parse(repo.show("updates/withdrawn.json")!), ["0.1.0", "0.1.1"]);
   assert.equal(releases[1]!.body, "⚠️ Withdrawn — do not install.\n\n---\n\nNotes for 0.1.0");
@@ -1053,6 +1127,39 @@ void test("withdraw accepts nightly releases and skips replacements without ever
   const removed = await withdrawRelease({ ...options, version: "0.1.1-preview.1", api: none.api });
   assert.deepEqual(removed.feeds, { preview: "removed" });
   assert.equal(repo.show("updates/preview/latest.json"), null);
+});
+
+void test("withdrawing a preview the Beta alias serves repoints both feeds to the older preview", async (t) => {
+  const repo = await pagesRepository(t);
+  const releases = [
+    release(1, "0.1.0-preview.1", false, "nightly-"),
+    release(2, "0.1.0-preview.2", false, "nightly-"),
+  ];
+  const writer = path.join(repo.root, "writer");
+  execFileSync("git", ["clone", "--quiet", "-b", "gh-pages", repo.origin, writer]);
+  for (const channel of ["preview", "beta"])
+    await writeFile(
+      path.join(writer, `updates/${channel}/latest.json`),
+      `${JSON.stringify({ version: "0.1.0-preview.2", platforms: {} })}\n`,
+    );
+  repo.git(writer, "commit", "--quiet", "--all", "-m", "nightly feed with Beta alias");
+  repo.git(writer, "push", "--quiet", "origin", "gh-pages");
+  const fake = fakeWithdrawApi(releases, null);
+  const result = await withdrawRelease({
+    version: "0.1.0-preview.2",
+    note: "",
+    repoDir: repo.clone,
+    workDir: path.join(repo.root, "work"),
+    api: fake.api,
+    run: repo.run,
+  });
+  assert.deepEqual(result.feeds, { preview: "0.1.0-preview.1", beta: "0.1.0-preview.1" });
+  for (const channel of ["preview", "beta"])
+    assert.equal(
+      (JSON.parse(repo.show(`updates/${channel}/latest.json`)!) as { version: string }).version,
+      "0.1.0-preview.1",
+    );
+  assert.equal(repo.show("updates/stable/latest.json"), null);
 });
 
 void test("withdraw refuses a version without a published release and changes nothing", async (t) => {

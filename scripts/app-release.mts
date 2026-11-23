@@ -62,14 +62,34 @@ export function classifyRelease(version: string) {
     channel,
     prerelease: channel === "preview",
     environment: channel === "stable" ? "release-stable" : "release",
-    // A newer Beta/Stable is also offered to Preview users; a Preview never reaches Beta.
+    // A newer Beta/Stable is also offered to Preview users. A Preview reaches the
+    // Beta feed only as the interim alias that `feedAccepts` bounds (#1422).
     feeds:
       channel === "preview"
-        ? ["preview"]
+        ? ["preview", "beta"]
         : channel === "beta"
           ? ["beta", "preview"]
           : ["stable", "beta", "preview"],
   };
+}
+
+/**
+ * Whether publishing `candidate` replaces `channel`'s feed, which currently
+ * serves `current` (null when the feed does not exist).
+ *
+ * Every released build defaults to Beta, and no Beta release exists yet (#1422).
+ * Until one does, the Beta feed serves the same Preview pointer, so default
+ * installations still learn of newer previews. A Preview fills the Beta feed
+ * only while that feed is missing or itself serves a Preview; it never replaces
+ * a Beta or Stable release.
+ */
+export function feedAccepts(channel: Channel, candidate: string, current: string | null) {
+  const release = classifyRelease(candidate);
+  if (!release.feeds.includes(channel)) return false;
+  if (current !== null && compareVersions(candidate, current) <= 0) return false;
+  if (channel === "beta" && release.channel === "preview")
+    return current === null || parseVersion(current).prerelease !== null;
+  return true;
 }
 
 function identifiers(value: string | null) {
@@ -1051,19 +1071,27 @@ export function publishedReleases(releases: readonly Omit<Release, "assets">[]) 
   return result;
 }
 
-/** Published, non-withdrawn releases that the channel's feed may offer, newest first. */
+/**
+ * Published, non-withdrawn releases that the channel's feed may offer, newest
+ * first. Previews stand in for Beta only while no non-withdrawn Beta or Stable
+ * release exists, matching the interim alias in `feedAccepts`.
+ */
 export function replacementCandidates(
   channel: Channel,
   releases: readonly PublishedRelease[],
   withdrawn: readonly string[],
 ) {
-  return releases
+  const eligible = releases
     .filter(
       (release) =>
         !withdrawn.includes(release.version) &&
         classifyRelease(release.version).feeds.includes(channel),
     )
     .sort((a, b) => compareVersions(b.version, a.version));
+  const nonPreview = eligible.filter(
+    (release) => classifyRelease(release.version).channel !== "preview",
+  );
+  return channel === "beta" && nonPreview.length > 0 ? nonPreview : eligible;
 }
 
 export const withdrawnNotice = "⚠️ Withdrawn — do not install.";
@@ -1337,6 +1365,12 @@ async function main(argv: string[]) {
     // Exit 0 when --candidate is newer than --current (or no current feed exists).
     const current = rest.includes("--current") ? flag("current") : "";
     process.exitCode = current === "" || compareVersions(flag("candidate"), current) > 0 ? 0 : 1;
+  } else if (command === "feed-accepts") {
+    // Exit 0 when publishing --candidate should replace --channel's feed (see feedAccepts).
+    const current = rest.includes("--current") ? flag("current") : "";
+    const channel = flag("channel");
+    if (!(channels as string[]).includes(channel)) throw new Error(`unknown channel ${channel}`);
+    process.exitCode = feedAccepts(channel as Channel, flag("candidate"), current || null) ? 0 : 1;
   } else if (command === "ci-status") {
     const conclusion = await ciConclusion(token(), flag("sha"));
     if (conclusion !== "success")
@@ -1407,7 +1441,7 @@ async function main(argv: string[]) {
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
   } else
     throw new Error(
-      "usage: app-release.mts build-matrix|collect-bundles|plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
+      "usage: app-release.mts build-matrix|collect-bundles|plan|stamp|feed|compare|feed-accepts|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
     );
 }
 
