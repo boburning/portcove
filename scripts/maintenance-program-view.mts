@@ -220,19 +220,34 @@ function requiresTest(predicate: CfgPredicate): boolean {
   }
 }
 
+/** Whether a `feature = "..."` option appears outside every `not(...)`. */
+function namesFeaturePositively(predicate: CfgPredicate): boolean {
+  switch (predicate.op) {
+    case "option":
+      return predicate.name === "feature" && predicate.value !== undefined;
+    case "all":
+    case "any":
+      return predicate.args.some(namesFeaturePositively);
+    case "not":
+      return false;
+  }
+}
+
 /**
  * How a `#[cfg(...)]` predicate gates an item: `test` is a predicate that can
  * only hold in a test build, because `test` is a required conjunct (exactly
  * `cfg(test)`, `all(test, windows)`, nested `all`; like a `#[test]` function),
  * and is excluded from every inventory; `feature` is any other predicate that
- * names a Cargo feature (for example `any(test, feature = "...")`) and is
- * inventoried separately; anything else (platform gates, negations,
+ * names a Cargo feature outside any `not(...)` (for example
+ * `any(test, feature = "...")`) and is inventoried separately; anything else
+ * (platform gates, negations such as `any(test, not(feature = "..."))`,
  * `any(test, windows)`, predicates the parser cannot read) is production code.
  */
 export function cfgClass(predicate: string): "test" | "feature" | "production" {
   const trimmed = predicate.trim();
   const parsed = parseCfgPredicate(trimmed);
   if (parsed && requiresTest(parsed)) return "test";
+  if (parsed) return namesFeaturePositively(parsed) ? "feature" : "production";
   if (!/^not\s*\(/u.test(trimmed) && /\bfeature\s*=/u.test(trimmed)) return "feature";
   return "production";
 }

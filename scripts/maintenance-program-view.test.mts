@@ -821,6 +821,12 @@ void test("test-only cfg code is excluded; feature-gated code is its own kind", 
   assert.equal(cfgClass('feature = "qualification-fixtures"'), "feature");
   assert.equal(cfgClass("any(test, windows)"), "production");
   assert.equal(cfgClass('not(any(test, feature = "qualification-fixtures"))'), "production");
+  assert.equal(cfgClass('any(test, not(feature = "qualification-fixtures"))'), "production");
+  assert.equal(cfgClass('all(windows, not(feature = "qualification-fixtures"))'), "production");
+  assert.equal(
+    cfgClass('all(not(test), any(windows, feature = "qualification-fixtures"))'),
+    "feature",
+  );
   const text = [
     "a();",
     '#[cfg(any(test, feature = "q"))]',

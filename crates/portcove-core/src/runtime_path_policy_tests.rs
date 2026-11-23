@@ -715,4 +715,68 @@ fn cvlod_source_path_policy_follows_the_declared_recipe_not_the_identity() {
     port.release.managed_build.clear();
     let error = validate(&port).unwrap_err();
     assert!(error.message.contains("fixed CVLoD source recipe"));
+
+    // The path rule above trusts the recipe validator to bind the recipe to
+    // its historical definition. Prove that binding: the same retained
+    // definition under any other identity is refused by catalog validation.
+    let historical = crate::historical_artifacts::cartridge_definition(
+        "cvlod-recomp",
+        crate::CartridgeBuildRecipe::CvlodSourceV1,
+    )
+    .unwrap()
+    .unwrap();
+    let mut document = catalog.authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == historical.id)
+        .unwrap() = historical.clone();
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        .unwrap()
+        .validate()
+        .unwrap();
+    let mut renamed = historical;
+    renamed.id = UNFAMILIAR.into();
+    document.ports.push(renamed);
+    // `from_json` runs `Catalog::validate` before returning a catalog.
+    let error = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        .err()
+        .expect("a CVLoD recipe under another identity must not validate");
+    assert!(
+        error
+            .message
+            .contains("retained cartridge recipe belongs to another port"),
+        "{}",
+        error.message
+    );
+}
+
+/// The two rules above select by declared data. Today exactly one embedded
+/// port declares the Open Surge environment and none declares a managed build,
+/// so retiring the identity checks changed no current port's behavior. If the
+/// catalog deliberately adds another such port, re-check that the rule fits it.
+#[test]
+fn embedded_catalog_keeps_identity_free_path_rules_at_parity() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let open_surge: Vec<&str> = catalog
+        .ports()
+        .iter()
+        .filter(|port| port.user_data_environment.as_deref() == Some("OPENSURGE_USER_PATH"))
+        .map(|port| port.id.as_str())
+        .collect();
+    assert_eq!(
+        open_surge,
+        ["surge-the-rabbit-opensurge"],
+        "re-check the Open Surge Windows user-data guard for the new port"
+    );
+    let managed: Vec<&str> = catalog
+        .ports()
+        .iter()
+        .filter(|port| !port.release.managed_build.is_empty())
+        .map(|port| port.id.as_str())
+        .collect();
+    assert!(
+        managed.is_empty(),
+        "re-check the retained managed-build path rules for {managed:?}"
+    );
 }
