@@ -1386,6 +1386,15 @@ async fn descriptive_inspection_rejects_extra_or_false_summaries() {
     }
 }
 
+/// A decoded compact directory carrying `rows` (format 15) with `withdrawn`.
+fn compact_document(withdrawn: &[&str], rows: serde_json::Value) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "listing_delivery_schema":1,"revision":20,"withdrawn_ids":withdrawn,
+        "directory":{"format_version":15,"listings":rows}
+    }))
+    .unwrap()
+}
+
 #[test]
 fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal() {
     let older = json!({
@@ -1396,12 +1405,17 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
         "listing_delivery_schema":1,"revision":7,"withdrawn_ids":["older-removed","newly-removed"],
         "directory":{"format_version":11,"listings":[{"id":"retained","a":1}]}
     });
+    let compact = compact_document(
+        &["older-removed", "newly-removed"],
+        json!([{"id":"retained","a":1}]),
+    );
     let bytes = serde_json::to_vec(&older).unwrap();
-    bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
+    bundle::check_legacy_successor(&bytes, &serde_json::to_vec(&newer).unwrap(), &compact).unwrap();
 
     let mut replaced = newer.clone();
     replaced["directory"]["listings"][0]["a"] = json!(2);
-    let refusal = bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&replaced).unwrap());
+    let refusal =
+        bundle::check_legacy_successor(&bytes, &serde_json::to_vec(&replaced).unwrap(), &compact);
     assert!(
         refusal
             .unwrap_err()
@@ -1411,8 +1425,401 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
     let mut resurrected = newer;
     resurrected["withdrawn_ids"] = json!(["newly-removed"]);
     assert!(
-        bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&resurrected).unwrap())
-            .is_err()
+        bundle::check_legacy_successor(
+            &bytes,
+            &serde_json::to_vec(&resurrected).unwrap(),
+            &compact
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn reviewed_legacy_successor_adds_or_keeps_holds_and_never_loosens_one() {
+    let older = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":[],
+        "directory":{"format_version":11,"listings":[
+            {"id":"held","download_block_reason":"Held","a":1},
+            {"id":"open","a":2}
+        ]}
+    });
+    // The compact row of the same publication: format-15 facts that a format-11
+    // row cannot carry, plus its legacy hold string.
+    let absent_compact = json!({
+        "id":"absent","name":"Absent","summary":"S","project_url":"https://example.invalid/absent",
+        "download_block_reason":"Absent hold",
+        "download_asset_hints":{"windows-x86-64":["win"]},
+        "restrictions":[{"id":"h","effect":"hold","operations":["download"],"explanation":"Absent hold"}],
+        "implementation":{"methods":[]},
+        "upstream_observation":{"provider":"github"},
+        "original_game":{"id":"g","source_editions":[{"id":"e","verified_sources":[{"x":1}]}]},
+        "media":[
+            {"id":"scene","role":"screenshot","igdb":{"kind":"screenshot"}},
+            {"id":"logo","role":"logo","sha256":"0"}
+        ]
+    });
+    let absent_legacy = json!({
+        "id":"absent","name":"Absent","summary":"S","project_url":"https://example.invalid/absent",
+        "download_block_reason":"Absent hold",
+        "download_asset_hints":{"windows-x86-64":["win"]},
+        "original_game":{"id":"g","source_editions":[{"id":"e"}]},
+        "media":[{"id":"logo","role":"logo","sha256":"0"}]
+    });
+    let compact_rows = |held: &str, open: Option<&str>, absent: serde_json::Value| {
+        let mut open_row = json!({"id":"open","a":2});
+        if let Some(reason) = open {
+            open_row["download_block_reason"] = json!(reason);
+        }
+        compact_document(
+            &[],
+            json!([{"id":"held","download_block_reason":held,"a":1}, open_row, absent]),
+        )
+    };
+    let compact = compact_rows("Held, revised", Some("New hold"), absent_compact.clone());
+    let bytes = serde_json::to_vec(&older).unwrap();
+    let check_with = |value: &serde_json::Value, compact: &[u8]| {
+        bundle::check_legacy_successor(&bytes, &serde_json::to_vec(value).unwrap(), compact)
+            .map_err(|error| error.to_string())
+    };
+    let check = |value: &serde_json::Value| check_with(value, &compact);
+    let mut added = older.clone();
+    added["revision"] = json!(9);
+    added["directory"]["listings"][1]["download_block_reason"] = json!("New hold");
+    check(&added).unwrap();
+    // A hold may be retold only with the compact row's current legacy text.
+    let mut retold = added.clone();
+    retold["directory"]["listings"][0]["download_block_reason"] = json!("Held, revised");
+    check(&retold).unwrap();
+    // A held row absent from the frozen legacy target may be added when it is
+    // exactly the compact row's format-11 projection.
+    let with_row = |row: serde_json::Value| {
+        let mut value = older.clone();
+        value["directory"]["listings"]
+            .as_array_mut()
+            .unwrap()
+            .push(row);
+        value
+    };
+    check(&with_row(absent_legacy.clone())).unwrap();
+
+    let changed = |field: &str, value: serde_json::Value| {
+        let mut row = absent_legacy.clone();
+        row[field] = value;
+        with_row(row)
+    };
+    let refusals = [
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("download_block_reason");
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"][0]["download_block_reason"] = json!("");
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"].as_array_mut().unwrap().remove(0);
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = added.clone();
+                v["directory"]["listings"][1]["a"] = json!(3);
+                v
+            },
+            "changes other facts",
+        ),
+        (with_row(json!({"id":"absent"})), "may add only a held row"),
+        (
+            {
+                let mut v = added.clone();
+                v["directory"]["format_version"] = json!(15);
+                v
+            },
+            "changes other facts",
+        ),
+        (
+            older.clone(),
+            "must add a safety withdrawal or download hold",
+        ),
+        // Arbitrary hold text, on a delivered row or as a retold hold.
+        (
+            {
+                let mut v = added.clone();
+                v["directory"]["listings"][1]["download_block_reason"] = json!("Arbitrary");
+                v
+            },
+            "hold differs from the compact listing",
+        ),
+        (
+            {
+                let mut v = retold.clone();
+                v["directory"]["listings"][0]["download_block_reason"] = json!("Arbitrary");
+                v
+            },
+            "hold differs from the compact listing",
+        ),
+        // A new id the compact directory does not deliver.
+        (
+            with_row(json!({"id":"invented","name":"Invented","download_block_reason":"Hold"})),
+            "no unwithdrawn compact row",
+        ),
+        // Changed facts on an otherwise exact added row.
+        (
+            changed("project_url", json!("https://attacker.invalid/")),
+            "added row differs",
+        ),
+        (changed("name", json!("Renamed")), "added row differs"),
+        (changed("summary", json!("Replaced")), "added row differs"),
+        (changed("media", json!([])), "added row differs"),
+        (
+            changed(
+                "original_game",
+                json!({"id":"g","source_editions":[{"id":"other"}]}),
+            ),
+            "added row differs",
+        ),
+        (
+            changed("download_asset_hints", json!({"windows-x86-64":["evil"]})),
+            "added row differs",
+        ),
+        (
+            changed("download_block_reason", json!("Arbitrary")),
+            "added row differs",
+        ),
+        (
+            changed("upstream_observation", json!({"provider":"github"})),
+            "added row differs",
+        ),
+    ];
+    for (index, (proposal, expected)) in refusals.into_iter().enumerate() {
+        let failure = check(&proposal).expect_err(&format!("refusal {index}"));
+        assert!(failure.contains(expected), "{index}: {failure}");
+    }
+    // A compact withdrawal of the id leaves no row to bind a hold to.
+    let withdrawn = compact_document(
+        &["absent", "open"],
+        json!([{"id":"held","download_block_reason":"Held, revised","a":1}]),
+    );
+    for proposal in [with_row(absent_legacy.clone()), added.clone()] {
+        let failure = check_with(&proposal, &withdrawn).unwrap_err();
+        assert!(failure.contains("no unwithdrawn compact row"), "{failure}");
+    }
+    // A compact row without the hold cannot authorize one.
+    let unheld = compact_rows("Held", None, absent_compact);
+    let failure = check_with(&added, &unheld).unwrap_err();
+    assert!(
+        failure.contains("hold differs from the compact listing"),
+        "{failure}"
+    );
+}
+
+/// Main's `check_listings` before compact recovery and bound legacy holds,
+/// kept verbatim (with the then-current successor rule) as the reference for
+/// every proposal that has no prior compact target.
+fn main_check_listings(
+    proposal: &Files,
+    prior_legacy: Option<(&super::history_checkpoint::ListingFloor, &[u8])>,
+) -> std::result::Result<(), String> {
+    let next = bundle::listing_targets(proposal).map_err(|error| error.to_string())?;
+    let floor = prior_legacy.map(|(legacy, _)| legacy);
+    if let Some(next_legacy) = next.legacy.as_ref().filter(|_| next.compact.is_some()) {
+        let Some((legacy, _)) = prior_legacy else {
+            return Err("catalog compact publication needs authenticated legacy history".into());
+        };
+        if legacy.decoded_sha256 != next_legacy.decoded_sha256 {
+            return Err(
+                "catalog compact publication must preserve its last legacy listing bytes".into(),
+            );
+        }
+    }
+    if let Some(floor) = floor
+        && next
+            .compact
+            .as_ref()
+            .or(next.legacy.as_ref())
+            .is_some_and(|next| {
+                next.revision < floor.revision
+                    || (next.revision == floor.revision
+                        && next.decoded_sha256 != floor.decoded_sha256)
+            })
+    {
+        return Err(if next.compact.is_none() {
+            "catalog historical policy/launch rollback or equal-revision replacement".into()
+        } else {
+            "catalog historical listing revision rollback/equivocation".into()
+        });
+    }
+    Ok(())
+}
+
+#[test]
+fn without_a_prior_compact_target_listing_admission_matches_main() {
+    use super::history_checkpoint::{ListingFloor, check_listings};
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::write::GzEncoder;
+    use std::io::Write as _;
+    let legacy = |revision: u64, withdrawn: &[&str], hold: Option<&str>| {
+        let mut row = json!({"id":"row","name":"Row"});
+        if let Some(reason) = hold {
+            row["download_block_reason"] = json!(reason);
+        }
+        serde_json::to_vec(&json!({
+            "listing_delivery_schema":1,"revision":revision,"withdrawn_ids":withdrawn,
+            "directory":{"format_version":11,"listings":[row]}
+        }))
+        .unwrap()
+    };
+    let compact = |decoded: &[u8]| {
+        let mut gzip = GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(decoded).unwrap();
+        serde_json::to_vec(&json!({
+            "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+            "decoded_bytes": decoded.len(),
+            "decoded_sha256": sha(decoded),
+            "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+        }))
+        .unwrap()
+    };
+    let prior = legacy(5, &["gone"], None);
+    let prior_floor = ListingFloor {
+        revision: 5,
+        decoded_sha256: sha(&prior),
+        withdrawn_ids: ["gone".to_owned()].into(),
+    };
+    // Each proposal: its legacy target and, when present, its decoded compact body.
+    type Proposal = (Option<Vec<u8>>, Option<Vec<u8>>);
+    let candidates: Vec<Proposal> = vec![
+        (Some(prior.clone()), None),
+        (Some(legacy(6, &["gone"], None)), None),
+        (Some(legacy(6, &["gone"], Some("Held"))), None),
+        (Some(legacy(5, &["gone"], Some("Held"))), None),
+        (Some(legacy(4, &["gone"], None)), None),
+        (Some(legacy(6, &[], None)), None),
+        (None, None),
+        // First compact publication: legacy bytes kept, changed, or held.
+        (Some(prior.clone()), Some(legacy(6, &["gone"], None))),
+        (Some(prior.clone()), Some(legacy(5, &["gone"], None))),
+        (Some(prior.clone()), Some(legacy(4, &["gone"], None))),
+        (Some(prior.clone()), Some(legacy(6, &[], None))),
+        (
+            Some(legacy(6, &["gone"], Some("Held"))),
+            Some(legacy(7, &["gone"], Some("Held"))),
+        ),
+        (
+            Some(legacy(6, &["gone", "row"], None)),
+            Some(legacy(7, &["gone", "row"], None)),
+        ),
+        (None, Some(legacy(6, &["gone"], None))),
+    ];
+    let mut compared = 0;
+    for (legacy_bytes, decoded) in candidates {
+        let mut files = Files::new();
+        if let Some(bytes) = legacy_bytes {
+            files.insert(portcove_listing_carrier::LEGACY_TARGET.to_owned(), bytes);
+        }
+        if let Some(decoded) = decoded {
+            files.insert(
+                portcove_listing_carrier::COMPACT_TARGET.to_owned(),
+                compact(&decoded),
+            );
+        }
+        for prior_legacy in [None, Some((&prior_floor, prior.as_slice()))] {
+            let actual =
+                check_listings(&files, prior_legacy, None).map_err(|error| error.to_string());
+            let expected = main_check_listings(&files, prior_legacy);
+            assert_eq!(
+                actual.is_ok(),
+                expected.is_ok(),
+                "{actual:?} != {expected:?}"
+            );
+            if let (Err(actual), Err(expected)) = (&actual, &expected) {
+                assert!(actual.contains(expected.as_str()), "{actual} != {expected}");
+            }
+            compared += 1;
+        }
+    }
+    assert_eq!(compared, 28);
+}
+
+#[test]
+fn legacy_only_return_exceeds_both_floors_and_keeps_compact_withdrawals() {
+    use super::history_checkpoint::{ListingFloor, check_listings};
+    let legacy = |revision: u64, withdrawn: &[&str]| {
+        serde_json::to_vec(&json!({
+            "listing_delivery_schema":1,"revision":revision,"withdrawn_ids":withdrawn,
+            "directory":{"format_version":11,"listings":[{"id":"held","download_block_reason":"Held"}]}
+        }))
+        .unwrap()
+    };
+    let floor = |revision: u64, bytes: &[u8], withdrawn: &[&str]| ListingFloor {
+        revision,
+        decoded_sha256: sha(bytes),
+        withdrawn_ids: withdrawn.iter().map(|id| (*id).to_owned()).collect(),
+    };
+    let prior_legacy = legacy(3, &[]);
+    let legacy_floor = floor(3, &prior_legacy, &[]);
+    let compact_floor = floor(7, b"compact", &["gone"]);
+    let proposal =
+        |bytes: Vec<u8>| Files::from([(portcove_listing_carrier::LEGACY_TARGET.to_owned(), bytes)]);
+    let check = |bytes: Vec<u8>| {
+        check_listings(
+            &proposal(bytes),
+            Some((&legacy_floor, prior_legacy.as_slice())),
+            Some(&compact_floor),
+        )
+        .map_err(|error| error.to_string())
+    };
+    check(legacy(8, &["gone"])).unwrap();
+    // A legacy successor at or below the compact revision would be a replay for
+    // every compact reader, which would then stop refreshing.
+    for revision in [4, 7] {
+        let failure = check(legacy(revision, &["gone"])).unwrap_err();
+        assert!(
+            failure.contains("must exceed the compact revision"),
+            "{failure}"
+        );
+    }
+    let failure = check(legacy(8, &[])).unwrap_err();
+    assert!(
+        failure.contains("removed an authenticated compact withdrawal"),
+        "{failure}"
+    );
+    let failure = check_listings(
+        &Files::new(),
+        Some((&legacy_floor, prior_legacy.as_slice())),
+        Some(&compact_floor),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(failure.contains("without a carrier"), "{failure}");
+    // After the return the retained legacy floor is above the compact floor.
+    let returned = legacy(8, &["gone"]);
+    let returned_floor = floor(8, &returned, &["gone"]);
+    let failure = check_listings(
+        &proposal(legacy(8, &["gone", "other"])),
+        Some((&returned_floor, returned.as_slice())),
+        Some(&compact_floor),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(
+        failure.contains("must exceed the compact revision"),
+        "{failure}"
     );
 }
 
@@ -1546,6 +1953,27 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         .await
         .unwrap();
     advance(&fixture, "legacy", 2);
+    // The activation publication must keep the signed legacy bytes exactly,
+    // even to add a hold: there is no compact floor to bind it to yet.
+    let legacy_path = fixture
+        .root()
+        .join("bundle")
+        .join(portcove_listing_carrier::LEGACY_TARGET);
+    let signed_legacy = fs::read(&legacy_path).unwrap();
+    let mut held: serde_json::Value = serde_json::from_slice(&signed_legacy).unwrap();
+    held["directory"]["listings"][1]["download_block_reason"] = json!("Held");
+    fs::write(&legacy_path, serde_json::to_vec(&held).unwrap()).unwrap();
+    select_compact(&fixture, 2, false, true);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("must preserve its last legacy listing bytes"),
+        "{failure}"
+    );
+    fs::write(&legacy_path, &signed_legacy).unwrap();
     select_compact(&fixture, 2, false, true);
     fixture.roles = fixture.root().join("compact-roles");
     fs::create_dir(&fixture.roles).unwrap();
@@ -1602,7 +2030,9 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         .unwrap()
         .to_string();
     assert!(
-        failure.contains("compact listing cannot be withdrawn"),
+        // A legacy-only return is reviewed recovery, never a replay below
+        // the compact floor that every compact reader already admitted.
+        failure.contains("legacy-only listing return must exceed the compact revision"),
         "{failure}"
     );
 
@@ -1627,7 +2057,7 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
     let published = assemble_definition_repository(&fixture.assembly("withdrawal"))
         .await
         .unwrap();
-    for bytes in [old_legacy, new_legacy] {
+    for bytes in [old_legacy, new_legacy.clone()] {
         let target = format!(
             "targets/{}.{}",
             sha(&bytes),
@@ -1639,4 +2069,35 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
             bytes
         );
     }
+
+    // After activation a legacy hold is admitted only with the hold the same
+    // publication's compact row carries.
+    advance(&fixture, "withdrawal", 5);
+    let mut held = legacy.clone();
+    held["revision"] = json!(5);
+    held["directory"]["listings"][0]["download_block_reason"] = json!("Held");
+    fs::write(&path, serde_json::to_vec(&held).unwrap()).unwrap();
+    select_compact_payload(&fixture, 6, flate2::Compression::default(), |payload| {
+        payload["directory"]["listings"][0]["download_block_reason"] = json!("Other text");
+        payload["withdrawn_ids"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("compact-only-withdrawal"));
+    });
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("hold differs from the compact listing"),
+        "{failure}"
+    );
+    select_compact(&fixture, 6, false, true);
+    fixture.roles = fixture.root().join("hold-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("hold"))
+        .await
+        .unwrap();
 }

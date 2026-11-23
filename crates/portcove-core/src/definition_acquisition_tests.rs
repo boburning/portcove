@@ -19,6 +19,7 @@ fn scope() -> (tempfile::TempDir, DefinitionAcquisitionScope) {
         grant_id: "managed-github-v1-fixture".into(),
         policy_revision: 1,
         curated_checks: None,
+        forge: None,
         fixture_origin: None,
     };
     (directory, scope)

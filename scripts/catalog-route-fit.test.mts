@@ -330,6 +330,11 @@ void test("observer output: complete observations count, other statuses stay uno
     fit([{ ...policy.listing_update, upstream_observation: legacy }]).disposition,
     "needs-bytes-worker",
   );
+  // A complete observation must bind its facts; without the digest it is incomplete.
+  const { facts_sha256: _digest, ...unbound } = policy.listing_update.upstream_observation;
+  const unboundFit = fit([{ ...policy.listing_update, upstream_observation: unbound }]);
+  assert.equal(unboundFit.observation, "incomplete");
+  assert.equal(unboundFit.disposition, "unobserved");
 
   const source = { repository: "owner/game", ports: [{ listing: observed }] };
   for (const [rule, status] of [

@@ -58035,19 +58035,20 @@
       "original_game_title": "Fable II Pub Games",
       "issue_number": 3995,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Import your own Pub Games container",
-            "instruction": "Keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your own Xbox 360 Pub Games container, and use Install Game Files before Play Pub Games."
+            "instruction": "Use your own purchased Fable II Pub Games Xbox 360 container. Extract the complete official Windows package to a writable folder outside the Portcove library, and keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your container, and use Install Game Files to prepare it with the upstream tool before Play Pub Games."
           },
           {
             "title": "Preserve the upstream data",
             "instruction": "The launcher creates data, saves, logs and cache in its folder. Keep the original container and preserve the creating runtime and actual save folder before replacement."
+          },
+          {
+            "title": "Add the game and manage your files",
+            "instruction": "In Portcove, select Fable2PubGamesLauncher.exe with its containing folder as the working folder and no arguments. Play opens the upstream launcher; choose Play Pub Games there. Portcove registers and launches the copy you keep. It does not download, prepare, update or replace this copy. You and upstream own the package, your container, game files, saves and settings. Removing the registration leaves all of them in place. Backups, rollback and data migration are not offered for this copy."
           },
           {
             "title": "Review optional Fable II save sync separately",
@@ -58086,7 +58087,10 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mhforever-mango77x-monster-hunter-freedom-unite",

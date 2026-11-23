@@ -1960,7 +1960,7 @@ void test("compact publication rebinds the exact decoded directory to its separa
 
 void test("a reviewed legacy withdrawal keeps other legacy facts and compact-only guides", async () => {
   const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery, reviewedLegacyWithdrawal } =
+  const { projectListingDelivery, reviewedLegacySuccessor } =
     await import("./listing-observation-delivery.mts");
   const legacy = fixtureDelivery();
   const before = decodedListingDelivery(legacy);
@@ -1972,14 +1972,25 @@ void test("a reviewed legacy withdrawal keeps other legacy facts and compact-onl
     directory: { ...before.directory, listings: [] },
   };
   const wire = (value: unknown) => Buffer.from(JSON.stringify(value));
-  assert.deepEqual(reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 3), nextLegacy);
-  assert.throws(() => reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 4), /must advance/u);
+  // A withdrawal binds no hold; the binding is Core's format-11 export.
+  const binding = { legacy: { ...before.directory, format_version: 11 }, compactWithdrawn: [] };
+  assert.deepEqual(reviewedLegacySuccessor(legacy, wire(nextLegacy), 3, binding), nextLegacy);
   assert.throws(
-    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, directory: before.directory }), 3),
+    () => reviewedLegacySuccessor(legacy, wire(nextLegacy), 4, binding),
+    /must advance/u,
+  );
+  assert.throws(
+    () =>
+      reviewedLegacySuccessor(
+        legacy,
+        wire({ ...nextLegacy, directory: before.directory }),
+        3,
+        binding,
+      ),
     /other facts/u,
   );
   assert.throws(
-    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, withdrawn_ids: [] }), 3),
+    () => reviewedLegacySuccessor(legacy, wire({ ...nextLegacy, withdrawn_ids: [] }), 3, binding),
     /safety withdrawal/u,
   );
 
