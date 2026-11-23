@@ -551,6 +551,27 @@ it("keeps individual failed and unavailable results visible without replacing th
   expect(unavailable).not.toContain(">Update available at last check</span>");
 });
 
+it("shows a request-limit deferral as not checked, never as a failure", () => {
+  const deferred = (deferral: NonNullable<UpdateCheckOutcome["deferred"]> | null) =>
+    batchHtml({ status: "current", hasResults: true }, [
+      { port_id: port.id, ok: false, result: null, error: failureReport(), deferred: deferral },
+    ]);
+  const reported = deferred({ resets_at: 1_800_000_000, reset_reported: true });
+  expect(reported).toContain(">Not checked: request limit</span>");
+  expect(reported).not.toContain(">Check failed</span>");
+  expect(reported).not.toContain("Some update checks failed");
+  expect(reported).toMatch(/<strong[^>]*>0<\/strong><span[^>]*>Failed<\/span>/u);
+  expect(reported).toContain("1 not checked yet: a provider&#x27;s request limit was reached");
+  expect(reported).toContain("The next check starts with it.");
+  expect(reported).toMatch(/ Resets: (?!about)/u);
+  expect(deferred({ resets_at: 1_800_000_000, reset_reported: false })).toContain(
+    " Resets: about ",
+  );
+  expect(deferred({ resets_at: null, reset_reported: false })).toContain(
+    "The reset time is unknown.",
+  );
+});
+
 it("keeps batch failure count unknown when no individual results are available", () => {
   const html = batchHtml({ status: "failed", hasResults: false });
   expect(html).toMatch(/<strong[^>]*>Unknown<\/strong><span[^>]*>Failed at last check<\/span>/u);

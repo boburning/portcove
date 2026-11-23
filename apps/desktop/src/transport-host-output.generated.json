@@ -21496,6 +21496,28 @@
         ],
         "type": "object"
       },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
+      },
       "UploaderContinuityBasis": {
         "enum": [
           "predates-baseline",
@@ -21567,7 +21589,18 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One game's result in a bulk update check. A `deferred` item was not checked:\na provider allowance or throttle stopped it, its update state is unknown, and\nthe next bulk check after `deferred.resets_at` starts with it.",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "error": {
         "anyOf": [
           {
@@ -21601,7 +21634,7 @@
       "result",
       "error"
     ],
-    "title": "BatchOutcome",
+    "title": "UpdateCheckOutcome",
     "type": "object"
   },
   "workspace_snapshot": {

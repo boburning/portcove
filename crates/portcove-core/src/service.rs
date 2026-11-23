@@ -10367,6 +10367,106 @@ mod tests {
         assert_eq!(ever_checked.len(), 12);
     }
 
+    /// Records, for every resolution, whether it ran inside a bulk check's shared
+    /// observations and whether its repository is one they share.
+    struct SharingProbe {
+        seen: Mutex<Vec<(String, Option<bool>)>>,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for SharingProbe {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            let shared = crate::github_request_budget::SharedObservations::current()
+                .map(|shared| shared.shares(&port.release.repository));
+            self.seen.lock().unwrap().push((port.id.clone(), shared));
+            tokio::task::yield_now().await;
+            Ok(ResolvedRelease {
+                version: "2.0.0".into(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-2.0.0.zip", port.id),
+                    url: "https://invalid.example/probe.zip".into(),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
+                },
+                uploader_continuity: None,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_large_bulk_check_shares_only_repositories_several_games_name() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let shared_repository = "openmoh/openmohaa";
+        let mut port_ids = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.release.provider == ReleaseSource::Github
+                    && port
+                        .release
+                        .repository
+                        .eq_ignore_ascii_case(shared_repository)
+            })
+            .map(|port| port.id.clone())
+            .collect::<Vec<_>>();
+        assert!(
+            port_ids.len() >= 2,
+            "the catalog names {shared_repository} more than once"
+        );
+        let mut seen_repositories = std::collections::HashSet::new();
+        for port in catalog.ports() {
+            if port_ids.len() >= 24 {
+                break;
+            }
+            if port.release.provider == ReleaseSource::Github
+                && !port
+                    .release
+                    .repository
+                    .eq_ignore_ascii_case(shared_repository)
+                && seen_repositories.insert(port.release.repository.to_ascii_lowercase())
+            {
+                port_ids.push(port.id.clone());
+            }
+        }
+        assert_eq!(port_ids.len(), 24);
+        let provider = Arc::new(SharingProbe {
+            seen: Mutex::new(Vec::new()),
+        });
+        let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+        // Outside a bulk check nothing is shared.
+        service.check_update(&port_ids[0]).await.unwrap();
+        assert_eq!(provider.seen.lock().unwrap().pop().unwrap().1, None);
+
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+        assert_eq!(outcomes.len(), 24);
+        let seen = provider.seen.lock().unwrap().clone();
+        for port_id in &port_ids {
+            let repository = &catalog.port(port_id).unwrap().release.repository;
+            let expected = repository.eq_ignore_ascii_case(shared_repository);
+            // A runtime family member may also be resolved; every resolution of
+            // this game ran inside the check with the right sharing decision.
+            let decisions = seen
+                .iter()
+                .filter(|(id, _)| id == port_id)
+                .map(|(_, shared)| *shared)
+                .collect::<Vec<_>>();
+            assert!(!decisions.is_empty(), "{port_id} was not checked");
+            assert!(
+                decisions.iter().all(|shared| *shared == Some(expected)),
+                "{port_id}: {decisions:?}"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn a_game_that_always_fails_does_not_take_every_window() {
         let temporary = tempfile::tempdir().unwrap();

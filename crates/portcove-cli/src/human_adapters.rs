@@ -23,11 +23,23 @@ pub(crate) fn port_batch<T: JsonSchema>(
         return format!("{label}: no installed ports to process.");
     }
     let succeeded = outcomes.iter().filter(|item| item.ok).count();
-    let mut output = format!(
-        "{label}: {} ports; {succeeded} succeeded, {} did not succeed.\nEach result is independent.",
-        outcomes.len(),
-        outcomes.len() - succeeded,
-    );
+    let deferred = outcomes
+        .iter()
+        .filter(|item| !item.ok && item.deferred.is_some())
+        .count();
+    let mut output = if deferred == 0 {
+        format!(
+            "{label}: {} ports; {succeeded} succeeded, {} did not succeed.\nEach result is independent.",
+            outcomes.len(),
+            outcomes.len() - succeeded,
+        )
+    } else {
+        format!(
+            "{label}: {} ports; {succeeded} succeeded, {} did not succeed, {deferred} not checked because a provider request limit was reached.\nEach result is independent. The next check starts with the ports not checked.",
+            outcomes.len(),
+            outcomes.len() - succeeded - deferred,
+        )
+    };
     for item in outcomes {
         output.push_str(&format!(
             "\n\n{}\n",

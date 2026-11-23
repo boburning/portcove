@@ -12,7 +12,7 @@ use std::{
     collections::{HashMap, HashSet},
     future::Future,
     sync::{Arc, Mutex},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use reqwest::{StatusCode, header};
@@ -130,13 +130,19 @@ pub(crate) struct RateLimitHeaders {
     pub(crate) limit: Option<u64>,
     pub(crate) remaining: Option<u64>,
     pub(crate) used: Option<u64>,
+    /// The provider's reset instant in Unix seconds, by the provider's clock.
     pub(crate) reset: Option<u64>,
     pub(crate) resource: Option<String>,
-    pub(crate) retry_after: Option<u64>,
+    /// The `retry-after` wait (delta-seconds or HTTP-date), already capped.
+    pub(crate) retry_after: Option<Duration>,
+    /// The response `Date` in Unix seconds: the provider's clock at the answer.
+    pub(crate) date: Option<u64>,
 }
 
 impl RateLimitHeaders {
-    pub(crate) fn parse(headers: &header::HeaderMap) -> Self {
+    /// `local_now` (Unix seconds) stands in for the provider's clock only when
+    /// the answer carries no usable `Date`.
+    pub(crate) fn parse(headers: &header::HeaderMap, local_now: u64) -> Self {
         let text = |name: &str| {
             headers
                 .get(name)
@@ -144,32 +150,88 @@ impl RateLimitHeaders {
                 .map(str::trim)
         };
         let number = |name: &str| text(name).and_then(|value| value.parse::<u64>().ok());
+        let date = text(header::DATE.as_str()).and_then(http_date);
         Self {
             limit: number("x-ratelimit-limit"),
             remaining: number("x-ratelimit-remaining"),
             used: number("x-ratelimit-used"),
             reset: number("x-ratelimit-reset"),
             resource: text("x-ratelimit-resource").map(str::to_owned),
-            // Only the delta-seconds form; an HTTP date is left to the defaults.
-            retry_after: number(header::RETRY_AFTER.as_str()),
+            retry_after: text(header::RETRY_AFTER.as_str())
+                .and_then(|value| retry_after_wait(value, date.unwrap_or(local_now))),
+            date,
         }
     }
 }
 
+/// The longest wait Portcove believes from any provider answer: GitHub's primary
+/// window is one hour, so a later reset or `retry-after` (or a clock that is far
+/// off) never blocks requests for longer.
+pub(crate) const PROVIDER_WAIT_CEILING: Duration = Duration::from_secs(60 * 60);
+
+/// Parse a `Retry-After` value: delta-seconds, or an HTTP-date measured against
+/// `server_now` (the provider's `Date`, Unix seconds). Capped at
+/// [`PROVIDER_WAIT_CEILING`]; a date in the past means no wait. Shared parser for
+/// provider throttling answers.
+pub(crate) fn retry_after_wait(value: &str, server_now: u64) -> Option<Duration> {
+    let value = value.trim();
+    let seconds = match value.parse::<u64>() {
+        Ok(seconds) => seconds,
+        Err(_) => http_date(value)?.saturating_sub(server_now),
+    };
+    Some(Duration::from_secs(seconds).min(PROVIDER_WAIT_CEILING))
+}
+
+/// The wait until a reported reset instant, measured on the provider's clock and
+/// capped at [`PROVIDER_WAIT_CEILING`].
+pub(crate) fn reset_wait(reset: u64, server_now: u64) -> Duration {
+    Duration::from_secs(reset.saturating_sub(server_now)).min(PROVIDER_WAIT_CEILING)
+}
+
+/// An HTTP-date (IMF-fixdate) in Unix seconds.
+fn http_date(value: &str) -> Option<u64> {
+    let parsed =
+        time::OffsetDateTime::parse(value.trim(), &time::format_description::well_known::Rfc2822)
+            .ok()?;
+    u64::try_from(parsed.unix_timestamp()).ok()
+}
+
 /// Without a usable `retry-after`, GitHub asks clients to wait at least a minute
-/// after a secondary limit. A `retry-after` is honored up to an hour.
-const SECONDARY_LIMIT_DEFAULT_WAIT: u64 = 60;
-const RETRY_AFTER_MAX: u64 = 60 * 60;
+/// after a secondary limit.
+const SECONDARY_LIMIT_DEFAULT_WAIT: Duration = Duration::from_secs(60);
 /// Every metadata request Portcove sends is a REST `core` resource request.
 const CORE_RESOURCE: &str = "core";
+
+/// Why requests of one credential are paused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AllowanceStop {
+    /// The primary allowance is spent until its reset.
+    Exhausted,
+    /// The provider asked the client to wait (a secondary limit or throttle).
+    Throttled,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Block {
+    /// Monotonic: a wall-clock change cannot shorten or extend it.
+    until: Instant,
+    stop: AllowanceStop,
+    /// When requests may resume, in Unix seconds, for presentation.
+    resets_at: u64,
+    /// Whether the provider reported that time, or Portcove estimated it.
+    reported: bool,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Allowance {
     limit: Option<u64>,
     remaining: Option<u64>,
     used: Option<u64>,
+    /// The provider's reset value, used to tell its windows apart.
     reset: Option<u64>,
-    blocked_until: Option<u64>,
+    /// When this window ends on the monotonic clock.
+    window_ends: Option<Instant>,
+    blocked: Option<Block>,
 }
 
 /// What the running budget currently knows about one credential's allowance.
@@ -180,14 +242,15 @@ pub(crate) struct AllowanceSnapshot {
     pub(crate) remaining: Option<u64>,
     pub(crate) used: Option<u64>,
     pub(crate) reset: Option<u64>,
-    pub(crate) blocked_until: Option<u64>,
+    pub(crate) blocked: Option<AllowanceStop>,
 }
 
 /// The running GitHub request budget of one provider (and every clone of it),
 /// kept separately for each credential. It starts unknown and learns only from
-/// actual response headers; local reservations between answers are corrected by
-/// the next answer. It lives in memory: after a restart GitHub's next answer
-/// re-establishes it, and an exhausted allowance answers with its reset again.
+/// actual response headers. Deadlines are monotonic and measured from the
+/// provider's own `Date`, so a wrong or changed local clock cannot stretch or
+/// cancel a wait, and no wait exceeds [`PROVIDER_WAIT_CEILING`]. It lives in
+/// memory: after a restart GitHub's next answer re-establishes it.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct GithubRequestBudget(Arc<Mutex<HashMap<RequestCredential, Allowance>>>);
 
@@ -205,7 +268,7 @@ impl GithubRequestBudget {
         credential: RequestCredential,
         conditional: bool,
     ) -> Result<Reservation> {
-        let reserved = self.admit_at(credential, conditional, unix_now())?;
+        let reserved = self.admit_at(credential, conditional, Instant::now())?;
         Ok(Reservation {
             budget: self.clone(),
             credential,
@@ -218,7 +281,7 @@ impl GithubRequestBudget {
         &self,
         credential: RequestCredential,
         conditional: bool,
-        now: u64,
+        now: Instant,
     ) -> Result<Option<u64>> {
         let mut allowances = self
             .0
@@ -227,20 +290,29 @@ impl GithubRequestBudget {
         let Some(allowance) = allowances.get_mut(&credential) else {
             return Ok(None);
         };
-        if let Some(until) = allowance.blocked_until {
-            if until > now {
-                return Err(exhausted(credential, until));
+        if let Some(block) = allowance.blocked {
+            if block.until > now {
+                return Err(refusal(credential, &block));
             }
-            allowance.blocked_until = None;
+            allowance.blocked = None;
         }
-        if allowance.reset.is_some_and(|reset| reset <= now) {
+        if allowance.window_ends.is_some_and(|ends| ends <= now) {
             // A new window: what is left is unknown until the next answer.
             allowance.remaining = None;
             allowance.used = None;
             allowance.reset = None;
+            allowance.window_ends = None;
         }
         match allowance.remaining {
-            Some(0) => Err(exhausted(credential, allowance.reset.unwrap_or(now))),
+            Some(0) => Err(refusal(
+                credential,
+                &Block {
+                    until: allowance.window_ends.unwrap_or(now),
+                    stop: AllowanceStop::Exhausted,
+                    resets_at: allowance.reset.unwrap_or_default(),
+                    reported: allowance.reset.is_some(),
+                },
+            )),
             Some(remaining) => {
                 if expected_to_count(credential, conditional) {
                     allowance.remaining = Some(remaining - 1);
@@ -259,20 +331,25 @@ impl GithubRequestBudget {
         status: StatusCode,
         headers: &header::HeaderMap,
     ) {
+        let wall = unix_now();
         self.observe_at(
             credential,
             status,
-            &RateLimitHeaders::parse(headers),
-            unix_now(),
+            &RateLimitHeaders::parse(headers, wall),
+            Instant::now(),
+            wall,
         );
     }
 
+    /// `wall` is the local clock in Unix seconds, used only where the answer
+    /// carries no `Date` and for estimated presentation times.
     fn observe_at(
         &self,
         credential: RequestCredential,
         status: StatusCode,
         headers: &RateLimitHeaders,
-        now: u64,
+        now: Instant,
+        wall: u64,
     ) {
         if headers
             .resource
@@ -281,6 +358,7 @@ impl GithubRequestBudget {
         {
             return;
         }
+        let server_now = headers.date.unwrap_or(wall);
         let mut allowances = self
             .0
             .lock()
@@ -302,6 +380,7 @@ impl GithubRequestBudget {
                     allowance.remaining = Some(remaining);
                     allowance.used = headers.used;
                     allowance.reset = Some(reset);
+                    allowance.window_ends = Some(now + reset_wait(reset, server_now));
                 }
             }
             allowance.limit = headers.limit.or(allowance.limit);
@@ -310,17 +389,39 @@ impl GithubRequestBudget {
             || (status == StatusCode::FORBIDDEN
                 && (headers.remaining == Some(0) || headers.retry_after.is_some()));
         if limited {
-            let wait = match (headers.retry_after, headers.remaining, headers.reset) {
-                (Some(seconds), _, _) => seconds.min(RETRY_AFTER_MAX),
-                (None, Some(0), Some(reset)) => reset.saturating_sub(now),
-                _ => SECONDARY_LIMIT_DEFAULT_WAIT,
+            let (stop, wait, resets_at, reported) =
+                match (headers.retry_after, headers.remaining, headers.reset) {
+                    (Some(wait), _, _) => (
+                        AllowanceStop::Throttled,
+                        wait,
+                        wall.saturating_add(wait.as_secs()),
+                        true,
+                    ),
+                    (None, Some(0), Some(reset)) => (
+                        AllowanceStop::Exhausted,
+                        reset_wait(reset, server_now),
+                        reset,
+                        true,
+                    ),
+                    _ => (
+                        AllowanceStop::Throttled,
+                        SECONDARY_LIMIT_DEFAULT_WAIT,
+                        wall.saturating_add(SECONDARY_LIMIT_DEFAULT_WAIT.as_secs()),
+                        false,
+                    ),
+                };
+            let block = Block {
+                until: now + wait.max(Duration::from_secs(1)),
+                stop,
+                resets_at,
+                reported,
             };
-            let until = now.saturating_add(wait.max(1));
-            allowance.blocked_until = Some(
-                allowance
-                    .blocked_until
-                    .map_or(until, |known| known.max(until)),
-            );
+            if allowance
+                .blocked
+                .is_none_or(|known| known.until < block.until)
+            {
+                allowance.blocked = Some(block);
+            }
         }
     }
 
@@ -337,7 +438,7 @@ impl GithubRequestBudget {
                 remaining: allowance.remaining,
                 used: allowance.used,
                 reset: allowance.reset,
-                blocked_until: allowance.blocked_until,
+                blocked: allowance.blocked.map(|block| block.stop),
             })
     }
 
@@ -384,17 +485,30 @@ impl Drop for Reservation {
     }
 }
 
-fn exhausted(credential: RequestCredential, resets_at: u64) -> PortcoveError {
-    PortcoveError::network(
-        "GitHub reported this client's request allowance used up, or asked it to wait, so Portcove did not send the request.",
-    )
+fn refusal(credential: RequestCredential, block: &Block) -> PortcoveError {
+    let resets_at = (block.resets_at > 0)
+        .then(|| i64::try_from(block.resets_at).ok())
+        .flatten();
+    let mut error = PortcoveError::network(match block.stop {
+        AllowanceStop::Exhausted => {
+            "GitHub reported this client's request allowance used up, so Portcove did not send the request."
+        }
+        AllowanceStop::Throttled => {
+            "GitHub asked this client to wait before more requests, so Portcove did not send the request."
+        }
+    })
     .with_known_cause(KnownFailureCause::ProviderAllowanceExhausted {
         provider: FailureProvider::Github,
-        resets_at: i64::try_from(resets_at).ok(),
+        resets_at,
+        throttled: block.stop == AllowanceStop::Throttled,
+        reset_reported: block.reported,
     })
     .detail("rate_limit_deferred", "true")
-    .detail("rate_limit_credential", credential.label())
-    .detail("rate_reset", resets_at.to_string())
+    .detail("rate_limit_credential", credential.label());
+    if let Some(resets_at) = resets_at {
+        error = error.detail("rate_reset", resets_at.to_string());
+    }
+    error
 }
 
 fn unix_now() -> u64 {
@@ -447,7 +561,7 @@ impl SharedObservations {
         SHARED_OBSERVATIONS.try_with(Arc::clone).ok()
     }
 
-    fn shares(&self, repository: &str) -> bool {
+    pub(crate) fn shares(&self, repository: &str) -> bool {
         self.repositories.contains(&repository.to_ascii_lowercase())
     }
 
@@ -510,7 +624,8 @@ impl SharedObservations {
 mod tests {
     use super::*;
 
-    fn rate(remaining: u64, reset: u64) -> RateLimitHeaders {
+    /// A primary-limit answer whose `Date` is `date` and whose window resets at `reset`.
+    fn rate(remaining: u64, reset: u64, date: u64) -> RateLimitHeaders {
         RateLimitHeaders {
             limit: Some(60),
             remaining: Some(remaining),
@@ -518,7 +633,12 @@ mod tests {
             reset: Some(reset),
             resource: Some("core".into()),
             retry_after: None,
+            date: Some(date),
         }
+    }
+
+    fn secs(seconds: u64) -> Duration {
+        Duration::from_secs(seconds)
     }
 
     #[test]
@@ -568,27 +688,45 @@ mod tests {
             ("x-ratelimit-limit", "5000"),
             ("x-ratelimit-remaining", "4999"),
             ("x-ratelimit-used", "1"),
-            ("x-ratelimit-reset", "1700000000"),
+            ("x-ratelimit-reset", "1445413080"),
             ("x-ratelimit-resource", "core"),
-            ("retry-after", "Wed, 21 Oct 2015 07:28:00 GMT"),
+            ("date", "Wed, 21 Oct 2015 07:28:00 GMT"),
+            ("retry-after", "Wed, 21 Oct 2015 07:30:00 GMT"),
         ] {
             headers.insert(name, header::HeaderValue::from_static(value));
         }
         assert_eq!(
-            RateLimitHeaders::parse(&headers),
+            RateLimitHeaders::parse(&headers, 0),
             RateLimitHeaders {
                 limit: Some(5000),
                 remaining: Some(4999),
                 used: Some(1),
-                reset: Some(1_700_000_000),
+                reset: Some(1_445_413_080),
                 resource: Some("core".into()),
-                retry_after: None,
+                // An HTTP-date is measured against the provider's own `Date`.
+                retry_after: Some(secs(120)),
+                date: Some(1_445_412_480),
             }
         );
         assert_eq!(
-            RateLimitHeaders::parse(&header::HeaderMap::new()),
+            RateLimitHeaders::parse(&header::HeaderMap::new(), 7),
             RateLimitHeaders::default()
         );
+    }
+
+    #[test]
+    fn retry_after_and_reset_waits_are_capped_and_never_negative() {
+        assert_eq!(retry_after_wait("30", 0), Some(secs(30)));
+        assert_eq!(retry_after_wait(" 86400 ", 0), Some(PROVIDER_WAIT_CEILING));
+        assert_eq!(
+            retry_after_wait("Wed, 21 Oct 2015 07:28:00 GMT", 1_445_412_480 + 10),
+            Some(Duration::ZERO),
+            "a date in the past means no wait"
+        );
+        assert_eq!(retry_after_wait("soon", 0), None);
+        assert_eq!(reset_wait(1_000, 400), secs(600));
+        assert_eq!(reset_wait(1_000, 2_000), Duration::ZERO);
+        assert_eq!(reset_wait(u64::MAX, 0), PROVIDER_WAIT_CEILING);
     }
 
     #[test]
@@ -596,17 +734,24 @@ mod tests {
         let budget = GithubRequestBudget::default();
         let anonymous = RequestCredential::Anonymous;
         let token = RequestCredential::for_token(Some("fixture-token"));
-        let now = 1_000;
+        let start = Instant::now();
+        let wall = 1_000;
         // Unknown allowances admit.
-        budget.admit_at(anonymous, false, now).unwrap();
-        budget.observe_at(anonymous, StatusCode::OK, &rate(2, now + 600), now);
+        budget.admit_at(anonymous, false, start).unwrap();
+        budget.observe_at(
+            anonymous,
+            StatusCode::OK,
+            &rate(2, wall + 600, wall),
+            start,
+            wall,
+        );
         // Anonymous conditional requests reserve one each; the third is refused.
-        budget.admit_at(anonymous, true, now).unwrap();
-        budget.admit_at(anonymous, true, now).unwrap();
-        let refused = budget.admit_at(anonymous, true, now).unwrap_err();
+        budget.admit_at(anonymous, true, start).unwrap();
+        budget.admit_at(anonymous, true, start).unwrap();
+        let refused = budget.admit_at(anonymous, true, start).unwrap_err();
         assert_eq!(refused.details["rate_limit_deferred"], "true");
         assert_eq!(refused.details["rate_limit_credential"], "anonymous");
-        assert_eq!(refused.details["rate_reset"], (now + 600).to_string());
+        assert_eq!(refused.details["rate_reset"], (wall + 600).to_string());
         assert!(crate::failure::is_rate_limited(&refused));
         // Never an answer about the resource: it cannot trigger preserved-location
         // failover, which acts only on an unavailable resource.
@@ -614,24 +759,44 @@ mod tests {
             refused.upstream_failure(),
             crate::failure::UpstreamFailure::Forbidden
         ));
-        assert_eq!(
-            refused.presentation().presentation_key,
-            "provider_rate_limited"
+        let presentation = refused.presentation();
+        assert_eq!(presentation.presentation_key, "provider_rate_limited");
+        assert!(
+            presentation
+                .summary
+                .contains("allowance for this computer is used up")
+        );
+        assert!(
+            presentation
+                .summary
+                .contains("Resets: 1970-01-01T00:26:40Z.")
         );
         // The authenticated allowance is separate and unaffected.
-        budget.admit_at(token, true, now).unwrap();
-        budget.observe_at(token, StatusCode::NOT_MODIFIED, &rate(1, now + 600), now);
+        budget.admit_at(token, true, start).unwrap();
+        budget.observe_at(
+            token,
+            StatusCode::NOT_MODIFIED,
+            &rate(1, wall + 600, wall),
+            start,
+            wall,
+        );
         // An authenticated conditional request reserves nothing: a 304 is exempt.
-        budget.admit_at(token, true, now).unwrap();
-        budget.admit_at(token, true, now).unwrap();
+        budget.admit_at(token, true, start).unwrap();
+        budget.admit_at(token, true, start).unwrap();
         // An unconditional one does.
-        budget.admit_at(token, false, now).unwrap();
-        assert!(budget.admit_at(token, false, now).is_err());
+        budget.admit_at(token, false, start).unwrap();
+        assert!(budget.admit_at(token, false, start).is_err());
         // A later answer from an older window cannot raise what is left.
-        budget.observe_at(anonymous, StatusCode::OK, &rate(50, now + 1), now);
+        budget.observe_at(
+            anonymous,
+            StatusCode::OK,
+            &rate(50, wall + 1, wall),
+            start,
+            wall,
+        );
         assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(0));
-        // After the reported reset the allowance is unknown again and admits.
-        budget.admit_at(anonymous, true, now + 600).unwrap();
+        // After the window ends the allowance is unknown again and admits.
+        budget.admit_at(anonymous, true, start + secs(600)).unwrap();
         assert_eq!(budget.snapshot(anonymous).unwrap().remaining, None);
     }
 
@@ -639,8 +804,15 @@ mod tests {
     fn an_unanswered_reservation_returns_to_the_allowance() {
         let budget = GithubRequestBudget::default();
         let anonymous = RequestCredential::Anonymous;
-        let reset = unix_now() + 3_600;
-        budget.observe_at(anonymous, StatusCode::OK, &rate(1, reset), unix_now());
+        let wall = unix_now();
+        let reset = wall + 3_600;
+        budget.observe_at(
+            anonymous,
+            StatusCode::OK,
+            &rate(1, reset, wall),
+            Instant::now(),
+            wall,
+        );
         // A request that never reached GitHub (dropped reservation) costs nothing.
         drop(budget.admit(anonymous, true).unwrap());
         assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(1));
@@ -657,44 +829,189 @@ mod tests {
     fn throttling_answers_block_until_retry_after_or_reset() {
         let budget = GithubRequestBudget::default();
         let anonymous = RequestCredential::Anonymous;
-        let now = 5_000;
+        let start = Instant::now();
+        let wall = 5_000;
         let secondary = RateLimitHeaders {
-            retry_after: Some(30),
+            retry_after: Some(secs(30)),
             ..RateLimitHeaders::default()
         };
-        budget.observe_at(anonymous, StatusCode::FORBIDDEN, &secondary, now);
-        assert!(budget.admit_at(anonymous, true, now + 29).is_err());
-        budget.admit_at(anonymous, true, now + 30).unwrap();
+        budget.observe_at(anonymous, StatusCode::FORBIDDEN, &secondary, start, wall);
+        let refused = budget
+            .admit_at(anonymous, true, start + secs(29))
+            .unwrap_err();
+        assert_eq!(
+            budget.snapshot(anonymous).unwrap().blocked,
+            Some(AllowanceStop::Throttled)
+        );
+        assert!(
+            refused
+                .presentation()
+                .summary
+                .contains("asked this computer to wait")
+        );
+        budget.admit_at(anonymous, true, start + secs(30)).unwrap();
         // A primary-limit 403 without retry-after waits for the reported reset.
-        budget.observe_at(anonymous, StatusCode::FORBIDDEN, &rate(0, now + 900), now);
-        let refused = budget.admit_at(anonymous, true, now + 899).unwrap_err();
-        assert_eq!(refused.details["rate_reset"], (now + 900).to_string());
-        budget.admit_at(anonymous, true, now + 900).unwrap();
-        // A 429 with nothing else waits the documented minimum minute.
+        budget.observe_at(
+            anonymous,
+            StatusCode::FORBIDDEN,
+            &rate(0, wall + 900, wall),
+            start,
+            wall,
+        );
+        let refused = budget
+            .admit_at(anonymous, true, start + secs(899))
+            .unwrap_err();
+        assert_eq!(refused.details["rate_reset"], (wall + 900).to_string());
+        budget.admit_at(anonymous, true, start + secs(900)).unwrap();
+        // A 429 with nothing else waits the documented minimum minute, and its
+        // presentation says the time is Portcove's estimate.
         let token = RequestCredential::for_token(Some("fixture-token"));
         budget.observe_at(
             token,
             StatusCode::TOO_MANY_REQUESTS,
             &RateLimitHeaders::default(),
-            now,
+            start,
+            wall,
         );
-        assert!(budget.admit_at(token, true, now + 59).is_err());
-        budget.admit_at(token, true, now + 60).unwrap();
+        let refused = budget.admit_at(token, true, start + secs(59)).unwrap_err();
+        assert!(
+            refused
+                .presentation()
+                .summary
+                .contains("estimated by Portcove")
+        );
+        budget.admit_at(token, true, start + secs(60)).unwrap();
         // A plain 403 (no limit headers) is not a rate limit.
+        let later = start + secs(2_000);
         budget.observe_at(
             anonymous,
             StatusCode::FORBIDDEN,
             &RateLimitHeaders::default(),
-            now + 2_000,
+            later,
+            wall + 2_000,
         );
-        budget.admit_at(anonymous, true, now + 2_000).unwrap();
+        budget.admit_at(anonymous, true, later).unwrap();
         // Other resources (search, graphql) do not change the core allowance.
         let search = RateLimitHeaders {
             resource: Some("search".into()),
-            ..rate(0, now + 5_000)
+            ..rate(0, wall + 5_000, wall + 2_000)
         };
-        budget.observe_at(anonymous, StatusCode::FORBIDDEN, &search, now + 2_000);
-        budget.admit_at(anonymous, true, now + 2_000).unwrap();
+        budget.observe_at(
+            anonymous,
+            StatusCode::FORBIDDEN,
+            &search,
+            later,
+            wall + 2_000,
+        );
+        budget.admit_at(anonymous, true, later).unwrap();
+    }
+
+    /// The local clock can be far behind or ahead of GitHub's. Waits are measured
+    /// on GitHub's own `Date`, held on the monotonic clock, and capped at an hour.
+    #[test]
+    fn a_wrong_or_changing_local_clock_cannot_stretch_or_cancel_a_wait() {
+        let start = Instant::now();
+        let server = 1_700_000_000;
+        // Local clock two hours ahead: the reset is in the local past, but the
+        // provider's `Date` still says fifteen minutes remain.
+        let ahead = GithubRequestBudget::default();
+        let anonymous = RequestCredential::Anonymous;
+        ahead.observe_at(
+            anonymous,
+            StatusCode::FORBIDDEN,
+            &rate(0, server + 900, server),
+            start,
+            server + 7_200,
+        );
+        assert!(ahead.admit_at(anonymous, true, start + secs(899)).is_err());
+        ahead.admit_at(anonymous, true, start + secs(900)).unwrap();
+        // Local clock two hours behind and no `Date`: the believed wait is capped.
+        let behind = GithubRequestBudget::default();
+        let headers = RateLimitHeaders {
+            date: None,
+            ..rate(0, server, server)
+        };
+        behind.observe_at(
+            anonymous,
+            StatusCode::FORBIDDEN,
+            &headers,
+            start,
+            server - 7_200,
+        );
+        assert!(
+            behind
+                .admit_at(anonymous, true, start + secs(3_599))
+                .is_err()
+        );
+        behind
+            .admit_at(anonymous, true, start + PROVIDER_WAIT_CEILING)
+            .unwrap();
+        // A wall-clock jump after the answer changes nothing: deadlines are
+        // monotonic, so only elapsed time reopens the allowance.
+        let jumped = GithubRequestBudget::default();
+        jumped.observe_at(
+            anonymous,
+            StatusCode::FORBIDDEN,
+            &rate(0, server + 600, server),
+            start,
+            server,
+        );
+        assert!(jumped.admit_at(anonymous, true, start + secs(1)).is_err());
+        jumped.admit_at(anonymous, true, start + secs(600)).unwrap();
+    }
+
+    /// A reset that arrives while a walk is under way reopens the allowance for the
+    /// remaining reads without any retry or restart.
+    #[test]
+    fn a_reset_during_a_walk_reopens_the_rest_of_it() {
+        let budget = GithubRequestBudget::default();
+        let anonymous = RequestCredential::Anonymous;
+        let start = Instant::now();
+        let server = 1_700_000_000;
+        budget.observe_at(
+            anonymous,
+            StatusCode::OK,
+            &rate(1, server + 60, server),
+            start,
+            server,
+        );
+        budget.admit_at(anonymous, true, start).unwrap();
+        assert!(budget.admit_at(anonymous, true, start + secs(30)).is_err());
+        // The next window's first answer replaces the spent one.
+        budget.admit_at(anonymous, true, start + secs(60)).unwrap();
+        budget.observe_at(
+            anonymous,
+            StatusCode::OK,
+            &rate(59, server + 3_660, server + 60),
+            start + secs(60),
+            server + 60,
+        );
+        assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(59));
+        budget.admit_at(anonymous, true, start + secs(61)).unwrap();
+    }
+
+    /// Signing in or out between requests switches allowance without carrying the
+    /// other credential's state over.
+    #[test]
+    fn a_credential_change_mid_check_switches_allowance() {
+        let budget = GithubRequestBudget::default();
+        let start = Instant::now();
+        let server = 1_700_000_000;
+        let first = RequestCredential::for_token(Some("first-token"));
+        let second = RequestCredential::for_token(Some("second-token"));
+        assert_ne!(first, second);
+        budget.observe_at(
+            first,
+            StatusCode::FORBIDDEN,
+            &rate(0, server + 600, server),
+            start,
+            server,
+        );
+        assert!(budget.admit_at(first, true, start).is_err());
+        budget.admit_at(second, true, start).unwrap();
+        budget
+            .admit_at(RequestCredential::Anonymous, true, start)
+            .unwrap();
     }
 
     #[tokio::test]

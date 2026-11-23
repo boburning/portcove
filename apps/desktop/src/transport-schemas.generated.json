@@ -12916,6 +12916,28 @@
         ],
         "type": "object"
       },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
+      },
       "UploaderContinuityBasis": {
         "enum": [
           "predates-baseline",
@@ -12988,6 +13010,17 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {
@@ -58514,6 +58547,28 @@
         ],
         "type": "object"
       },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
+      },
       "UpdatePolicy": {
         "enum": [
           "notify",
@@ -58594,6 +58649,17 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {
@@ -85741,10 +85807,43 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {

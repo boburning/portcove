@@ -3527,27 +3527,37 @@ the validator matches and applies the documented rule above to its own log; the 
 Portcove's request behavior and the counts that rule implies, not a measurement of
 GitHub's own quota accounting. Each ordinary game reads its repository document and one
 `releases` page. "Before" checks every game independently, as bulk checks did until
-November 2026; "after" is one bulk check that shares observations. The test pins a
-20-game library; the same harness measured the 100- and 1,000-game rows once (1,000 games
-measured exactly ten times each 100-game row).
+November 2026; "after" is one bulk check that shares observations. The test pins the
+formulas on a 20-game library. The 100- and 1,000-game rows were measured once with the
+same harness (1,000 games measured exactly ten times each 100-game row); the 5,000-game
+rows are derived from the pinned formulas, not measured.
 
-| Library                                 | Credential | Cold: requests / counted | Warm: requests / counted |
-| --------------------------------------- | ---------- | ------------------------ | ------------------------ |
-| 100 games, 100 repositories, before     | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 100 repositories, after      | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 100 repositories, either     | signed in  | 200 / 200                | 200 / 0                  |
-| 100 games, 4 per repository, before     | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 4 per repository, after      | anonymous  | 50 / 50                  | 50 / 50                  |
-| 100 games, 4 per repository, before     | signed in  | 200 / 50                 | 200 / 0                  |
-| 100 games, 4 per repository, after      | signed in  | 50 / 50                  | 50 / 0                   |
-| 1,000 games, 1,000 repositories, either | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
-| 1,000 games, 1,000 repositories, either | signed in  | 2,000 / 2,000            | 2,000 / 0                |
-| 1,000 games, 4 per repository, before   | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
-| 1,000 games, 4 per repository, after    | anonymous  | 500 / 500                | 500 / 500                |
-| 1,000 games, 4 per repository, before   | signed in  | 2,000 / 500              | 2,000 / 0                |
-| 1,000 games, 4 per repository, after    | signed in  | 500 / 500                | 500 / 0                  |
+| Library                                        | Credential | Cold: requests / counted | Warm: requests / counted |
+| ---------------------------------------------- | ---------- | ------------------------ | ------------------------ |
+| 100 games, 100 repositories, before            | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, after             | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, either            | signed in  | 200 / 200                | 200 / 0                  |
+| 100 games, 4 per repository, before            | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 4 per repository, after             | anonymous  | 50 / 50                  | 50 / 50                  |
+| 100 games, 4 per repository, before            | signed in  | 200 / 50                 | 200 / 0                  |
+| 100 games, 4 per repository, after             | signed in  | 50 / 50                  | 50 / 0                   |
+| 1,000 games, 1,000 repositories, either        | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 1,000 repositories, either        | signed in  | 2,000 / 2,000            | 2,000 / 0                |
+| 1,000 games, 4 per repository, before          | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 4 per repository, after           | anonymous  | 500 / 500                | 500 / 500                |
+| 1,000 games, 4 per repository, before          | signed in  | 2,000 / 500              | 2,000 / 0                |
+| 1,000 games, 4 per repository, after           | signed in  | 500 / 500                | 500 / 0                  |
+| 5,000 games, 4 per repository, after (derived) | anonymous  | 2,500 / 2,500            | 2,500 / 2,500            |
+| 5,000 games, 4 per repository, after (derived) | signed in  | 2,500 / 2,500            | 2,500 / 0                |
 
-One repository changing between warm checks adds two counted requests when signed in. The
+One repository changing between warm checks adds two counted requests when signed in.
+UNKNOWN: whether exempt authenticated `304` answers count toward GitHub's secondary
+(per-minute or concurrency) limits. The cited pages document only the primary-limit
+exemption; GitHub documentation that states it, or an observed throttling answer during a
+large signed-in warm check, would settle it. Core already honors any secondary-limit
+`retry-after` it receives. Preparing the allowance key for each game before a bulk check
+measured about 0.9 ms per game in a debug build (4.4 seconds for 5,000 games), and reading
+the durable order took under 2 milliseconds. The
 forecast before November 2026 reported an anonymous warm check as 0 counted requests; it
 now reports what the table shows. A 100-game anonymous library therefore needs four hourly
 windows (200 counted requests at 60 an hour) for one complete check, warm or cold. Signed
@@ -3563,7 +3573,13 @@ cannot take every window. Once a check fails with a rate limit, games not yet st
 own checks draw from the allowance that failed (the provider, and for GitHub the anonymous
 or signed-in credential the failure records) are not sent: each returns a
 `provider_rate_limited` failure with `update_check_deferred`, keeps its earlier snapshot
-and stays unknown, never "checked" or "up to date". The next bulk check after the reset
+and stays unknown, never "checked" or "up to date". Every rate-limited item, deferred or
+answered with a limit, carries a typed `UpdateCheckDeferral` (`resets_at`, and whether the
+provider reported it) through Tauri's `UpdateCheckOutcome` and the CLI's `deferred` field;
+the desktop counts such games as not checked rather than failed and does not fail the batch
+for them. Attempts come from the retained activity history, which keeps the 1,000 most
+recent finished activities; a pruned attempt falls back to the snapshot time or to never
+attempted. A cancelled check counts as an attempt. The next bulk check after the reset
 starts with them, so a large library completes across allowance windows instead of
 re-checking its first games, and the order survives restart because it is read from the
 library database. Launching an installed game never reads update-check state or waits for

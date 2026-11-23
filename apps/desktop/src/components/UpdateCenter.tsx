@@ -260,8 +260,20 @@ function useUpdateCenter({
     0,
     ...installed.map((port) => savedByPort.get(port.id)?.checked_at ?? 0),
   );
-  const failed = outcomes.filter((outcome) => !outcome.ok).length;
-  const failedInstalled = installed.filter((port) => byPort.get(port.id)?.ok === false).length;
+  // A deferred outcome was not checked: a provider request limit stopped it. Its update
+  // state is unknown, not failed, and Core resumes it first on the next check.
+  const failed = outcomes.filter((outcome) => !outcome.ok && !outcome.deferred).length;
+  const failedInstalled = installed.filter((port) => {
+    const outcome = byPort.get(port.id);
+    return outcome?.ok === false && !outcome.deferred;
+  }).length;
+  const deferredInstalled = installed
+    .map((port) => byPort.get(port.id))
+    .filter((outcome) => outcome?.ok === false && outcome.deferred);
+  const deferredResets = deferredInstalled
+    .map((outcome) => outcome?.deferred)
+    .filter((deferral) => typeof deferral?.resets_at === "number")
+    .sort((left, right) => (right?.resets_at ?? 0) - (left?.resets_at ?? 0))[0];
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   const renderStatistics = () => (
     <div className="update-stats grid grid-cols-4">
@@ -340,6 +352,8 @@ function useUpdateCenter({
     complete,
     failed,
     failedInstalled,
+    deferredInstalled: deferredInstalled.length,
+    deferredResets,
     latestSavedCheck,
     renderStatistics,
   };
@@ -380,6 +394,12 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
             {model.checked.length} of {model.installed.length} installed{" "}
             {model.installed.length === 1 ? "port" : "ports"}.
             {!model.complete && " Unchecked or failed ports may still have updates."}
+            {model.deferredInstalled > 0 &&
+              ` ${model.deferredInstalled} not checked yet: a provider's request limit was reached, so Portcove did not ask. The next check starts with ${model.deferredInstalled === 1 ? "it" : "them"}.`}
+            {model.deferredInstalled > 0 &&
+              (typeof model.deferredResets?.resets_at === "number"
+                ? ` Resets: ${model.deferredResets.reset_reported ? "" : "about "}${formatActivityTime(model.deferredResets.resets_at)}.`
+                : " The reset time is unknown.")}
             {model.latestSavedCheck > 0 &&
               ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
           </p>
@@ -981,7 +1001,14 @@ function UpdateBatchNotice({ read }: { read?: UpdateBatchRead | undefined }) {
 }
 
 function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) {
-  if (!check) return outcome ? (outcome.ok ? "Unavailable" : "Check failed") : "Not checked";
+  if (!check)
+    return outcome
+      ? outcome.ok
+        ? "Unavailable"
+        : outcome.deferred
+          ? "Not checked"
+          : "Check failed"
+      : "Not checked";
   const runtimeOnly =
     check.update_available &&
     check.installed_artifact?.sha256 === check.release.asset.sha256 &&
@@ -1581,6 +1608,11 @@ function updateState(
     if (savedCheck) return { label: "No update found at last check", tone: "current" };
     return { label: "Not checked", tone: "muted" };
   }
+  if (!outcome.ok && outcome.deferred)
+    return {
+      label: earlier ? "Not checked at last check: request limit" : "Not checked: request limit",
+      tone: "muted",
+    };
   if (!outcome.ok)
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
   if (status.staged) return { label: "Update saved for later", tone: "staged" };

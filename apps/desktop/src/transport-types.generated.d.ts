@@ -1774,7 +1774,7 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_recipe_import_review: OutputDesktopRecipeImportReview;
-  desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_reconcile_outcome: OutputDesktopReconcileOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
@@ -1790,7 +1790,7 @@ export interface TransportOutputs {
   desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
-  desktop_update_check_outcome: OutputCheckBatchOutcome;
+  desktop_update_check_outcome: OutputDesktopUpdateCheckOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
 export interface OutputAbout {
@@ -4086,10 +4086,32 @@ export interface CatalogChangedPort {
   [k: string]: unknown;
 }
 export interface OutputCheckBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+/**
+ * An update check that did not run because a provider allowance or throttle
+ * stopped it (a refusal, a deferral within the same bulk check, or a rate-limited
+ * answer). The game's update state is unknown, never "checked" or "up to date";
+ * the next bulk check after `resets_at` starts with it.
+ */
+export interface UpdateCheckDeferral {
+  /**
+   * True when the provider reported `resets_at`; false when Portcove estimated it.
+   */
+  reset_reported: boolean;
+  /**
+   * When the allowance is expected to reopen, in Unix seconds, if known.
+   */
+  resets_at: number | null;
   [k: string]: unknown;
 }
 export interface DatReferenceStatus {
@@ -7471,6 +7493,11 @@ export interface RecommendationObservation {
   supersedes: string[];
 }
 export interface OutputReconcileBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -7972,6 +7999,11 @@ export interface StoreOriginalFolder {
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -8480,6 +8512,13 @@ export interface OutputDesktopRecipeImportReview {
   setting_values: string[];
   [k: string]: unknown;
 }
+export interface OutputDesktopReconcileOutcome {
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: ReconcileResult | null;
+  [k: string]: unknown;
+}
 export interface RootSetupConsent {
   enabled_at: number;
   enrollment: RootSetupEnrollment;
@@ -8796,6 +8835,19 @@ export interface SupportBundleSection {
   reasons: SupportBundleReason[];
   records: number | null;
   status: SupportBundleSectionStatus;
+  [k: string]: unknown;
+}
+/**
+ * One game's result in a bulk update check. A `deferred` item was not checked:
+ * a provider allowance or throttle stopped it, its update state is unknown, and
+ * the next bulk check after `deferred.resets_at` starts with it.
+ */
+export interface OutputDesktopUpdateCheckOutcome {
+  deferred?: UpdateCheckDeferral | null;
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: UpdateCheck | null;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

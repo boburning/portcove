@@ -2726,6 +2726,18 @@ pub struct RequestCostForecast {
     pub sign_in_relief_requests: u32,
 }
 
+/// An update check that did not run because a provider allowance or throttle
+/// stopped it (a refusal, a deferral within the same bulk check, or a rate-limited
+/// answer). The game's update state is unknown, never "checked" or "up to date";
+/// the next bulk check after `resets_at` starts with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateCheckDeferral {
+    /// When the allowance is expected to reopen, in Unix seconds, if known.
+    pub resets_at: Option<i64>,
+    /// True when the provider reported `resets_at`; false when Portcove estimated it.
+    pub reset_reported: bool,
+}
+
 /// The expected provider cost of checking a set of games at once.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateCheckForecast {

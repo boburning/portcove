@@ -256,11 +256,17 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
-    /// The provider already reported this client's allowance used up, so Core did
-    /// not send the request. Nothing was learned about the requested resource.
+    /// The provider already reported this client's allowance used up, or asked it
+    /// to wait, so Core did not send the request. Nothing was learned about the
+    /// requested resource.
     ProviderAllowanceExhausted {
         provider: FailureProvider,
         resets_at: Option<i64>,
+        /// The provider asked the client to wait (a secondary limit or throttle)
+        /// rather than reporting its primary allowance spent.
+        throttled: bool,
+        /// Whether the provider reported `resets_at`, or Portcove estimated it.
+        reset_reported: bool,
     },
 }
 
@@ -298,25 +304,34 @@ pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::Rele
 /// The failure of an item that was not sent because `cause` already stopped the
 /// same provider allowance. `None` when `cause` is not a rate limit.
 pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
-    let (provider, resets_at) = match cause.known_cause()? {
+    let (provider, resets_at, throttled, reset_reported) = match cause.known_cause()? {
         KnownFailureCause::ProviderRequest {
             provider,
             rate_limited: true,
             resets_at,
             ..
-        }
-        | KnownFailureCause::ProviderAllowanceExhausted {
+        } => (
+            *provider,
+            *resets_at,
+            cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
+            resets_at.is_some(),
+        ),
+        KnownFailureCause::ProviderAllowanceExhausted {
             provider,
             resets_at,
-        } => (*provider, *resets_at),
+            throttled,
+            reset_reported,
+        } => (*provider, *resets_at, *throttled, *reset_reported),
         _ => return None,
     };
     let mut error = PortcoveError::network(
-        "The provider's request allowance was used up earlier in this check, so this item was not sent.",
+        "Not sent: the provider's request allowance stopped an earlier request in the same batch.",
     )
     .with_known_cause(KnownFailureCause::ProviderAllowanceExhausted {
         provider,
         resets_at,
+        throttled,
+        reset_reported,
     })
     .detail("rate_limit_deferred", "true");
     for key in [
@@ -676,16 +691,35 @@ impl KnownFailureCause {
             Self::ProviderAllowanceExhausted {
                 provider,
                 resets_at,
+                throttled,
+                reset_reported,
             } => {
                 let provider = match provider {
                     FailureProvider::Github => "GitHub",
                     FailureProvider::Gitlab => "GitLab",
                 };
-                let reset = reset_sentence(*resets_at);
+                let cause = if *throttled {
+                    format!("{provider} asked this computer to wait before more requests")
+                } else {
+                    format!("{provider}'s request allowance for this computer is used up")
+                };
+                let reset = resets_at
+                    .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
+                    .and_then(|time| {
+                        time.format(&time::format_description::well_known::Rfc3339)
+                            .ok()
+                    });
+                let next = match (reset, reset_reported) {
+                    (Some(time), true) => format!("Resets: {time}. Try again after then."),
+                    (Some(time), false) => format!(
+                        "Resets: about {time} (estimated by Portcove). Try again after then."
+                    ),
+                    (None, _) => "The reset time is unknown. Try again later.".to_owned(),
+                };
                 return (
                     "provider_rate_limited",
                     format!(
-                        "{provider} already reported this client's request allowance used up, so Portcove waited instead of asking again.{reset} This item was not checked; check again after that time."
+                        "{cause}, so Portcove did not send this request and nothing changed. {next}"
                     ),
                 );
             }
@@ -708,6 +742,30 @@ pub(crate) enum PreparationFailureCause {
 }
 
 impl PortcoveError {
+    /// The deferral this failure represents for an update check, when a provider
+    /// allowance or throttle stopped it rather than an answer about the game.
+    pub fn update_check_deferral(&self) -> Option<crate::UpdateCheckDeferral> {
+        match self.known_cause()? {
+            KnownFailureCause::ProviderRequest {
+                rate_limited: true,
+                resets_at,
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: resets_at.is_some(),
+            }),
+            KnownFailureCause::ProviderAllowanceExhausted {
+                resets_at,
+                reset_reported,
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: *reset_reported && resets_at.is_some(),
+            }),
+            _ => None,
+        }
+    }
+
     pub fn report(&self) -> FailureReport {
         let mut details = self.details.clone();
         if let Some(code) = self.catalog_fallback() {
