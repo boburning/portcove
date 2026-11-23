@@ -57,6 +57,120 @@ function legacyOf(id: string, record: Record<string, unknown>) {
   return rebuilt;
 }
 
+/**
+ * Reviewed data changes made after the one-shot migration (#8538, decisions on
+ * #1422). Each keeps the migrated whole-listing download hold first, so the
+ * legacy projection still holds every download for older readers, and adds one
+ * download permit for exactly the reviewed release files by SHA-256.
+ * - chameleon-twist-recompiled: owner approval 2026-11-23 for the v0.1 ZIP
+ *   accepted in the exact-byte acceptance record. The reason code is corrected
+ *   because the release carries no game data; its only third-party content is
+ *   separately authored fonts.
+ * - grand-theft-auto-san-andreas-unity: lead decision under the #6134 and
+ *   menu-art owner exceptions for the v4.0 Windows and Linux ZIPs.
+ * - linewars-ii-sdl3: lead decision under the #6090 freeware exception and the
+ *   bundled-fonts note for the v1.0.0 Windows and Linux archives.
+ */
+const laterReviewedPermits: ReadonlyMap<
+  string,
+  { reason: string; permit: string; artifacts: readonly (readonly [string, string, string])[] }
+> = new Map([
+  [
+    "chameleon-twist-recompiled",
+    {
+      reason: "third-party-component-terms",
+      permit: "approved-v0-1",
+      artifacts: [
+        [
+          "v0.1",
+          "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+          "ChameleonTwistJPRecompiled.zip",
+        ],
+      ],
+    },
+  ],
+  [
+    "grand-theft-auto-san-andreas-unity",
+    {
+      reason: "bundled-game-data",
+      permit: "reviewed-v4-0",
+      artifacts: [
+        [
+          "v4.0",
+          "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+          "SanAndreasUnity-4.0-windows.zip",
+        ],
+        [
+          "v4.0",
+          "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+          "SanAndreasUnity-4.0-linux.zip",
+        ],
+      ],
+    },
+  ],
+  [
+    "linewars-ii-sdl3",
+    {
+      reason: "bundled-game-data",
+      permit: "reviewed-v1-0-0",
+      artifacts: [
+        [
+          "v1.0.0",
+          "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+          "LineWars2-SDL3-v1.0.0-win64.zip",
+        ],
+        [
+          "v1.0.0",
+          "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+          "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+        ],
+      ],
+    },
+  ],
+]);
+
+/** The migrated record with only the reviewed later change applied. */
+function withLaterReview(id: string, migrated: Record<string, unknown>) {
+  const later = laterReviewedPermits.get(id);
+  if (!later) return migrated;
+  const expected = structuredClone(migrated) as { listing: Record<string, unknown> };
+  const [hold, ...rest] = expected.listing.restrictions as AcquisitionRestriction[];
+  assert.equal(rest.length, 0, id);
+  assert.equal(hold?.effect, "hold", id);
+  expected.listing.restrictions = [
+    { ...hold, reason: later.reason },
+    {
+      id: later.permit,
+      effect: "permit",
+      operations: ["download"],
+      scope: {
+        artifacts: later.artifacts.map(([version, sha256, asset_name]) => ({
+          version,
+          sha256,
+          asset_name,
+        })),
+      },
+    },
+  ];
+  return expected;
+}
+
+void test("reviewed exact-file permits keep older readers fully held", () => {
+  const listings = json(join(catalogRoot, "listings.json")) as {
+    listings: Record<string, unknown>[];
+  };
+  for (const id of laterReviewedPermits.keys()) {
+    const typed = authored(id).listing.restrictions as AcquisitionRestriction[];
+    // The whole-listing hold stays first, so the legacy string is its explanation.
+    assert.equal(typed[0]?.effect, "hold", id);
+    assert.equal(typed[0]?.scope, undefined, id);
+    const legacy = legacyDownloadProjection(typed);
+    assert.equal(legacy, typed[0]?.explanation, id);
+    const row = listings.listings.find((listing) => listing.id === id);
+    assert.equal(row?.download_block_reason, legacy, id);
+  }
+});
+
 void test("listing rows become one whole download hold with verbatim copy", () => {
   const id = "abuse-abuse-2025";
   const legacy = legacyOf(id, authored(id));
@@ -124,8 +238,13 @@ void test("every reviewed row is typed and projects to its generated legacy byte
       assert.ok(!reasonTable.has(id), id);
       continue;
     }
-    // Re-running the deterministic migration on the legacy form reproduces the file.
-    assert.deepEqual(migrateRecord(id, legacyOf(id, record)).record, record, id);
+    // Re-running the deterministic migration on the legacy form reproduces the
+    // file, apart from the reviewed later permits above.
+    assert.deepEqual(
+      withLaterReview(id, migrateRecord(id, legacyOf(id, record)).record),
+      record,
+      id,
+    );
     if (typed) {
       listingRows++;
       const row = listings.listings.find((listing) => listing.id === id);
