@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use crate::{ExternalRuntimeRecord, Platform, PortcoveError, Result, UserPreparedRuntimeSpec};
 
 const MAX_FILES: usize = 100_000;
-const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+pub(crate) const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
 pub(crate) mod shared_preferences;

@@ -192,6 +192,19 @@ download provenance does not certify the resulting executable or game data.
 An interrupted handoff is reconciled from the recorded attempt and publication
 receipt. An unresolved attempt remains visible as requiring attention.
 
+`setup pending` reports each finished download's setup stage in `progress`.
+A new download is `artifact-obtained`. Desktop's **Open folder** and setup
+guide record `upstream-setup-opened`. `external select-preview` checks the
+chosen program and records `final-selected`. `external select` records
+`registration-reviewed` before it registers the game. Human output adds Core's
+explanation, any notice and the next step. The stage survives a restart.
+Registration rechecks the kept package against its SHA-256 and does not
+download it again. If the listed source, the catalog definition for this
+setup, a download restriction, the package's role or the kept package
+changes, the stage becomes `invalidated` with a typed `kind` and a next step.
+Forget that setup to start again; your files stay in place. A newer upstream
+version is only a notice: you can still add the game you set up.
+
 `setup forget PORT_ID --pending-id RECORD_ID` forgets only that exact setup
 record. It does not remove handed-off files. Each port has one active managed
 installation or external registration. A separate downloaded setup may coexist

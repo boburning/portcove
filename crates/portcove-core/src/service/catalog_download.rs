@@ -4,6 +4,7 @@
 use super::catalog_download_provider::{CatalogDownloadProvider, CatalogDownloadRepository};
 use super::user_selected::managed_overlap_key;
 use super::*;
+
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
@@ -45,6 +46,14 @@ fn download_artifact_subject<'a>(
 #[cfg(test)]
 #[path = "catalog_download_tests.rs"]
 mod tests;
+
+#[path = "pending_setup_stage.rs"]
+mod stage;
+pub use stage::{
+    PendingSetupBinding, PendingSetupInvalidation, PendingSetupMessage, PendingSetupProgress,
+    PendingSetupStage, PendingSetupStageKind, RetainedSetupBytes, SelectedSetupResult,
+    UpstreamSetupHandoff, pending_setup_message,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -227,6 +236,13 @@ pub struct PendingSetupRecord {
     pub archive_sha256: String,
     pub downloaded_at: String,
     pub reason: Option<String>,
+    /// Where the player is in the upstream setup that follows the download.
+    /// Publication writes format 1 or 2 without it, which earlier releases
+    /// read; Core maps a finished download to `artifact-obtained` on read
+    /// without writing it back. Format 3 persists it only once the player
+    /// moves the setup past that stage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<PendingSetupProgress>,
 }
 
 impl PendingSetupRecord {
@@ -283,7 +299,11 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
         .artifact
         .release_id
         .require_tag(&record.artifact.release_tag)?;
-    let expected_format = if record.artifact.release_id.github_id().is_some() {
+    // Format 3 carries a bound setup stage for either provider; the typed
+    // release identity names the provider. Formats 1 and 2 have no stage.
+    let expected_format = if record.progress.is_some() {
+        stage::STAGED_RECORD_FORMAT
+    } else if record.artifact.release_id.github_id().is_some() {
         1
     } else {
         2
@@ -304,6 +324,7 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     {
         validate_retained_gitlab_source(record, *project_id, tag, *file_id)?;
     }
+    stage::validate_progress(record)?;
     if record.port_id != record.listing.id
         || Uuid::parse_str(&record.id).is_err()
         || !record.path.is_absolute()
@@ -415,8 +436,9 @@ fn validate_retained_gitlab_source(
 }
 
 fn encoded_download_record(record: &PendingSetupRecord) -> Result<String> {
-    validate_record(record)?;
-    let json = serde_json::to_string(record)?;
+    let record = stage::storage_form(record);
+    validate_record(&record)?;
+    let json = serde_json::to_string(&*record)?;
     if json.len() > RECORD_LIMIT {
         return Err(PortcoveError::conflict(
             "pending setup record exceeds its UTF-8 byte limit",
@@ -480,8 +502,9 @@ fn stored_downloads_from(connection: &rusqlite::Connection) -> Result<Vec<Stored
         }
         let _: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_str(&record_json)?;
-        let record: PendingSetupRecord = serde_json::from_str(&record_json)?;
+        let mut record: PendingSetupRecord = serde_json::from_str(&record_json)?;
         validate_record(&record)?;
+        stage::map_legacy_stage(&mut record);
         if record.port_id != port_id
             || record.id != id
             || !is_digest(&preview_sha256)
@@ -1251,6 +1274,7 @@ impl PortcoveService {
                 archive_sha256: String::new(),
                 downloaded_at: String::new(),
                 reason: Some("Package download is in progress.".into()),
+                progress: None,
             };
             self.insert_catalog_download(
                 &record,
@@ -1506,6 +1530,9 @@ impl PortcoveService {
         }
         record.state = PendingSetupState::Downloaded;
         record.reason = None;
+        // Publication keeps the format earlier releases read; its stage is
+        // `artifact-obtained` on read. Format 3 waits for a later stage.
+        record.progress = None;
         let json = encoded_download_record(&record)?;
         require_download_record_capacity(&transaction, &record.port_id, &json)?;
         crate::durability::rename_noreplace(payload, &record.path)?;
@@ -1527,6 +1554,8 @@ impl PortcoveService {
         }
         transaction.commit()?;
         drop(stage);
+        // Report the stage a reader of the stored record sees.
+        stage::map_legacy_stage(&mut record);
         Ok(record)
     }
 
@@ -1562,18 +1591,30 @@ impl PortcoveService {
             Ok(bytes) => bytes,
             Err(_) => return Ok(false),
         };
-        let receipt: PublicationReceipt = match serde_json::from_slice(&bytes) {
-            Ok(receipt) => receipt,
-            Err(_) => return Ok(false),
+        Ok(receipt_bytes_match(stored, &bytes))
+    }
+
+    /// Whether the published folder still holds this attempt's receipt. Only
+    /// a missing, non-file, oversized, unreadable-as-a-receipt or different
+    /// receipt is `false`; a failure to read an existing receipt is returned
+    /// so the caller can retry instead of treating it as changed.
+    fn publication_receipt_still_matches(&self, stored: &StoredDownload) -> Result<bool> {
+        self.require_download_destination(&stored.record.path)?;
+        let path = stored.record.path.join(RECEIPT_NAME);
+        refuse_symlink_ancestors(&path)?;
+        match stage::retained_metadata(&path) {
+            Ok(metadata) if metadata.is_file() && metadata.len() <= 4096 => {}
+            Ok(_) => return Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+        }
+        let bytes = match crate::path::read_bounded_regular(&path, 4096) {
+            Ok(bytes) => bytes,
+            // The bounded reader refuses a non-file or grown receipt.
+            Err(error) if error.code == crate::ErrorCode::Verification => return Ok(false),
+            Err(error) => return Err(error),
         };
-        Ok(receipt
-            == PublicationReceipt {
-                format_version: 1,
-                pending_id: stored.record.id.clone(),
-                port_id: stored.record.port_id.clone(),
-                preview_sha256: stored.preview_sha256.clone(),
-                archive_sha256: stored.record.archive_sha256.clone(),
-            })
+        Ok(receipt_bytes_match(stored, &bytes))
     }
 
     pub(super) fn recover_catalog_downloads(&self) -> Result<()> {
@@ -1721,4 +1762,17 @@ impl PortcoveService {
             "This link does not belong to the saved setup.",
         ))
     }
+}
+
+fn receipt_bytes_match(stored: &StoredDownload, bytes: &[u8]) -> bool {
+    serde_json::from_slice::<PublicationReceipt>(bytes).is_ok_and(|receipt| {
+        receipt
+            == PublicationReceipt {
+                format_version: 1,
+                pending_id: stored.record.id.clone(),
+                port_id: stored.record.port_id.clone(),
+                preview_sha256: stored.preview_sha256.clone(),
+                archive_sha256: stored.record.archive_sha256.clone(),
+            }
+    })
 }

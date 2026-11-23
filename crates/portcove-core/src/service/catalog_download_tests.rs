@@ -1477,6 +1477,28 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert_eq!(pending.archive_sha256, expected);
     assert!(pending.artifact.sha256.is_none());
     assert!(pending.path.join("readme.txt").is_file());
+    // Publication stores the format earlier releases read: no record format
+    // field (format 1) and no stage. `artifact-obtained` is the read-time
+    // stage only, so a later rollback to an earlier release keeps working.
+    let raw = service
+        .library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
+            [&pending.port_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    // The released reader's own parse accepts the real publication row.
+    assert!(super::stage::tests::released_reader_accepts(&raw), "{raw}");
+    let stored: Value = serde_json::from_str(&raw).unwrap();
+    assert!(stored.get("format_version").is_none(), "{stored}");
+    assert!(stored.get("progress").is_none(), "{stored}");
+    assert_eq!(
+        pending.stage_kind(),
+        Some(crate::PendingSetupStageKind::ArtifactObtained)
+    );
     assert_eq!(
         service
             .pending_setup_folder(&pending.port_id, &pending.id)
@@ -1811,6 +1833,7 @@ fn intent(
         archive_sha256: "a".repeat(64),
         downloaded_at: "2026-10-22T00:00:00Z".into(),
         reason: None,
+        progress: None,
     };
     let review = "b".repeat(64);
     service

@@ -2630,7 +2630,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 render_read_success(
                     mode,
                     "external.select-preview",
-                    service.preview_user_selected_runtime(
+                    service.choose_user_selected_runtime(
                         &port_id,
                         &executable,
                         &working_directory,
