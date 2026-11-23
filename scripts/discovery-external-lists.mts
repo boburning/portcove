@@ -600,21 +600,31 @@ export function externalHintCoverage(
   return "unresolved";
 }
 
-/** Uncovered GitHub hints due for one primary metadata read, newest observation first. */
+/**
+ * Uncovered GitHub hints due for one primary metadata read. The interactive
+ * runner takes a bounded newest-first slice. Fair order takes every due hint,
+ * longest-waiting first, so sustained new hints cannot starve older ones; the
+ * caller's physical budget decides where a run stops.
+ */
 export function selectExternalResolutions(
   state: ExternalLeadState | undefined,
   covered: ReadonlySet<string>,
   paths: ReadonlyMap<string, number>,
   now: string,
-  limit = externalResolutionsPerRun,
+  limit: number = externalResolutionsPerRun,
+  order: "newest" | "fair" = "newest",
 ) {
+  // A hint waits from its last failed check, or from its first observation.
+  const waitingSince = (hint: ExternalHint) =>
+    hint.resolution?.checked_at ?? hint.first_observed_at;
   return Object.entries(state?.hints ?? {})
     .filter(([key, hint]) => externalHintCoverage(hint, key, covered, paths, now) === "unresolved")
-    .sort(
-      ([a, x], [b, y]) =>
-        y.first_observed_at.localeCompare(x.first_observed_at) ||
-        y.lists.length - x.lists.length ||
-        a.localeCompare(b),
+    .sort(([a, x], [b, y]) =>
+      order === "fair"
+        ? waitingSince(x).localeCompare(waitingSince(y)) || a.localeCompare(b)
+        : y.first_observed_at.localeCompare(x.first_observed_at) ||
+          y.lists.length - x.lists.length ||
+          a.localeCompare(b),
     )
     .slice(0, limit)
     .map(([key, hint]) => ({ key, repository: key.slice(19), hint }));

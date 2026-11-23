@@ -152,7 +152,7 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
 }
 
 /** Read-only status export for the hosted researcher and the maintenance report. */
-export function discoveryStatusQuery(limits: { attempts: number; watches: number }) {
+export function discoveryStatusQuery(limits: { attempts: number }) {
   return `SET TRANSACTION READ ONLY;
 SELECT json_build_object(
   'activation', (SELECT json_build_object('active', collection_active, 'generation', collection_generation)
@@ -183,6 +183,6 @@ SELECT json_build_object(
           WHERE o.provider = w.provider AND o.provider_id = w.provider_id
           ORDER BY o.first_seen_at DESC LIMIT 1) AS repository
       FROM portcove_maintenance.discovery_watches w WHERE w.status = 'due'
-      ORDER BY w.updated_at, w.provider_id LIMIT ${limits.watches}) d), '[]'))
+      ORDER BY w.updated_at, w.provider_id) d), '[]'))
 )::text;`;
 }

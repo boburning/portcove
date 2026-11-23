@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,11 @@ import type { Octokit } from "@octokit/core";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
+import {
+  DiscoveryBudget,
+  createDiscoveryTransport,
+  discoveryProfiles,
+} from "./discovery-budget.mts";
 import {
   advanceDiscovery,
   emptyCheckpoint,
@@ -52,7 +56,7 @@ import { assessUpstreamLineage } from "./upstream-lineage.mts";
 
 export const discoveryWorkerScope = "primary";
 /** Bump when the normalized observation facts change meaning. */
-export const discoveryParserVersion = 1;
+export const discoveryParserVersion = 2;
 export const discoveryWorkerStateFormat = 1;
 
 /** Identifies the collector definitions this state was written under. */
@@ -98,8 +102,9 @@ const sorted = (values: readonly string[] | undefined) =>
 
 /**
  * Normalized, provider-bound facts for one positive lead. Portcove-side
- * dispositions, local evidence paths and observation clocks are excluded so an
- * unchanged project stays one row however often it is seen.
+ * dispositions, search-family and curated-list provenance, local evidence paths
+ * and observation clocks are excluded, so an unchanged project stays one row
+ * however often and wherever it is seen. Provenance stays in collector state.
  */
 export function leadObservation(lead: DiscoveryLead): DiscoveryProviderObservation | undefined {
   if (!Number.isSafeInteger(lead.id) || lead.id <= 0) return undefined;
@@ -112,10 +117,6 @@ export function leadObservation(lead: DiscoveryLead): DiscoveryProviderObservati
   if (lead.created_at) facts.created_at = lead.created_at;
   const aliases = sorted(lead.aliases);
   if (aliases) facts.aliases = aliases.slice(0, 20);
-  const families = sorted(lead.search_families);
-  if (families) facts.search_families = families;
-  const lists = sorted(lead.external_lists);
-  if (lists) facts.external_lists = lists;
   if (lead.manifest) facts.manifest = lead.manifest;
   if (lead.release_hint) facts.release_assets_observed = lead.release_hint.assets_observed;
   // Keep the row inside the store's bound; the remaining facts identify the project.
@@ -174,12 +175,19 @@ export interface DiscoveryWorkerOptions {
   covered: () => Set<string>;
   scope?: string;
   leaseSeconds?: number;
-  /** Minimum time between interim commits; every run also commits at its end. */
+  /** Optional minimum time between interim commits; every run also commits at its end. */
   commitIntervalMs?: number;
-  /** Database transfer the run may spend on interim commits. */
+  /** Admitted database transfer for this run; interim commits are paced within it. */
   transferBytes?: number;
+  /**
+   * Physical run limits: time until the job must finish and the response bytes
+   * the runner can retain. Requests are bounded only by observed provider quota.
+   */
+  limits?: { milliseconds: number; bytes: number };
   budget?: DiscoveryBudget;
   now?: () => number;
+  /** Waits for a provider quota reset; injectable for tests. */
+  sleep?: (milliseconds: number) => Promise<void>;
 }
 
 export interface DiscoveryWorkerResult {
@@ -225,8 +233,8 @@ export async function runDiscoveryWorker(
   const startedAt = new Date(now()).toISOString();
   const scope = options.scope ?? discoveryWorkerScope;
   const leaseSeconds = options.leaseSeconds ?? 3600;
-  const interval = options.commitIntervalMs ?? 120_000;
-  const transferBytes = options.transferBytes ?? 12 * 1024 * 1024;
+  const interval = options.commitIntervalMs ?? 0;
+  const transferBytes = options.transferBytes ?? Number.POSITIVE_INFINITY;
   const lease: DiscoveryLease = { scope, attempt: randomUUID(), token: randomUUID() };
   const committed = {
     pages: 0,
@@ -299,10 +307,13 @@ export async function runDiscoveryWorker(
   const budget =
     options.budget ??
     new DiscoveryBudget(
-      "ordinary",
+      "hosted",
       (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
       now,
       startedAt,
+      options.limits
+        ? { requests: Number.MAX_SAFE_INTEGER, ...options.limits }
+        : discoveryProfiles.hosted,
     );
   if (state.backoff_until) budget.usage.backoff_until = state.backoff_until;
   const journal: DiscoveryCollectionHost["journal"] = {
@@ -315,6 +326,7 @@ export async function runDiscoveryWorker(
   let lastCommit = now();
   let dirty = false;
   let stale = false;
+  let progress = 0;
   // Any other failed commit also halts collection, so a database error inside a
   // collector's own error handling is never recorded as a source outcome.
   let halted: Error | undefined;
@@ -335,6 +347,7 @@ export async function runDiscoveryWorker(
     deferredLeadFamilies: new Set(),
     leadPages: 0,
     searches: 0,
+    unattended: true,
     persist() {
       // Once a newer owner or restore takes the lease, every later step stops here,
       // even inside collectors that tolerate their own source failures.
@@ -342,11 +355,21 @@ export async function runDiscoveryWorker(
         throw new DiscoveryStoreRefused("stale-writer", "This discovery attempt lost its lease");
       if (halted) throw halted;
       dirty = true;
+      progress++;
       if (now() - lastCommit < interval) return;
-      // Leave room for this commit and the final one within the run's allowance.
-      const stateBytes = committed.state_bytes || Buffer.byteLength(JSON.stringify(host.leads));
-      if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes <= transferBytes * 0.6)
-        flush();
+      if (Number.isFinite(transferBytes)) {
+        // Spend the admitted transfer evenly across the run, always leaving room
+        // for this commit and the final one. The admission meters 70% of its
+        // reservation as payload; keep the rest for protocol overhead.
+        const elapsed = Math.min(1, (now() - Date.parse(startedAt)) / budget.limits.milliseconds);
+        const stateBytes = committed.state_bytes || Buffer.byteLength(JSON.stringify(host.leads));
+        if (
+          committed.sent_bytes + committed.received_bytes + 2 * stateBytes >
+          transferBytes * 0.6 * elapsed
+        )
+          return;
+      }
+      flush();
     },
     save(name, value) {
       if (!/^[A-Za-z0-9._-]{1,160}$/u.test(name)) throw new Error("Unsafe evidence name");
@@ -424,7 +447,41 @@ export async function runDiscoveryWorker(
       },
     };
     await observeProviderCapacity(sdk, budget);
-    await collectDiscoveryRun(host);
+    const sleep =
+      options.sleep ??
+      ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+    const finishBy = Date.parse(startedAt) + budget.limits.milliseconds;
+    // Keep collecting until the job's time runs out. When provider quota is the
+    // only thing stopping a productive pass, wait for its reset and continue.
+    for (;;) {
+      const before = progress;
+      let exhausted: GitHubApiError | undefined;
+      try {
+        await collectDiscoveryRun(host);
+      } catch (error) {
+        if (!(error instanceof GitHubApiError && quotaCodes.has(error.code))) throw error;
+        exhausted = error;
+      }
+      const wake = providerWake(budget, now());
+      if (wake === undefined || wake >= finishBy || progress === before) {
+        if (exhausted) throw exhausted;
+        break;
+      }
+      journal.notes.push({
+        phase: "worker",
+        status: "waiting",
+        until: new Date(wake).toISOString(),
+        reason: "Provider quota exhausted; continuing after its reset within the job deadline",
+      });
+      host.persist();
+      await sleep(wake - now());
+      await observeProviderCapacity(sdk, budget);
+      host.externalCollectionAttempted = false;
+      host.leadCollectionAttempted = false;
+      host.leadFamilies = new Set();
+      host.deferredLeadFamilies = new Set();
+      journal.collection_done = false;
+    }
     outcome = journal.coverage === "complete" ? "complete" : "partial";
   } catch (error) {
     reason = errorMessage(error).slice(0, 500);
@@ -492,6 +549,25 @@ export async function runDiscoveryWorker(
     }
   }
   return final;
+}
+
+const quotaCodes = new Set(["budget_exhausted", "rate_limited", "quota_unknown", "quota_stale"]);
+
+/**
+ * When an observed provider quota or Retry-After backoff is what stops work,
+ * the time it lifts; otherwise undefined.
+ */
+export function providerWake(budget: DiscoveryBudget, now: number) {
+  const times: number[] = [];
+  const backoff = Date.parse(budget.usage.backoff_until ?? "");
+  if (Number.isFinite(backoff) && backoff > now) times.push(backoff);
+  for (const [resource, quota] of Object.entries(budget.usage.provider_quotas ?? {})) {
+    const needed = resource === "graphql" ? budget.graphqlPointHeadroom : 1;
+    const reset = Date.parse(quota.resetAt);
+    if (quota.remaining < needed && Number.isFinite(reset) && reset > now) times.push(reset);
+  }
+  // Wake just after the latest blocking reset, so every exhausted resource has lifted.
+  return times.length ? Math.max(...times) + 1000 : undefined;
 }
 
 async function observeProviderCapacity(sdk: Octokit, budget: DiscoveryBudget) {
@@ -613,6 +689,21 @@ export function importLocalState(
   return summary;
 }
 
+/** Recent measured transfer and current state size, read before admission. */
+const discoveryTransferForecastQuery = `SELECT json_build_object(
+  'state_bytes', coalesce((SELECT max(octet_length(state::text))
+    FROM portcove_maintenance.discovery_collection_state), 0),
+  'previous_transfer_bytes', coalesce((SELECT max(
+      coalesce((result->'committed'->>'sent_bytes')::bigint, 0) +
+      coalesce((result->'committed'->>'received_bytes')::bigint, 0))
+    FROM (SELECT result FROM portcove_maintenance.discovery_collection_attempts
+      WHERE result IS NOT NULL ORDER BY acquisition DESC LIMIT 7) recent), 0));`;
+
+/** Time to write the final state: a generous allowance proportional to its size. */
+export function finalizationMilliseconds(stateBytes: number) {
+  return 60_000 + Math.ceil(stateBytes / (256 * 1024)) * 1000;
+}
+
 const usage =
   "usage: node scripts/discovery-worker.mts collect|status|import-local [--database-env NAME] [--output DIR] [--state-dir DIR]";
 
@@ -648,7 +739,7 @@ export async function discoveryWorkerMain(argv: string[]) {
       status = await withMaintenanceAdmission(
         environment,
         "inspect",
-        () => queryJson(environment, discoveryStatusQuery({ attempts: 10, watches: 200 })),
+        () => queryJson(environment, discoveryStatusQuery({ attempts: 10 })),
         {
           request: run
             ? `github:${run}:discovery-status:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
@@ -734,6 +825,25 @@ export async function discoveryWorkerMain(argv: string[]) {
   process.once("SIGINT", cancel);
   const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
     await import("./maintenance-resource-policy.mts");
+  // Size the run from measured state and transfer rather than fixed limits.
+  const forecast = queryJson(environment, discoveryTransferForecastQuery) as {
+    state_bytes: number;
+    previous_transfer_bytes: number;
+  };
+  const reservationBytes = Math.ceil(
+    Math.max(forecast.previous_transfer_bytes * 1.5, forecast.state_bytes * 4 + 1024 * 1024),
+  );
+  const deadline = Number(process.env.PORTCOVE_DISCOVERY_DEADLINE_EPOCH);
+  const disk = statfsSync(runDir);
+  const limits = {
+    // The job's own deadline, less time to commit the final state and finish.
+    milliseconds: Number.isFinite(deadline)
+      ? deadline * 1000 - Date.now() - finalizationMilliseconds(forecast.state_bytes)
+      : discoveryProfiles.hosted.milliseconds,
+    // Half the runner's free space for retained responses and evidence.
+    bytes: Math.floor((Number(disk.bavail) * Number(disk.bsize)) / 2),
+  };
+  if (limits.milliseconds <= 0) throw new Error("The discovery job deadline has already passed");
   let collected: DiscoveryWorkerResult | undefined;
   try {
     collected = await withMaintenanceAdmission(
@@ -752,6 +862,7 @@ export async function discoveryWorkerMain(argv: string[]) {
             return () => (cache ??= catalogCoveredHints());
           })(),
           transferBytes: reservation,
+          limits,
           connect: async (budget) => {
             const scope = discoveryGitHubScope(budget, token, { signal: cancellation.signal });
             // Discovery collection is read-only; refuse any mutation at the client.
@@ -766,6 +877,7 @@ export async function discoveryWorkerMain(argv: string[]) {
         estimate: (value) =>
           200_000 + Math.ceil((value.committed.sent_bytes + value.committed.received_bytes) * 1.3),
         completed: (value) => value.outcome !== "failed",
+        reservationBytes,
       },
     );
   } catch (error) {

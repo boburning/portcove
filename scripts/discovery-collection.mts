@@ -72,7 +72,17 @@ export interface DiscoveryCollectionHost {
   /** Normalized external-hint keys already covered by canonical issues or catalog lineage. */
   externalCovered(): Set<string>;
   leadSummary(): { external: ReturnType<typeof externalHintSummary> | null };
+  /**
+   * Unattended collection does no in-run research or delivery. It holds back no
+   * capacity for them and applies no per-run counts: it continues fairly until
+   * provider quota, time or bytes run out, and resumes from there next run.
+   */
+  readonly unattended?: boolean;
 }
+
+/** Capacity held back after an operation for in-run research and delivery. */
+const researchReserve = (host: DiscoveryCollectionHost, interactive: number) =>
+  host.unattended ? { requests: 1, bytes: 0 } : { requests: interactive, bytes: 1024 * 1024 };
 
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -113,8 +123,9 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
     const left = host.budget.remaining();
     // One list read may follow up to four redirects; keep the research reserve after them.
     if (
-      left.requests < 22 + ("revision_repository" in list ? 3 : 0) ||
-      left.bytes < list.cap + 1024 * 1024
+      left.requests <
+        researchReserve(host, 22).requests + ("revision_repository" in list ? 3 : 0) ||
+      left.bytes < list.cap + researchReserve(host, 22).bytes
     ) {
       host.journal.notes.push({
         phase: "external-list",
@@ -245,11 +256,17 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
         host.externalCovered(),
         leadPaths(Object.values(host.leads.records)),
         at,
+        host.unattended ? Number.POSITIVE_INFINITY : undefined,
+        host.unattended ? "fair" : "newest",
       )
     : [];
   for (const pick of picks) {
     // Keep the same capacity for two upstream investigations that lead searches keep.
-    if (host.budget.remaining().requests < 18 || host.budget.remaining().bytes < 1024 * 1024) {
+    const reserve = researchReserve(host, 18);
+    if (
+      host.budget.remaining().requests < reserve.requests ||
+      host.budget.remaining().bytes < reserve.bytes
+    ) {
       host.journal.notes.push({
         phase: "external-resolution",
         status: "deferred",
@@ -370,7 +387,11 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
       continue;
     }
     // Leave bounded capacity for two upstream investigations as well as the existing delivery reserve.
-    if (host.budget.remaining().requests < 17 || host.budget.remaining().bytes < 1024 * 1024) {
+    const reserve = researchReserve(host, 17);
+    if (
+      host.budget.remaining().requests < reserve.requests ||
+      host.budget.remaining().bytes < reserve.bytes
+    ) {
       host.journal.notes.push({
         phase: "lead-search",
         status: "deferred",
@@ -435,15 +456,28 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
     idleTurns = 0;
     host.persist();
   }
-  for (const lead of pendingLeads(host.leads, host.knownLeadUrls())
-    .filter(
-      (r) =>
-        !r.release_hint ||
-        Date.parse(host.journal.started_at) - Date.parse(r.release_hint.observed_at) >=
-          7 * 86400000,
+  // Unattended runs recheck every pending lead, never-checked and then
+  // longest-unchecked first, until a physical budget stops them.
+  const checkedAt = (r: { release_hint?: { observed_at: string } }) =>
+    r.release_hint?.observed_at ?? "";
+  for (const lead of host.unattended
+    ? pendingLeads(host.leads, host.knownLeadUrls()).toSorted(
+        (a, b) => checkedAt(a).localeCompare(checkedAt(b)) || a.id - b.id,
+      )
+    : pendingLeads(host.leads, host.knownLeadUrls())
+        .filter(
+          (r) =>
+            !r.release_hint ||
+            Date.parse(host.journal.started_at) - Date.parse(r.release_hint.observed_at) >=
+              7 * 86400000,
+        )
+        .slice(0, 4)) {
+    const reserve = researchReserve(host, 17);
+    if (
+      host.budget.remaining().requests < reserve.requests ||
+      host.budget.remaining().bytes < reserve.bytes
     )
-    .slice(0, 4)) {
-    if (host.budget.remaining().requests < 17 || host.budget.remaining().bytes < 1024 * 1024) break;
+      break;
     const response = await host.source.sdk.request({
       method: "GET",
       url: new URL(`repos/${lead.repository}/releases?per_page=5`, "https://api.github.com/").href,
@@ -495,7 +529,7 @@ export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
   await searchLeadFamilies(host);
   const reserve = host.budget.reserve;
   const pending = pendingLeads(host.leads, host.knownLeadUrls());
-  if (pending.length) {
+  if (pending.length && !host.unattended) {
     const left = host.budget.remaining();
     host.budget.reserve = {
       requests: reserve.requests + Math.min(16, Math.max(0, left.requests)),
