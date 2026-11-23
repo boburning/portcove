@@ -2775,10 +2775,18 @@ impl Library {
     }
 
     /// Publish a prepared derivative without discarding a separately staged update.
+    ///
+    /// Rollback must keep reaching the last working version. When the replaced
+    /// active installation is the preparation's own unprepared source
+    /// (`source_unprepared`) and a rollback version already exists, that version
+    /// stays the rollback target: the unprepared source is superseded by its own
+    /// prepared copy and stays tracked like any other superseded installation.
+    /// With no earlier version, the source becomes the rollback target as before.
     pub(crate) fn register_prepared_install(
         &self,
         install: &InstallRecord,
         original_id: &str,
+        source_unprepared: bool,
     ) -> Result<()> {
         crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
@@ -2800,9 +2808,13 @@ impl Library {
         crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
-               previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
+               previous_install_id=CASE
+                 WHEN active_install_id=?2 THEN previous_install_id
+                 WHEN ?4 AND active_install_id=?3 AND previous_install_id IS NOT NULL
+                   THEN previous_install_id
+                 ELSE active_install_id END,
                active_install_id=?2 WHERE port_id=?1",
-            params![install.port_id, install.id],
+            params![install.port_id, install.id, original_id, source_unprepared],
         )?;
         transaction.commit()?;
         Ok(())

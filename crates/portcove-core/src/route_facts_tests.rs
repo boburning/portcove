@@ -444,3 +444,47 @@ fn typed_facts_serialize_as_kebab_case_and_reject_unknown_fields() {
         .is_err()
     );
 }
+
+/// The upstream-managed setup widening admits an extractable package named for
+/// its setup or installer only; uninstallers and runtime redistributables stay
+/// held, as does any installer for another adapter.
+#[test]
+fn upstream_setup_widening_admits_only_setup_and_installer_packages() {
+    let managed = crate::AdapterKind::UpstreamManagedSetup;
+    for name in ["game-windows-setup.zip", "game-installer-win64.zip"] {
+        assert_eq!(package_role_hold(managed, name, true, &[]), None, "{name}");
+        assert_eq!(
+            package_role_hold(managed, name, false, &[]),
+            Some(RouteHold::WrongRole),
+            "{name}"
+        );
+        assert_eq!(
+            package_role_hold(crate::AdapterKind::NativePortable, name, true, &[]),
+            Some(RouteHold::WrongRole),
+            "{name}"
+        );
+    }
+    for name in [
+        "game-windows-uninstall.zip",
+        "game-uninstall-setup.zip",
+        "game-vcredist-win64.zip",
+        "game-redist-setup.zip",
+        "unins000.zip",
+    ] {
+        assert_eq!(
+            package_role_hold(managed, name, true, &[]),
+            Some(RouteHold::WrongRole),
+            "{name}"
+        );
+    } // The setup-token rule narrows only the installer widening: a PSX
+    // preparation kit named for its source stays that route's package.
+    let kit = "game-psx-kit-source.zip";
+    assert_eq!(
+        package_role_hold(crate::AdapterKind::PsxRecompManaged, kit, true, &[]),
+        None
+    );
+    assert_eq!(
+        package_role_hold(managed, kit, true, &[]),
+        Some(RouteHold::WrongRole)
+    );
+}

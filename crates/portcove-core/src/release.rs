@@ -3268,6 +3268,7 @@ fn choose_asset_for_variant<'a>(
             .cloned()
             .unwrap_or_default()
     };
+    let mut role_held = false;
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {
@@ -3325,6 +3326,18 @@ fn choose_asset_for_variant<'a>(
                 && !can_extract
                 && standalone.is_none()
             {
+                return None;
+            }
+            // One typed-role gate for every adapter (#8602).
+            if crate::route_facts::package_role_hold(port.adapter, &name, can_extract, &hints)
+                .is_some()
+            {
+                // Only a this-host download held by its role makes the refusal
+                // typed; another host's file is refused by host as before.
+                role_held |= !conflicts_with_platform(&name, platform)
+                    && !crate::route_facts::suggest_from_filename(&name)
+                        .os
+                        .excludes(platform);
                 return None;
             }
             if matches!(
@@ -3393,6 +3406,16 @@ fn choose_asset_for_variant<'a>(
                 "the current release has no verified package matching the saved choice",
             )
             .detail("saved_package_variant", "no-matching-package"));
+        }
+        if role_held {
+            return Err(PortcoveError::not_found(format!(
+                "{} has no game package for {platform:?} in this release; its matching downloads are installers, tools, debug builds or source archives, which Portcove does not install as the game",
+                port.name
+            ))
+            .detail(
+                "route_hold",
+                crate::route_facts::RouteHold::WrongRole.as_str(),
+            ));
         }
         return Err(PortcoveError::not_found(format!(
             "{} has no supported release asset for {platform:?}",

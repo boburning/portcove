@@ -69,6 +69,43 @@ fn validate_file(file: &GitlabPackageFile) -> Result<()> {
     Ok(())
 }
 
+/// The managed-package rules for the exact registry file behind a release
+/// link. The link label passed the typed-role gate, but a neutral label can
+/// name a wrong-role registry file, so the final filename is gated again
+/// (#8602).
+fn exact_registry_file_admitted(
+    port: &PortDefinition,
+    platform: Platform,
+    file_name: &str,
+) -> Result<()> {
+    let name = file_name.to_ascii_lowercase();
+    let hints = port
+        .release
+        .asset_hints
+        .get(&platform)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    if conflicts_with_platform(&name, platform)
+        || crate::service::package_selection::is_server_package(file_name)
+        || (port.n64_runtime_at_executable_parent
+            && native_archive_score(&name, platform, hints).is_none())
+    {
+        return Err(PortcoveError::verification(
+            "the exact GitLab registry file is outside the reviewed package rules",
+        ));
+    }
+    if link_role_hold(port.adapter, &name, hints).is_some() {
+        return Err(PortcoveError::verification(
+            "the exact GitLab registry file is an installer, tool, debug build or source archive, not the game package",
+        )
+        .detail(
+            "route_hold",
+            crate::route_facts::RouteHold::WrongRole.as_str(),
+        ));
+    }
+    Ok(())
+}
+
 impl GitlabReleaseProvider {
     pub(super) async fn resolve_exact_bounded(
         &self,
@@ -172,24 +209,7 @@ impl GitlabReleaseProvider {
             .await?
             .ok_or_else(|| PortcoveError::verification("the exact GitLab registry file changed"))?;
         validate_file(file)?;
-        if conflicts_with_platform(&file.file_name.to_ascii_lowercase(), platform)
-            || crate::service::package_selection::is_server_package(&file.file_name)
-            || (port.n64_runtime_at_executable_parent
-                && native_archive_score(
-                    &file.file_name.to_ascii_lowercase(),
-                    platform,
-                    port.release
-                        .asset_hints
-                        .get(&platform)
-                        .map(Vec::as_slice)
-                        .unwrap_or_default(),
-                )
-                .is_none())
-        {
-            return Err(PortcoveError::verification(
-                "the exact GitLab registry file is outside the reviewed package rules",
-            ));
-        }
+        exact_registry_file_admitted(port, platform, &file.file_name)?;
         let selected = ResolvedRelease {
             version: release.tag_name,
             channel,

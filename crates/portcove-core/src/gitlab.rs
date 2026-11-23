@@ -755,6 +755,7 @@ fn choose_link<'a>(
         .get(&platform)
         .cloned()
         .unwrap_or_default();
+    let mut role_held = false;
     let mut scored: Vec<(i32, &GitlabReleaseLink)> = links
         .iter()
         .filter_map(|link| {
@@ -763,6 +764,13 @@ fn choose_link<'a>(
                 || crate::service::package_selection::is_server_package(&name)
                 || conflicts_with_platform(&name, platform)
             {
+                return None;
+            }
+            // The same typed-role gate as every other release route (#8602).
+            if link_role_hold(port.adapter, &name, &hints).is_some() {
+                role_held |= !crate::route_facts::suggest_from_filename(&name)
+                    .os
+                    .excludes(platform);
                 return None;
             }
             if port.n64_runtime_at_executable_parent {
@@ -798,6 +806,9 @@ fn choose_link<'a>(
             .then_with(|| left.1.name.cmp(&right.1.name))
     });
     let Some((best_score, best_link)) = scored.first() else {
+        if role_held {
+            return Err(wrong_role_refusal(port, platform));
+        }
         return Err(PortcoveError::not_found(format!(
             "{} has no supported GitLab package for {platform:?}",
             port.name
@@ -810,6 +821,38 @@ fn choose_link<'a>(
         )));
     }
     Ok(*best_link)
+}
+
+/// The typed-role gate for a GitLab release link. A link label often omits
+/// the file extension, so a label without a package form is classified as the
+/// package download a `package` link is; the final registry filename is gated
+/// again with its real form before anything is cached.
+fn link_role_hold(
+    adapter: crate::AdapterKind,
+    name: &str,
+    hints: &[String],
+) -> Option<crate::route_facts::RouteHold> {
+    if crate::route_facts::suggest_from_filename(name).package_form {
+        let can_extract = GITLAB_EXTRACTABLE
+            .iter()
+            .any(|extension| name.ends_with(extension));
+        crate::route_facts::package_role_hold(adapter, name, can_extract, hints)
+    } else {
+        crate::route_facts::package_role_hold(adapter, &format!("{name}.zip"), true, hints)
+    }
+}
+
+const GITLAB_EXTRACTABLE: &[&str] = &[".zip", ".tar.gz", ".tgz"];
+
+fn wrong_role_refusal(port: &PortDefinition, platform: Platform) -> PortcoveError {
+    PortcoveError::not_found(format!(
+        "{} has no game package for {platform:?} in this release; its matching downloads are installers, tools, debug builds or source archives, which Portcove does not install as the game",
+        port.name
+    ))
+    .detail(
+        "route_hold",
+        crate::route_facts::RouteHold::WrongRole.as_str(),
+    )
 }
 
 fn native_archive_score(name: &str, platform: Platform, hints: &[String]) -> Option<i32> {
@@ -1004,6 +1047,26 @@ fn resolve_observed_asset(
     if crate::service::package_selection::is_server_package(&name) {
         return Err(PortcoveError::verification(
             "GitLab package filename identifies a dedicated server",
+        ));
+    }
+    if link_role_hold(
+        port.adapter,
+        &name.to_ascii_lowercase(),
+        port.release
+            .asset_hints
+            .get(&platform)
+            .map(Vec::as_slice)
+            .unwrap_or_default(),
+    )
+    .is_some()
+    {
+        // The link passed the gate, so its registry file differs from it.
+        return Err(PortcoveError::verification(
+            "GitLab package filename identifies an installer, tool, debug build or source archive, not the game package",
+        )
+        .detail(
+            "route_hold",
+            crate::route_facts::RouteHold::WrongRole.as_str(),
         ));
     }
     if port.n64_runtime_at_executable_parent
@@ -2330,6 +2393,135 @@ mod tests {
         assert!(error.message.contains("equally qualified"));
     }
 
+    /// Release links apply the same typed-role gate as every other route
+    /// (#8602): host-named debug, source and installer links that match the
+    /// reviewed hint never become the game package, with or without a file
+    /// extension in the link label, and the refusal is typed.
+    #[test]
+    fn gitlab_links_refuse_wrong_role_downloads_that_match_the_hint() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("extreme-g-recompiled").unwrap();
+        let link = |name: &str| GitlabReleaseLink {
+            id: None,
+            name: name.into(),
+            url: "https://example.invalid/package".into(),
+            direct_asset_url: None,
+            link_type: "package".into(),
+        };
+        let game = "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo";
+        let decoys = [
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-debug.zip",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-debug",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-source.zip",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-Source",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-setup.exe",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-Installer",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-Installer.zip",
+        ];
+        for decoy in decoys {
+            let error = choose_link(port, Platform::WindowsX86_64, &[link(decoy)]).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::NotFound, "{decoy}");
+            assert_eq!(
+                error.details.get("route_hold").map(String::as_str),
+                Some("wrong-role"),
+                "{decoy}"
+            );
+            let mut links = vec![link(decoy), link(game)];
+            assert_eq!(
+                choose_link(port, Platform::WindowsX86_64, &links)
+                    .unwrap()
+                    .name,
+                game,
+                "{decoy}"
+            );
+            links.reverse();
+            assert_eq!(
+                choose_link(port, Platform::WindowsX86_64, &links)
+                    .unwrap()
+                    .name,
+                game,
+                "{decoy}"
+            );
+        }
+        // Another host's decoy is refused by host, not as a wrong role.
+        let error = choose_link(
+            port,
+            Platform::WindowsX86_64,
+            &[link(
+                "ExtremeGRecompiled-v1.0.0-Linux-X64-Release-source.zip",
+            )],
+        )
+        .unwrap_err();
+        assert!(error.details.get("route_hold").is_none(), "{error:?}");
+    }
+
+    /// A neutral link label cannot carry a wrong-role registry file past the
+    /// gate: the final filename is gated again before anything is cached.
+    #[test]
+    fn gitlab_final_filename_refuses_a_wrong_role_package() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("extreme-g-recompiled").unwrap();
+        let link = GitlabReleaseLink {
+            id: None,
+            name: "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo".into(),
+            url: "https://example.invalid/package".into(),
+            direct_asset_url: None,
+            link_type: "package".into(),
+        };
+        let release = GitlabRelease {
+            tag_name: "v1.0.0".into(),
+            name: None,
+            description: String::new(),
+            released_at: None,
+            upcoming_release: false,
+            assets: GitlabReleaseAssets { links: Vec::new() },
+        };
+        let observed = |file_name: &str| GitlabObservedAsset {
+            package_file: Some(GitlabPackageFile {
+                id: 1,
+                file_name: file_name.into(),
+                size: 1,
+                file_sha256: "a".repeat(64),
+            }),
+            generic: None,
+            description_digest: None,
+        };
+        for file_name in [
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-source.zip",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-debug.zip",
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-setup.exe",
+        ] {
+            let error = resolve_observed_asset(
+                port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                &release,
+                &link,
+                observed(file_name),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification, "{file_name}");
+            assert_eq!(
+                error.details.get("route_hold").map(String::as_str),
+                Some("wrong-role"),
+                "{file_name}"
+            );
+        }
+        let resolved = resolve_observed_asset(
+            port,
+            ReleaseChannel::Stable,
+            Platform::WindowsX86_64,
+            &release,
+            &link,
+            observed("ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo.zip"),
+        )
+        .unwrap();
+        assert_eq!(
+            resolved.asset.name,
+            "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo.zip"
+        );
+    }
+
     #[test]
     fn executable_parent_n64_links_require_the_selected_native_archive_variant() {
         let catalog = crate::Catalog::embedded().unwrap();
@@ -2417,7 +2609,14 @@ mod tests {
             if name == selected_name {
                 assert_eq!(result.unwrap().asset.name, selected_name);
             } else {
-                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Verification);
+                if name.ends_with("-Source.zip") {
+                    assert_eq!(
+                        error.details.get("route_hold").map(String::as_str),
+                        Some("wrong-role")
+                    );
+                }
                 assert!(provider.cache.read().await.is_empty());
             }
         }

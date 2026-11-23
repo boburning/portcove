@@ -4,8 +4,9 @@
 //! replayed over every recorded release fixture in `src/testdata`. A frozen
 //! copy of the selection logic from before typed roles (verbatim from `main`
 //! at d27d2fbb3, renamed with a `legacy_` prefix) is compared with the typed
-//! path. Differences are allowed only for the two named defects and every one
-//! is listed below with its reason.
+//! path. Differences are allowed only for the named defects (wrong host,
+//! foreign-only release and, since #8602, wrong role) and every one is listed
+//! below with its reason.
 
 use std::collections::BTreeSet;
 
@@ -581,6 +582,30 @@ enum Defect {
     /// another host, or tied with one: removing those packages yields the
     /// typed choice.
     WrongHostPackage,
+    /// Legacy selection chose a package whose filename-suggested role the
+    /// typed-role gate holds for this port's adapter (installer, builder,
+    /// compiler, importer, development tool, debug build, source archive and
+    /// other non-runtime roles), or tied with one: removing those packages
+    /// (and other hosts' packages) yields the typed choice or refusal (#8602).
+    WrongRolePackage,
+}
+
+/// Whether the typed-role gate holds this asset for this port and host, with
+/// the same extractability the typed choice uses.
+fn role_held(port: &PortDefinition, platform: Platform, name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    let can_extract = port.reviewed_package_format(platform).is_some()
+        || port.release.requires_tar_xz(platform)
+        || [".zip", ".tar.gz", ".tgz"]
+            .iter()
+            .any(|extension| name.ends_with(extension));
+    let hints = port
+        .release
+        .asset_hints
+        .get(&platform)
+        .cloned()
+        .unwrap_or_default();
+    crate::route_facts::package_role_hold(port.adapter, &name, can_extract, &hints).is_some()
 }
 
 /// The fixture records this port's own repository.
@@ -664,10 +689,14 @@ const OWN_FIXTURE_COVERAGE: &[(&str, usize)] = &[
 /// Each fixture's newest release (v3.0.0) holds only mobile or console
 /// packages. Under the frozen legacy rules it stood in front of the older
 /// desktop release on every desktop host; typed roles move the Stable and
-/// Beta candidates to v2.0.0. Nothing else changes on their own replay.
+/// Beta candidates to v2.0.0. On Windows the referenced-disc v2.0.0 release
+/// also serves a builder and a debug archive named for Windows: legacy tied
+/// them with the player, and the typed-role gate (#8602) leaves only the
+/// player. Nothing else changes on their own replay.
 const MECHANISM_OWN_DEFECTS: &[&str] = &[
     "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v2.0.0 asset WrongRolePackage",
     "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-upstream-setup LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
@@ -772,8 +801,29 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                             .map(|asset| asset.name.as_str())
                             == new;
                     let new_is_host = new.is_none_or(|name| !legacy_other_host(name, platform));
-                    let defect = (new_is_host && (wrong_host_choice || resolved_tie))
-                        .then_some(Defect::WrongHostPackage);
+                    let wrong_role_choice =
+                        old_name.is_some_and(|name| role_held(port, platform, name));
+                    let runtime_assets = host_assets
+                        .iter()
+                        .filter(|asset| !role_held(port, platform, &asset.name))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let legacy_runtime = legacy_choose_asset(port, platform, &runtime_assets)
+                        .ok()
+                        .map(|asset| asset.name.as_str());
+                    let role_tie = old
+                        .as_ref()
+                        .is_err_and(|error| error.code == crate::ErrorCode::Conflict);
+                    let defect = if new_is_host && (wrong_host_choice || resolved_tie) {
+                        Some(Defect::WrongHostPackage)
+                    } else if new_is_host
+                        && (wrong_role_choice || wrong_host_choice || role_tie)
+                        && legacy_runtime == new
+                    {
+                        Some(Defect::WrongRolePackage)
+                    } else {
+                        None
+                    };
                     record(
                         &release.tag_name,
                         "asset".into(),
@@ -902,4 +952,72 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
         Vec::<&&str>::new(),
         "listed exceptions no longer occur"
     );
+}
+
+/// The typed-role gate on every desktop host, independent of the host the
+/// suite runs on: with every recorded decoy served, each mechanism port picks
+/// its own host package, and each decoy alone (renamed for that host) is
+/// refused, with `wrong-role` exactly when its role is the reason (#8602).
+#[test]
+fn mechanism_routes_select_only_their_host_package_on_every_desktop_host() {
+    use crate::mechanism_fixtures as fixture;
+    let catalog = fixture::catalog();
+    let lists = fixture::release_lists();
+    for (port_id, member, asset_name) in [
+        (
+            fixture::SETUP_PORT,
+            "upstream_setup",
+            fixture::setup_asset_name as fn(Platform) -> String,
+        ),
+        (
+            fixture::DISC_PORT,
+            "referenced_disc",
+            fixture::disc_asset_name as fn(Platform) -> String,
+        ),
+    ] {
+        let port = catalog.port(port_id).unwrap();
+        let releases: Vec<GithubRelease> = serde_json::from_value(lists[member].clone()).unwrap();
+        let v2 = releases
+            .iter()
+            .find(|release| release.tag_name == "v2.0.0")
+            .unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            let context = format!("{port_id} {platform:?}");
+            let chosen = choose_asset(port, platform, &v2.assets).unwrap();
+            assert_eq!(chosen.name, asset_name(platform), "{context}");
+            let token = match platform {
+                Platform::WindowsX86_64 => "windows-x64",
+                _ => "linux-x64",
+            };
+            for decoy in &v2.assets {
+                if decoy.name == asset_name(Platform::WindowsX86_64)
+                    || decoy.name == asset_name(Platform::LinuxX86_64)
+                {
+                    continue;
+                }
+                let mut renamed = decoy.clone();
+                renamed.name = decoy.name.replace("windows-x64", token);
+                let error =
+                    choose_asset(port, platform, std::slice::from_ref(&renamed)).unwrap_err();
+                assert_eq!(
+                    error.code,
+                    crate::ErrorCode::NotFound,
+                    "{context} {}",
+                    renamed.name
+                );
+                let installer_exe =
+                    renamed.name.ends_with(".exe") && platform == Platform::WindowsX86_64;
+                let role_held = renamed.name.ends_with("-source.tar.gz")
+                    || installer_exe
+                    || renamed.name.contains("-builder-")
+                    || renamed.name.ends_with("-debug.zip");
+                assert_eq!(
+                    error.details.get("route_hold").map(String::as_str),
+                    role_held.then_some("wrong-role"),
+                    "{context} {}",
+                    renamed.name
+                );
+            }
+        }
+    }
 }

@@ -286,10 +286,10 @@ async fn refusal_unsupported_platform_downloads_nothing() {
 }
 
 /// Typed route facts: a mobile package and another host's player are never
-/// offered as this host's game. Tool and debug decoys are excluded from the
-/// served list (see `mechanism_fixtures::tool_or_debug_decoy`); each recorded
-/// decoy is then offered alone under this host's name, and the builder and
-/// debug cases record an observed, tracked defect.
+/// offered as this host's game, and the recorded builder and debug decoys are
+/// served beside the player. Each recorded decoy is then offered alone under
+/// this host's name: the builder and debug packages are refused by their role
+/// (#8602) and the mobile package by its host, with nothing downloaded.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let temporary = tempfile::tempdir().unwrap();
@@ -345,30 +345,19 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
         let result = service
             .install(DISC_PORT, None, None, None, true, |_| {})
             .await;
-        if name.contains("-builder-") || name.ends_with("-debug.zip") {
-            // Observed behavior, tracked as a defect (#8602), not a
-            // contract: a builder or debug package that is the only host
-            // archive is selected, downloaded and installed as the player.
-            // The generic package choice (`release.rs`,
-            // `choose_asset_for_variant`) applies the typed-role gate only for
-            // portable adapters.
-            let install = result.unwrap();
-            assert_eq!(install.artifact.asset_name, name);
-            assert_eq!(
-                server.downloads(),
-                [format!("{DISC_REPOSITORY}/releases/download/{tag}/{name}")],
-                "{name}"
-            );
-        } else {
-            // Mobile package.
-            let error = result.unwrap_err();
-            assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
-            assert!(server.downloads().is_empty(), "{name}");
-            assert!(
-                service.status(DISC_PORT).unwrap().active.is_none(),
-                "{name}"
-            );
-        }
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotFound, "{name}: {error:?}");
+        let role_held = name.contains("-builder-") || name.ends_with("-debug.zip");
+        assert_eq!(
+            error.details.get("route_hold").map(String::as_str),
+            role_held.then_some("wrong-role"),
+            "{name}: {error:?}"
+        );
+        assert!(server.downloads().is_empty(), "{name}");
+        assert!(
+            service.status(DISC_PORT).unwrap().active.is_none(),
+            "{name}"
+        );
         original.assert_untouched();
         no_library_copy(&library, &original);
     }

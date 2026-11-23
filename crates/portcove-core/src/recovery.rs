@@ -144,9 +144,20 @@ pub(crate) fn recover_published_install(
             let plan = operation.preparation.as_ref().ok_or_else(|| {
                 PortcoveError::state("prepared publication is missing its reviewed inputs")
             })?;
-            service
-                .library
-                .register_prepared_install(&install, &plan.inputs.install.id)?;
+            // The reviewed source carries no preparation receipt when it is
+            // the unprepared package; a re-preparation of a prepared copy
+            // replaces a working version and keeps the ordinary rollback swap.
+            let source_unprepared = !plan
+                .inputs
+                .install
+                .path
+                .join(crate::preparation::RECEIPT_FILE)
+                .is_file();
+            service.library.register_prepared_install(
+                &install,
+                &plan.inputs.install.id,
+                source_unprepared,
+            )?;
         } else if let Some(expected) = &operation.external_registration_sha256 {
             let status = service
                 .library

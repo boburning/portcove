@@ -119,6 +119,9 @@ pub struct InstallQualification {
     reviewed_package_format: Option<crate::PackageFormat>,
     native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
+    /// The setup program a managed preparation route runs on this host. A new
+    /// package must contain it before publication (#8602).
+    setup_executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     external_profile_policy: Option<crate::ExternalProfilePolicy>,
     persistent_paths: Vec<String>,
@@ -324,6 +327,14 @@ impl InstallQualification {
             reviewed_package_format: port.reviewed_package_format(platform),
             native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
+            setup_executable_hints: if crate::preparation::managed(port) {
+                port.setup_executable_hints
+                    .get(&platform)
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            },
             runtime_subdirectory: port.runtime_subdirectory_for(platform).map(str::to_owned),
             external_profile_policy: port.external_profile_policy,
             persistent_paths: crate::persistence::declared_paths(port, platform).to_vec(),
@@ -1809,6 +1820,19 @@ impl Installer {
                     )?;
                 }
             }
+            require_declared_setup_program(
+                port,
+                &payload_root,
+                &request.qualification,
+                || -> Result<bool> {
+                    Ok(replacement.is_some()
+                        || crate::profile::active_install_id(
+                            &self.library.connection()?,
+                            &port.id,
+                        )?
+                        .is_some())
+                },
+            )?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -5687,6 +5711,54 @@ pub(crate) fn resolve_declared_executable(
         _ => {}
     }
     Ok(executable)
+}
+
+/// A managed preparation route runs the setup program its package declares.
+/// Resolve it in the staged package exactly as preparation will, so a package
+/// that could never be prepared is refused before anything is published.
+/// `has_current_installation` keeps the refusal true to the state: an update
+/// leaves the current installation unchanged, a first install adds nothing.
+/// It is read only on refusal, so ports without a setup program never open
+/// the library for it, and a failed read cannot hide the refusal.
+fn require_declared_setup_program(
+    port: &PortDefinition,
+    payload_root: &Path,
+    qualification: &InstallQualification,
+    has_current_installation: impl FnOnce() -> Result<bool>,
+) -> Result<()> {
+    if qualification.setup_executable_hints.is_empty() {
+        return Ok(());
+    }
+    let selected = resolve_declared_executable(payload_root, qualification)?;
+    let working = crate::adapter::launch_working_directory(
+        port,
+        payload_root,
+        &selected,
+        qualification.platform,
+    )?;
+    resolve_executable_hints(
+        &working,
+        qualification.platform,
+        &qualification.setup_executable_hints,
+        "setup executable",
+    )
+    .map(|_| ())
+    .map_err(|error| {
+        let outcome = match has_current_installation() {
+            Ok(true) => "Portcove did not install it. Your current installation is unchanged.",
+            Ok(false) => "nothing was installed.",
+            Err(_) => "Portcove did not install it.",
+        };
+        PortcoveError::verification(format!(
+            "This download does not contain the setup program this game needs, so {outcome} Choose another release, or report the missing setup program to the port's maintainers."
+        ))
+        .detail("port_id", &port.id)
+        .detail(
+            "expected_setup_program",
+            qualification.setup_executable_hints.join(", "),
+        )
+        .detail("cause", error.message)
+    })
 }
 
 pub(crate) fn resolve_executable_hints(

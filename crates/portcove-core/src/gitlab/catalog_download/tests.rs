@@ -339,3 +339,39 @@ async fn constrained_catalog_transport_follows_only_the_selected_registry_file()
         assert_eq!(requests.try_iter().count(), if allowed { 2 } else { 1 });
     }
 }
+
+/// A neutral link label cannot carry a wrong-role registry file through the
+/// non-owning exact catalog download: the final filename is role-gated with a
+/// typed hold, while another host's decoy is refused by host (#8602).
+#[test]
+fn exact_registry_filename_refuses_a_wrong_role_package() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("extreme-g-recompiled").unwrap();
+    for file_name in [
+        "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-source.zip",
+        "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-debug.zip",
+        "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo-setup.exe",
+    ] {
+        let error =
+            exact_registry_file_admitted(port, Platform::WindowsX86_64, file_name).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification, "{file_name}");
+        assert_eq!(
+            error.details.get("route_hold").map(String::as_str),
+            Some("wrong-role"),
+            "{file_name}"
+        );
+    }
+    exact_registry_file_admitted(
+        port,
+        Platform::WindowsX86_64,
+        "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo.zip",
+    )
+    .unwrap();
+    let error = exact_registry_file_admitted(
+        port,
+        Platform::WindowsX86_64,
+        "ExtremeGRecompiled-v1.0.0-Linux-X64-Release-source.zip",
+    )
+    .unwrap_err();
+    assert!(error.details.get("route_hold").is_none(), "{error:?}");
+}
