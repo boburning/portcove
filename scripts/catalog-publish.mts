@@ -29,7 +29,12 @@ import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
-import { type RetainBodies, listingFloorLedgerPath, retainBodies } from "./catalog-body-window.mts";
+import {
+  type RetainBodies,
+  listingFloorLedgerPath,
+  prunedListingBodies,
+  retainBodies,
+} from "./catalog-body-window.mts";
 
 export const onlineRoles = [
   "official-definitions",
@@ -180,6 +185,25 @@ export function contextConfig(work: string, now: Date) {
   };
 }
 
+/**
+ * Keyless history verification of the staged Pages catalog against the ledger
+ * this run serves, before the publish commit: a divergence between the window
+ * and the verifier stops this run instead of the next one (#1422).
+ */
+export function siteHistoryConfig(work: string, site: string) {
+  const catalog = path.resolve(site, "catalog");
+  return {
+    schema_version: 1,
+    initial_root_profile: "single-owner-one-of-one-v1",
+    trusted_root: "root.json",
+    trusted_root_sha256: sha256(path.join(work, "root.json")),
+    offline_targets: "offline-targets.json",
+    offline_targets_sha256: sha256(path.join(work, "offline-targets.json")),
+    repository: catalog,
+    listing_floor_ledger: { prior: path.join(catalog, listingFloorLedgerPath) },
+  };
+}
+
 export function signConfig(role: OnlineRole, keyFile: string) {
   return {
     schema_version: 1,
@@ -268,6 +292,12 @@ export function historyMode(input: {
     throw new Error("catalog history bootstrap requires an existing published catalog");
   if (existsSync(history))
     throw new Error("catalog history has objects without an authenticated pointer");
+  // A checkpoint is derived from every listing body; the window's pruned
+  // bodies must be restored first (docs/RELEASING.md, full restore).
+  if (prunedListingBodies(site).length)
+    throw new Error(
+      "catalog history bootstrap needs a full restore of the pruned listing bodies first",
+    );
   return "bootstrap";
 }
 
@@ -592,6 +622,9 @@ async function main(argv: string[]) {
       ...(plan.history ? { history_output: "repository-history" } : {}),
       ...(plan.listing_ledger ? { listing_floor_ledger_output: listingLedgerOutput } : {}),
     });
+  } else if (command === "site-history-config") {
+    const work = path.resolve(flag(args, "work"));
+    write(path.join(work, "site-history.json"), siteHistoryConfig(work, flag(args, "site")));
   } else if (command === "limit-signer-history") {
     limitSignerHistory(path.resolve(flag(args, "work")));
   } else if (command === "restore-history") {
@@ -663,7 +696,7 @@ async function main(argv: string[]) {
     console.log(treeDigest(path.resolve(flag(args, "dir"))));
   } else {
     throw new Error(
-      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|tree-digest",
+      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|site-history-config|tree-digest",
     );
   }
 }

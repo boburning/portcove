@@ -11,6 +11,8 @@ import { parseArgs } from "node:util";
 
 export const readbackDeepenStep = 8;
 export const readbackDepthLimit = 64;
+/** Private destination of the deepening fetch. */
+export const readbackRef = "refs/portcove/late-readback/gh-pages";
 const timestamp = "catalog/metadata/timestamp.json";
 const gitOid = /^[0-9a-f]{40}$/u;
 
@@ -60,12 +62,15 @@ export const fetchDeeper =
   (step) => {
     const result = git(
       site,
+      // A private ref, and no configured refmap: the shared
+      // `refs/remotes/origin/gh-pages` must not move past the checked-out site.
       [
         "fetch",
         "--quiet",
+        "--refmap=",
         `--deepen=${step}`,
         "origin",
-        "refs/heads/gh-pages:refs/remotes/origin/gh-pages",
+        `+refs/heads/gh-pages:${readbackRef}`,
       ],
       60_000,
     );

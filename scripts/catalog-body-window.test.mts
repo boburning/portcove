@@ -12,8 +12,10 @@ import {
   bodyPath,
   ledgerExtends,
   listingFloorLedgerPath,
+  namedListingBodies,
   parseLedger,
   planBodyWindow,
+  prunedListingBodies,
   policyListings,
   retainBodies,
 } from "./catalog-body-window.mts";
@@ -24,7 +26,13 @@ import {
   readPublicationPins,
   verifyPublicationPin,
 } from "./catalog-publication-pins.mts";
-import { copyPriorRepository, retentionPlan, treeDigest } from "./catalog-publish.mts";
+import {
+  copyPriorRepository,
+  historyMode,
+  retentionPlan,
+  siteHistoryConfig,
+  treeDigest,
+} from "./catalog-publish.mts";
 
 const legacy = "policy/official/catalog.listings.json";
 const compact = "policy/official/catalog.listings.compact.json";
@@ -504,5 +512,85 @@ void test("the workflow ships retention off and reads gh-pages without its histo
   assert.match(
     publish,
     /--pins release\/catalog-publication-pins\.json --history-mode "\$HISTORY_MODE"/u,
+  );
+});
+
+void test("a history bootstrap over pruned listing bodies is refused until a full restore", (t) => {
+  const site = temp(t);
+  put(site, "metadata/timestamp.json", {
+    signed: { version: 1, meta: { "snapshot.json": { version: 1 } } },
+  });
+  put(site, "metadata/1.snapshot.json", {
+    signed: {
+      meta: { "official-definitions.json": { version: 1 }, "official-policy.json": { version: 1 } },
+    },
+  });
+  put(site, "metadata/1.official-definitions.json", { signed: { targets: {} } });
+  put(site, "metadata/1.official-policy.json", policy(2));
+  const versions = { definitions: 1, policy: 1, snapshot: 1, timestamp: 1 };
+  const bootstrap = () =>
+    historyMode({
+      site,
+      versions,
+      history: path.join(site, "absent-history"),
+      bootstrapRequested: true,
+      event: "workflow_dispatch",
+    });
+  // No served ledger: nothing was ever pruned.
+  assert.equal(bootstrap(), "bootstrap");
+  put(site, listingFloorLedgerPath, ledgerBytes([entry(1, 1), entry(2, 2)]));
+  put(site, bodyPath(legacy, sha(body(2))), body(2));
+  assert.deepEqual(prunedListingBodies(site), [bodyPath(legacy, sha(body(1)))]);
+  assert.throws(bootstrap, /bootstrap needs a full restore of the pruned listing bodies first/u);
+  put(site, bodyPath(legacy, sha(body(1))), body(1));
+  assert.deepEqual(prunedListingBodies(site), []);
+  assert.equal(bootstrap(), "bootstrap");
+});
+
+void test("the staged site is verified with its served ledger before the publish commit", (t) => {
+  const work = temp(t);
+  put(work, "root.json", "root");
+  put(work, "offline-targets.json", "top");
+  const config = siteHistoryConfig(work, "site");
+  const catalog = path.resolve("site", "catalog");
+  assert.deepEqual(config, {
+    schema_version: 1,
+    initial_root_profile: "single-owner-one-of-one-v1",
+    trusted_root: "root.json",
+    trusted_root_sha256: sha("root"),
+    offline_targets: "offline-targets.json",
+    offline_targets_sha256: sha("top"),
+    repository: catalog,
+    listing_floor_ledger: { prior: path.join(catalog, listingFloorLedgerPath) },
+  });
+  const workflow = parse(
+    readFileSync(path.join(root, ".github/workflows/catalog-publish.yml"), "utf8"),
+  ) as { jobs: Record<string, { steps?: { run?: string }[] }> };
+  const publish = workflow.jobs.publish!.steps!.map((step) => step.run ?? "").join("\n");
+  const gate = publish.indexOf('if [ "$RETAIN_BODIES" != all ]; then');
+  const configure = publish.indexOf("catalog-publish.mts site-history-config --work");
+  const verify = publish.indexOf('portcove-release-tools" verify-definition-history');
+  const commit = publish.indexOf("git -C site commit");
+  assert.ok(gate > 0 && gate < configure && configure < verify && verify < commit);
+  assert.ok(publish.indexOf("catalog-pages-overlay.mts") < gate);
+});
+
+void test("the full-restore filter lists every listing body retained signed metadata names", (t) => {
+  assert.deepEqual(
+    namedListingBodies(policies(3)),
+    [1, 2, 3].map((revision) => bodyPath(legacy, sha(body(revision)))).sort(),
+  );
+  const catalog = temp(t);
+  put(catalog, "metadata/1.official-policy.json", policy(1));
+  put(catalog, "metadata/2.official-policy.json", policy(2));
+  put(catalog, "metadata/2.official-definitions.json", { signed: { targets: {} } });
+  const output = execFileSync(
+    process.execPath,
+    [path.join(root, "scripts/catalog-body-window.mts"), "--catalog", catalog, "--named"],
+    { encoding: "utf8" },
+  );
+  assert.deepEqual(
+    output.trim().split("\n"),
+    [1, 2].map((revision) => bodyPath(legacy, sha(body(revision)))).sort(),
   );
 });

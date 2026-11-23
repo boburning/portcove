@@ -173,6 +173,24 @@ export const bodyPath = (target: string, digest: string) => `targets/${digest}.$
 export const isListingBody = (name: string) =>
   name.startsWith("targets/") && listingTargets.some((target) => name.endsWith(`.${target}`));
 
+/** Catalog-relative paths of every listing body any retained policy version names. */
+export function namedListingBodies(policies: ReadonlyMap<number, PolicyListings>) {
+  const names = new Set<string>();
+  for (const listings of policies.values())
+    for (const [target, body] of listings) names.add(bodyPath(target, body.sha256));
+  return [...names].sort();
+}
+
+/** Listing bodies the served ledger records that are absent from the served
+ * catalog: what the window has pruned and no restore has brought back. */
+export function prunedListingBodies(catalog: string) {
+  const ledger = path.join(catalog, listingFloorLedgerPath);
+  if (!existsSync(ledger)) return [];
+  return parseLedger(readFileSync(ledger))
+    .map((entry) => bodyPath(entry.target, entry.sha256))
+    .filter((name) => !existsSync(path.join(catalog, name)));
+}
+
 export type WindowInput = {
   /** Every retained policy version after this publication is assembled. */
   policies: Map<number, PolicyListings>;
@@ -315,11 +333,18 @@ async function main(argv: string[]) {
       ledger: { type: "string" },
       pins: { type: "string" },
       apply: { type: "boolean", default: false },
+      named: { type: "boolean", default: false },
     },
   });
+  if (values.named && values.catalog) {
+    // The full-restore filter: every listing body retained signed metadata names.
+    for (const name of namedListingBodies(readPolicyHistory(path.resolve(values.catalog))))
+      console.log(name);
+    return;
+  }
   if (!values.catalog || !values.ledger || !values.pins)
     throw new Error(
-      "usage: catalog-body-window.mts --catalog <dir> --ledger <file> --pins <file> [--apply]",
+      "usage: catalog-body-window.mts --catalog <dir> (--named | --ledger <file> --pins <file> [--apply])",
     );
   const catalog = path.resolve(values.catalog);
   const ledger = parseLedger(readFileSync(values.ledger));

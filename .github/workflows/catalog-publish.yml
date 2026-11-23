@@ -362,6 +362,13 @@ jobs:
               node scripts/catalog-publish.mts stage-history --site site \
                 --work "$RUNNER_TEMP/catalog-work" --prior-history "$PRIOR_HISTORY_DIGEST"
             fi
+            if [ "$RETAIN_BODIES" != all ]; then
+              # The staged tree must verify with the ledger it serves before it
+              # is committed, so a window/verifier divergence stops this run.
+              node scripts/catalog-publish.mts site-history-config --work "$RUNNER_TEMP/catalog-work" --site site
+              "$RUNNER_TEMP/catalog-tools/portcove-release-tools" verify-definition-history \
+                "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
+            fi
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.

@@ -10,6 +10,7 @@ import {
   deepenToPublisher,
   fetchDeeper,
   publisherHistoryPresent,
+  readbackRef,
 } from "./catalog-readback-depth.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -99,9 +100,15 @@ void test("more than seven application-only Pages commits are deepened past in b
 void test("a branch that advances after the depth-1 fetch still reads the checked-out history", (t) => {
   const { origin, site, publisher } = pages(t, 2);
   for (let index = 0; index < 12; index += 1) commit(origin, "app.js", String(index));
-  commit(origin, "catalog/metadata/timestamp.json", "3");
+  const advanced = commit(origin, "catalog/metadata/timestamp.json", "3");
+  const tracked = git(site, "rev-parse", "refs/remotes/origin/gh-pages");
+  // The clone's configured refspec would move the tracking ref opportunistically.
+  assert.match(git(site, "config", "--get-all", "remote.origin.fetch"), /refs\/remotes\/origin/u);
   deepenToPublisher(site);
   assert.equal(blamed(site), publisher);
+  // The shared tracking ref stays at the checked-out site; only the private ref moves.
+  assert.equal(git(site, "rev-parse", "refs/remotes/origin/gh-pages"), tracked);
+  assert.equal(git(site, "rev-parse", readbackRef), advanced);
 });
 
 void test("a publication deeper than the bound is refused instead of misattributed", (t) => {
