@@ -21,6 +21,7 @@ export const discoveryBootstrapModules = Object.freeze([
   "daily-discovery.mts",
   "discovery-budget.mts",
   "discovery-cache.mts",
+  "discovery-http.mts",
   "github-operation.mts",
   "json-values.mts",
   "observer-checkpoint-storage.mts",

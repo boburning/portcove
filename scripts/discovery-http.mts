@@ -1,7 +1,17 @@
 // One bounded request/redirect chain. No recipes, commands or caller-selected code execute.
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 import path from "node:path";
+/**
+ * The largest single response a discovery read may hold: an eighth of this
+ * machine's memory, at most 512 MiB. The response, its UTF-8 text and the JSON
+ * receipt passed back to the parent each hold a copy, so this is a physical
+ * bound; each read is also bounded by the run's remaining byte budget.
+ */
+export const discoveryReadCeiling = Math.min(Math.floor(os.totalmem() / 8), 512 * 1024 * 1024);
+const validator = (value: unknown) =>
+  typeof value === "string" && value.length > 0 && value.length <= 512 && !/[\r\n]/u.test(value);
 export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fetch = fetch) {
   if (
     !isRecord(input) ||
@@ -9,11 +19,15 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     typeof input.method !== "string" ||
     !["GET", "HEAD"].includes(input.method) ||
     input.body !== undefined ||
-    input.conditionalEtag !== undefined ||
+    (input.conditional !== undefined &&
+      (!isRecord(input.conditional) ||
+        (input.conditional.etag !== undefined && !validator(input.conditional.etag)) ||
+        (input.conditional.last_modified !== undefined &&
+          !validator(input.conditional.last_modified)))) ||
     typeof input.cap !== "number" ||
     !Number.isSafeInteger(input.cap) ||
     input.cap < 1 ||
-    input.cap > 8 * 1024 * 1024 ||
+    input.cap > discoveryReadCeiling ||
     typeof input.timeout !== "number" ||
     input.timeout <= 0 ||
     input.timeout > 20000 ||
@@ -52,6 +66,19 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
       if (requests >= input.maxRequests) throw new Error("Redirect/request budget exhausted");
       const remaining = input.timeout - (performance.now() - started);
       if (remaining <= 0) throw new Error("Request deadline exhausted");
+      // A conditional read asks only the original URL; a redirect target is read
+      // in full because its validators belong to another resource.
+      const conditional =
+        requests === 0 && isRecord(input.conditional)
+          ? {
+              ...(typeof input.conditional.etag === "string"
+                ? { "If-None-Match": input.conditional.etag }
+                : {}),
+              ...(typeof input.conditional.last_modified === "string"
+                ? { "If-Modified-Since": input.conditional.last_modified }
+                : {}),
+            }
+          : {};
       requests++;
       const response = await fetcher(url, {
         method,
@@ -66,6 +93,7 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
           ...(url.origin === "https://api.github.com" && typeof input.token === "string"
             ? { Authorization: `Bearer ${input.token}` }
             : {}),
+          ...conditional,
         },
       });
       status = response.status;
