@@ -14,7 +14,8 @@ CREATE TABLE portcove_maintenance.discovery_collection_state (
   -- Digest of the collector's source and query definitions when this state was written.
   definition_sha256 text NOT NULL CHECK (definition_sha256 ~ '^[0-9a-f]{64}$'),
   revision bigint NOT NULL CHECK (revision >= 0),
-  state jsonb NOT NULL CHECK (jsonb_typeof(state) = 'object'),
+  -- Bounded so acquire and status reads stay within one bounded client transfer.
+  state jsonb NOT NULL CHECK (jsonb_typeof(state) = 'object' AND octet_length(state::text) <= 8388608),
   state_sha256 text NOT NULL CHECK (state_sha256 ~ '^[0-9a-f]{64}$'),
   lease_token uuid,
   lease_generation bigint,
@@ -181,6 +182,9 @@ BEGIN
     RAISE EXCEPTION 'Discovery lease for % is no longer held by this attempt', target_scope
       USING ERRCODE = 'P0001', HINT = 'portcove-discovery-stale-writer';
   END IF;
+  IF lease_seconds NOT BETWEEN 60 AND 7200 THEN
+    RAISE EXCEPTION 'Discovery lease must be between 60 and 7200 seconds';
+  END IF;
   IF current.revision <> expected_revision THEN
     RAISE EXCEPTION 'Discovery state for % advanced concurrently', target_scope
       USING ERRCODE = 'P0001', HINT = 'portcove-discovery-stale-writer';
@@ -242,15 +246,22 @@ CREATE FUNCTION portcove_maintenance.discovery_finish(
   target_scope text, target_attempt uuid, token uuid, final_outcome text, summary jsonb
 ) RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+  activation record;
 BEGIN
+  SELECT collection_active, collection_generation INTO activation
+    FROM portcove_maintenance_meta.discovery_intake_activation FOR SHARE;
   IF final_outcome NOT IN ('complete', 'partial', 'failed') THEN
     RAISE EXCEPTION 'Unsupported discovery outcome %', final_outcome;
   END IF;
   UPDATE portcove_maintenance.discovery_collection_attempts
     SET outcome = final_outcome, finished_at = clock_timestamp(), result = summary
     WHERE attempt_id = target_attempt AND scope = target_scope AND outcome = 'running'
+      AND collection_generation = activation.collection_generation
+      AND coalesce(activation.collection_active, false)
       AND EXISTS (SELECT 1 FROM portcove_maintenance.discovery_collection_state s
-                   WHERE s.scope = target_scope AND s.lease_token = token);
+                   WHERE s.scope = target_scope AND s.lease_token = token
+                     AND s.lease_generation = activation.collection_generation);
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Discovery lease for % is no longer held by this attempt', target_scope
       USING ERRCODE = 'P0001', HINT = 'portcove-discovery-stale-writer';

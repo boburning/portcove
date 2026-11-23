@@ -37,6 +37,8 @@ export interface DiscoveryLeaseGrant {
   definition_sha256: string;
   acquisition: number;
   generation: number;
+  /** Bytes the acquire read returned, for transfer accounting. */
+  received_bytes?: number;
 }
 
 export interface DiscoveryLease {
@@ -114,6 +116,7 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
           ...grant,
           revision: Number(grant.revision),
           acquisition: Number(grant.acquisition),
+          received_bytes: Buffer.byteLength(output),
         };
       } catch (error) {
         return classify(error);

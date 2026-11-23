@@ -203,6 +203,7 @@ export interface DiscoveryWorkerResult {
     watch_changes: number;
     state_bytes: number;
     sent_bytes: number;
+    received_bytes: number;
   };
   budget: { requests: number; bytes: number; milliseconds_remaining: number };
 }
@@ -227,7 +228,14 @@ export async function runDiscoveryWorker(
   const interval = options.commitIntervalMs ?? 120_000;
   const transferBytes = options.transferBytes ?? 12 * 1024 * 1024;
   const lease: DiscoveryLease = { scope, attempt: randomUUID(), token: randomUUID() };
-  const committed = { pages: 0, observations: 0, watch_changes: 0, state_bytes: 0, sent_bytes: 0 };
+  const committed = {
+    pages: 0,
+    observations: 0,
+    watch_changes: 0,
+    state_bytes: 0,
+    sent_bytes: 0,
+    received_bytes: 0,
+  };
   const result = (
     outcome: DiscoveryWorkerResult["outcome"],
     extra: Partial<DiscoveryWorkerResult> = {},
@@ -278,7 +286,11 @@ export async function runDiscoveryWorker(
     }
     return { observations, watches };
   };
-  {
+  committed.received_bytes = grant.received_bytes ?? 0;
+  // State written under other collector definitions (for example an earlier
+  // parser version) is not assumed to have rows under this one; the first commit
+  // resends them and the store keeps one row per identical content.
+  if (grant.definition_sha256 === discoveryDefinitionDigest) {
     const { observations, watches } = remember(state.leads);
     for (const o of observations) observed.set(o.provider_id, o.content_sha256);
     for (const w of watches) watched.set(w.provider_id, `${w.status}:${w.evidence_sha256}`);
@@ -303,6 +315,9 @@ export async function runDiscoveryWorker(
   let lastCommit = now();
   let dirty = false;
   let stale = false;
+  // Any other failed commit also halts collection, so a database error inside a
+  // collector's own error handling is never recorded as a source outcome.
+  let halted: Error | undefined;
   let source: SourceContext | undefined;
   const host: DiscoveryCollectionHost = {
     leads: state.leads,
@@ -325,12 +340,12 @@ export async function runDiscoveryWorker(
       // even inside collectors that tolerate their own source failures.
       if (stale)
         throw new DiscoveryStoreRefused("stale-writer", "This discovery attempt lost its lease");
+      if (halted) throw halted;
       dirty = true;
-      const stateBytes = committed.state_bytes || 0;
-      if (
-        now() - lastCommit >= interval &&
-        committed.sent_bytes + 2 * stateBytes <= transferBytes * 0.6
-      )
+      if (now() - lastCommit < interval) return;
+      // Leave room for this commit and the final one within the run's allowance.
+      const stateBytes = committed.state_bytes || Buffer.byteLength(JSON.stringify(host.leads));
+      if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes <= transferBytes * 0.6)
         flush();
     },
     save(name, value) {
@@ -383,6 +398,7 @@ export async function runDiscoveryWorker(
       lastCommit = now();
     } catch (error) {
       if (error instanceof DiscoveryStoreRefused && error.reason === "stale-writer") stale = true;
+      else halted = error instanceof Error ? error : new Error(String(error));
       throw error;
     }
   };
@@ -426,6 +442,9 @@ export async function runDiscoveryWorker(
     outcome = "deferred";
     reason =
       "stale-writer: a newer owner or restore took this scope's lease; nothing more was committed";
+  } else if (halted) {
+    outcome = "failed";
+    reason = `store commit failed; collection halted at the last committed page: ${halted.message.slice(0, 400)}`;
   } else if (dirty) {
     try {
       flush();
@@ -446,7 +465,9 @@ export async function runDiscoveryWorker(
     acquisition: grant.acquisition,
     generation: grant.generation,
     revision,
-    sources: journal.sources.map((s) => ({
+    // After a halted commit, collector error handling may have relabeled sources
+    // with the store error; report none rather than a false source outcome.
+    sources: (halted ? [] : journal.sources).map((s) => ({
       id: s.id,
       status: s.status,
       records: s.records.length,
@@ -619,18 +640,32 @@ export async function discoveryWorkerMain(argv: string[]) {
   );
   mkdirSync(output, { recursive: true });
   if (command === "status") {
-    const { withMaintenanceAdmission } = await import("./maintenance-resource-policy.mts");
+    const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+      await import("./maintenance-resource-policy.mts");
     const run = process.env.GITHUB_RUN_ID;
-    const status = await withMaintenanceAdmission(
-      environment,
-      "inspect",
-      () => queryJson(environment, discoveryStatusQuery({ attempts: 10, watches: 200 })),
-      {
-        request: run
-          ? `github:${run}:discovery-status:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
-          : undefined,
-      },
-    );
+    let status: unknown;
+    try {
+      status = await withMaintenanceAdmission(
+        environment,
+        "inspect",
+        () => queryJson(environment, discoveryStatusQuery({ attempts: 10, watches: 200 })),
+        {
+          request: run
+            ? `github:${run}:discovery-status:${process.env.GITHUB_SHA ?? "unknown"}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
+            : undefined,
+        },
+      );
+    } catch (error) {
+      if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+      // The meter or allowance is unavailable; keep the prior export and say so.
+      const deferred = `Discovery status export deferred: ${error.message}\n`;
+      writeFileSync(
+        path.join(output, "status.md"),
+        `## Unattended discovery collection\n\n${deferred}`,
+      );
+      console.log(JSON.stringify({ outcome: "deferred", reason: error.message }));
+      return 75;
+    }
     if (!isRecord(status)) throw new MaintenanceStoreError("Malformed discovery status");
     const exported = {
       format: "portcove-discovery-status",
@@ -680,7 +715,14 @@ export async function discoveryWorkerMain(argv: string[]) {
       sources: [],
       notes: [],
       leads: { records: 0, pending_families: 0, external: null },
-      committed: { pages: 0, observations: 0, watch_changes: 0, state_bytes: 0, sent_bytes: 0 },
+      committed: {
+        pages: 0,
+        observations: 0,
+        watch_changes: 0,
+        state_bytes: 0,
+        sent_bytes: 0,
+        received_bytes: 0,
+      },
       budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
     });
     return 75;
@@ -721,7 +763,8 @@ export async function discoveryWorkerMain(argv: string[]) {
           },
         }),
       {
-        estimate: (value) => 200_000 + Math.ceil(value.committed.sent_bytes * 1.3),
+        estimate: (value) =>
+          200_000 + Math.ceil((value.committed.sent_bytes + value.committed.received_bytes) * 1.3),
         completed: (value) => value.outcome !== "failed",
       },
     );
@@ -739,7 +782,14 @@ export async function discoveryWorkerMain(argv: string[]) {
       sources: [],
       notes: [],
       leads: { records: 0, pending_families: 0, external: null },
-      committed: { pages: 0, observations: 0, watch_changes: 0, state_bytes: 0, sent_bytes: 0 },
+      committed: {
+        pages: 0,
+        observations: 0,
+        watch_changes: 0,
+        state_bytes: 0,
+        sent_bytes: 0,
+        received_bytes: 0,
+      },
       budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
     });
     return 75;

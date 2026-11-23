@@ -203,6 +203,11 @@ void test(
       (error) => error instanceof DiscoveryStoreRefused && error.reason === "stale-writer",
       "the restored generation refuses the in-flight pre-restore lease",
     );
+    assert.throws(
+      () => restored.finish(inflight, "complete", {}),
+      (error) => error instanceof DiscoveryStoreRefused && error.reason === "stale-writer",
+      "a pre-restore worker cannot close its attempt or clear the restored lease either",
+    );
     const after = restored.acquire(lease("2"), options);
     assert.equal(after.revision, 1, "reactivation resumes from the restored position");
     assert.equal(after.generation, 2);
@@ -225,6 +230,7 @@ function memoryStore() {
   let revision = 0;
   let holder: string | undefined;
   let refuse = false;
+  let breakAfter = Infinity;
   const store: DiscoveryStore = {
     acquire(owner) {
       holder = owner.token;
@@ -240,6 +246,7 @@ function memoryStore() {
     commit(owner, expected, input) {
       if (refuse || owner.token !== holder || expected !== revision)
         throw new DiscoveryStoreRefused("stale-writer", "stale");
+      if (commits.length >= breakAfter) throw new Error("psql exited 2: connection reset");
       for (const o of input.observations) rows.set(`${o.provider_id}:${o.content_sha256}`, o);
       for (const w of input.watches) watches.set(w.provider_id, w);
       commits.push({ observations: input.observations.length, watches: input.watches.length });
@@ -260,6 +267,7 @@ function memoryStore() {
     finished,
     state: () => state,
     refuseCommits: () => (refuse = true),
+    failCommitsAfter: (count: number) => (breakAfter = count),
   };
 }
 
@@ -459,3 +467,29 @@ void test(
     assert.deepEqual(Object.keys(state.checkpoint.sources), [], "local coverage is not trusted");
   },
 );
+
+void test("a database failure halts collection instead of relabeling a source", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  memory.failCommitsAfter(1);
+  const at = "2026-11-01T05:00:00.000Z";
+  const now = () => Date.parse(at);
+  const budget = new DiscoveryBudget("ordinary", () => {}, now, at);
+  const result = await runDiscoveryWorker({
+    store: memory.store,
+    runDir: root,
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    commitIntervalMs: 0,
+    budget,
+    now,
+    connect: async () => await providers(budget, () => []),
+  });
+  assert.equal(result.outcome, "failed");
+  assert.match(result.reason ?? "", /store commit failed.*connection reset/u);
+  assert.deepEqual(result.sources, [], "no source is reported with a database error");
+  assert.equal(memory.commits.length, 1, "nothing after the failed commit is written");
+  assert.deepEqual(memory.finished, ["failed"]);
+});

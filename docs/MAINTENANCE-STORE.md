@@ -69,10 +69,19 @@ It adds the concepts the history tables cannot represent:
   episodes; unchanged evidence is quiet.
 
 Writes go only through `discovery_acquire`, `discovery_commit` and
-`discovery_finish`. They check collection activation, the lease token, the lease
-generation, expiry and the expected revision, then commit state, observations
+`discovery_finish`. They check collection activation, the lease token and the
+lease generation; commits also check expiry and the expected revision. They then commit state, observations
 and watch changes in one transaction. The collector role may execute them; the
 report role reads.
+
+The stored state is limited to 8 MiB of JSON so acquire and status reads fit one
+bounded client transfer; a commit beyond it fails visibly and keeps the prior
+position. `definition_sha256` records the collector definitions (state format,
+parser version, search families and curated lists). A worker whose definitions
+differ resends its observations; cursor compatibility itself comes from each
+search slice's recorded query contract. Discovery tables are ordinary backup
+tables: each recovery export copies them in full, so their growth adds to the
+daily recovery transfer until they join the history-prefix reuse.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
