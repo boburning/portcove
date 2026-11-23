@@ -247,6 +247,15 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
 
+/**
+ * Whether a request path is the merge mutation of one pull request of
+ * `repositoryName`. The name is escaped, so a `.` in it matches only itself.
+ */
+export function isMergeMutationPath(repositoryName: string, pathname: string) {
+  const escaped = repositoryName.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&");
+  return new RegExp(`^/repos/${escaped}/pulls/[1-9][0-9]*/merge$`, "u").test(pathname);
+}
+
 export function baselineTimingWindow(
   workflow: { run_started_at?: string | null; created_at?: string | null },
   jobs: ({ name: string; completed_at?: string | null } | undefined)[],
@@ -405,10 +414,7 @@ export class PullRequestDeliveryClient {
           (method === "GET" &&
             repositoryId !== undefined &&
             url.pathname.startsWith(`/repositories/${repositoryId}/`)) ||
-          (method === "PUT" &&
-            new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
-              url.pathname,
-            ))) &&
+          (method === "PUT" && isMergeMutationPath(repository, url.pathname))) &&
         options.allowRequest?.(method, url) !== false,
     };
     const { mergeCredential, ...readScope } = scope as GitHubClientOptions & {
@@ -424,9 +430,7 @@ export class PullRequestDeliveryClient {
             environmentProxy: true,
             allowRequest: (method, url) =>
               method === "PUT" &&
-              new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
-                url.pathname,
-              ) &&
+              isMergeMutationPath(repository, url.pathname) &&
               options.allowRequest?.(method, url) !== false,
           });
     const client = new PullRequestDeliveryClient(

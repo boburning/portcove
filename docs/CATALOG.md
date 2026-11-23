@@ -4972,7 +4972,9 @@ refused entries and why, as inert code text. The conditions are `gate-refused`, 
 consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `foreign-batch-author` (a batch-shaped
 pull request another GitHub App opened; see
-[credentials](#credentials-the-app-token-and-the-built-in-token)), `batch-waiting` (an open batch whose
+[credentials](#credentials-the-app-token-and-the-built-in-token)),
+`batch-app-slug-unset` (a batch passed its checks while
+`PORTCOVE_FACTS_BATCH_APP_SLUG` is unset), `batch-waiting` (an open batch whose
 required checks have not all finished more than 15 days after it was opened,
 most likely because its runs wait for approval: a reconfirmation proposed at
 15 days must merge within the rest of the 30-day facts age),
@@ -5110,13 +5112,15 @@ is one CI path, with no second trigger, personal token or recurring dispatch.
 A dry run never reaches `deliver` or `merge` (both require the variable and
 no dry run), so it works with the environment unset or the App unavailable.
 
-- `gate` evaluates any GitHub App's pull request on a batch branch of this
-  repository unless the owner sets the optional, non-secret repository
-  variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to the App's slug. Then another
-  App's batch-shaped pull request is the named `foreign-batch-author` stop;
-  unset, `merge` binds the author to the minted App's `app-slug` before any
-  write and raises the same stop on a mismatch. The job never sets the
-  variable.
+- The owner sets the required, non-secret repository variable
+  `PORTCOVE_FACTS_BATCH_APP_SLUG` to the App's slug before enabling the job;
+  the job never sets it. With it, the keyless `gate` makes another App's
+  batch-shaped pull request the named `foreign-batch-author` stop, so the
+  key-holding `merge` job never processes that pull request's data. Without
+  it (or malformed), `gate` never reports a batch green: a batch whose checks
+  pass is the named `batch-app-slug-unset` stop and is not merged. `merge`
+  still binds the author to the minted App's `app-slug` before any write and
+  raises `foreign-batch-author` on a mismatch.
 
 What the repository cannot show: the App's actual permission set,
 installation scope and absence from every bypass list (UNKNOWN). A
@@ -5155,6 +5159,20 @@ anything that is not a workflow file, subject only to the five required
 checks, because the ruleset requires no approving review and a merged batch
 is then signed and published automatically. The `facts-batch` environment
 admits only `main`, so anything merged to `main` could use the key.
+
+Two further residual risks:
+
+- `main` may advance between the job's last check of the composition and
+  the merge request. The merge API takes the head SHA but no base-SHA
+  precondition, and the `Protect main` ruleset's status-check policy is not
+  strict, so GitHub merges onto whatever `main` is then. The `main` CI run on
+  the merge commit is the backstop.
+- `contents: write` is broader than the job's use of it. Beyond pushing the
+  batch branch, the token could create other branches, releases and tags.
+  The `Protect release tags` ruleset restricts update and deletion of `v*`
+  tags but not their creation (see
+  [Repository settings](REPOSITORY-SETTINGS.md)), and a `v*` tag push starts
+  `.github/workflows/app-release.yml`.
 
 ###### Migration and steady state
 
@@ -5285,7 +5303,10 @@ The owner or lead then:
 2. Exercises a throwaway pull request of a few facts entries, to see CI's
    reproduction shards and their aggregate run on real entries before the
    migration's matrix of up to 256 jobs.
-3. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
+3. Sets the required repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to
+   the job's App's slug; without it no batch is ever merged
+   (`batch-app-slug-unset`).
+4. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
    (unset or any other value is off).
 
 The first live batch then records the observations that confirm the App's

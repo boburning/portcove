@@ -127,8 +127,8 @@ jobs:
         run: node scripts/listing-facts-batch.mts blocked --unfiled work/listing-facts-batch/unfiled.json --deadline-minutes 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      # The owner's optional, non-secret slug of the job's App names the only
-      # author a batch may have; unset, `merge` binds it to the minted App.
+      # The owner's required, non-secret slug of the job's App names the only
+      # author a batch may have; unset, no batch is ever reported green.
       - name: Read the open batch pull request and its exact-head checks
         id: pull
         timeout-minutes: 2
@@ -269,9 +269,10 @@ jobs:
           private-key: ${{ secrets.FACTS_BATCH_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
-      # Without the owner's optional slug variable `gate` cannot know the
-      # App's login; this job can. A batch-shaped pull request another App
-      # opened is not merged: it is the named `foreign-batch-author` stop.
+      # Defense in depth behind `gate`, which already requires the owner's
+      # slug variable: bind the author to the minted App's login. A
+      # batch-shaped pull request another App opened is not merged: it is the
+      # named `foreign-batch-author` stop.
       - name: Require the batch pull request to be the App's own
         id: author
         timeout-minutes: 1

@@ -20,7 +20,7 @@ import type {
   WatchState,
   DeliveryJob,
 } from "./pr-delivery.mts";
-import { DeliveryOutcomeError } from "./pr-delivery.mts";
+import { DeliveryOutcomeError, isMergeMutationPath } from "./pr-delivery.mts";
 import { spawnSync as spawnHelp } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1300,6 +1300,16 @@ void test("check-run pagination follows only this repository's bound numeric-id 
     );
     assert.ok(!refused.requests.some((path) => path.includes("page=2")));
   }
+});
+
+void test("the merge mutation allow-list escapes the repository name", () => {
+  assert.ok(isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge"));
+  // An unescaped `.` would admit any character in its place.
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repoXname/pulls/7/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/0/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge/x"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7"));
+  assert.ok(isMergeMutationPath(repository, `/repos/${repository}/pulls/12/merge`));
 });
 
 void test("a separate merge credential carries the merge mutation alone", async () => {

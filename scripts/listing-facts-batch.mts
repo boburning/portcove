@@ -1949,6 +1949,7 @@ export const stopConditionNames = [
   "pending-repeated",
   "batch-waiting",
   "foreign-batch-author",
+  "batch-app-slug-unset",
   "worker-error",
 ] as const;
 export type StopConditionName = (typeof stopConditionNames)[number];
@@ -2375,6 +2376,11 @@ export function collectConditions(
       name: "foreign-batch-author",
       detail: `Batch-shaped pull request #${input.prNumber} was opened by ${input.foreignAuthor}, not by the job's own GitHub App, so the job neither merges it nor starts another batch. Find out which App opened it and why; close it (and, if it was not expected, remove that App's write access), then close this issue.`,
     });
+  if (input.prState === "unbound")
+    conditions.push({
+      name: "batch-app-slug-unset",
+      detail: `Batch pull request #${input.prNumber} passed its required checks, but the repository variable PORTCOVE_FACTS_BATCH_APP_SLUG is unset or malformed, so the job cannot tell its own App's batch from another App's and does not merge it. Set the variable to the slug of the job's GitHub App, then close this issue.`,
+    });
   if (input.prState === "failed")
     conditions.push({
       name: "required-check-failed",
@@ -2499,7 +2505,9 @@ export type BatchPullState =
   | { state: "waiting-for-checks"; missing: string[] }
   | { state: "pending"; pending: string[] }
   | { state: "failed"; failed: string[] }
-  | { state: "green" };
+  | { state: "green" }
+  /** Green, but the job's App slug is unset: never merged (`batch-app-slug-unset`). */
+  | { state: "unbound" };
 
 /** The required-check state of a batch head: the newest run of each required context decides. */
 export function requiredCheckState(runs: readonly CheckRun[]): BatchPullState {
@@ -3382,6 +3390,11 @@ async function main(argv: string[]): Promise<string> {
         );
         if (!ci) state = { state: "pending", pending: ["CI workflow run"] };
       }
+      // Only a batch bound to the named App is ever green: without the slug
+      // the keyless gate cannot reject another App's batch, and the job that
+      // holds the key must never process one.
+      if (state.state === "green" && expectedBatchAuthor(appSlug) === undefined)
+        state = { state: "unbound" };
       output("state", state.state);
       output("created_at", typeof detail.created_at === "string" ? detail.created_at : "");
       output("ci_run", ci ? String(ci.id) : "");

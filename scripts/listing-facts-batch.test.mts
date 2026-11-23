@@ -1918,6 +1918,23 @@ void test("another App's batch-shaped pull request is the named foreign-batch-au
     ).conditions,
     [],
   );
+  // Without the slug, the keyless gate never calls a batch green: it is the
+  // named batch-app-slug-unset stop, so `merge` never sees that batch.
+  assert.ok(stopConditionNames.includes("batch-app-slug-unset"));
+  const unbound = collectConditions(
+    { conditions: [], freshness: null },
+    { prState: "unbound", prNumber: "9", jobs: { merge: "skipped" } },
+  ).conditions;
+  assert.deepEqual(
+    unbound.map((condition) => condition.name),
+    ["batch-app-slug-unset"],
+  );
+  assert.match(unbound[0]!.detail, /#9 .*PORTCOVE_FACTS_BATCH_APP_SLUG/u);
+  const source = readFileSync(join(root, "scripts/listing-facts-batch.mts"), "utf8");
+  assert.match(
+    source,
+    /if \(state\.state === "green" && expectedBatchAuthor\(appSlug\) === undefined\)\n\s*state = \{ state: "unbound" \};/u,
+  );
   // The workflow wires both detections to `notify`, and the merge job never
   // merges or deletes for a foreign author.
   const text = readFileSync(join(root, batchWorkflowPath), "utf8");
