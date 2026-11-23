@@ -1380,3 +1380,45 @@ fn an_asset_larger_than_the_byte_budget_keeps_its_progress_alone() {
     assert!(partials.lease(&asset_numbered(2, 1 << 20)).is_none());
     drop(active);
 }
+
+#[tokio::test]
+async fn a_resumed_file_that_fails_its_digest_leaves_nothing_to_continue_from() {
+    use std::io::Write as _;
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        partial(Some("\"v1\""), "bytes 6-15/16", &BODY[DROPPED_AT..]),
+        whole(Some("\"v1\""), BODY),
+    ]);
+    // Kept bytes that no longer match what the validator promised (for
+    // example a damaged disk block): the continuation itself looks valid.
+    {
+        let lease = partials.lease(&server.asset(digest.clone())).unwrap();
+        lease.describe(Some("\"v1\""), Some(BODY.len() as u64));
+        lease.writer().unwrap().write_all(b"XXXXXX").unwrap();
+    }
+    let first = temporary.path().join("first.download");
+    let (result, file, _) = server.transfer(&partials, &first, digest.clone()).await;
+    result.unwrap();
+    // The caller's digest check is the acceptance: these bytes are refused.
+    assert_ne!(hex::encode(Sha256::digest(&file)), digest);
+    fs::remove_file(&first).unwrap();
+    // Nothing of the rejected file remains to continue from.
+    assert!(stored_entries(&store_root).is_empty());
+    let second = temporary.path().join("second.download");
+    let (result, file, messages) = server.transfer(&partials, &second, digest.clone()).await;
+    result.unwrap();
+    assert_eq!(file, BODY);
+    assert_eq!(hex::encode(Sha256::digest(&file)), digest);
+    assert!(
+        messages
+            .iter()
+            .all(|message| !message.contains("Continuing"))
+    );
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[0]).as_deref(), Some("bytes=6-"));
+    // The next run started over instead of continuing the rejected bytes.
+    assert_eq!(ranged(&requests[1]), None);
+}

@@ -21,8 +21,12 @@ use crate::{
 pub const TEMPORARY_RETRY_FIRST_DELAY_SECONDS: i64 = 5 * 60;
 /// The longest wait between retries of one temporary failure.
 pub const TEMPORARY_RETRY_MAX_DELAY_SECONDS: i64 = 6 * 60 * 60;
-/// A provider-stated reset beyond this is not believed; the work waits this long.
-const RATE_LIMIT_RESET_MAX_SECONDS: i64 = 24 * 60 * 60;
+/// The one ceiling on any provider-stated wait (`Retry-After`, a rate-limit
+/// reset, an incomplete inventory's reset): a stated wait beyond it is not
+/// believed and the work waits this long instead. One day keeps a misreported
+/// or hostile reset from parking unattended work indefinitely while honoring
+/// every documented provider window (GitHub's hourly and secondary limits).
+pub const STATED_WAIT_CEILING_SECONDS: i64 = 24 * 60 * 60;
 
 /// Why unattended work stopped for now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -40,6 +44,12 @@ pub enum TemporaryCause {
     GameBusy,
     /// Another program had a file Portcove needed open.
     FileInUse,
+    /// One unattended pass gave this game its whole time budget and moved on
+    /// so other games get a turn; kept bytes continue on the next pass.
+    TimeBudget,
+    /// A list Portcove needed (releases, assets, packages) could not be read
+    /// completely yet. Incomplete is never treated as absent.
+    InventoryIncomplete,
     /// Portcove stopped before the work finished.
     Interrupted,
 }
@@ -70,7 +80,45 @@ impl TemporaryFailure {
 
 /// Consecutive interruptions after which the explanation says setup keeps
 /// stopping. Wording only: the work still retries on its back-off.
-const REPEATED_INTERRUPTIONS: u32 = 3;
+const REPEATED_INTERRUPTIONS: u32 = 2;
+
+/// Consecutive unclean stops (Portcove ended without settling the run) of one
+/// unchanged plan after which the failure becomes lasting. A setup that
+/// deterministically ends Portcove must not repeat forever; a clean stop,
+/// cancellation or any other temporary cause never counts here.
+pub const MAX_CONSECUTIVE_UNCLEAN_STOPS: u32 = 3;
+
+/// How one failed unattended attempt is recorded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FailedAttempt {
+    /// Retry the same plan after the schedule; no attempt is spent.
+    Temporary(TemporaryRetry),
+    /// Spend one lasting attempt.
+    Lasting,
+    /// The same plan ended Portcove too many times in a row: lasting, and the
+    /// attempt limit is reached at once.
+    RepeatedUncleanStops,
+}
+
+impl FailedAttempt {
+    pub(crate) fn of(
+        previous: Option<&TemporaryRetry>,
+        temporary: Option<TemporaryFailure>,
+        now: i64,
+    ) -> Self {
+        let Some(failure) = temporary else {
+            return Self::Lasting;
+        };
+        let next = TemporaryRetry::after(previous, failure, now);
+        if failure.cause == TemporaryCause::Interrupted
+            && next.attempts >= MAX_CONSECUTIVE_UNCLEAN_STOPS
+        {
+            Self::RepeatedUncleanStops
+        } else {
+            Self::Temporary(next)
+        }
+    }
+}
 
 /// A temporary failure's retry schedule. Clears when the work succeeds, its
 /// plan changes or the player chooses again.
@@ -78,7 +126,8 @@ const REPEATED_INTERRUPTIONS: u32 = 3;
 #[serde(deny_unknown_fields)]
 pub struct TemporaryRetry {
     pub cause: TemporaryCause,
-    /// Consecutive temporary failures of the same plan; sets the back-off.
+    /// Consecutive temporary failures of the same plan with the same cause;
+    /// sets the back-off. A different cause starts the count again.
     pub attempts: u32,
     /// Unix seconds before which the work is not tried again.
     pub retry_after: i64,
@@ -95,12 +144,16 @@ impl TemporaryRetry {
         now: i64,
     ) -> Self {
         let attempts = previous
+            .filter(|previous| previous.cause == cause)
             .map_or(0, |previous| previous.attempts)
             .saturating_add(1);
         // A run that stopped (Portcove closed, restarted or was stopped)
         // continues on the next pass; repeated stops then back off, so a
         // setup that keeps ending its own run cannot repeat without pause.
+        // A spent time budget is fair scheduling, not a failure: the game
+        // continues on the very next pass, with no growing wait.
         let waits = match cause {
+            TemporaryCause::TimeBudget => 0,
             TemporaryCause::Interrupted => attempts.saturating_sub(1),
             _ => attempts,
         };
@@ -115,7 +168,7 @@ impl TemporaryRetry {
         // A provider's own stated reset is honored when it is later, within reason.
         if let Some(reset) = stated_reset {
             retry_after =
-                retry_after.max(reset.min(now.saturating_add(RATE_LIMIT_RESET_MAX_SECONDS)));
+                retry_after.max(reset.min(now.saturating_add(STATED_WAIT_CEILING_SECONDS)));
         }
         Self {
             cause,
@@ -128,63 +181,110 @@ impl TemporaryRetry {
         now < self.retry_after
     }
 
-    /// Player explanation at `now` while the work waits to run again.
-    pub fn explanation(&self, now: i64) -> String {
-        let situation = match self.cause {
+    /// Player explanation while the work waits to run again. It names the
+    /// situation only; the next attempt is a separate instant (`retry_after`)
+    /// that each surface shows in its own form, so no stored text goes stale.
+    pub fn explanation(&self) -> &'static str {
+        match self.cause {
             TemporaryCause::Network => {
-                "Setup stopped because the connection failed or became too slow."
+                "Setup stopped because the connection failed or became too slow. Portcove will try again automatically."
             }
             TemporaryCause::RateLimited => {
-                "Setup stopped because the download site asked Portcove to wait."
+                "Setup stopped because the download site asked Portcove to wait. Portcove will try again automatically."
             }
             TemporaryCause::ServerUnavailable => {
-                "Setup stopped because the download site had a problem."
+                "Setup stopped because the download site had a problem. Portcove will try again automatically."
             }
             TemporaryCause::StorageFull => {
-                "Setup stopped because the disk was full. Free some space."
+                "Setup stopped because the drive ran out of space. Free up space, and Portcove will try again automatically."
             }
-            TemporaryCause::GameBusy => "Setup waited because another task was using this game.",
+            TemporaryCause::GameBusy => {
+                "Setup waited because another task was using this game. Portcove will try again automatically."
+            }
             TemporaryCause::FileInUse => {
-                "Setup stopped because another program had a needed file open."
+                "Setup stopped because another program had a needed file open. Portcove will try again automatically."
+            }
+            TemporaryCause::TimeBudget => {
+                "Setup paused because this game's download was taking a long time, so other games could go first. Portcove will continue it automatically."
+            }
+            TemporaryCause::InventoryIncomplete => {
+                "Setup waited because Portcove could not read everything it needs from the download site yet. Portcove will try again automatically."
             }
             TemporaryCause::Interrupted if self.attempts >= REPEATED_INTERRUPTIONS => {
-                "Setup keeps stopping before it finishes."
+                "Setup keeps stopping before it finishes. Portcove will try again automatically."
             }
-            TemporaryCause::Interrupted => "Setup stopped before it finished.",
-        };
-        format!(
-            "{situation} Portcove will try again automatically {}.",
-            wait_phrase(self.retry_after.saturating_sub(now))
-        )
-    }
-}
-
-/// A rounded, relative wait a player can read at a glance.
-fn wait_phrase(seconds: i64) -> String {
-    let minutes = (seconds.max(0) + 59) / 60;
-    match minutes {
-        0..=1 => "in about a minute".to_owned(),
-        2..=59 => format!("in about {minutes} minutes"),
-        _ => {
-            let hours = (minutes + 30) / 60;
-            if hours == 1 {
-                "in about an hour".to_owned()
-            } else {
-                format!("in about {hours} hours")
+            TemporaryCause::Interrupted => {
+                "Setup stopped before it finished. Portcove will try again automatically."
             }
         }
     }
 }
 
-/// `Retry-After` as seconds or an HTTP date, relative to `now`.
-fn retry_after_reset(value: &str, now: i64) -> Option<i64> {
+/// Parses an HTTP `Retry-After` value into a Unix-second instant, capped at
+/// [`STATED_WAIT_CEILING_SECONDS`] after `now`. Accepts delay-seconds and all
+/// three HTTP-date forms (IMF-fixdate, obsolete RFC 850 and asctime). The one
+/// parser for every caller; `None` for anything else.
+pub(crate) fn parse_retry_after(value: &str, now: i64) -> Option<i64> {
     let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(now.saturating_add(i64::from(seconds)));
+    let instant = if let Ok(seconds) = value.parse::<u64>() {
+        now.saturating_add(i64::try_from(seconds).unwrap_or(i64::MAX))
+    } else {
+        http_date(value)?
+    };
+    Some(instant.min(now.saturating_add(STATED_WAIT_CEILING_SECONDS)))
+}
+
+fn http_date(value: &str) -> Option<i64> {
+    if let Ok(moment) =
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc2822)
+    {
+        return Some(moment.unix_timestamp());
     }
-    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc2822)
-        .ok()
-        .map(time::OffsetDateTime::unix_timestamp)
+    let month = |name: &str| -> Option<time::Month> {
+        const NAMES: [&str; 12] = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
+        let index = NAMES.iter().position(|candidate| *candidate == name)?;
+        time::Month::try_from(u8::try_from(index + 1).ok()?).ok()
+    };
+    let clock = |text: &str| -> Option<(u8, u8, u8)> {
+        let mut parts = text.split(':').map(|part| part.parse::<u8>().ok());
+        let parsed = (parts.next()??, parts.next()??, parts.next()??);
+        parts.next().is_none().then_some(parsed)
+    };
+    let instant = |year: i32, month: time::Month, day: u8, (hour, minute, second): (u8, u8, u8)| {
+        let date = time::Date::from_calendar_date(year, month, day).ok()?;
+        let time = time::Time::from_hms(hour, minute, second).ok()?;
+        Some(
+            time::PrimitiveDateTime::new(date, time)
+                .assume_utc()
+                .unix_timestamp(),
+        )
+    };
+    let words: Vec<&str> = value.split_whitespace().collect();
+    match words.as_slice() {
+        // RFC 850: "Sunday, 06-Nov-94 08:49:37 GMT"
+        [_, date, time, "GMT"] => {
+            let mut parts = date.split('-');
+            let day = parts.next()?.parse().ok()?;
+            let month = month(parts.next()?)?;
+            let short: i32 = parts.next()?.parse().ok()?;
+            let year = if short < 70 {
+                2000 + short
+            } else {
+                1900 + short
+            };
+            instant(year, month, day, clock(time)?)
+        }
+        // asctime: "Sun Nov  6 08:49:37 1994"
+        [_, month_name, day, time, year] => instant(
+            year.parse().ok()?,
+            month(month_name)?,
+            day.parse().ok()?,
+            clock(time)?,
+        ),
+        _ => None,
+    }
 }
 
 impl PortcoveError {
@@ -198,11 +298,21 @@ impl PortcoveError {
         let retry_after = self
             .details
             .get("retry_after")
-            .and_then(|value| retry_after_reset(value, now));
+            .and_then(|value| parse_retry_after(value, now));
         match self.known_cause() {
-            Some(KnownFailureCause::StorageFull) => {
-                return Some((TemporaryCause::StorageFull, None));
+            // A full drive, or a capacity precheck that found too little
+            // space: freeing space clears it, never a new upstream release.
+            Some(
+                KnownFailureCause::StorageFull
+                | KnownFailureCause::DestinationCapacity
+                | KnownFailureCause::DiscSpace { .. },
+            ) => return Some((TemporaryCause::StorageFull, None)),
+            Some(KnownFailureCause::InventoryIncomplete { resets_at }) => {
+                return Some((TemporaryCause::InventoryIncomplete, *resets_at));
             }
+            // Arm reserved for #8638: its
+            // `KnownFailureCause::ProviderAllowanceExhausted { resets_at }`
+            // classifies as `(TemporaryCause::RateLimited, *resets_at)` here.
             Some(KnownFailureCause::Busy) => return Some((TemporaryCause::GameBusy, None)),
             Some(KnownFailureCause::RetainedDownloadUnreadable) => {
                 return Some((TemporaryCause::FileInUse, None));
@@ -292,7 +402,7 @@ mod tests {
             failure(TemporaryCause::RateLimited, Some(i64::MAX)),
             now,
         );
-        assert_eq!(implausible.retry_after, now + RATE_LIMIT_RESET_MAX_SECONDS);
+        assert_eq!(implausible.retry_after, now + STATED_WAIT_CEILING_SECONDS);
         assert!(limited.waiting(now) && !limited.waiting(now + 3600));
         let mut stopped = None;
         let mut delays = Vec::new();
@@ -402,33 +512,88 @@ mod tests {
             .temporary_cause()
             .unwrap();
         assert_eq!(cause, TemporaryCause::RateLimited);
-        assert_eq!(reset, Some(2_139_722_880));
+        // A distant stated date is capped at the one ceiling.
+        let reset = reset.unwrap();
+        assert!(
+            (now + STATED_WAIT_CEILING_SECONDS..=now + STATED_WAIT_CEILING_SECONDS + 5)
+                .contains(&reset)
+        );
         // A 403 without a stated wait is an authorization refusal: lasting.
         assert_eq!(provider(403, false, None).temporary_cause(), None);
     }
 
     #[test]
-    fn explanation_says_why_and_when_without_internal_codes() {
-        let now = 1_800_000_000;
+    fn explanation_names_the_situation_and_keeps_the_instant_separate() {
         let retry = TemporaryRetry {
             cause: TemporaryCause::RateLimited,
             attempts: 1,
-            retry_after: now + 2 * 60 * 60,
+            retry_after: 1_800_000_000,
         };
         assert_eq!(
-            retry.explanation(now),
-            "Setup stopped because the download site asked Portcove to wait. Portcove will try again automatically in about 2 hours."
+            retry.explanation(),
+            "Setup stopped because the download site asked Portcove to wait. Portcove will try again automatically."
         );
         let stopping = TemporaryRetry {
             cause: TemporaryCause::Interrupted,
             attempts: REPEATED_INTERRUPTIONS,
-            retry_after: now + 10 * 60,
+            retry_after: 1_800_000_000,
         };
         assert_eq!(
-            stopping.explanation(now),
-            "Setup keeps stopping before it finishes. Portcove will try again automatically in about 10 minutes."
+            stopping.explanation(),
+            "Setup keeps stopping before it finishes. Portcove will try again automatically."
         );
-        assert_eq!(wait_phrase(0), "in about a minute");
-        assert_eq!(wait_phrase(65 * 60), "in about an hour");
+    }
+
+    #[test]
+    fn retry_after_accepts_seconds_and_every_http_date_form_under_one_ceiling() {
+        let now = 784_111_000; // 1994-11-06 08:36:40 UTC
+        let expected = 784_111_777; // Sun, 06 Nov 1994 08:49:37 GMT
+        assert_eq!(parse_retry_after("120", now), Some(now + 120));
+        assert_eq!(
+            parse_retry_after("Sun, 06 Nov 1994 08:49:37 GMT", now),
+            Some(expected)
+        );
+        assert_eq!(
+            parse_retry_after("Sunday, 06-Nov-94 08:49:37 GMT", now),
+            Some(expected)
+        );
+        assert_eq!(
+            parse_retry_after("Sun Nov  6 08:49:37 1994", now),
+            Some(expected)
+        );
+        assert_eq!(
+            parse_retry_after("999999999", now),
+            Some(now + STATED_WAIT_CEILING_SECONDS)
+        );
+        for invalid in ["", "-5", "soon", "Sun, 32 Nov 1994 08:49:37 GMT"] {
+            assert_eq!(parse_retry_after(invalid, now), None, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn capacity_and_incomplete_inventories_are_temporary() {
+        for cause in [
+            KnownFailureCause::DestinationCapacity,
+            KnownFailureCause::DiscSpace {
+                required_bytes: 2,
+                available_bytes: 1,
+                volume: "D:".into(),
+            },
+        ] {
+            assert_eq!(
+                PortcoveError::state("no space")
+                    .with_known_cause(cause)
+                    .temporary_cause(),
+                Some((TemporaryCause::StorageFull, None))
+            );
+        }
+        assert_eq!(
+            PortcoveError::network("partial listing")
+                .with_known_cause(KnownFailureCause::InventoryIncomplete {
+                    resets_at: Some(42)
+                })
+                .temporary_cause(),
+            Some((TemporaryCause::InventoryIncomplete, Some(42)))
+        );
     }
 }

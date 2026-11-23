@@ -259,6 +259,20 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
+    /// An enumeration the decision depends on could not be read completely
+    /// this time (a page budget, a partial listing or a mixed-time snapshot).
+    /// Incomplete is never absent: the work waits and tries again, after
+    /// `resets_at` when the source stated one. Always temporary.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the provider enumeration work in #8637 raises it; this PR only classifies it"
+        )
+    )]
+    InventoryIncomplete {
+        resets_at: Option<i64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -479,6 +493,10 @@ impl KnownFailureCause {
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
             ),
+            Self::InventoryIncomplete { .. } => (
+                "inventory_incomplete",
+                "Portcove could not read everything it needs from the download site yet. Nothing was changed, and Portcove will try again.",
+            ),
             Self::StorageFull => (
                 "storage_full",
                 "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
@@ -689,6 +707,32 @@ impl PortcoveError {
 
     pub(crate) fn is_transient_transport(&self) -> bool {
         self.failure.transient_transport
+    }
+
+    /// A network-coded failure while reading a body that recorded no status is
+    /// an interrupted body (temporary); limit and parse failures keep their
+    /// own lasting codes.
+    pub(crate) fn mark_interrupted_body(self) -> Self {
+        if self.code == crate::ErrorCode::Network && self.failure.upstream.is_none() {
+            self.transient_transport()
+        } else {
+            self
+        }
+    }
+
+    /// The one conversion for a failed HTTP exchange: it records the
+    /// transport observation, and marks connection interruptions (resets,
+    /// early closes, stalls, DNS/TLS/connect failures) temporary. Builder,
+    /// redirect-policy and status errors stay lasting; a status is recorded
+    /// separately by the caller.
+    pub(crate) fn from_transport(error: &reqwest::Error) -> Self {
+        let converted = Self::network(error.to_string())
+            .with_upstream(UpstreamObservation::from_reqwest(error));
+        if error.is_builder() || error.is_redirect() || error.is_status() {
+            converted
+        } else {
+            converted.transient_transport()
+        }
     }
 
     /// Classify this failure for preserved-location failover from recorded facts

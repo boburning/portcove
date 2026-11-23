@@ -75,6 +75,10 @@ pub struct RootSetupFailure {
     /// runs again after its back-off, without an upstream change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temporary_retry: Option<crate::TemporaryRetry>,
+    /// Set when `attempts` was counted by a Portcove that separates temporary
+    /// from lasting failures; an older record at the limit gets one more try.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub failure_classified: bool,
 }
 
 /// The game the player chose for files that several implementations can use.
@@ -118,6 +122,10 @@ pub struct RootSetupWaiting {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_id: Option<String>,
     pub reason: String,
+    /// While a temporary failure waits: the Unix-second instant of the next
+    /// automatic attempt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_attempt_at: Option<i64>,
 }
 
 fn decode(root_id: &str, json: &str) -> Result<RootSetupConsent> {
@@ -466,6 +474,8 @@ enum RootCandidate {
 enum RootSetupOutcome {
     Started(InstallBatchRecord),
     Waiting(String),
+    /// A temporary failure waits for its next attempt (Unix seconds).
+    Retrying(String, i64),
     /// Could not register the files or run the install; recorded and counted.
     Failed(String),
     Skipped,
@@ -756,6 +766,18 @@ impl PortcoveService {
                                     profile_id: candidate.profile_id.clone(),
                                     port_id: Some(port_id),
                                     reason,
+                                    next_attempt_at: None,
+                                });
+                            }
+                        }
+                        RootSetupOutcome::Retrying(reason, next_attempt_at) => {
+                            if waiting.len() < MAX_ROOT_SETUP_WAITING {
+                                waiting.push(RootSetupWaiting {
+                                    root_id: root.id.clone(),
+                                    profile_id: candidate.profile_id.clone(),
+                                    port_id: Some(port_id),
+                                    reason,
+                                    next_attempt_at: Some(next_attempt_at),
                                 });
                             }
                         }
@@ -796,6 +818,7 @@ impl PortcoveService {
                 profile_id: candidate.profile_id.clone(),
                 port_id,
                 reason: reason.to_owned(),
+                next_attempt_at: None,
             })
         };
         let chosen = consent
@@ -877,6 +900,7 @@ impl PortcoveService {
                 failure.port_id == port_id
                     && failure.plan_sha256 == attempt
                     && failure.attempts >= crate::MAX_STANDING_SETUP_ATTEMPTS
+                    && failure.failure_classified
             })
         };
         let waiting = |attempt: &str| {
@@ -886,14 +910,16 @@ impl PortcoveService {
                 .filter(|failure| failure.port_id == port_id && failure.plan_sha256 == attempt)
                 .find_map(|failure| failure.temporary_retry.as_ref())
                 .filter(|retry| retry.waiting(Library::now()))
-                .map(|retry| retry.explanation(Library::now()))
+                .map(|retry| {
+                    RootSetupOutcome::Retrying(retry.explanation().to_owned(), retry.retry_after)
+                })
         };
         let source_key = source_attempt(candidate);
         if exhausted(&source_key) {
             return Ok(RootSetupOutcome::Skipped);
         }
-        if let Some(reason) = waiting(&source_key) {
-            return Ok(RootSetupOutcome::Waiting(reason));
+        if let Some(retrying) = waiting(&source_key) {
+            return Ok(retrying);
         }
         // Never retarget a different copy the player is already using.
         match self.library.source(&candidate.profile_id)? {
@@ -932,8 +958,8 @@ impl PortcoveService {
         if exhausted(&plan.plan_sha256) {
             return Ok(RootSetupOutcome::Skipped);
         }
-        if let Some(reason) = waiting(&plan.plan_sha256) {
-            return Ok(RootSetupOutcome::Waiting(reason));
+        if let Some(retrying) = waiting(&plan.plan_sha256) {
+            return Ok(retrying);
         }
         if !self.still_enrolled(root_id, root_path, candidate, &mut 0)? {
             return Ok(RootSetupOutcome::Skipped);
@@ -1090,6 +1116,7 @@ impl PortcoveService {
                         attempts: 0,
                         reason: String::new(),
                         temporary_retry: None,
+                        failure_classified: false,
                     });
                     consent.failures.len() - 1
                 }
@@ -1100,19 +1127,32 @@ impl PortcoveService {
                 failure.attempts = 0;
                 failure.temporary_retry = None;
             }
-            match temporary {
-                Some(temporary) => {
-                    failure.temporary_retry = Some(crate::TemporaryRetry::after(
-                        failure.temporary_retry.as_ref(),
-                        temporary,
-                        now,
-                    ));
+            let mut reason = reason;
+            match crate::temporary_failure::FailedAttempt::of(
+                failure.temporary_retry.as_ref(),
+                temporary,
+                now,
+            ) {
+                crate::temporary_failure::FailedAttempt::Temporary(retry) => {
+                    failure.temporary_retry = Some(retry);
                 }
-                None => {
+                crate::temporary_failure::FailedAttempt::Lasting => {
                     failure.attempts = failure.attempts.saturating_add(1);
                     failure.temporary_retry = None;
                 }
+                crate::temporary_failure::FailedAttempt::RepeatedUncleanStops => {
+                    failure.attempts = failure
+                        .attempts
+                        .saturating_add(1)
+                        .max(crate::MAX_STANDING_SETUP_ATTEMPTS);
+                    failure.temporary_retry = None;
+                    reason = format!(
+                        "Portcove stopped before setup finished {} times in a row",
+                        crate::temporary_failure::MAX_CONSECUTIVE_UNCLEAN_STOPS
+                    );
+                }
             }
+            failure.failure_classified = true;
             failure.reason = reason;
         });
         if let Err(error) = result {

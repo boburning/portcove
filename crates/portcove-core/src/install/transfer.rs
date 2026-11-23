@@ -67,13 +67,7 @@ impl From<std::io::Error> for Step {
 }
 
 fn transport(error: &reqwest::Error) -> PortcoveError {
-    let converted = PortcoveError::network(error.to_string())
-        .with_upstream(UpstreamObservation::from_reqwest(error));
-    if error.is_builder() || error.is_redirect() || error.is_status() {
-        converted
-    } else {
-        converted.transient_transport()
-    }
+    PortcoveError::from_transport(error)
 }
 
 /// Read-idle stalls keep their existing terminal failure; only resets, early

@@ -25,6 +25,28 @@ const MAX_RECORD_BYTES: usize = 16 * 1024;
 /// Standing setup tries one unchanged plan at most this many times (across
 /// passes, which happen at startup and on changes). A changed plan starts over.
 pub const MAX_STANDING_SETUP_ATTEMPTS: u32 = 3;
+/// Wall-clock budget one unattended pass gives a single game before it asks
+/// that game's install to stop at its cancellation boundary and moves on.
+/// Received bytes stay in the partial-download store and continue on the next
+/// pass, so a slow or trickling host cannot occupy the single standing worker
+/// for days while other ready games wait. A resource budget for one bounded
+/// unit of work (class 3); it never ends the game's setup.
+pub const STANDING_SETUP_GAME_BUDGET: std::time::Duration =
+    std::time::Duration::from_secs(4 * 60 * 60);
+
+#[cfg(test)]
+thread_local! {
+    static GAME_BUDGET_OVERRIDE: std::cell::Cell<Option<std::time::Duration>> =
+        const { std::cell::Cell::new(None) };
+}
+
+fn standing_setup_game_budget() -> std::time::Duration {
+    #[cfg(test)]
+    if let Some(budget) = GAME_BUDGET_OVERRIDE.with(std::cell::Cell::get) {
+        return budget;
+    }
+    STANDING_SETUP_GAME_BUDGET
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -72,6 +94,12 @@ pub struct PortIntent {
     /// The same plan runs again after its back-off, without an upstream change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temporary_retry: Option<crate::TemporaryRetry>,
+    /// Set when `failed_attempts` was counted by a Portcove that separates
+    /// temporary from lasting failures. A record that reached the limit
+    /// before that (it may have counted network outages) gets one more
+    /// attempt after upgrade; its next failure is classified normally.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub failure_classified: bool,
     /// The release channel chosen with this choice. A different channel later
     /// waits for the player to choose again.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -150,6 +178,10 @@ pub struct PortIntentAssessment {
     /// Why this intent will not act or notify right now, if it won't.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suppressed: Option<String>,
+    /// While a temporary failure waits: the Unix-second instant of the next
+    /// automatic attempt. Each surface shows it in its own form.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_attempt_at: Option<i64>,
     /// Ready with a plan, or installed with an update, the player has not
     /// been told about yet.
     pub newly_ready: bool,
@@ -224,6 +256,7 @@ impl PortIntent {
             failed_attempts: 0,
             failure: None,
             temporary_retry: None,
+            failure_classified: false,
             channel: None,
             sources: Vec::new(),
         }
@@ -234,6 +267,15 @@ impl PortIntent {
         self.failed_attempts = 0;
         self.failure = None;
         self.temporary_retry = None;
+        self.failure_classified = false;
+    }
+
+    /// The lasting attempt limit for this plan has been reached. A record
+    /// from before classification is not trusted to have reached it.
+    fn exhausted(&self, plan_sha256: &str) -> bool {
+        self.failed_plan_sha256.as_deref() == Some(plan_sha256)
+            && self.failed_attempts >= MAX_STANDING_SETUP_ATTEMPTS
+            && self.failure_classified
     }
 }
 
@@ -781,11 +823,11 @@ impl PortcoveService {
     }
 
     fn assessment(&self, intent: &PortIntent, readiness: PortReadiness) -> PortIntentAssessment {
+        let mut next_attempt_at = None;
         let suppressed = if intent.explicitly_uninstalled_at.is_some() {
             Some("you uninstalled this game; choose again to set it up or be told".to_owned())
         } else if let PortReadiness::Ready { plan_sha256, .. } = &readiness
-            && intent.failed_plan_sha256.as_deref() == Some(plan_sha256.as_str())
-            && intent.failed_attempts >= MAX_STANDING_SETUP_ATTEMPTS
+            && intent.exhausted(plan_sha256)
         {
             Some(format!(
                 "setup failed {} times with this plan{}; it will try again when the game's files, catalog or requirements change",
@@ -803,7 +845,8 @@ impl PortcoveService {
                 .as_ref()
                 .filter(|retry| retry.waiting(Library::now()))
         {
-            Some(retry.explanation(Library::now()))
+            next_attempt_at = Some(retry.retry_after);
+            Some(retry.explanation().to_owned())
         } else {
             None
         };
@@ -823,6 +866,7 @@ impl PortcoveService {
             mode: intent.mode,
             readiness,
             suppressed,
+            next_attempt_at,
             newly_ready,
         }
     }
@@ -1082,7 +1126,43 @@ impl PortcoveService {
         // Keep the batch's large async state out of the enclosing standing
         // future. Nested fresh installs exhausted Windows debug worker stacks;
         // the batch still runs serially under the same locks and cancellation.
-        let record = Box::pin(self.run_install_batch(&batch.id, &mut *emit)).await?;
+        // The game's install activity is learned from its start event, so the
+        // time budget can ask it to stop through ordinary cancellation; the
+        // batch future itself is never dropped mid-install.
+        let install_activity = std::sync::Mutex::new(None::<String>);
+        let mut observe = |event: OperationEvent| {
+            if event.parent_operation_id.is_none()
+                && matches!(event.event, crate::OperationEventKind::Started)
+            {
+                if let Ok(mut activity) = install_activity.lock() {
+                    activity.get_or_insert_with(|| event.operation_id.clone());
+                }
+            }
+            emit(event);
+        };
+        let mut run = Box::pin(self.run_install_batch(&batch.id, &mut observe));
+        let budget = tokio::time::sleep(standing_setup_game_budget());
+        tokio::pin!(budget);
+        let mut budget_spent = false;
+        let record = loop {
+            tokio::select! {
+                record = &mut run => break record?,
+                () = &mut budget, if !budget_spent => {
+                    budget_spent = true;
+                    let activity = install_activity
+                        .lock()
+                        .ok()
+                        .and_then(|activity| activity.clone());
+                    if let Some(activity) = activity
+                        && let Err(error) = self.request_cancellation(&activity)
+                    {
+                        // Past its cancellation boundary the install finishes.
+                        tracing::info!(port_id, error = %error.message, "standing setup budget reached after the cancellation boundary");
+                    }
+                }
+            }
+        };
+        drop(run);
         for item in &record.items {
             match item.state {
                 InstallBatchItemState::Ready => {
@@ -1099,6 +1179,18 @@ impl PortcoveService {
                         &item.expected_plan_sha256,
                         item.detail.as_deref().unwrap_or("setup did not finish"),
                         item.temporary_failure(),
+                    );
+                }
+                // Stopped by this pass's time budget, not by the player.
+                InstallBatchItemState::Cancelled if budget_spent => {
+                    self.remember_standing_failure(
+                        &item.port_id,
+                        &item.expected_plan_sha256,
+                        "setup used this pass's time budget",
+                        Some(crate::TemporaryFailure {
+                            cause: crate::TemporaryCause::TimeBudget,
+                            stated_reset: None,
+                        }),
                     );
                 }
                 _ => {}
@@ -1125,19 +1217,32 @@ impl PortcoveService {
                 intent.failed_attempts = 0;
                 intent.temporary_retry = None;
             }
-            match temporary {
-                Some(temporary) => {
-                    intent.temporary_retry = Some(crate::TemporaryRetry::after(
-                        intent.temporary_retry.as_ref(),
-                        temporary,
-                        now,
-                    ));
+            let mut reason = reason.to_owned();
+            match crate::temporary_failure::FailedAttempt::of(
+                intent.temporary_retry.as_ref(),
+                temporary,
+                now,
+            ) {
+                crate::temporary_failure::FailedAttempt::Temporary(retry) => {
+                    intent.temporary_retry = Some(retry);
                 }
-                None => {
+                crate::temporary_failure::FailedAttempt::Lasting => {
                     intent.failed_attempts = intent.failed_attempts.saturating_add(1);
                     intent.temporary_retry = None;
                 }
+                crate::temporary_failure::FailedAttempt::RepeatedUncleanStops => {
+                    intent.failed_attempts = intent
+                        .failed_attempts
+                        .saturating_add(1)
+                        .max(MAX_STANDING_SETUP_ATTEMPTS);
+                    intent.temporary_retry = None;
+                    reason = format!(
+                        "Portcove stopped before setup finished {} times in a row",
+                        crate::temporary_failure::MAX_CONSECUTIVE_UNCLEAN_STOPS
+                    );
+                }
             }
+            intent.failure_classified = true;
             intent.failure = Some(reason.chars().take(512).collect());
         });
         if let Err(error) = result {
@@ -1187,15 +1292,10 @@ mod tests {
         program: Vec<u8>,
     }
 
-    fn fresh_stack_service() -> StackInstallFixture {
+    /// The inert fresh-install payload: executable name, its bytes and the
+    /// gzip archive a release serves.
+    fn stack_payload() -> (String, Vec<u8>, Vec<u8>) {
         use std::io::Write;
-        let temporary = tempfile::tempdir().unwrap();
-        let platform = crate::Platform::current().unwrap();
-        let platform_key = serde_json::to_value(platform)
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_owned();
         let executable = if cfg!(windows) { "game.exe" } else { "game" }.to_owned();
         let program = if cfg!(windows) {
             let mut bytes = vec![0_u8; 128];
@@ -1226,15 +1326,23 @@ mod tests {
         }
         let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gzip.write_all(&archive.into_inner().unwrap()).unwrap();
-        let payload = gzip.finish().unwrap();
-        let digest = crate::signed_catalog::digest(&payload);
-        let mut response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-            payload.len()
-        )
-        .into_bytes();
-        response.extend_from_slice(&payload);
-        let (origin, requests, server) = crate::test_http::serve_http_bytes(vec![response]);
+        (executable, program, gzip.finish().unwrap())
+    }
+
+    /// A service whose one fixture port resolves to `payload` at `origin`.
+    fn stack_service_at(
+        temporary: &tempfile::TempDir,
+        origin: &str,
+        payload: &[u8],
+        executable: &str,
+    ) -> PortcoveService {
+        let platform = crate::Platform::current().unwrap();
+        let platform_key = serde_json::to_value(platform)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let digest = crate::signed_catalog::digest(payload);
         let release = crate::ResolvedRelease {
             version: "1.0.0-stack-fixture".into(),
             channel: crate::ReleaseChannel::Stable,
@@ -1264,7 +1372,7 @@ mod tests {
                 "support_tier": "beta", "channels": ["stable"], "platforms": [platform],
                 "adapter": "libultraship-portable", "source_profile": "standing-worker-original",
                 "release": {"repository": "example/standing-worker-fixture", "asset_hints": {(platform_key.clone()): ["runtime"]}},
-                "executable_hints": {(platform_key): [executable.clone()]},
+                "executable_hints": {(platform_key): [executable]},
                 "persistent_paths": ["saves", "settings.ini"]
             }]
         }).to_string()).unwrap();
@@ -1276,6 +1384,163 @@ mod tests {
         service
             .register_source("standing-worker-original", &source)
             .unwrap();
+        service
+    }
+
+    /// First connection: a whole answer with a strong validator whose body
+    /// sends half quickly, then trickles one byte every 100 ms (never idle
+    /// long enough for the read-idle bound). Second connection: an exact
+    /// `Range` continuation. Returns the origin and the requests it answered.
+    fn serve_trickle_then_range(
+        payload: Vec<u8>,
+    ) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        use std::io::{BufRead, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for connection in 0..2 {
+                let (stream, _) = listener.accept().unwrap();
+                let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+                let mut request = String::new();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    request.push_str(&line);
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                }
+                let mut stream = stream;
+                if connection == 0 {
+                    let half = payload.len() / 2;
+                    let _ = stream.write_all(
+                        format!(
+                            "HTTP/1.1 200 OK\r\nETag: \"v1\"\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            payload.len()
+                        )
+                        .as_bytes(),
+                    );
+                    let _ = stream.write_all(&payload[..half]);
+                    for byte in &payload[half..] {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if stream
+                            .write_all(&[*byte])
+                            .and_then(|()| stream.flush())
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                } else {
+                    let offset: usize = request
+                        .lines()
+                        .find_map(|line| {
+                            line.to_ascii_lowercase()
+                                .strip_prefix("range: bytes=")
+                                .map(str::to_owned)
+                        })
+                        .and_then(|range| range.strip_suffix('-').map(str::to_owned))
+                        .expect("the continuation must ask for the remaining bytes")
+                        .parse()
+                        .unwrap();
+                    let _ = stream.write_all(
+                        format!(
+                            "HTTP/1.1 206 Partial Content\r\nETag: \"v1\"\r\nContent-Range: bytes {offset}-{}/{}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            payload.len() - 1,
+                            payload.len(),
+                            payload.len() - offset
+                        )
+                        .as_bytes(),
+                    );
+                    let _ = stream.write_all(&payload[offset..]);
+                }
+                requests.push(request);
+            }
+            requests
+        });
+        (origin, server)
+    }
+
+    #[test]
+    fn a_trickling_download_yields_the_worker_at_its_budget_and_continues_next_pass() {
+        // Fresh installs need a large stack on Windows debug workers.
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(async {
+                        let temporary = tempfile::tempdir().unwrap();
+                        let (executable, _, payload) = stack_payload();
+                        let (origin, server) = serve_trickle_then_range(payload.clone());
+                        let service = stack_service_at(&temporary, &origin, &payload, &executable);
+                        service
+                            .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
+                            .unwrap();
+                        GAME_BUDGET_OVERRIDE
+                            .with(|budget| budget.set(Some(std::time::Duration::from_secs(2))));
+                        let started = std::time::Instant::now();
+                        let first = service.run_standing_setup(|_| {}).await.unwrap();
+                        // The pass yielded at its budget instead of waiting for
+                        // the trickle (about 150 seconds) to finish.
+                        assert!(started.elapsed() < std::time::Duration::from_secs(60));
+                        assert_eq!(first.batches.len(), 1);
+                        assert_eq!(
+                            first.batches[0].items[0].state,
+                            InstallBatchItemState::Cancelled
+                        );
+                        assert!(service.status(STACK_PORT).unwrap().active.is_none());
+                        let intent = service.library.port_intent(STACK_PORT).unwrap().unwrap();
+                        assert_eq!(intent.failed_attempts, 0);
+                        let retry = intent.temporary_retry.unwrap();
+                        assert_eq!(retry.cause, crate::TemporaryCause::TimeBudget);
+                        // Fair scheduling, not a penalty: due on the next pass.
+                        assert!(!retry.waiting(Library::now()));
+
+                        let second = service.run_standing_setup(|_| {}).await.unwrap();
+                        assert_eq!(second.batches.len(), 1);
+                        assert_eq!(
+                            second.batches[0].items[0].state,
+                            InstallBatchItemState::Ready,
+                            "{second:?}"
+                        );
+                        assert!(service.status(STACK_PORT).unwrap().active.is_some());
+                        let intent = service.library.port_intent(STACK_PORT).unwrap().unwrap();
+                        assert_eq!(intent.temporary_retry, None);
+                        GAME_BUDGET_OVERRIDE.with(|budget| budget.set(None));
+                        let requests = server.join().unwrap();
+                        let continued = requests[1]
+                            .lines()
+                            .find_map(|line| {
+                                line.to_ascii_lowercase()
+                                    .strip_prefix("range: bytes=")
+                                    .map(str::to_owned)
+                            })
+                            .unwrap();
+                        let offset: usize = continued.trim_end_matches('-').parse().unwrap();
+                        // The kept prefix was continued, not downloaded again.
+                        assert!(offset >= payload.len() / 2, "{offset}");
+                    });
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    fn fresh_stack_service() -> StackInstallFixture {
+        let temporary = tempfile::tempdir().unwrap();
+        let (executable, program, payload) = stack_payload();
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            payload.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&payload);
+        let (origin, requests, server) = crate::test_http::serve_http_bytes(vec![response]);
+        let service = stack_service_at(&temporary, &origin, &payload, &executable);
         StackInstallFixture {
             temporary,
             service,
@@ -1740,6 +2005,7 @@ mod tests {
                 intent.failed_plan_sha256 = Some(plan_sha256.clone());
                 intent.failed_attempts = MAX_STANDING_SETUP_ATTEMPTS;
                 intent.failure = Some("download failed".into());
+                intent.failure_classified = true;
             })
             .unwrap();
         let pass = service.run_standing_setup(|_| {}).await.unwrap();
@@ -2492,13 +2758,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn repeated_interruptions_back_off_and_then_continue_the_same_plan() {
+    async fn repeated_unclean_stops_back_off_then_become_lasting() {
         let (_temporary, service) = ready_service().await;
         service
             .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
             .unwrap();
         let plan = service.plan_game_install(PORT).await.unwrap();
-        for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
+        let interrupt = |service: &PortcoveService| {
             let batch = service
                 .start_install_batch(
                     &[InstallBatchRequestItem {
@@ -2515,36 +2781,84 @@ mod tests {
                 })
                 .unwrap();
             service.recover_interrupted_setups();
+        };
+        // Below the limit an unclean stop is temporary: no attempt is spent
+        // and the same plan continues after its back-off.
+        for stops in 1..crate::temporary_failure::MAX_CONSECUTIVE_UNCLEAN_STOPS {
+            interrupt(&service);
+            let intent = service.library().port_intent(PORT).unwrap().unwrap();
+            assert_eq!(intent.failed_attempts, 0);
+            let retry = intent.temporary_retry.unwrap();
+            assert_eq!(retry.cause, crate::TemporaryCause::Interrupted);
+            assert_eq!(retry.attempts, stops);
         }
-        // Interruptions are our own execution failure: they never reach the
-        // lasting limit, but repeated ones wait before the next run.
+        // A setup that keeps ending Portcove must not repeat forever.
+        interrupt(&service);
         let intent = service.library().port_intent(PORT).unwrap().unwrap();
-        assert_eq!(intent.failed_attempts, 0);
-        let retry = intent.temporary_retry.unwrap();
-        assert_eq!(retry.cause, crate::TemporaryCause::Interrupted);
-        assert_eq!(retry.attempts, MAX_STANDING_SETUP_ATTEMPTS + 1);
-        assert!(retry.retry_after > Library::now());
-        let waiting = service.run_standing_setup(|_| {}).await.unwrap();
-        assert!(waiting.batches.is_empty());
+        assert_eq!(intent.failed_attempts, MAX_STANDING_SETUP_ATTEMPTS);
+        assert_eq!(intent.temporary_retry, None);
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(pass.batches.is_empty());
+        assert!(
+            pass.assessments[0]
+                .suppressed
+                .as_deref()
+                .unwrap()
+                .contains("times in a row")
+        );
         assert!(service.status(PORT).unwrap().active.is_none());
+    }
 
+    #[tokio::test]
+    async fn a_record_at_the_limit_from_before_classification_gets_one_more_attempt() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        // As written by an earlier Portcove that counted network outages.
         service
             .library()
-            .update_port_intent(PORT, |intent, now| {
-                intent
-                    .as_mut()
-                    .unwrap()
-                    .temporary_retry
-                    .as_mut()
-                    .unwrap()
-                    .retry_after = now - 1;
+            .update_port_intent(PORT, |intent, _| {
+                let intent = intent.as_mut().unwrap();
+                intent.failed_plan_sha256 = Some(plan.plan_sha256.clone());
+                intent.failed_attempts = MAX_STANDING_SETUP_ATTEMPTS;
+                intent.failure = Some("network unavailable".into());
+                intent.failure_classified = false;
             })
             .unwrap();
         let pass = service.run_standing_setup(|_| {}).await.unwrap();
         assert_eq!(pass.batches.len(), 1);
         assert!(service.status(PORT).unwrap().active.is_some());
         let intent = service.library().port_intent(PORT).unwrap().unwrap();
-        assert_eq!(intent.temporary_retry, None);
+        assert_eq!((intent.failed_attempts, intent.failure), (0, None));
+    }
+
+    #[tokio::test]
+    async fn an_incomplete_inventory_never_spends_a_lasting_attempt() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let plan = service.plan_game_install(PORT).await.unwrap();
+        let incomplete = PortcoveError::network("the release list was incomplete")
+            .with_known_cause(crate::failure::KnownFailureCause::InventoryIncomplete {
+                resets_at: None,
+            });
+        for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
+            service.remember_standing_failure(
+                PORT,
+                &plan.plan_sha256,
+                &incomplete.message,
+                crate::TemporaryFailure::of(&incomplete),
+            );
+        }
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, 0);
+        assert_eq!(
+            intent.temporary_retry.unwrap().cause,
+            crate::TemporaryCause::InventoryIncomplete
+        );
     }
 
     #[test]

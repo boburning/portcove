@@ -2252,6 +2252,9 @@ announced package and lets the plugin verify its signature before any bytes are
 returned. The update check has a 60-second deadline; the package download has
 none. It is abandoned only when no bytes arrive for 60 seconds or the connection
 falls below Core's progress floor, so a slow link that keeps delivering finishes.
+Because the plugin holds the package in memory until it verifies the signature,
+the download also stops as soon as it exceeds its declared `Content-Length` or
+the 512 MiB package ceiling (`MAX_PACKAGE_BYTES`, a memory budget).
 The plugin holds the package in memory and offers no range continuation, so an
 abandoned download starts again on the next request. Package-managed `.deb` and `.rpm` installations refuse checks and
 installs and point the player to their package manager. The idle preflight runs

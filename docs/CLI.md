@@ -1113,13 +1113,21 @@ Portcove retries a failed setup on a later pass while the game is ready, up to
 three failed attempts for the same plan. A changed plan becomes eligible again.
 Only lasting failures count, such as a rejected download or an unsupported file.
 A temporary failure never counts: a network problem, a download site's rate
-limit or server error, a full disk, another task or program holding the game or
-a needed file, or an interrupted run. Portcove records it
-with a next-attempt time and runs the same plan again after that time. The wait
-starts at five minutes and doubles up to six hours. A rate limit waits at least
-until the reset the site stated, up to one day. An interruption retries on the
-next pass, then backs off. No new upstream version is needed. Folder setup
-follows the same rules.
+limit or server error, too little free space, another task or program holding
+the game or a needed file, an incomplete list from the download site, or an
+interrupted run. Portcove records it with a next-attempt time and runs the same
+plan again after that time. The output shows it as `Next attempt:` with a UTC
+time. The wait starts at five minutes and doubles up to six hours while the
+same cause repeats. A rate limit waits at least until the reset the site stated,
+up to one day. No new upstream version is needed. Folder setup follows the same
+rules.
+
+An interrupted run retries on the next pass, then backs off. If Portcove stops
+before the same setup finishes three times in a row, the failure becomes lasting.
+Each pass gives one game at most four hours. Then Portcove stops that game's
+setup at its next safe point, keeps the received bytes, and moves on. The game
+continues on the next pass without spending an attempt. A choice that reached
+three failures in a Portcove version before this rule gets one more attempt.
 If an earlier Portcove version spent all three attempts while your registered
 original was offline, reconnect it and repeat
 `games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed

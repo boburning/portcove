@@ -6888,6 +6888,16 @@
             "type": "string"
           },
           {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
             "description": "Portcove stopped before the work finished.",
             "type": "string"
@@ -7981,6 +7991,16 @@
           {
             "const": "file_in_use",
             "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
             "type": "string"
           },
           {
@@ -11837,6 +11857,16 @@
             "type": "string"
           },
           {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
             "description": "Portcove stopped before the work finished.",
             "type": "string"
@@ -11848,7 +11878,7 @@
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
           "attempts": {
-            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -11917,6 +11947,10 @@
           "null"
         ]
       },
+      "failure_classified": {
+        "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+        "type": "boolean"
+      },
       "format_version": {
         "format": "uint8",
         "maximum": 255,
@@ -11971,6 +12005,14 @@
           "newly_ready": {
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
+          },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "port_id": {
             "type": "string"
@@ -12241,6 +12283,10 @@
               "null"
             ]
           },
+          "failure_classified": {
+            "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+            "type": "boolean"
+          },
           "format_version": {
             "format": "uint8",
             "maximum": 255,
@@ -12367,6 +12413,16 @@
             "type": "string"
           },
           {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
             "description": "Portcove stopped before the work finished.",
             "type": "string"
@@ -12378,7 +12434,7 @@
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
           "attempts": {
-            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -14483,6 +14539,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
+          },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
             "type": "string"
@@ -14563,6 +14623,16 @@
             "type": "string"
           },
           {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
             "description": "Portcove stopped before the work finished.",
             "type": "string"
@@ -14574,7 +14644,7 @@
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
           "attempts": {
-            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -14688,6 +14758,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
+          },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
             "type": "string"
@@ -14768,6 +14842,16 @@
             "type": "string"
           },
           {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
             "description": "Portcove stopped before the work finished.",
             "type": "string"
@@ -14779,7 +14863,7 @@
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
           "attempts": {
-            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -19454,6 +19538,14 @@
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
           },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -19744,6 +19836,14 @@
       "RootSetupWaiting": {
         "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
         "properties": {
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "port_id": {
             "type": [
               "string",
@@ -19813,6 +19913,16 @@
           {
             "const": "file_in_use",
             "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
             "type": "string"
           },
           {

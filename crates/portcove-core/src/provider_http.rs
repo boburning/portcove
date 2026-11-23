@@ -317,7 +317,9 @@ impl ProviderHttp {
         if let Some(wait) = self.backoff_remaining() {
             return stale(
                 PortcoveError::network(format!("{} is rate limiting this client", self.label))
-                    .detail("retry_after_seconds", wait.as_secs().to_string()),
+                    // The provider's own throttling started this back-off.
+                    .with_upstream(Some(crate::failure::UpstreamObservation::Status(429)))
+                    .detail("retry_after", wait.as_secs().max(1).to_string()),
             );
         }
         let mut request = self.client.get(url);
@@ -331,7 +333,7 @@ impl ProviderHttp {
         }
         let response = match request.send().await {
             Ok(response) => response,
-            Err(error) => return stale(PortcoveError::network(error.to_string())),
+            Err(error) => return stale(transport(&error)),
         };
         let status = response.status();
         if status == StatusCode::NOT_MODIFIED {
@@ -362,16 +364,25 @@ impl ProviderHttp {
                     .is_some_and(|remaining| remaining == "0"));
         if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() || github_throttle {
             self.start_backoff(response.headers());
-            return stale(PortcoveError::network(format!(
-                "{} returned {status}",
-                self.label
-            )));
+            let mut error = PortcoveError::network(format!("{} returned {status}", self.label))
+                .with_upstream(Some(crate::failure::UpstreamObservation::Status(
+                    status.as_u16(),
+                )));
+            if let Some(retry_after) = response
+                .headers()
+                .get(header::RETRY_AFTER)
+                .and_then(|value| value.to_str().ok())
+            {
+                error = error.detail("retry_after", retry_after);
+            }
+            return stale(error);
         }
         if !status.is_success() {
-            return Err(PortcoveError::network(format!(
-                "{} returned {status}",
-                self.label
-            )));
+            return Err(
+                PortcoveError::network(format!("{} returned {status}", self.label)).with_upstream(
+                    Some(crate::failure::UpstreamObservation::Status(status.as_u16())),
+                ),
+            );
         }
         let etag = response
             .headers()
@@ -397,16 +408,8 @@ impl ProviderHttp {
     }
 }
 
-/// A download connection failure; interruptions are marked temporary, while
-/// builder and redirect failures stay lasting.
 fn transport(error: &reqwest::Error) -> PortcoveError {
-    let converted = PortcoveError::network(error.to_string())
-        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(error));
-    if error.is_builder() || error.is_redirect() || error.is_status() {
-        converted
-    } else {
-        converted.transient_transport()
-    }
+    PortcoveError::from_transport(error)
 }
 
 #[cfg(test)]
@@ -453,21 +456,29 @@ mod tests {
         minimum_bytes: 100,
     };
 
+    /// One 60-byte piece per one-second window keeps the slow transfer above
+    /// the floor however unevenly the scheduler delivers its pieces.
+    const SLOW_FLOOR: ProgressFloor = ProgressFloor {
+        window: Duration::from_secs(1),
+        minimum_bytes: 60,
+    };
+
     #[tokio::test]
     async fn a_slow_download_that_keeps_progressing_completes() {
-        // Five-plus floor windows long: under the removed size-derived
-        // deadline the same shape (scaled) was cut although bytes kept flowing.
+        // Under the removed size-derived deadline the same shape (scaled) was
+        // cut although bytes kept flowing.
         let body: Vec<u8> = (0..2400u32).map(|value| value as u8).collect();
         let url = paced(body.clone(), 60, Duration::from_millis(25)).await;
         let temporary = tempfile::tempdir().unwrap();
         let destination = temporary.path().join("download.bin");
         let started = Instant::now();
-        let (sha256, size) = client(FLOOR)
+        let (sha256, size) = client(SLOW_FLOOR)
             .download_exact(&url, body.len() as u64, &destination, 1 << 20, false)
             .await
             .unwrap();
+        // Forty pieces 25 ms apart: the transfer really was slow.
         assert!(
-            started.elapsed() > FLOOR.window * 4,
+            started.elapsed() >= Duration::from_millis(900),
             "{:?}",
             started.elapsed()
         );

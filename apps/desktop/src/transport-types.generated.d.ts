@@ -1424,7 +1424,15 @@ export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelle
  * Why unattended work stopped for now.
  */
 export type TemporaryCause =
-  "network" | "rate_limited" | "server_unavailable" | "storage_full" | "game_busy" | "file_in_use" | "interrupted";
+  | "network"
+  | "rate_limited"
+  | "server_unavailable"
+  | "storage_full"
+  | "game_busy"
+  | "file_in_use"
+  | "time_budget"
+  | "inventory_incomplete"
+  | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -8404,6 +8412,13 @@ export interface PortIntent {
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
+  /**
+   * Set when `failed_attempts` was counted by a Portcove that separates
+   * temporary from lasting failures. A record that reached the limit
+   * before that (it may have counted network outages) gets one more
+   * attempt after upgrade; its next failure is classified normally.
+   */
+  failure_classified?: boolean;
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
@@ -8435,7 +8450,8 @@ export interface PortIntentSource {
  */
 export interface TemporaryRetry {
   /**
-   * Consecutive temporary failures of the same plan; sets the back-off.
+   * Consecutive temporary failures of the same plan with the same cause;
+   * sets the back-off. A different cause starts the count again.
    */
   attempts: number;
   cause: TemporaryCause;
@@ -8465,6 +8481,11 @@ export interface PortIntentAssessment {
    * been told about yet.
    */
   newly_ready: boolean;
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt. Each surface shows it in its own form.
+   */
+  next_attempt_at?: number | null;
   port_id: string;
   readiness: PortReadiness;
   /**
@@ -8555,6 +8576,11 @@ export interface RootSetupFailure {
    */
   attempts: number;
   /**
+   * Set when `attempts` was counted by a Portcove that separates temporary
+   * from lasting failures; an older record at the limit gets one more try.
+   */
+  failure_classified?: boolean;
+  /**
    * The install plan, or `source:` and the file, that failed.
    */
   plan_sha256: string;
@@ -8618,6 +8644,11 @@ export interface StandingSetupFailure {
  * or a requirement.
  */
 export interface RootSetupWaiting {
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt.
+   */
+  next_attempt_at?: number | null;
   port_id?: string | null;
   profile_id: string;
   reason: string;
