@@ -1321,3 +1321,87 @@ void test("quota refresh cannot spend reserved bytes expired runtime or active p
     assert.equal(f.budget.usage.requests, 339);
   }
 });
+
+void test("a configured shared store owns lead collection and keeps local research", async () => {
+  const { MaintenanceStoreError } = await import("./maintenance-store.mts");
+  const lead = (id: number, revision: string) => ({
+    id,
+    repository: `ports/game-${id}`,
+    url: `https://github.com/ports/game-${id}`,
+    description: "",
+    revision,
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const make = () => {
+    const session = Object.create(
+      discoverySession.DiscoverySession.prototype,
+    ) as discoverySession.DiscoverySession;
+    Object.assign(session, {
+      sharedStore: {},
+      leads: {
+        format: 1,
+        next_family: 0,
+        slices: {},
+        records: {
+          "1": {
+            ...lead(1, "a"),
+            status: "researched",
+            research: { evidence_id: "e1", file: "local.json", material: "m" },
+          },
+        },
+      },
+      journal: { notes: [], collection_done: false },
+      externalCollectionAttempted: false,
+      leadCollectionAttempted: false,
+      persist: () => {},
+    });
+    return session;
+  };
+  const stored = make();
+  await stored.leadsFromSharedStore(async () => ({
+    outcome: "read",
+    revision: 7,
+    bytes: 100,
+    leads: {
+      format: 1,
+      next_family: 2,
+      slices: {},
+      records: { "1": lead(1, "a"), "2": lead(2, "b") },
+    },
+  }));
+  assert.equal(stored.leads.records["1"]!.status, "researched", "local research is kept");
+  assert.ok(stored.leads.records["2"], "the store's leads arrive");
+  assert.ok(
+    stored.externalCollectionAttempted && stored.leadCollectionAttempted,
+    "curated lists and lead searches are not collected again locally",
+  );
+  assert.deepEqual(stored.journal.lead_collection, {
+    owner: "shared-store",
+    revision: 7,
+    records: 2,
+    bytes: 100,
+  });
+  assert.deepEqual(stored.journal.notes, [], "coverage is not marked partial");
+
+  const empty = make();
+  await empty.leadsFromSharedStore(async () => ({ outcome: "empty", bytes: 1 }));
+  assert.ok(!empty.leadCollectionAttempted, "an empty store leaves local collection in place");
+
+  const unavailable = make();
+  await unavailable.leadsFromSharedStore(async () => {
+    throw new MaintenanceStoreError("psql exited 2: connection refused");
+  });
+  assert.ok(!unavailable.leadCollectionAttempted, "an unavailable store falls back to local");
+  assert.equal(unavailable.journal.notes.length, 1, "and the fallback is recorded");
+
+  const broken = make();
+  await assert.rejects(
+    broken.leadsFromSharedStore(async () => {
+      throw new TypeError("defect");
+    }),
+    TypeError,
+    "a defect is not mistaken for an unavailable store",
+  );
+});

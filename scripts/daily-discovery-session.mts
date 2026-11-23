@@ -62,7 +62,9 @@ import {
 } from "./daily-discovery-sources.mts";
 import type { SourceContext, CollectedSource } from "./daily-discovery-sources.mts";
 import {
+  overlayLocalResearch,
   parseLeadState,
+  replaceLeadStateEnvelope,
   pendingLeads,
   leadPageSize,
   leadFamilyIds,
@@ -72,6 +74,7 @@ import {
 import { externalHintSummary, externalRepository, leadPaths } from "./discovery-external-lists.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import type { LeadState } from "./discovery-leads.mts";
+import type { readStoredLeads } from "./discovery-worker.mts";
 import { ecosystemBursts } from "./discovery-ecosystems.mts";
 import {
   collectDiscoveryRun,
@@ -143,6 +146,8 @@ interface Journal {
   backoff_until?: string;
   lead_state?: LeadState;
   research_progress?: Record<string, unknown>;
+  /** Where this run's leads came from when the shared store owns lead collection. */
+  lead_collection?: { owner: "shared-store"; revision: number; records: number; bytes: number };
 }
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -294,6 +299,8 @@ export class DiscoverySession {
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
   externalCollectionAttempted = false;
+  /** The maintenance store's connection when it owns lead collection for this runner. */
+  sharedStore: NodeJS.ProcessEnv | undefined;
   private constructor(stateDir: string, runDir: string, startedAt: string, head: string) {
     this.stateDir = stateDir;
     this.runDir = runDir;
@@ -1275,7 +1282,45 @@ export class DiscoverySession {
     return c;
   }
   async collect() {
+    if (this.sharedStore && !this.journal.collection_done) await this.leadsFromSharedStore();
     return await collectDiscoveryRun(this);
+  }
+  /**
+   * The shared store owns curated lists, lead searches and backfill; this runner
+   * takes its collected leads and keeps local research on top. The reviewed
+   * sources stay local because their checkpoint carries this runner's research
+   * queue. An empty or unavailable store leaves local collection in place.
+   */
+  async leadsFromSharedStore(read?: typeof readStoredLeads) {
+    read ??= (await import("./discovery-worker.mts")).readStoredLeads;
+    const { MaintenanceStoreError } = await import("./maintenance-store.mts");
+    const { MaintenanceResourceDeferred } = await import("./maintenance-resource-policy.mts");
+    let stored: Awaited<ReturnType<typeof readStoredLeads>>;
+    try {
+      stored = await read(this.sharedStore!);
+    } catch (error) {
+      if (!(error instanceof MaintenanceStoreError || error instanceof MaintenanceResourceDeferred))
+        throw error;
+      this.journal.notes.push({
+        source: "shared-store",
+        status: "partial",
+        error: errorMessage(error),
+        resume: "Leads were collected locally this run; the shared store is read again next run",
+      });
+      this.persist();
+      return;
+    }
+    if (stored.outcome === "empty") return;
+    this.leads = overlayLocalResearch(stored.leads, this.leads);
+    this.externalCollectionAttempted = true;
+    this.leadCollectionAttempted = true;
+    this.journal.lead_collection = {
+      owner: "shared-store",
+      revision: stored.revision,
+      records: Object.keys(stored.leads.records).length,
+      bytes: stored.bytes,
+    };
+    this.persist();
   }
   async recheck() {
     const records = sourceProvenancePortIssues(this.inventory.issues);
@@ -1877,6 +1922,8 @@ export function boundedDiscoveryInput() {
     },
   });
 }
+/** Setting this for a local run makes the shared maintenance store own lead collection. */
+export const sharedStoreVariable = "PORTCOVE_MAINTENANCE_DATABASE_URL";
 export async function runDiscoverySession(
   stateDir: string,
   root: string,
@@ -1889,6 +1936,20 @@ export async function runDiscoverySession(
     "discovery run",
   );
   await mkdir(runDir, { recursive: true });
+  // A configured maintenance store owns lead collection. Only its libpq
+  // translation is kept; no child process receives the URL.
+  const sharedStore = process.env[sharedStoreVariable]?.trim()
+    ? (await import("./maintenance-store.mts")).connectionFromEnvironment(sharedStoreVariable)
+    : undefined;
+  delete process.env[sharedStoreVariable];
+  // The store's meter credential travels in its copied environment only.
+  if (sharedStore) {
+    delete process.env.PORTCOVE_NEON_METER_TOKEN;
+    // Stored leads are bounded by the store, so the local copy is bounded by this
+    // machine's memory, as it is for the unattended collector.
+    const { physicalLeadEnvelope } = await import("./discovery-worker.mts");
+    replaceLeadStateEnvelope(physicalLeadEnvelope());
+  }
   const tokenResult = spawnSync("gh", ["auth", "token"], {
     encoding: "utf8",
     windowsHide: true,
@@ -1910,6 +1971,7 @@ export async function runDiscoverySession(
     head,
     { signal: cancellation.signal },
   );
+  session.sharedStore = sharedStore;
   const emit = (v: unknown) => process.stdout.write(JSON.stringify(v) + "\n");
   const guardedInput = boundedDiscoveryInput();
   const input = createInterface({ input: guardedInput, crlfDelay: Infinity });

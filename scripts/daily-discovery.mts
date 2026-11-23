@@ -174,6 +174,10 @@ export async function dailyDiscoveryMain(args: string[]) {
         head: git(["rev-parse", "HEAD"]),
         lock: await optional(path.join(state, "investigation.lock")),
         journal_file: path.join(state, "active-run.json"),
+        // A configured maintenance store owns lead collection for this runner.
+        lead_collection: process.env.PORTCOVE_MAINTENANCE_DATABASE_URL?.trim()
+          ? "shared-store"
+          : "local",
         launch: { tty: true, login: false, keep_session_open_until: "explicit finish" },
       }),
     );

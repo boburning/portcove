@@ -198,6 +198,61 @@ export function postgresDiscoveryStore(
   };
 }
 
+/**
+ * A consistent read-only copy of one scope's stored state and lead records,
+ * taken without a lease. The records are read in pages, so the state revision
+ * is read before and after; a commit in between makes the copy `moved`, and the
+ * caller reads again.
+ */
+export function readDiscoverySnapshot(
+  environment: NodeJS.ProcessEnv,
+  scope: string,
+  pageBytes = Math.floor(outputLimitBytes / 2),
+):
+  | { outcome: "empty"; bytes: number }
+  | { outcome: "moved"; bytes: number }
+  | {
+      outcome: "read";
+      revision: number;
+      state: Record<string, unknown>;
+      records: unknown[];
+      bytes: number;
+    } {
+  const revisionOf = () => {
+    const output = runSql(
+      environment,
+      `SET TRANSACTION READ ONLY;
+       SELECT coalesce((SELECT revision FROM portcove_maintenance.discovery_collection_state
+         WHERE scope = ${sqlLiteral(scope)}), 0)::text;`,
+    ).trim();
+    return { revision: Number(output), bytes: Buffer.byteLength(output) };
+  };
+  const before = revisionOf();
+  if (before.revision === 0) return { outcome: "empty", bytes: before.bytes };
+  const stateOutput = runSql(
+    environment,
+    `SET TRANSACTION READ ONLY;
+     SELECT json_build_object('revision', revision, 'state', state)::text
+     FROM portcove_maintenance.discovery_collection_state WHERE scope = ${sqlLiteral(scope)};`,
+    { timeoutMs: 300_000 },
+  ).trim();
+  const loaded = postgresDiscoveryStore(environment, pageBytes).loadLeadRecords(scope);
+  const after = revisionOf();
+  const bytes = before.bytes + Buffer.byteLength(stateOutput) + loaded.bytes + after.bytes;
+  const row: unknown = JSON.parse(stateOutput);
+  if (!isRecord(row) || !isRecord(row.state))
+    throw new MaintenanceStoreError("Malformed stored discovery state");
+  if (Number(row.revision) !== before.revision || after.revision !== before.revision)
+    return { outcome: "moved", bytes };
+  return {
+    outcome: "read",
+    revision: before.revision,
+    state: row.state,
+    records: loaded.records,
+    bytes,
+  };
+}
+
 /** Read-only status export for the hosted researcher and the maintenance report. */
 export function discoveryStatusQuery(limits: { attempts: number }) {
   return `SET TRANSACTION READ ONLY;

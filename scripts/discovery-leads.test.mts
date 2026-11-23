@@ -2,6 +2,7 @@ import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  overlayLocalResearch,
   skipBackfillWindow,
   acceptBackfillPage,
   backfillEpoch,
@@ -1816,4 +1817,46 @@ void test("a capped window at the epoch finishes the sweep for this run", () => 
     "no second sweep this run",
   );
   assert.ok(nextBackfillPage({ ...state, backfill_next: 0 }, "2026-11-25T05:00:00.000Z"));
+});
+
+void test("local research survives only on the same repository and revision as the stored lead", () => {
+  const lead = (id: number, repository: string, revision: string) => ({
+    id,
+    repository,
+    url: `https://github.com/${repository}`,
+    description: "",
+    revision,
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const researched = { evidence_id: "e", file: "local.json", material: "m" };
+  const stored = {
+    format: 1 as const,
+    next_family: 4,
+    slices: {},
+    records: {
+      "1": lead(1, "ports/one", "a"),
+      "2": lead(2, "ports/two-renamed", "b"),
+      "3": { ...lead(3, "ports/three", "c"), external_lists: ["decomp-fun"] },
+    },
+  };
+  const local = {
+    format: 1 as const,
+    next_family: 0,
+    slices: {},
+    records: {
+      "1": { ...lead(1, "Ports/One", "a"), status: "canonical" as const, research: researched },
+      "2": { ...lead(2, "ports/two", "b"), status: "researched" as const, research: researched },
+      "3": { ...lead(3, "ports/three", "c"), status: "pending" as const },
+    },
+  };
+  const merged = overlayLocalResearch(stored, local);
+  assert.equal(merged.records["1"]!.status, "canonical", "path case does not matter");
+  assert.deepEqual(merged.records["1"]!.research, researched);
+  assert.equal(merged.records["2"]!.status, "pending", "a relocated repository is reviewed again");
+  assert.equal(merged.records["2"]!.repository, "ports/two-renamed");
+  assert.deepEqual(merged.records["3"]!.external_lists, ["decomp-fun"], "stored facts stay");
+  assert.equal(merged.next_family, 4, "the store owns the continuation");
+  assert.equal(stored.records["1"].status, "pending", "the stored copy is not changed");
 });

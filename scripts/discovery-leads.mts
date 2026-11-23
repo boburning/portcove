@@ -712,6 +712,38 @@ export function skipBackfillWindow(
   return boundLeadState(next);
 }
 
+/**
+ * The shared store's collected leads with a local runner's research kept on top.
+ * The store owns collection: search continuations, curated-list hints, backfill
+ * and each record's provider facts come from it. A local record keeps its
+ * research, disposition and status only while it still describes the same
+ * repository at the same revision; a changed upstream takes the stored record,
+ * which requeues it. Local records the store does not hold, such as leads from
+ * the session's own searches, stay as they are.
+ */
+export function overlayLocalResearch(stored: LeadState, local: LeadState): LeadState {
+  const next = structuredClone(stored);
+  for (const [id, mine] of Object.entries(local.records)) {
+    const theirs = next.records[id];
+    if (!theirs) {
+      next.records[id] = structuredClone(mine);
+      continue;
+    }
+    if (
+      theirs.repository.toLowerCase() !== mine.repository.toLowerCase() ||
+      theirs.revision !== mine.revision ||
+      mine.status === "pending"
+    )
+      continue;
+    theirs.status = mine.status;
+    for (const key of ["research", "disposition", "checked_at", "manifest"] as const) {
+      if (mine[key] === undefined) delete theirs[key];
+      else (theirs as unknown as Record<string, unknown>)[key] = structuredClone(mine[key]);
+    }
+  }
+  return parseLeadState(next);
+}
+
 export function pendingLeads(
   state: LeadState,
   known: ReadonlySet<string> = new Set(),
