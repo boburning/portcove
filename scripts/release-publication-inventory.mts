@@ -451,10 +451,13 @@ function receiptPairs(
 export type ReceiptVerification = "all" | readonly string[];
 
 /** Reads both raw commits of each selected receipt and checks the prepared
- * intent against its pair. A receipt's raw commits are immutable and were
- * verified when it was allocated and again when it was published; a decision
- * that consumes only a historical receipt's pair identity does not re-read
- * them, so this work is proportional to the selection, not to history. */
+ * intent against its pair. A receipt's raw commits are content-addressed and
+ * its intent was verified when it was allocated (and, for a published
+ * version, by the published-source proof). A decision that consumes only a
+ * historical receipt's pair identity (version tag and source tag naming one
+ * prepared commit) does not re-read them, so this work is proportional to the
+ * selection, not to history. A pair whose tags disagree with its intent is not
+ * detected here; the receipt tags are the allocation authority. */
 function* readAllocationPairs(
   initialTags: readonly Record<string, unknown>[],
   namespace: string,
@@ -956,14 +959,23 @@ function* walkReleaseInventory<T>(
   const first = `https://api.github.com/${base}${suffix}?per_page=100`;
   const ids = new Set(scan.ids);
   // A re-read page must hold the identical IDs in the identical order and the
-  // identical projected rows, so an in-place edit of an already-read record
-  // (draft, prerelease, tag or publication time) is detected at no extra cost.
+  // identical stable identity fields, so an in-place edit of an already-read
+  // record (tag, draft, prerelease, publication, immutability, target, asset
+  // name/size/state) is detected at no extra cost. Counters, reactions,
+  // bodies and modification clocks change during ordinary use (downloads,
+  // custody notes) and are not part of a record's publication identity.
   const samePage = (body: unknown, page: { ids: number[]; rows: unknown[] }) =>
     Array.isArray(body) &&
     body.length === page.ids.length &&
     body.every((raw, index) => {
       const row = record(raw);
-      return row.id === page.ids[index] && isDeepStrictEqual(project(row), page.rows[index]);
+      return (
+        row.id === page.ids[index] &&
+        isDeepStrictEqual(
+          stableReleaseIdentity(project(row)),
+          stableReleaseIdentity(page.rows[index]),
+        )
+      );
     });
   // Pages that end-of-walk verification re-reads, in the order they were read.
   const verify: { route: string; ids: number[]; rows: unknown[] }[] = [];
@@ -1044,6 +1056,28 @@ function* walkReleaseInventory<T>(
     scan.route = next;
     route = new URL(next);
   }
+}
+
+const stableReleaseFields = [
+  "id",
+  "tag_name",
+  "name",
+  "draft",
+  "prerelease",
+  "published_at",
+  "immutable",
+  "target_commitish",
+  "size",
+  "state",
+  "digest",
+] as const;
+
+/** The fields of a Release or asset row that identify what was published. */
+function stableReleaseIdentity(row: unknown) {
+  const value = record(row);
+  return Object.fromEntries(
+    stableReleaseFields.filter((key) => Object.hasOwn(value, key)).map((key) => [key, value[key]]),
+  );
 }
 
 async function readReleaseInventoryPages<T>(

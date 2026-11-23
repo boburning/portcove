@@ -2198,3 +2198,39 @@ for (const count of [256, 257, 1600, 1601, 20000])
       /source pair is missing or ambiguous/u,
     );
   });
+
+void test("ordinary download and body activity on an already-read page is not an inventory change", async () => {
+  const provider = simulatedPublicationProvider(350);
+  const listing = () =>
+    [...provider.releases].reverse().map((row) => ({
+      ...row,
+      body: `notes ${downloads}`,
+      assets: [{ id: row.id * 10, name: "installer.exe", size: 1, download_count: downloads }],
+    }));
+  let downloads = 0;
+  provider.fault = (url) => {
+    if (url.pathname !== "/repos/boburning/portcove/releases") return undefined;
+    const page = Number(url.searchParams.get("page") ?? "1");
+    downloads++;
+    const rows = listing().slice((page - 1) * 100, page * 100);
+    return Response.json(
+      rows,
+      page * 100 < provider.releases.length
+        ? {
+            headers: {
+              link: `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+            },
+          }
+        : undefined,
+    );
+  };
+  const { readPublicationReleases } = await import("./release-publication-inventory.mts");
+  const rows = await readPublicationReleases(async (url) => {
+    const response = await provider.fetch(url.href);
+    return {
+      data: await response.json(),
+      headers: { link: response.headers.get("link") ?? undefined },
+    };
+  });
+  assert.equal(rows.length, 350);
+});
