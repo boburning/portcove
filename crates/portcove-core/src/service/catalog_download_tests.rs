@@ -1648,6 +1648,7 @@ fn intent(
         archive_sha256: "a".repeat(64),
         downloaded_at: "2026-10-22T00:00:00Z".into(),
         reason: None,
+        progress: None,
     };
     let review = "b".repeat(64);
     service

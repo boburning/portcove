@@ -71,6 +71,10 @@ pub struct PortCapabilityReport {
     pub advisories: Vec<super::advisories::PortCapabilityNotice>,
     pub setup_guide: Option<crate::ManualSetupGuide>,
     pub pending_setup: Option<super::PendingSetupState>,
+    /// The setup stage the player reached; absent while a download is not
+    /// finished or no setup is pending.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_setup_stage: Option<super::PendingSetupStageKind>,
 }
 
 fn action_feature(
@@ -266,6 +270,7 @@ impl PortCapabilityReport {
             advisories: vec![],
             setup_guide: None,
             pending_setup: None,
+            pending_setup_stage: None,
         }
     }
 
@@ -276,6 +281,7 @@ impl PortCapabilityReport {
     ) {
         self.setup_guide = listing.manual_setup.clone();
         self.pending_setup = pending.map(|p| p.state);
+        self.pending_setup_stage = pending.and_then(super::PendingSetupRecord::stage_kind);
         let mut setup = simple(
             CapabilityFeature::Setup,
             CapabilityMode::Unknown,
@@ -301,16 +307,23 @@ impl PortCapabilityReport {
         }
         if let Some(pending) = pending {
             setup.mode = CapabilityMode::Manual;
-            setup.explanation = match pending.state {
-                super::PendingSetupState::Downloaded => "Downloaded; continue setup by reviewing the prepared executable. Nothing has been run by the download.".into(),
-                super::PendingSetupState::AttentionRequired => pending.reason.clone().unwrap_or_else(|| "This saved download needs attention before continuing setup.".into()),
-            };
-            setup.next_step = if pending.state == super::PendingSetupState::Downloaded {
-                "Continue setup"
-            } else {
-                "Review download"
+            // Core's stage message says what happened and what to do next.
+            match (pending.state, pending.stage_message()) {
+                (super::PendingSetupState::Downloaded, Some(message)) => {
+                    setup.explanation = message.summary;
+                    setup.next_step = message.next_step;
+                }
+                (super::PendingSetupState::Downloaded, None) => {
+                    setup.explanation = "Downloaded; continue setup by reviewing the prepared executable. Nothing has been run by the download.".into();
+                    setup.next_step = "Continue setup".into();
+                }
+                (super::PendingSetupState::AttentionRequired, _) => {
+                    setup.explanation = pending.reason.clone().unwrap_or_else(|| {
+                        "This saved download needs attention before continuing setup.".into()
+                    });
+                    setup.next_step = "Review download".into();
+                }
             }
-            .into();
         }
         self.routes.insert(
             self.routes.len().saturating_sub(1),
@@ -393,6 +406,11 @@ impl super::PortcoveService {
         // A focused read must not combine optional details with a replacement installation.
         if serde_json::to_value(&status.status)? != serde_json::to_value(&after.status)?
             || report.pending_setup != after.capabilities.as_ref().and_then(|r| r.pending_setup)
+            || report.pending_setup_stage
+                != after
+                    .capabilities
+                    .as_ref()
+                    .and_then(|r| r.pending_setup_stage)
         {
             return Err(crate::PortcoveError::conflict(
                 "installation changed while capability details were read; refresh this entry",

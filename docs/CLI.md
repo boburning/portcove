@@ -192,6 +192,17 @@ download provenance does not certify the resulting executable or game data.
 An interrupted handoff is reconciled from the recorded attempt and publication
 receipt. An unresolved attempt remains visible as requiring attention.
 
+`setup pending` reports each finished download's setup stage in `progress`:
+`artifact-obtained`, `upstream-setup-opened`, `player-action-needed`,
+`final-selected`, `registration-reviewed` or `invalidated`. Human output adds
+Core's explanation and next step. The stage survives a restart. Continuing
+setup rechecks the kept package against its SHA-256 and does not download it
+again. Closing the upstream setup, even with exit code 0, does not finish
+setup; choose the installed game program so Core can check it. If the source,
+definition, release, a download restriction, the package or the chosen program
+changes, the stage becomes `invalidated` with a typed `kind` and a next step.
+Forget that setup to start again; your files stay in place.
+
 `setup forget PORT_ID --pending-id RECORD_ID` forgets only that exact setup
 record. It does not remove handed-off files. Each port has one active managed
 installation or external registration. A separate downloaded setup may coexist

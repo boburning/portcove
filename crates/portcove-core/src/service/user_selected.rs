@@ -212,14 +212,16 @@ impl PortcoveService {
                 self.catalog.definition_selection(port_id),
             ))?);
         }
-        // The exact retained row binds continuation after directory retirement;
-        // a stale preview cannot consume a different download's bookkeeping.
-        if let Some((record, json)) = &pending {
+        // The exact retained download binds continuation after directory
+        // retirement; a stale preview cannot consume a different download's
+        // bookkeeping. Setup stage progress is excluded, so recording this
+        // review as a stage keeps the authorization it records valid.
+        if let Some((record, _)) = &pending {
             preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
-                "pending-user-selected-v1",
+                "pending-user-selected-v2",
                 &preview.preview_sha256,
                 &record.id,
-                json,
+                record.continuation_identity()?,
             ))?);
         }
         Ok(preview)
@@ -357,6 +359,8 @@ impl PortcoveService {
                 "selected executable, arguments or working directory changed after review",
             ));
         }
+        // A saved setup resumes at this reviewed plan after an interruption.
+        self.record_pending_registration_review(port_id, &preview)?;
         self.library
             .issue_authorization("register_user_selected", port_id, &preview.preview_sha256)
     }
@@ -386,6 +390,8 @@ impl PortcoveService {
                 arguments,
                 &|| operation.checkpoint(),
             )?;
+            // A staged setup whose bound facts changed cannot complete here.
+            self.require_pending_setup_continuable(port_id)?;
             self.library.consume_authorization(
                 authorization_token,
                 "register_user_selected",

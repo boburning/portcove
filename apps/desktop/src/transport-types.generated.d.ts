@@ -942,6 +942,13 @@ export type CapabilityFeature =
  */
 export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
+export type PendingSetupStageKind =
+  | "artifact-obtained"
+  | "upstream-setup-opened"
+  | "player-action-needed"
+  | "final-selected"
+  | "registration-reviewed"
+  | "invalidated";
 export type OutputListingStatuses = PortListingStatus[];
 /**
  * Upstream-owned browser routes. These grant no download or import capability.
@@ -1051,6 +1058,142 @@ export type OutputDestinationOwnership =
   | "owned_by_another_port"
   | "unrelated_content"
   | "invalid"
+  | "unknown";
+/**
+ * Verified bytes the setup folder retains, rechecked before each stage.
+ */
+export type RetainedSetupBytes =
+  | {
+      file: string;
+      kind: "package";
+      sha256: string;
+      size: number;
+    }
+  | {
+      archive_sha256: string;
+      kind: "extracted";
+    };
+/**
+ * Where a fact came from, highest precedence first.
+ */
+export type FactSource =
+  | {
+      document: string;
+      kind: "release-metadata";
+    }
+  | {
+      archive_sha256: string;
+      kind: "exact-release-structured";
+      shape_version: number;
+    }
+  | {
+      kind: "provider-cross-reference";
+      provider: string;
+      reference: string;
+    }
+  | {
+      extractor: string;
+      kind: "family-extractor";
+      version: number;
+    }
+  | {
+      kind: "stable-declaration";
+    }
+  | {
+      kind: "filename-suggestion";
+      rule_version: number;
+    };
+export type PendingSetupStage =
+  | {
+      stage: "artifact-obtained";
+    }
+  | {
+      handoff: UpstreamSetupHandoff;
+      opened_at: string;
+      stage: "upstream-setup-opened";
+    }
+  | {
+      action: PlayerSetupAction;
+      /**
+       * The upstream setup's reported exit code, when one was reported.
+       * It never decides completion.
+       */
+      exit_code?: number | null;
+      stage: "player-action-needed";
+    }
+  | {
+      selection: SelectedSetupResult;
+      stage: "final-selected";
+    }
+  | {
+      preview_sha256: string;
+      selection: SelectedSetupResult;
+      stage: "registration-reviewed";
+    }
+  | {
+      previous: PendingSetupStageKind;
+      reason: PendingSetupInvalidation;
+      stage: "invalidated";
+    };
+/**
+ * What Portcove handed to the player. Portcove never runs the upstream
+ * installer itself from a pending setup.
+ */
+export type UpstreamSetupHandoff =
+  | {
+      kind: "folder";
+    }
+  | {
+      kind: "guide";
+      url: string;
+    };
+export type PlayerSetupAction = "finish-upstream-setup" | "choose-installed-game" | "retry-upstream-setup";
+export type PendingSetupInvalidation =
+  | {
+      current_source_url: string;
+      kind: "source-changed";
+    }
+  | {
+      kind: "definition-changed";
+    }
+  | {
+      current_release_tag: string;
+      kind: "release-superseded";
+    }
+  | {
+      explanation: string;
+      kind: "restriction-holds";
+    }
+  | {
+      current_role: ArtifactRole;
+      kind: "artifact-role-changed";
+    }
+  | {
+      kind: "retained-bytes-changed";
+    }
+  | {
+      kind: "selected-result-changed";
+    };
+/**
+ * What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a
+ * launch target.
+ */
+export type ArtifactRole =
+  | "desktop-game-runtime"
+  | "desktop-game-data"
+  | "dedicated-server"
+  | "builder"
+  | "installer"
+  | "importer"
+  | "compiler"
+  | "dev-tool"
+  | "original-game-input"
+  | "mobile-package"
+  | "console-output"
+  | "documentation"
+  | "source-archive"
+  | "integrity-metadata"
+  | "debug-symbols"
   | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
 /**
@@ -1232,57 +1375,6 @@ export type Coverage =
 export type RouteHold = "wrong-role" | "wrong-host" | "contradictory-role" | "incomplete-coverage";
 export type TargetArch = "x86-64" | "aarch64" | "x86" | "universal" | "unknown";
 export type TargetOs = "windows" | "linux" | "macos" | "android" | "ios" | "console" | "web" | "unknown";
-/**
- * What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a
- * launch target.
- */
-export type ArtifactRole =
-  | "desktop-game-runtime"
-  | "desktop-game-data"
-  | "dedicated-server"
-  | "builder"
-  | "installer"
-  | "importer"
-  | "compiler"
-  | "dev-tool"
-  | "original-game-input"
-  | "mobile-package"
-  | "console-output"
-  | "documentation"
-  | "source-archive"
-  | "integrity-metadata"
-  | "debug-symbols"
-  | "unknown";
-/**
- * Where a fact came from, highest precedence first.
- */
-export type FactSource =
-  | {
-      document: string;
-      kind: "release-metadata";
-    }
-  | {
-      archive_sha256: string;
-      kind: "exact-release-structured";
-      shape_version: number;
-    }
-  | {
-      kind: "provider-cross-reference";
-      provider: string;
-      reference: string;
-    }
-  | {
-      extractor: string;
-      kind: "family-extractor";
-      version: number;
-    }
-  | {
-      kind: "stable-declaration";
-    }
-  | {
-      kind: "filename-suggestion";
-      rule_version: number;
-    };
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 /**
  * The application release feed a player follows. Beta is the default; Preview
@@ -5733,6 +5825,11 @@ export interface PortCapabilityReport {
    */
   observations: RecommendationEvidence[];
   pending_setup: PendingSetupState | null;
+  /**
+   * The setup stage the player reached; absent while a download is not
+   * finished or no setup is pending.
+   */
+  pending_setup_stage?: PendingSetupStageKind | null;
   port_id: string;
   protection: PlayerDataProtection | null;
   routes: PortCapabilityRoute[];
@@ -6231,8 +6328,75 @@ export interface PendingSetupRecord {
   listing: PortListing;
   path: string;
   port_id: string;
+  /**
+   * Where the player is in the upstream setup that follows the download.
+   * Format 3 persists it; earlier formats map a finished download to
+   * `artifact-obtained` on read without writing it back.
+   */
+  progress?: PendingSetupProgress | null;
   reason: string | null;
   state: PendingSetupState;
+}
+/**
+ * Where the player is in an upstream setup, and what that place is bound to.
+ */
+export interface PendingSetupProgress {
+  /**
+   * Absent only for a record written before stages existed. Core binds it
+   * to the current facts when the player first continues that setup.
+   */
+  binding?: PendingSetupBinding | null;
+  stage: PendingSetupStage;
+  updated_at: string;
+}
+/**
+ * The exact facts a stage belongs to. Any change invalidates the stage.
+ */
+export interface PendingSetupBinding {
+  /**
+   * Typed route fact for the downloaded artifact. A filename suggestion
+   * describes it; it never authorizes a runtime.
+   */
+  artifact_role:
+    | "desktop-game-runtime"
+    | "desktop-game-data"
+    | "dedicated-server"
+    | "builder"
+    | "installer"
+    | "importer"
+    | "compiler"
+    | "dev-tool"
+    | "original-game-input"
+    | "mobile-package"
+    | "console-output"
+    | "documentation"
+    | "source-archive"
+    | "integrity-metadata"
+    | "debug-symbols"
+    | "unknown";
+  /**
+   * Digest of the strict definition and selection known for this port, or
+   * of their absence for a listing-only project.
+   */
+  definition_sha256: string;
+  retained: RetainedSetupBytes;
+  role_source: FactSource;
+  /**
+   * Upstream project or release address of the retained listing.
+   */
+  source_url: string;
+}
+/**
+ * Identity facts of the program the player chose, as Core checked them.
+ */
+export interface SelectedSetupResult {
+  arguments: string[];
+  executable: string;
+  executable_sha256: string;
+  executable_size: number;
+  selected_at: string;
+  version: string;
+  working_directory: string;
 }
 export interface OutputPortPaths {
   active_install_root: string | null;

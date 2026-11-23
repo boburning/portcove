@@ -46,6 +46,15 @@ fn download_artifact_subject<'a>(
 #[path = "catalog_download_tests.rs"]
 mod tests;
 
+#[path = "pending_setup_stage.rs"]
+mod stage;
+pub use stage::{
+    PendingSetupBinding, PendingSetupEvent, PendingSetupInvalidation, PendingSetupMessage,
+    PendingSetupProgress, PendingSetupResume, PendingSetupStage, PendingSetupStageKind,
+    PlayerSetupAction, RetainedSetupBytes, SelectedSetupResult, UpstreamSetupHandoff,
+    pending_setup_message,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogDownloadRequest {
@@ -227,6 +236,11 @@ pub struct PendingSetupRecord {
     pub archive_sha256: String,
     pub downloaded_at: String,
     pub reason: Option<String>,
+    /// Where the player is in the upstream setup that follows the download.
+    /// Format 3 persists it; earlier formats map a finished download to
+    /// `artifact-obtained` on read without writing it back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<PendingSetupProgress>,
 }
 
 impl PendingSetupRecord {
@@ -283,7 +297,11 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
         .artifact
         .release_id
         .require_tag(&record.artifact.release_tag)?;
-    let expected_format = if record.artifact.release_id.github_id().is_some() {
+    // Format 3 carries a bound setup stage for either provider; the typed
+    // release identity names the provider. Formats 1 and 2 have no stage.
+    let expected_format = if record.progress.is_some() {
+        stage::STAGED_RECORD_FORMAT
+    } else if record.artifact.release_id.github_id().is_some() {
         1
     } else {
         2
@@ -304,6 +322,7 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     {
         validate_retained_gitlab_source(record, *project_id, tag, *file_id)?;
     }
+    stage::validate_progress(record)?;
     if record.port_id != record.listing.id
         || Uuid::parse_str(&record.id).is_err()
         || !record.path.is_absolute()
@@ -415,8 +434,9 @@ fn validate_retained_gitlab_source(
 }
 
 fn encoded_download_record(record: &PendingSetupRecord) -> Result<String> {
-    validate_record(record)?;
-    let json = serde_json::to_string(record)?;
+    let record = stage::storage_form(record);
+    validate_record(&record)?;
+    let json = serde_json::to_string(&*record)?;
     if json.len() > RECORD_LIMIT {
         return Err(PortcoveError::conflict(
             "pending setup record exceeds its UTF-8 byte limit",
@@ -480,8 +500,9 @@ fn stored_downloads_from(connection: &rusqlite::Connection) -> Result<Vec<Stored
         }
         let _: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_str(&record_json)?;
-        let record: PendingSetupRecord = serde_json::from_str(&record_json)?;
+        let mut record: PendingSetupRecord = serde_json::from_str(&record_json)?;
         validate_record(&record)?;
+        stage::map_legacy_stage(&mut record);
         if record.port_id != port_id
             || record.id != id
             || !is_digest(&preview_sha256)
@@ -1251,6 +1272,7 @@ impl PortcoveService {
                 archive_sha256: String::new(),
                 downloaded_at: String::new(),
                 reason: Some("Package download is in progress.".into()),
+                progress: None,
             };
             self.insert_catalog_download(
                 &record,
@@ -1339,6 +1361,7 @@ impl PortcoveService {
                         &payload,
                         &preview.preview_sha256,
                         &operation,
+                        true,
                     )
                 } else {
                     let target = payload.join(&artifact.name);
@@ -1355,6 +1378,7 @@ impl PortcoveService {
                         &payload,
                         &preview.preview_sha256,
                         &operation,
+                        false,
                     )
                 }
             }
@@ -1449,6 +1473,7 @@ impl PortcoveService {
         payload: &Path,
         preview_sha256: &str,
         operation: &OperationCoordinator,
+        extracted: bool,
     ) -> Result<PendingSetupRecord> {
         operation.checkpoint()?;
         self.require_download_destination(&record.path)?;
@@ -1506,6 +1531,9 @@ impl PortcoveService {
         }
         record.state = PendingSetupState::Downloaded;
         record.reason = None;
+        // The first setup stage is durable with the handoff itself.
+        record.format_version = stage::STAGED_RECORD_FORMAT;
+        record.progress = Some(self.publication_progress(&record, extracted)?);
         let json = encoded_download_record(&record)?;
         require_download_record_capacity(&transaction, &record.port_id, &json)?;
         crate::durability::rename_noreplace(payload, &record.path)?;

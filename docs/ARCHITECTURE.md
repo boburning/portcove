@@ -289,7 +289,25 @@ The `catalog_downloads` table retains the listing, selected asset, observed
 digest and continuation identity. An atomic workspace snapshot includes
 listings, action assessments and pending setup. Explicit registration consumes
 only the reviewed pending row, and keeps the existing user-selected execution
-intent, native-file and path checks. Relinking preserves registration identity
+intent, native-file and path checks.
+
+A finished download also records the player's typed setup stage
+(`service/pending_setup_stage.rs`): artifact obtained, upstream setup opened,
+player action needed, final program selected and registration reviewed. Record
+format 3 binds each stage to the retained source address, a digest of the
+strict definition and selection, the artifact's typed route-fact role and the
+retained package or publication receipt. Formats 1 and 2 stay readable; a
+finished earlier download maps to artifact obtained on read and is bound when
+the player continues. Each stage change replaces the exact row in one SQLite
+transaction, under the port lock, so an interruption leaves the earlier or the
+later stage. Resuming rechecks the retained digest instead of downloading
+again. A changed source, definition, held restriction, reviewed newer release,
+artifact role, retained bytes or chosen program invalidates the stage with a
+typed reason and Core's player message. An upstream setup exit, including code
+0, is never completion: only the player's selection, checked by Core, followed
+by reviewed registration completes setup. Desktop records the folder or setup
+guide handoff through Core; stages grant no update, removal or runtime
+ownership of the upstream output. Relinking preserves registration identity
 and history. Forgetting pending setup or removing a registration leaves user
 files in place. Neither operation grants updates, save migration, backup,
 rollback or external deletion.

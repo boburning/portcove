@@ -432,7 +432,7 @@ pub(crate) async fn execute(
                     .iter()
                     .map(|record| {
                         format!(
-                            "{}\t{}\t{}{}",
+                            "{}\t{}\t{}{}{}",
                             human::clean(&record.port_id),
                             record.id,
                             record.path.display(),
@@ -440,6 +440,15 @@ pub(crate) async fn execute(
                                 .reason
                                 .as_ref()
                                 .map(|reason| format!("\n{}", human::clean(reason)))
+                                .unwrap_or_default(),
+                            // Core's stage message: what happened, then the next step.
+                            record
+                                .stage_message()
+                                .map(|message| format!(
+                                    "\n{}\n{}",
+                                    human::clean(&message.summary),
+                                    human::clean(&message.next_step)
+                                ))
                                 .unwrap_or_default()
                         )
                     })

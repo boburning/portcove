@@ -350,7 +350,9 @@ API88 adds provider-qualified GitLab release and registry-file references to
 self-service download selection. GitHub references remain numeric; GitLab
 references are explicit objects carrying project/tag and link/file identities.
 Pending setup records use format 2 for GitLab and retain omitted format 1 for
-GitHub. Consumers of these contracts must preserve and compare the complete
+GitHub. Format 3 adds a bound `progress` stage for either provider;
+the typed release identity names the provider. Consumers must refuse a record
+format they do not know. Consumers of these contracts must preserve and compare the complete
 references, reject mixed providers and unknown record formats, and obtain a
 fresh Core preview before download or registration. The reference Playnite
 client consumes none of those setup identities and exposes no setup command;
