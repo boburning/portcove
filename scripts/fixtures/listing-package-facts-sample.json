@@ -1,5 +1,5 @@
 {
-  "format": 11,
+  "format": 12,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -31,6 +31,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -80,6 +81,7 @@
             }
           ],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -90,7 +92,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -112,6 +114,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -147,6 +150,7 @@
             }
           ],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -157,7 +161,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -179,6 +183,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -213,6 +218,7 @@
           ],
           "excluded_players": [],
           "contradictory": true,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -223,7 +229,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -245,6 +251,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -285,6 +292,7 @@
           ],
           "excluded_players": [],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -295,7 +303,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -317,6 +325,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -351,6 +360,7 @@
           ],
           "excluded_players": [],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -361,7 +371,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -383,6 +393,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -417,6 +428,7 @@
           ],
           "excluded_players": [],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
@@ -427,7 +439,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 13,
+      "parser_version": 14,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -449,6 +461,7 @@
         }
       ],
       "other_packages": [],
+      "asset_names": [],
       "refused_archives": [],
       "attempt": null,
       "artifacts": [
@@ -483,10 +496,11 @@
           ],
           "excluded_players": [],
           "contradictory": false,
+          "toolchain_names": [],
           "bundled_toolchain": []
         }
       ]
     }
   ],
-  "entries_sha256": "1f74003dbb2f2443ad6babbd7fcb05a5f3c3b7f6d879002c8e9644fc96285cc0"
+  "entries_sha256": "fc3fca20882b280b9baa1c3c0121b96146e83ad9ff0d7caf1cb703a80b9ac61d"
 }

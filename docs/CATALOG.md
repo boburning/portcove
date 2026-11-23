@@ -3779,8 +3779,7 @@ blocked reason:
     platform's game or a second one, so the platform is never decided around
     it.
 11. On that platform the players are one program, and the archives holding
-    them are one package or exactly one of them names the platform's system
-    beside only system-neutral others
+    them are one package (equal archive bytes), whatever their names say
     ([one program per platform](#one-program-per-platform)). No such archive
     bundles a compiler, interpreter or build helper (`bundled-toolchain`).
 12. On that platform no restriction holds `register-external` or `launch`. A
@@ -3872,37 +3871,56 @@ authoring-tool archive whose program has the same file name. Two archives are
 the same package only when their own bytes are (equal archive SHA-256).
 
 First, an archive whose own name holds a role word as a whole
-separator-delimited word is never offered: `update`, `updater`, `hotfix`,
-`delta`, `incremental`, `patch`, `symbols` or `debug` (`update-0.5.10.zip`,
-`Game-debug-win64.zip`; `Updated-Game.zip`, `Deltarune-Fan.zip` and
-`Patchwork.zip` pass). It is reported as an `asset-role-name` exclusion with
-the word as its token. Then, when more than one distinct archive whose name
-allows the platform still holds players for it, the platform is
-`ambiguous-artifact`, never chosen by order or size, with one exception:
-when exactly one of them names the platform's operating system in its name
-and every other is system-neutral, the explicit one is chosen. So a
-`Game-v1.0.zip` beside a `Game-v1.0.tar.gz` of the same game is ambiguous for
-every platform both allow, `Game-v1.0-windows.zip` beside `Game-v1.0.tar.gz`
-offers the Windows archive on Windows and the neutral tarball on Linux, and
-two Windows-named archives stay ambiguous. The one-program rule still counts
-the players of every such archive. The gate checks each part with its own
-code too.
+separator-delimited word, optionally followed by digits, is never offered:
+`update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols` or
+`debug` (`update-0.5.10.zip`, `Game-debug-win64.zip`,
+`Game-Windows-Update1.zip`, `Game-patch01.zip`; `Updated-Game.zip`,
+`Deltarune-Fan.zip` and `Patchwork.zip` pass). A role word that is also a
+whole name word of the repository's name or of the listing's id, name or
+original title (split like [release lines](#release-lines) split names) names
+the product, not a role, and is dropped before matching: `Delta-Force-win64.zip`
+for a listing named "Delta Force", or `Debug-Quest-v1.zip` on a `debug-quest`
+repository, is not vetoed. It is reported as an `asset-role-name` exclusion
+with the word as its token. Then, when more than one distinct archive whose
+name allows the platform still holds players for it, the platform is
+`ambiguous-artifact`, never chosen by order, size or name. There is no
+exception for an archive that names the platform's system: a
+`Game-v1.2-windows-exe-only.zip` beside an OS-neutral full `Game-v1.2.zip`
+cannot be told apart from the full build by name, so choosing the explicit
+one would enroll a partial build. So a `Game-v1.0.zip` beside a
+`Game-v1.0.tar.gz` of the same game is ambiguous for every platform both
+allow, and `Game-v1.0-windows.zip` beside a neutral `Game-v1.0.tar.gz` that
+also holds the Windows program is ambiguous on Windows and offers the tarball
+on Linux. A neutral Linux-only tarball beside `Game-windows.zip` holds no
+Windows player, so each platform still has one archive. The one-program rule
+still counts the players of every such archive. The gate checks each part
+with its own code too.
 
 An archive that bundles a compiler, interpreter or build helper builds or
 prepares the game on the player's machine ("build on first start"), so a
 person must look at it. Core's inspection returns the archive's listing as
-names only (every distinct lowercase path component); the worker records
-the components that equal a helper name, with or without `.exe`, as the
-artifact's `bundled_toolchain`: `zig`, `clang`, `gcc`, `g++`, `cc1`, `ld`,
-`lld`, `python`, `python3`, `pip`, `node`, `cmake`, `ninja`, `make`,
-`msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta` and `xdelta3`.
-`7z` and `7za` are ordinary extraction helpers and are not on the list. Only a
-whole component matches, so `python311.dll`, `scripts/` or `node_modules/`
-never do. Any such archive among the platform's candidates makes the platform
-`bundled-toolchain`, whatever the program is called: a program name cannot
-prove the release does not build itself. The route-fit report lists the
-helper names per identity (`registration_queues.bundled_toolchains`). The
-gate refuses an enrollment decided beside such an archive with its own check.
+names only: `names` (every distinct lowercase path component) and `leaves`
+(every distinct lowercase file name). The helpers are `zig`, `clang`, `gcc`,
+`g++`, `cc1`, `ld`, `lld`, `python`, `python3`, `pip`, `node`, `cmake`,
+`ninja`, `make`, `msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta`
+and `xdelta3`. `7z` and `7za` are ordinary extraction helpers and are not on
+the list. The worker records every listing entry equal to a helper name, with
+or without `.exe`, as the artifact's `toolchain_names`: a file leaf as is
+(`python.exe`), a directory component that is no file leaf with a trailing
+`/` (`zig/`, `link/`). The short or common helper names `cl`, `ld`, `link`,
+`make`, `node`, `python`, `python3` and `pip` also name ordinary folders, so
+they count only as a file leaf: `assets/link/`, `levels/ld/` or a
+`lib/python3.11/` folder never match, while `Python/python.exe` does. The
+other helpers count as a file or a directory (`tools/zig/`). Only a whole
+name matches, so `python311.dll`, `scripts/` or `node_modules/` never do. The
+helpers the recorded entries show are the artifact's `bundled_toolchain`; the
+facts check refuses a summary the entries do not show. Any such archive among
+the platform's candidates makes the platform `bundled-toolchain`, whatever
+the program is called: a program name cannot prove the release does not
+build itself. The route-fit report lists the helper names per identity
+(`registration_queues.bundled_toolchains`). The gate re-derives the helpers
+from the recorded `toolchain_names` with its own code, never from the
+worker's summary, and refuses an enrollment decided beside such an archive.
 
 ##### Release lines
 
@@ -3937,20 +3955,30 @@ different product words:
   `build123`, `nightly20250101`, `release1.2`). `final` and `update` are not
   channel words: they can name a product.
 - A commit hash (7 to 40 hex characters with at least one digit and one
-  letter `a`–`f`) is version noise: `native-only-1a2b3c4` is line
-  `native-only` and `dev-abc1234` is the main line, while `deadbeef-v1` (no
-  digit) is line `deadbeef`. `v.` before digits is a version (`v.0.1.1`).
-- `tester`, `prealpha`, `canary`, `wip`, `experimental`, `fixed`, `fix`,
-  `new` and `pr<digits>` are channel words when they stand next to a version,
-  date or hash, or when the tag holds nothing else (`wip-v0.4`, `pr42`,
-  `v1.0-fix`, `new`). Between product words they stay product words:
-  `new-game-v1` is line `new-game` and `fix-it-v1` is `fix-it`.
+  letter `a`–`f`) is version noise after the first word: `native-only-1a2b3c4`
+  is line `native-only` and `dev-abc1234` is the main line, while
+  `deadbeef-v1` (no digit) is line `deadbeef`. As the tag's first word a
+  hex-looking word names the product: `facade1-v1.0`, `decade2-v1.0` and
+  `cafe2024-v2` are lines of their own, and a hash-only tag such as
+  `abc1234` is a line of its own too (excluded unless bound). `v.` before
+  digits is a version (`v.0.1.1`).
+- `test`, `testing`, `tester`, `prealpha`, `canary`, `wip`, `experimental`,
+  `fixed`, `fix`, `new` and `pr<digits>` are channel words when they stand
+  next to a version, date or hash, or when the tag holds nothing else
+  (`wip-v0.4`, `pr42`, `v1.0-fix`, `new`, `test`). Between product words they
+  stay product words: `new-game-v1` is line `new-game`, `fix-it-v1` is
+  `fix-it` and `test-drive-v1.0` is `test-drive`.
 - Operating-system and architecture words are dropped as whole words
   (`windows`, `win`, `win32`, `win64`, `linux`, `linux64`, `macos`, `mac`,
   `osx`, `darwin`, `universal`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`,
   `aarch64`, `i386`, `i686`, and a literal `x8664`), so builds of one
   product for several systems
   are one line: `windows-v1.0`, `win64-1.0` and `linux` are the main line.
+  `x86_64` and `x86-64` are one word only when no letter or digit touches
+  either end, in both copies of the rule; as one word they are a build
+  target, never a number beside a conditional channel word, so
+  `sm-x86-64-fixed-mac` is line `sm-fixed`. `nightly-x86-6412` holds `x86`
+  and `6412`.
 
 A line that spells the repository's own name is the main line. So `v1.0`,
 `v2`, `2.0`, `v1.2.0p`, `2.0.0-beta`, `r14388`, `2025.01.01`, `20250101`,
@@ -3974,12 +4002,21 @@ A tag that consists only of rolling-channel words (`nightly`, `continuous`,
 `experimental` and similar) plus dates, times, hashes and system or
 architecture words is a prerelease for the newest-stable choice even when the
 provider does not flag it: `build_20261120_2250`, `nightly-2025-01-01`,
-`continuous`, `latest` and `dev-abc1234`. A date or time word is an even
-number of two to fourteen digits. `release-2025-01-01`, `build-123`,
-`nightly-1` and `2025.01.01` are not such tags. The worker records the
-combined verdict, and the fit rule and the gate each restate the tag rule
-(`channelOnlyTag`, `gateChannelOnlyTag`) for the offered release and every
-observed release.
+`continuous`, `latest` and `dev-abc1234`. Only real calendar and clock shapes
+are dates: a year `19xx` or `20xx`, a month directly after a year and a day
+directly after that month (`2025-01-01`), an eight-digit `yyyymmdd`
+(optionally with `hhmm` or `hhmmss` glued after it), and an `hhmm` or
+`hhmmss` word directly after a whole date. Any other number is a version, so
+`build-42`, `build-12`, `build-1234`, `beta-01`, `release-2025-01-01`,
+`build-123`, `nightly-1` and `2025.01.01` are not such tags. The worker
+records the combined verdict, and the fit rule and the gate each restate the
+tag rule (`channelOnlyTag`, `gateChannelOnlyTag`) for the offered release and
+every observed release.
+
+A channel-only release counts as never stable. For the newest-stable choice
+and for the planned rule for repositories that publish only prereleases, a
+repository whose releases are all channel-only (or flagged prereleases) has
+never published a stable release (`no-stable-release`).
 
 The worker records each observed release (within the observer's own bound of
 the newest releases) with its tag, its prerelease verdict, publication time
@@ -4096,12 +4133,22 @@ ignored:
 - debug symbols: `.pdb`, `.dbg`, `.debug`, `.sym` (a `.dSYM.zip` is a read
   archive with no players);
 - patches and torrents: `.torrent`, `.patch`, `.diff`;
+- audio, fonts and subtitles: `.mp3`, `.ogg`, `.flac`, `.wav`, `.opus`,
+  `.ttf`, `.otf`, `.woff`, `.woff2`, `.srt`, `.vtt`;
+- office documents and ebooks: `.docx`, `.odt`, `.epub`;
+- signing and attestation: `.bundle` (including `.cosign.bundle`), `.p7s`,
+  `.crt`, `.cer`, `.pub`, `.sbom`, `.spdx`;
+- lockfiles, configuration, translations and metadata: `.lock`, `.toml`
+  (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
+  `.css`, `.desktop`, `.appinstaller` (an App Installer file is metadata that
+  points at a package; the package itself is listed separately);
 - the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
   `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
   `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
   `md5sum`, `RELEASES`, `VERSION`, `manifest`, `LICENSE`, `LICENCE`,
   `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`, `AUTHORS`,
-  `CREDITS`, `NEWS`, `TODO`, `INSTALL`, `Makefile` and `Dockerfile`;
+  `CREDITS`, `NEWS`, `TODO`, `INSTALL`, `Makefile`, `Dockerfile`, `go.sum`
+  and `go.mod`;
 - SPDX-looking license names (`gpl-3.0`, `lgpl-2.1-or-later`, `agpl-3.0`,
   `apache-2.0`, `mpl-2.0`, `bsd-3-clause`);
 - `LICENSE`, `LICENCE`, `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`
@@ -4116,6 +4163,10 @@ ignored:
   safe direction: `Changes-Game-linux`, `Notice-Me-Senpai`,
   `Readme-Launcher`, `Authors-Cut`, `readme_first` and `installer` are bare
   Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
+
+Nothing that can carry or launch a program is on the list: `.js`, `.bat`,
+`.cmd`, `.ps1`, `.command`, `.nupkg`, `.db`, `.dat`, `.delta` and `.diff.gz`
+keep competing as unread containers.
 
 The identity is excluded as a whole (`other-package-form-beside-archive`)
 when the release carries such an asset for a platform the release also
@@ -4154,12 +4205,17 @@ Known residuals:
   without an offered archive in `registration_queues`
   (`enrolled_beside_unoffered_forms`) as a review queue, and the facts batch
   summary prints that list.
-- The gate sees only the assets the worker recorded as other package forms,
-  and a container's platforms only as recorded from Core's name verdict.
-  Reproduction re-lists the release with the same classifier, so a
-  classifier mistake that drops or narrows an asset is shared by the worker,
-  the fit rule and the gate. The classifier's tables are pinned by one
-  shared fit-and-gate test table.
+- The facts record the name of every release asset that is neither a recorded
+  artifact nor a refused archive (`asset_names`, within the observer's asset
+  window), and the gate classifies each with its own classifier
+  (`gateFormKind`): a form the gate sees that the worker did not record in
+  `other_packages` competes with an unknown digest on every platform its kind
+  serves (every platform for a container), so a worker classifier mistake
+  that drops an asset refuses the batch instead of enrolling. Reproduction
+  compares `asset_names` with the re-listed release. A recorded container's
+  platforms still come from Core's name verdict as recorded, widened by the
+  gate's own reading of the name, never narrowed. The classifier's tables are
+  pinned by one shared fit-and-gate test table.
 
 ##### What the player sees
 
@@ -4279,9 +4335,17 @@ version; it lands in the reviewed change that raises it, with no bound to
 raise. Raise `GENERATOR_VERSION` when the fit rule or the generated route
 changes, `FACTS_PARSER_VERSION` when the worker's output for the same
 upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
-changes. #8569 raised the generator version from 5 to 12, the facts parser
-version from 5 to 13 and the facts table format from 4 to 11
-(iOS shape at any depth, glued numbers in program names, the gate's directory
+changes. A parser or generator behavior change requires its version bump:
+the bump is what marks the withdrawals it causes as `rule-version` and holds
+them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
+generator version from 5 to 13, the facts parser version from 5 to 14 and
+the facts table format from 4 to 12 (generator 13, parser 14 and format 12:
+no explicit-system exception for several archives, role words with digits
+and without the product's own name words, `x86-64` as one word in both copies,
+real date shapes in channel-only tags, first-word hex words as product words,
+`test` as a conditional channel word, the wider non-program list, file-only
+short toolchain helpers with recorded `toolchain_names`, and recorded
+`asset_names` for the gate's own classifier; earlier: iOS shape at any depth, glued numbers in program names, the gate's directory
 check, unreadable asset records, ARM64EC, release lines, shared
 repositories, one package per platform, per-archive Core refusals,
 per-platform archive counts, new tool tokens, the other-package-form rule

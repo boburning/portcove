@@ -49,6 +49,10 @@ pub struct ListingArtifactInspection {
     /// directory name and file name, never a joined path), sorted: the
     /// archive's listing as names only. Bounded by the inspected file bound.
     pub names: Vec<String>,
+    /// Every distinct lowercase file name (the last path component of each
+    /// regular file, never a directory), sorted. A name can be both a file
+    /// leaf and a directory component; only this list says it is a file.
+    pub leaves: Vec<String>,
 }
 
 /// One native executable a listing archive holds.
@@ -131,12 +135,20 @@ pub fn inspect_listing_artifact_archive(
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
+    let leaves = files
+        .iter()
+        .filter_map(|(relative, _, _)| relative.rsplit('/').next())
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     Ok(ListingArtifactInspection {
         sha256: expected_sha256.to_ascii_lowercase(),
         shape_version: SHAPE_VERSION,
         files: files.len(),
         player_candidates,
         names,
+        leaves,
     })
 }
 
@@ -580,6 +592,8 @@ mod tests {
             inspection.names,
             ["data", "engine.dll", "game", "game.exe", "readme.txt"]
         );
+        // File leaves only: no directory component.
+        assert_eq!(inspection.leaves, ["engine.dll", "game.exe", "readme.txt"]);
     }
 
     #[test]
@@ -594,6 +608,27 @@ mod tests {
         assert_eq!(
             inspection.names,
             ["game", "launcher.exe", "tools", "zig", "zig.exe"]
+        );
+        assert_eq!(inspection.leaves, ["launcher.exe", "zig.exe"]);
+    }
+
+    #[test]
+    fn the_file_leaves_exclude_directories_that_share_a_helper_name() {
+        let (_temporary, path, size, digest) = archive(&[
+            ("Game/Game.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/assets/link/door.png", b"png".to_vec()),
+            ("Game/levels/ld/one.map", b"map".to_vec()),
+            ("Game/Python/python.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/make", b"#!/bin/sh".to_vec()),
+        ]);
+        let inspection =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                .unwrap();
+        assert!(inspection.names.contains(&"link".to_owned()));
+        assert!(inspection.names.contains(&"ld".to_owned()));
+        assert_eq!(
+            inspection.leaves,
+            ["door.png", "game.exe", "make", "one.map", "python.exe"]
         );
     }
 

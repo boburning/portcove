@@ -87,6 +87,7 @@ import {
   type RefusalClass,
   type RefusedArchive,
   bundledToolchain,
+  toolchainNames,
   channelOnlyTag,
   failureCauses,
   compareCodePoints,
@@ -198,6 +199,8 @@ export interface ArchiveInspection {
   players: PlayerFact[];
   /** Every distinct lowercase path component of the archive's files (Core's `names`). */
   names: string[];
+  /** Every distinct lowercase file name of the archive's files (Core's `leaves`). */
+  leaves: string[];
 }
 /** Reads verified archive bytes and returns their inspection; throws on failure. */
 export type ByteInspector = (
@@ -470,6 +473,16 @@ export const otherPackagesOf = (
       ),
     }))
     .toSorted((left, right) => left.asset_id - right.asset_id);
+/**
+ * The name of every release asset that is neither a recorded artifact nor a
+ * refused archive (`read`), in ascending asset id: the gate classifies these
+ * itself.
+ */
+export const otherAssetNames = (release: ObservedRelease, read: readonly number[]) =>
+  release.assets
+    .filter((asset) => !read.includes(asset.id))
+    .toSorted((left, right) => left.id - right.id)
+    .map((asset) => asset.name);
 /** Names of the release's unread containers, whose name verdicts decide their platforms. */
 export const containerNames = (release: ObservedRelease | undefined) =>
   (release?.assets ?? [])
@@ -531,7 +544,7 @@ export function artifactFact(
   candidates: readonly PlayerFact[],
   suggestion: NameSuggestion,
   programToken: (name: string) => string | null,
-  names: readonly string[] = [],
+  toolchain: readonly string[] = [],
 ): ArtifactFactV2 {
   // Core's listing-only tool veto excludes a player, never the whole archive;
   // a tool token in the archive's own name vetoes the archive below.
@@ -569,7 +582,8 @@ export function artifactFact(
     players: players.toSorted((left, right) => compareCodePoints(left.path, right.path)),
     excluded_players: excluded.toSorted((left, right) => compareCodePoints(left.path, right.path)),
     contradictory,
-    bundled_toolchain: bundledToolchain(names),
+    toolchain_names: [...toolchain],
+    bundled_toolchain: bundledToolchain(toolchain),
   };
 }
 
@@ -1007,6 +1021,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       unread_forms: release ? unreadFormsOf(release) : (entries.get(id)?.unread_forms ?? []),
       observed_releases: [],
       other_packages: [],
+      asset_names: [],
       refused_archives: [],
       attempt: null,
       artifacts: [],
@@ -1086,13 +1101,13 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const factFor = (
     asset: ObservedAsset & { sha256: string },
     players: readonly PlayerFact[],
-    listing: readonly string[],
+    toolchain: readonly string[],
   ) => {
     const suggestion = names.suggestion(asset.name);
     const programs = players.map((player) => basenameOf(player.display_path));
     if (!suggestion || programs.some((name) => names.programToken(name) === undefined))
       return undefined;
-    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!, listing);
+    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!, toolchain);
   };
   const unclassified =
     "A release file or program name could not be classified by Core (malformed, over 1,024 bytes or refused), so it cannot be vetoed.";
@@ -1131,6 +1146,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       unread_forms: unreadFormsOf(release),
       observed_releases: observedReleasesOf(id),
       other_packages: otherPackagesOf(release, (name) => names.suggestion(name)),
+      asset_names: otherAssetNames(
+        release,
+        [...(artifacts as ArtifactFactV2[]), ...(refused as RefusedArchive[])].map(
+          (fact) => fact.asset_id,
+        ),
+      ),
       refused_archives: (refused as RefusedArchive[]).toSorted(
         (left, right) => left.asset_id - right.asset_id,
       ),
@@ -1294,7 +1315,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           ? factFor(
               { ...asset, sha256: artifact.sha256 },
               candidatesOf(artifact),
-              artifact.bundled_toolchain,
+              artifact.toolchain_names,
             )
           : undefined;
       });
@@ -1403,7 +1424,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     const found: {
       asset: ObservedAsset & { sha256: string };
       players: PlayerFact[];
-      names: readonly string[];
+      toolchain: readonly string[];
     }[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
@@ -1411,8 +1432,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     for (const asset of need.archives) {
       const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
       if (known) {
-        // The recorded helpers stand for the listing already read.
-        found.push({ asset, players: candidatesOf(known), names: known.bundled_toolchain });
+        // The recorded helper entries stand for the listing already read.
+        found.push({ asset, players: candidatesOf(known), toolchain: known.toolchain_names });
         reused++;
         continue;
       }
@@ -1425,7 +1446,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       try {
         inspected++;
         bytes += asset.size;
-        found.push({ asset, ...(await inputs.inspect(asset, readerPlatform(asset.name))) });
+        const inspection = await inputs.inspect(asset, readerPlatform(asset.name));
+        found.push({
+          asset,
+          players: inspection.players,
+          toolchain: toolchainNames(inspection.names, inspection.leaves),
+        });
       } catch (error) {
         // The deadline cut this identity: it is pending, not failed.
         if (error instanceof OverBudgetError && pastDeadline()) {
@@ -1470,7 +1496,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         need.id,
         need.repositoryId,
         need.release,
-        found.map(({ asset, players, names: listing }) => factFor(asset, players, listing)),
+        found.map(({ asset, players, toolchain }) => factFor(asset, players, toolchain)),
         refused.map(({ asset, refusal }) => refusedFor(asset, refusal)),
       )
     ) {
@@ -1851,7 +1877,9 @@ export function cliInspector(
         data.sha256 !== asset.sha256 ||
         !Array.isArray(data.player_candidates) ||
         !Array.isArray(data.names) ||
-        data.names.some((name: unknown) => typeof name !== "string")
+        data.names.some((name: unknown) => typeof name !== "string") ||
+        !Array.isArray(data.leaves) ||
+        data.leaves.some((name: unknown) => typeof name !== "string")
       )
         throw new InspectionError("Core returned no inspection for these bytes.", false);
       const players = data.player_candidates.flatMap((player: unknown) =>
@@ -1870,7 +1898,7 @@ export function cliInspector(
             ]
           : [],
       );
-      return { players, names: data.names as string[] };
+      return { players, names: data.names as string[], leaves: data.leaves as string[] };
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

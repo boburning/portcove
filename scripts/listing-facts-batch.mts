@@ -78,6 +78,7 @@ import {
   readGateBaseline,
   identityShards,
   releaseLine,
+  toolchainNames,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -93,6 +94,7 @@ import {
   observedReleaseFacts,
   observerWindow,
   otherPackagesOf,
+  otherAssetNames,
   boundLinesOf,
   cliClassifier,
   cliInspector,
@@ -701,6 +703,13 @@ export async function reproduceFacts(inputs: {
         reason: "mismatch",
         detail: "The entry does not record exactly the release's archives.",
       };
+    // Every other asset name, which the gate classifies with its own code,
+    // is exactly the release's: none left out, none added.
+    if (JSON.stringify(otherAssetNames(observed, recorded)) !== JSON.stringify(entry.asset_names))
+      return {
+        reason: "mismatch",
+        detail: "The entry does not record exactly the release's other asset names.",
+      };
     for (const artifact of entry.artifacts) {
       const asset = release.assets.find((candidate) => candidate.id === artifact.asset_id)!;
       if (
@@ -715,10 +724,12 @@ export async function reproduceFacts(inputs: {
       if (clock() >= deadline) return { reason: "over-budget", detail: overBudget };
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
-      let listing: string[];
+      let toolchain: string[];
       try {
         bytes += asset.size;
-        ({ players, names: listing } = await inputs.inspect(bound, readerPlatform(asset.name)));
+        const inspection = await inputs.inspect(bound, readerPlatform(asset.name));
+        players = inspection.players;
+        toolchain = toolchainNames(inspection.names, inspection.leaves);
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
@@ -746,7 +757,7 @@ export async function reproduceFacts(inputs: {
         players,
         suggestion,
         (name) => names.programToken(name)!,
-        listing,
+        toolchain,
       );
       if (JSON.stringify(rebuilt) !== JSON.stringify(artifact))
         return {

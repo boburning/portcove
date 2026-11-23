@@ -206,6 +206,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
       },
     ],
     other_packages: [],
+    asset_names: ["README.md"],
     refused_archives: [],
     attempt: null,
     artifacts: [artifact],
@@ -252,7 +253,7 @@ const inspector =
   async (asset) => {
     log.push(asset.name);
     if (players instanceof Error) throw players;
-    return { players: players.map((item) => ({ ...item })), names: [] };
+    return { players: players.map((item) => ({ ...item })), names: [], leaves: [] };
   };
 
 // ---------------------------------------------------------------------------
@@ -661,9 +662,10 @@ void test("a refused archive, the release's line facts and its installers are re
   const refusing =
     (refusal: InspectionError | PlayerFact[]): ByteInspector =>
     async (asset) => {
-      if (asset.id !== 23) return { players: players.map((item) => ({ ...item })), names: [] };
+      if (asset.id !== 23)
+        return { players: players.map((item) => ({ ...item })), names: [], leaves: [] };
       if (refusal instanceof Error) throw refusal;
-      return { players: refusal, names: [] };
+      return { players: refusal, names: [], leaves: [] };
     };
   const run = (copy: ListingFactsEntry, inspect: ByteInspector, provider = release) =>
     reproduceFacts({
@@ -742,7 +744,18 @@ void test("a refused archive, the release's line facts and its installers are re
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), "release-changed");
   const recordedInstaller = { ...setup, name: "Install-Game.exe" };
   recorded.other_packages = [recordedInstaller];
+  // Every other asset name is recorded too, for the gate's own classifier (R7).
+  assert.equal(await reason(recorded, refusing(sameRefusal), installer), "mismatch");
+  recorded.asset_names = [...recorded.asset_names, "Install-Game.exe"];
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), undefined);
+  assert.equal(
+    await reason(
+      { ...recorded, asset_names: [...recorded.asset_names, "Extra.exe"] },
+      refusing(sameRefusal),
+      installer,
+    ),
+    "mismatch",
+  );
   for (const forged of [
     { ...recordedInstaller, sha256: sha("other-program") },
     { ...recordedInstaller, sha256: null },
@@ -782,6 +795,7 @@ void test("a refused archive, the release's line facts and its installers are re
       platforms: ["windows-x86-64"],
     },
   ];
+  withContainer.asset_names = [...withContainer.asset_names, "Game-win64.7z"];
   assert.equal(await reason(withContainer, refusing(sameRefusal), container), undefined);
 });
 

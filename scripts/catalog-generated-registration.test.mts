@@ -21,8 +21,10 @@ import {
   type AuthoredPort,
 } from "./catalog-authoring.mts";
 import {
+  archiveRoleToken,
   artifactExclusions,
   bundledToolchain,
+  toolchainNames,
   channelOnlyTag,
   gateChannelOnlyTag,
   checkFactsProvenance,
@@ -51,6 +53,8 @@ import {
   gateFormPlatforms,
   gateLine,
   gateLineNamesProduct,
+  gateRoleWord,
+  productNameWords,
   otherPackageForm,
   otherPackagePlatforms,
   listedRepositories,
@@ -235,6 +239,7 @@ function entry(
     attempt: null,
     artifacts,
     ...extra,
+    asset_names: extra.asset_names ?? (extra.other_packages ?? []).map((other) => other.name),
   };
 }
 function table(...entries: ListingFactsEntry[]): ListingFactsTable {
@@ -327,7 +332,7 @@ const listed =
   (inspect: TestInspector): ByteInspector =>
   async (asset, platform) => {
     const found = await inspect(asset, platform);
-    return Array.isArray(found) ? { players: found, names: [] } : found;
+    return Array.isArray(found) ? { players: found, names: [], leaves: [] } : found;
   };
 /** Players per asset name; an Error value throws it. */
 function inspector(
@@ -3036,7 +3041,22 @@ void test("release lines err toward one line for version noise and different lin
     // `v.` before digits, and conditional channel words beside a version,
     // date or hash, or alone.
     ["native-only-1a2b3c4", "owner/spider-game", "native-only"],
-    ["abc1234", "owner/spider-game", ""],
+    // As the tag's first word a hex-looking word names the product (R6): it
+    // is never read as a hash, so a hash-only tag is a line of its own.
+    ["abc1234", "owner/spider-game", "abc1234"],
+    ["facade1-v1.0", "owner/spider-game", "facade1"],
+    ["decade2-v1.0", "owner/spider-game", "decade2"],
+    ["cafe2024-v2", "owner/spider-game", "cafe2024"],
+    // `test` and `testing` are conditional channel words (R6).
+    ["test-drive-v1.0", "owner/spider-game", "test-drive"],
+    ["v1.0-test", "owner/spider-game", ""],
+    // `x86_64` / `x86-64` standing alone is one non-numeric build-target
+    // word in both copies (R2).
+    ["sm-x86-64-fixed-mac", "owner/spider-game", "sm-fixed"],
+    ["game-x86_64-new", "owner/game-new", ""],
+    ["v0.9", "owner/game-new", ""],
+    ["nightly-x86-6412", "owner/spider-game", ""],
+    ["x86-64-v1", "owner/spider-game", ""],
     ["dev-abc1234", "owner/spider-game", ""],
     ["v.0.1.1", "owner/spider-game", ""],
     ["v.2", "owner/spider-game", ""],
@@ -3089,7 +3109,21 @@ void test("a tag of only channel words with a date, time or hash is a prerelease
     ["dev-abc1234", true],
     ["canary-1a2b3c4d", true],
     ["nightly-windows-x86_64", true],
+    ["nightly-x86-64", true],
     ["test", true],
+    ["build-2026", true],
+    ["nightly-2025-01-01-2250", true],
+    ["build-202611202250", true],
+    // Only real date and time shapes are dates (R5): these are versions.
+    ["build-42", false],
+    ["build-12", false],
+    ["build-1234", false],
+    ["beta-01", false],
+    ["nightly-2025-13-01", false],
+    ["build-20261320", false],
+    ["build_20261120_2575", false],
+    // `x86-64` glued to more digits is no build-target word (R2).
+    ["nightly-x86-6412", false],
     ["v1.0", false],
     ["1.0.0", false],
     ["2025.01.01", false],
@@ -3491,9 +3525,9 @@ function named(
   );
 }
 /** The gate's verdict on an enrollment forced onto these facts for Windows. */
-function forcedGate(facts: ListingFactsEntry, assetId: number) {
+function forcedGate(facts: ListingFactsEntry, assetId: number, record = listing()) {
   const offered = facts.artifacts.find((item) => item.asset_id === assetId)!;
-  const generation = generateRegistrations([listing()], table(facts));
+  const generation = generateRegistrations([record], table(facts));
   generation.enrollments = [
     {
       port_id: unseen,
@@ -3554,12 +3588,82 @@ void test("an update archive holding the game's program is never chosen over the
   }
   for (const title of ["Updated-Game-v1.0.zip", "Deltarune-Fan-v1.0.zip", "Patchwork-v1.0.zip"])
     assert.ok(decide(listing(), entry([named(title, [game], 12)])).fit, title);
+  // A role word with trailing digits is still that role word (R1).
+  for (const title of ["Game-Windows-Update1.zip", "Game-patch01-win64.zip", "Game-debug2.zip"]) {
+    const alone = entry([named(title, [game], 12)]);
+    assert.equal(reasonOf(decide(listing(), alone)), "contradictory-role", title);
+    assert.match(forcedGate(alone, 12), /role-named/u, title);
+  }
+  // `Game-Windows-Update1.zip` beside the OS-neutral full build is vetoed,
+  // so the full build is the one package (R1).
+  const updateBeside = entry([
+    named("Game-v1.2.zip", [game], 11),
+    named("Game-Windows-Update1.zip", [game], 12, "windows"),
+  ]);
+  const fullChosen = decide(listing(), updateBeside);
+  assert.ok(fullChosen.fit);
+  assert.equal(fullChosen.enrollment.runtimes[0]!.asset_id, 11);
+  assert.equal(forcedGate(updateBeside, 11), "accepted");
+  assert.match(forcedGate(updateBeside, 12), /role-named/u);
+  // A role word that is also a word of the product's own name names the
+  // product, not a role: the listing's name, original title or id, and the
+  // repository's name (R1). Fit and gate each drop it.
+  const ownNames: [string, Record<string, unknown>][] = [
+    ["Delta-Force-win64.zip", { name: "Delta Force" }],
+    ["Mega-Update-Edition-v1.zip", { name: "Mega Update Edition" }],
+    ["Debug-Quest-v1.zip", { original_game_title: "Debug Quest" }],
+    ["Hotfix-Hero-v1.zip", { id: "hotfix-hero" }],
+  ];
+  for (const [title, fields] of ownNames) {
+    const id = typeof fields.id === "string" ? fields.id : unseen;
+    const record = listing(id, fields);
+    const facts = entry([named(title, [game], 12)], {}, id);
+    assert.ok(decide(record, facts).fit, title);
+    assert.ok(
+      !artifactExclusions(facts.artifacts[0]!, productNameWords(facts.repository, record.listing))
+        .length,
+      title,
+    );
+    if (record.listing.id === unseen)
+      assert.equal(forcedGate(facts, 12, record), "accepted", title);
+    // The same name is vetoed for a listing whose names do not hold the word.
+    assert.equal(
+      reasonOf(decide(listing(), entry([named(title, [game], 12)]))),
+      "contradictory-role",
+    );
+    assert.match(forcedGate(entry([named(title, [game], 12)]), 12), /role-named/u, title);
+  }
+  const repositoryNamed = entry([named("Patch-Quest-v1.zip", [game], 12)], {}, unseen, {
+    repository: "fixture-owner/patch-quest",
+  });
+  assert.ok(
+    decide(
+      listing(unseen, {
+        project_url: "https://github.com/fixture-owner/patch-quest",
+      }),
+      repositoryNamed,
+    ).fit,
+  );
+  // The rule's two copies agree word by word.
+  for (const [name, record, repository] of [
+    ["Game-update.zip", listing(), "o/game"],
+    ["Game-update7.zip", listing(), "o/game"],
+    ["Game-2update.zip", listing(), "o/game"],
+    ["Game-updates.zip", listing(), "o/game"],
+    ["Delta-Force.zip", listing(unseen, { name: "Delta Force" }), "o/game"],
+    ["Delta-Force.zip", listing(), "o/delta-force"],
+    ["DeltaForce.zip", listing(unseen, { name: "DeltaForce" }), "o/game"],
+    ["Patch-Patch.zip", listing(unseen, { name: "Patch" }), "o/game"],
+  ] as const) {
+    const fit = archiveRoleToken(name, productNameWords(repository, record.listing)) !== null;
+    assert.equal(gateRoleWord(name, record.listing, repository), fit, name);
+  }
   // The gate refuses the update archive independently.
   assert.match(forcedGate(both, 12), /role-named/u);
   assert.equal(forcedGate(both, 11), "accepted");
 });
 
-void test("several archives for a platform are ambiguous unless exactly one names its system (A1)", () => {
+void test("several archives for a platform are ambiguous, whatever their names say (A1, R1)", () => {
   const game = player("Game/Game.exe", "pe-x86-64", "same-game");
   const linux = player("Game/Game", "elf64-x86-64", "same-game-linux");
   // Two OS-neutral archives of one game: ambiguous, never chosen by order or size.
@@ -3569,7 +3673,11 @@ void test("several archives for a platform are ambiguous unless exactly one name
   ]);
   assert.equal(reasonOf(decide(listing(), neutralPair)), "ambiguous-artifact");
   assert.match(forcedGate(neutralPair, 11), /2 different archives/u);
-  // One names Windows explicitly beside an OS-neutral one: the explicit one is chosen.
+  // One names Windows explicitly beside an OS-neutral one that also holds a
+  // Windows player: ambiguous on Windows, because a Windows-named partial
+  // build cannot be told apart from the full build by name (R1 replaced the
+  // earlier explicit-system exception with this rule). Linux, which only the
+  // neutral archive serves, still fits.
   const explicit = entry([
     named("Game-v1.0-windows.zip", [game], 11, "windows"),
     named("Game-v1.0.tar.gz", [game, linux], 12),
@@ -3578,13 +3686,34 @@ void test("several archives for a platform are ambiguous unless exactly one name
   assert.ok(decision.fit);
   assert.deepEqual(
     decision.enrollment.runtimes.map((runtime) => [runtime.platform, runtime.asset_id]),
+    [["linux-x86-64", 12]],
+  );
+  assert.match(forcedGate(explicit, 11), /2 different archives/u);
+  assert.match(forcedGate(explicit, 12), /2 different archives/u);
+  // The cases the exception got wrong: a Windows-named partial build beside
+  // the OS-neutral full build is never chosen.
+  const partial = entry([
+    named("Game-v1.2.zip", [game], 11),
+    named("Game-v1.2-windows-exe-only.zip", [game], 12, "windows"),
+  ]);
+  assert.equal(reasonOf(decide(listing(), partial)), "ambiguous-artifact");
+  assert.match(forcedGate(partial, 12), /2 different archives/u);
+  assert.match(forcedGate(partial, 11), /2 different archives/u);
+  // A neutral archive holding no Windows player does not compete on Windows.
+  const linuxOnly = entry([
+    named("Game-windows.zip", [game], 11, "windows"),
+    named("Game.tar.gz", [linux], 12),
+  ]);
+  const both = decide(listing(), linuxOnly);
+  assert.ok(both.fit);
+  assert.deepEqual(
+    both.enrollment.runtimes.map((runtime) => [runtime.platform, runtime.asset_id]),
     [
       ["windows-x86-64", 11],
       ["linux-x86-64", 12],
     ],
   );
-  assert.equal(forcedGate(explicit, 11), "accepted");
-  assert.match(forcedGate(explicit, 12), /2 different archives/u);
+  assert.equal(forcedGate(linuxOnly, 11), "accepted");
   // Names that separate the systems: each platform has one archive.
   const separated = entry([
     named("Game-v1.0-windows.zip", [game], 11, "windows"),
@@ -3601,53 +3730,127 @@ void test("several archives for a platform are ambiguous unless exactly one name
   assert.match(forcedGate(twoExplicit, 11), /3 different archives/u);
 });
 
-void test("an archive bundling a compiler or interpreter toolchain is withheld (A2)", () => {
+void test("an archive bundling a compiler or interpreter toolchain is withheld (A2, R4)", () => {
   const launcher = player("Game/Launcher.exe", "pe-x86-64", "launcher");
-  const toolchain = named("Game-v1.0-windows.zip", [launcher], 11, "windows", [
-    "game",
-    "launcher.exe",
-    "tools",
-    "zig",
-    "zig.exe",
-    "lib",
-  ]);
+  const toolchain = named(
+    "Game-v1.0-windows.zip",
+    [launcher],
+    11,
+    "windows",
+    toolchainNames(
+      ["game", "launcher.exe", "tools", "zig", "zig.exe", "lib"],
+      ["launcher.exe", "zig.exe"],
+    ),
+  );
+  assert.deepEqual(toolchain.toolchain_names, ["zig.exe", "zig/"]);
   assert.deepEqual(toolchain.bundled_toolchain, ["zig"]);
   assert.equal(reasonOf(decide(listing(), entry([toolchain]))), "bundled-toolchain");
   assert.match(forcedGate(entry([toolchain]), 11), /bundles zig/u);
-  // Whole components only, with or without `.exe`, in any letter case.
+  // Whole names only, with or without `.exe`, in any letter case; a file
+  // leaf is recorded as is, a directory with a trailing `/`.
   assert.deepEqual(
-    bundledToolchain([
-      "Python.EXE",
-      "python311.dll",
-      "scripts",
-      "clang",
-      "7z.exe",
-      "7za.exe",
-      "g++",
-      "makefile",
-      "linker.dll",
-      "node_modules",
-      "CMake",
-    ]),
-    ["clang", "cmake", "g++", "python"],
+    toolchainNames(
+      [
+        "python.exe",
+        "python311.dll",
+        "scripts",
+        "clang",
+        "7z.exe",
+        "7za.exe",
+        "g++",
+        "makefile",
+        "linker.dll",
+        "node_modules",
+        "cmake",
+      ],
+      ["Python.EXE", "python311.dll", "7z.exe", "7za.exe", "g++", "makefile", "linker.dll"],
+    ),
+    ["clang/", "cmake/", "g++", "python.exe"],
   );
+  // Short helper names that also name ordinary folders match only as a file
+  // leaf (R4): `assets/link/`, `levels/ld/`, `make/`, `node/` and a
+  // `lib/python3.11/` folder never do; `Python/python.exe` does.
+  const rows: [string[], string[], string[]][] = [
+    [["assets", "link", "door.png"], ["door.png"], []],
+    [["levels", "ld", "one.map"], ["one.map"], []],
+    [["make", "node", "cl", "pip", "python3", "x.png"], ["x.png"], []],
+    [["lib", "python3.11", "os.py"], ["os.py"], []],
+    [["python", "python.exe"], ["python.exe"], ["python"]],
+    [["bin", "ld"], ["ld"], ["ld"]],
+    [["tools", "link.exe"], ["link.exe"], ["link"]],
+    [["make"], ["make"], ["make"]],
+    [["zig", "lib"], ["readme.txt"], ["zig"]],
+  ];
+  for (const [names, leaves, helpers] of rows) {
+    const recorded = toolchainNames(names, leaves);
+    assert.deepEqual(bundledToolchain(recorded), helpers, names.join("/"));
+    const archive = named("Game-v1.0-windows.zip", [launcher], 11, "windows", recorded);
+    // Fit and gate each derive the decision from the recorded entries.
+    assert.equal(
+      reasonOf(decide(listing(), entry([archive]))) === "bundled-toolchain",
+      helpers.length > 0,
+      names.join("/"),
+    );
+    assert.equal(
+      forcedGate(entry([archive]), 11) === "accepted",
+      helpers.length === 0,
+      names.join("/"),
+    );
+  }
   // A normal game shipping python311.dll and a scripts/ folder is not withheld.
-  const normal = named("Game-v1.0-windows.zip", [launcher], 11, "windows", [
-    "game",
-    "launcher.exe",
-    "python311.dll",
-    "scripts",
-    "7z.exe",
-  ]);
+  const normal = named(
+    "Game-v1.0-windows.zip",
+    [launcher],
+    11,
+    "windows",
+    toolchainNames(
+      ["game", "launcher.exe", "python311.dll", "scripts", "7z.exe"],
+      ["launcher.exe", "python311.dll", "7z.exe"],
+    ),
+  );
   assert.deepEqual(normal.bundled_toolchain, []);
   assert.ok(decide(listing(), entry([normal])).fit);
   // The report queue names the helpers per identity.
   const generation = generateRegistrations([listing()], table(entry([toolchain])));
   assert.deepEqual(registrationQueues(generation).bundled_toolchains, { [unseen]: ["zig"] });
-  // Recorded helper names outside the closed list are refused as facts.
+  // Recorded helper names outside the closed list, or a summary the recorded
+  // entries do not show, are refused as facts: the gate never trusts it.
   const forged = structuredClone(toolchain);
   forged.bundled_toolchain = ["notatool"];
   assert.throws(() => checkListingFactsTable(table(entry([forged]))), /toolchain helper/u);
+  const hidden = structuredClone(toolchain);
+  hidden.bundled_toolchain = [];
+  assert.throws(() => checkListingFactsTable(table(entry([hidden]))), /toolchain_names/u);
+  const folderOnly = structuredClone(toolchain);
+  folderOnly.toolchain_names = ["link/"];
+  folderOnly.bundled_toolchain = ["link"];
+  assert.throws(() => checkListingFactsTable(table(entry([folderOnly]))), /toolchain_names/u);
+});
+
+void test("the gate classifies every recorded other asset name with its own classifier (R7)", () => {
+  const game = player("Game/Game.exe", "pe-x86-64", "same-game");
+  const zip = named("Game-v1.0-windows.zip", [game], 11, "windows");
+  // Harmless names the gate ignores itself: accepted.
+  const harmless = entry([zip], {}, unseen, {
+    asset_names: ["README.md", "Game.zip.sha256", "Soundtrack.ogg"],
+  });
+  assert.equal(forcedGate(harmless, 11), "accepted");
+  // A program the worker's classifier did not record as another package form
+  // is still seen by the gate, with an unknown digest: refused.
+  for (const name of ["Setup.exe", "Game.7z", "Game.AppImage"]) {
+    const missed = entry([zip], {}, unseen, { asset_names: ["README.md", name] });
+    const verdict = forcedGate(missed, 11);
+    if (name === "Game.AppImage") assert.equal(verdict, "accepted", name);
+    else assert.match(verdict, new RegExp(name.replace(".", "\\."), "u"), name);
+  }
+  // The recorded other package forms must be among the recorded names.
+  const inconsistent = entry([zip], {}, unseen, {
+    other_packages: [
+      { asset_id: 12, name: "Setup.exe", size: 1, sha256: sha("x"), platforms: ["windows-x86-64"] },
+    ],
+    asset_names: [],
+  });
+  assert.throws(() => checkListingFactsTable(table(inconsistent)), /asset_names/u);
 });
 
 void test("another package form competing with an offered archive excludes the identity (B3, W1)", async () => {
@@ -4247,6 +4450,56 @@ void test("release file names are classified as other package forms by fit and g
     ["Game.iso", "container", []],
     ["Game.img", "container", []],
     ["Game.love", "container", []],
+    // Harmless release decoration and metadata is on the closed list (R3).
+    ...[
+      "Soundtrack.mp3",
+      "theme.ogg",
+      "music.flac",
+      "jingle.wav",
+      "voice.opus",
+      "Font.ttf",
+      "Font.otf",
+      "Font.woff",
+      "Font.woff2",
+      "subs.srt",
+      "subs.vtt",
+      "Manual.docx",
+      "Manual.odt",
+      "Guide.epub",
+      "game.zip.cosign.bundle",
+      "game.bundle",
+      "game.zip.p7s",
+      "signing.crt",
+      "signing.cer",
+      "minisign.pub",
+      "game.sbom",
+      "game.spdx",
+      "Cargo.lock",
+      "Cargo.toml",
+      "go.sum",
+      "go.mod",
+      "package.json",
+      "Game.exe.config",
+      "game.js.map",
+      "settings.ini",
+      "game.cfg",
+      "de.mo",
+      "de.po",
+      "style.css",
+      "game.desktop",
+      "Game.appinstaller",
+    ].map((name): [string, undefined, string[]] => [name, undefined, []]),
+    // Anything that can carry or launch a program keeps competing.
+    ["game.js", "container", []],
+    ["run.bat", "container", []],
+    ["run.cmd", "container", []],
+    ["setup.ps1", "container", []],
+    ["Game.command", "container", []],
+    ["Game.nupkg", "container", []],
+    ["data.db", "container", []],
+    ["data.dat", "container", []],
+    ["Game.delta", "container", []],
+    ["Game.diff.gz", "container", []],
     // ...but the read `.tar.gz`, `.tgz` and `.tar.xz` stay read archives.
     ["Game-linux.tar.gz", undefined, []],
     ["Game-linux.tgz", undefined, []],
