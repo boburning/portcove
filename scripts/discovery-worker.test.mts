@@ -17,6 +17,7 @@ import type {
   DiscoveryStore,
   DiscoveryWatchChange,
 } from "./discovery-store.mts";
+import type { DiscoveryWorkerResult } from "./discovery-worker.mts";
 import {
   discoveryDefinitionDigest,
   importLocalState,
@@ -24,6 +25,7 @@ import {
   leadWatch,
   parseWorkerState,
   providerWake,
+  runDiscoveryPasses,
   renderDiscoveryStatus,
   runDiscoveryWorker,
 } from "./discovery-worker.mts";
@@ -313,9 +315,9 @@ async function providers(
           ...extra,
         ],
       };
-    if (endpoint.endsWith("/releases?per_page=5")) {
+    if (/\/releases\?per_page=\d+$/u.test(endpoint)) {
       releaseReads.push(endpoint);
-      return endpoint === "repos/holdout/unseen-native-port/releases?per_page=5" ? releases() : [];
+      return endpoint.startsWith("repos/holdout/unseen-native-port/releases") ? releases() : [];
     }
     return new Response(JSON.stringify({ message: "fixture" }), {
       status: 404,
@@ -599,73 +601,173 @@ void test(
   },
 );
 
-void test("an exhausted provider quota waits for its reset and continues within the job deadline", async (context) => {
+void test("an exhausted provider quota waits for its reset between passes and continues", async (context) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
   context.after(() => rmSync(root, { recursive: true, force: true }));
   const memory = memoryStore();
   const start = Date.parse("2026-11-01T05:00:00.000Z");
   let clock = start;
   const now = () => clock;
-  const budget = new DiscoveryBudget("hosted", () => {}, now, new Date(start).toISOString(), {
-    requests: Number.MAX_SAFE_INTEGER,
-    bytes: 512 * 1024 * 1024,
-    milliseconds: 3 * 3_600_000,
-  });
   const reset = start + 20 * 60_000;
   const sleeps: number[] = [];
+  const admitted: number[] = [];
   let quotaReads = 0;
-  const fixture = await providers(budget, () => []);
-  const original = fixture.sdk.request.bind(fixture.sdk);
-  // The first quota read reports search exhausted until the reset.
-  fixture.sdk.request = (async (route: { url?: string }) => {
-    if (typeof route.url === "string" && route.url.endsWith("/rate_limit")) {
-      quotaReads++;
-      budget.charge("GET", "rate_limit", 1, 100, "200");
-      const search = quotaReads === 1 ? 0 : 4000;
-      // After the reset GitHub reports the next window's reset.
-      const next = quotaReads === 1 ? reset : reset + 3_600_000;
-      return {
-        status: 200,
-        headers: {},
-        url: route.url,
-        data: {
-          resources: {
-            core: { remaining: 4000, reset: Math.floor(next / 1000) },
-            graphql: { remaining: 4000, reset: Math.floor(next / 1000) },
-            search: { remaining: search, reset: Math.floor(next / 1000) },
-          },
-        },
-      };
-    }
-    return await original(route as never);
-  }) as typeof fixture.sdk.request;
+  const run = await runDiscoveryPasses({
+    store: memory.store,
+    runDir: root,
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    now,
+    deadline: start + 3 * 3_600_000,
+    diskBytes: 512 * 1024 * 1024,
+    finalizationMs: 60_000,
+    // Each pass runs under its own admission, here without a provider meter.
+    admit: async (pass, collect) => {
+      admitted.push(pass);
+      return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
+    },
+    sleep: async (milliseconds) => {
+      sleeps.push(milliseconds);
+      clock += milliseconds;
+    },
+    connect: async (budget) => {
+      const fixture = await providers(budget, () => []);
+      const original = fixture.sdk.request.bind(fixture.sdk);
+      // The first quota read reports search exhausted until the reset.
+      fixture.sdk.request = (async (route: { url?: string }) => {
+        if (typeof route.url === "string" && route.url.endsWith("/rate_limit")) {
+          quotaReads++;
+          budget.charge("GET", "rate_limit", 1, 100, "200");
+          const search = quotaReads === 1 ? 0 : 4000;
+          // After the reset GitHub reports the next window's reset.
+          const next = quotaReads === 1 ? reset : reset + 3_600_000;
+          return {
+            status: 200,
+            headers: {},
+            url: route.url,
+            data: {
+              resources: {
+                core: { remaining: 4000, reset: Math.floor(next / 1000) },
+                graphql: { remaining: 4000, reset: Math.floor(next / 1000) },
+                search: { remaining: search, reset: Math.floor(next / 1000) },
+              },
+            },
+          };
+        }
+        return await original(route as never);
+      }) as typeof fixture.sdk.request;
+      return fixture;
+    },
+  });
+  assert.notEqual(run.outcome, "failed", run.passes.at(-1)?.reason ?? "");
+  assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
+  assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
+  assert.ok(clock > reset, "collection resumed only after the reset");
+  assert.equal(
+    memory.finished.length,
+    2,
+    "each pass closes its own attempt and releases its lease",
+  );
+  assert.ok(
+    [...memory.rows.values()].some((row) => row.provider_id === "9001"),
+    "the search that quota blocked ran after the reset",
+  );
+  // The many search families that found it again add no rows.
+  assert.deepEqual(
+    [...memory.rows.values()].map((row) => row.facts.release_assets_observed),
+    [false],
+  );
+});
+
+void test("passes stop when one makes no progress, the deadline passes or admission defers", async () => {
+  const pass = (overrides: Partial<DiscoveryWorkerResult>): DiscoveryWorkerResult =>
+    ({
+      format: "portcove-discovery-worker-result",
+      format_version: 1,
+      outcome: "partial",
+      started_at: "",
+      finished_at: "",
+      canonical_overlap: "unknown",
+      sources: [],
+      notes: [],
+      leads: { records: 0, pending_families: 0, external: null },
+      committed: {
+        pages: 0,
+        observations: 0,
+        watch_changes: 0,
+        state_bytes: 0,
+        sent_bytes: 0,
+        received_bytes: 0,
+      },
+      budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
+      ...overrides,
+    }) satisfies DiscoveryWorkerResult;
+  const start = Date.parse("2026-11-01T05:00:00.000Z");
+  const drive = async (results: (DiscoveryWorkerResult | undefined)[]) => {
+    let calls = 0;
+    const sleeps: number[] = [];
+    const run = await runDiscoveryPasses({
+      store: memoryStore().store,
+      runDir: os.tmpdir(),
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      connect: async () => {
+        throw new Error("not used");
+      },
+      now: () => start,
+      deadline: start + 3_600_000,
+      diskBytes: 1,
+      finalizationMs: 0,
+      admit: async () => results[calls++],
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      },
+    });
+    return { calls, sleeps, run };
+  };
+  const soon = new Date(start + 60_000).toISOString();
+  const late = new Date(start + 2 * 3_600_000).toISOString();
+  assert.equal((await drive([pass({ progressed: false, wake_at: soon })])).calls, 1);
+  assert.equal((await drive([pass({ progressed: true, wake_at: late })])).calls, 1);
+  assert.equal((await drive([pass({ progressed: true })])).calls, 1, "a pass that ended naturally");
+  const continued = await drive([
+    pass({ progressed: true, wake_at: soon }),
+    pass({ outcome: "complete" }),
+  ]);
+  assert.equal(continued.calls, 2);
+  assert.deepEqual(continued.sleeps, [60_000]);
+  assert.equal(continued.run.outcome, "complete");
+  const deferred = await drive([undefined]);
+  assert.equal(deferred.run.outcome, "deferred");
+  assert.match(deferred.run.deferred ?? "", /admission/u);
+});
+
+void test("a pass that has spent its admitted transfer ends resumably after its final commit", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const at = "2026-11-01T05:00:00.000Z";
+  const now = () => Date.parse(at);
+  const budget = new DiscoveryBudget("hosted", () => {}, now, at);
   const result = await runDiscoveryWorker({
     store: memory.store,
     runDir: root,
     sourceRevision: "fixture",
     runner: "fixture",
     covered: () => new Set(),
+    commitIntervalMs: 0,
+    transferBytes: 1,
     budget,
     now,
-    sleep: async (milliseconds) => {
-      sleeps.push(milliseconds);
-      clock += milliseconds;
-    },
-    connect: async () => fixture,
+    connect: async () => await providers(budget, () => []),
   });
-  assert.notEqual(result.outcome, "failed", result.reason ?? "");
-  assert.equal(sleeps.length, 1, "one wait for the search quota reset");
-  assert.ok(clock > reset, "collection resumed only after the reset");
-  assert.ok(
-    [...memory.rows.values()].some((row) => row.provider_id === "9001"),
-    "the search that quota blocked ran after the reset",
-  );
-  // One row for the first sighting and one once its release evidence was read;
-  // the many search families that found it again add none.
-  assert.deepEqual(
-    [...memory.rows.values()].map((row) => row.facts.release_assets_observed),
-    [undefined, false],
-  );
+  assert.equal(result.outcome, "partial");
+  assert.match(result.reason ?? "", /admitted database transfer is spent/u);
+  assert.equal(result.wake_at, at, "the next pass may continue at once");
+  assert.equal(memory.commits.length, 1, "the final commit keeps the pass's progress");
+  assert.deepEqual(memory.finished, ["partial"]);
 });
 
 void test("provider wake reports only a blocking quota or backoff", () => {

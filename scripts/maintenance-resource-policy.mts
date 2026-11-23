@@ -15,7 +15,7 @@ const mb = 1_000_000;
 export const neonProject = "wispy-salad-36926388";
 export const transferLimit = 5_000 * mb;
 const day = 86_400_000;
-const admissionTimeout = 2 * 60 * 60 * 1000;
+export const admissionTimeout = 2 * 60 * 60 * 1000;
 const sampleLifetime = 5 * 60 * 1000;
 const bootstrapAllowance = 5 * mb;
 const recoveryDailyForecast = 22 * mb;
@@ -337,7 +337,8 @@ function recordEvidence(environment: NodeJS.ProcessEnv, evidence: unknown) {
 export async function withMaintenanceAdmission<T>(
   environment: NodeJS.ProcessEnv,
   operation: MaintenanceOperation,
-  callback: (bytes: number) => Promise<T> | T,
+  /** Receives the admitted bytes and the time by which its transfer must finish. */
+  callback: (bytes: number, deadline: number) => Promise<T> | T,
   options: {
     estimate?: (value: T) => number;
     request?: string | undefined;
@@ -349,7 +350,10 @@ export async function withMaintenanceAdmission<T>(
   } = {},
 ): Promise<T> {
   if (!isNeon(environment))
-    return await callback(Math.max(costs[operation], options.reservationBytes ?? 0));
+    return await callback(
+      Math.max(costs[operation], options.reservationBytes ?? 0),
+      Number.POSITIVE_INFINITY,
+    );
   const revision = environment.GITHUB_SHA ?? environment.PORTCOVE_SOURCE_REVISION;
   const run = environment.GITHUB_RUN_ID;
   const reason = [
@@ -451,7 +455,7 @@ export async function withMaintenanceAdmission<T>(
       ),
     };
     const value = await maintenanceTransfer.run(measurement, () =>
-      callback(admission.operation_reservation_bytes),
+      callback(admission.operation_reservation_bytes, measurement.deadline),
     );
     estimate = options.estimate?.(value) ?? 200_000 + Math.ceil(measurement.payloadBytes * 1.3);
     if (estimate !== undefined && (!Number.isSafeInteger(estimate) || estimate < 0))

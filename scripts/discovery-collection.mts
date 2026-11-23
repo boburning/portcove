@@ -461,9 +461,10 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
   const checkedAt = (r: { release_hint?: { observed_at: string } }) =>
     r.release_hint?.observed_at ?? "";
   for (const lead of host.unattended
-    ? pendingLeads(host.leads, host.knownLeadUrls()).toSorted(
-        (a, b) => checkedAt(a).localeCompare(checkedAt(b)) || a.id - b.id,
-      )
+    ? pendingLeads(host.leads, host.knownLeadUrls())
+        // A lead checked earlier in this run (an earlier pass) waits for the next run.
+        .filter((r) => checkedAt(r) < host.journal.started_at)
+        .toSorted((a, b) => checkedAt(a).localeCompare(checkedAt(b)) || a.id - b.id)
     : pendingLeads(host.leads, host.knownLeadUrls())
         .filter(
           (r) =>
@@ -480,7 +481,10 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
       break;
     const response = await host.source.sdk.request({
       method: "GET",
-      url: new URL(`repos/${lead.repository}/releases?per_page=5`, "https://api.github.com/").href,
+      url: new URL(
+        `repos/${lead.repository}/releases?per_page=${host.unattended ? 100 : 5}`,
+        "https://api.github.com/",
+      ).href,
     });
     if (!Array.isArray(response.data)) throw new Error("Malformed lead release hints");
     const name = `lead-release-hint-${lead.id}`;
