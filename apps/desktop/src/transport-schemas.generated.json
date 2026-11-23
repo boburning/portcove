@@ -5610,6 +5610,43 @@
         ],
         "type": "object"
       },
+      "ListingDeliveryLimits": {
+        "additionalProperties": false,
+        "description": "Byte limits a client applies to signed descriptive delivery. Every record\nand withdrawal within them is processed: this reader has no count ceiling.",
+        "properties": {
+          "decoded_bytes": {
+            "description": "Largest decoded compact directory admitted and retained.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "definition_index_bytes": {
+            "description": "Largest signed definition index.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "record_bytes": {
+            "description": "Largest single compact listing record.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "target_bytes": {
+            "description": "Largest authenticated listing target body, either carrier.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_bytes",
+          "decoded_bytes",
+          "record_bytes",
+          "definition_index_bytes"
+        ],
+        "type": "object"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -5662,6 +5699,17 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "listing_delivery_limits": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ListingDeliveryLimits"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Reader limits for signed descriptive delivery. Absent on older readers,\nwhich enforce the released bounds documented in `SIGNED-CATALOG.md`."
       },
       "listing_formats": {
         "items": {

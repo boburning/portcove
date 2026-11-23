@@ -242,7 +242,10 @@ pub use bug_report::{
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use carried_files::{CarriedFileCounts, CarriedFileOutcome, CarriedFilesStatus};
 pub use cartridge_build::CartridgeBuildRecipe;
-pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
+pub use catalog::{
+    Catalog, CatalogProposalInspection, CatalogProposalPortInspection,
+    MAX_LISTING_DIRECTORY_TEXT_BYTES,
+};
 pub use catalog_media::{
     CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, IgdbGameImage, IgdbGameImageKind,
     validate_catalog_media,

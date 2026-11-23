@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub(crate) mod listings;
+pub use listings::MAX_LISTING_DIRECTORY_TEXT_BYTES;
 
 pub(crate) fn validate_cover_collection(
     covers: Option<&[crate::IgdbArtwork]>,

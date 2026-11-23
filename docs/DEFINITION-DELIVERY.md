@@ -934,8 +934,11 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
-content bound before exposing an immutable inventory. The general per-target
+The parser enforces a 4 MiB index and a 32 MiB aggregate content bound before
+exposing an immutable inventory. It reads every definition identity within the
+index byte bound. Released readers also refuse more than 4,096 definitions, so
+the publisher keeps that count until they are no longer supported (see
+[Reader generations](SIGNED-CATALOG.md#reader-generations)). The general per-target
 ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
 representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
@@ -2069,9 +2072,10 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The legacy target is bounded to 8 MiB, each listing
-uses the existing descriptive validator, and both lists are bounded to 10,000
-identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
+The legacy target is bounded to 8 MiB and each listing
+uses the existing descriptive validator. The current reader processes every
+listing and withdrawal within that byte bound; released readers also refuse
+more than 10,000 of either, which the publisher keeps honoring. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
@@ -2079,7 +2083,8 @@ execution consent and managed installation retain their existing boundaries.
 The compact target uses the same delegation and an 8 MiB authenticated carrier.
 A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
 of decoded directory data. Compact parsing checks each record separately and
-accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+accepts up to 1 MiB per record, with no count ceiling on records or withdrawals
+(released readers: 10,000 each). Admission and
 local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including

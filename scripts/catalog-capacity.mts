@@ -4,15 +4,17 @@ import { closeSync, fstatSync, lstatSync, openSync, readSync, readFileSync } fro
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { gzipSync } from "node:zlib";
+import { compactListingCarrier } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export function capacityConstant(source: string, name: string) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const matches = [
-    ...source.matchAll(new RegExp(`const ${escaped}: (?:usize|u64|i64) = ([0-9 *]+);`, "gu")),
+    ...source.matchAll(new RegExp(`const ${escaped}: (?:usize|u64|i64) = ([0-9_ *]+);`, "gu")),
   ];
   if (matches.length !== 1) throw new Error(`Capacity authority missing or ambiguous: ${name}`);
-  const parts = matches[0]![1]!.split("*").map((part) => Number(part.trim()));
+  const parts = matches[0]![1]!.split("*").map((part) => Number(part.trim().replaceAll("_", "")));
   const value = parts.reduce((product, part) => product * part, 1);
   if (
     parts.some((part) => !Number.isSafeInteger(part) || part <= 0) ||
@@ -141,15 +143,98 @@ export function catalogSizeBounds(signedCatalogSource: string): CatalogSizeBound
   return bounds;
 }
 
+/** One guarded measure: name, measured value, the consumer's bound and its basis. */
+export type CapacityMeasure = readonly [name: string, value: number, bound: number, basis: string];
+
+/** Bounds a released compact listing reader enforces, read from the carrier crate. */
+export interface ListingDeliveryBounds {
+  /** Authenticated target body, either carrier. */
+  wire: number;
+  /** Decoded compact directory. */
+  decoded: number;
+  /** One compact listing record. */
+  record: number;
+  /** Records and withdrawals; enforced by released readers only. */
+  entries: number;
+  /** Authored directory text the current Core inspects. */
+  text: number;
+}
+
+export function listingDeliveryBounds(carrierSource: string, listingsSource: string) {
+  return {
+    wire: capacityConstant(carrierSource, "MAX_BYTES"),
+    decoded: capacityConstant(carrierSource, "MAX_COMPACT_DECODED_BYTES"),
+    record: capacityConstant(carrierSource, "MAX_COMPACT_RECORD_BYTES"),
+    entries: capacityConstant(carrierSource, "MAX_LISTING_ENTRIES"),
+    text: capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+  } satisfies ListingDeliveryBounds;
+}
+
 /**
- * CI guard for generated, compact and escaped catalog bytes. Core measures
- * its serialized projection and retained representations in its growth test.
+ * The listing directory against every consumer that can stop its delivery:
+ * Core's inspection of the authored text and the compact carrier bounds that
+ * released readers enforce, which the publisher honors until they are no
+ * longer supported. The compact projection here omits observations; the
+ * publisher measures the exact carrier before signing.
+ */
+export function listingDirectoryMeasures(
+  text: Buffer,
+  bounds: ListingDeliveryBounds,
+): CapacityMeasure[] {
+  const directory: unknown = JSON.parse(text.toString("utf8"));
+  if (!isRecord(directory) || !Array.isArray(directory.listings))
+    throw new Error("Capacity diagnostics require a listing directory");
+  const listings: unknown[] = directory.listings;
+  const decoded = Buffer.from(
+    JSON.stringify({
+      listing_delivery_schema: 1,
+      revision: Number.MAX_SAFE_INTEGER,
+      withdrawn_ids: [],
+      directory,
+    }),
+  );
+  const compressed = gzipSync(decoded);
+  const carrier = Buffer.byteLength(
+    JSON.stringify({
+      carrier: compactListingCarrier,
+      decoded_bytes: decoded.length,
+      decoded_sha256: "0".repeat(64),
+      gzip_base64: compressed.toString("base64"),
+    }),
+  );
+  const largestRecord = Math.max(
+    0,
+    ...listings.map((row) => Buffer.byteLength(JSON.stringify(row))),
+  );
+  return [
+    ["generated listings.json bytes", text.length, bounds.text, "Core listing inspection bound"],
+    [
+      "compact listing directory decoded bytes",
+      decoded.length,
+      bounds.decoded,
+      "released compact reader decoded bound",
+    ],
+    ["compact listing carrier bytes", carrier, bounds.wire, "released listing target bound"],
+    [
+      "largest listing record bytes",
+      largestRecord,
+      bounds.record,
+      "released compact reader record bound",
+    ],
+    ["listing records", listings.length, bounds.entries, "released reader entry count"],
+  ];
+}
+
+/**
+ * CI guard for generated, compact and escaped catalog bytes and the listing
+ * directory's delivery measures. Core measures its serialized projection and
+ * retained representations in its growth test.
  */
 export function catalogSizeGuard(
   sourceBytes: number,
   catalog: unknown,
   bounds: CatalogSizeBounds,
-  listingDirectory?: { bytes: number; bound: number },
+  listingDirectory: readonly CapacityMeasure[] = [],
 ) {
   // A fixed ten-digit issuance time keeps the placeholder envelope deterministic.
   const report = catalogCapacity(catalog, bounds.current, 4_102_444_800);
@@ -163,16 +248,7 @@ export function catalogSizeGuard(
       bounds.current,
       "signed envelope bound",
     ],
-    ...(listingDirectory
-      ? ([
-          [
-            "generated listings.json bytes",
-            listingDirectory.bytes,
-            listingDirectory.bound,
-            "embedded listing directory bound",
-          ],
-        ] as const)
-      : []),
+    ...listingDirectory,
   ] as const;
   const rows = measures.map(([name, bytes, bound, basis]) => ({
     name,
@@ -222,23 +298,26 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       "../crates/portcove-core/catalog/listings.json",
       import.meta.url,
     );
-    const listingBound = capacityConstant(
+    const listingBounds = listingDeliveryBounds(
+      readFileSync(
+        new URL("../crates/portcove-listing-carrier/src/lib.rs", import.meta.url),
+        "utf8",
+      ),
       readFileSync(
         new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
         "utf8",
       ),
-      "MAX_LISTING_BYTES",
     );
     const result = catalogSizeGuard(
       bytes.length,
       JSON.parse(bytes.toString("utf8")),
       bounds,
       values.catalog
-        ? undefined
-        : {
-            bytes: boundedInput(fileURLToPath(repositoryListings), listingBound).length,
-            bound: listingBound,
-          },
+        ? []
+        : listingDirectoryMeasures(
+            boundedInput(fileURLToPath(repositoryListings), listingBounds.text),
+            listingBounds,
+          ),
     );
     process.stdout.write(`${formatCatalogSizeGuard(result)}\n`);
     if (!result.ok) {

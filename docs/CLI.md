@@ -446,7 +446,12 @@ The CLI API schema version is independent of the Portcove release version.
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
 `listing_delivery_carriers` identifies the independently versioned signed
-directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+directory carriers a client consumes. `listing_delivery_limits` states the
+target, decoded-directory, per-record and definition-index byte bounds the
+client applies; a client that reports it processes every listing, withdrawal
+and definition within those bounds without a count ceiling. Older clients omit
+it and enforce the released bounds in
+[Reader generations](SIGNED-CATALOG.md#reader-generations). The `gzip-base64-json-v1` carrier
 authenticates the compressed envelope under the existing delegated policy role.
 The client checks the bounded decoded length and digest and applies the same
 directory revision and replay rules as `json-v1`. It reads the legacy carrier

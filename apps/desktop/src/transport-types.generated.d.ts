@@ -2754,6 +2754,11 @@ export interface OutputCapabilities {
    * Independently negotiated signed-directory transport representations.
    */
   listing_delivery_carriers?: string[];
+  /**
+   * Reader limits for signed descriptive delivery. Absent on older readers,
+   * which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+   */
+  listing_delivery_limits?: ListingDeliveryLimits | null;
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2772,6 +2777,28 @@ export interface OutputCapabilities {
 export interface EngineTemplateCapability {
   contract_version: number;
   template: AdapterKind;
+}
+/**
+ * Byte limits a client applies to signed descriptive delivery. Every record
+ * and withdrawal within them is processed: this reader has no count ceiling.
+ */
+export interface ListingDeliveryLimits {
+  /**
+   * Largest decoded compact directory admitted and retained.
+   */
+  decoded_bytes: number;
+  /**
+   * Largest signed definition index.
+   */
+  definition_index_bytes: number;
+  /**
+   * Largest single compact listing record.
+   */
+  record_bytes: number;
+  /**
+   * Largest authenticated listing target body, either carrier.
+   */
+  target_bytes: number;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];
