@@ -6,7 +6,6 @@ use std::{
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::{
@@ -30,9 +29,12 @@ const METADATA_FILE: &str = "metadata.json";
 const MANIFEST_FILE: &str = "portcove-recovery-bundle.json";
 const JOURNAL_DOMAIN: &str = "portcove:recovery-bundle-creation:v1";
 const RECEIPT_DOMAIN: &str = "portcove:recovery-bundle-publication:v1";
-pub(super) const MAX_METADATA_BYTES: u64 = 16 * 1024 * 1024;
-const MAX_MANIFEST_BYTES: u64 = 32 * 1024 * 1024;
-const MAX_JOURNAL_BYTES: u64 = 64 * 1024;
+/// The creation journal holds one reviewed plan whose shape is fixed by the
+/// content roots, not by library size, so it keeps a byte bound. The receipt
+/// lists every reviewed content file and grows with the library: it is
+/// streamed without a whole-document ceiling, like the metadata document.
+const MAX_JOURNAL_BYTES: Option<u64> = Some(64 * 1024);
+const RECEIPT_BYTES: Option<u64> = None;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -393,20 +395,14 @@ fn publish_creation(
     after_copy()?;
     observe(LibraryRecoveryProgress::Verifying)?;
     metadata.exported_at = intent.created_at;
-    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?;
-    write_or_verify(
-        &payload.join(METADATA_FILE),
-        &work,
-        &metadata_bytes,
-        MAX_METADATA_BYTES,
-    )?;
+    let metadata_digest = write_or_verify_metadata(&payload.join(METADATA_FILE), &work, &metadata)?;
     let manifest = Manifest {
         format_version: FORMAT,
         bundle_id: intent.bundle_id,
         source_library_id: intent.plan.source_library_id.clone(),
         reviewed_plan_sha256: intent.plan.plan_sha256.clone(),
         created_at: intent.created_at,
-        metadata_sha256: sha256(&metadata_bytes),
+        metadata_sha256: metadata_digest.sha256,
         content: content.to_vec(),
         coverage: intent.plan.coverage.clone(),
         exclusions: intent.plan.exclusions.clone(),
@@ -416,7 +412,7 @@ fn publish_creation(
         &work,
         RECEIPT_DOMAIN,
         &manifest,
-        MAX_MANIFEST_BYTES,
+        RECEIPT_BYTES,
     )?;
     verify_payload(&payload, &manifest)?;
     // The source lease protects against Portcove writers. Recheck the complete
@@ -463,8 +459,7 @@ fn inspect_created(intent: &CreationIntent) -> Result<LibraryRecoveryBundle> {
 fn inspect(path: &Path) -> Result<(LibraryRecoveryBundle, Manifest)> {
     let path = checked_directory(path)?;
     refuse_staging_path(&path)?;
-    let signed: Authenticated<Manifest> =
-        read_signed(&path.join(MANIFEST_FILE), MAX_MANIFEST_BYTES)?;
+    let signed: Authenticated<Manifest> = read_signed(&path.join(MANIFEST_FILE), RECEIPT_BYTES)?;
     require_format(signed.body.format_version)?;
     crate::portability_authority::verify_recovery_bundle(
         RECEIPT_DOMAIN,
@@ -555,7 +550,7 @@ pub(super) fn published_creation_readback(
     let manifest: Manifest = read_authenticated(
         &destination.join(MANIFEST_FILE),
         RECEIPT_DOMAIN,
-        MAX_MANIFEST_BYTES,
+        RECEIPT_BYTES,
     )
     .ok()?;
     require_format(manifest.format_version).ok()?;
@@ -778,15 +773,31 @@ fn open_source(path: &Path) -> Result<Library> {
     Library::open_current_for_recovery_bundle(&root)
 }
 
-fn read_signed<T: DeserializeOwned>(path: &Path, limit: u64) -> Result<Authenticated<T>> {
-    let bytes = crate::path::read_bounded_regular(path, limit)?;
-    Ok(serde_json::from_slice(&bytes)?)
+fn read_signed<T: DeserializeOwned>(path: &Path, limit: Option<u64>) -> Result<Authenticated<T>> {
+    match limit {
+        Some(limit) => {
+            let bytes = crate::path::read_bounded_regular(path, limit)?;
+            Ok(serde_json::from_slice(&bytes)?)
+        }
+        None => {
+            let metadata = fs::symlink_metadata(path)?;
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(PortcoveError::verification(
+                    "recovery bundle document must be a regular file",
+                )
+                .detail("path", path.display().to_string()));
+            }
+            Ok(serde_json::from_reader(std::io::BufReader::new(
+                fs::File::open(path)?,
+            ))?)
+        }
+    }
 }
 
 fn read_authenticated<T: DeserializeOwned + Serialize>(
     path: &Path,
     domain: &'static str,
-    limit: u64,
+    limit: Option<u64>,
 ) -> Result<T> {
     let signed: Authenticated<T> = read_signed(path, limit)?;
     crate::portability_authority::verify_recovery_bundle(
@@ -802,7 +813,7 @@ fn write_authenticated<T: Serialize>(
     work: &Path,
     domain: &'static str,
     body: &T,
-    limit: u64,
+    limit: Option<u64>,
 ) -> Result<String> {
     let proof_sha256 = crate::portability_authority::sign_recovery_bundle(domain, body)?;
     let bytes = serde_json::to_vec(&Authenticated {
@@ -813,15 +824,19 @@ fn write_authenticated<T: Serialize>(
     Ok(proof_sha256)
 }
 
-fn write_or_verify(path: &Path, work: &Path, bytes: &[u8], limit: u64) -> Result<()> {
-    if bytes.len() as u64 > limit {
+fn write_or_verify(path: &Path, work: &Path, bytes: &[u8], limit: Option<u64>) -> Result<()> {
+    if limit.is_some_and(|limit| bytes.len() as u64 > limit) {
         return Err(PortcoveError::unsupported(
             "recovery bundle document exceeds the supported size",
         ));
     }
     match fs::symlink_metadata(path) {
-        Ok(_) => {
-            if crate::path::read_bounded_regular(path, limit)? != bytes {
+        Ok(existing) => {
+            // A resumed creation compares against the bytes it would write, so
+            // the read is bounded by this writer's own document.
+            if existing.len() != bytes.len() as u64
+                || crate::path::read_bounded_regular(path, bytes.len() as u64)? != bytes
+            {
                 return Err(PortcoveError::verification(
                     "existing recovery bundle document differs from reviewed bytes",
                 ));
@@ -843,6 +858,39 @@ fn write_or_verify(path: &Path, work: &Path, bytes: &[u8], limit: u64) -> Result
     crate::durability::sync_publication(parent)
 }
 
+/// Streams the metadata document. A resumed creation re-encodes the same
+/// reviewed snapshot and accepts an existing file only when its digest matches.
+fn write_or_verify_metadata(
+    path: &Path,
+    work: &Path,
+    metadata: &LibraryMetadata,
+) -> Result<crate::library_metadata_document::DocumentDigest> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => {
+            let expected = crate::library_metadata_document::digest(metadata)?;
+            if crate::library_metadata_document::file_digest(path)? != expected {
+                return Err(PortcoveError::verification(
+                    "existing recovery bundle document differs from reviewed bytes",
+                ));
+            }
+            return Ok(expected);
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| PortcoveError::state("recovery bundle document has no parent"))?;
+    let mut output = tempfile::NamedTempFile::new_in(work)?;
+    let digest = crate::library_metadata_document::write(output.as_file_mut(), metadata)?;
+    output.as_file().sync_all()?;
+    output
+        .persist_noclobber(path)
+        .map_err(|error| PortcoveError::from(error.error))?;
+    crate::durability::sync_publication(parent)?;
+    Ok(digest)
+}
+
 fn require_format(version: u32) -> Result<()> {
     if version != FORMAT {
         return Err(PortcoveError::unsupported(
@@ -861,7 +909,9 @@ fn require_same_plan(plan: &LibraryRecoveryBundlePlan, expected: &str) -> Result
     Ok(())
 }
 
+#[cfg(test)]
 fn sha256(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
     hex::encode(Sha256::digest(bytes))
 }
 
@@ -1525,6 +1575,56 @@ mod tests {
         let error = PortcoveService::inspect_library_recovery_bundle(&destination).unwrap_err();
         assert_eq!(error.failure.mutation_state, MutationState::NoChanges);
         assert!(PortcoveService::plan_library_recovery_restore(&destination, &restore).is_err());
+    }
+
+    #[test]
+    fn a_library_past_the_old_metadata_ceiling_bundles_resumes_and_restores() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        drop(crate::import_execution::tests::fixture_library(
+            &source,
+            &[("active", false)],
+        ));
+        // About 20 MB of profile metadata: the old 16 MiB ceiling refused this plan.
+        crate::import_execution::tests::add_scaled_profiles(&source, "active", 10_000, 2_000);
+        let (_, plan) = plan_fixture(&source, &destination);
+        let interrupted = start_creation(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            &mut |_| Ok(()),
+            &|| {
+                Err(PortcoveError::state(
+                    "fixture interruption after managed copy",
+                ))
+            },
+        )
+        .unwrap_err();
+        let stage = Path::new(&interrupted.details["recovery_staging"]);
+        let bundle = PortcoveService::resume_library_recovery_bundle(stage).unwrap();
+        let metadata = fs::metadata(destination.join(METADATA_FILE)).unwrap().len();
+        assert!(metadata > 16 * 1024 * 1024, "{metadata}");
+        // Resuming a published bundle re-verifies the streamed documents.
+        assert_eq!(
+            PortcoveService::resume_library_recovery_bundle(stage)
+                .unwrap()
+                .receipt_sha256,
+            bundle.receipt_sha256
+        );
+
+        let restore = workspace.path().join("restored-library");
+        let review =
+            PortcoveService::plan_library_recovery_restore(&destination, &restore).unwrap();
+        let restored = PortcoveService::restore_library_recovery_bundle(
+            &destination,
+            &restore,
+            &review.plan_sha256,
+        )
+        .unwrap();
+        assert!(restored.completed);
+        let connection = Library::open(&restore).unwrap().connection().unwrap();
+        assert_eq!(crate::profile::export(&connection).unwrap().len(), 10_000);
     }
 
     #[test]

@@ -450,7 +450,7 @@ fn default_refresh_repairs_a_legacy_active_pointer_without_rewriting_history() {
 }
 
 #[test]
-fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
+fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_history_portable() {
     use crate::{
         ReleaseChannel,
         operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
@@ -461,29 +461,18 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
     let port_id = &first.port_id;
     let library = service.library();
     let default = service.ensure_default_profile(port_id).unwrap();
-    let mut current = first.clone();
+    let mut runtimes = Vec::new();
     for number in 0..MAX_OFFERED_REVISIONS {
         let id = format!("runtime-{number}");
-        current = install(library, &id, id.as_bytes(), true);
+        runtimes.push(install(library, &id, id.as_bytes(), true));
     }
-    let next = install(library, "next", b"next runtime", false);
     let connection = library.connection().unwrap();
-    let cap = require_default_recovery_capacity(&connection, port_id, &next.id).unwrap_err();
-    assert_eq!(cap.code, ErrorCode::Conflict);
-    assert!(library.activate_staged(port_id).is_err());
-    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
-    assert_eq!(status.active.unwrap().id, current.id);
-    assert_eq!(status.staged.unwrap().id, next.id);
-    assert!(
-        service
-            .preview_retained_build_removal(port_id, &default.id)
-            .is_err()
-    );
-    assert!(
-        service
-            .preview_retained_build_binding(port_id, &default.id, &next.id)
-            .is_err()
-    );
+    let offered = |connection: &Connection| {
+        crate::retained_build::reference_from(connection, port_id, &default.id)
+            .unwrap()
+            .unwrap()
+    };
+    assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
     // An already materialized historical revision keeps its build until the
     // player switches away. Current Default activation advances this selection.
@@ -498,11 +487,13 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
         .current_revision;
     set_selection(&connection, port_id, &default.id, current_revision).unwrap();
 
-    // An interrupted install whose own new build is independent of the offer
-    // can wait for a slot. The player can retire the offer under the port lock.
+    // Explicit player retirement stays available, including while an
+    // interrupted install is recovering.
+    let waiting = install(library, "waiting", b"waiting runtime", false);
     let store = OperationStore::new(library.clone());
-    let mut pending = LifecycleOperation::new(&next.id, LifecycleOperationKind::Install, port_id);
-    pending.install = Some(next.clone());
+    let mut pending =
+        LifecycleOperation::new(&waiting.id, LifecycleOperationKind::Install, port_id);
+    pending.install = Some(waiting.clone());
     pending.activate = true;
     pending.phase = LifecyclePhase::PayloadPublished;
     store.put(&mut pending).unwrap();
@@ -516,21 +507,60 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
         .retire_retained_build_revision(port_id, &default.id, 1, &authorization.token)
         .unwrap();
     assert_eq!(retired.build.install_id, first.id);
-    assert!(store.get(&pending.id).unwrap().is_some());
     store.remove(&pending.id).unwrap();
+    library.activate_staged(port_id).unwrap();
+    assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
-    service.library().activate_staged(port_id).unwrap();
+    // The old boundary: the next activation used to stop with "maximum number
+    // of recovery builds". The selected setup pins revision 2 (runtime-0), so
+    // the policy retires the oldest unpinned offer, runtime-1, instead.
+    set_selection(&connection, port_id, &default.id, 2).unwrap();
+    let next = install(library, "next", b"next runtime", false);
+    library.activate_staged(port_id).unwrap();
+    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().id, next.id);
+    let reference = offered(&connection);
+    assert_eq!(reference.history.len(), MAX_OFFERED_REVISIONS);
+    let kept = |install: &InstallRecord| {
+        reference
+            .retained_builds()
+            .any(|build| build.install_id == install.id)
+    };
+    assert!(kept(&runtimes[0]));
+    assert!(!kept(&runtimes[1]));
+    assert!(kept(&waiting));
+
+    // Well beyond the boundary, every update succeeds without manual repair.
+    for number in 0..24 {
+        let id = format!("later-{number}");
+        install(library, &id, id.as_bytes(), true);
+        let reference = offered(&connection);
+        assert_eq!(reference.history.len(), MAX_OFFERED_REVISIONS);
+        assert!(
+            reference
+                .retained_builds()
+                .any(|build| build.install_id == runtimes[0].id)
+        );
+    }
+
+    // Recovery meaning: every revision keeps its exact build, retired builds
+    // stay registered on disk, and the history exports and validates.
     let profiles = export(&connection).unwrap();
     let references = crate::retained_build::references_from(&connection).unwrap();
     assert!(has_retired_history(&profiles, &references));
     assert!(validate_export(&profiles, &references, false).is_err());
     validate_export(&profiles, &references, true).unwrap();
-    assert_eq!(profiles[0].revisions[0].build.install_id, first.id);
-    assert_eq!(
-        profiles[0].revisions.last().unwrap().build.install_id,
-        next.id
-    );
+    let revisions = &profiles[0].revisions;
+    assert_eq!(revisions[0].build.install_id, first.id);
+    assert_eq!(revisions[2].build.install_id, runtimes[1].id);
+    assert_eq!(revisions.len(), 1 + MAX_OFFERED_REVISIONS + 1 + 1 + 24);
     assert!(first.path.is_dir());
+    assert!(runtimes[1].path.is_dir());
+    assert!(
+        Library::install_by_id(&connection, Some(&runtimes[1].id))
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]
@@ -626,4 +656,40 @@ fn a_revision_keeps_more_than_sixty_four_settings() {
         .unwrap();
     let revisions = service.profile_revisions("starship", &default.id).unwrap();
     assert_eq!(revisions.last().unwrap().settings, settings);
+}
+
+#[test]
+fn a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them() {
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    // 64 setups per port used to be the ceiling; 65 crosses it, 500 goes well beyond.
+    let mut count = 1;
+    for checkpoint in [65, 500] {
+        while count < checkpoint {
+            service
+                .copy_profile(port_id, &default.id, &format!("Setup {count}"))
+                .unwrap();
+            count += 1;
+        }
+        let connection = service.library().connection().unwrap();
+        let profiles = export(&connection).unwrap();
+        let references = crate::retained_build::references_from(&connection).unwrap();
+        assert_eq!(profiles.len(), checkpoint);
+        assert_eq!(references.len(), checkpoint);
+        validate_export(&profiles, &references, true).unwrap();
+    }
+    // Each setup stays readable, editable and selectable after the library grew.
+    let inventory = service.profile_inventory(port_id).unwrap();
+    let last = inventory.profiles.last().unwrap();
+    service
+        .set_profile_update_policy(port_id, &last.profile.id, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+    assert_eq!(
+        service
+            .profile_revisions(port_id, &last.profile.id)
+            .unwrap()
+            .len(),
+        1
+    );
 }

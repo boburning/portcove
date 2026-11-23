@@ -2711,7 +2711,7 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
-            crate::profile::follow_active_install(&transaction, install)?;
+            crate::profile::follow_active_install(self, &transaction, install)?;
             transaction.execute(
                 // A pin is bound to its channel; activation that changes the
                 // channel ends it, exactly as choosing another channel does.
@@ -2805,7 +2805,7 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
-        crate::profile::follow_active_install(&transaction, install)?;
+        crate::profile::follow_active_install(self, &transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id=CASE
@@ -3746,7 +3746,7 @@ impl Library {
         })?;
         let previous = Self::install_by_id(&transaction, Some(&previous_id))?
             .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
-        crate::profile::follow_active_install(&transaction, &previous)?;
+        crate::profile::follow_active_install(self, &transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
@@ -3803,7 +3803,7 @@ impl Library {
                 ));
             }
         }
-        crate::profile::follow_active_install(&transaction, &staged)?;
+        crate::profile::follow_active_install(self, &transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,

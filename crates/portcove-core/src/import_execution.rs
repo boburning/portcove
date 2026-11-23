@@ -14,7 +14,7 @@ use crate::{
 
 #[cfg(test)]
 #[path = "import_execution_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LibraryImportResult {
@@ -441,7 +441,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
 fn verify_input(journal: &ImportJournal) -> Result<()> {
     journal.verify_bundle_input()?;
     let plan = &journal.plan;
-    let (file, _) = crate::library_import::read_metadata(&plan.metadata_file.path)?;
+    let file = crate::library_metadata_document::file_digest(&plan.metadata_file.path)?;
     if file.sha256 != plan.metadata_file.sha256 || file.size != plan.metadata_file.size {
         return Err(PortcoveError::verification(
             "metadata export changed after import review",

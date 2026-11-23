@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::{LibraryMovePlan, PortcoveError, Result};
 
 const JOURNAL: &str = "library-move.json";
-const MAX_JOURNAL_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -34,18 +33,14 @@ impl TransferJournal {
         validate_recovery_directory(source)?;
         let path = source.join("recovery").join(JOURNAL);
         let metadata = fs::symlink_metadata(&path)?;
-        if metadata.file_type().is_symlink()
-            || !metadata.is_file()
-            || metadata.len() > MAX_JOURNAL_BYTES as u64
-        {
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
             return Err(PortcoveError::state(
-                "library move journal is not a bounded regular file",
+                "library move journal is not a regular file",
             ));
         }
-        let journal: Self = serde_json::from_slice(&crate::path::read_bounded_regular(
-            &path,
-            MAX_JOURNAL_BYTES as u64,
-        )?)?;
+        // Like the import journal, this carries a plan whose size follows the
+        // library, so it has no whole-document ceiling.
+        let journal: Self = crate::path::read_regular_json(&path, "library move journal")?;
         journal.validate(source)?;
         Ok(journal)
     }
@@ -110,11 +105,6 @@ impl TransferJournal {
     }
 
     pub fn create(&self) -> Result<()> {
-        if serde_json::to_vec_pretty(self)?.len() > MAX_JOURNAL_BYTES - 4096 {
-            return Err(PortcoveError::unsupported(
-                "library move inventory exceeds the recoverable journal size limit",
-            ));
-        }
         let recovery = self.plan.source_root.join("recovery");
         fs::create_dir_all(&recovery)?;
         validate_recovery_directory(&self.plan.source_root)?;
@@ -137,11 +127,6 @@ impl TransferJournal {
     }
 
     pub fn write(&self) -> Result<()> {
-        if serde_json::to_vec_pretty(self)?.len() > MAX_JOURNAL_BYTES {
-            return Err(PortcoveError::unsupported(
-                "library move journal exceeds its size limit",
-            ));
-        }
         validate_recovery_directory(&self.plan.source_root)?;
         crate::durability::write_json_atomically(&self.path(), self, true)
     }

@@ -2019,13 +2019,6 @@ impl Installer {
             },
             &install.path,
         )?;
-        if request.activate {
-            crate::profile::require_default_recovery_capacity(
-                &self.library.connection()?,
-                &install.port_id,
-                &install.id,
-            )?;
-        }
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
         operation.begin_publication()?;

@@ -26,8 +26,6 @@ use crate::{
 #[path = "profile_tests.rs"]
 mod tests;
 
-pub(crate) const MAX_PROFILES: usize = 64;
-const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
 /// Settings per revision, shared by captured mod options and recipes. The
 /// serialized revision byte bound is the binding resource limit; this count only
@@ -285,7 +283,7 @@ impl PortcoveService {
                     "the active installation changed; try again",
                 ));
             }
-            follow_active_install(&transaction, &install)?;
+            follow_active_install(&self.library, &transaction, &install)?;
             let updated = profile_from(&transaction, port_id, &existing.id)?;
             transaction.commit()?;
             return Ok(updated);
@@ -345,11 +343,6 @@ impl PortcoveService {
         if clean_revision.is_some_and(|expected| expected != revision.revision) {
             return Err(PortcoveError::conflict(
                 "the source setup changed; review the clean setup again",
-            ));
-        }
-        if profiles_from(&connection, port_id)?.len() >= MAX_PROFILES_PER_PORT {
-            return Err(PortcoveError::state(
-                "this port has the maximum number of profiles",
             ));
         }
         let install_id = if onto_current_build {
@@ -813,20 +806,6 @@ impl PortcoveService {
     }
 }
 
-pub(crate) fn require_default_recovery_capacity(
-    connection: &Connection,
-    port_id: &str,
-    install_id: &str,
-) -> Result<()> {
-    if let Some(profile) = default_profile(connection, port_id)?
-        && let Some(reference) =
-            crate::retained_build::reference_from(connection, port_id, &profile.id)?
-    {
-        crate::retained_build::require_binding_history_capacity(&reference, install_id)?;
-    }
-    Ok(())
-}
-
 pub(crate) fn owns_reference(
     connection: &Connection,
     port_id: &str,
@@ -859,6 +838,7 @@ pub(crate) fn require_active_default_revision(
 /// change, after the lifecycle has validated the target. Replaying publication
 /// of the same install does not append another revision.
 pub(crate) fn follow_active_install(
+    library: &Library,
     transaction: &rusqlite::Transaction<'_>,
     install: &InstallRecord,
 ) -> Result<()> {
@@ -897,6 +877,7 @@ pub(crate) fn follow_active_install(
     next.created_at = Library::now();
     seal(&mut next)?;
     crate::retained_build::write_successor_reference(
+        library,
         transaction,
         &profile.id,
         next.build.clone(),
@@ -1216,8 +1197,6 @@ pub struct LibraryProfile {
     pub selected_revision: Option<u64>,
 }
 
-pub(crate) const MAX_EXPORTED_PROFILES: usize = 1024;
-
 pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
     let mut statement =
         connection.prepare("SELECT DISTINCT port_id FROM profiles ORDER BY port_id")?;
@@ -1245,11 +1224,6 @@ pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
             });
         }
     }
-    if exported.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::state(
-            "library has more profiles than metadata can carry",
-        ));
-    }
     exported.sort_by(|a, b| {
         (&a.profile.port_id, &a.profile.id).cmp(&(&b.profile.port_id, &b.profile.id))
     });
@@ -1266,13 +1240,10 @@ pub(crate) fn has_retired_history(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
 ) -> bool {
+    let references = references_by_setup(references);
     profiles.iter().any(|entry| {
         references
-            .iter()
-            .find(|reference| {
-                reference.setup_id == entry.profile.id
-                    && reference.build.port_id == entry.profile.port_id
-            })
+            .get(&(entry.profile.port_id.as_str(), entry.profile.id.as_str()))
             .is_some_and(|reference| {
                 entry.revisions.iter().any(|revision| {
                     !reference
@@ -1283,16 +1254,31 @@ pub(crate) fn has_retired_history(
     })
 }
 
+/// Indexes references by (port, setup) so validation stays linear in library size.
+fn references_by_setup(
+    references: &[crate::RetainedBuildReference],
+) -> BTreeMap<(&str, &str), &crate::RetainedBuildReference> {
+    let mut indexed = BTreeMap::new();
+    for reference in references {
+        indexed
+            .entry((
+                reference.build.port_id.as_str(),
+                reference.setup_id.as_str(),
+            ))
+            .or_insert(reference);
+    }
+    indexed
+}
+
+/// The profile count follows the exporting library: creation has no count
+/// ceiling, so neither does the exchange contract. Each profile and revision
+/// keeps its own byte bound.
 pub(crate) fn validate_export(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
     allow_retired_history: bool,
 ) -> Result<()> {
-    if profiles.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::verification(
-            "library metadata exceeds the profile limit",
-        ));
-    }
+    let indexed = references_by_setup(references);
     let mut ids = BTreeSet::new();
     let mut defaults = BTreeSet::new();
     let mut selected_ports = BTreeSet::new();
@@ -1308,9 +1294,9 @@ pub(crate) fn validate_export(
                 "library metadata has a repeated, malformed or incomplete profile",
             ));
         }
-        let reference = references
-            .iter()
-            .find(|r| r.setup_id == profile.id && r.build.port_id == profile.port_id)
+        let reference = indexed
+            .get(&(profile.port_id.as_str(), profile.id.as_str()))
+            .copied()
             .ok_or_else(|| {
                 PortcoveError::verification("a profile has no retained build reference")
                     .detail("profile_id", &profile.id)
@@ -1721,6 +1707,7 @@ pub(crate) fn current_revision(
     revision_from(connection, profile_id, profile.current_revision)
 }
 
+#[cfg(test)]
 pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
     Ok(profiles_from(connection, port_id)?.len())
 }

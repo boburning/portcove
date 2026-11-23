@@ -77,6 +77,7 @@ mod library_access;
 mod library_authority;
 mod library_import;
 mod library_membership;
+mod library_metadata_document;
 mod library_move;
 mod library_recovery_bundle;
 mod library_transfer;

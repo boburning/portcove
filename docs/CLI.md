@@ -1826,8 +1826,12 @@ Apply requires both flags, recomputes the plan, acquires exclusive library acces
 copies without replacing existing files, restores metadata transactionally, and
 verifies the copied manifests against current platform executable and persistence
 rules. Active, previous, and staged identity and source references survive the
-round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs;
-metadata JSON is limited to 16 MiB and the recoverable inventory to 64 MiB. Source
+round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs.
+Metadata JSON is written and read as a stream with no whole-document size
+ceiling, so any library Portcove can create exports and imports; each profile,
+revision and retained-build reference keeps its own byte bound. The recovery
+journal that carries the reviewed plan and content inventory is streamed the
+same way, so import and move recovery work at any size the library reaches. Source
 references remain subject to normal validation and relinking. If interrupted,
 use the [destination-specific recovery route](#recover-an-interrupted-transfer).
 
@@ -2614,9 +2618,13 @@ database schema 62 requires Desktop and CLI versions that coordinate this
 change. Other profiles launch the exact build their revisions name, so a game
 update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
-When Default reaches its recovery-build limit, `installation reference-retire`
-can retire a superseded offer after review. Retirement keeps the recorded setup
-revision and progress. A build still used by the selected setup must stay retained.
+Default keeps up to 16 superseded builds offered for recovery. An update past
+that retires Default's oldest offer in the same transaction, so updates never
+stop at the bound. The build the selected setup projects is never retired by
+this policy, and an interrupted setup switch must finish first. Retirement keeps
+the recorded setup revision, its exact build identity and progress; the
+installation stays on disk until removed and can be bound again. A player can
+also retire a chosen offer earlier with `installation reference-retire`.
 Stale `--expected-revision` values fail as `conflict`.
 
 Clients can offer `profile create-clean` when `capabilities.commands` includes
@@ -3252,8 +3260,11 @@ The superseded build becomes an offered recovery revision in the reference's
 `history`, keeps its runtime bytes protected from cleanup, refresh and port
 removal, and is listed under `offered_by` in `installation.retained`. Binding an
 offered build again promotes it back to current instead of duplicating it. A
-setup offers at most 16 earlier builds; binding another refuses with a conflict
-until one is retired, so retention is never discarded silently.
+setup offers up to 16 earlier builds. Binding a further build retires the oldest
+offer that the selected setup does not use, as a deliberate retention policy:
+`installation.reference-plan` lists it under `retires`, the review fingerprint
+covers it, and the build stays registered and re-bindable. The retired build
+stays named by every setup revision that used it.
 
 ```text
 portcove --library PATH --json installation reference PORT_ID SETUP_ID

@@ -122,12 +122,7 @@ fn prepare(
         LibraryRecoveryExclusion::UnknownSaveLocations,
         LibraryRecoveryExclusion::HostCredentials,
     ];
-    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?.len() as u64;
-    if metadata_bytes > execution::MAX_METADATA_BYTES {
-        return Err(PortcoveError::unsupported(
-            "recovery bundle metadata exceeds the supported import size",
-        ));
-    }
+    let metadata_bytes = crate::library_metadata_document::digest(&metadata)?.size;
     let required_bytes = coverage
         .iter()
         .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))

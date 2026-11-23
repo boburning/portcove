@@ -209,6 +209,13 @@ pub(crate) fn binding_preview(value: &RetainedBuildBindingPreview, catalog: &Cat
     } else {
         lines.push("Creates this setup's first retained-build reference.".into());
     }
+    for retired in &value.retires {
+        lines.push(format!(
+            "Stops offering recovery revision {} (install {}) to keep the newest 16 offers. The installation stays on disk and can be bound again.",
+            retired.revision,
+            clean(&retired.build.install_id)
+        ));
+    }
     lines.extend([
         format!("Review SHA-256: {}", clean(&value.preview_sha256)),
         "Binding protects the exact local build from cleanup. Active selection and player data stay unchanged.".into(),
