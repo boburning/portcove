@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
-syn = { version = "3.0.9", default-features = false, features = ["full", "parsing", "visit"] }
+syn = { version = "3.0.10", default-features = false, features = ["full", "parsing", "visit"] }
 
 [dev-dependencies]
 tempfile.workspace = true

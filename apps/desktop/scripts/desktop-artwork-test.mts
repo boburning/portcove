@@ -154,9 +154,33 @@ export async function artworkScenario({
       await writeFile(source, bytes, { flag: "wx" });
       const digest = createHash("sha256").update(bytes).digest("hex");
       const { click } = reviewControls(browser);
-      const control = (slot: ArtworkSlot, label: string) =>
+      const editorTrigger = By.css("[data-artwork-editor-trigger]");
+      const editor = By.css(".artwork-sheet[open]");
+      const openEditor = async () => {
+        await click(editorTrigger);
+        await browser.wait(until.elementLocated(editor), 10_000);
+      };
+      const closeEditor = async () => {
+        await click(By.css(".artwork-sheet[open] [data-artwork-editor-close]"));
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () =>
+                !document.querySelector(".artwork-sheet[open]") &&
+                document.activeElement?.matches("[data-artwork-editor-trigger]") === true,
+            ),
+          10_000,
+          "Closing artwork must return focus to Change artwork",
+        );
+      };
+      const slotLabel = (slot: "cover" | "detail") =>
+        slot === "cover" ? "Cover image" : "Background";
+      const activateSlot = (slot: "cover" | "detail") =>
+        click(By.xpath(`//*[@role="tab" and normalize-space(.)="${slotLabel(slot)}"]`));
+      const control = (slot: "cover" | "detail", label: string) =>
         By.xpath(
-          `//section[@aria-label="${slot === "cover" ? "Cover" : "Detail"} image"]//button[normalize-space(.)="${label}"]`,
+          `//section[@aria-label="${slotLabel(slot)}"]//button[normalize-space(.)="${label}"]`,
         );
       const state = async (slot: ArtworkSlot) => {
         const result = await invoke("get_artwork", {
@@ -213,7 +237,9 @@ export async function artworkScenario({
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
       };
-      const expectHeroText = async () => {
+      const expectOverviewTextAndReturn = async () => {
+        await closeEditor();
+        await revealDetailSection(browser, "Overview");
         const hero = await browser.wait(until.elementLocated(By.css(".game-hero-detail")), 10_000);
         await executeBrowserScript(
           browser,
@@ -230,6 +256,7 @@ export async function artworkScenario({
                 const heading = hero?.querySelector("#port-detail-title");
                 return (
                   hero?.getAttribute("data-hero-identity") === "text" &&
+                  !hero.hasAttribute("data-hero-compact") &&
                   !hero.querySelector('[data-loading="true"]') &&
                   !hero.querySelector(".game-hero-image") &&
                   heading?.textContent?.trim() === expectedTitle &&
@@ -243,6 +270,9 @@ export async function artworkScenario({
           10_000,
           "Missing cover must retain the real game heading and primary action without a decorative image",
         );
+        await revealDetailSection(browser, "Manage");
+        await openEditor();
+        await activateSlot("cover");
       };
       const open = async () => {
         await observations.capture("before-reload");
@@ -282,25 +312,17 @@ export async function artworkScenario({
         await clearCatalogFilters(browser);
         await selectCatalogPort(browser, port.id);
         await revealDetailSection(browser, "Manage");
-        const summary = await browser.findElement(
-          By.xpath('//summary[normalize-space(.)="Change artwork"]'),
-        );
-        await executeBrowserScript(
-          browser,
-          'arguments[0].focus(); arguments[0].scrollIntoView({ block: "center" });',
-          summary,
-        );
-        await summary.sendKeys(Key.ENTER);
-        // The slot controls mount on the disclosure's toggle event; locate before
-        // requiring the control to be enabled.
+        await openEditor();
+        // A reload can mount the Cover controls before its Core artwork read starts.
         await browser.wait(
-          until.elementIsEnabled(
-            await browser.wait(
-              until.elementLocated(control("cover", "Choose local image")),
-              10_000,
-            ),
-          ),
-          10_000,
+          async () => {
+            const [picker] = await browser.findElements(control("cover", "Choose local image"));
+            return (
+              picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled())
+            );
+          },
+          45_000,
+          "The same Cover editor must finish loading and enable Choose local image",
         );
       };
       await open();
@@ -310,7 +332,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -342,6 +364,8 @@ export async function artworkScenario({
         5000,
       );
       for (const slot of ["cover", "detail"] as const) {
+        await activateSlot(slot);
+        const previous = await state(slot);
         await click(control(slot, "Choose local image"));
         await confirmNative(
           "Choose local artwork",
@@ -350,19 +374,133 @@ export async function artworkScenario({
           `artwork-picker-${slot}`,
           source,
         );
-        await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
-        const picker = await browser.findElement(control(slot, "Choose local image"));
-        // Core commits before the renderer finishes its preview and returns focus.
-        // Observe completion before scrolling to a different image surface.
-        await browser.wait(until.elementIsEnabled(picker), 10_000);
+        if (slot === "detail") {
+          const narrow = await browser.wait(
+            until.elementLocated(By.css('input[type="range"][name="narrow-x"]:enabled')),
+            30_000,
+            "The reviewed Background framing control did not become actionable",
+          );
+          assert.deepEqual(await state(slot), previous);
+          await narrow.sendKeys(Key.END);
+          assert.equal(await narrow.getAttribute("aria-valuetext"), "100%");
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () => {
+                const overview = document.querySelector<HTMLElement>(
+                  ".game-hero-framing-preview-detail",
+                );
+                const continuation = document.querySelector<HTMLElement>(
+                  ".game-hero-framing-preview-continue",
+                );
+                const wide = overview?.querySelector<HTMLImageElement>(".game-hero-background img");
+                const narrow = continuation?.querySelector<HTMLImageElement>(
+                  ".game-hero-background img",
+                );
+                return Boolean(
+                  overview?.inert &&
+                  continuation?.inert &&
+                  wide?.naturalWidth &&
+                  narrow?.naturalWidth &&
+                  getComputedStyle(wide).objectPosition === "50% 35%" &&
+                  getComputedStyle(narrow).objectPosition === "100% 35%" &&
+                  getComputedStyle(narrow).maskImage !== "none",
+                );
+              }),
+            10_000,
+          );
+          await click(
+            By.xpath(
+              '//form[.//h3[normalize-space(.)="Review Background"]]//button[normalize-space(.)="Apply"]',
+            ),
+          );
+        } else {
+          await browser.wait(
+            until.elementLocated(
+              By.xpath('//form[.//h4[normalize-space(.)="Review Cover image"]]'),
+            ),
+            10_000,
+          );
+          assert.deepEqual(await state(slot), previous);
+          await click(
+            By.xpath(
+              '//form[.//h4[normalize-space(.)="Review Cover image"]]//button[normalize-space(.)="Apply"]',
+            ),
+          );
+        }
+        // Hosted Windows job 136791041646 committed the Cover but still had an
+        // earlier 16.35 s read and an in-flight thumbnail. Observe the exact
+        // commit and the editor's settled readback before checking focus.
         await browser.wait(
-          () =>
-            executeBrowserScript(browser, (element) => document.activeElement === element, picker),
-          5000,
+          async () => (await state(slot)).choice.asset_sha256 === digest,
+          60_000,
+          "Core must record the selected artwork digest for this role",
         );
+        const picker = await browser.findElement(control(slot, "Choose local image"));
+        await browser.wait(
+          until.elementIsEnabled(picker),
+          60_000,
+          "The artwork editor must settle after the committed role is read back",
+        );
+        try {
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (element) => document.activeElement === element,
+                picker,
+              ),
+            5_000,
+            "Artwork focus did not return to the edited slot's picker after Apply",
+          );
+        } catch (error) {
+          try {
+            const focus = await executeBrowserScript(
+              browser,
+              (label) => {
+                const dialog = document.querySelector<HTMLDialogElement>(
+                  "dialog.artwork-sheet[open]",
+                );
+                const panel = dialog?.querySelector('section[aria-label="' + label + '"]');
+                const pickers = [...(panel?.querySelectorAll("button") ?? [])].filter(
+                  (button) => button.textContent?.trim() === "Choose local image",
+                );
+                const active = document.activeElement;
+                return {
+                  windowFocused: document.hasFocus(),
+                  activeTag: active?.tagName,
+                  activeRole: active?.getAttribute("role"),
+                  activeLabel:
+                    active instanceof HTMLButtonElement
+                      ? active.textContent?.trim().slice(0, 120)
+                      : undefined,
+                  activeInEditor: Boolean(active && dialog?.contains(active)),
+                  editorOpen: Boolean(dialog),
+                  pickerCount: pickers.length,
+                  pickerFocused: pickers.some((button) => button === active),
+                  pickerDisabled: pickers[0]?.disabled,
+                };
+              },
+              slotLabel(slot),
+            );
+            const evidence = path.join(output, "artwork-return-focus-" + slot + ".json");
+            await writeFile(evidence, JSON.stringify(focus, null, 2), { flag: "wx" });
+            artifacts.push(evidence);
+          } catch (diagnosticError) {
+            console.error("Artwork focus diagnostic unavailable", errorMessage(diagnosticError));
+          }
+          throw error;
+        }
       }
       await waitForArtworkImage(browser, ".wide-artwork img");
-      // Reveal the always-mounted hero before waiting for its lazy foreground.
+      const sheetScreenshot = path.join(output, "native-change-artwork-sheet.png");
+      await writeFile(sheetScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(sheetScreenshot);
+      await closeEditor();
+      // Manage keeps the compact header. Overview renders the lazy foreground.
+      await revealDetailSection(browser, "Overview");
       await waitForArtworkImage(
         browser,
         ".game-hero-detail .game-hero-foreground img",
@@ -371,6 +509,11 @@ export async function artworkScenario({
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
+      assert.deepEqual(detail.choice.framing, {
+        version: "v1",
+        wide: { x: 5000, y: 3500 },
+        narrow: { x: 10000, y: 3500 },
+      });
       const oldChoice = object(
         await invoke("reset_artwork", {
           portId,
@@ -432,12 +575,46 @@ export async function artworkScenario({
         }
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
-      await click(control("cover", "Reset to default"));
-      await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
+      await revealDetailSection(browser, "Manage");
+      await openEditor();
+      await activateSlot("cover");
+      const reviewApply = By.xpath(
+        '//form[.//h4[normalize-space(.)="Review artwork change"]]//button[normalize-space(.)="Apply"]',
+      );
+      await click(control("cover", "Hide artwork"));
+      assert.deepEqual(await state("cover"), cover);
+      await click(reviewApply);
+      await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
+      const hidden = await state("cover");
+      // Hiding keeps the selection stored but unshown.
+      assert.equal(hidden.choice.asset_sha256, cover.choice.asset_sha256);
+      assert.equal(hidden.resolved_source.kind, "generated_fallback");
+      await expectOverviewTextAndReturn();
+      assert.equal((await state("detail")).choice.asset_sha256, digest);
+      await click(control("cover", "Show artwork"));
+      assert.deepEqual(await state("cover"), hidden);
+      await click(reviewApply);
+      await browser.wait(
+        async () => (await state("cover")).choice.revision > hidden.choice.revision,
+        10_000,
+      );
+      const shown = await state("cover");
+      assert.equal(shown.choice.asset_sha256, cover.choice.asset_sha256);
+      assert.notEqual(shown.choice.suppressed, true);
+      assert.deepEqual(shown.resolved_source, cover.resolved_source);
+      await click(control("cover", "Use automatic"));
+      assert.deepEqual(await state("cover"), shown);
+      await click(reviewApply);
+      await browser.wait(
+        async () => (await state("cover")).choice.revision > shown.choice.revision,
+        10_000,
+      );
       const reset = await state("cover");
+      assert.equal(reset.choice.asset_sha256, null);
+      assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);
@@ -446,13 +623,15 @@ export async function artworkScenario({
       await rename(original, retained);
       let unavailable;
       try {
+        await activateSlot("detail");
         await click(control("detail", "Refresh artwork"));
         await browser.wait(
           async () =>
-            (await browser.findElement(By.css(".artwork-controls")))
+            (await browser.findElement(editor))
               .getText()
               .then((text) => text.includes("choice has been retained")),
-          10_000,
+          45_000,
+          "The exact Background refresh must expose the retained choice after the Core read",
         );
         unavailable = await state("detail");
         assert.equal(unavailable.availability, "unavailable");

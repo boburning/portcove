@@ -61,13 +61,16 @@ pub(crate) fn recomp_game(port_id: &str) -> Option<&'static str> {
     legacy_loader(port_id)?.native_game.as_deref()
 }
 
-pub(crate) fn loader_list(loader: &crate::profile_loader::ReviewedLoader) -> LoaderList<'_> {
+pub(crate) fn loader_list(
+    loader: &crate::profile_loader::ReviewedLoader,
+) -> Option<LoaderList<'_>> {
     match loader.engine {
-        ModEngine::Libultraship => LoaderList::Ship(NativeListContract {
+        ModEngine::Libultraship => Some(LoaderList::Ship(NativeListContract {
             config: loader.settings_file.as_ref(),
             key: &["CVars", "gSettings", "EnabledMods"],
-        }),
-        ModEngine::N64Recomp => LoaderList::Recomp,
+        })),
+        ModEngine::N64Recomp => Some(LoaderList::Recomp),
+        ModEngine::DaggerfallUnity => None,
     }
 }
 

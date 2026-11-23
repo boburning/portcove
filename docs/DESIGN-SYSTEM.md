@@ -217,6 +217,16 @@ checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
 
+Release selection appears in Versions & updates for an installed game when Core
+allows an exact choice or the library has a saved pin. Choose exact release
+reviews a tag and displays the package before Pin this release saves the choice.
+Follow channel clears it. Cancel returns to the chooser. A changed library,
+channel or saved choice ends the old review. A pinned installation can display
+the channel's other candidate separately. The review states that future installs
+and checks use the pinned release even when the channel offers a newer one. A
+refused review or pin shows Core's reason, with technical details attached. A
+held pin explains that updates are paused and offers Follow channel.
+
 Manual disclosure summaries reserve a trailing icon column. Their title and
 secondary information wrap within the remaining text column, keeping the icon
 beside the first title line in compact, wide and right-to-left layouts. Native
@@ -659,8 +669,18 @@ ratios instead of silently cropping important content; the letterboxed space sho
 a softened, blurred copy of the same artwork behind the whole image, removed for
 reduced transparency and forced colors. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
-generated fallback states. Logos, icons, animation and a crop editor are not
-required for this slice.
+generated fallback states. Change artwork offers a separate Logo choice for
+Overview and Continue. When a logo cannot be read at its rendered size, the hero
+uses the Cover or title and preserves the saved choice for review.
+
+Change artwork labels Detail as **Background** and Landscape as **Wide cover**.
+A new Background opens a review with wide and narrow crop controls. The review
+uses the Overview and Continue hero layouts with the draft Background, current
+game identity, and the primary action when its label is available. Preview
+actions only show where controls sit. **Apply**
+saves the selected image and framing together. **Cancel** discards the draft
+and returns to the source control, including SteamGridDB search results when
+they were open. An existing Background offers **Adjust framing**.
 
 Library and Catalog use responsive portrait grids. Each artwork frame is 2:3;
 metadata adds height below the frame and never participates in its aspect ratio.
@@ -1242,6 +1262,10 @@ the cleanup review without changing that retained item. Cleanup remains bound
 to its own operation, generation and accepted preview fingerprint.
 
 ### Library identity and artwork feedback
+
+A grouped card keeps the shared game title. When it represents a selected or
+installed port, its Cover resolves for that exact port through the shared artwork
+cache. Each port retains its own manual choice and suppression.
 
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
 

@@ -231,6 +231,13 @@ external executable and save remain byte-identical. The completed receipt must
 survive navigation and open the exact current game without launching it. The
 CLI seeds the registration. This case verifies the Desktop transition and receipt.
 
+The standalone `native-game-settings-review` case is not a hosted group.
+Hosted runners present a high-integrity token, and Core's settings writer
+requires a medium-integrity token. Run 44933173974 reached the reviewed save and
+recorded that typed refusal. Run the case as explicit acceptance on an
+interactive medium-integrity Windows host; see
+[native desktop smoke tests](DEVELOPMENT-TOOLS.md#native-desktop-smoke-tests).
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
@@ -267,6 +274,12 @@ through restart, selected setup completion, update
 acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
+Recovery bundle creation, verification, restore and explicit activation run in
+one standalone group. The create and restore fixture compares the exact
+imported Cover bytes in the source, bundle and restored library. It reads the
+same Cover choice through native IPC after explicitly opening and restarting
+the restored library. Interruption and resume run in a second group with a
+fresh runner, library and preferences.
 This preserves the planner's standalone and incompatible-fixture refusals.
 
 The owned Windows preparation harness waits for initial Library content within
@@ -435,6 +448,14 @@ The independent Core and file checks still run before removal.
 Controlled read failures and injected input observations retain their fixture
 labels. No private originals, real user profile, release signing or physical
 controller are required by this selection.
+
+Recovery bundle interruption waits for the restarted Library to display results
+for the exact active generation before entering Settings. In job
+[136765401809](https://github.com/boburning/portcove/actions/runs/44877522122/job/136765401809),
+the initial workspace snapshot overlapped the explicit Resume command and
+that command reported the library busy. The harness waits for the renderer
+result within 60 seconds. It still requires the actual Core checkpoint, positive
+host exit, exact retained bytes and publication identity.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody

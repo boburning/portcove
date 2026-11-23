@@ -113,7 +113,7 @@ repository's dependency age, grouping, PR-limit and protected review rules.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–100 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–101 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -122,6 +122,8 @@ raw-stream contracts. Additional object fields are tolerated; incompatible schem
 versions and missing required capabilities produce an upgrade message before
 management. A product version string is not used as a compatibility guess.
 Schema 88 adds provider-qualified GitLab identities to self-service download selection and version-2 pending setup records. This reference client does not invoke those setup commands or decode those records; it continues to consume Core status, readiness and lifecycle decisions. Numeric GitHub download identities retain their original representation.
+
+Schema 101 adds manual Logo artwork and SteamGridDB Logo listings. Playnite uses the existing library and lifecycle contracts.
 
 Schema 90 adds the landscape artwork slot (`artwork_state.choice.slot` value `landscape`) and moves the optional artwork handoff to schema 4; this client consumes neither.
 

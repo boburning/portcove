@@ -957,6 +957,23 @@ pub struct ModLoaderBinding {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_game: Option<String>,
     pub platforms: Vec<Platform>,
+    /// Exact retained package identities reviewed for this loader. These facts
+    /// narrow loader use; they do not select, admit or download an artifact.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_artifacts: BTreeMap<Platform, ModLoaderArtifact>,
+    /// SHA-256 of the canonical immutable path, size and SHA-256 inventory
+    /// from independently reviewed packages of this loader on each platform.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_payload_sha256: BTreeMap<Platform, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_repository_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModLoaderArtifact {
+    pub tag: String,
+    pub identity: ArtifactIdentity,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1614,6 +1631,13 @@ pub struct PortStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_data_root: Option<PathBuf>,
     pub channel: ReleaseChannel,
+    /// User-selected exact release, when this port does not follow its channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// A saved pin Core cannot use. Checks and installs for this port stay held
+    /// until the player follows the channel again; other ports are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release_hold: Option<crate::ExactReleaseHold>,
     pub update_policy: UpdatePolicy,
     pub active: Option<InstallRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2291,6 +2315,8 @@ pub struct InstallPlan {
     pub channel: ReleaseChannel,
     pub platform: Platform,
     pub release: ResolvedRelease,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
     pub bundled_runtime: Option<BundledRuntime>,
     pub download_bytes: u64,
     /// Required recipe inputs in addition to the primary release and bundled runtime.
@@ -2679,6 +2705,11 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// The channel's ordinary candidate when it differs from the exact target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_latest_version: Option<String>,
     /// Repository maintenance facts from the provider's most recent observation of
     /// this port. Absent means unknown, never active. It may be older than
     /// `checked_at` when this check did not read the repository itself.

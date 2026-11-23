@@ -1925,6 +1925,170 @@
         ],
         "type": "string"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -2623,6 +2787,28 @@
               "$ref": "#/$defs/DefinitionOperationAssessment"
             },
             "type": "array"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User-selected exact release, when this port does not follow its channel."
+          },
+          "exact_release_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
           },
           "external_runtime": {
             "anyOf": [
@@ -3489,6 +3675,23 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installed_artifact": {
             "anyOf": [
               {
@@ -3832,7 +4035,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -3867,6 +4070,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -3877,6 +4090,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3886,6 +4102,55 @@
           "asset_sha256"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -4017,7 +4282,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -4042,14 +4308,6 @@
             "type": "string"
           }
         ]
-      },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
       },
       "GeneratedArtworkFallback": {
         "additionalProperties": false,
@@ -4167,6 +4425,16 @@
           "imported_at"
         ],
         "type": "object"
+      },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
       },
       "SteamGridDbListingResult": {
         "description": "Whether SteamGridDB's own listing still includes a stored image.",
@@ -6634,6 +6902,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -6658,6 +6942,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
@@ -11684,6 +12014,137 @@
         ],
         "type": "string"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "FailurePresentation": {
         "properties": {
           "mutation_state": {
@@ -11806,6 +12267,15 @@
         ],
         "type": "string"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "RecoveryAction": {
         "enum": [
           "review_current_state",
@@ -11921,6 +12391,23 @@
         "properties": {
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_artifact": {
             "anyOf": [
@@ -12728,12 +13215,24 @@
   },
   "destination_artwork_bytes": {
     "$defs": {
-      "ArtworkAttribution": {
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkAttribution": {
         "additionalProperties": false,
-        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
         "properties": {
           "asset_id": {
-            "description": "The provider's identity for this image.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12752,7 +13251,6 @@
             "type": "integer"
           },
           "game_id": {
-            "description": "The provider's game the image was listed under; a proposal, not port identity.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12779,7 +13277,7 @@
         ],
         "type": "object"
       },
-      "ArtworkChoice": {
+      "DestinationArtworkChoice": {
         "additionalProperties": false,
         "properties": {
           "asset_sha256": {
@@ -12797,7 +13295,7 @@
             "type": "integer"
           },
           "slot": {
-            "$ref": "#/$defs/ArtworkSlot"
+            "$ref": "#/$defs/DestinationArtworkSlot"
           }
         },
         "required": [
@@ -12807,36 +13305,6 @@
           "asset_sha256"
         ],
         "type": "object"
-      },
-      "ArtworkImageFormat": {
-        "enum": [
-          "png",
-          "jpeg"
-        ],
-        "type": "string"
-      },
-      "ArtworkProvider": {
-        "description": "A remote provider an image was chosen from; a local import has none.",
-        "enum": [
-          "steamgriddb"
-        ],
-        "type": "string"
-      },
-      "ArtworkSlot": {
-        "oneOf": [
-          {
-            "enum": [
-              "cover",
-              "detail"
-            ],
-            "type": "string"
-          },
-          {
-            "const": "landscape",
-            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
-            "type": "string"
-          }
-        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -12883,14 +13351,14 @@
           "attribution": {
             "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
             "items": {
-              "$ref": "#/$defs/ArtworkAttribution"
+              "$ref": "#/$defs/DestinationArtworkAttribution"
             },
             "type": "array"
           },
           "choice": {
             "anyOf": [
               {
-                "$ref": "#/$defs/ArtworkChoice"
+                "$ref": "#/$defs/DestinationArtworkChoice"
               },
               {
                 "type": "null"
@@ -12943,6 +13411,14 @@
           "portrait_cover",
           "landscape_cover",
           "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail",
+          "landscape"
         ],
         "type": "string"
       },
@@ -13164,12 +13640,24 @@
   },
   "destination_artwork_handoff": {
     "$defs": {
-      "ArtworkAttribution": {
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkAttribution": {
         "additionalProperties": false,
-        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
         "properties": {
           "asset_id": {
-            "description": "The provider's identity for this image.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -13188,7 +13676,6 @@
             "type": "integer"
           },
           "game_id": {
-            "description": "The provider's game the image was listed under; a proposal, not port identity.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -13215,7 +13702,7 @@
         ],
         "type": "object"
       },
-      "ArtworkChoice": {
+      "DestinationArtworkChoice": {
         "additionalProperties": false,
         "properties": {
           "asset_sha256": {
@@ -13233,7 +13720,7 @@
             "type": "integer"
           },
           "slot": {
-            "$ref": "#/$defs/ArtworkSlot"
+            "$ref": "#/$defs/DestinationArtworkSlot"
           }
         },
         "required": [
@@ -13243,36 +13730,6 @@
           "asset_sha256"
         ],
         "type": "object"
-      },
-      "ArtworkImageFormat": {
-        "enum": [
-          "png",
-          "jpeg"
-        ],
-        "type": "string"
-      },
-      "ArtworkProvider": {
-        "description": "A remote provider an image was chosen from; a local import has none.",
-        "enum": [
-          "steamgriddb"
-        ],
-        "type": "string"
-      },
-      "ArtworkSlot": {
-        "oneOf": [
-          {
-            "enum": [
-              "cover",
-              "detail"
-            ],
-            "type": "string"
-          },
-          {
-            "const": "landscape",
-            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
-            "type": "string"
-          }
-        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -13317,6 +13774,14 @@
           "portrait_cover",
           "landscape_cover",
           "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail",
+          "landscape"
         ],
         "type": "string"
       },
@@ -13519,14 +13984,14 @@
       "attribution": {
         "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
         "items": {
-          "$ref": "#/$defs/ArtworkAttribution"
+          "$ref": "#/$defs/DestinationArtworkAttribution"
         },
         "type": "array"
       },
       "choice": {
         "anyOf": [
           {
-            "$ref": "#/$defs/ArtworkChoice"
+            "$ref": "#/$defs/DestinationArtworkChoice"
           },
           {
             "type": "null"
@@ -13971,6 +14436,174 @@
       "repair"
     ],
     "title": "DoctorReport",
+    "type": "object"
+  },
+  "exact_release_review": {
+    "$defs": {
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A read-only preview of saving one release as this port's maintenance target.",
+    "properties": {
+      "review_sha256": {
+        "type": "string"
+      },
+      "selection": {
+        "$ref": "#/$defs/ExactReleaseSelection"
+      }
+    },
+    "required": [
+      "selection",
+      "review_sha256"
+    ],
+    "title": "ExactReleaseReview",
     "type": "object"
   },
   "external_runtime_preview": {
@@ -18158,6 +18791,137 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "InstallPlan": {
         "properties": {
           "action": {
@@ -18187,6 +18951,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "output_location": {
             "$ref": "#/$defs/PortOutputLocation"
@@ -20082,6 +20856,137 @@
         ],
         "type": "string"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "GameUpdateAcquisition": {
         "properties": {
           "created_at": {
@@ -20158,6 +21063,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "output_location": {
             "$ref": "#/$defs/PortOutputLocation"
@@ -22540,6 +23455,137 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "InstallPlanAction": {
         "enum": [
           "already_active",
@@ -22880,6 +23926,16 @@
         "format": "uint64",
         "minimum": 0,
         "type": "integer"
+      },
+      "exact_release": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExactReleaseSelection"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "output_location": {
         "$ref": "#/$defs/PortOutputLocation"
@@ -24030,7 +25086,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -24057,6 +25113,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -24067,6 +25133,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -24093,6 +25162,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -24179,7 +25297,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -24343,14 +25462,6 @@
         ],
         "type": "object"
       },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
-      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -24365,6 +25476,137 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
       },
       "InstallRecord": {
         "properties": {
@@ -24687,6 +25929,24 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version 13 binds user release preferences without admitting artifacts."
+          },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "output_directory": {
             "type": [
               "string",
@@ -25657,6 +26917,16 @@
         ],
         "type": "string"
       },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
+      },
       "TypedOrdering": {
         "additionalProperties": false,
         "description": "One precedence domain. A loader may need several; no universal number exists.",
@@ -25819,7 +27089,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -25846,6 +27116,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -25856,6 +27136,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -25882,6 +27165,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -25968,7 +27300,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -26132,14 +27465,6 @@
         ],
         "type": "object"
       },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
-      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -26154,6 +27479,137 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
       },
       "InstallRecord": {
         "properties": {
@@ -26349,6 +27805,24 @@
           },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version 13 binds user release preferences without admitting artifacts."
+          },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "output_directory": {
             "type": [
@@ -27301,6 +28775,16 @@
         ],
         "type": "string"
       },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
+      },
       "TypedOrdering": {
         "additionalProperties": false,
         "description": "One precedence domain. A loader may need several; no universal number exists.",
@@ -27585,7 +29069,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -27612,6 +29096,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -27622,6 +29116,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -27648,6 +29145,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -27734,7 +29280,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -27898,14 +29445,6 @@
         ],
         "type": "object"
       },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
-      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -27920,6 +29459,137 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
       },
       "InstallRecord": {
         "properties": {
@@ -28221,6 +29891,24 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version 13 binds user release preferences without admitting artifacts."
+          },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "output_directory": {
             "type": [
               "string",
@@ -29188,6 +30876,16 @@
           "passed",
           "failed",
           "missing_tool"
+        ],
+        "type": "string"
+      },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },
@@ -30498,6 +32196,170 @@
         ],
         "type": "object"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -31805,6 +33667,28 @@
             },
             "type": "array"
           },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User-selected exact release, when this port does not follow its channel."
+          },
+          "exact_release_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
+          },
           "external_runtime": {
             "anyOf": [
               {
@@ -32918,6 +34802,23 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installed_artifact": {
             "anyOf": [
               {
@@ -33685,6 +35586,137 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -33799,6 +35831,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "output_location": {
             "$ref": "#/$defs/PortOutputLocation"
@@ -40160,6 +42202,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -40184,6 +42242,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
@@ -54335,6 +56439,137 @@
         ],
         "type": "string"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "FailurePresentation": {
         "properties": {
           "mutation_state": {
@@ -54528,6 +56763,15 @@
         ],
         "type": "string"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "ReconcileAction": {
         "enum": [
           "up_to_date",
@@ -54686,6 +56930,23 @@
         "properties": {
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_artifact": {
             "anyOf": [
@@ -54898,6 +57159,137 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -54968,6 +57360,15 @@
           "selected_executable"
         ],
         "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
       },
       "ReconcileAction": {
         "enum": [
@@ -55085,6 +57486,23 @@
         "properties": {
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_artifact": {
             "anyOf": [
@@ -59522,6 +61940,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -59546,6 +61980,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
@@ -78523,6 +81003,170 @@
         ],
         "type": "object"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -79817,6 +82461,23 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installed_artifact": {
             "anyOf": [
               {
@@ -80043,6 +82704,28 @@
         },
         "type": "array"
       },
+      "exact_release": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExactReleaseSelection"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "User-selected exact release, when this port does not follow its channel."
+      },
+      "exact_release_hold": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExactReleaseHold"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
+      },
       "external_runtime": {
         "anyOf": [
           {
@@ -80142,11 +82825,13 @@
   },
   "steamgriddb_candidates": {
     "$defs": {
-      "DestinationArtworkRole": {
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
         "enum": [
           "portrait_cover",
           "landscape_cover",
-          "hero_banner"
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },
@@ -80188,7 +82873,7 @@
             "type": "string"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "score": {
             "format": "int64",
@@ -80311,7 +82996,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -80336,11 +83021,13 @@
         ],
         "type": "string"
       },
-      "DestinationArtworkRole": {
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
         "enum": [
           "portrait_cover",
           "landscape_cover",
-          "hero_banner"
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },
@@ -81188,6 +83875,146 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -81366,6 +84193,23 @@
       "channel": {
         "$ref": "#/$defs/ReleaseChannel"
       },
+      "channel_latest_version": {
+        "description": "The channel's ordinary candidate when it differs from the exact target.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "exact_release": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExactReleaseSelection"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "installed_artifact": {
         "anyOf": [
           {
@@ -81490,6 +84334,146 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -81597,6 +84581,23 @@
         "properties": {
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_artifact": {
             "anyOf": [
@@ -82354,7 +85355,7 @@
         "description": "One package-relative program that may be the game's player.",
         "properties": {
           "machine": {
-            "description": "The PE/ELF/Mach-O machine in the `0x%04x` form package player\nobservations record; absent when the source recorded only a path.",
+            "description": "The machine its PE, ELF or Mach-O header names, for example\n`pe-x86-64`, `elf64-x86-64`, `macho-arm64` or\n`macho-universal-arm64+x86-64`; an unnamed machine keeps its raw\nnumber, for example `pe-0x01c2`. Absent when the source recorded only\na path.",
             "type": [
               "string",
               "null"

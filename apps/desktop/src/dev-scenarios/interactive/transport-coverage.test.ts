@@ -36,7 +36,7 @@ const unsupportedByReason: Record<string, string[]> = {
     create_library_recovery_bundle resume_library_recovery_bundle restore_library_recovery_bundle resume_library_recovery_restore
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
-    import_artwork import_library import_source install_application_update install_port logout_github
+    import_artwork set_background_artwork_framing import_library import_source install_application_update install_port logout_github
     move_library open_bug_report open_external_url open_jakmods_resource open_upstream_mod_notice open_provider_mod_project open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_pending_setup_resource
     open_catalog_download_release_notes open_source_evidence
@@ -47,11 +47,11 @@ const unsupportedByReason: Record<string, string[]> = {
     register_user_selected_runtime relink_external_runtime relink_game_file_root
     relink_mod_setup_original relink_source relink_user_selected_runtime relocate_output
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
-    reset_artwork reset_output_location restore_backup revoke_catalog_key
+    reset_artwork suppress_artwork unhide_artwork reset_output_location restore_backup revoke_catalog_key
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
     set_port_intent acknowledge_port_readiness
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
-    set_channel
+    set_channel pin_exact_release clear_exact_release
     set_default_library set_github_token set_host_tool_path set_locale_preference
     remove_mod_package select_mod_setup_original set_mod_package_enabled set_mod_update_policy
     set_output_location set_policy trust_catalog_key use_cached_catalog
@@ -60,11 +60,12 @@ const unsupportedByReason: Record<string, string[]> = {
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     check_provider_mod_updates catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
-    inspect_mod_file inspect_mod_recipe inspect_source
+    inspect_mod_file inspect_mod_recipe inspect_source preview_local_artwork preview_steamgriddb_artwork
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
     plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
+    read_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -72,7 +73,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
+    review_exact_release plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),

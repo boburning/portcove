@@ -44,6 +44,26 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("the game settings review plans one owned Windows fixture", () => {
+  const id = "native-game-settings-review";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.gameSettingsJourney, true);
+  assert.equal(plan.fixtures.install, true);
+  assert.deepEqual(plan.build.cliFeatures, ["portcove-cli/qualification-fixtures"]);
+  assert.ok(plan.build.qualificationFeatures.includes("qualification-fixtures"));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    /standalone Windows/,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone Windows/,
+  );
+});
+
 void test("native review presentation dependency is retained once for every platform and profile", () => {
   const dependency = "apps/desktop/scripts/desktop-review-presentation.mts";
   assert.equal(nativeTransportReceiptSources.filter((source) => source === dependency).length, 1);
@@ -209,32 +229,33 @@ void test("real prepared runtimes use production builds and positive owned closu
   );
 });
 
-void test("publication interruption is standalone, instrumented and positively supervised", () => {
-  const id = "native-host-publication-recovery";
-  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
-  const plan = planDesktopExecution(selection, { platform: "win32" });
-  assert.deepEqual(selection.setup_scenarios, []);
-  assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(plan.session.cleanupName, "host-publication");
-  assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
-  assert.equal(plan.fixtures.install, true);
-  assert.equal(plan.fixtures.owned, true);
-  assert.equal(plan.fixtures.holdFirstDownload, false);
-  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
-  assert.ok(
-    plan.receiptInputs.some(
-      (input) =>
-        input.kind === "file" &&
-        input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
-    ),
-  );
-  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
-    /standalone/,
-  );
-});
+for (const id of ["native-host-publication-recovery", "native-library-recovery-interruption"]) {
+  void test(`${id} is standalone, instrumented and positively supervised`, () => {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "host-publication");
+    assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
+    assert.equal(plan.fixtures.install, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.fixtures.holdFirstDownload, false);
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
+      ),
+    );
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+      /standalone/,
+    );
+  });
+}
 
 void test("selected completion captures and verifies its serialized focus observer source", async (t) => {
   const source = "apps/desktop/scripts/desktop-completion-focus.mts";
@@ -405,8 +426,8 @@ void test("execution planning preserves the independently reviewed pre-change or
       ...row.options,
       platform: baselinePlatform(row.platform),
     });
-    // Preserve the frozen oracle. This new opt-in scenario was absent from its
-    // inventory and remains excluded from every historical execution.
+    // Preserve the frozen oracle. New opt-in scenarios were absent from its
+    // inventory and remain excluded from every historical execution.
     const historicalSelection = <Value extends { excluded_scenarios: readonly string[] }>(
       value: Value,
     ) => ({
@@ -426,6 +447,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-host-publication-recovery",
+            "native-library-recovery-bundle",
+            "native-library-recovery-interruption",
             "native-real-prepared-runtime",
             "native-registered-source-reuse",
             "native-linux-interrupted-preparation",
@@ -436,6 +459,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-collection-artwork-presentation",
             "native-reviewed-screenshot-display",
             "native-update-acquisition-lifecycle",
+            "native-game-settings-review",
             "native-managed-copy-result",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -444,6 +468,7 @@ void test("execution planning preserves the independently reviewed pre-change or
           ].includes(id),
       ),
     });
+    assert.ok(selection.excluded_scenarios.includes("native-game-settings-review"));
     assert.ok(!selection.selected_scenarios.includes("native-preliminary-source-review"));
     assert.ok(selection.excluded_scenarios.includes("native-preliminary-source-review"));
     assert.ok(!selection.selected_scenarios.includes("native-saved-folder-hash-resume"));
@@ -460,6 +485,11 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
     assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
     assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
+    for (const id of ["native-library-recovery-bundle", "native-library-recovery-interruption"]) {
+      assert.ok(!selection.selected_scenarios.includes(id));
+      assert.ok(!selection.setup_scenarios.includes(id));
+      if (row.platform === "win32") assert.ok(selection.excluded_scenarios.includes(id));
+    }
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =
@@ -2009,6 +2039,26 @@ void test("remaining reviewed Windows workflows use existing positive exit custo
   );
   assert.equal(combined.session.reviewedWorkflowSession, true);
   assert.equal(combined.session.cleanupName, "game-update-review");
+});
+
+void test("recovery copy and restore bind the exact seeded artwork input", () => {
+  for (const scenario of [
+    "native-library-recovery-bundle",
+    "native-library-recovery-interruption",
+  ]) {
+    const plan = planDesktopExecution(
+      resolveDesktopSelection({ scenarios: [scenario], platform: "win32" }),
+      { platform: "win32" },
+    );
+    assert.equal(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
+      ),
+      scenario === "native-library-recovery-bundle",
+    );
+  }
 });
 
 void test("local artwork owns its exact private catalog fixture without enabling fixture CLI", () => {

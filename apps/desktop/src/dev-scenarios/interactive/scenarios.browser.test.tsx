@@ -161,7 +161,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await expect.element(input).toHaveValue("fixture/future-draft");
-  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
   await expect
     .element(
       page
@@ -169,6 +169,10 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
         .getByRole("button", { name: "Choose local image", exact: true }),
     )
     .toBeVisible();
+  await page
+    .getByRole("dialog", { name: "Change artwork", exact: true })
+    .getByRole("button", { name: "Close", exact: true })
+    .click();
   await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await page.getByRole("button", { name: /^More actions for Harbor Adventure/ }).click();
   await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();

@@ -159,6 +159,9 @@ pub(crate) enum KnownFailureCause {
         path: std::path::PathBuf,
     },
     RecordedUploaderHold,
+    /// An exact release review, pin or saved pin was refused for a reason the
+    /// player can act on.
+    ExactRelease(crate::release::ExactReleaseRefusal),
     PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
@@ -182,6 +185,10 @@ pub(crate) enum KnownFailureCause {
     SettingsDefaultsConflict,
     #[cfg(any(test, windows))]
     SettingsDefaultsUnverified,
+    /// A reviewed settings change no longer matches the current file or
+    /// installation, so Core refused it before taking custody.
+    #[cfg(any(test, windows))]
+    SettingsReviewStale,
     /// Two copies of a settings file a newer version newly carries differ, so
     /// Core cannot tell which to keep. `other` is the saved copy, or the new
     /// version's copy when `other_is_saved` is false.
@@ -208,6 +215,8 @@ pub(crate) enum KnownFailureCause {
         directory: std::path::PathBuf,
     },
     DestinationCapacity,
+    /// The operating system reported a full drive or quota while writing.
+    StorageFull,
     MetadataExportExists,
     ArchiveLimit,
     UnicodePath,
@@ -372,6 +381,11 @@ impl KnownFailureCause {
                 "Your settings and the new version’s defaults changed in different ways. Portcove kept your settings and the new defaults. You can keep using the installed version while the update waits.",
             ),
             #[cfg(any(test, windows))]
+            Self::SettingsReviewStale => (
+                "settings_review_stale",
+                "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.",
+            ),
+            #[cfg(any(test, windows))]
             Self::SettingsDefaultsUnverified => (
                 "settings_defaults_unverified",
                 "Portcove couldn’t verify the settings defaults for both versions. The update is waiting. Keep using the installed version until verified defaults are available.",
@@ -446,6 +460,7 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::ExactRelease(refusal) => return refusal.presentation(),
             Self::MetadataExportExists => (
                 "metadata_export_exists",
                 "Portcove kept the existing file. Choose a new filename to export library information.",
@@ -453,6 +468,10 @@ impl KnownFailureCause {
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
+            ),
+            Self::StorageFull => (
+                "storage_full",
+                "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
             ),
             Self::ArchiveLimit => (
                 "archive_safety_limit",

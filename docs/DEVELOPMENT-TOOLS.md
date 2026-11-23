@@ -2348,6 +2348,19 @@ claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 
+Run `just desktop-verify --scenario native-library-recovery-bundle --require-clean`
+on Windows to check verified bundle creation, inspection, restore and explicit
+activation in isolated libraries. The scenario also checks source changes after
+creation review, overlapping destinations, and a tampered copy. It records the
+verified receipt, saves, installation and backup identities, and the selected
+library across restart.
+
+Select `native-library-recovery-interruption` for the instrumented Windows
+process-loss check. It stops the owned app after creation has copied files and
+again when restore has recorded its import journal. Resume uses the original
+staging folder or restore destination. The test checks that no unpublished
+bundle verifies, source data stays intact, and the original library stays open.
+
 For the normal Codex and maintainer workflow, start with a non-launching plan and
 then run the smallest useful selection:
 
@@ -2488,6 +2501,18 @@ the files, consent and retained identities after another restart. No game starts
 This fixture does not establish SMB reconnect, physical storage, real-game or
 gameplay acceptance. A failed run retains the unavailable original directory
 rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-game-settings-review --require-clean`
+selects one standalone Windows journey outside routine profiles and hosted
+product groups. Run it as explicit acceptance from an interactive,
+non-elevated (medium-integrity) Windows desktop session. Hosted runners present
+a high-integrity token. Core refuses settings editing there by design, so a
+hosted run can only reproduce that refusal (run 44933173974). The owned install
+fixture declares one inert settings file. Desktop reviews two edits, saves them
+through native IPC and reads both copies back. An outside edit then makes a
+second review stale. Core refuses it before starting. Desktop shows Core's
+explanation, and both outside copies stay byte-identical. The executable is
+inert and no game starts.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
 selects one standalone Windows or Linux review journey outside routine profiles.

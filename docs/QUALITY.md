@@ -461,9 +461,23 @@ A pass under a larger budget proves completion under that budget.
 
 Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
 the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
-Neither run reported an assertion failure before its cutoff. Each Windows case
-has a 240-second limit with the same assertions, cleanup and retry policy.
-Completion under the new limit still needs a hosted run.
+Neither run reported an assertion failure before its cutoff. The MStan case
+has a 240-second Windows limit with the same assertions, cleanup and retry
+policy. The Sonic case still reached only its final restore when run
+`44960117848` cut it at 240 seconds. These timeouts occurred only on #8478 and
+#8503 heads that added the `portcove-listing-carrier` crate without a test
+`opt-level`, so Core tests ran its shared code unoptimized. On those heads the
+populated Mega Man X2 transition took 143 to 240 seconds, against 38.4 seconds
+on pre-#8478 `main` (`63c5b009`, run `45054336807`), where the additive Sonic
+case passed in 71 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case passed under the 120-second default.
+#8478 set the carrier's test `opt-level` to 1 and also limited the fixture
+catalog to the port under test; no run separates the two effects. Windows run
+`45042553290`, attempt 1, then passed both families in 3.7 to 13.7 seconds, so
+they use the 120-second default again. The
+`[profile.test.package.portcove-listing-carrier]` `opt-level = 1` entry in
+`Cargo.toml` is load-bearing for these budgets; re-measure them on Windows
+before removing it.
 
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
@@ -485,6 +499,17 @@ cases observed no progress animation or dialog opacity transition. Both cases
 now explicitly set the normal-motion media preference they exercise and restore
 the browser default after each case. Their rendering and transition assertions
 remain in place.
+
+Linux `main` job 135397217271 failed the narrow portrait-cards capture while it
+waited for document images under the default one-second poll. The two pending
+images were the App shell's sidebar avatar, a protected 949 KB PNG served by
+the test server, not the fixture covers. Local network throttling to 600 KB/s
+reproduced the same assertion in 30 of 30 runs. The shared
+`settleDocumentImages` helper now waits for each incomplete image's load, error
+or abort event within a six-second harness budget, matching the finite-animation
+and virtual-row mount waits. The same throttled case then passed 30 of 30 runs
+and still passed at 300 KB/s. Interactive-app captures use the same helper.
+Screenshot, layout and containment assertions are unchanged.
 
 Windows owned-backups job 136906004836 reached the 600-second harness deadline
 after verifying restore, deletion and the first degraded-history capture. The
@@ -510,6 +535,15 @@ ordinary click. Activity identity, accessible name and focus assertions, consent
 stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
 application/IPC/safety deadlines remain unchanged. The original failures remain
 evidence; these calibrations alone do not establish successful native workflows.
+
+On November 21, hosted Windows artwork job 136791041646 recorded the exact
+Cover import at revision 1. The editor remained busy with thumbnail and artwork
+reads in flight, and an earlier read took 16.35 seconds. The native test now
+allows up to 60 seconds for the exact committed digest and for the editor to
+settle. Its 10-minute scenario watchdog includes both role confirmations,
+reload and owned cleanup. The test still requires the original digest, revision
+and focus assertions. The observed import and picker results remain partial
+evidence until the renderer and recovery checks pass.
 
 The November 18 hosted Windows review-continuation run at `6c01ccf6`
 (`44395050884/1`, job `135122626956`) positively recorded the owned native
@@ -701,6 +735,8 @@ Run 43244946189 attempt 1 then terminated
 budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
 6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
 stays at 420. Every phase and assertion is unchanged.
+These transition budgets were removed when the shared fixture catalog shrank
+to the port under test (see the additive Sonic record above).
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to

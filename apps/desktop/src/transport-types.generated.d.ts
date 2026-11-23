@@ -89,6 +89,28 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type ExactReleaseIdentity =
+  | {
+      asset_id: number;
+      commit_sha1: string;
+      provider: "github";
+      release_id: number;
+      repository_id: number;
+    }
+  | {
+      commit_sha1: string;
+      link_id: number;
+      package_file_id: number;
+      project_id: number;
+      provider: "gitlab";
+    }
+  | {
+      provider: "direct-manifest";
+    };
+/**
+ * Why Core cannot use a port's saved release pin as written.
+ */
+export type ExactReleaseHoldReason = "unreadable" | "channel-mismatch";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -293,9 +315,20 @@ export type OutputArtworkAssets = LocalArtworkAsset[];
  * A remote provider an image was chosen from; a local import has none.
  */
 export type ArtworkProvider = "steamgriddb";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+/**
+ * Artwork categories accepted by the optional SteamGridDB provider client.
+ */
+export type SteamGridDbArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner" | "logo";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
-export type ArtworkSlot = ("cover" | "detail") | "landscape";
+/**
+ * Presentation data for wide and narrow consumers of the same background.
+ */
+export type ArtworkFraming = {
+  narrow: ArtworkFocalPoint;
+  version: "v1";
+  wide: ArtworkFocalPoint;
+};
+export type ArtworkSlot = ("cover" | "detail" | "logo") | "landscape";
 /**
  * Whether SteamGridDB's own listing still includes a stored image.
  */
@@ -676,6 +709,8 @@ export type CatalogUpdateSource =
 export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+export type DestinationArtworkSlot = "cover" | "detail" | "landscape";
 export type DestinationArtworkContent =
   | {
       asset: LocalArtworkAsset;
@@ -1436,6 +1471,7 @@ export interface TransportOutputs {
   destination_artwork_bytes: OutputDestinationArtworkBytes;
   destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
+  exact_release_review: OutputExactReleaseReview;
   external_runtime_preview: ExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
@@ -1581,6 +1617,7 @@ export interface TransportOutputs {
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
+  desktop_artwork_selection_preview: OutputDesktopArtworkSelectionPreview;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
@@ -1869,6 +1906,15 @@ export interface PortStatus {
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
    */
   definition_operations?: DefinitionOperationAssessment[];
+  /**
+   * User-selected exact release, when this port does not follow its channel.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * A saved pin Core cannot use. Checks and installs for this port stay held
+   * until the player follows the channel again; other ports are unaffected.
+   */
+  exact_release_hold?: ExactReleaseHold | null;
   external_runtime?: ExternalRuntimeRecord | null;
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
@@ -1977,6 +2023,35 @@ export interface DefinitionEligibility {
   reason: DefinitionEligibilityReason;
   [k: string]: unknown;
 }
+/**
+ * An exact release and package chosen for one port, channel and platform.
+ * Only the configured provider can supply their current metadata and download URL.
+ */
+export interface ExactReleaseSelection {
+  channel: ReleaseChannel;
+  filename: string;
+  identity: ExactReleaseIdentity;
+  platform: Platform;
+  port_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Exact upstream tag or declared direct-manifest version.
+   */
+  version: string;
+}
+/**
+ * A saved release pin Core cannot use. Update checks and installs for this
+ * port stay held instead of silently following the channel; choosing Follow
+ * clears it. Other ports are unaffected.
+ */
+export interface ExactReleaseHold {
+  /**
+   * Technical cause for diagnosis; never player copy.
+   */
+  detail: string;
+  reason: ExactReleaseHoldReason;
+}
 export interface ExternalRuntimeRecord {
   archive_sha256: string;
   executable: string;
@@ -2058,6 +2133,11 @@ export interface UpdateSnapshot {
 }
 export interface UpdateCheck {
   channel: ReleaseChannel;
+  /**
+   * The channel's ordinary candidate when it differs from the exact target.
+   */
+  channel_latest_version?: string | null;
+  exact_release?: ExactReleaseSelection | null;
   installed_artifact: ArtifactIdentity1 | null;
   installed_runtime: RuntimeIdentity | null;
   installed_version: string | null;
@@ -2318,14 +2398,23 @@ export interface ArtworkAttribution {
    */
   game_id: number;
   provider: ArtworkProvider;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
+  framing?: ArtworkFraming | null;
   port_id: string;
   revision: number;
   slot: ArtworkSlot;
+  suppressed?: boolean;
+}
+/**
+ * A focal point on the orientation-corrected image, in ten-thousandths.
+ */
+export interface ArtworkFocalPoint {
+  x: number;
+  y: number;
 }
 export interface GeneratedArtworkFallback {
   identity: string;
@@ -2879,11 +2968,36 @@ export interface ModLoaderBinding {
   native_game?: string | null;
   platforms: Platform[];
   repository: string;
+  /**
+   * Exact retained package identities reviewed for this loader. These facts
+   * narrow loader use; they do not select, admit or download an artifact.
+   */
+  reviewed_artifacts?: {
+    "linux-x86-64"?: ModLoaderArtifact;
+    "macos-aarch64"?: ModLoaderArtifact;
+    "macos-x86-64"?: ModLoaderArtifact;
+    "windows-x86-64"?: ModLoaderArtifact;
+  };
+  /**
+   * SHA-256 of the canonical immutable path, size and SHA-256 inventory
+   * from independently reviewed packages of this loader on each platform.
+   */
+  reviewed_payload_sha256?: {
+    "linux-x86-64"?: string;
+    "macos-aarch64"?: string;
+    "macos-x86-64"?: string;
+    "windows-x86-64"?: string;
+  };
+  reviewed_repository_id?: number | null;
   settings_file: string;
 }
 export interface LoaderContractRef {
   id: string;
   version: string;
+}
+export interface ModLoaderArtifact {
+  identity: ArtifactIdentity1;
+  tag: string;
 }
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
@@ -3869,8 +3983,8 @@ export interface DestinationArtworkHandoff {
    * Provider credits for the selected local image, shown by a destination that
    * presents the image; empty for a purely local import and every other source.
    */
-  attribution: ArtworkAttribution[];
-  choice: ArtworkChoice | null;
+  attribution: DestinationArtworkAttribution[];
+  choice: DestinationArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
   library: LibraryIdentity;
@@ -3878,6 +3992,22 @@ export interface DestinationArtworkHandoff {
   role: DestinationArtworkRole;
   selected_asset_sha256: string | null;
   source: DestinationArtworkSource;
+}
+export interface DestinationArtworkAttribution {
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
+}
+export interface DestinationArtworkChoice {
+  asset_sha256: string | null;
+  port_id: string;
+  revision: number;
+  slot: DestinationArtworkSlot;
 }
 /**
  * Durable library identity and its current effective location.
@@ -3971,6 +4101,14 @@ export interface JournalRowProblem {
    */
   rowid: number;
   stage: JournalValidationStage;
+  [k: string]: unknown;
+}
+/**
+ * A read-only preview of saving one release as this port's maintenance target.
+ */
+export interface OutputExactReleaseReview {
+  review_sha256: string;
+  selection: ExactReleaseSelection;
   [k: string]: unknown;
 }
 export interface ExternalRuntimePreview {
@@ -4524,6 +4662,7 @@ export interface InstallPlan {
   bundled_runtime: BundledRuntime | null;
   channel: ReleaseChannel;
   download_bytes: number;
+  exact_release?: ExactReleaseSelection | null;
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
@@ -5269,6 +5408,16 @@ export interface LibraryMembershipSource {
 export interface LibraryPortSettings {
   active_install_id: string | null;
   channel: ReleaseChannel;
+  /**
+   * Version 13 binds user release preferences without admitting artifacts.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * Version 13: the stored text of a saved pin Core cannot use, carried
+   * unchanged so the destination keeps the same hold instead of silently
+   * following the channel. Following the channel there clears it.
+   */
+  held_exact_release?: string | null;
   output_directory?: string | null;
   port_id: string;
   previous_install_id: string | null;
@@ -7370,7 +7519,7 @@ export interface SteamGridDbCandidate {
   height: number;
   id: number;
   mime: string;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   score: number;
   style: string;
   thumb: string;
@@ -7638,8 +7787,11 @@ export interface ArtifactFact {
  */
 export interface PlayerCandidate {
   /**
-   * The PE/ELF/Mach-O machine in the `0x%04x` form package player
-   * observations record; absent when the source recorded only a path.
+   * The machine its PE, ELF or Mach-O header names, for example
+   * `pe-x86-64`, `elf64-x86-64`, `macho-arm64` or
+   * `macho-universal-arm64+x86-64`; an unnamed machine keeps its raw
+   * number, for example `pe-0x01c2`. Absent when the source recorded only
+   * a path.
    */
   machine?: string | null;
   path: string;
@@ -7683,6 +7835,11 @@ export interface ApplicationUpdateAvailable {
   date: string | null;
   notes: string | null;
   version: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopArtworkSelectionPreview {
+  original_sha256: string;
+  png_base64: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {

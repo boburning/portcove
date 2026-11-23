@@ -771,6 +771,37 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
+Local Logo is an independent choice in library schema 75. It uses the same
+bounded static image ingest, content store, revision checks and read-only
+thumbnail path as the existing Cover, Detail and Landscape choices. Library
+metadata records a Logo selection or reset revision under schema 14.
+
+Library schema 77 records explicit role suppression alongside the choice
+revision. Hiding is independent of the selection: a hidden slot keeps its
+selected asset and framing stored but never displays or reads them, and
+unhiding restores exactly that selection (or automatic artwork when none was
+selected). Choosing a new image shows the role; reset clears both. Core keeps a
+neutral fallback available and withholds the retained selection and automatic
+Cover, companion and collection images. Framing cannot change while hidden.
+Metadata schema 16 preserves the hidden state and its retained selection across
+export and restore. The destination handoff remains schema 4 and reports no
+local original for a hidden role.
+
+Core stores versioned wide and narrow focal points with the selected Detail
+asset and its choice revision in library schema 76. Each coordinate is measured
+in ten-thousandths of the orientation-corrected image. Replacing the asset or
+returning to automatic artwork clears its framing. Exports that include framing
+require library metadata schema 15 and restore it against the same admitted
+choice. The destination handoff carries the original asset and its choice
+revision and omits these presentation points.
+
+A local or SteamGridDB artwork preview uses a bounded, orientation-corrected
+derivative and identifies the original by SHA-256. SteamGridDB preview resolves
+the exact provider collection for Cover, Detail, Landscape or Logo. Applying a
+reviewed selection reads the original again and verifies the reviewed digest and
+the expected role revision. Detail can include framing in the same commit.
+Preview creates no library choice or stored asset.
+
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
 choice revision. Any explicit local choice suppresses the collection. Tauri delegates
@@ -2961,11 +2992,71 @@ and destination own completion of bookkeeping. The player opens the recovered li
 selection operation.
 
 In Desktop, open **Settings**, then **Library and storage**. Select **Create
-recovery bundle** to review coverage and the destination before copying. Select
-**Inspect or restore a bundle** to verify a finished copy and review a separate
-restore. After a restore completes, choose the restored folder through library
+recovery bundle** to review coverage and the destination before copying. After
+a restart, review the same destination from the same library. A matching
+interrupted intent offers **Resume bundle creation**. If a write fails before
+Core can authenticate the journal, the error does not offer a staging resume.
+After authentication, copy failure preserves the journal and copied data for
+another attempt. When the authenticated
+intent matches a publication at that destination, **Verify published bundle**
+reads the exact receipt and checks its contents without replaying the copy.
+Select **Inspect or restore a bundle** to verify a finished copy and review a
+separate restore. If verifying the selected folder fails, Desktop keeps the
+folder available to retry and offers the verification details. An occupied
+restore folder keeps the verified bundle and returns focus to the destination
+field, with a request for a new or empty folder. Core still refuses the occupied
+destination and supplies the technical reason. A fresh review of the same
+bundle and restore folder rediscovers its authenticated transfer. Resume checks an interrupted copy,
+and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
+
+Core reports each failure's outcome at the operation that observed it. The
+read-only commands that inspect a bundle, check a published bundle against its
+review, or read a recorded restore result report that no files changed. A
+restore failure before its journal exists reports that the restore did not
+start: nothing was copied, and the destination holds at most an empty folder
+with its lease file, which a new review accepts. Once the restore journal or the
+authenticated creation intent exists, every failure reports recovery required
+and names the resumable folder. This includes a re-check of the bundle inside a
+restore, a cancel and a full drive. When the operating system reports a full
+drive or quota, Core shows a plain explanation and keeps the operating-system
+text in the technical details. An aborted import that is reviewed again reports
+no changes.
+
+Portcove never deletes a retained creation staging directory or its `work`
+folder. After publication, the staging directory and its `work` folder stay in
+the destination's parent until the player removes them. Retained staging may hold
+the only copy of data the player needs, so automatic cleanup needs its own
+review. No safe cleanup for these directories exists yet; it is an open item.
+
+The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
+a private mount namespace. It reserves space after Core writes the authenticated
+intent, observes the kernel's write failure, then frees the reservation and
+resumes the same copy. Run it through the normal resource guard from an
+isolated checkout:
+
+```sh
+node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+  unshare --user --map-root-user --mount --propagation private bash -eu -c '
+    test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+    cleanup() {
+      if mountpoint -q "$test_mount"; then
+        umount "$test_mount"
+      fi
+      rmdir "$test_mount"
+    }
+    trap cleanup EXIT
+    mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+    export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+    cargo test --locked -p portcove-core --lib \
+      a_full_filesystem_leaves_the_exact_recovery_copy_resumable -- --ignored
+  '
+```
+
+The test exercises Core copying against a real Linux capacity limit. It
+uses the Core unit test's deterministic authority and does not qualify the
+production secure store, Windows filesystems or the Desktop presentation.
 
 ## Library imports
 
@@ -3167,9 +3258,11 @@ derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
 which says nothing about content outside those parts, else `unreviewed`). The
 field is additive, does not change the manifest schema version and grants
-nothing. Core stores it as untyped JSON and parses it only when it is read: a
-record with another derivation version, or with a part, status or reason this
-build does not know, reads as no record and never makes the manifest, its
+nothing. Installs record components only and write derivation version 1 (the
+component rules version), so earlier builds keep reading them; this build reads
+versions 1 and 2. Core stores it as untyped JSON and parses it only when it is
+read: a record with a derivation version outside that range, or with a part,
+status or reason this build does not know, reads as no record and never makes the manifest, its
 verification, launch checks or rollback fail. Manifest rewrites, such as an
 archive-data admission, carry the stored value unchanged. An active
 installation's recorded shape is eligible as a local fallback baseline when the

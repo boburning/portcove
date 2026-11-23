@@ -479,7 +479,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -563,7 +563,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       # The native jobs share the reviewed runtime floor and exact driver readiness.
@@ -687,6 +687,12 @@ jobs:
           - selection: library-switch
             scenarios:
               - native-library-switch-recovery
+          - selection: recovery-bundle-create-restore
+            scenarios:
+              - native-library-recovery-bundle
+          - selection: recovery-bundle-interruption
+            scenarios:
+              - native-library-recovery-interruption
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
@@ -740,7 +746,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       # The native jobs share the reviewed runtime floor and exact driver readiness.
@@ -1076,7 +1082,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1152,7 +1158,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1226,7 +1232,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1300,7 +1306,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin

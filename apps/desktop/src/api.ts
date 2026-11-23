@@ -2,7 +2,10 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
-  DestinationArtworkRole,
+  ArtworkFraming,
+  ArtworkSelectionFraming,
+  ArtworkSelectionPreview,
+  SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
@@ -170,6 +173,13 @@ type ModSetupDraftEdits = {
   local_files: { path: string; expected_plan_sha256: string }[];
 };
 
+function recoveryBundleEventChannel(onEvent?: (event: OperationEvent) => void) {
+  if (!onEvent) return undefined;
+  const channel = new Channel<OperationEvent>();
+  channel.onmessage = onEvent;
+  return channel;
+}
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -331,12 +341,40 @@ export const desktopApi = {
   clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
   searchSteamGridDbGames: (term: string) =>
     invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
-  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole, page = 0) =>
+  steamGridDbCandidates: (gameId: number, role: SteamGridDbArtworkRole, page = 0) =>
     invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role, page }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
   checkSteamGridDbListings: (generation: number) =>
     invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
+  previewLocalArtwork: (portId: string, path: string, generation: number) =>
+    invoke<ArtworkSelectionPreview>("preview_local_artwork", { portId, path, generation }),
+  previewSteamGridDbArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    gameId: number,
+    candidateId: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkSelectionPreview>("preview_steamgriddb_artwork", {
+      portId,
+      slot,
+      gameId,
+      candidateId,
+      generation,
+    }),
+  setBackgroundArtworkFraming: (
+    portId: string,
+    expectedRevision: number,
+    generation: number,
+    framing: ArtworkFraming | null,
+  ) =>
+    invoke<ArtworkState>("set_background_artwork_framing", {
+      portId,
+      expectedRevision,
+      generation,
+      framing,
+    }),
   chooseSteamGridDbArtwork: (
     portId: string,
     slot: ArtworkSlot,
@@ -344,6 +382,7 @@ export const desktopApi = {
     candidateId: number,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("choose_steamgriddb_artwork", {
       portId,
@@ -352,6 +391,7 @@ export const desktopApi = {
       candidateId,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   importArtwork: (
     portId: string,
@@ -359,6 +399,7 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("import_artwork", {
       portId,
@@ -366,6 +407,7 @@ export const desktopApi = {
       path,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   modSetups: (portId: string, generation: number, browseOnly?: true) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", {
@@ -750,6 +792,30 @@ export const desktopApi = {
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
       portId,
       path,
+      generation,
+    }),
+  suppressArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("suppress_artwork", {
+      portId,
+      slot,
+      expectedRevision,
+      generation,
+    }),
+  unhideArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("unhide_artwork", {
+      portId,
+      slot,
+      expectedRevision,
       generation,
     }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>
@@ -1457,14 +1523,20 @@ export const desktopApi = {
     }),
   planLibraryRecoveryBundle: (destination: string, generation: number) =>
     invoke<LibraryRecoveryBundlePlan>("plan_library_recovery_bundle", { destination, generation }),
-  createLibraryRecoveryBundle: (destination: string, expectedPlan: string, generation: number) =>
+  createLibraryRecoveryBundle: (
+    destination: string,
+    expectedPlan: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
     invoke<LibraryRecoveryBundle>("create_library_recovery_bundle", {
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  inspectLibraryRecoveryBundle: (path: string) =>
-    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path }),
+  inspectLibraryRecoveryBundle: (path: string, expectedPlan?: string) =>
+    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path, expectedPlan }),
   planLibraryRecoveryRestore: (path: string, destination: string, generation: number) =>
     invoke<LibraryRecoveryRestorePlan>("plan_library_recovery_restore", {
       path,
@@ -1476,17 +1548,39 @@ export const desktopApi = {
     destination: string,
     expectedPlan: string,
     generation: number,
+    onProgress?: (event: OperationEvent) => void,
   ) =>
     invoke<LibraryImportResult>("restore_library_recovery_bundle", {
       path,
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  resumeLibraryRecoveryBundle: (staging: string, generation: number) =>
-    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", { staging, generation }),
-  resumeLibraryRecoveryRestore: (destination: string, generation: number) =>
-    invoke<LibraryImportResult>("resume_library_recovery_restore", { destination, generation }),
+  readLibraryRecoveryRestore: (destination: string, expectedPlan: string) =>
+    invoke<LibraryImportResult>("read_library_recovery_restore", { destination, expectedPlan }),
+  resumeLibraryRecoveryBundle: (
+    staging: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
+    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", {
+      staging,
+      generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
+  resumeLibraryRecoveryRestore: (
+    destination: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+    expectedTransferId?: string,
+  ) =>
+    invoke<LibraryImportResult>("resume_library_recovery_restore", {
+      destination,
+      generation,
+      expectedTransferId,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
   reportFrontendError: (report: FrontendFailureReport) =>
     invoke<void>("report_frontend_error", { report }),
   plan: (portId: string, channel: ReleaseChannel) =>
@@ -1496,6 +1590,18 @@ export const desktopApi = {
   openManualSetupFolder: (portId: string, installId: string, generation: number) =>
     invoke<string>("open_manual_setup_folder", { portId, installId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
+  canReviewExactRelease: (portId: string, generation: number) =>
+    invoke<boolean>("can_review_exact_release", { portId, generation }),
+  reviewExactRelease: (portId: string, version: string, generation: number) =>
+    invoke<import("./types").ExactReleaseReview>("review_exact_release", {
+      portId,
+      version,
+      generation,
+    }),
+  pinExactRelease: (portId: string, version: string, reviewSha256: string, generation: number) =>
+    invoke<PortStatus>("pin_exact_release", { portId, version, reviewSha256, generation }),
+  clearExactRelease: (portId: string, generation: number) =>
+    invoke<PortStatus>("clear_exact_release", { portId, generation }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
   setPolicy: (portId: string, policy: UpdatePolicy, generation: number) =>

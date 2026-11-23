@@ -16,6 +16,7 @@ import { ArtworkCache, type ArtworkDisplay, type ArtworkPriority } from "./artwo
 
 import type {
   ArtworkSlot,
+  ArtworkState,
   CatalogDocument,
   CatalogListingDocument,
   CatalogMediaAsset,
@@ -85,6 +86,10 @@ export function ArtworkProvider({
   );
 }
 
+export function usesAutomaticArtwork(state?: ArtworkState): boolean {
+  return Boolean(state && !state.choice.asset_sha256 && !state.choice.suppressed);
+}
+
 /** Collection defaults remain subordinate to every explicit local choice, even an unavailable one. */
 export function useCollectionCovers(
   portId: string | undefined,
@@ -96,8 +101,7 @@ export function useCollectionCovers(
   const collections = useContext(CollectionCoversContext);
   const covers = portId ? collections.get(portId) : undefined;
   const revision = primary.state?.choice.revision;
-  const enabled =
-    primary.state !== undefined && !primary.state.choice.asset_sha256 && !primary.stale;
+  const enabled = usesAutomaticArtwork(primary.state) && !primary.stale;
   const keys = useMemo(
     () =>
       cache && portId && enabled && revision !== undefined
@@ -344,7 +348,7 @@ function useHeaderArtwork(
   context: HeroMediaContext = {},
 ) {
   const { display: local } = useArtwork(port.id, "detail", visible);
-  const allowCatalog = Boolean(local.state && !local.state.choice.asset_sha256);
+  const allowCatalog = usesAutomaticArtwork(local.state);
   const candidates = heroMediaCandidates(port, context).backgrounds;
   const catalog = useCatalogMediaChain(port.id, candidates, visible && allowCatalog);
   const usingCatalog = Boolean(allowCatalog && catalog.display.image);
@@ -352,7 +356,7 @@ function useHeaderArtwork(
     // The automatic cover is a portrait identity, never a manufactured banner.
     display: usingCatalog
       ? catalog.display
-      : local.state?.resolved_source.kind === "igdb_cover"
+      : local.state?.choice.suppressed || local.state?.resolved_source.kind === "igdb_cover"
         ? unavailable
         : local,
     catalogMedia: usingCatalog ? catalog.candidate : undefined,
@@ -364,13 +368,35 @@ export function useGameHeroArtwork(
   port: HeroMediaPort,
   visible: boolean,
   context: HeroMediaContext = {},
+  showBackground = true,
 ) {
   const candidates = heroMediaCandidates(port, context);
-  const foreground = useCatalogMediaChain(port.id, candidates.foreground, visible);
+  const { cache: logoCache, display: logo } = useArtwork(port.id, "logo", visible);
+  const hasLogoChoice = Boolean(logo.state?.choice.asset_sha256);
+  const onLogoImageError = logo.onImageError;
+  const rejectLogo = useCallback(() => onLogoImageError?.(), [onLogoImageError]);
+  const foregroundCandidates = usesAutomaticArtwork(logo.state) ? candidates.foreground : [];
+  const catalogForeground = useCatalogMediaChain(port.id, foregroundCandidates, visible);
+  const foreground = hasLogoChoice
+    ? {
+        display: logo,
+        role: "logo" as const,
+        initialRole: "logo" as const,
+        candidate: undefined,
+        localLogo: true,
+        logoGeneration: logoCache?.generation,
+        reject: rejectLogo,
+      }
+    : {
+        ...catalogForeground,
+        role: catalogForeground.candidate?.role,
+        initialRole: foregroundCandidates[0]?.role,
+        localLogo: false,
+      };
   const { display: cover } = useArtwork(port.id, "cover", visible);
-  const background = useHeaderArtwork(port, visible, context);
+  const background = useHeaderArtwork(port, visible && showBackground, context);
   return {
-    foreground: { ...foreground, initialRole: candidates.foreground[0]?.role },
+    foreground,
     cover,
     background,
   };

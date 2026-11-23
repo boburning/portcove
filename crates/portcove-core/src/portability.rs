@@ -67,6 +67,14 @@ pub struct LibraryPortSettings {
     pub previous_install_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_directory: Option<PathBuf>,
+    /// Version 13 binds user release preferences without admitting artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// Version 13: the stored text of a saved pin Core cannot use, carried
+    /// unchanged so the destination keeps the same hold instead of silently
+    /// following the channel. Following the channel there clears it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_exact_release: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -164,6 +172,7 @@ impl Library {
                 )
                 .detail("port_id", &install.port_id)
                 .detail("install_id", &install.id)
+                .detail("recovery_action", "review_managed_installation_location")
             })?;
             install.path = PathBuf::from(portable_relative(relative)?);
             install.selected_executable =
@@ -314,7 +323,7 @@ pub(crate) fn restore_saved_originals(
 }
 
 fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSettings>> {
-    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id, output_directory FROM port_settings ORDER BY port_id")?;
+    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id, output_directory, exact_release_json FROM port_settings ORDER BY port_id")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
@@ -323,14 +332,47 @@ fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSet
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
         ))
     })?;
     rows.map(|row| {
-        let (port_id, channel, policy, active_install_id, previous_install_id, output_directory) =
-            row?;
+        let (
+            port_id,
+            channel,
+            policy,
+            active_install_id,
+            previous_install_id,
+            output_directory,
+            exact_release,
+        ) = row?;
+        let channel = channel.parse()?;
+        // Same per-port boundary as status: an unusable pin neither fails the
+        // export nor is dropped or reinterpreted; its stored text travels.
+        let (exact_release, held_exact_release) = match crate::ExactReleaseSelection::decode_or_hold(
+            &port_id,
+            channel,
+            exact_release.as_deref(),
+        ) {
+            Ok(pin) => (pin, None),
+            Err(_) => match exact_release {
+                Some(stored)
+                    if stored.len() > crate::library_import::MAX_HELD_EXACT_RELEASE_BYTES =>
+                {
+                    return Err(crate::release::ExactReleaseRefusal::PinUnreadable.attach(
+                        PortcoveError::verification(
+                            "a saved exact release is too large to carry in library metadata",
+                        )
+                        .detail("port_id", &port_id),
+                    ));
+                }
+                stored => (None, stored),
+            },
+        };
         Ok(LibraryPortSettings {
             port_id,
-            channel: channel.parse()?,
+            channel,
+            exact_release,
+            held_exact_release,
             update_policy: policy.parse()?,
             active_install_id,
             previous_install_id,

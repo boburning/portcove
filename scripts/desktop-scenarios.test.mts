@@ -3021,7 +3021,7 @@ void test("only the measured six-case install and Steam aggregate receives its c
   for (const [index, scenario] of scenarios.entries()) {
     assert.equal(
       desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios: [scenario] })),
-      index === 3 || index === 4 ? 600_000 : 180_000,
+      index >= 3 ? 600_000 : 180_000,
       `Keep the standalone ${scenario} allowance`,
     );
     assert.equal(
@@ -3093,6 +3093,23 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
       resolveDesktopSelection({ scenarios: ["native-game-return-continuity"] }),
     ),
     180_000,
+  );
+});
+
+void test("recovery bundle creation and restoration stay in one explicitly selected Windows scenario", () => {
+  const id = "native-library-recovery-bundle";
+  assert.equal(desktopScenarioById.get(id)?.qualification_only, true);
+  for (const scenarios of Object.values(DESKTOP_PROFILES)) assert.ok(!scenarios.includes(id));
+  const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selected.selected_scenarios, [id]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    /Windows|win32/,
   );
 });
 

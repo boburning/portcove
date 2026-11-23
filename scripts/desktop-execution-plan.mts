@@ -1,5 +1,9 @@
 import { parseArgs } from "node:util";
-import { desktopScenarioById, resolveDesktopSelection } from "./desktop-scenarios.mts";
+import {
+  desktopScenarioById,
+  resolveDesktopSelection,
+  usesHostPublicationHarness,
+} from "./desktop-scenarios.mts";
 import { expandNativeHelperInputs } from "./native-helper-dependencies.mts";
 import {
   gameFirstInstalledArgumentNames,
@@ -107,6 +111,7 @@ export function planDesktopExecution(
         "install-progress-cancellation",
         "native-reviewed-existing-install-copy",
         "native-library-move-invalidates-prior-reviews",
+        "native-library-recovery-bundle",
         "native-contextual-cli-handoff",
         "native-library-layout",
         "native-secondary-panel-presentation",
@@ -132,7 +137,7 @@ export function planDesktopExecution(
     registeredSourceReuse ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-saved-folder-selected-setup")) ||
-    selection.selected_scenarios.includes("native-host-publication-recovery") ||
+    usesHostPublicationHarness(selection.selected_scenarios) ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-direct-preparation-recovery") ||
     selection.selected_scenarios.includes("native-late-listener-disposal") ||
@@ -169,7 +174,7 @@ export function planDesktopExecution(
       ? "game-first-installed-picori"
       : acquisitionJourney
         ? "update-acquisition"
-        : selection.selected_scenarios.includes("native-host-publication-recovery")
+        : usesHostPublicationHarness(selection.selected_scenarios)
           ? "host-publication"
           : selection.selected_scenarios.includes("native-real-prepared-runtime")
             ? "real-prepared-runtime"
@@ -280,7 +285,7 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "apps/desktop/scripts/native-enlargement.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
-  if (selection.selected_scenarios.includes("native-host-publication-recovery"))
+  if (usesHostPublicationHarness(selection.selected_scenarios))
     inputs.push(receiptSource(new URL("./desktop-host-publication-test.mts", harnessUrl)));
   if (registeredSourceReuse)
     for (const name of [
@@ -427,6 +432,8 @@ export function planDesktopExecution(
     inputs.push(receiptSource(new URL("./desktop-source-removal-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-adoption-review-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-library-handoff-test.mts", harnessUrl)));
+    if (selection.selected_scenarios.includes("native-library-recovery-bundle"))
+      inputs.push(receiptSource(new URL("testdata/catalog-artwork-red.jpg", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-cli-handoff-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-review-controls.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-native-confirmation.mts", harnessUrl)));
@@ -461,6 +468,7 @@ export function planDesktopExecution(
     hashResumeJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
   const updateReviewJourney = executed.has("native-game-update-review");
+  const gameSettingsJourney = executed.has("native-game-settings-review");
   const roles = [
     ...selection.selected_scenarios.map((id) => ({ id, role: "selected" })),
     ...selection.setup_scenarios.map((id) => ({ id, role: "setup" })),
@@ -492,6 +500,7 @@ export function planDesktopExecution(
           "install-progress-cancellation",
           "install-commit-refresh-recovery",
           "native-staged-update-composition",
+          "native-game-settings-review",
           "native-update-acquisition-lifecycle",
           "native-managed-copy-result",
         ].includes(id),
@@ -566,18 +575,20 @@ export function planDesktopExecution(
       ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
       ...(managedCopyJourney ? { managedCopyJourney: true } : {}),
       ...(updateReviewJourney ? { updateReviewJourney: true } : {}),
+      ...(gameSettingsJourney ? { gameSettingsJourney: true } : {}),
       ...(registeredSourceReuse ? { registeredSourceReuse: true } : {}),
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
       holdFirstDownload: completionJourney,
       designCompatibility: needs("design-compatibility-fixture"),
     },
     build: {
-      cliFeatures:
-        sourceJourney ||
-        completionJourney ||
-        updateReviewJourney ||
-        managedCopyJourney ||
-        selection.selected_scenarios.includes("native-host-publication-recovery")
+      cliFeatures: gameSettingsJourney
+        ? ["portcove-cli/qualification-fixtures"]
+        : sourceJourney ||
+            completionJourney ||
+            updateReviewJourney ||
+            managedCopyJourney ||
+            usesHostPublicationHarness(selection.selected_scenarios)
           ? ["portcove-core/qualification-fixtures"]
           : [],
       qualificationFeatures:

@@ -25,11 +25,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AdapterKind, Catalog, Platform, PortDefinition, PortcoveError, Result};
 
+pub(crate) mod machine;
 pub(crate) mod withheld;
 
-/// Version of the derivation rules. The generated table records the version it
-/// was derived with; a different version is not a baseline.
-pub(crate) const SHAPE_VERSION: u32 = 1;
+/// Version of the derivation rules the generated table records. Version 2
+/// adds machine-typed player candidates to the six shape components; the
+/// component rules are those of [`COMPONENT_RULES_VERSION`].
+pub(crate) const SHAPE_VERSION: u32 = 2;
+/// The oldest derivation version whose component rules equal this build's.
+/// Records from this version through [`SHAPE_VERSION`] are baselines; any
+/// other version is not. Records that carry components only (installation
+/// manifests and withheld observations) are written at this version, so
+/// earlier Portcove builds keep reading them.
+pub(crate) const COMPONENT_RULES_VERSION: u32 = 1;
+
+/// Whether a record of this derivation version has this build's component rules.
+pub(crate) fn readable_shape_version(version: u32) -> bool {
+    (COMPONENT_RULES_VERSION..=SHAPE_VERSION).contains(&version)
+}
 /// First template capability that withholds a package with known shape drift.
 pub(crate) fn enforcement_capability(adapter: AdapterKind) -> Option<u32> {
     match adapter {
@@ -291,6 +304,12 @@ pub struct PackageShapeInspection {
     pub derivation_inputs_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub predecessor_observation: Option<crate::PackageLayoutObservation>,
+    /// The players these exact bytes contain (shape version 2): the route's
+    /// declared launch target when it is a reviewed program outside any tool,
+    /// installer or server location and its header is a native executable,
+    /// with its machine and SHA-256. Empty when none qualifies.
+    #[serde(default)]
+    pub player_candidates: Vec<crate::PlayerCandidate>,
 }
 
 /// Whether an installation's manifest holds a package shape this build reads.
@@ -329,7 +348,7 @@ pub struct InstalledPackageShape {
 /// including another derivation version, is no record.
 pub(crate) fn stored_record(value: &serde_json::Value) -> Option<PackageShapeRecord> {
     let record = PackageShapeRecord::deserialize(value).ok()?;
-    (record.shape_version == SHAPE_VERSION
+    (readable_shape_version(record.shape_version)
         && record.shape.as_ref().is_none_or(PackageShape::is_canonical))
     .then_some(record)
 }
@@ -355,7 +374,57 @@ struct GeneratedEntry {
     /// Digest of the catalog facts the derivation read for this route and
     /// platform; the generator and the table-currency test compare it.
     derivation_inputs_sha256: String,
+    /// The derivation version of this entry; absent means the table's.
+    #[serde(default)]
+    shape_version: Option<u32>,
     shape: PackageShape,
+    /// Version 2: the players these exact bytes contain, with machine and digest.
+    #[serde(default)]
+    player_candidates: Option<Vec<crate::PlayerCandidate>>,
+}
+
+impl GeneratedEntry {
+    fn version(&self, table: u32) -> u32 {
+        self.shape_version.unwrap_or(table)
+    }
+
+    /// Version 1 entries carry no players; later entries carry canonical
+    /// players drawn from their own programs.
+    fn players_are_canonical(&self, version: u32) -> bool {
+        let Some(players) = &self.player_candidates else {
+            return version < PLAYER_CANDIDATES_VERSION;
+        };
+        version >= PLAYER_CANDIDATES_VERSION
+            && players.windows(2).all(|pair| pair[0].path < pair[1].path)
+            && players.iter().all(|player| {
+                self.shape
+                    .programs
+                    .as_ref()
+                    .is_some_and(|programs| programs.binary_search(&player.path).is_ok())
+                    && player.sha256.as_deref().is_some_and(lowercase_digest)
+                    && player.machine.as_deref().is_some_and(canonical_machine)
+            })
+    }
+}
+
+/// First derivation version that records player candidates.
+const PLAYER_CANDIDATES_VERSION: u32 = 2;
+
+fn canonical_machine(machine: &str) -> bool {
+    (1..=64).contains(&machine.len())
+        && machine
+            .bytes()
+            .all(|byte| matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'+'))
+}
+
+/// What the generated table knows about exact reviewed archive bytes.
+pub(crate) struct ReviewedArchive {
+    /// The oldest derivation version among the applicable entries.
+    pub shape_version: u32,
+    pub platforms: Vec<Platform>,
+    pub programs: Vec<String>,
+    /// Present when every applicable entry records player candidates.
+    pub players: Option<Vec<crate::PlayerCandidate>>,
 }
 
 fn generated_table() -> &'static [GeneratedEntry] {
@@ -384,15 +453,22 @@ pub(crate) fn reviewed_release_digests(
         .collect()
 }
 
-/// Reviewed programs of exact archive bytes whose observations still apply to
-/// this route, with the platforms they were reviewed for.
-pub(crate) fn reviewed_archive_programs(
+/// Reviewed programs and players of exact archive bytes whose observations
+/// still apply to this route, with the platforms they were reviewed for.
+pub(crate) fn reviewed_archive(port: &PortDefinition, sha256: &str) -> Option<ReviewedArchive> {
+    reviewed_archive_in(generated_table(), port, sha256)
+}
+
+fn reviewed_archive_in(
+    table: &[GeneratedEntry],
     port: &PortDefinition,
     sha256: &str,
-) -> Option<(u32, Vec<Platform>, Vec<String>)> {
+) -> Option<ReviewedArchive> {
     let mut platforms = Vec::new();
-    let mut programs = std::collections::BTreeSet::new();
-    for entry in generated_table()
+    let mut programs = BTreeSet::new();
+    let mut version = SHAPE_VERSION;
+    let mut players = Some(BTreeMap::<(String, Option<String>, Option<String>), _>::new());
+    for entry in table
         .iter()
         .filter(|entry| entry.port_id == port.id && entry.sha256.eq_ignore_ascii_case(sha256))
     {
@@ -403,16 +479,43 @@ pub(crate) fn reviewed_archive_programs(
         }
         platforms.push(entry.platform);
         programs.extend(entry.shape.programs.iter().flatten().cloned());
+        let entry_version = entry.version(SHAPE_VERSION);
+        version = version.min(entry_version);
+        match (&mut players, &entry.player_candidates) {
+            (Some(found), Some(candidates)) => {
+                for player in candidates {
+                    found.insert(
+                        (
+                            player.path.clone(),
+                            player.machine.clone(),
+                            player.sha256.clone(),
+                        ),
+                        player.clone(),
+                    );
+                }
+            }
+            _ => players = None,
+        }
     }
-    (!platforms.is_empty()).then(|| (SHAPE_VERSION, platforms, programs.into_iter().collect()))
+    (!platforms.is_empty()).then(|| ReviewedArchive {
+        shape_version: version,
+        platforms,
+        programs: programs.into_iter().collect(),
+        players: players.map(|found| found.into_values().collect()),
+    })
 }
 
 fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
-    let table: GeneratedTable = serde_json::from_str(text)?;
+    let mut table: GeneratedTable = serde_json::from_str(text)?;
+    // The table states the version its generator wrote; each entry may keep
+    // an older readable version until it is re-derived.
     if table.format != TABLE_FORMAT
-        || table.shape_version != SHAPE_VERSION
+        || !readable_shape_version(table.shape_version)
         || table.entries.iter().any(|entry| {
-            !entry.shape.is_canonical()
+            let version = entry.version(table.shape_version);
+            !readable_shape_version(version)
+                || !entry.players_are_canonical(version)
+                || !entry.shape.is_canonical()
                 || ShapeComponent::ALL
                     .iter()
                     .any(|&component| entry.shape.component(component).is_none())
@@ -423,6 +526,9 @@ fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
         return Err(PortcoveError::verification(
             "generated package shape table is not current",
         ));
+    }
+    for entry in &mut table.entries {
+        entry.shape_version = Some(entry.version(table.shape_version));
     }
     Ok(table.entries)
 }
@@ -582,6 +688,8 @@ pub(crate) struct ShapeRoots {
     sole_n64_mac_bundle: bool,
     /// A verified optional player data slot at the package root, if declared.
     optional_top_directory: Option<String>,
+    /// The route's declared launch target, when it resolved.
+    executable: Option<PathBuf>,
 }
 
 pub(crate) fn roots(
@@ -628,6 +736,7 @@ pub(crate) fn roots(
         persistence,
         sole_n64_mac_bundle,
         optional_top_directory,
+        executable,
     })
 }
 
@@ -1003,7 +1112,7 @@ fn evaluate_with_generated_entry(
 /// A verdict for a package whose shape could not be derived.
 pub(crate) fn observation_failed(error: &PortcoveError) -> PackageShapeRecord {
     PackageShapeRecord {
-        shape_version: SHAPE_VERSION,
+        shape_version: COMPONENT_RULES_VERSION,
         shape: None,
         provenance: ShapeProvenance::Unreviewed,
         verdict: ShapeVerdict::Unknown {
@@ -1087,7 +1196,7 @@ pub(crate) fn record_for_install(
             let (verdict, provenance) =
                 evaluate(port, platform, sha256, &shape, local, reviewed_layout);
             PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(shape),
                 provenance,
                 verdict,
@@ -1182,6 +1291,7 @@ pub fn inspect_package_shape_archive_observed(
     crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
+    let player_candidates = derive_player_candidates(&roots, &shape)?;
     let predecessor_scope_unassessed = predecessor.is_none()
         && preferred_generated_entry(generated_table(), &port.id, platform, expected_sha256)
             .is_none()
@@ -1224,7 +1334,77 @@ pub fn inspect_package_shape_archive_observed(
         verdict,
         derivation_inputs_sha256: embedded_derivation_inputs_sha256(&port.id, platform),
         predecessor_observation: predecessor.cloned(),
+        player_candidates,
     })
+}
+
+/// Player candidates of an extracted package (derivation version 2).
+///
+/// Bundled compilers, overlay toolchains, updaters, crash reporters, setup
+/// programs and servers are never players. The decision uses declared facts
+/// and structure only, never a list of titles: the candidate is the route's
+/// declared launch target, resolved exactly as the installer resolves it; it
+/// must be one of the shape's reviewed programs, no segment of its path may
+/// name a tool, installer or server location, and its header must classify as
+/// a native executable rather than a library or script.
+pub(crate) fn derive_player_candidates(
+    roots: &ShapeRoots,
+    shape: &PackageShape,
+) -> Result<Vec<crate::PlayerCandidate>> {
+    let Some(executable) = &roots.executable else {
+        return Ok(Vec::new());
+    };
+    let Some(relative) = executable
+        .strip_prefix(&roots.package)
+        .ok()
+        .and_then(|relative| {
+            relative
+                .components()
+                .map(|component| match component {
+                    std::path::Component::Normal(part) => {
+                        Some(part.to_string_lossy().to_ascii_lowercase())
+                    }
+                    _ => None,
+                })
+                .collect::<Option<Vec<_>>>()
+        })
+        .map(|parts| parts.join("/"))
+    else {
+        return Ok(Vec::new());
+    };
+    let reviewed = shape
+        .programs
+        .as_ref()
+        .is_some_and(|programs| programs.binary_search(&relative).is_ok());
+    if !reviewed
+        || crate::route_facts::player_candidates(std::slice::from_ref(&relative)).is_empty()
+    {
+        return Ok(Vec::new());
+    }
+    // Classify and digest the same open single-link file.
+    let mut file = crate::external_runtime::open_single_link_file(executable)?;
+    let Some(image) = machine::classify(&mut file)? else {
+        return Ok(Vec::new());
+    };
+    if image.kind != machine::ImageKind::Executable {
+        return Ok(Vec::new());
+    }
+    use std::io::{Read as _, Seek as _};
+    file.seek(std::io::SeekFrom::Start(0))?;
+    let mut digest = <sha2::Sha256 as sha2::Digest>::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        sha2::Digest::update(&mut digest, &buffer[..read]);
+    }
+    Ok(vec![crate::PlayerCandidate {
+        path: relative,
+        machine: Some(image.machine),
+        sha256: Some(hex::encode(sha2::Digest::finalize(digest))),
+    }])
 }
 
 impl crate::PortcoveService {

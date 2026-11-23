@@ -342,7 +342,8 @@ export default interface Resources {
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
-      "detailLabel": "{{title}} game details"
+      "detailLabel": "{{title}} game details",
+      "openDetails": "Game details"
     },
     "implementation": {
       "choose": "Choose <name/>",
@@ -748,6 +749,21 @@ export default interface Resources {
       "more": "More actions for {{name}}",
       "project": "Upstream project",
       "steam": "Steam shortcut"
+    },
+    "artwork": {
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "previewFailed": "The preview could not open. Cancel and choose an image again.",
+      "reviewAutomatic": "Use the default artwork for this role when available.",
+      "reviewChange": "Review artwork change",
+      "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
+      "reviewImage": "Review {{role}}",
+      "reviewLocalImage": "Local image",
+      "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
+      "reviewProviderImage": "SteamGridDB image by {{author}}",
+      "reviewShow": "Show this role again with the artwork it had before it was hidden.",
+      "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
+      "scopeCurrentPort": "Artwork changes apply only to this port."
     },
     "capabilities": {
       "assessment": "Assessment details",
@@ -1772,6 +1788,27 @@ export default interface Resources {
       "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
       "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    },
+    "releasePreference": {
+      "cancel": "Cancel release review",
+      "channelCandidate": "The channel offers {{version}}.",
+      "choose": "Choose exact release",
+      "follow": "Follow channel",
+      "followFailed": "Portcove couldn’t confirm the change. Refresh to check the saved choice.",
+      "following": "Following the selected channel.",
+      "heldChannel": "The saved release pin belongs to a different channel, so Portcove won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "heldUnreadable": "Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "package": "{{version}} · {{filename}} · {{size}}",
+      "pin": "Pin this release",
+      "pinConsequence": "Future installs and update checks use this release, even when the channel offers a newer one.",
+      "pinFailed": "Portcove couldn’t confirm the pin. Review the release again.",
+      "pinned": "Pinned to {{version}}.",
+      "review": "Review release",
+      "reviewFailed": "Portcove couldn’t review this release. Check the tag and try again.",
+      "reviewing": "Reviewing release…",
+      "saveCompatibility": "Check the release’s save compatibility before installing a different version.",
+      "tag": "Release tag or version",
+      "title": "Release selection"
     }
   },
   "installation": {

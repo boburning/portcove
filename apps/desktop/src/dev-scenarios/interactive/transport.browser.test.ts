@@ -38,6 +38,19 @@ it("accepts optional known store profile context and refuses malformed context",
   ).rejects.toThrow("unexpected arguments");
   expect(refuse).toHaveBeenCalledTimes(4);
 });
+it("reports exact release review as unavailable for a valid fixture port", async () => {
+  const refuse = vi.fn();
+  transport = installInteractiveTransport("library", refuse);
+  expect(await desktopApi.canReviewExactRelease("sample", 1)).toBe(false);
+  expect(refuse).not.toHaveBeenCalled();
+  await expect(desktopApi.canReviewExactRelease("unknown", 1)).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  await expect(desktopApi.canReviewExactRelease("sample", 2)).rejects.toThrow(
+    "unexpected arguments",
+  );
+});
+
 it("refuses unknown and malformed commands visibly without forwarding IPC", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);

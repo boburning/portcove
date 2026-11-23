@@ -48,6 +48,7 @@ import {
   usesUserSelectedRuntime,
 } from "../shared/external-runtime-trust";
 import { ArtworkControls } from "./Artwork";
+import { GameHeroFramingPreview } from "./GameHero";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
@@ -108,6 +109,7 @@ import {
   defaultReleaseChannel,
   formatBytes,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   installationMethodLabel,
   installationMethodLabels,
   platformLabel,
@@ -146,6 +148,11 @@ import {
   useOperationPresentation,
 } from "../features/operations/operation-presentation";
 
+import {
+  ExactReleasePreference,
+  type ExactReleaseActions,
+} from "../features/game-details/ExactReleasePreference";
+
 export interface DetailActions {
   activate: AsyncAction;
   backup: AsyncAction;
@@ -164,6 +171,7 @@ export interface DetailActions {
   rollback: AsyncAction;
   remove: ApplyRemoval;
   setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
+  exactRelease?: ExactReleaseActions;
   setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
   verify: AsyncAction;
 }
@@ -658,6 +666,31 @@ function DetailBody(model: {
     setupRoutes.promoteAlternative,
   );
   const requirements = detailRequirementContext(model, external);
+  const setupActionLabel = heroSetupLabel(
+    model,
+    directInstall,
+    managedPreparation,
+    setupRoutes.promoteAlternative,
+  );
+  const launchActionLabel =
+    model.installed && model.launchReady
+      ? installedPlayPresentation(true, detailHeaderTrial(model), model.pendingSetup).label
+      : undefined;
+  const operations = useOperationPresentation();
+  const launchReadiness = presentPortAction(
+    operations,
+    model.port.id,
+    model.status,
+    "launch",
+  ).readiness;
+  const continueAction = continueActionPresentation(
+    model.displayPort ?? { ...model.port, definition: model.port },
+    model.status,
+    launchReadiness.blocked,
+  );
+  const previewActions = model.installReadbackRequired
+    ? undefined
+    : { wide: launchActionLabel ?? setupActionLabel, narrow: continueAction.label };
   return (
     <DetailLayout
       backLabel={model.backLabel}
@@ -742,7 +775,7 @@ function DetailBody(model: {
                 : "primary"
             }
             size="lg"
-            aria-label={`${heroSetupLabel(model, directInstall, managedPreparation, setupRoutes.promoteAlternative)}: ${gameIdentityLabel(model.port)}`}
+            aria-label={`${setupActionLabel}: ${gameIdentityLabel(model.port)}`}
             disabled={Boolean(busy)}
             onClick={() => {
               reveal(
@@ -757,12 +790,7 @@ function DetailBody(model: {
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {heroSetupLabel(
-              model,
-              directInstall,
-              managedPreparation,
-              setupRoutes.promoteAlternative,
-            )}
+            {setupActionLabel}
             <Icon glyph={ArrowRight} />
           </Button>
         )
@@ -851,7 +879,7 @@ function DetailBody(model: {
           ? { configuration: <DetailConfigurationSection model={model} /> }
           : {}),
         versions: <DetailVersionsSection {...{ model, external }} />,
-        manage: <DetailManageSection {...{ model, external, reveal }} />,
+        manage: <DetailManageSection {...{ model, external, reveal, previewActions }} />,
       })}
     </DetailLayout>
   );
@@ -4269,9 +4297,11 @@ function DetailManageSection({
   model,
   external,
   reveal,
+  previewActions,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  previewActions: { wide: string; narrow?: string } | undefined;
   reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
@@ -4331,11 +4361,15 @@ function DetailManageSection({
       <ManagementRow
         title="Artwork"
         targetId="detail-artwork"
-        description="Choose a cover or background image for this game."
+        description="Choose a cover, background, wide cover, or logo for this game."
       >
         <ArtworkControls
           key={`controls:${model.port.id}:${model.libraryGeneration}`}
           port={model.port}
+          previewPort={model.displayPort}
+          Preview={GameHeroFramingPreview}
+          previewActions={previewActions}
+          mediaContext={model.mediaContext}
         />
       </ManagementRow>
       {!external && (
@@ -4532,6 +4566,22 @@ function DetailVersionsSection({
           <AutomaticSnapshotsSummary generation={model.libraryGeneration} />
         )}
         {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
+        {!external && model.installed && model.status && model.actions.exactRelease && (
+          <ExactReleasePreference
+            key={JSON.stringify([
+              model.libraryGeneration,
+              model.port.id,
+              model.status.active?.id,
+              model.status.active?.manifest_sha256,
+              model.selectedChannel,
+              model.status.update_policy,
+              model.status.exact_release,
+            ])}
+            actions={model.actions.exactRelease}
+            status={model.status}
+            busy={Boolean(model.busy)}
+          />
+        )}
         {!external && model.port.release.provider !== "user-prepared" && (
           <UpdatesGroup
             perform={model.perform}
@@ -4662,6 +4712,20 @@ function ManualSetupActions({
   );
 }
 
+function detailHeaderTrial(model: Parameters<typeof DetailBody>[0]) {
+  return (
+    hasUnconfirmedLaunchInput(model.status, model.port) ||
+    Boolean(
+      selectedSourceRequirement(
+        model.sources.source,
+        model.sources.sourcePath,
+        model.sources.bios,
+        model.sources.biosPath,
+      ),
+    )
+  );
+}
+
 function DetailHeaderAction({
   model,
   busy,
@@ -4671,17 +4735,7 @@ function DetailHeaderAction({
       hero
       compact
       commandPlayKey={currentGamePlayKey(model.port.id, model.libraryGeneration, model.status)}
-      trial={
-        hasUnconfirmedLaunchInput(model.status, model.port) ||
-        Boolean(
-          selectedSourceRequirement(
-            model.sources.source,
-            model.sources.sourcePath,
-            model.sources.bios,
-            model.sources.biosPath,
-          ),
-        )
-      }
+      trial={detailHeaderTrial(model)}
       preparationRequired={false}
       launchReady={model.launchReady}
       pendingSetup={model.pendingSetup}
