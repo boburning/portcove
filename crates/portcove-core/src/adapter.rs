@@ -7151,6 +7151,7 @@ mod tests {
                 },
             )]
             .into(),
+            environment_prefix: None,
         });
         crate::reviewed_launch_contract::validate(&moved).unwrap();
         let spec = |port: &PortDefinition| {

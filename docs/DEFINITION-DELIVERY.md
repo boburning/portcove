@@ -54,7 +54,14 @@ Schemas 1 through 3 keep their existing shapes and retain their prior behavior.
 Each of those entries points to a catalog projection contract of its own
 schema. Schema 4 may point to an unchanged catalog projection contract of
 schema 1, 2, 3, or 4. A reviewed package and launch contract also needs a
-schema-3 projection, which names its single scoped subject. The entry's exact
+schema-3 projection, which names its single scoped subject. Its launch values
+reach players' machines and start a game process, so they follow the strict
+[launch value and environment rules](CATALOG.md#package-and-launch-declaration-compatibility):
+an environment name is accepted only from the reviewed harmless list
+(`PYTHONDONTWRITEBYTECODE`) or under the contract's own declared
+title-specific `environment_prefix`, and every literal text argument and
+environment value passes the shared contained-text rule, so a path comes only
+from the closed `path` set. The entry's exact
 indexed bytes, including the advisory object, remain bound
 to authentication, retained identity, and installed contract storage. A
 reader limited to entry schemas 1 through 3 refuses a schema-4 entry, so use

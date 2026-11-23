@@ -15,6 +15,10 @@ pub struct ReviewedLaunchContractV1 {
     pub package_format: BTreeMap<Platform, PackageFormat>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub launch: BTreeMap<Platform, LaunchValues>,
+    /// The reviewed title-specific prefix, such as `DKC2_`, that every launch
+    /// environment name outside the small harmless allow-list carries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment_prefix: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -164,7 +168,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     for (&platform, launch) in &contract.launch {
         let value_safe = |value: &LaunchValue| match value {
             LaunchValue::Text(text) => {
-                !text.is_empty() && text.len() <= 4096 && !text.chars().any(char::is_control)
+                !text.is_empty()
+                    && text.len() <= 4096
+                    && crate::launch_paths::is_contained_launch_text(text)
             }
             LaunchValue::Path(path) => {
                 path.path != crate::launch_paths::LaunchPath::Source
@@ -181,17 +187,26 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             })
             || launch.environment.len() > 32
             || launch.environment.iter().any(|(name, value)| {
-                // The shared name check also refuses loader-injection names.
-                !crate::catalog::is_safe_environment_name(name)
+                !contract_environment_name_allowed(name, contract.environment_prefix.as_deref())
                     || port.launch_environment.contains_key(name)
                     || port.source_environment.as_ref() == Some(name)
                     || port.user_data_environment.as_ref() == Some(name)
                     || !value_safe(value)
-                    || matches!(value, LaunchValue::Text(text) if names_host_location(text))
             })
         {
             return Err(invalid("invalid or conflicting typed launch value"));
         }
+    }
+    if let Some(prefix) = &contract.environment_prefix
+        && (!valid_environment_prefix(prefix)
+            || !contract.launch.values().any(|launch| {
+                launch
+                    .environment
+                    .keys()
+                    .any(|name| name.starts_with(prefix.as_str()))
+            }))
+    {
+        return Err(invalid("invalid or unused reviewed environment prefix"));
     }
     if contract.asset_rules.is_empty()
         && contract.package_format.is_empty()
@@ -202,20 +217,110 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
-/// Whether environment text names a host location rather than leaving paths
-/// to the closed `LaunchPath` set. Each `;`-separated element is checked; an
-/// element counts when it starts with `/` or `\` (root-relative, UNC and
-/// device paths), with an ASCII drive letter and `:` (`C:\x` and drive-relative
-/// `C:x`), or with a case-insensitive `file:` URL scheme.
-fn names_host_location(text: &str) -> bool {
-    text.split(';').any(|element| {
-        let bytes = element.as_bytes();
-        element.starts_with(['/', '\\'])
-            || (bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
-            || bytes
-                .get(..5)
-                .is_some_and(|scheme| scheme.eq_ignore_ascii_case(b"file:"))
-    })
+/// Reviewed harmless names a contract may set without its declared prefix.
+/// Each is used by existing catalog data and only switches a behavior off.
+const HARMLESS_ENVIRONMENT_NAMES: &[&str] = &[crate::process::PYTHON_NO_BYTECODE];
+
+/// Title-family prefixes of runtimes, graphics drivers, platforms, toolkits and
+/// tools that are not loader prefixes themselves but are not title-specific
+/// either, so a contract cannot declare them (or a prefix overlapping them).
+const NON_TITLE_PREFIXES: &[&str] = &[
+    "PORTCOVE_",
+    "SDL",
+    "MESA_",
+    "GALLIUM_",
+    "RADV_",
+    "AMD_",
+    "NVIDIA_",
+    "__NV_",
+    "INTEL_",
+    "DXVK_",
+    "VKD3D_",
+    "D3D",
+    "DXGI_",
+    "WGL_",
+    "GLX_",
+    "ANGLE_",
+    "ZINK_",
+    "PROTON_",
+    "STEAM",
+    "XDG_",
+    "DBUS_",
+    "PULSE_",
+    "PIPEWIRE_",
+    "ALSA_",
+    "ALSOFT_",
+    "OPENAL",
+    "FONTCONFIG_",
+    "FREETYPE_",
+    "XCURSOR_",
+    "XKB_",
+    "WAYLAND_",
+    "DISPLAY",
+    "GLIB_",
+    "GNOME_",
+    "KDE_",
+    "RUST_",
+    "CARGO_",
+    "GIT_",
+    "MSYS",
+    "CYGWIN",
+    "SYSTEMD_",
+    "CHROME_",
+    "CEF_",
+    "GODOT_",
+    "UNITY_",
+    "LOVE_",
+    "AWS_",
+    "AZURE_",
+    "GOOGLE_",
+    "SSH_",
+    "GPG_",
+    "GNUPG",
+    "KRB5",
+    "TEMP",
+    "TMP",
+    "HOME",
+    "USER",
+    "WINDIR",
+    "SYSTEM",
+    "PROGRAM",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "COMMON",
+];
+
+/// A contract environment name is accepted only when it is title-specific by
+/// construction: it is one of [`HARMLESS_ENVIRONMENT_NAMES`], or it starts
+/// with the contract's declared `environment_prefix` and continues after it.
+/// Every accepted name also passes the shared catalog name check (uppercase
+/// syntax, no `PORTCOVE_`, credential, session or loader-injection name).
+fn contract_environment_name_allowed(name: &str, prefix: Option<&str>) -> bool {
+    crate::catalog::is_safe_environment_name(name)
+        && (HARMLESS_ENVIRONMENT_NAMES.contains(&name)
+            || prefix.is_some_and(|prefix| {
+                valid_environment_prefix(prefix)
+                    && name.len() > prefix.len()
+                    && name.starts_with(prefix)
+            }))
+}
+
+/// A declared prefix is an uppercase stem of 3 to 23 ASCII letters and digits,
+/// starting with a letter and ending in one `_`, that neither starts with nor
+/// is the start of a loader-injection prefix or a non-title prefix.
+fn valid_environment_prefix(prefix: &str) -> bool {
+    let Some(stem) = prefix.strip_suffix('_') else {
+        return false;
+    };
+    (3..=23).contains(&stem.len())
+        && stem.starts_with(|character: char| character.is_ascii_uppercase())
+        && stem
+            .chars()
+            .all(|character| character.is_ascii_uppercase() || character.is_ascii_digit())
+        && !crate::process::LOADER_INJECTION_PREFIXES
+            .iter()
+            .chain(NON_TITLE_PREFIXES)
+            .any(|reserved| prefix.starts_with(reserved) || reserved.starts_with(prefix))
 }
 
 fn valid_term(term: &str) -> bool {
@@ -234,7 +339,7 @@ fn invalid(message: &str) -> PortcoveError {
 mod tests {
     use super::*;
 
-    fn contract_port(name: &str, value: LaunchValue) -> PortDefinition {
+    fn contract_port(prefix: Option<&str>, launch: LaunchValues) -> PortDefinition {
         let platform = Platform::WindowsX86_64;
         let mut port = crate::Catalog::embedded()
             .unwrap()
@@ -257,24 +362,40 @@ mod tests {
         port.reviewed_launch_contract_v1 = Some(ReviewedLaunchContractV1 {
             asset_rules: BTreeMap::new(),
             package_format: BTreeMap::new(),
-            launch: [(
-                platform,
-                LaunchValues {
-                    arguments: None,
-                    environment: [(name.to_owned(), value)].into(),
-                },
-            )]
-            .into(),
+            launch: [(platform, launch)].into(),
+            environment_prefix: prefix.map(str::to_owned),
         });
         port
+    }
+
+    fn environment(prefix: Option<&str>, name: &str, value: LaunchValue) -> PortDefinition {
+        contract_port(
+            prefix,
+            LaunchValues {
+                arguments: None,
+                environment: [(name.to_owned(), value)].into(),
+            },
+        )
+    }
+
+    fn argument(value: &str) -> PortDefinition {
+        contract_port(
+            None,
+            LaunchValues {
+                arguments: Some(vec![text(value)]),
+                environment: BTreeMap::new(),
+            },
+        )
     }
 
     fn text(value: &str) -> LaunchValue {
         LaunchValue::Text(value.into())
     }
 
+    const PREFIX: Option<&str> = Some("FIXTURE_");
+
     #[test]
-    fn ordinary_environment_text_and_closed_paths_remain_valid() {
+    fn declared_title_prefix_and_harmless_names_are_the_only_accepted_names() {
         for value in [
             text("1"),
             text("data"),
@@ -285,71 +406,186 @@ mod tests {
                 path: crate::launch_paths::LaunchPath::InstallRoot,
             }),
         ] {
-            validate(&contract_port("FIXTURE_SETTING", value.clone()))
+            validate(&environment(PREFIX, "FIXTURE_SETTING", value.clone()))
                 .unwrap_or_else(|error| panic!("{value:?}: {error:?}"));
+        }
+        validate(&environment(None, "PYTHONDONTWRITEBYTECODE", text("1"))).unwrap();
+        validate(&environment(PREFIX, "PYTHONDONTWRITEBYTECODE", text("1"))).unwrap_err();
+        // A title-looking name is refused without a declared prefix that covers it.
+        validate(&environment(None, "FIXTURE_SETTING", text("1"))).unwrap_err();
+        validate(&environment(Some("OTHER_"), "FIXTURE_SETTING", text("1"))).unwrap_err();
+        // The prefix alone is not a name, and a declared prefix must be used.
+        validate(&environment(PREFIX, "FIXTURE_", text("1"))).unwrap_err();
+        validate(&argument("--fixture")).unwrap();
+        let mut unused = argument("--fixture");
+        unused
+            .reviewed_launch_contract_v1
+            .as_mut()
+            .unwrap()
+            .environment_prefix = Some("FIXTURE_".into());
+        validate(&unused).unwrap_err();
+    }
+
+    #[test]
+    fn declared_prefixes_must_be_title_specific() {
+        for prefix in ["DKC2_", "SNESRECOMP_", "PSX_", "FIXTURE_"] {
+            assert!(valid_environment_prefix(prefix), "{prefix}");
+        }
+        for prefix in [
+            "",
+            "_",
+            "AB_",
+            "FIXTURE",
+            "FIXTURE__",
+            "FIX_TURE_",
+            "fixture_",
+            "2FIX_",
+            "THIS_IS_FAR_TOO_LONG_TO_BE_A_TITLE_",
+            // Loader-injection and non-title prefixes, and prefixes overlapping them.
+            "DOTNET_",
+            "COMPLUS_",
+            "CORECLR_",
+            "MONO_",
+            "DOORSTOP_",
+            "PYTHONX_",
+            "WINEX_",
+            "QTX_",
+            "QMLX_",
+            "GTK_",
+            "GDK_",
+            "GST_",
+            "GIO_",
+            "OCL_",
+            "LIBVA_",
+            "VDPAU_",
+            "GBM_",
+            "EGL_",
+            "ELECTRON_",
+            "NODE_",
+            "SSL_",
+            "OPENSSL_",
+            "MALLOC_",
+            "JAVA_",
+            "PERLX_",
+            "RUBYX_",
+            "ENABLE_",
+            "DISABLE_",
+            "LIBGL_",
+            "SDL_",
+            "SDL2_",
+            "MESA_",
+            "DXVK_",
+            "VKD3D_",
+            "STEAMX_",
+            "XDG_",
+            "PORTCOVE_",
+        ] {
+            assert!(!valid_environment_prefix(prefix), "{prefix}");
+            validate(&environment(
+                Some(prefix),
+                &format!("{prefix}SETTING"),
+                text("1"),
+            ))
+            .unwrap_err();
         }
     }
 
     #[test]
-    fn environment_names_that_load_outside_code_are_refused() {
-        for name in [
-            "SDL_DYNAMIC_API",
-            "QT_PLUGIN_PATH",
-            "QT_QPA_PLATFORM_PLUGIN_PATH",
-            "LD_PRELOAD",
-            "DYLD_INSERT_LIBRARIES",
+    fn loader_runtime_and_toolkit_names_are_refused_everywhere() {
+        let refused = [
+            // Exact names.
             "PATH",
-            "COR_ENABLE_PROFILING",
-            "COR_PROFILER",
-            "COR_PROFILER_PATH",
-            "COR_PROFILER_PATH_64",
-            "CORECLR_ENABLE_PROFILING",
-            "CORECLR_PROFILER_PATH_32",
-            "DOTNET_STARTUP_HOOKS",
-            "DOTNET_ADDITIONAL_DEPS",
-            "DOTNET_SHARED_STORE",
-            "VK_LAYER_PATH",
-            "VK_ADD_LAYER_PATH",
-            "VK_INSTANCE_LAYERS",
-            "VK_ICD_FILENAMES",
-            "VK_DRIVER_FILES",
-            "LIBGL_DRIVERS_PATH",
-            "__EGL_VENDOR_LIBRARY_FILENAMES",
-            "__GLX_VENDOR_LIBRARY_NAME",
+            "SDL_DYNAMIC_API",
             "__COMPAT_LAYER",
-            "GST_PLUGIN_PATH",
-            "GST_PLUGIN_PATH_1_0",
-            "GTK_PATH",
-            "GTK_MODULES",
-            "GIO_EXTRA_MODULES",
-            "PYTHONPATH",
-            "PYTHONHOME",
-            "PYTHONSTARTUP",
-            "NODE_OPTIONS",
-            "JAVA_TOOL_OPTIONS",
-            "_JAVA_OPTIONS",
-            "PERL5LIB",
-            "RUBYOPT",
-            "WINEDLLOVERRIDES",
-            "OPENSSL_CONF",
+            "CORE_LIBRARIES",
+            "GCONV_PATH",
+            "LOCPATH",
+            "NLSPATH",
+            "TERMINFO",
+            "TERMINFO_DIRS",
+            "GLIBC_TUNABLES",
+            "HOSTALIASES",
+            "RES_OPTIONS",
+            "TZDIR",
+            "CLASSPATH",
+            "CURL_CA_BUNDLE",
+            "REQUESTS_CA_BUNDLE",
+            "_NT_SYMBOL_PATH",
+            "PSMODULEPATH",
+            "GSETTINGS_BACKEND",
             "SSLKEYLOGFILE",
+            // Proxy variables in any case.
             "HTTP_PROXY",
             "HTTPS_PROXY",
             "ALL_PROXY",
+            "FTP_PROXY",
             "NO_PROXY",
-        ] {
+            "SOCKS_PROXY",
+            // One name under each prefix.
+            "DOTNET_STARTUP_HOOKS",
+            "DOTNET_CLI_TELEMETRY_OPTOUT",
+            "COMPLUS_ENABLEPROFILING",
+            "COR_PROFILER_PATH_64",
+            "CORECLR_PROFILER_PATH_32",
+            "MONO_PATH",
+            "DOORSTOP_ENABLED",
+            "PYTHONPATH",
+            "PYTHONHOME",
+            "PYTHONSTARTUP",
+            "WINEDLLOVERRIDES",
+            "WINEPREFIX",
+            "QT_PLUGIN_PATH",
+            "QT_QPA_PLATFORM_PLUGIN_PATH",
+            "QTWEBENGINE_CHROMIUM_FLAGS",
+            "QML2_IMPORT_PATH",
+            "GTK_MODULES",
+            "GTK_THEME",
+            "GTK3_MODULES",
+            "GDK_BACKEND",
+            "GST_PLUGIN_PATH_1_0",
+            "GIO_EXTRA_MODULES",
+            "OCL_ICD_VENDORS",
+            "LIBVA_DRIVERS_PATH",
+            "VDPAU_DRIVER_PATH",
+            "GBM_BACKENDS_PATH",
+            "EGL_PLATFORM",
+            "__GLX_VENDOR_LIBRARY_NAME",
+            "__EGL_VENDOR_LIBRARY_DIRS",
+            "ELECTRON_RUN_AS_NODE",
+            "NODE_OPTIONS",
+            "SSL_CERT_FILE",
+            "OPENSSL_CONF",
+            "MALLOC_CONF",
+            "LD_PRELOAD",
+            "DYLD_INSERT_LIBRARIES",
+            "JAVA_TOOL_OPTIONS",
+            "_JAVA_OPTIONS",
+            "JDK_JAVA_OPTIONS",
+            "PERL5LIB",
+            "RUBYOPT",
+            "ENABLE_VKBASALT",
+            "DISABLE_MANGOHUD",
+            "VK_LAYER_PATH",
+            "VK_ICD_FILENAMES",
+            "LIBGL_DRIVERS_PATH",
+            "MESA_LOADER_DRIVER_OVERRIDE",
+        ];
+        for name in refused {
             assert!(
                 crate::process::is_loader_injection_variable(name)
                     && crate::process::is_loader_injection_variable(&name.to_ascii_lowercase()),
                 "{name}"
             );
-            assert!(validate(&contract_port(name, text("1"))).is_err(), "{name}");
             assert!(!crate::catalog::is_safe_environment_name(name), "{name}");
+            validate(&environment(None, name, text("1"))).unwrap_err();
         }
+        // Existing catalog names stay valid for the legacy fields.
         for name in [
             "PYTHONDONTWRITEBYTECODE",
-            "DOTNET_CLI_TELEMETRY_OPTOUT",
-            "GTK_THEME",
+            "DOOMWADDIR",
+            "SNESRECOMP_NO_LAUNCHER",
+            "REX_GAME_DATA_ROOT",
+            "ALEPHONE_DATA",
         ] {
             assert!(
                 !crate::process::is_loader_injection_variable(name),
@@ -357,42 +593,179 @@ mod tests {
             );
             assert!(crate::catalog::is_safe_environment_name(name), "{name}");
         }
+        assert!(!crate::process::is_loader_injection_variable(
+            "pythondontwritebytecode"
+        ));
     }
 
     #[test]
-    fn environment_text_cannot_name_a_host_location() {
-        for value in [
+    fn launch_text_values_and_arguments_cannot_reach_outside_the_installation() {
+        let refused = [
+            // Absolute and root-relative.
             "/usr/lib/fixture.so",
             "/",
             "\\Windows\\fixture.dll",
+            // UNC and extended.
             "\\\\server\\share\\fixture.dll",
             "//server/share/fixture.dll",
             "\\\\?\\C:\\fixture.dll",
+            "\\\\.\\pipe\\fixture",
+            // Drive-absolute and drive-relative.
             "C:\\fixture\\plugin.dll",
             "c:/fixture/plugin.dll",
             "C:fixture.dll",
+            // Location URL schemes.
             "file:///C:/fixture.dll",
             "FILE://server/share/fixture.dll",
             "file:fixture.dll",
+            "https://example.invalid/fixture",
+            // Home.
+            "~",
+            "~/fixture",
+            "~user/fixture",
+            // Parent references in either separator style.
+            "..",
+            "../fixture",
+            "..\\fixture",
+            "data/../../fixture",
+            "data\\..\\..\\fixture",
+            "... ",
+            ".. ",
+            // Path-list, key and option forms.
             "data;C:\\fixture",
             "data;\\\\server\\share",
-        ] {
-            assert!(names_host_location(value), "{value}");
+            "data:/usr/lib",
+            "data:\\fixture",
+            "data:~/fixture",
+            "data:..",
+            "--data-dir=/etc",
+            "--data-dir=..",
+            "--dirs=data,../fixture",
+            "-dir /etc",
+            // Expansion syntax.
+            "%APPDATA%",
+            "%~dp0",
+            "$HOME",
+            "${HOME}",
+            "$(id)",
+            "`id`",
+            // Control characters.
+            "a\0b",
+            "a\nb",
+            "a\tb",
+            "a\u{1b}b",
+            // Reserved device names.
+            "CON",
+            "nul.txt",
+            "data/COM1",
+            "LPT9",
+        ];
+        for value in refused {
             assert!(
-                validate(&contract_port("FIXTURE_SETTING", text(value))).is_err(),
-                "{value}"
+                !crate::launch_paths::is_contained_launch_text(value),
+                "{value:?}"
             );
+            validate(&environment(PREFIX, "FIXTURE_SETTING", text(value))).unwrap_err();
+            validate(&argument(value)).unwrap_err();
         }
         for value in [
             "data",
             "./data",
-            "..",
+            ".",
+            ".;assets",
+            ";",
             "profile:fast",
+            "data:other",
             "1",
             "a;b",
             "files:x",
+            "--game=red",
+            "--game-dir=game-data",
+            "+set",
+            "bios/openbios.bin",
+            "build-portcove/overlay-captures/overlay_captures.json",
+            "save..file",
+            "COM0",
+            "console",
         ] {
-            assert!(!names_host_location(value), "{value}");
+            assert!(
+                crate::launch_paths::is_contained_launch_text(value),
+                "{value:?}"
+            );
+            validate(&environment(PREFIX, "FIXTURE_SETTING", text(value)))
+                .unwrap_or_else(|error| panic!("{value}: {error:?}"));
+            validate(&argument(value)).unwrap_or_else(|error| panic!("{value}: {error:?}"));
         }
+    }
+
+    #[test]
+    fn every_embedded_catalog_launch_value_and_name_passes_the_shared_rules() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut failures = Vec::new();
+        for port in catalog.ports() {
+            for value in port
+                .launch_arguments
+                .iter()
+                .chain(&port.setup_arguments)
+                .chain(port.launch_environment.values())
+            {
+                if !crate::launch_paths::is_contained_launch_text(value) {
+                    failures.push(format!("{}: {value:?}", port.id));
+                }
+            }
+            for name in port
+                .launch_environment
+                .keys()
+                .chain(&port.source_environment)
+                .chain(&port.user_data_environment)
+            {
+                if crate::process::is_loader_injection_variable(name) {
+                    failures.push(format!("{}: {name}", port.id));
+                }
+            }
+        }
+        assert_eq!(failures, Vec::<String>::new());
+    }
+
+    proptest::proptest! {
+        /// No accepted text, when each of its elements and segments is joined
+        /// to the working directory by a naive consumer, leaves it.
+        #[test]
+        fn accepted_text_never_resolves_outside_the_working_directory(
+            text in "[a.:;,=/\\\\~C %$` -]{0,12}"
+        ) {
+            if crate::launch_paths::is_contained_launch_text(&text) {
+                for element in text.split([';', ',', '=', ' ']) {
+                    for candidate in std::iter::once(element).chain(element.split(':')) {
+                        proptest::prop_assert!(naive_join_stays_inside(candidate), "{text:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// Lexically joins `relative` below a working directory as a Windows or
+    /// POSIX consumer would and reports whether the result stays below it.
+    fn naive_join_stays_inside(relative: &str) -> bool {
+        let trimmed = relative.trim();
+        if trimmed.starts_with(['/', '\\', '~'])
+            || (trimmed.len() >= 2
+                && trimmed.as_bytes()[0].is_ascii_alphabetic()
+                && trimmed.as_bytes()[1] == b':')
+        {
+            return false;
+        }
+        let mut depth = 0_i32;
+        for component in trimmed.split(['/', '\\']) {
+            match component.trim_end_matches(['.', ' ']) {
+                "" if component.matches('.').count() >= 2 => depth -= 1,
+                _ if component.is_empty() || component == "." => {}
+                _ => depth += 1,
+            }
+            if depth < 0 {
+                return false;
+            }
+        }
+        true
     }
 }

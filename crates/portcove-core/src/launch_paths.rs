@@ -48,6 +48,66 @@ impl<'a> LaunchPaths<'a> {
     }
 }
 
+/// Whether free text that catalog data passes to a launched process (an
+/// argument or an environment value) stays inside the closed path set: a path
+/// may come only from [`LaunchPath`], never from text.
+///
+/// The text is refused when it has a control character or expansion syntax
+/// (`%`, `$` or a backtick anywhere, which covers `%NAME%`, `$NAME`,
+/// `${NAME}` and `$(...)`). Otherwise it is split into elements on `;`, `,`,
+/// `=` and ASCII whitespace; each element is refused when it starts with an
+/// ASCII letter and `:` (a drive-absolute or drive-relative path such as
+/// `C:\x` or `C:x`) or with a case-insensitive `file:` scheme. The element is
+/// then split into segments on `:` (a path-list separator; a single
+/// `key:value` token such as `profile:fast` keeps two harmless segments), and
+/// a segment is refused when it starts with `/` or `\` (root-relative, UNC,
+/// device and extended `\\?\` paths, and `scheme://` locations), starts with
+/// `~`, or has a component in either separator style that is a parent
+/// reference (only dots and spaces with at least two dots, which Windows
+/// normalizes to `..`) or a reserved DOS device name.
+pub(crate) fn is_contained_launch_text(text: &str) -> bool {
+    if text
+        .chars()
+        .any(|character| character.is_control() || matches!(character, '%' | '$' | '`'))
+    {
+        return false;
+    }
+    text.split(|character: char| {
+        matches!(character, ';' | ',' | '=') || character.is_ascii_whitespace()
+    })
+    .filter(|element| !element.is_empty())
+    .all(|element| {
+        let bytes = element.as_bytes();
+        !(bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
+            && !bytes
+                .get(..5)
+                .is_some_and(|scheme| scheme.eq_ignore_ascii_case(b"file:"))
+            && element.split(':').all(|segment| {
+                !segment.starts_with(['/', '\\', '~'])
+                    && segment.split(['/', '\\']).all(contained_component)
+            })
+    })
+}
+
+fn contained_component(component: &str) -> bool {
+    let parent = component
+        .chars()
+        .all(|character| matches!(character, '.' | ' '))
+        && component.matches('.').count() >= 2;
+    let stem = component
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end_matches(' ')
+        .to_ascii_uppercase();
+    let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit()
+            && stem.as_bytes()[3] != b'0');
+    !parent && !device
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

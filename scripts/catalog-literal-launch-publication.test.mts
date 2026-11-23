@@ -118,6 +118,14 @@ void test("a subject whose launch behavior would change is refused", () => {
     ],
     ["bundled_runtime", (port) => (port.bundled_runtime = { "windows-x86-64": {} })],
     [
+      "archive_data_transition_v1",
+      (port) => (port.archive_data_transition_v1 = { creating_contract_sha256: "a" }),
+    ],
+    [
+      "archive_data_compatibility_v1",
+      (port) => (port.archive_data_compatibility_v1 = { kind: "fixture" }),
+    ],
+    [
       "release.managed_build",
       (port) => ((port.release as Doc).managed_build = { "windows-x86-64": {} }),
     ],

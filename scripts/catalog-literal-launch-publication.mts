@@ -89,6 +89,10 @@ const argumentReaders = [
   "runtime_data_policy",
   "managed_shared_preferences",
   "bundled_runtime",
+  // A data transition compares the exact launch coordinates of its predecessor,
+  // so a move would silently end the subject's transition eligibility.
+  "archive_data_transition_v1",
+  "archive_data_compatibility_v1",
 ] as const;
 const releaseArgumentReaders = ["managed_build", "user_prepared"] as const;
 

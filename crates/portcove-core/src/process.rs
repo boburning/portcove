@@ -394,76 +394,100 @@ pub(crate) fn is_credential_name(name: &str) -> bool {
         || normalized.ends_with("_ACCESS_KEY")
 }
 
+/// Name prefixes owned by a language runtime, loader, toolkit, graphics stack or
+/// TLS/network library. Any variable under one of them can make a launched
+/// process load code, plug-ins, layers or configuration, or redirect its files,
+/// network or key material, so catalog declarations never set them.
+/// `ENABLE_`/`DISABLE_` are refused whole because Vulkan implicit layer
+/// manifests choose arbitrary toggle names under them.
+pub(crate) const LOADER_INJECTION_PREFIXES: &[&str] = &[
+    "DOTNET_",
+    "COMPLUS_",
+    "COR_",
+    "CORECLR_",
+    "MONO_",
+    "DOORSTOP_",
+    "PYTHON",
+    "WINE",
+    "QT",
+    "QML",
+    "GTK_",
+    "GTK2_",
+    "GTK3_",
+    "GDK_",
+    "GST_",
+    "GIO_",
+    "OCL_",
+    "LIBVA_",
+    "VDPAU_",
+    "GBM_",
+    "EGL_",
+    "__GLX_",
+    "__EGL_",
+    "ELECTRON_",
+    "NODE_",
+    "SSL_",
+    "OPENSSL_",
+    "MALLOC_",
+    "LD_",
+    "DYLD_",
+    "JAVA_",
+    "_JAVA_",
+    "JDK_",
+    "PERL",
+    "RUBY",
+    "ENABLE_",
+    "DISABLE_",
+    "VK_",
+    "LIBGL_",
+    "MESA_LOADER_",
+];
+
+/// Exact names outside [`LOADER_INJECTION_PREFIXES`] with the same effect.
+const LOADER_INJECTION_NAMES: &[&str] = &[
+    "PATH",
+    "SDL_DYNAMIC_API",
+    "__COMPAT_LAYER",
+    "CORE_LIBRARIES",
+    "GCONV_PATH",
+    "LOCPATH",
+    "NLSPATH",
+    "TERMINFO",
+    "TERMINFO_DIRS",
+    "GLIBC_TUNABLES",
+    "HOSTALIASES",
+    "RES_OPTIONS",
+    "TZDIR",
+    "CLASSPATH",
+    "CURL_CA_BUNDLE",
+    "REQUESTS_CA_BUNDLE",
+    "_NT_SYMBOL_PATH",
+    "PSMODULEPATH",
+    "GSETTINGS_BACKEND",
+    "SSLKEYLOGFILE",
+    "NO_PROXY",
+];
+
+/// The reviewed harmless exception to the `PYTHON` prefix that existing
+/// catalog data uses: it only stops bytecode caches from being written.
+pub(crate) const PYTHON_NO_BYTECODE: &str = "PYTHONDONTWRITEBYTECODE";
+
 /// A variable that makes a launched process, its runtime or a library it loads
 /// load code, plug-ins, layers or configuration from outside the reviewed
-/// installation, or redirect its network or key material. Catalog and reviewed
-/// launch declarations never set these; comparison is case-insensitive because
-/// Windows environment names are.
+/// installation, or redirect its files, network or key material: any name
+/// under [`LOADER_INJECTION_PREFIXES`] except [`PYTHON_NO_BYTECODE`], any
+/// name in [`LOADER_INJECTION_NAMES`], and any proxy variable (`*_PROXY`).
+/// Comparison is case-insensitive because Windows environment names are.
 pub(crate) fn is_loader_injection_variable(name: &str) -> bool {
     let normalized = name.to_ascii_uppercase();
-    matches!(
-        normalized.as_str(),
-        "PATH"
-            | "SDL_DYNAMIC_API"
-            | "QT_PLUGIN_PATH"
-            | "QT_QPA_PLATFORM_PLUGIN_PATH"
-            | "COR_ENABLE_PROFILING"
-            | "COR_PROFILER"
-            | "DOTNET_STARTUP_HOOKS"
-            | "DOTNET_ADDITIONAL_DEPS"
-            | "DOTNET_SHARED_STORE"
-            | "VK_LAYER_PATH"
-            | "VK_ADD_LAYER_PATH"
-            | "VK_IMPLICIT_LAYER_PATH"
-            | "VK_ADD_IMPLICIT_LAYER_PATH"
-            | "VK_INSTANCE_LAYERS"
-            | "VK_ICD_FILENAMES"
-            | "VK_DRIVER_FILES"
-            | "VK_ADD_DRIVER_FILES"
-            | "LIBGL_DRIVERS_PATH"
-            | "__EGL_VENDOR_LIBRARY_FILENAMES"
-            | "__EGL_VENDOR_LIBRARY_DIRS"
-            | "__GLX_VENDOR_LIBRARY_NAME"
-            | "__COMPAT_LAYER"
-            | "GTK_PATH"
-            | "GTK_MODULES"
-            | "GTK3_MODULES"
-            | "GIO_EXTRA_MODULES"
-            | "GIO_MODULE_DIR"
-            | "PYTHONPATH"
-            | "PYTHONHOME"
-            | "PYTHONSTARTUP"
-            | "NODE_OPTIONS"
-            | "NODE_PATH"
-            | "JAVA_TOOL_OPTIONS"
-            | "_JAVA_OPTIONS"
-            | "JDK_JAVA_OPTIONS"
-            | "PERL5LIB"
-            | "PERL5OPT"
-            | "PERLLIB"
-            | "RUBYOPT"
-            | "RUBYLIB"
-            | "WINEDLLOVERRIDES"
-            | "WINEDLLPATH"
-            | "OPENSSL_CONF"
-            | "OPENSSL_MODULES"
-            | "OPENSSL_ENGINES"
-            | "SSLKEYLOGFILE"
-            | "HTTP_PROXY"
-            | "HTTPS_PROXY"
-            | "ALL_PROXY"
-            | "FTP_PROXY"
-            | "NO_PROXY"
-    ) || [
-        "LD_",
-        "DYLD_",
-        "COR_PROFILER_PATH",
-        "CORECLR_",
-        "DOTNET_ROOT",
-        "GST_PLUGIN_",
-    ]
-    .iter()
-    .any(|prefix| normalized.starts_with(prefix))
+    if normalized == PYTHON_NO_BYTECODE {
+        return false;
+    }
+    LOADER_INJECTION_NAMES.contains(&normalized.as_str())
+        || normalized.ends_with("_PROXY")
+        || LOADER_INJECTION_PREFIXES
+            .iter()
+            .any(|prefix| normalized.starts_with(prefix))
 }
 
 pub(crate) fn is_reviewed_session_variable(name: &str) -> bool {

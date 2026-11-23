@@ -117,21 +117,51 @@ Launch values are literal strings or objects with a `path` of `user_data`,
 `source`, `install_root` or `cache`. Each path occupies one argument or one
 environment value. Source expansion needs the verified launch source.
 Existing path, executable and environment policies still apply.
-A literal environment value cannot name a host location: no element of it,
-split at `;`, may start with `/` or `\` (root-relative, UNC or device paths),
-an ASCII drive letter and `:`, or a case-insensitive `file:` scheme. A path
-comes only from the closed `path` set.
+Every free-text launch value — a reviewed contract's literal environment
+value or text argument, and a catalog `launch_environment` value,
+`launch_arguments` entry or `setup_arguments` entry — passes Core's one
+`launch_paths::is_contained_launch_text` rule, so a path comes only from the
+closed `path` set:
 
-Neither a catalog `launch_environment`, source or user-data variable nor a
-reviewed launch environment may name a variable that makes the process or a
-library it loads take code, plug-ins, layers or configuration from elsewhere,
-or redirects its network or key material. Core's shared
-`process::is_loader_injection_variable` check owns that list, compared
-case-insensitively: for example `PATH`, `SDL_DYNAMIC_API`, Qt plugin paths,
-`LD_*`, `DYLD_*`, the .NET profiler and hosting variables, Vulkan and GL layer
-and driver paths, `__COMPAT_LAYER`, GStreamer, GTK and GIO module paths,
-Python, Node, Java, Perl and Ruby startup variables, `WINEDLLOVERRIDES`,
-OpenSSL configuration, `SSLKEYLOGFILE` and proxy variables.
+- The text has no control character and no `%`, `$` or backtick, which
+  refuses `%NAME%`, `$NAME`, `${NAME}`, `$(...)` and backtick expansion.
+- It is split into elements at `;`, `,`, `=` and ASCII whitespace. An element
+  is refused when it starts with an ASCII letter and `:` (`C:\x` or
+  drive-relative `C:x`) or with a case-insensitive `file:` scheme.
+- Each element is split into segments at `:`, the path-list separator; a
+  single `key:value` token such as `profile:fast` keeps two harmless segments.
+  A segment is refused when it starts with `/` or `\` (root-relative, UNC,
+  device, extended `\\?\` paths and `scheme://` locations) or `~`, or when a
+  component in either separator style is a parent reference (only dots and
+  spaces with at least two dots, which Windows reads as `..`) or a reserved
+  device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`).
+
+Catalog `launch_environment`, source and user-data variable names pass the
+shared deny-list `process::is_loader_injection_variable`, compared
+case-insensitively. It refuses every name under the runtime, loader, toolkit,
+graphics and TLS prefixes `DOTNET_`, `COMPLUS_`, `COR_`, `CORECLR_`, `MONO_`,
+`DOORSTOP_`, `PYTHON` (except the reviewed `PYTHONDONTWRITEBYTECODE`), `WINE`,
+`QT`, `QML`, `GTK_`, `GTK2_`, `GTK3_`, `GDK_`, `GST_`, `GIO_`, `OCL_`,
+`LIBVA_`, `VDPAU_`, `GBM_`, `EGL_`, `__GLX_`, `__EGL_`, `ELECTRON_`, `NODE_`,
+`SSL_`, `OPENSSL_`, `MALLOC_`, `LD_`, `DYLD_`, `JAVA_`, `_JAVA_`, `JDK_`,
+`PERL`, `RUBY`, `ENABLE_` and `DISABLE_` (Vulkan implicit layer toggles),
+`VK_`, `LIBGL_` and `MESA_LOADER_`; the exact names `PATH`,
+`SDL_DYNAMIC_API`, `__COMPAT_LAYER`, `CORE_LIBRARIES`, `GCONV_PATH`,
+`LOCPATH`, `NLSPATH`, `TERMINFO`, `TERMINFO_DIRS`, `GLIBC_TUNABLES`,
+`HOSTALIASES`, `RES_OPTIONS`, `TZDIR`, `CLASSPATH`, `CURL_CA_BUNDLE`,
+`REQUESTS_CA_BUNDLE`, `_NT_SYMBOL_PATH`, `PSMODULEPATH`, `GSETTINGS_BACKEND`,
+`SSLKEYLOGFILE` and `NO_PROXY`; and every proxy variable (`*_PROXY`).
+
+A reviewed launch contract uses an allow-list instead. Its environment name
+is accepted only when it passes the same shared name check and either is in
+the reviewed harmless list (`PYTHONDONTWRITEBYTECODE`) or starts with the
+contract's declared `environment_prefix` and continues after it. The declared
+prefix is an uppercase stem of 3 to 23 ASCII letters and digits, starting
+with a letter and ending in one `_`; it must be used by an environment name
+and may neither start with nor be the start of a loader-injection prefix
+above or a non-title runtime, driver, platform or tool prefix (for example
+`SDL`, `MESA_`, `DXVK_`, `STEAM`, `XDG_` or `PORTCOVE_`). Every other name is
+refused.
 
 A reviewed launch contract whose platform entry has only literal text
 arguments keeps the previous decision about player-forwarded arguments, so

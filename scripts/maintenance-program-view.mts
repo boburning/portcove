@@ -513,12 +513,6 @@ const boundaries = (parts: readonly string[]) => {
   return result;
 };
 
-/**
- * Identities whose title keys a name spells. A whole key matches any
- * contiguous word group; a family key also needs its part boundaries to fall
- * on word boundaries of the name and a word of the group that is rare in Core,
- * so generic vocabulary does not match.
- */
 /** Production and feature-gated Core Rust text without its test items. */
 function coreTitleTexts(root: string) {
   const { production, featureGated } = coreRustFiles(root);
@@ -537,6 +531,12 @@ function coreWordFiles(texts: ReadonlyMap<string, string>) {
   return counts;
 }
 
+/**
+ * Identities whose title keys a name spells. A whole key matches any
+ * contiguous word group; a family key also needs its part boundaries to fall
+ * on word boundaries of the name and a word of the group that is rare in Core,
+ * so generic vocabulary does not match.
+ */
 function titleMatches(name: string, keys: TitleKeys) {
   const parts = words(name);
   const ids = new Set<string>();
