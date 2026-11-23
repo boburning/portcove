@@ -134,7 +134,9 @@ function canonicalDerivativeProblems(): string[] {
   const result = spawnSync(process.execPath, ["scripts/generate-catalog.mts", "--check"], {
     cwd: root,
     encoding: "utf8",
-    timeout: 10 * 60_000,
+    // About 3 seconds in practice; a 2-minute cap keeps verify inside its
+    // step budget beside the 30-minute reproduction and one 10-minute item.
+    timeout: 2 * 60_000,
     killSignal: "SIGKILL",
     maxBuffer: 16 * 1024 * 1024,
   });

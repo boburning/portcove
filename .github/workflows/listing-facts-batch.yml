@@ -23,7 +23,7 @@
 # state: a person with write access starts them with "Approve workflows to
 # run", which counts as a human intervention and grants CI permission only.
 # The `merge` job separately confirms merge eligibility (five exact-head
-# contexts, closing inventory, composition onto main) through the guarded
+# contexts, complete closing inventory, composition onto main) through the guarded
 # route. A merge with that token starts no `push` run, so a batch is delivered
 # only once the next ordinary main run selects and publishes it.
 name: Listing facts batch

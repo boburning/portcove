@@ -4280,10 +4280,11 @@ its runs in an approval-required state, which a user with write access starts
 with **Approve workflows to run**. CI declares `pull_request`, so a batch pull
 request the job opens gets CI runs that wait for that approval; the job waits
 with it, and an approval counts as a human intervention. Whether the
-`pull_request_target` `closing-inventory` check, which the guarded merge
-requires, runs for such a pull request is not stated there. Approving the
+`pull_request_target` `closing-inventory` check runs for such a pull request
+is not stated there; the guarded merge needs it only when it falls back from
+GitHub's GraphQL closing inventory to the REST reconstruction. Approving the
 runs is CI permission, not merge eligibility: the guarded merge separately
-requires the five exact-head contexts, `closing-inventory` and the
+requires the five exact-head contexts, a complete closing inventory and the
 composition checks. The `Protect main` ruleset requires the five contexts,
 zero approving reviews and no required workflow. Its extra approval applies
 only to Copilot pull requests not attributed to a person and has no effect
