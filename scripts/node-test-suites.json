@@ -266,6 +266,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/listing-compact-activation-rehearsal.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3504],
+        ["release-check", 4304]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 3502],
