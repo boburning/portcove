@@ -893,7 +893,8 @@ jobs:
         timeout-minutes: 15
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/listing-facts-batch.mts verify --reproduce false
+        # GitHub reads end at the step's timeout less a minute to report.
+        run: node scripts/listing-facts-batch.mts verify --reproduce false --deadline-minutes 14
       - name: Exercise clean prose setup and execution
         if: contains(needs.classify.outputs.files_json, 'scripts/check-ci-prose') || contains(needs.classify.outputs.files_json, 'scripts/viteplus-cli.mts') || contains(needs.classify.outputs.files_json, '.github/workflows/ci.yml')
         run: node scripts/check-ci-prose.integration.mts
@@ -1722,7 +1723,8 @@ jobs:
         timeout-minutes: 15
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/listing-facts-batch.mts verify --reproduce false
+        # GitHub reads end at the step's timeout less a minute to report.
+        run: node scripts/listing-facts-batch.mts verify --reproduce false --deadline-minutes 14
 
   # Every eligible entry a facts change adds or changes, re-read from its
   # exact digest-bound release asset: one identity per shard, at most the
@@ -1755,6 +1757,14 @@ jobs:
           # The facts gate compares with the base: the first parent of the
           # pull request merge commit or of the pushed commit.
           fetch-depth: 2
+      # Repeated pushes must not stack reproduction matrices: each shard of a
+      # superseded head stops before it spends quota or downloads.
+      - name: Stop when a newer head superseded this run
+        timeout-minutes: 2
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         timeout-minutes: 5
         with:

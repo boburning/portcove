@@ -5088,19 +5088,27 @@ void test("an identity over the budget CI can reproduce it in settles with the r
   assert.equal(gateRetentionDays, lastGoodRetentionDays);
 });
 
-void test("identities a shard deadline cut go last, so they never starve their shard-mates (J4)", async () => {
+void test("an unsharded run inspects identities a deadline cut last; a sharded plan keeps no order (J4, J-F1)", async () => {
   const ids = ["zz-order-a", "zz-order-b", "zz-order-c"];
   const log: string[] = [];
-  await deriveListingFacts({
+  const common = {
     records: ids.map((id) => listing(id)),
     observerReport: observerReport(Object.fromEntries(ids.map((id) => [id, {}]))),
     table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-    state: { format: 3, pending: ["zz-order-a"], retry: [] },
-    inspect: slowInspector(log),
+    state: { format: 3 as const, pending: ["zz-order-a"], retry: [] },
     classify: coreClassifier,
     now: "2026-11-21T00:00:00.000Z",
-  });
+  };
+  await deriveListingFacts({ ...common, inspect: slowInspector(log) });
   assert.deepEqual(log, ["zz-order-b", "zz-order-c", "zz-order-a"]);
+  // A sharded run's plan reads no bytes and returns no pending order, so its
+  // shards order a previously cut identity like any other identity.
+  const plan = await deriveListingFacts({
+    ...common,
+    inspect: slowInspector([]),
+    inspectBytes: false,
+  });
+  assert.deepEqual(plan.state.pending, []);
 });
 
 void test("each identity's retry state comes from its own shard only (J5)", async () => {

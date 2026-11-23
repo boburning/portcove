@@ -6,7 +6,8 @@
 # batch with read-only permissions and saves no state, pull request or issue.
 # The dispatch input changes nothing else: it cannot bypass the switch.
 #
-# One run, in one concurrency group, with no size bound on what it lands:
+# One run, in one concurrency group. A batch lands at most one hour's
+# reproduction share of entries that need reproduction and carries the rest:
 #  1. `gate`: any open "Listing facts batch stopped: ..." issue stops the run;
 #     an open batch pull request is evaluated instead of starting another.
 #  2. `merge`: a batch whose five required checks pass on its exact head, whose
@@ -14,15 +15,21 @@
 #     merged through the guarded delivery route (`scripts/pr-delivery.mts`).
 #  3. `prepare` builds the CLI, records the run's inputs and plans the whole
 #     candidate set without reading bytes; `inspect` reads the archives of
-#     the identities that need bytes, one identity per matrix shard (at most
-#     the 256-job matrix limit), each bounded only by the job's 6-hour limit;
-#     `combine` merges the shards and regenerates the catalog; `reproduce`
-#     re-reads every added or changed eligible entry in the same shards; and
-#     `decide` refuses the batch on a path outside the allowlist, a gate
-#     refusal, an entry it cannot reproduce or any stop condition.
+#     the identities that need bytes, identities spread over at most the
+#     256-job matrix limit, each shard cut at its 330-minute deadline and each
+#     identity at the per-identity budget CI can reproduce it in;
+#     `combine` merges the shards, carries past one batch what its CI could
+#     not reproduce within one hour's share of the GITHUB_TOKEN quota,
+#     regenerates the catalog and checks both released-reader capacity
+#     bounds; `reproduce` re-reads every added or changed eligible entry of
+#     the batch; and `decide` refuses the batch on a path outside the
+#     allowlist, a gate refusal, a capacity bound, an entry it cannot
+#     reproduce or any stop condition.
 #  4. `deliver`: pushes the one-commit batch branch, opens the pull request
 #     and only then saves the worker state, so a failed delivery moves no cursor.
-#  5. `notify`: files one issue per stop condition and the freshness alert.
+#  5. `notify`: files one issue per stop condition and the freshness alert;
+#     what it cannot file (a spent quota) is kept and filed by the next run,
+#     whose `gate` holds until then.
 #
 # Only the built-in workflow token is used. GitHub creates the `pull_request`
 # runs of a pull request that token opens or updates in an approval-required
@@ -64,7 +71,7 @@ jobs:
       (vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run))
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
       issues: read
@@ -90,16 +97,27 @@ jobs:
         timeout-minutes: 5
         with:
           node-version-file: .node-version
+      # Stop issues an earlier run could not file (a spent quota) hold this
+      # run until its notify job files them.
+      - name: Restore stop issues an earlier run could not file
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: work/listing-facts-batch/unfiled.json
+          key: listing-facts-batch-unfiled-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: listing-facts-batch-unfiled-v1-
+      # Each GitHub call ends at the step's timeout less a minute to start
+      # and report (`--deadline-minutes`): a spent quota fails it clearly.
       - name: Stop while a stop issue is open
         id: blocked
         timeout-minutes: 2
-        run: node scripts/listing-facts-batch.mts blocked
+        run: node scripts/listing-facts-batch.mts blocked --unfiled work/listing-facts-batch/unfiled.json --deadline-minutes 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Read the open batch pull request and its exact-head checks
         id: pull
         timeout-minutes: 2
-        run: node scripts/listing-facts-batch.mts pull-request
+        run: node scripts/listing-facts-batch.mts pull-request --deadline-minutes 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -256,7 +274,7 @@ jobs:
       - name: Find the newest main observer handoff
         id: observer
         timeout-minutes: 2
-        run: node scripts/listing-facts-batch.mts observer-run
+        run: node scripts/listing-facts-batch.mts observer-run --deadline-minutes 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -363,8 +381,9 @@ jobs:
       # The worker reads one archive at a time and deletes it, so disk never
       # accumulates. Its deadline is the job's 360 minutes less every other
       # step's budget and the time to write its result; what the deadline
-      # cuts stays pending and goes last in the next run; each identity also
-      # has the per-identity budget CI can reproduce it in.
+      # cuts stays pending and is inspected again in the next run (in its
+      # shard, ordered like any other identity); each identity also has the
+      # per-identity budget CI can reproduce it in.
       - name: Inspect this shard's identities
         timeout-minutes: 335
         env:
@@ -449,6 +468,9 @@ jobs:
           mkdir -p "$WORK/shards" "$WORK/out"
           node scripts/listing-package-facts.mts combine --plan "$WORK/plan/plan.json" --shards "$WORK/shards" \
             --state "$WORK/out/state.json" --report "$WORK/out/worker-report.json" > /dev/null
+          # One batch lands only what its pull-request CI can reproduce inside
+          # one hour's reproduction share of the quota; the rest is carried.
+          node scripts/listing-facts-batch.mts carry --base HEAD --report "$WORK/out/worker-report.json" > /dev/null
           if [ -f "$WORK/plan/history.json" ]; then cp "$WORK/plan/history.json" "$WORK/out/history.json"; fi
           # The baseline is this checkout's main tip: compare as a local run.
           env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts > /dev/null
@@ -568,7 +590,7 @@ jobs:
     needs: [prepare, inspect, combine, reproduce]
     if: ${{ !cancelled() && needs.prepare.result != 'skipped' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 80
     permissions:
       contents: read
     outputs:
@@ -726,7 +748,44 @@ jobs:
           ${{ env.DRY_RUN != 'true' &&
           hashFiles('work/listing-facts-batch/state.json') != '' &&
           steps.ready.outputs.ready != 'true' && steps.assess.outputs.stop == 'false' &&
+          steps.assess.outputs.transient != 'true' &&
           needs.combine.outputs.material == 'false' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: |
+            work/listing-facts-batch/state.json
+            work/listing-facts-batch/history.json
+          key: listing-facts-batch-v2-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # A transient reproduction proposes nothing and keeps the previous
+      # cursor, but its run history is kept: a second consecutive one stops
+      # the job (`reproduction-transient`).
+      - name: Restore the previous worker state of a transient reproduction
+        if: >-
+          ${{ env.DRY_RUN != 'true' && steps.assess.outputs.transient == 'true' &&
+          steps.assess.outputs.stop == 'false' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-inputs-${{ github.run_id }}
+          path: ${{ env.WORK }}/inputs
+      - name: Keep the previous worker state beside the new run history
+        if: >-
+          ${{ env.DRY_RUN != 'true' && steps.assess.outputs.transient == 'true' &&
+          steps.assess.outputs.stop == 'false' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          if [ -s "$WORK/inputs/state-before.json" ]; then
+            cp "$WORK/inputs/state-before.json" "$WORK/state.json"
+          else
+            echo '{"format":3,"pending":[],"retry":[]}' > "$WORK/state.json"
+          fi
+      - name: Persist the run history of a transient reproduction
+        if: >-
+          ${{ env.DRY_RUN != 'true' && steps.assess.outputs.transient == 'true' &&
+          steps.assess.outputs.stop == 'false' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
         with:
@@ -794,7 +853,8 @@ jobs:
           git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
           node scripts/listing-facts-batch.mts open-pull-request --branch "$branch" \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            --delta work/listing-facts-batch/delta.json --reproduced "$REPRODUCED"
+            --delta work/listing-facts-batch/delta.json --reproduced "$REPRODUCED" \
+            --report work/listing-facts-batch/worker-report.json --deadline-minutes 2
       # Only now does the cursor move: a delivery that failed above saves no
       # state, so the next run derives these identities again.
       - name: Persist the worker state and run history
@@ -813,7 +873,7 @@ jobs:
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.gate.result != 'skipped'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
       issues: write
@@ -833,6 +893,13 @@ jobs:
         with:
           name: listing-facts-batch-${{ github.run_id }}
           path: work/listing-facts-batch
+      - name: Restore stop issues an earlier run could not file
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: work/listing-facts-batch/unfiled.json
+          key: listing-facts-batch-unfiled-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: listing-facts-batch-unfiled-v1-
       - name: File one issue per stop condition
         timeout-minutes: 4
         env:
@@ -857,4 +924,14 @@ jobs:
             --gate "$GATE" --prepare "$PREPARE" --inspect "$INSPECT" --combine "$COMBINE" \
             --reproduce "$REPRODUCE" --decide "$DECIDE" --merge "$MERGE" --deliver "$DELIVER"
           node scripts/listing-facts-batch.mts issues --conditions work/listing-facts-batch/conditions.json \
-            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --unfiled work/listing-facts-batch/unfiled.json --deadline-minutes 3
+      # What could not be filed is kept for the next run; an empty record
+      # clears an earlier one.
+      - name: Keep the stop issues this run could not file
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: work/listing-facts-batch/unfiled.json
+          key: listing-facts-batch-unfiled-v1-${{ github.run_id }}-${{ github.run_attempt }}

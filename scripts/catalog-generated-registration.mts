@@ -4307,14 +4307,58 @@ export const matrixJobLimit = 256;
  */
 export const reproductionDeadlineMinutes = 85;
 /**
- * The time one identity's inspection may take so CI can reproduce it: a CI
- * reproduction shard holds at most ceil(candidates / `matrixJobLimit`)
- * entries (a change's entries are bounded by the authored listing-only
- * identities), and they share the shard's `reproductionDeadlineMinutes`. An
- * identity over it is a `runner-time` failure, never settled as facts.
+ * The built-in `GITHUB_TOKEN`'s REST quota: 1,000 requests an hour per
+ * repository, shared by every workflow of the repository
+ * ([GitHub documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#primary-rate-limit-for-github_token-in-github-actions)).
+ * An App installation token has its own larger quota; nothing here assumes one.
  */
-export function identityBudgetMinutes(candidates: number) {
-  return reproductionDeadlineMinutes / Math.max(1, Math.ceil(candidates / matrixJobLimit));
+export const githubTokenHourlyRequests = 1_000;
+/**
+ * The share of that hourly quota reproduction plans to spend: half. The other
+ * half stays for every other workflow of the repository, which spend the same
+ * per-repository quota while reproduction runs (CI's other jobs and plan
+ * reads, the upstream observer, discovery, the batch job's own gate, merge
+ * and issue calls) and whose use is not measured here (UNKNOWN), so no
+ * smaller reserve is justified. Reproduction spends at most one request per
+ * entry (its repository's release list).
+ */
+export const reproductionHourlyRequests = githubTokenHourlyRequests / 2;
+/**
+ * The longest wait for the quota once it is spent: GitHub resets the primary
+ * quota hourly, so a request refused just after a reset waits up to an hour.
+ */
+export const quotaResetWaitMinutes = 60;
+/**
+ * The reproduction entries one facts change may plan without waiting for a
+ * quota reset: one hour's reproduction share. The batch job lands at most
+ * this many per batch and carries the rest to its next batch, so its
+ * pull-request CI never waits for the quota.
+ */
+export const reproductionBatchEntries = reproductionHourlyRequests;
+/**
+ * The quota wait, in minutes, a reproduction of `entries` entries must expect
+ * inside its shard deadline: none while one hour's share covers every
+ * request, else one reset (`quotaResetWaitMinutes`). More than one reset never
+ * fits the 85-minute deadline, so the shards are also run at a parallelism
+ * whose concurrent requests fit the share (`reproductionParallelism`).
+ */
+export function expectedQuotaWaitMinutes(entries: number) {
+  return entries > reproductionHourlyRequests ? quotaResetWaitMinutes : 0;
+}
+/**
+ * The time one identity's inspection may take so CI can reproduce it: a CI
+ * reproduction shard holds at most ceil(entries / `matrixJobLimit`) entries,
+ * and they share the shard's `reproductionDeadlineMinutes` less the quota
+ * wait it must expect (`expectedQuotaWaitMinutes`). The worker passes the
+ * entries one batch can land, at most `reproductionBatchEntries`, so its
+ * budget matches the CI that later reproduces the batch. An identity over it
+ * is a `runner-time` failure, never settled as facts.
+ */
+export function identityBudgetMinutes(entries: number) {
+  return (
+    (reproductionDeadlineMinutes - expectedQuotaWaitMinutes(entries)) /
+    Math.max(1, Math.ceil(entries / matrixJobLimit))
+  );
 }
 /**
  * Deterministic shards of identities: `count` shards (one per identity, at
@@ -4362,9 +4406,47 @@ export function needsReproduction(
 /** Whether two entries differ only in what a reconfirmation moves (`observed_at`, `attempt`). */
 export const sameExceptReconfirmation = (left: ListingFactsEntry, right: ListingFactsEntry) =>
   reproducedFields(left) === reproducedFields(right);
-/** Archive bytes reproducing an entry downloads. */
-export const reproductionCost = (entry: ListingFactsEntry) =>
-  [...entry.artifacts, ...entry.refused_archives].reduce((sum, artifact) => sum + artifact.size, 0);
+/**
+ * The archives of `next` whose recorded facts CI need not re-read from their
+ * bytes: `previous` is an eligible baseline entry (its archives were
+ * reproduced when it landed) of the same repository id, parser and parser
+ * version, and holds a byte-identical record for the same asset id (same
+ * SHA-256, players, name verdicts and refusal). Reproduction still re-checks
+ * each one's provider metadata (name, size, digest) and name verdict; a
+ * changed artifact, parser version or recorded fact is fully reproduced. A
+ * new release on another line changes only `observed_releases` or
+ * `other_packages`, so it re-reads no archive.
+ */
+export function reusedArchives(
+  previous: ListingFactsEntry | undefined,
+  next: ListingFactsEntry,
+): Set<number> {
+  const reused = new Set<number>();
+  if (
+    !previous ||
+    previous.ineligible !== null ||
+    previous.repository_id !== next.repository_id ||
+    previous.parser !== next.parser ||
+    previous.parser_version !== next.parser_version
+  )
+    return reused;
+  const before = new Map(
+    [...previous.artifacts, ...previous.refused_archives].map((archive) => [
+      archive.asset_id,
+      digestOf(archive),
+    ]),
+  );
+  for (const archive of [...next.artifacts, ...next.refused_archives])
+    if (before.get(archive.asset_id) === digestOf(archive)) reused.add(archive.asset_id);
+  return reused;
+}
+/** Archive bytes reproducing an entry downloads: every archive not reused from `previous`. */
+export const reproductionCost = (entry: ListingFactsEntry, previous?: ListingFactsEntry) => {
+  const reused = reusedArchives(previous, entry);
+  return [...entry.artifacts, ...entry.refused_archives]
+    .filter((archive) => !reused.has(archive.asset_id))
+    .reduce((sum, artifact) => sum + artifact.size, 0);
+};
 /** Entries of `next` that must be reproduced against `previous`, in port_id order. */
 export function reproductionPlan(previous: unknown, next: ListingFactsTable) {
   const before = new Map(
@@ -4376,5 +4458,15 @@ export function reproductionPlan(previous: unknown, next: ListingFactsTable) {
   const entries = next.entries.filter((entry) =>
     needsReproduction(before.get(entry.port_id), entry),
   );
-  return { entries, bytes: entries.reduce((sum, entry) => sum + reproductionCost(entry), 0) };
+  return {
+    entries,
+    bytes: entries.reduce(
+      (sum, entry) => sum + reproductionCost(entry, before.get(entry.port_id)),
+      0,
+    ),
+    /** Per planned entry, the archives reproduction reuses (`reusedArchives`). */
+    reused: new Map(
+      entries.map((entry) => [entry.port_id, reusedArchives(before.get(entry.port_id), entry)]),
+    ),
+  };
 }

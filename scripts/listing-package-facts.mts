@@ -45,7 +45,8 @@
 //    with no identity or byte bound. Each identity has the time CI can
 //    reproduce it in (`identityBudgetMinutes`; over it, `runner-time`), and
 //    a deadline (a shard's real time limit) stops a run; what it cuts stays
-//    pending and goes last in the next run (`WorkerState.pending`). A sharded run plans (`inspectBytes: false`),
+//    pending (`WorkerState.pending`) and an unsharded next run inspects it
+//    last. A sharded run plans (`inspectBytes: false`, `pending: []`),
 //    inspects each shard (`only`) on the plan's table and merges the shards
 //    (`combineShards`).
 //  - A non-complete upstream observation (rate limit, not found, partial)
@@ -53,7 +54,8 @@
 //    worker's own backlog (`pending-inspection`) is not an upstream attempt
 //    and only the facts age bounds it. A complete observation that no longer
 //    fits withdraws immediately.
-//  - Every derived entry lands: there is no batch bound. A run whose
+//  - Every derived entry lands in the worker's table: the worker has no batch
+//    bound (the scheduled job carries what one batch may not land). A run whose
 //    deadline left work pending but that settled nothing reports
 //    `no_progress: true`.
 //
@@ -80,6 +82,7 @@ import {
   boundReleaseLine,
   fitContext,
   identityBudgetMinutes,
+  reproductionBatchEntries,
   releaseLine,
   type Generation,
   type OtherPackage,
@@ -621,14 +624,17 @@ export interface DeriveInputs {
   /**
    * Epoch ms after which no further identity's inspection starts and a
    * download or Core run in progress is cut (pass the same deadline to the
-   * inspector): the shard's real time limit. Cut identities stay pending and
-   * go last in the next run (`WorkerState.pending`).
+   * inspector): the shard's real time limit. Cut identities stay pending
+   * (`WorkerState.pending`); an unsharded next run inspects them last. A
+   * sharded run's plan reads no bytes and returns `pending: []`, so its
+   * shards order a cut identity like any other (retry age, then port_id).
    */
   deadline?: number;
   /**
    * The time one identity's inspection may take, in milliseconds: by default
-   * `identityBudgetMinutes` of the candidate count, so CI can reproduce what
-   * the worker settles. Over it the identity is a `runner-time` failure.
+   * `identityBudgetMinutes` of the entries one batch can land (the candidate
+   * count, at most `reproductionBatchEntries`), so CI can reproduce what the
+   * worker settles. Over it the identity is a `runner-time` failure.
    */
   identityBudgetMs?: number;
 }
@@ -1424,8 +1430,9 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
 
   // Pass B: inspect every identity that needs bytes, one archive at a time,
   // with no identity or byte bound. Transient failures go oldest first, then
-  // the rest in port_id order, and identities a previous shard deadline cut
-  // go last, so one slow identity never starves its shard-mates. Each
+  // the rest in port_id order, and identities a previous deadline cut go
+  // last (only in an unsharded run: a sharded plan carries `pending: []`, so
+  // its shards order a cut identity like any other). Each
   // identity has the time CI can reproduce it in (`identityBudgetMinutes`);
   // over it, it is a `runner-time` failure, and a second consecutive one
   // settles it ineligible with that cause. The shard deadline (the shard's
@@ -1433,7 +1440,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   let bytes = 0;
   const pastDeadline = () => inputs.deadline !== undefined && Date.now() >= inputs.deadline;
   const identityBudgetMs =
-    inputs.identityBudgetMs ?? identityBudgetMinutes(candidates.size) * 60_000;
+    inputs.identityBudgetMs ??
+    identityBudgetMinutes(Math.min(candidates.size, reproductionBatchEntries)) * 60_000;
   const cut = new Set<string>();
   const inspectOne = async (need: Need) => {
     const found: {

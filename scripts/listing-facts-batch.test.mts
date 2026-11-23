@@ -23,12 +23,14 @@ import {
   identityBudgetMinutes,
   matrixJobLimit,
   reproductionDeadlineMinutes,
+  reproductionBatchEntries,
   digestOf,
   emptyFactsTable,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
   needsReproduction,
   reproductionPlan,
+  reusedArchives,
   type ListingFactsEntry,
   type ListingFactsTable,
   type NameSuggestion,
@@ -39,15 +41,19 @@ import {
   assetsDigest,
   InspectionError,
   OverBudgetError,
+  boundLinesOf,
   boundedTimeout,
   type ByteInspector,
   type NameClassifier,
 } from "./listing-package-facts.mts";
 import {
+  authoredSourceProblem,
   batchAllowlist,
   batchBranchPrefix,
   batchCapacity,
   capacityDetail,
+  carriedSummary,
+  carryOver,
   retainedContractReserveBytes,
   derivedBatchPaths,
   batchInputs,
@@ -77,7 +83,14 @@ import {
   reproductionScopeProblems,
   reproductionTransient,
   githubJson,
+  githubRequest,
+  githubFirstRetryMs,
+  githubResponseBytes,
+  TransientGithubError,
+  transientInspection,
+  readUnfiled,
   githubTokenHourlyRequests,
+  reproductionHourlyRequests,
   quotaResumeAt,
   resetQuota,
   parseWorkerSummary,
@@ -2000,6 +2013,7 @@ void test("the exception queues report counts per reason and the top unsupported
       unread_forms: { ".7z": ["a", "b"], ".exe": ["c"], ".dmg": [] },
       exclusions: { "asset-tool-name:patcher": ["e"] },
       refusals: { "core-source-invalid": ["f", "g"], "digest-mismatch": [] },
+      inspection_failures: { "runner-time": ["l"] },
       shared_repositories: { "o/shared": ["h", "i", "j"] },
       enrolled_beside_unoffered_forms: ["k"],
     },
@@ -2009,6 +2023,7 @@ void test("the exception queues report counts per reason and the top unsupported
     unread_forms: { ".7z": 2, ".exe": 1 },
     exclusions: { "asset-tool-name:patcher": 1 },
     refusals: { "core-source-invalid": 2 },
+    inspection_failures: { "runner-time": 1 },
     shared_repositories: { "o/shared": 3 },
     enrolled_beside_unoffered_forms: 1,
   });
@@ -2017,6 +2032,9 @@ void test("the exception queues report counts per reason and the top unsupported
   assert.match(markdown, /\| `no-observation` \| 3 \|/u);
   assert.match(markdown, /\| `core-source-invalid` \| 2 \|/u);
   assert.match(markdown, /Top unread package forms/u);
+  // A runner-time ineligibility says when it is reconsidered (J-F4).
+  assert.match(markdown, /\| `runner-time` \| 1 \|/u);
+  assert.match(markdown, /stays ineligible until its entry changes/u);
   assert.throws(() => queueSummary({}), /registration_queues/u);
 });
 
@@ -2215,6 +2233,208 @@ void test("a change naming an entry outside the authored catalog is refused befo
   assert.equal(result.bytes, 0);
 });
 
+void test("authored sources and their facts are separate changes; scope comes from the base (J-J1)", async () => {
+  const { release, entry, players } = fixture();
+  const factsTable = "crates/portcove-core/catalog/listing-package-facts.generated.json";
+  const listingFile = `crates/portcove-core/catalog/ports/${unseen}.json`;
+  // The head adds an authored listing and its facts entry together: refused
+  // before any call, whatever the listing says.
+  assert.match(
+    authoredSourceProblem(
+      [factsTable, listingFile, "crates/portcove-core/catalog/catalog.json"],
+      1,
+    )!,
+    new RegExp(
+      `1 reproducible listing facts entries together with authored catalog sources \\(${listingFile.replace(/[.]/gu, "\\.")}\\)`,
+      "u",
+    ),
+  );
+  assert.ok(
+    authoredSourceProblem(["crates/portcove-core/catalog/catalog-shared.json", factsTable], 3),
+  );
+  // Facts alone, or only the generated outputs beside them, may reproduce.
+  assert.equal(authoredSourceProblem([factsTable], 1), undefined);
+  assert.equal(authoredSourceProblem([...batchAllowlist], 4), undefined);
+  // Authored changes with no reproducible entry are ordinary changes.
+  assert.equal(authoredSourceProblem([listingFile, factsTable], 0), undefined);
+  // The scope comes from the base: a listing only the head adds is out of
+  // scope, so reproduction makes zero provider calls and zero downloads.
+  const base: AuthoredPort[] = [];
+  assert.match(
+    reproductionScopeProblems([entry], base, null).join(" "),
+    /not an authored listing-only/u,
+  );
+  let calls = 0;
+  const log: string[] = [];
+  const counted = async (id: number) => {
+    calls++;
+    return await lister(release)(id);
+  };
+  const headOnly = await reproduceFacts({
+    entries: [entry],
+    listReleases: counted,
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: boundLinesOf(base),
+  });
+  assert.equal(calls, 0);
+  assert.deepEqual(log, []);
+  assert.deepEqual(
+    headOnly.refused.map((refusal) => refusal.reason),
+    ["mismatch"],
+  );
+  // A facts entry for an identity the base already authors is reproduced.
+  const authoredBase = [authored(unseen)];
+  assert.deepEqual(reproductionScopeProblems([entry], authoredBase, null), []);
+  const reproduced = await reproduceFacts({
+    entries: [entry],
+    listReleases: counted,
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: boundLinesOf(authoredBase),
+  });
+  assert.deepEqual(reproduced.verified, [unseen]);
+  assert.equal(calls, 1);
+  // Every reproduction shard stops when a newer head superseded its run.
+  const ci = parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")) as {
+    jobs: Record<string, { steps: { uses?: string; with?: Record<string, string> }[] }>;
+  };
+  const steps = ci.jobs.listing_facts_reproduction!.steps;
+  const stop = steps.findIndex((step) => step.uses === "./.github/actions/stop-if-superseded");
+  assert.ok(stop > 0 && stop < steps.findIndex((step) => step.uses?.startsWith("pnpm/")));
+  assert.equal(steps[stop]!.with!["head-sha"], "${{ github.event.pull_request.head.sha }}");
+});
+
+void test("byte-identical archives are not re-read; a changed one, or another parser, is (J-B2)", async () => {
+  const { release, entry, players } = fixture();
+  // The baseline entry was reproduced when it landed. A change that touches
+  // only the release-line facts keeps the archive record byte-identical.
+  const baseline = structuredClone(entry);
+  baseline.observed_releases = [];
+  assert.deepEqual([...reusedArchives(baseline, entry)], [21]);
+  const plan = reproductionPlan(
+    { entries: [baseline] },
+    { ...emptyFactsTable(), entries: [entry] },
+  );
+  assert.deepEqual(
+    plan.entries.map((item) => item.port_id),
+    [unseen],
+  );
+  assert.equal(plan.bytes, 0);
+  assert.deepEqual([...plan.reused.get(unseen)!], [21]);
+  const log: string[] = [];
+  const result = await reproduceFacts({
+    entries: [entry],
+    listReleases: lister(release),
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+    reused: plan.reused,
+  });
+  assert.deepEqual(result.verified, [unseen]);
+  assert.deepEqual(log, []);
+  assert.equal(result.bytes, 0);
+  // The provider metadata is still re-checked: a moved digest is refused.
+  const moved = structuredClone(release);
+  moved.assets[0]!.sha256 = sha("moved");
+  const refused = await reproduceFacts({
+    entries: [entry],
+    listReleases: lister(moved),
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+    reused: plan.reused,
+  });
+  assert.deepEqual(refused.verified, []);
+  assert.deepEqual(log, []);
+  // A changed recorded fact, another parser version, a re-bound repository
+  // or an ineligible baseline reuses nothing: the bytes are read again.
+  const otherFact = structuredClone(baseline);
+  otherFact.artifacts[0]!.players = [];
+  const otherParser = { ...structuredClone(baseline), parser_version: FACTS_PARSER_VERSION - 1 };
+  const otherId = { ...structuredClone(baseline), repository_id: 7 };
+  const ineligible = { ...structuredClone(baseline), ineligible: "no-runtime" as never };
+  for (const previous of [otherFact, otherParser, otherId, ineligible, undefined])
+    assert.equal(reusedArchives(previous, entry).size, 0);
+  const full = reproductionPlan(
+    { entries: [otherFact] },
+    { ...emptyFactsTable(), entries: [entry] },
+  );
+  assert.equal(full.bytes, 4096);
+  await reproduceFacts({
+    entries: [entry],
+    listReleases: lister(release),
+    inspect: inspector(players, log),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+    reused: full.reused,
+  });
+  assert.deepEqual(log, [windowsZip]);
+});
+
+void test("a batch lands only what its CI can reproduce in one hour's share; the rest is carried (J-B1)", () => {
+  assert.equal(reproductionBatchEntries, 500);
+  const ids = ["zz-carry-a", "zz-carry-b", "zz-carry-c", "zz-carry-d"];
+  const fresh = ids.map((id) => fixture(id).entry);
+  // zz-carry-c had an older offered entry; zz-carry-d is new.
+  const older = structuredClone(fresh[2]!);
+  older.observation.observed_at = "2026-11-01T00:00:00.000Z";
+  older.asset_names = [];
+  const baseline = { ...emptyFactsTable(), entries: [older] };
+  const current = { ...emptyFactsTable(), entries: fresh, entries_sha256: digestOf(fresh) };
+  // Within the limit nothing is carried.
+  assert.deepEqual(carryOver(baseline, current, 4).carried, []);
+  const { table, carried } = carryOver(baseline, current, 2);
+  assert.deepEqual(carried, ["zz-carry-c", "zz-carry-d"]);
+  // The carried entries keep their baseline facts or stay absent.
+  assert.deepEqual(
+    table.entries.map((entry) => entry.port_id),
+    ["zz-carry-a", "zz-carry-b", "zz-carry-c"],
+  );
+  assert.deepEqual(table.entries[2], older);
+  assert.equal(table.entries_sha256, digestOf(table.entries));
+  // What lands needs exactly the limit's reproduction.
+  assert.equal(reproductionPlan(baseline, table).entries.length, 2);
+  // The summary reports them as carried, never complete or settled.
+  const text = JSON.stringify({
+    ...summary(),
+    settled: 4,
+    identities: ids.map((port_id) => ({ port_id, outcome: "complete" })),
+  });
+  const marked = parseWorkerSummary(carriedSummary(text, carried));
+  assert.equal(marked.settled, 2);
+  assert.deepEqual(marked.carried_ids, carried);
+  assert.deepEqual(
+    marked.identities.map((row) => row.outcome),
+    ["complete", "complete", "carried", "carried"],
+  );
+  // The batch pull request says so.
+  assert.match(
+    batchPullBody({
+      runUrl: "https://example.invalid/run",
+      provenance: {
+        workflow_run_id: "1",
+        source_commit: "a".repeat(40),
+        cli_sha256: "b".repeat(64),
+        inputs_sha256: "c".repeat(64),
+      },
+      delta: { added: 2, withdrawn: 0, changed: 0 },
+      reproduced: 2,
+      carried: 2,
+    }),
+    /2 further entries are carried to the next batch/u,
+  );
+  // The job carries before it generates the catalog.
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<string, { steps: { id?: string; run?: string }[] }>;
+  };
+  const generate = workflow.jobs.combine!.steps.find((step) => step.id === "generate")!.run!;
+  assert.ok(
+    generate.indexOf("listing-facts-batch.mts carry --base HEAD") <
+      generate.indexOf("generate-catalog.mts"),
+  );
+});
+
 void test("reproduction reads each repository's release list once and waits out a spent quota (J2)", async () => {
   // Two entries of one repository: one list request, no per-release read.
   const { release, entry, players } = fixture();
@@ -2282,7 +2502,7 @@ void test("reproduction reads each repository's release list once and waits out 
     [1],
   );
   assert.equal(requests, 2);
-  // A wait past the deadline is the runner's time: over budget, transient.
+  // A wait past the deadline fails transiently, with the quota's reset time.
   resetQuota();
   clock = 2_000_000;
   const spent = (async () =>
@@ -2296,21 +2516,23 @@ void test("reproduction reads each repository's release list once and waits out 
       now: () => clock,
       deadline: clock + 60_000,
     }),
-    OverBudgetError,
+    (error: unknown) =>
+      error instanceof TransientGithubError && /quota is spent until/u.test(error.message),
   );
   resetQuota();
-  // Shards run with the parallelism the hourly quota allows: at most one
-  // request per entry, so a shard costs its entry count.
+  // Shards run with the parallelism reproduction's half of the hourly quota
+  // allows: at most one request per entry, so a shard costs its entry count.
   assert.equal(githubTokenHourlyRequests, 1_000);
+  assert.equal(reproductionHourlyRequests, 500);
   assert.equal(
     reproductionParallelism(
       400,
       identityShards(Array.from({ length: 400 }, (_, i) => `id-${i}`)).length,
     ),
-    256,
+    250,
   );
-  assert.equal(reproductionParallelism(1_100, 256), 200);
-  assert.equal(reproductionParallelism(5_000, 256), 50);
+  assert.equal(reproductionParallelism(1_100, 256), 100);
+  assert.equal(reproductionParallelism(5_000, 256), 25);
   assert.equal(reproductionParallelism(0, 0), 1);
   // Over-budget refusals of every shard are transient, never a stop.
   const directory = mkdtempSync(join(tmpdir(), "facts-transient-"));
@@ -2348,7 +2570,10 @@ void test("one shared reproduction deadline bounds CI, the job and each identity
   assert.equal(identityBudgetMinutes(1), 85);
   assert.equal(identityBudgetMinutes(256), 85);
   assert.equal(identityBudgetMinutes(400), 42.5);
-  assert.equal(identityBudgetMinutes(1_100), 17);
+  // Past one hour's reproduction share a shard must expect one quota reset.
+  assert.equal(identityBudgetMinutes(500), 42.5);
+  assert.equal(identityBudgetMinutes(501), (85 - 60) / 2);
+  assert.equal(identityBudgetMinutes(1_100), 5);
   const ci = parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")) as {
     jobs: Record<
       string,
@@ -2533,4 +2758,221 @@ void test("a batch past either released-reader bound is never proposed; it stops
   assert.match(ready.run!, /\[ "\$CAPACITY" = ok \]/u);
   const assess = decide.steps.find((item) => item.id === "assess")!;
   assert.match(assess.run!, /--capacity "\$WORK\/capacity\.json"/u);
+});
+
+void test("GitHub calls follow the retry guidance inside their deadline and classify transient failures (J-B3, J-B6, J-F2, J-F3)", async () => {
+  // A fake clock that sleeping advances.
+  let clock = 10_000_000;
+  const now = () => clock;
+  const waits: number[] = [];
+  const pause = async (ms: number) => {
+    waits.push(ms);
+    clock += ms;
+  };
+  const scripted = (responses: (Response | Error)[]) => {
+    let calls = 0;
+    const fetcher = (async () => {
+      calls++;
+      const next = responses.shift() ?? new Response("{}", { status: 200 });
+      if (next instanceof Error) throw next;
+      return next;
+    }) as unknown as typeof fetch;
+    return { fetcher, calls: () => calls };
+  };
+  const call = (fetcher: typeof fetch, deadline?: number) =>
+    githubRequest("GET", "https://api.github.com/y", undefined, {
+      fetch: fetcher,
+      now,
+      sleep: pause,
+      ...(deadline === undefined ? {} : { deadline }),
+    });
+  // A secondary limit stating no wait, a server error and a network failure
+  // are retried after a minute, then exponentially longer.
+  resetQuota();
+  const flaky = scripted([
+    new Response('{"message":"You have exceeded a secondary rate limit"}', { status: 403 }),
+    new Response("{}", { status: 502 }),
+    new TypeError("fetch failed"),
+    new Response('{"ok":true}', { status: 200 }),
+  ]);
+  assert.deepEqual(await call(flaky.fetcher, clock + 3_600_000), { ok: true });
+  assert.equal(flaky.calls(), 4);
+  assert.deepEqual(waits, [githubFirstRetryMs, 2 * githubFirstRetryMs, 4 * githubFirstRetryMs]);
+  // A retry that would pass the deadline ends transiently with its cause.
+  waits.length = 0;
+  const failing = scripted([new Response("{}", { status: 503 })]);
+  await assert.rejects(
+    call(failing.fetcher, clock + 30_000),
+    (error: unknown) =>
+      error instanceof TransientGithubError && /a server error \(503\)/u.test(error.message),
+  );
+  assert.deepEqual(waits, []);
+  // Without a deadline a request is tried once and never waits.
+  const once = scripted([new TypeError("fetch failed")]);
+  await assert.rejects(call(once.fetcher), TransientGithubError);
+  assert.equal(once.calls(), 1);
+  // `retry-after: 0` waits a second, and the deadline still ends the loop.
+  resetQuota();
+  waits.length = 0;
+  const zero = () => new Response("{}", { status: 429, headers: { "retry-after": "0" } });
+  const spinning = scripted(Array.from({ length: 10 }, zero));
+  await assert.rejects(call(spinning.fetcher, clock + 3_500), TransientGithubError);
+  assert.ok(waits.every((ms) => ms >= 1_000));
+  assert.ok(spinning.calls() <= 4);
+  // A permission refusal is no rate limit: an ordinary error, not retried.
+  resetQuota();
+  const denied = scripted([new Response('{"message":"Resource not accessible"}', { status: 403 })]);
+  await assert.rejects(
+    call(denied.fetcher, clock + 3_600_000),
+    (error: unknown) =>
+      !(error instanceof TransientGithubError) && /answered 403/u.test(String(error)),
+  );
+  assert.equal(denied.calls(), 1);
+  // The size bound is enforced while reading: the stream is cancelled once
+  // it passes the bound, never buffered whole.
+  let pulled = 0;
+  let cancelled = false;
+  const chunk = new Uint8Array(1024 * 1024);
+  const huge = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled++;
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const oversized = scripted([new Response(huge, { status: 200 })]);
+  await assert.rejects(call(oversized.fetcher, clock + 60_000), /answered more than/u);
+  assert.ok(cancelled);
+  assert.ok(pulled <= githubResponseBytes / chunk.length + 2);
+  resetQuota();
+  // Reproduction reports network and runner-disk failures as transient.
+  assert.equal(
+    transientInspection(new InspectionError("Download failed.", false, "core-unknown", "network")),
+    true,
+  );
+  assert.equal(
+    transientInspection(new InspectionError("Disk.", false, "core-state", "runner-disk")),
+    true,
+  );
+  assert.equal(transientInspection(new InspectionError("Refused.", true, "core-usage")), false);
+  assert.equal(
+    transientInspection(
+      new InspectionError("No result.", false, "core-unknown", "unreadable-archive"),
+    ),
+    false,
+  );
+  const { release, entry, players } = fixture();
+  const offline = await reproduceFacts({
+    entries: [entry],
+    listReleases: async () => {
+      throw new TransientGithubError("a server error (502)");
+    },
+    inspect: inspector(players),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+  });
+  assert.deepEqual(
+    offline.refused.map((refusal) => refusal.reason),
+    ["transient"],
+  );
+  const diskFull = await reproduceFacts({
+    entries: [entry],
+    listReleases: lister(release),
+    inspect: inspector(new InspectionError("Disk.", false, "core-state", "runner-disk")),
+    classify: coreClassifier,
+    boundLines: unbound([entry]),
+  });
+  assert.deepEqual(
+    diskFull.refused.map((refusal) => refusal.reason),
+    ["transient"],
+  );
+  // A transient refusal file is transient for the run; two consecutive
+  // transient runs stop the job with its causes.
+  const directory = mkdtempSync(join(tmpdir(), "facts-transient-b3-"));
+  try {
+    writeFileSync(
+      join(directory, "refusals-0.json"),
+      JSON.stringify({ ok: false, transient: true, refusals: ["zz-a: transient: x"] }),
+    );
+    assert.equal(reproductionTransient(directory, 1), true);
+    const first = stopConditions({
+      runId: "1",
+      now: "2026-11-21T00:00:00.000Z",
+      summary: summary(),
+      history: [record()],
+      versions: "v",
+      gate: "ok",
+      paths: "ok",
+      reproduction: "transient",
+      details: reproductionDetails(directory),
+    });
+    assert.deepEqual(first.conditions, []);
+    assert.equal(first.record!.reproduction_transient, true);
+    const second = stopConditions({
+      runId: "2",
+      now: "2026-11-21T06:00:00.000Z",
+      summary: summary(),
+      history: [first.record!],
+      versions: "v",
+      gate: "ok",
+      paths: "ok",
+      reproduction: "transient",
+      details: reproductionDetails(directory),
+    });
+    assert.deepEqual(
+      second.conditions.map((condition) => condition.name),
+      ["reproduction-transient"],
+    );
+    assert.match(second.conditions[0]!.detail, /zz-a: transient: x/u);
+    assert.ok(stopConditionNames.includes("reproduction-transient"));
+    // Unfiled stop issues are read back strictly; an unreadable record holds.
+    const unfiled = join(directory, "unfiled.json");
+    assert.deepEqual(readUnfiled(unfiled), []);
+    writeFileSync(
+      unfiled,
+      JSON.stringify([{ title: "Listing facts batch stopped: x", body: "b" }]),
+    );
+    assert.deepEqual(readUnfiled(unfiled), [
+      { title: "Listing facts batch stopped: x", body: "b" },
+    ]);
+    writeFileSync(unfiled, "{");
+    assert.match(readUnfiled(unfiled)[0]!.title, /stopped: worker-error/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  // The gate and notify steps bound their GitHub calls and keep unfiled
+  // issues for the next run; the CI checks step bounds its reads too.
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<
+      string,
+      {
+        steps: {
+          id?: string;
+          name?: string;
+          run?: string;
+          uses?: string;
+          if?: string;
+          with?: Record<string, string>;
+        }[];
+      }
+    >;
+  };
+  const gate = workflow.jobs.gate!.steps;
+  assert.match(
+    gate.find((step) => step.id === "blocked")!.run!,
+    /--unfiled .* --deadline-minutes 1/u,
+  );
+  assert.match(gate.find((step) => step.id === "pull")!.run!, /--deadline-minutes 1/u);
+  const notify = workflow.jobs.notify!.steps;
+  assert.match(
+    notify.find((step) => step.name === "File one issue per stop condition")!.run!,
+    /--unfiled work\/listing-facts-batch\/unfiled\.json --deadline-minutes 3/u,
+  );
+  const keep = notify.find((step) => step.name === "Keep the stop issues this run could not file")!;
+  assert.equal(keep.if, "always()");
+  assert.match(keep.uses!, /^actions\/cache\/save@/u);
+  const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+  assert.equal(ci.match(/verify --reproduce false --deadline-minutes 14/gu)?.length, 2);
 });

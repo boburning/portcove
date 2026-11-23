@@ -4,7 +4,9 @@
 //
 // The job runs the facts worker (`scripts/listing-package-facts.mts`) over
 // the whole candidate set, sharded across a job matrix, regenerates the
-// catalog and proposes one batch with everything that fits: no size bound. Nothing here is a
+// catalog and proposes one batch: every entry that needs no reproduction, and
+// at most one hour's reproduction share of those that do (`carryOver`); the
+// rest is carried to the next batch, never dropped. Nothing here is a
 // second status or backlog authority: the facts table, the enrollment table
 // and `catalog-route-fit.mts --json` stay the record; the job keeps only the
 // worker state and a short run history in its cache.
@@ -22,7 +24,18 @@
 //    players and facts must be byte-equal, and its release must still be the
 //    newest stable one. An oversized, unavailable or changed asset is
 //    refused, never trusted (`reproduceFacts`); so is a time ahead of the
-//    clock (`clockProblems`).
+//    clock (`clockProblems`). An archive byte-identical to the baseline's is
+//    re-checked by its provider metadata only (`reusedArchives`). The scope
+//    and bindings come from the base's authored catalog, and a change that
+//    edits facts together with authored sources reproduces nothing
+//    (`authoredSourceProblem`). Network, provider, rate-limit and runner-disk
+//    failures are transient, never a verdict (`transientReasons`).
+//  - Quota: GitHub calls honour the stated quota and GitHub's retry guidance
+//    inside the step's deadline (`githubRequest`); reproduction plans half of
+//    the hourly GITHUB_TOKEN quota (`reproductionHourlyRequests`), and one
+//    batch lands only what fits it (`carryOver`).
+//  - Capacity: a batch past a released-reader bound is never proposed
+//    (`batchCapacity`).
 //  - Provenance: a batch names the workflow run, source commit and inputs
 //    digest it came from; CI checks them against that run, its retained
 //    inputs and its outputs record (`provenanceProblems`, `inputsProblems`,
@@ -41,20 +54,25 @@
 //   node scripts/listing-facts-batch.mts assess --worker-report FILE --history FILE \
 //     --run-id ID [--gate ok|refused] [--paths ok|violated] [--reproduction ok|refused] \
 //     [--facts FILE] [--now ISO]
+//   node scripts/listing-facts-batch.mts carry --report FILE [--base REV]
+//   node scripts/listing-facts-batch.mts capacity --output FILE
 //   node scripts/listing-facts-batch.mts delta|versions|observer-run|open-pull-request …
 //   node scripts/listing-facts-batch.mts merge-intent|collect …   (job plumbing)
 //   node scripts/listing-facts-batch.mts queues --route-fit FILE [--output FILE]
-//   node scripts/listing-facts-batch.mts issues --conditions FILE   (GitHub writes)
-//   node scripts/listing-facts-batch.mts blocked                      (GitHub reads)
-//   node scripts/listing-facts-batch.mts pull-request                 (GitHub reads)
+//   node scripts/listing-facts-batch.mts issues --conditions FILE [--unfiled FILE]  (GitHub writes)
+//   node scripts/listing-facts-batch.mts blocked [--unfiled FILE]                   (GitHub reads)
+//   node scripts/listing-facts-batch.mts pull-request                               (GitHub reads)
+// Any command takes `--deadline-minutes M`: its step's deadline for GitHub calls.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -80,6 +98,9 @@ import {
   identityShards,
   releaseLine,
   reproductionDeadlineMinutes,
+  githubTokenHourlyRequests,
+  reproductionBatchEntries,
+  reproductionHourlyRequests,
   toolchainNames,
   reproductionPlan,
   sameExceptReconfirmation,
@@ -480,12 +501,15 @@ export const releaseListPage = 100;
 
 export type RefusalReason =
   | "over-budget"
+  | "transient"
   | "release-unavailable"
   | "release-changed"
   | "not-latest-stable"
   | "asset-unavailable"
   | "core-refused"
   | "mismatch";
+/** Refusals that are the runner's time or the provider's condition: retried, never a stop. */
+export const transientReasons: readonly RefusalReason[] = ["over-budget", "transient"];
 export interface Refusal {
   port_id: string;
   reason: RefusalReason;
@@ -543,22 +567,68 @@ export function reproductionScopeProblems(
   return problems;
 }
 
+/** The directory every authored listing and catalog source lives under. */
+export const authoredCatalogRoot = "crates/portcove-core/catalog/";
+/**
+ * Why a change may not reproduce at all, decided offline before any provider
+ * call: it changes reproducible facts entries (`planned` > 0) together with an
+ * authored listing or catalog source file, any path under
+ * `authoredCatalogRoot` other than the generated batch outputs
+ * (`batchAllowlist`). Authored sources land first in their own reviewed
+ * change, facts later, the same shape as checker separation; a batch never
+ * touches an authored file. Otherwise one untrusted change could add a listing
+ * naming any repository and its facts entry together, and make CI download
+ * that repository's releases and spend the repository's API quota.
+ */
+export function authoredSourceProblem(
+  changed: readonly string[],
+  planned: number,
+): string | undefined {
+  if (planned === 0) return undefined;
+  const allowed = new Set<string>(batchAllowlist);
+  const authored = changed
+    .filter((file) => file.startsWith(authoredCatalogRoot) && !allowed.has(file))
+    .toSorted();
+  if (!authored.length) return undefined;
+  return `This change edits ${planned} reproducible listing facts entries together with authored catalog sources (${authored
+    .slice(0, 5)
+    .join(
+      ", ",
+    )}${authored.length > 5 ? ", …" : ""}); land the authored change first and the facts in a later change.`;
+}
+
 /**
  * How many reproduction shards may run at once so their REST requests fit
- * the `GITHUB_TOKEN` quota: each entry costs at most one request (its
- * repository's release list, read once per shard), so a shard costs at most
- * its entry count, and `githubTokenHourlyRequests` divided by that is the
- * number of shards whose requests fit one hour. Shards beyond the quota wait
- * for its reset within their deadline (`githubJson`).
+ * reproduction's share of the `GITHUB_TOKEN` quota
+ * (`reproductionHourlyRequests`, half of `githubTokenHourlyRequests`): each
+ * entry costs at most one request (its repository's release list, read once
+ * per shard), so a shard costs at most its entry count, and the share divided
+ * by that is the number of shards whose requests fit one hour. When a change
+ * plans more entries than the share, shards started after the share is spent
+ * wait for the reset inside their deadline (`expectedQuotaWaitMinutes`); the
+ * batch job never proposes such a change (`reproductionBatchEntries`).
  */
 export function reproductionParallelism(entries: number, shards: number) {
   if (shards < 1) return 1;
   const perShard = Math.ceil(entries / shards);
   return Math.max(
     1,
-    Math.min(shards, Math.floor(githubTokenHourlyRequests / Math.max(1, perShard))),
+    Math.min(shards, Math.floor(reproductionHourlyRequests / Math.max(1, perShard))),
   );
 }
+
+export { githubTokenHourlyRequests, reproductionHourlyRequests };
+
+/**
+ * Whether a failed inspection is the provider's or the runner's condition,
+ * retried next run: a download's network failure or provider error, or the
+ * runner's disk running out while Core extracted the archive. Core's own
+ * refusal of the bytes, or bytes it could not read, is not.
+ */
+export const transientInspection = (error: unknown) =>
+  error instanceof InspectionError &&
+  !error.permanent &&
+  (error.cause === "network" || error.cause === "runner-disk");
 
 /**
  * Re-derive every planned entry from its provider release and exact bytes.
@@ -595,6 +665,12 @@ export async function reproduceFacts(inputs: {
   inspect: ByteInspector;
   classify: NameClassifier;
   boundLines: ReadonlyMap<string, string | null>;
+  /**
+   * Per entry, the archives whose recorded facts are byte-identical to the
+   * baseline's (`reusedArchives`): only their provider metadata and name
+   * verdict are re-checked, their bytes are not read again.
+   */
+  reused?: ReadonlyMap<string, ReadonlySet<number>>;
   clock?: () => number;
   deadline?: number;
 }): Promise<ReproductionResult> {
@@ -664,6 +740,7 @@ export async function reproduceFacts(inputs: {
   async function reproduceEntry(
     entry: ListingFactsEntry,
   ): Promise<"verified" | { reason: RefusalReason; detail: string }> {
+    const reused = inputs.reused?.get(entry.port_id) ?? new Set<number>();
     const releaseId = entry.observation.release_id;
     if (releaseId === null)
       return { reason: "release-changed", detail: "An eligible entry names no release." };
@@ -675,6 +752,13 @@ export async function reproduceFacts(inputs: {
     } catch (error) {
       // Quota exhaustion past the deadline is the runner's time, not a fact.
       if (error instanceof OverBudgetError) throw error;
+      // A network failure, server error or rate limit is the provider's
+      // condition: retried next run, never a verdict on the facts.
+      if (error instanceof TransientGithubError)
+        return {
+          reason: "transient",
+          detail: `The release list could not be read: ${error.message}`,
+        };
       return {
         reason: "release-unavailable",
         detail: `The release list could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
@@ -814,6 +898,19 @@ export async function reproduceFacts(inputs: {
           reason: "release-changed",
           detail: `${artifact.name} no longer has the recorded name, size or digest.`,
         };
+      // A byte-identical record of the baseline: its bytes were reproduced
+      // when it landed, so only the provider's metadata (above) and Core's
+      // name verdict are re-checked.
+      if (reused.has(artifact.asset_id)) {
+        if (
+          JSON.stringify(names.suggestion(asset.name)) !== JSON.stringify(artifact.name_suggestion)
+        )
+          return {
+            reason: "mismatch",
+            detail: `${artifact.name}: Core's name verdict differs from the recorded facts.`,
+          };
+        continue;
+      }
       if (clock() >= deadline) return { reason: "over-budget", detail: overBudget };
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
@@ -827,7 +924,11 @@ export async function reproduceFacts(inputs: {
         if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
         return {
-          reason: permanent ? "core-refused" : "asset-unavailable",
+          reason: permanent
+            ? "core-refused"
+            : transientInspection(error)
+              ? "transient"
+              : "asset-unavailable",
           detail: `${artifact.name}: ${error instanceof Error ? error.message : "inspection failed"}`,
         };
       }
@@ -871,6 +972,7 @@ export async function reproduceFacts(inputs: {
           reason: "release-changed",
           detail: `${archive.name} no longer has the recorded name, size, digest or name verdict.`,
         };
+      if (reused.has(archive.asset_id)) continue;
       if (clock() >= deadline) return { reason: "over-budget", detail: overBudget };
       let outcome: string;
       try {
@@ -879,11 +981,21 @@ export async function reproduceFacts(inputs: {
         outcome = "inspected";
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
-        outcome = error instanceof InspectionError && error.permanent ? error.refusal : "transient";
+        outcome =
+          error instanceof InspectionError && error.permanent
+            ? error.refusal
+            : transientInspection(error)
+              ? "transient"
+              : "unavailable";
       }
       if (outcome !== archive.refusal)
         return {
-          reason: outcome === "transient" ? "asset-unavailable" : "mismatch",
+          reason:
+            outcome === "transient"
+              ? "transient"
+              : outcome === "unavailable"
+                ? "asset-unavailable"
+                : "mismatch",
           detail: `${archive.name}: the recorded ${archive.refusal} refusal was not reproduced.`,
         };
     }
@@ -934,19 +1046,35 @@ const apiVersion = "2022-11-28";
 export const githubResponseBytes = 8 * 1024 * 1024;
 export const githubRequestMs = 30_000;
 /**
- * The built-in `GITHUB_TOKEN`'s REST quota: 1,000 requests an hour per
- * repository, shared by every workflow of the repository
- * ([GitHub documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#primary-rate-limit-for-github_token-in-github-actions)).
- * An App installation token has its own larger quota; nothing here assumes one.
+ * GitHub's documented retry guidance for a refusal that states no wait (a
+ * secondary rate limit without `retry-after`, a server error, a network
+ * failure): wait at least a minute, then back off exponentially
+ * ([documentation](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#handle-rate-limit-errors-appropriately)).
+ * Every retry stays inside the caller's deadline.
  */
-export const githubTokenHourlyRequests = 1_000;
+export const githubFirstRetryMs = 60_000;
+/**
+ * A provider or runner condition, never a fact about the release: a network
+ * failure, a server error, a secondary rate limit or a spent quota that does
+ * not clear before the deadline. Reproduction reports it as transient (the
+ * next run retries); a job step fails with this clear cause.
+ */
+export class TransientGithubError extends Error {}
 /** The quota state the provider last stated: when the next request may go. */
 const quota = { resumeAt: 0 };
+/**
+ * The deadline (epoch ms) of the running command's step, from its
+ * `--deadline-minutes` (the step's timeout less the time to start and report):
+ * every request without its own deadline is bounded by it. Without one, a
+ * request is tried once and never waits.
+ */
+const stepDeadline: { at?: number } = {};
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * When a response says the quota is spent, the time (epoch ms) a request may
- * go again: `retry-after` seconds, else `x-ratelimit-reset` when
- * `x-ratelimit-remaining` is 0. Undefined when the quota is not spent.
+ * go again: `retry-after` seconds (at least one second, so a `retry-after: 0`
+ * never spins), else `x-ratelimit-reset` when `x-ratelimit-remaining` is 0.
+ * Undefined when the response states no wait.
  */
 export function quotaResumeAt(
   status: number,
@@ -955,54 +1083,144 @@ export function quotaResumeAt(
 ): number | undefined {
   const retryAfter = Number(headers.get("retry-after"));
   if ([403, 429].includes(status) && headers.get("retry-after") !== null && retryAfter >= 0)
-    return now + retryAfter * 1000;
+    return now + Math.max(1, retryAfter) * 1000;
   if (headers.get("x-ratelimit-remaining") !== "0") return undefined;
   const reset = Number(headers.get("x-ratelimit-reset"));
   // GitHub asks for at least a minute's wait when it states no usable reset;
   // a reset already past still waits a second, so a refusal never spins.
-  return Number.isFinite(reset) && reset > 0 ? Math.max(now + 1000, reset * 1000) : now + 60_000;
+  return Number.isFinite(reset) && reset > 0
+    ? Math.max(now + 1000, reset * 1000)
+    : now + githubFirstRetryMs;
 }
 /**
- * Bounded JSON GET of the GitHub REST API with the workflow token when
- * present. A spent quota (`quotaResumeAt`) is waited out before the next
- * request, within `deadline`; a wait that would pass it is the runner's time
- * (`OverBudgetError`, transient), never a verdict on the facts.
+ * A response body read up to `githubResponseBytes`: reading stops, and the
+ * request fails, as soon as the bound is passed, so an oversized answer is
+ * never buffered whole.
  */
-export async function githubJson(
+async function boundedBody(response: Response, url: string): Promise<Buffer> {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > githubResponseBytes) {
+    await response.body?.cancel();
+    throw new Error(`${url} answered more than ${githubResponseBytes} bytes.`);
+  }
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  for (;;) {
+    const { done, value } = (await reader.read()) as { done: boolean; value?: Uint8Array };
+    if (done || !value) break;
+    length += value.byteLength;
+    if (length > githubResponseBytes) {
+      await reader.cancel();
+      throw new Error(`${url} answered more than ${githubResponseBytes} bytes.`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks, length);
+}
+/** Whether a 403 or 429 refusal is a rate limit (primary or secondary), not a permission. */
+const rateLimited = (status: number, resume: number | undefined, body: Buffer) =>
+  status === 429 ||
+  (status === 403 && (resume !== undefined || /rate limit/iu.test(body.toString("utf8"))));
+/**
+ * One GitHub REST request with the workflow token when present, inside
+ * `deadline` (epoch ms; none given means no wait at all). A spent quota
+ * (`quotaResumeAt`) is waited out before the next request. A network failure,
+ * a server error (5xx) or a rate-limit refusal is retried after the stated
+ * wait, or after at least a minute with exponential backoff
+ * (`githubFirstRetryMs`). A retry or wait that would pass the deadline ends
+ * with `TransientGithubError` naming its cause; any other refusal is an
+ * ordinary error. Returns the parsed JSON body, or null for an empty one.
+ */
+export async function githubRequest(
+  method: string,
   url: string,
   token: string | undefined,
-  options: { deadline?: number; fetch?: typeof fetch; now?: () => number } = {},
+  options: {
+    body?: unknown;
+    deadline?: number;
+    fetch?: typeof fetch;
+    now?: () => number;
+    sleep?: (ms: number) => Promise<unknown>;
+  } = {},
 ): Promise<unknown> {
   const now = options.now ?? Date.now;
   const fetcher = options.fetch ?? fetch;
+  const pause = options.sleep ?? sleep;
+  const given = options.deadline ?? stepDeadline.at;
+  const deadline = given ?? now();
+  // The wait before a retry that states none: a minute, doubling each time.
+  let backoff = githubFirstRetryMs;
+  // Why the previous attempt failed, and whether the provider stated the wait.
+  let cause = "";
+  let stated = false;
   for (;;) {
-    const wait = quota.resumeAt - now();
-    if (wait > 0) {
-      if (options.deadline !== undefined && now() + wait >= options.deadline)
-        throw new OverBudgetError(
-          `The GITHUB_TOKEN quota resumes after the deadline; ${url} was not read.`,
-        );
-      await sleep(wait);
+    let wait = Math.max(0, quota.resumeAt - now());
+    if (cause && !stated) {
+      wait = Math.max(wait, backoff);
+      backoff *= 2;
     }
-    const response = await fetcher(url, {
-      headers: {
-        accept: "application/vnd.github+json",
-        "x-github-api-version": apiVersion,
-        "user-agent": "portcove-listing-facts-batch",
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
-      signal: AbortSignal.timeout(githubRequestMs),
-    });
+    // Every attempt, the first included, starts only inside the deadline.
+    if (wait > 0 || (given !== undefined && now() >= deadline)) {
+      if (now() + wait >= deadline)
+        throw new TransientGithubError(
+          quota.resumeAt > now()
+            ? `The GITHUB_TOKEN quota is spent until ${new Date(quota.resumeAt).toISOString()}; ${method} ${url} was not done before the deadline.`
+            : `${method} ${url} did not succeed before the deadline${cause ? `: ${cause}` : ""}.`,
+        );
+      await pause(wait);
+    }
+    let response: Response;
+    try {
+      response = await fetcher(url, {
+        method,
+        headers: {
+          accept: "application/vnd.github+json",
+          "x-github-api-version": apiVersion,
+          "user-agent": "portcove-listing-facts-batch",
+          ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+        signal: AbortSignal.timeout(githubRequestMs),
+      });
+    } catch (error) {
+      cause = `a network failure (${error instanceof Error ? error.message : "unknown"})`;
+      stated = false;
+      continue;
+    }
     const resume = quotaResumeAt(response.status, response.headers, now());
     if (resume !== undefined) quota.resumeAt = Math.max(quota.resumeAt, resume);
-    const body = Buffer.from(await response.arrayBuffer());
-    // A refusal for the spent quota is retried after the wait.
-    if ([403, 429].includes(response.status) && resume !== undefined) continue;
-    if (body.length > githubResponseBytes)
-      throw new Error(`${url} answered more than ${githubResponseBytes} bytes.`);
-    if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
-    return JSON.parse(body.toString("utf8")) as unknown;
+    const body = await boundedBody(response, url);
+    if (rateLimited(response.status, resume, body)) {
+      // A stated wait (`retry-after`, a reset) is waited exactly; a secondary
+      // limit that states none backs off from a minute.
+      cause = `a rate limit (${response.status})`;
+      stated = resume !== undefined;
+      continue;
+    }
+    if (response.status >= 500) {
+      cause = `a server error (${response.status})`;
+      stated = false;
+      continue;
+    }
+    if (!response.ok) throw new Error(`${method} ${url} answered ${response.status}.`);
+    return body.length ? (JSON.parse(body.toString("utf8")) as unknown) : null;
   }
+}
+/** Bounded JSON GET of the GitHub REST API (`githubRequest`). */
+export async function githubJson(
+  url: string,
+  token: string | undefined,
+  options: {
+    deadline?: number;
+    fetch?: typeof fetch;
+    now?: () => number;
+    sleep?: (ms: number) => Promise<unknown>;
+  } = {},
+): Promise<unknown> {
+  return await githubRequest("GET", url, token, options);
 }
 /** Forget the stated quota (tests only). */
 export const resetQuota = () => {
@@ -1513,6 +1731,8 @@ export function batchPullBody(input: {
   provenance: FactsProvenance;
   delta: { added: number; withdrawn: number; changed: number };
   reproduced: number;
+  /** Entries carried to a later batch (`carryOver`). */
+  carried?: number;
 }) {
   return [
     "## Linked issue",
@@ -1527,6 +1747,11 @@ export function batchPullBody(input: {
     "",
     `- Provenance: run ${input.provenance.workflow_run_id}, source ${input.provenance.source_commit}, CLI SHA-256 ${input.provenance.cli_sha256}, inputs SHA-256 ${input.provenance.inputs_sha256} (artifact \`${inputsArtifactPrefix}${input.provenance.workflow_run_id}\`).`,
     `- The job reproduced ${input.reproduced} eligible entries from their exact release bytes, kept the path allowlist and passed the generated registration gate; pull-request CI repeats all three on the exact head.`,
+    ...(input.carried
+      ? [
+          `- ${input.carried} further entries are carried to the next batch: one batch lands at most ${reproductionBatchEntries} entries that need reproduction, so this CI never waits for a quota reset. They are not complete and keep their previous facts until then.`,
+        ]
+      : []),
     "",
     "## Review and risk",
     "",
@@ -1534,6 +1759,66 @@ export function batchPullBody(input: {
     "",
     "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. Approval grants CI permission only; the next scheduled run separately confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Carry-over: a batch lands only what its pull-request CI can reproduce.
+
+/**
+ * The batch a run may propose: at most `limit` entries that need reproduction
+ * (`reproductionBatchEntries`, one hour's reproduction share of the quota), so
+ * the batch's pull-request CI never waits for a quota reset and each CI shard
+ * keeps its whole deadline. Entries past the limit, in port_id order, are
+ * carried: each keeps its baseline entry (or stays absent when it is new), so
+ * the next run derives it again and a later batch lands it. Carried work is
+ * never dropped and never reported complete (`carriedSummary`). Entries that
+ * need no reproduction (reconfirmations, ineligible verdicts) always land.
+ */
+export function carryOver(
+  baseline: unknown,
+  current: ListingFactsTable,
+  limit: number = reproductionBatchEntries,
+): { table: ListingFactsTable; carried: string[] } {
+  const plan = reproductionPlan(baseline, current);
+  if (plan.entries.length <= limit) return { table: current, carried: [] };
+  const carried = new Set(plan.entries.slice(limit).map((entry) => entry.port_id));
+  const before = new Map(
+    (isRecord(baseline) && Array.isArray(baseline.entries)
+      ? (baseline.entries as ListingFactsEntry[])
+      : []
+    ).map((entry) => [entry.port_id, entry]),
+  );
+  const entries = current.entries.flatMap((entry) => {
+    if (!carried.has(entry.port_id)) return [entry];
+    const prior = before.get(entry.port_id);
+    return prior ? [prior] : [];
+  });
+  const table = { ...current, entries, entries_sha256: digestOf(entries) };
+  checkListingFactsTable(table);
+  return { table, carried: [...carried].toSorted(compareCodePoints) };
+}
+/**
+ * The worker summary with carried identities marked: each carried row's
+ * outcome becomes `carried`, `settled` no longer counts them, and
+ * `carried_ids` lists them, so the run reports them as unfinished.
+ */
+export function carriedSummary(text: string, carried: readonly string[]): string {
+  const value = JSON.parse(text) as Record<string, unknown>;
+  const ids = new Set(carried);
+  const identities = Array.isArray(value.identities)
+    ? (value.identities as { port_id: string; outcome: string }[])
+    : [];
+  const settledCarried = identities.filter(
+    (row) => ids.has(row.port_id) && row.outcome === "complete",
+  ).length;
+  return `${JSON.stringify({
+    ...value,
+    settled: Math.max(0, Number(value.settled) - settledCarried),
+    carried_ids: [...carried],
+    identities: identities.map((row) =>
+      ids.has(row.port_id) ? { ...row, outcome: "carried" } : row,
+    ),
+  })}\n`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1628,6 +1913,7 @@ export const stopConditionNames = [
   "gate-refused",
   "catalog-capacity",
   "reproduction-refused",
+  "reproduction-transient",
   "path-allowlist",
   "required-check-failed",
   "no-progress",
@@ -1661,6 +1947,8 @@ export interface RunRecord {
   withdrawn: number;
   identity_changed: number;
   versions: string;
+  /** This run's reproduction ended only transiently (`reproductionTransient`). */
+  reproduction_transient?: boolean;
 }
 /**
  * Facts older than this against the real clock raise the freshness alert: a
@@ -1697,6 +1985,8 @@ export interface WorkerSummary {
   unobserved: string[];
   /** Identities a shard deadline left pending, absent from older summaries. */
   pending_ids?: string[];
+  /** Identities carried to a later batch (`carryOver`): unfinished, never complete. */
+  carried_ids?: string[];
   identities: { port_id: string; outcome: string; reason?: string }[];
 }
 
@@ -1713,10 +2003,10 @@ export function parseWorkerSummary(text: string): WorkerSummary {
     !isRecord(value.ineligible) ||
     !Array.isArray(value.unobserved) ||
     !Array.isArray(value.identities) ||
-    !(
-      value.pending_ids === undefined ||
-      (Array.isArray(value.pending_ids) &&
-        value.pending_ids.every((id: unknown) => typeof id === "string"))
+    ![value.pending_ids, value.carried_ids].every(
+      (ids) =>
+        ids === undefined ||
+        (Array.isArray(ids) && ids.every((id: unknown) => typeof id === "string")),
     )
   )
     throw new Error("The worker summary is malformed.");
@@ -1777,6 +2067,7 @@ export function stopConditions(input: {
     withdrawn: input.delta?.withdrawn ?? 0,
     identity_changed: identityChanged,
     versions: input.versions,
+    ...(input.reproduction === "transient" ? { reproduction_transient: true } : {}),
   };
   // A run has no identity or byte bound, so one run that left work pending
   // but settled nothing means a whole shard could not finish one identity.
@@ -1786,6 +2077,13 @@ export function stopConditions(input: {
       `This run's deadlines left ${backlog} identities pending, and it settled none.`,
     );
   const previous = input.history.at(-1);
+  // A transient reproduction is retried by the next run; the same on two
+  // consecutive runs is no longer a passing condition, so a person looks.
+  if (input.reproduction === "transient" && previous?.reproduction_transient)
+    add(
+      "reproduction-transient",
+      "CI could not reproduce this batch for transient reasons (network, provider errors, rate limits, the runner's time or disk) on two consecutive runs.",
+    );
   // Pending work exists only where a shard's deadline cut it; more of it
   // than the previous run left means the shards no longer keep up.
   if (previous && backlog > previous.backlog_total)
@@ -1823,8 +2121,8 @@ export function stopConditions(input: {
     ? summary.unobserved.filter((id) => previous.observed_ids!.includes(id))
     : [];
   // An identity a shard deadline left pending in this run and the previous
-  // one is starved: cut identities go last and each identity has a budget
-  // CI can reproduce in, so this means a shard no longer fits its work.
+  // one is starved: each identity has a budget CI can reproduce in, so this
+  // means a shard no longer fits its work.
   const starved = previous?.pending_ids
     ? (summary.pending_ids ?? []).filter((id) => previous.pending_ids!.includes(id))
     : [];
@@ -1973,20 +2271,22 @@ export function reproductionDetails(file: string | undefined) {
       .flatMap((name) => readRefusals(name).refusals)
       .slice(0, 5);
     if (!lines.length) return {};
+    const listed = lines.map((line) => `- ${inertText(String(line).slice(0, 400))}`).join("\n");
     return {
-      "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${lines
-        .map((line) => `- ${inertText(String(line).slice(0, 400))}`)
-        .join("\n")}`,
+      "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${listed}`,
+      "reproduction-transient": `CI could not reproduce this batch for transient reasons on two consecutive runs; the latest causes:\n${listed}`,
     };
   } catch {
     return {};
   }
 }
 /**
- * Whether a refused reproduction was only the runner's time: every one of
- * `shards` shards wrote its refusal file, and each says its only problems
- * were over-budget refusals (its deadline or a GITHUB_TOKEN quota wait). Such
- * a run proposes nothing and the next run retries; it is no stop.
+ * Whether a refused reproduction was only transient: every one of `shards`
+ * shards wrote its refusal file, and each says its only problems were the
+ * runner's time (its deadline or a GITHUB_TOKEN quota wait) or the provider's
+ * or runner's condition (network, server errors, rate limits, runner disk;
+ * `transientReasons`). Such a run proposes nothing and the next run retries;
+ * the same on two consecutive runs stops (`reproduction-transient`).
  */
 export function reproductionTransient(file: string | undefined, shards: number): boolean {
   if (!file || !(shards > 0)) return false;
@@ -2078,6 +2378,14 @@ export const mergeMessage = (number: number) => ({
 // Owner queues: what still needs a person or a mechanism.
 
 /** Counts per reason and the most frequent unread package forms, as Markdown. */
+/**
+ * When a `repeated-inspection-failure` (a `runner-time` or `runner-disk`
+ * cause included) is reconsidered: the worker reconfirms the ineligible entry
+ * without retrying for as long as the offered release and its asset list stay
+ * the same, so it lasts until the entry changes.
+ */
+export const inspectionFailureReconsideration =
+  "Each identity here stays ineligible until its entry changes: a new offered release or a changed asset list makes the next run inspect it again. Until then the worker reconfirms it without retrying (a facts parser version change alone does not); a person may instead review it for a curated route.";
 export function queueSummary(routeFit: unknown, top = 8): { markdown: string; counts: unknown } {
   const queues = isRecord(routeFit) ? routeFit.registration_queues : undefined;
   if (!isRecord(queues)) throw new Error("catalog-route-fit --json has no registration_queues.");
@@ -2092,6 +2400,7 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
   const forms = sizes(queues.unread_forms).slice(0, top);
   const exclusions = sizes(queues.exclusions).slice(0, top);
   const refusals = sizes(queues.refusals);
+  const failures = sizes(queues.inspection_failures);
   // Repositories several identities name: each stays `shared-repository`
   // until a reviewed release-line binding exists.
   const shared = sizes(queues.shared_repositories);
@@ -2121,6 +2430,8 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
       ...table("Top unread package forms", forms),
       ...table("Top name vetoes", exclusions),
       ...table("Refused archives by class", refusals),
+      ...table("Repeated inspection failures by cause", failures),
+      ...(failures.length ? [inspectionFailureReconsideration, ""] : []),
       ...table(
         `Repositories named by more than one identity (${shared.length}; ${shared.reduce((sum, [, count]) => sum + count, 0)} identities; top ${top})`,
         shared.slice(0, top),
@@ -2135,6 +2446,7 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
       unread_forms: Object.fromEntries(sizes(queues.unread_forms)),
       exclusions: Object.fromEntries(sizes(queues.exclusions)),
       refusals: Object.fromEntries(refusals),
+      inspection_failures: Object.fromEntries(failures),
       shared_repositories: Object.fromEntries(shared),
       enrolled_beside_unoffered_forms: review.length,
     },
@@ -2290,17 +2602,41 @@ const readCheckout = (file: string) => {
 
 /** The checker-separation refusal for the committed range `base..HEAD`, if any. */
 function checkerSeparation(
-  base: string,
+  changed: readonly string[] | undefined,
   facts: { baseline: unknown; current: unknown },
 ): string | undefined {
-  const changed = changedPaths(git, base, "HEAD");
   if (!changed) return "git could not list the changed paths; refusing.";
   return checkerSeparationProblem(changed, checkerPaths(readCheckout), facts);
 }
 
-/** The authored catalog records of this checkout. */
-const authoredRecords = () =>
-  readCatalogSource(path.join(root, "crates/portcove-core/catalog")).authored;
+/**
+ * The authored catalog records of revision `revision` (the change's base), so
+ * the reproduction scope and release-line bindings never come from the
+ * change itself: a listing only the head adds is never in scope.
+ */
+function authoredRecordsAt(revision: string): AuthoredPort[] {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "listing-facts-base-"));
+  try {
+    const archive = spawnSync(
+      "git",
+      ["archive", "--format=tar", revision, "--", authoredCatalogRoot.slice(0, -1)],
+      { cwd: root, maxBuffer: 512 * 1024 * 1024, timeout: 2 * 60_000, killSignal: "SIGKILL" },
+    );
+    if (archive.status !== 0)
+      throw new Error(`Cannot read the authored catalog of revision ${revision}.`);
+    const extract = spawnSync("tar", ["-x", "-C", directory], {
+      input: archive.stdout,
+      maxBuffer: 16 * 1024 * 1024,
+      timeout: 2 * 60_000,
+      killSignal: "SIGKILL",
+    });
+    if (extract.status !== 0)
+      throw new Error(`Cannot unpack the authored catalog of revision ${revision}.`);
+    return readCatalogSource(path.join(directory, authoredCatalogRoot)).authored;
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
 
 function currentFacts(): ListingFactsTable {
   const table = parseCatalogSource(readFileSync(path.join(root, factsTablePath), "utf8"));
@@ -2324,21 +2660,20 @@ const repository = () => {
 };
 const token = () => process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
 
+/**
+ * A GitHub REST write to this repository (`githubRequest`): it honours the
+ * stated quota, retries transient failures by GitHub's guidance and ends at
+ * the step's deadline (`stepDeadline`) with a clear cause.
+ */
 async function githubWrite(method: string, route: string, body: unknown) {
-  const response = await fetch(`https://api.github.com/repos/${repository()}${route}`, {
+  return await githubRequest(
     method,
-    headers: {
-      accept: "application/vnd.github+json",
-      "x-github-api-version": apiVersion,
-      "user-agent": "portcove-listing-facts-batch",
-      "content-type": "application/json",
-      authorization: `Bearer ${token() ?? ""}`,
+    `https://api.github.com/repos/${repository()}${route}`,
+    token(),
+    {
+      body,
     },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) throw new Error(`${method} ${route} answered ${response.status}.`);
-  return await response.json();
+  );
 }
 
 /** The login the built-in workflow token acts as. */
@@ -2374,25 +2709,75 @@ async function jobIssues(state: "open" | "closed") {
   throw new Error(`More than 1,000 open workflow issues; the stop state is unknown.`);
 }
 
-/** File one issue per condition: comment on an open one, reopen a closed one, else open one. */
-async function fileIssues(issues: readonly { title: string; body: string }[]) {
-  if (!issues.length) return;
-  const existing = [...(await jobIssues("open")), ...(await jobIssues("closed"))];
-  for (const { title, body } of issues) {
-    const issue = existing.find((candidate) => candidate.title === title);
-    if (!issue) await githubWrite("POST", "/issues", { title, body });
-    // An open issue already says it; only a recurrence after it was closed
-    // reopens and comments, so a waiting stop never repeats itself each run.
-    else if (issue.state !== "open") {
-      await githubWrite("PATCH", `/issues/${issue.number}`, { state: "open" });
-      await githubWrite("POST", `/issues/${issue.number}/comments`, { body });
+/** One issue the job files: its title and body. */
+export interface JobIssue {
+  title: string;
+  body: string;
+}
+/**
+ * File one issue per condition: comment on an open one, reopen a closed one,
+ * else open one. Returns the issues not filed when a GitHub call failed (the
+ * failed one and every later one) with the error, so they are kept for the
+ * next run instead of lost.
+ */
+async function fileIssues(
+  issues: readonly JobIssue[],
+): Promise<{ unfiled: JobIssue[]; error?: unknown }> {
+  if (!issues.length) return { unfiled: [] };
+  let index = 0;
+  try {
+    const existing = [...(await jobIssues("open")), ...(await jobIssues("closed"))];
+    for (; index < issues.length; index++) {
+      const { title, body } = issues[index]!;
+      const issue = existing.find((candidate) => candidate.title === title);
+      if (!issue) await githubWrite("POST", "/issues", { title, body });
+      // An open issue already says it; only a recurrence after it was closed
+      // reopens and comments, so a waiting stop never repeats itself each run.
+      else if (issue.state !== "open") {
+        await githubWrite("PATCH", `/issues/${issue.number}`, { state: "open" });
+        await githubWrite("POST", `/issues/${issue.number}/comments`, { body });
+      }
     }
+    return { unfiled: [] };
+  } catch (error) {
+    return { unfiled: issues.slice(index), error };
   }
+}
+/**
+ * Issues an earlier run could not file (`fileIssues`), kept in the job's
+ * cache. A missing record holds none; an unreadable one fails closed as one
+ * stop to file, never as "nothing waiting".
+ */
+export function readUnfiled(file: string | undefined): JobIssue[] {
+  if (!file || !existsSync(file)) return [];
+  try {
+    const value: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (
+      Array.isArray(value) &&
+      value.every(
+        (item) => isRecord(item) && typeof item.title === "string" && typeof item.body === "string",
+      )
+    )
+      return value as JobIssue[];
+  } catch {
+    // Fall through.
+  }
+  return [
+    {
+      title: `${stopIssuePrefix}worker-error`,
+      body: "The record of stop issues an earlier run could not file is unreadable; review that run's notify job.",
+    },
+  ];
 }
 
 async function main(argv: string[]): Promise<string> {
   const [command, ...rest] = argv;
   const option = options(rest);
+  if (option["deadline-minutes"] !== undefined) {
+    const minutes = Number(option["deadline-minutes"]);
+    if (!(minutes > 0)) throw new Error(`${command} --deadline-minutes needs a positive number.`);
+    stepDeadline.at = Date.now() + minutes * 60_000;
+  }
   switch (command) {
     case "plan": {
       // Which pull-request checks a facts change needs; read-only and offline.
@@ -2407,21 +2792,31 @@ async function main(argv: string[]): Promise<string> {
         return `Listing facts are verified on pull requests; ${event} runs skip reproduction.\n`;
       }
       const current = currentFacts();
+      const base = baselineRevision(option.base);
       const baseline = baselineFacts(option.base);
+      const changed = changedPaths(git, base, "HEAD");
       // The facts table and the code that checks it are separate changes.
-      const separation = checkerSeparation(baselineRevision(option.base), { baseline, current });
+      const separation = checkerSeparation(changed, { baseline, current });
       if (separation) throw new Error(separation);
       const plan = reproductionPlan(baseline, current);
-      // Offline scope first: a change naming an entry for no authored
-      // listing-only identity, or another repository, is refused whole with
-      // zero provider calls and zero downloads.
-      const scope = reproductionScopeProblems(plan.entries, authoredRecords(), baseline);
+      // Authored sources and the facts they enable are separate changes too.
+      const authored = authoredSourceProblem(changed ?? [], plan.entries.length);
+      if (authored)
+        throw new Error(`Listing facts change refused before any download: ${authored}`);
+      // Offline scope first, against the base's authored catalog: a change
+      // naming an entry for no authored listing-only identity, or another
+      // repository, is refused whole with zero provider calls and downloads.
+      const scope = reproductionScopeProblems(
+        plan.entries,
+        plan.entries.length ? authoredRecordsAt(base) : [],
+        baseline,
+      );
       if (scope.length)
         throw new Error(
           `Listing facts change refused before any download:\n- ${scope.join("\n- ")}`,
         );
       const batch = claimsBatch(baseline, current, process.env.GITHUB_HEAD_REF);
-      const changed = digestOf(isRecord(baseline) ? baseline : null) !== digestOf(current);
+      const factsChanged = digestOf(isRecord(baseline) ? baseline : null) !== digestOf(current);
       // One matrix job per shard: every entry is reproduced, each shard
       // holding the fewest entries the matrix allows.
       const shards = identityShards(plan.entries.map((entry) => entry.port_id));
@@ -2430,7 +2825,7 @@ async function main(argv: string[]): Promise<string> {
       output("shards", JSON.stringify(shards.map((_, index) => index)));
       const parallel = reproductionParallelism(plan.entries.length, shards.length);
       output("max_parallel", String(parallel));
-      return `${JSON.stringify({ facts_changed: changed, batch, reproduce: plan.entries.length, shards: shards.length, max_parallel: parallel, bytes: plan.bytes })}\n`;
+      return `${JSON.stringify({ facts_changed: factsChanged, batch, reproduce: plan.entries.length, shards: shards.length, max_parallel: parallel, bytes: plan.bytes })}\n`;
     }
     case "paths": {
       // Working tree against --base, or the committed range --base..--head.
@@ -2447,7 +2842,8 @@ async function main(argv: string[]): Promise<string> {
       const base = baselineRevision(option.base);
       const baseline = baselineFacts(base);
       const problems: string[] = [];
-      const separation = checkerSeparation(base, { baseline, current });
+      const changed = changedPaths(git, base, "HEAD");
+      const separation = checkerSeparation(changed, { baseline, current });
       if (separation) problems.push(separation);
       problems.push(...clockProblems(baseline, current, Date.now()));
       const headRef = process.env.GITHUB_HEAD_REF || undefined;
@@ -2468,7 +2864,13 @@ async function main(argv: string[]): Promise<string> {
       // `--shard I` reproduces only shard I of `identityShards`, so a matrix
       // reproduces every entry. Without either, every entry here.
       const plan = reproductionPlan(baseline, current);
-      const scope = reproductionScopeProblems(plan.entries, authoredRecords(), baseline);
+      // Scope and release-line bindings come from the base's authored catalog;
+      // a change that also edits authored sources reproduces nothing.
+      const authored = authoredSourceProblem(changed ?? [], plan.entries.length);
+      const baseRecords = plan.entries.length && !authored ? authoredRecordsAt(base) : [];
+      const scope = authored
+        ? [authored]
+        : reproductionScopeProblems(plan.entries, baseRecords, baseline);
       problems.push(...scope);
       const shards = identityShards(plan.entries.map((entry) => entry.port_id));
       const shard = option.shard === undefined ? undefined : Number(option.shard);
@@ -2499,12 +2901,14 @@ async function main(argv: string[]): Promise<string> {
             : reproductionDeadlineMinutes;
           if (!(minutes > 0)) throw new Error("verify --deadline-minutes needs a positive number.");
           const timing = { deadline: Date.now() + minutes * 60_000 };
+          stepDeadline.at ??= timing.deadline;
           const result = await reproduceFacts({
             entries,
             listReleases: githubReleaseLister(token(), timing),
             inspect: cliInspector(cli, work, timing),
             classify: cliClassifier(cli, work, timing),
-            boundLines: boundLinesOf(authoredRecords()),
+            boundLines: boundLinesOf(baseRecords),
+            reused: plan.reused,
             ...timing,
           });
           summary(
@@ -2529,9 +2933,17 @@ async function main(argv: string[]): Promise<string> {
             transient:
               problems.length > 0 &&
               problems.length === refused.length &&
-              refused.every((refusal) => refusal.reason === "over-budget"),
+              refused.every((refusal) => transientReasons.includes(refusal.reason)),
             refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
           })}\n`,
+        );
+      if (
+        problems.length &&
+        problems.length === refused.length &&
+        refused.every((refusal) => transientReasons.includes(refusal.reason))
+      )
+        throw new Error(
+          `Listing facts reproduction could not finish for transient reasons (the provider's or the runner's condition, not the facts); re-run this check:\n- ${problems.join("\n- ")}`,
         );
       if (problems.length)
         throw new Error(`Listing facts change refused:\n- ${problems.join("\n- ")}`);
@@ -2684,12 +3096,28 @@ async function main(argv: string[]): Promise<string> {
           `${JSON.stringify({ conditions, freshness: behind ?? null })}\n`,
         );
       output("stop", String(conditions.length > 0));
+      output("transient", String(record?.reproduction_transient === true));
       summary(
         conditions.length
           ? `### Stop conditions\n\n${conditions.map((c) => `- **${c.name}**: ${c.detail}`).join("\n")}`
           : "No stop condition.",
       );
       return `${JSON.stringify({ conditions, freshness: behind ?? null })}\n`;
+    }
+    case "carry": {
+      // Before generation: keep in this batch only what its pull-request CI
+      // can reproduce within one hour's reproduction share of the quota.
+      if (!option.report) throw new Error("carry needs --report.");
+      const { table, carried } = carryOver(baselineFacts(option.base), currentFacts());
+      if (carried.length) {
+        writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
+        writeFileSync(option.report, carriedSummary(readFileSync(option.report, "utf8"), carried));
+        summary(
+          `Carried ${carried.length} entries to the next batch: this batch lands at most ${reproductionBatchEntries} entries that need reproduction.`,
+        );
+      }
+      output("carried", String(carried.length));
+      return `${JSON.stringify({ carried: carried.length })}\n`;
     }
     case "capacity": {
       // The regenerated catalog against both released-reader bounds, before
@@ -2733,7 +3161,12 @@ async function main(argv: string[]): Promise<string> {
       const known = parsed.conditions.filter((condition) =>
         (stopConditionNames as readonly string[]).includes(condition.name),
       );
-      await fileIssues([
+      // An earlier run's unfiled issues go first; whatever cannot be filed
+      // now (a spent quota, the step's deadline) is kept for the next run,
+      // whose gate holds the job until it is filed.
+      const earlier = readUnfiled(option.unfiled);
+      const { unfiled, error } = await fileIssues([
+        ...earlier,
         ...known.map((condition) => ({
           title: `${stopIssuePrefix}${condition.name}`,
           body: stopIssueBody(condition, option["run-url"]!),
@@ -2747,10 +3180,29 @@ async function main(argv: string[]): Promise<string> {
             ]
           : []),
       ]);
-      return `Filed ${known.length} stop condition(s).\n`;
+      if (option.unfiled) {
+        mkdirSync(path.dirname(option.unfiled), { recursive: true });
+        writeFileSync(option.unfiled, `${JSON.stringify(unfiled)}\n`);
+      }
+      if (error)
+        throw new Error(
+          `${unfiled.length} issue(s) were not filed and are kept for the next run: ${error instanceof Error ? error.message : "unknown error"}`,
+        );
+      return `Filed ${earlier.length + known.length} stop condition(s).\n`;
     }
     case "blocked": {
-      // An open stop issue holds every further run until a person closes it.
+      // A stop an earlier run could not file holds the run until notify
+      // files it; an open stop issue holds every run until a person closes it.
+      const waiting = readUnfiled(option.unfiled).filter((issue) =>
+        issue.title.startsWith(stopIssuePrefix),
+      );
+      if (waiting.length) {
+        output("blocked", "true");
+        summary(
+          `Stopped: ${waiting.length} stop issue(s) an earlier run could not file are filed by this run's notify job first.`,
+        );
+        return `${JSON.stringify({ unfiled: waiting.map((issue) => issue.title) })}\n`;
+      }
       const open = (await jobIssues("open")).filter((issue) =>
         issue.title.startsWith(stopIssuePrefix),
       );
@@ -2897,6 +3349,10 @@ async function main(argv: string[]): Promise<string> {
         withdrawn: number;
         changed: number;
       };
+      // The body states what the batch leaves for later: an unreadable report fails.
+      const carried = option.report
+        ? (parseWorkerSummary(readFileSync(option.report, "utf8")).carried_ids?.length ?? 0)
+        : 0;
       const created = await githubWrite("POST", "/pulls", {
         title: `chore(catalog): listing facts batch ${current.provenance.workflow_run_id}`,
         head: option.branch,
@@ -2907,6 +3363,7 @@ async function main(argv: string[]): Promise<string> {
           provenance: current.provenance,
           delta,
           reproduced: Number(option.reproduced),
+          carried,
         }),
       });
       const number = isRecord(created) ? Number(created.number) : NaN;

@@ -4568,29 +4568,44 @@ deleting each archive's bytes before the next, so disk never accumulates.
 The provider's own per-asset maximum (2 GiB for a GitHub release asset)
 bounds an archive. Several archives for one platform are judged by the fit
 rule (`ambiguous-artifact`), never by a count. Every derived entry lands in
-the same run: there is no batch bound.
+the worker's table in the same run: the worker has no batch bound. The
+scheduled job then lands at most one hour's reproduction share per batch and
+carries the rest ([scheduled facts batch job](#scheduled-facts-batch-job)).
 
-The only limits are the runner's time and disk. Each identity's inspection
-has the time CI can reproduce it in (`identityBudgetMinutes`): the CI
-reproduction shard deadline (`reproductionDeadlineMinutes`, 85 minutes)
-divided by the entries one CI shard holds, at most ceil(candidates / 256),
-since a change can name only authored listing-only identities. That is 85
-minutes up to 256 candidates, 42.5 at about 400 and 17 at about 1,100. The
-worker never settles what CI cannot reproduce: an identity over its budget is
-a transient `runner-time` failure, retried in the next run, and a second
-consecutive one settles it as `repeated-inspection-failure` with the
-`runner-time` cause, so an identity that alone cannot finish is never
-retried for ever. A Core run that runs out of runner disk (about 14 GB on a
+The only limits are the runner's time and disk and the REST quota. Each
+identity's inspection has the time CI can reproduce it in
+(`identityBudgetMinutes`): the CI reproduction shard deadline
+(`reproductionDeadlineMinutes`, 85 minutes), less the quota wait CI must
+expect, divided by the entries one CI shard holds. The worker computes it for
+the entries one batch can land, the candidate count but at most
+`reproductionBatchEntries` (500, one hour's reproduction share of the quota;
+see [reproduction quota](#reproduction-quota)), since a batch lands no more
+and a change can name only authored listing-only identities. That is 85
+minutes up to 256 candidates and 42.5 from 257 on, at about 400 or 1,100
+alike. The worker never settles what CI cannot reproduce: an identity over
+its budget is a transient `runner-time` failure, retried in the next run,
+and a second consecutive one settles it as `repeated-inspection-failure`
+with the `runner-time` cause, so an identity that alone cannot finish is
+never retried for ever. That ineligibility lasts until the entry changes: the
+worker reconfirms it without retrying for as long as the offered release and
+its asset list stay the same, and a new offered release or a changed asset
+list makes the next run inspect it again (a facts parser version change
+alone does not). The `repeated-inspection-failure` exception queue groups
+these identities by cause and states that condition; a person may instead
+review one for a curated route. A Core run that runs out of runner disk (about 14 GB on a
 standard Linux runner, below Core's 16 GiB extraction ceiling plus the
 archive) is a transient `runner-disk` failure, never a refusal of the
 archive; it settles only after the 14-day retention bound. A run can also
 be given a deadline (`--deadline`), the real time limit of the job it runs
 in; it is checked before each identity, and every download and Core run is
 cut at it. An identity the deadline cuts is left `pending-inspection`, not
-failed, and its id goes to the worker state's `pending` list. The next run
-inspects transient failures oldest first, then the rest in port_id order,
-and the identities a deadline cut last, in their order, so a slow identity
-never starves its shard-mates. An identity a deadline left pending in two
+failed, and its id goes to the worker state's `pending` list. An unsharded
+next run inspects transient failures oldest first, then the rest in port_id
+order, and the identities a deadline cut last, in their order. A sharded run
+does not: its plan reads no bytes and returns `pending: []`, so each shard
+orders a previously cut identity like any other (transient failures oldest
+first, then port_id). There, a slow identity is bounded by its own budget
+(`identityBudgetMinutes`) instead. An identity a deadline left pending in two
 consecutive runs stops the job (`pending-repeated`, grouped by cause).
 Without a deadline nothing is cut.
 
@@ -4682,18 +4697,27 @@ Each run, in one concurrency group (`listing-facts-batch`):
    identities that need bytes ([inspection order](#inspection-order-and-backlog)),
    each with the hosted job's 6-hour limit less its other steps as its
    deadline; `combine` requires every shard to have finished, merges them,
-   regenerates the catalog, commits locally and checks the paths, the gate
-   and the batch once; `reproduce` re-reads every added or changed eligible
-   entry in the same shards; `decide` assesses the stop conditions. A batch
+   carries what one batch may not land (below), regenerates the catalog,
+   commits locally and checks the paths, the gate, both
+   [catalog capacity](#catalog-capacity) bounds and the batch once;
+   `reproduce` re-reads every added or changed eligible entry of the batch;
+   `decide` assesses the stop conditions. A batch
    it can propose is retained with its outputs record
    (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
    of the batch patch, and whether the run was a dry run). It refuses
-   its own batch on a path outside the allowlist, a gate refusal, an entry it
-   cannot reproduce, or any stop condition, and proposes nothing when the
-   change is not material: no enrollment changed, no entry appeared,
-   disappeared or changed other than by reconfirmation, and no offered entry
-   was last confirmed more than 15 days before (`refreshAfterDays`). There is
-   one batch with everything that fits; nothing is held for a later run.
+   its own batch on a path outside the allowlist, a gate refusal, a capacity
+   bound, an entry it cannot reproduce, or any stop condition, and proposes
+   nothing when the change is not material: no enrollment changed, no entry
+   appeared, disappeared or changed other than by reconfirmation, and no
+   offered entry was last confirmed more than 15 days before
+   (`refreshAfterDays`). One batch lands at most `reproductionBatchEntries`
+   (500) entries that need reproduction, so its pull-request CI never waits
+   for a quota reset ([quota](#reproduction-quota)); further such entries are
+   carried (`carryOver`): each keeps its previous entry, or stays absent when
+   new, the next run derives it again, and a later batch lands it. Carried
+   identities are reported as `carried` with `carried_ids` in the worker
+   summary and counted in the pull request body, never as complete or
+   settled. Entries that need no reproduction always land.
 4. A ready batch is pushed as the one-commit branch
    `automation/listing-facts-batch-<run id>` and opened as a pull request,
    after the deliver job checks that the applied patch and facts table are
@@ -4736,9 +4760,19 @@ the whole change when any planned entry's `port_id` is not an authored
 listing-only GitHub identity, its `repository` is not the one its listing
 names, or its `repository_id` differs from the id the baseline entry bound
 that repository to (`reproductionScopeProblems`); `reproduceFacts` refuses
-such an entry again with zero calls. So the entries an untrusted pull request
-can make CI read are bounded by the authored catalog, and none points at a
-repository the catalog does not name. For each entry, CI lists the
+such an entry again with zero calls. The authored listings and release-line
+bindings for that check come from the base revision, never from the change,
+so a listing only the head adds is out of scope. A change that edits
+reproducible facts entries together with any authored listing or catalog
+source under `crates/portcove-core/catalog/` (anything there but the four
+generated batch outputs) is refused whole before any call
+(`authoredSourceProblem`): the authored change lands first, the facts later,
+the same shape as checker separation, and a batch never touches an authored
+file. So the entries an untrusted pull request can make CI read are bounded
+by the authored catalog already on `main`, and none points at a repository
+that catalog does not name. Each reproduction shard first stops when a newer
+head superseded its pull request (`stop-if-superseded`), so repeated pushes
+do not stack matrices. For each entry, CI lists the
 repository's releases by numeric repository id once per shard (one page of
 100, the observer's page size) and reads the offered release from that list:
 one REST request per repository. It requires the list to name the listing's
@@ -4762,9 +4796,17 @@ of the release list (the newest four by publication time, each with at most
 other-form asset, is refused; a release published after the run refuses
 every entry of its repository until the next run. Any change to an eligible entry other than its
 `observed_at` and the worker's `attempt` record is reproduced, including the
-parser version, coverage, repository binding and unread forms. A
-reconfirmation re-reads nothing, so whoever can merge can keep a
-reconfirmation's date moving; an ineligible entry offers nothing.
+parser version, coverage, repository binding and unread forms. An archive
+whose record is byte-identical to the baseline's (same asset id, SHA-256,
+players, name verdicts or refusal), in an eligible baseline entry of the same
+repository id and facts parser version, is not downloaded again: its bytes
+were reproduced when it landed, so only its provider metadata (name, size,
+digest) and Core's name verdict are re-checked (`reusedArchives`). A new
+release on another line changes only `observed_releases` or
+`other_packages`, so it re-reads no archive; a changed artifact, parser
+version or recorded fact is reproduced in full. A reconfirmation re-reads
+nothing, so whoever can merge can keep a reconfirmation's date moving; an
+ineligible entry offers nothing.
 
 Reproduction has no entry, byte or archive-size bound; it is sized from the
 real runner constraints instead. A shard holds the fewest entries the
@@ -4782,26 +4824,15 @@ every download, Core inspection, name classification and quota wait is cut
 to the time left and not started past it, so an item that reaches it is an
 `over-budget` refusal, never a step timeout. An unavailable asset, a changed
 release or a reached deadline refuses the entry: it is never trusted, and
-any refused entry fails its shard and the `catalog` check.
+any refused entry fails its shard and the `catalog` check. A network
+failure, a provider server error (5xx), a rate limit, a quota that does not
+clear before the deadline or the runner's disk running out while Core
+extracts an archive is the provider's or the runner's condition, never a
+verdict on the facts: the entry is refused as `transient` (with
+`over-budget`, the `transientReasons`), and pull-request CI reports such a
+shard as transient, to be re-run, rather than refused.
 
-The REST requests use the built-in `GITHUB_TOKEN`, whose quota is 1,000
-requests an hour per repository, shared by every workflow of the repository
-(an App installation token has its own larger quota; nothing assumes one).
-Reproduction makes at most one request per entry (one per repository per
-shard), and the downloads are not REST requests. A spent quota is waited out:
-`githubJson` honours `retry-after` and `x-ratelimit-remaining` with
-`x-ratelimit-reset`, and a wait that would pass the deadline is an
-`over-budget` refusal, transient, never a refusal of the facts. The plan also
-sets the matrix's `max-parallel` (`reproductionParallelism`): the number of
-shards whose requests fit one hour's quota, 1,000 divided by the entries per
-shard. At about 400 entries that is 400 requests in all and every one of the
-256 shards runs at once; at about 1,100 entries it is 1,100 requests, five
-per shard, so at most 200 shards run at once and the rest wait for the
-quota's reset inside their deadline. The batch job's own reproduction and the
-batch's pull-request CI each spend that once, in separate hours. In the batch
-job, a reproduction whose every shard wrote its refusal file and refused only
-for the runner's time (`reproductionTransient`) proposes nothing and files no
-stop; the next run retries. A facts change may not record
+A facts change may not record
 `generated_at`, or any added or changed `observed_at`, ahead of the clock
 (`clockProblems`): facts age is measured from those times, which all come
 from earlier runs. A push to `main` was verified on its pull request and re-reads
@@ -4843,6 +4874,63 @@ built-in token (`actions: read`, a same-repository run); no credential is
 added. That read is not yet observed live: if GitHub refuses it on a batch
 pull request, the check refuses the batch, never passes it.
 
+###### Reproduction quota
+
+The REST requests use the built-in `GITHUB_TOKEN`, whose quota is 1,000
+requests an hour per repository
+(`githubTokenHourlyRequests`), shared by every workflow of the repository (an
+App installation token has its own larger quota; nothing assumes one). The
+quota is the real constraint, so reproduction plans only half of it
+(`reproductionHourlyRequests`, 500 an hour): the other workflows spend the
+same quota while reproduction runs (CI's other jobs, the upstream observer,
+discovery, the batch job's own gate, merge and issue calls), and their use is
+not measured here (UNKNOWN), so no smaller reserve is justified. Reproduction
+makes at most one request per entry (one per repository per shard), and the
+downloads are not REST requests.
+
+Every GitHub call goes through one client (`githubRequest`) and ends at its
+step's deadline: a `verify` shard's reproduction deadline, or for other
+steps `--deadline-minutes`, the step's timeout less a minute to start and
+report. It honours `retry-after` (at least a second, so `retry-after: 0`
+never spins) and `x-ratelimit-remaining` with `x-ratelimit-reset`, and
+follows GitHub's guidance for a refusal that states no wait (a secondary
+rate limit, a server error, a network failure): wait at least a minute
+(`githubFirstRetryMs`), then back off exponentially. The deadline is checked
+before every attempt and wait; a wait past it fails with
+`TransientGithubError` naming its cause (the quota's reset time, or the last
+failure). A permission refusal is no rate limit and is not retried. A
+response is read only up to `githubResponseBytes`: reading stops as soon as
+the bound is passed.
+
+The plan sets the matrix's `max-parallel` (`reproductionParallelism`): the
+shards whose requests fit one hour's share, 500 divided by the entries per
+shard. When a change plans more entries than the share, shards started once
+it is spent must wait for the reset, up to an hour
+(`quotaResetWaitMinutes`), inside their 85-minute deadline, so the expected
+wait comes out of the per-identity budget (`expectedQuotaWaitMinutes`,
+`identityBudgetMinutes`). The arithmetic:
+
+- About 400 entries: 400 requests, within one hour's share. A shard holds two
+  entries, 250 of the 256 shards run at once, nothing waits, and each entry
+  has 85 / 2 = 42.5 minutes.
+- About 1,100 entries in one change: 1,100 requests, past the share. A shard
+  holds five entries, 100 shards run at once, the later shards wait for a
+  reset, and each entry has (85 − 60) / 5 = 5 minutes. The batch job never
+  proposes such a change: it lands at most 500 entries that need
+  reproduction per batch (`reproductionBatchEntries`) and carries the rest,
+  so about 1,100 entries land as batches of 500, 500 and 100, each with
+  42.5 minutes per entry and no quota wait. The worker's per-identity budget
+  is computed for that batch size, so it never settles what CI cannot
+  reproduce.
+
+The batch job's own reproduction and the batch's pull-request CI each spend
+that once, in separate hours. In the batch job, a reproduction whose every
+shard wrote its refusal file and refused only transiently
+(`reproductionTransient`) proposes nothing, keeps the previous worker state
+and files no stop; the next run retries. Its run history is kept, so a second
+consecutive transient reproduction files `reproduction-transient` with the
+latest causes.
+
 ###### Stop and wait
 
 Each condition files or reuses one issue titled
@@ -4857,7 +4945,8 @@ of reopening the old one. A `reproduction-refused` issue names up to five
 refused entries and why, as inert code text. The conditions are `gate-refused`, `catalog-capacity`
 (the batch would exceed a released-reader bound; see
 [catalog capacity](#catalog-capacity)), `reproduction-refused`,
-`path-allowlist`, `required-check-failed` (or a job batch that is not a
+`reproduction-transient` (a reproduction that ended only transiently on two
+consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `batch-waiting` (an open batch whose
 required checks have not all finished more than 15 days after it was opened,
 most likely because its runs wait for approval: a reconfirmation proposed at
@@ -4916,8 +5005,14 @@ CLI build 30, the plan 30); each `inspect` shard the hosted job's 360-minute
 limit, with the worker's deadline set to that limit less the shard's other
 steps (330 minutes); each `reproduce` shard 125 minutes, the sum of its
 steps, whose reproduction step (90) outlasts the shared
-`reproductionDeadlineMinutes` (85); `combine` 80; `decide` 75; the deliver
-job 40.
+`reproductionDeadlineMinutes` (85); `combine` 80; `decide` 80; the deliver
+job 40; `gate` 20; `notify` 30.
+
+When a stop issue cannot be filed (a spent quota, the step's deadline),
+`notify` fails with that cause and keeps the unfiled issues in the Actions
+cache (`listing-facts-batch-unfiled-v1-…`). The next run's `gate` restores
+them and holds the run (`blocked`) until its `notify` files them first, so a
+stop is never lost; an unreadable record holds as `worker-error`.
 
 ###### Exception queues
 
@@ -4963,6 +5058,16 @@ guarded merge is eligible, confirmed separately from the CI approval; every
 actual approval or other intervention; and whether the next ordinary
 qualifying `main` run selects and publishes the batch. Only
 that publication makes the batch delivered.
+
+###### Planned App token (intent only)
+
+Not implemented here; this states the intended arrangement for when a
+GitHub App replaces the built-in token's writes. Only `deliver` (push the
+batch branch, open its pull request) and `merge` (the guarded merge) would
+ever receive a short-lived App installation token, minted in that job for
+that job. `gate` and `notify` stay on the built-in `GITHUB_TOKEN`. `prepare`,
+`inspect`, `combine`, `reproduce` and `decide` never see a write token or the
+App's private key.
 
 ###### Migration and steady state
 
@@ -5020,35 +5125,37 @@ separate change.
 Every number that remains in the worker, the generator, the gate and the job
 is a correctness rule or comes from a real constraint:
 
-| Constant                                                                  | Value                                          | Constraint                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `maxFactsAgeDays`                                                         | 30 days                                        | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                   |
-| `lastGoodRetentionDays`                                                   | 14 days                                        | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                            |
-| `maxDistinctPrograms`                                                     | 1                                              | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                               |
-| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)        | 4 releases, 32 assets                          | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                              |
-| `coreInspectedFileBound` (players per archive)                            | 16,384                                         | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                       |
-| `maximumNameBytes`, `chunkNames`, `chunkBytes`                            | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                        |
-| `guideBound` (`guide-bound`)                                              | 8 entries                                      | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                              |
-| `displayableName`                                                         | 120 characters, 3 programs                     | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                         |
-| `matrixJobLimit`                                                          | 256                                            | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                   |
-| `reproductionDeadlineMinutes`                                             | 85 of 120 minutes                              | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                         |
-| `identityBudgetMinutes`                                                   | 85 / ceil(candidates / 256) minutes            | The CI deadline shared by the entries one CI shard holds: 85 up to 256 candidates, 42.5 at about 400, 17 at about 1,100. The worker never settles what CI cannot reproduce.                                                                                                                                |
-| Inspect shard deadline                                                    | 330 of 360 minutes                             | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                               |
-| Runner disk                                                               | about 14 GB free                               | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                     |
-| `githubTokenHourlyRequests`                                               | 1,000 requests an hour                         | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows; an App installation token has its own larger quota, not assumed. Reproduction spends at most one request per entry: about 400 requests for 400 entries, 1,100 for 1,100, once in the job and once in the batch's CI. |
-| `reproductionParallelism`                                                 | 1,000 / entries per shard                      | The shards whose requests fit one hour's quota: all 256 at about 400 entries, 200 at about 1,100; the rest wait for the reset inside their deadline.                                                                                                                                                       |
-| `githubResponseBytes`, `githubRequestMs`                                  | 8 MiB, 30 seconds                              | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                |
-| Open pull request listing                                                 | 10 pages of 100                                | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                          |
-| Observer handoff lookup                                                   | 20 newest observer runs                        | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                  |
-| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`) | 16 MiB and 8 MiB, each at 85% (16 KiB reserve) | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                   |
-| Provider asset size                                                       | 2 GiB                                          | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                            |
-| `releaseListPage`                                                         | 100                                            | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                            |
-| `refreshAfterDays`, `freshnessAlertDays`                                  | 15 days                                        | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                    |
-| `batchWaitDays`                                                           | 15 days                                        | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                   |
-| `clockSkewMs`                                                             | 0                                              | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                              |
-| Artifact retention                                                        | 30 days                                        | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                             |
-| Retained-artifact ZIP bounds                                              | 64 MiB compressed, 128 MiB expanded            | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                             |
-| Stop-issue reads                                                          | 1,000 issues                                   | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                       |
+| Constant                                                                  | Value                                                     | Constraint                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxFactsAgeDays`                                                         | 30 days                                                   | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                                          |
+| `lastGoodRetentionDays`                                                   | 14 days                                                   | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                   |
+| `maxDistinctPrograms`                                                     | 1                                                         | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                      |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)        | 4 releases, 32 assets                                     | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                     |
+| `coreInspectedFileBound` (players per archive)                            | 16,384                                                    | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                              |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                            | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes            | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                               |
+| `guideBound` (`guide-bound`)                                              | 8 entries                                                 | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                     |
+| `displayableName`                                                         | 120 characters, 3 programs                                | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                                                |
+| `matrixJobLimit`                                                          | 256                                                       | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                                          |
+| `reproductionDeadlineMinutes`                                             | 85 of 120 minutes                                         | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                                                |
+| `identityBudgetMinutes`                                                   | (85 − expected quota wait) / ceil(entries / 256) minutes  | The CI deadline, less the quota reset CI must expect past one hour's reproduction share (`expectedQuotaWaitMinutes`), shared by the entries one CI shard holds. The worker passes the entries one batch can land (at most 500): 85 up to 256, 42.5 from 257 on. A hand-made change of about 1,100 entries gets (85 − 60) / 5 = 5. |
+| Inspect shard deadline                                                    | 330 of 360 minutes                                        | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                                                      |
+| Runner disk                                                               | about 14 GB free                                          | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                                            |
+| `githubTokenHourlyRequests`, `reproductionHourlyRequests`                 | 1,000 and 500 requests an hour                            | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows (an App installation token has its own larger quota, not assumed); reproduction plans half and leaves half for the other workflows, whose use is not measured (UNKNOWN). Reproduction spends at most one request per entry.                  |
+| `reproductionParallelism`                                                 | 500 / entries per shard                                   | The shards whose requests fit one hour's reproduction share: 250 at about 400 entries, 100 for a hand-made change of about 1,100.                                                                                                                                                                                                 |
+| `reproductionBatchEntries`, `quotaResetWaitMinutes`                       | 500 entries, 60 minutes                                   | One hour's reproduction share: a batch lands at most this many entries that need reproduction and carries the rest, so its CI never waits; GitHub resets the primary quota hourly, so a spent quota waits up to an hour.                                                                                                          |
+| `githubFirstRetryMs`, `--deadline-minutes`                                | 1 minute, then doubling; the step's timeout less 1 minute | GitHub's retry guidance for a refusal that states no wait; every call ends at its step's deadline with a clear transient cause.                                                                                                                                                                                                   |
+| `githubResponseBytes`, `githubRequestMs`                                  | 8 MiB, 30 seconds                                         | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                                       |
+| Open pull request listing                                                 | 10 pages of 100                                           | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                                                 |
+| Observer handoff lookup                                                   | 20 newest observer runs                                   | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                                         |
+| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`) | 16 MiB and 8 MiB, each at 85% (16 KiB reserve)            | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                                          |
+| Provider asset size                                                       | 2 GiB                                                     | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                                                   |
+| `releaseListPage`                                                         | 100                                                       | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                                                   |
+| `refreshAfterDays`, `freshnessAlertDays`                                  | 15 days                                                   | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                                           |
+| `batchWaitDays`                                                           | 15 days                                                   | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                                          |
+| `clockSkewMs`                                                             | 0                                                         | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                                                     |
+| Artifact retention                                                        | 30 days                                                   | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                                                    |
+| Retained-artifact ZIP bounds                                              | 64 MiB compressed, 128 MiB expanded                       | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                                                    |
+| Stop-issue reads                                                          | 1,000 issues                                              | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                                              |
 
 The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
 512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
