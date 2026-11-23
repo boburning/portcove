@@ -120,6 +120,25 @@ fn fingerprint(value: &impl Serialize) -> Result<String> {
     Ok(hex::encode(writer.hash.finalize()))
 }
 
+/// Whether `[document,statuses,sources,library]` serializes within `limit`
+/// bytes. That array is exactly one byte (the comma) longer than
+/// `[statuses,sources,library]` plus the revision's cached document length.
+fn binding_input_fits(
+    catalog: &Catalog,
+    statuses: &[PortStatus],
+    sources: &[SourceRecord],
+    library: &LibraryIdentity,
+    limit: usize,
+) -> Result<bool> {
+    let Some(remaining) = limit
+        .checked_sub(catalog.document_digest()?.document_bytes)
+        .and_then(|remaining| remaining.checked_sub(1))
+    else {
+        return Ok(false);
+    };
+    Ok(serialized_size(&(statuses, sources, library), remaining)?.is_some())
+}
+
 /// Conservative upper bound before cloning any per-context strings. JSON can
 /// expand a byte into six bytes; 1024 covers keys, enums and fixed-size digests.
 /// The whole borrowed input is separately counted before catalog cloning/hash.
@@ -131,15 +150,7 @@ fn projection_fits(
 ) -> Result<bool> {
     // Leave room in the binding ceiling for retained definition digests and
     // envelope fields; those are bounded by MAX_CONTEXTS, not source strings.
-    // `[document,statuses,sources,library]` is exactly one byte (the comma)
-    // longer than `[statuses,sources,library]` plus the cached document length.
-    let Some(remaining) = (MAX_BINDING_BYTES / 2)
-        .checked_sub(catalog.document_digest()?.document_bytes)
-        .and_then(|remaining| remaining.checked_sub(1))
-    else {
-        return Ok(false);
-    };
-    if serialized_size(&(statuses, sources, library), remaining)?.is_none() {
+    if !binding_input_fits(catalog, statuses, sources, library, MAX_BINDING_BYTES / 2)? {
         return Ok(false);
     }
     let Some(mut bytes) = serialized_size(library, MAX_RESPONSE_BYTES)? else {
@@ -484,6 +495,36 @@ mod tests {
 
     use super::*;
     use crate::{ArtifactIdentity, ExternalRuntimeRecord, InstallRecord, UpdatePolicy};
+
+    #[test]
+    fn binding_input_budget_matches_whole_serialization_at_its_boundary() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            crate::PortcoveService::new(crate::Library::open(temporary.path()).unwrap()).unwrap();
+        let catalog = service.catalog();
+        let statuses = service.statuses().unwrap();
+        let library = service.library().identity_record().unwrap();
+        for (statuses, sources) in [
+            (&statuses[..], &[][..]),
+            (&statuses[..1], &[][..]),
+            (&[][..], &[][..]),
+        ] {
+            let whole = serde_json::to_vec(&(catalog.document(), statuses, sources, &library))
+                .unwrap()
+                .len();
+            for limit in [whole + 1, whole, whole - 1, 0] {
+                assert_eq!(
+                    binding_input_fits(catalog, statuses, sources, &library, limit).unwrap(),
+                    serialized_size(&(catalog.document(), statuses, sources, &library), limit)
+                        .unwrap()
+                        .is_some(),
+                    "limit {limit} for {whole} bytes"
+                );
+            }
+            assert!(binding_input_fits(catalog, statuses, sources, &library, whole).unwrap());
+            assert!(!binding_input_fits(catalog, statuses, sources, &library, whole - 1).unwrap());
+        }
+    }
 
     #[test]
     fn streaming_binding_preserves_existing_digest_and_stops_at_limit() {

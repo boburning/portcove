@@ -665,16 +665,23 @@ impl Catalog {
             source_profiles: &'a [SourceProfile],
             ports: &'a [PortDefinition],
         }
-        let document: &CatalogDocument = &self.document;
+        // Exhaustive: a new document field must be placed in the view (and so
+        // in the digest) before this compiles.
+        let CatalogDocument {
+            schema_version,
+            source_catalog,
+            source_profiles,
+            ports,
+        } = &**self.document;
         AuthoritativeView {
-            schema_version: document.schema_version,
-            source_catalog: document.source_catalog.as_ref(),
-            source_profiles: if document.source_catalog.is_some() {
+            schema_version: *schema_version,
+            source_catalog: source_catalog.as_ref(),
+            source_profiles: if source_catalog.is_some() {
                 &[]
             } else {
-                &document.source_profiles
+                source_profiles
             },
-            ports: &document.ports,
+            ports,
         }
     }
 

@@ -206,7 +206,8 @@ mod tests {
 
     #[test]
     fn indexed_lookups_match_linear_scans_on_generated_catalogs() {
-        for factor in [2, 5] {
+        // The unvalidated constructor also reaches sizes product caps refuse.
+        for factor in [2, 5, 10] {
             let (document, listings) =
                 crate::scaling_profile_tests::scaled_documents_excluding(factor, &HashSet::new());
             assert_equivalent(&unvalidated(document, listings));

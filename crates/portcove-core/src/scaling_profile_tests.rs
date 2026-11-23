@@ -293,30 +293,36 @@ fn register_installs(library: &Library, catalog: &Catalog, count: usize) -> usiz
     registered
 }
 
-/// Linux process accounting; elsewhere the reads fail and memory is unreported.
-fn proc_self(name: &str) -> String {
-    ["", "proc", "self", name].join("/")
+/// Linux process accounting: reset the peak resident set size (VmHWM).
+#[cfg(target_os = "linux")]
+fn peak_reset() {
+    let _ = std::fs::write("/proc/self/clear_refs", "5");
 }
 
-fn peak_reset() {
-    // Writing 5 resets the peak resident set size (VmHWM).
-    let _ = std::fs::write(proc_self("clear_refs"), "5");
+#[cfg(not(target_os = "linux"))]
+fn peak_reset() {}
+
+#[cfg(target_os = "linux")]
+fn status_kib(field: &str) -> Option<u64> {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()?
+        .lines()
+        .find_map(|line| line.strip_prefix(field))
+        .and_then(|value| value.trim().trim_end_matches("kB").trim().parse().ok())
+}
+
+/// Memory is unreported where the process status is unavailable.
+#[cfg(not(target_os = "linux"))]
+fn status_kib(_: &str) -> Option<u64> {
+    None
 }
 
 fn peak_kib() -> Option<u64> {
-    std::fs::read_to_string(proc_self("status"))
-        .ok()?
-        .lines()
-        .find_map(|line| line.strip_prefix("VmHWM:"))
-        .and_then(|value| value.trim().trim_end_matches("kB").trim().parse().ok())
+    status_kib("VmHWM:")
 }
 
 fn rss_kib() -> Option<u64> {
-    std::fs::read_to_string(proc_self("status"))
-        .ok()?
-        .lines()
-        .find_map(|line| line.strip_prefix("VmRSS:"))
-        .and_then(|value| value.trim().trim_end_matches("kB").trim().parse().ok())
+    status_kib("VmRSS:")
 }
 
 struct Stage {
