@@ -13,8 +13,9 @@
 //    `scripts/generate-catalog.mts` rewrites from it (`batchAllowlist`), each
 //    a regular non-executable file (`modeViolations`).
 //  - Checker separation: one change may not edit the facts table and the
-//    code that checks it (`checkerSeparationProblem`). This catches
-//    accidents; a deliberate change to both is held only by review.
+//    code that checks it (`checkerSeparationProblem`), unless the table is
+//    empty on both sides. This catches accidents; a deliberate change to
+//    both is held only by review.
 //  - Reproduction: every eligible entry a change adds or changes is re-read
 //    from its exact digest-bound release asset and re-inspected by Core; its
 //    players and facts must be byte-equal, and its release must still be the
@@ -84,7 +85,10 @@ import {
 import {
   artifactFact,
   assetsDigest,
-  bareExecutablesOf,
+  containerNames,
+  observedReleaseFacts,
+  observerWindow,
+  otherPackagesOf,
   boundLinesOf,
   cliClassifier,
   cliInspector,
@@ -299,17 +303,12 @@ const checkerRoots = {
     "scripts/validation-plan.mts",
     "scripts/ci-baseline.mts",
   ],
-  /** The workspace and crate manifests, the toolchain, vendored code and Core's root. */
+  /** The workspace manifest, the toolchain, vendored code and Core's root; member manifests are derived. */
   rust: [
     "Cargo.lock",
     "Cargo.toml",
     "rust-toolchain.toml",
     "vendor/",
-    "crates/portcove-cli/Cargo.toml",
-    "crates/portcove-core/Cargo.toml",
-    "crates/portcove-diagnostics/Cargo.toml",
-    "crates/portcove-listing-carrier/Cargo.toml",
-    "crates/portcove-release-tools/Cargo.toml",
     "crates/portcove-core/src/lib.rs",
     "crates/portcove-core/src/package_shape.rs",
     "crates/portcove-core/src/package_shape/",
@@ -320,13 +319,21 @@ const checkerRoots = {
   cli: "crates/portcove-cli/src/main.rs",
 } as const;
 
+/** The `[workspace] members` paths of a workspace manifest, in order. */
+export function workspaceMembers(manifest: string): string[] {
+  const list = /^\s*members\s*=\s*\[([^\]]*)\]/mu.exec(manifest)?.[1] ?? "";
+  return [...list.matchAll(/"([^"]+)"/gu)].map((match) =>
+    path.posix.normalize(match[1]!).replace(/\/$/u, ""),
+  );
+}
+
 const importPattern =
   /(?:\bfrom\s*|\bimport\s*\(\s*|^\s*import\s+)["'](\.{1,2}\/[^"']+\.(?:mts|ts|mjs|js))["']/gmu;
 
 /**
  * The paths the PR-side facts check depends on, derived from the checkout:
  * the fixed workflow and CLI inputs, the relative import closure of the
- * checker scripts, the workspace and crate manifests, toolchain and vendored
+ * checker scripts, the workspace manifest and every workspace member's manifest, toolchain and vendored
  * code, the CLI crate's whole `mod` closure, and the Core inspection module
  * with every Core module it names directly (`crate::<module>` as
  * `src/<module>.rs` and `src/<module>/`). Deeper Core dependencies are held by
@@ -334,6 +341,9 @@ const importPattern =
  */
 export function checkerPaths(read: (file: string) => string | undefined): string[] {
   const found = new Set<string>([...checkerRoots.workflows, ...checkerRoots.rust]);
+  // Every workspace member's manifest: a member changes the lock and the build.
+  for (const member of workspaceMembers(read("Cargo.toml") ?? ""))
+    found.add(`${member}/Cargo.toml`);
   const queue: string[] = [...checkerRoots.scripts];
   while (queue.length) {
     const file = queue.shift()!;
@@ -400,15 +410,32 @@ export function checkerChanges(changed: readonly string[], checker: readonly str
  * deliberate change to both is held only by review. The enrollment table
  * alone is not refused: a rule change necessarily regenerates it in the same
  * change (`generate-catalog.mts --check`), from facts the change cannot edit.
+ * A table that has no entry on either side is not refused: there is nothing
+ * to verify, so a format bump may rewrite an empty table with its checker.
  */
 export function checkerSeparationProblem(
   changed: readonly string[],
   checker: readonly string[],
+  facts: { baseline: unknown; current: unknown },
 ): string | undefined {
   if (!changed.includes(factsTablePath)) return undefined;
+  // An empty table on both sides has nothing to verify: a format bump that
+  // rewrites an empty table cannot carry facts past a loosened checker.
+  if (factsEntryCount(facts.baseline) === 0 && factsEntryCount(facts.current) === 0)
+    return undefined;
   const touched = checkerChanges(changed, checker);
   if (!touched.length) return undefined;
   return `This change edits the listing facts table and the code that checks it (${touched.slice(0, 8).join(", ")}${touched.length > 8 ? `, and ${touched.length - 8} more` : ""}). The pull-request check runs this change's own code, so the facts table and its checker must be separate changes: land the checker change first, then the facts.`;
+}
+
+/**
+ * The number of entries a facts table holds: 0 for a missing table (`null`),
+ * undefined for anything not shaped as a table, so it never reads as empty.
+ */
+export function factsEntryCount(table: unknown): number | undefined {
+  if (table === null) return 0;
+  if (!isRecord(table) || !Array.isArray(table.entries)) return undefined;
+  return table.entries.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +611,10 @@ export async function reproduceFacts(inputs: {
     const published = Date.parse(release.published_at ?? "");
     await names.add({
       releases: [{ tag: release.tag_name, provider_prerelease: release.prerelease }],
-      assets: release.assets.filter((asset) => isArchive(asset.name)).map((asset) => asset.name),
+      assets: [
+        ...release.assets.filter((asset) => isArchive(asset.name)).map((asset) => asset.name),
+        ...containerNames(observed),
+      ],
     });
     const stated: [boolean, string][] = [
       // The numeric ids must name the listing's own repository: a release of
@@ -606,8 +636,9 @@ export async function reproduceFacts(inputs: {
       [names.prerelease(observed) === false, "the stable-release verdict"],
       [assetsDigest(observed) === entry.observation.assets_sha256, "the release asset list"],
       // The release's own line facts: its tag, time and verdict as recorded,
-      // and the bare installer programs beside its archives. Other releases'
-      // lines come from the observer report the batch run retained.
+      // and every other package form beside its archives with the platforms
+      // it serves. The other observed releases are restated from the
+      // release list below.
       [
         entry.observed_releases.some(
           (recorded) =>
@@ -619,8 +650,9 @@ export async function reproduceFacts(inputs: {
         "the release among the observed releases",
       ],
       [
-        JSON.stringify(bareExecutablesOf(observed)) === JSON.stringify(entry.bare_executables),
-        "the bare installer and program assets",
+        JSON.stringify(otherPackagesOf(observed, (name) => names.suggestion(name))) ===
+          JSON.stringify(entry.other_packages),
+        "the other package forms beside the archives",
       ],
     ];
     const differs = stated.filter(([same]) => !same).map(([, what]) => what);
@@ -653,6 +685,25 @@ export async function reproduceFacts(inputs: {
       inputs.boundLines.get(entry.port_id) ?? null,
     );
     if (newest) return { reason: "not-latest-stable", detail: newest };
+    // The recorded observed releases are exactly the observer's window of the
+    // listed releases: an entry that leaves out another line's release, or
+    // changes one, is refused (a release published since the run is too).
+    const window = observerWindow(listed.releases);
+    await names.add({
+      releases: window.map((item) => ({
+        tag: item.version,
+        provider_prerelease: item.provider_prerelease,
+      })),
+    });
+    if (
+      JSON.stringify(observedReleaseFacts(window, (item) => names.prerelease(item))) !==
+      JSON.stringify(entry.observed_releases)
+    )
+      return {
+        reason: "mismatch",
+        detail:
+          "The entry's observed releases are not the repository's newest releases as the provider lists them now.",
+      };
     // The entry records exactly the release's archives: none may be left out.
     const archives = release.assets
       .filter((asset) => isArchive(asset.name))
@@ -1834,10 +1885,13 @@ const readCheckout = (file: string) => {
 };
 
 /** The checker-separation refusal for the committed range `base..HEAD`, if any. */
-function checkerSeparation(base: string): string | undefined {
+function checkerSeparation(
+  base: string,
+  facts: { baseline: unknown; current: unknown },
+): string | undefined {
   const changed = changedPaths(git, base, "HEAD");
   if (!changed) return "git could not list the changed paths; refusing.";
-  return checkerSeparationProblem(changed, checkerPaths(readCheckout));
+  return checkerSeparationProblem(changed, checkerPaths(readCheckout), facts);
 }
 
 function currentFacts(): ListingFactsTable {
@@ -1946,7 +2000,7 @@ async function main(argv: string[]): Promise<string> {
       const current = currentFacts();
       const baseline = baselineFacts(option.base);
       // The facts table and the code that checks it are separate changes.
-      const separation = checkerSeparation(baselineRevision(option.base));
+      const separation = checkerSeparation(baselineRevision(option.base), { baseline, current });
       if (separation) throw new Error(separation);
       const plan = reproductionPlan(baseline, current);
       const batch = claimsBatch(baseline, current, process.env.GITHUB_HEAD_REF);
@@ -1970,7 +2024,7 @@ async function main(argv: string[]): Promise<string> {
       const base = baselineRevision(option.base);
       const baseline = baselineFacts(base);
       const problems: string[] = [];
-      const separation = checkerSeparation(base);
+      const separation = checkerSeparation(base, { baseline, current });
       if (separation) problems.push(separation);
       problems.push(...clockProblems(baseline, current, Date.now()));
       const headRef = process.env.GITHUB_HEAD_REF || undefined;

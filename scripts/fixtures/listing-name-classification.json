@@ -107,7 +107,11 @@
       "Peggle-v1.0-windows-x64.zip",
       "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
       "TableTennis-Windows-v1.7.0.zip",
-      "the-force-engine-v1.0-win.zip"
+      "the-force-engine-v1.0-win.zip",
+      "Game-v1.0-win64.7z",
+      "Game-v1.0.rar",
+      "Game-win64.7z",
+      "Game-v1.0.7z"
     ],
     "programs": [
       "game.exe",
@@ -625,6 +629,38 @@
         "name": "the-force-engine-v1.0-win.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.rar",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.7z",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
         "arch": "unknown",
         "tool_token": null,
         "system_token": null

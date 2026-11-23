@@ -36,11 +36,14 @@
 //     the listing binds one, the offered release is on it, an unbound line is
 //     the main line or names the listed product (`lineNamesProduct`), and no
 //     newer prerelease of another line follows it (`ambiguous-release-line`);
-//  7b. the release ships no bare `.exe`/`.msi` asset beside its archives
-//     other than the offered archive's own player: every bare executable has
-//     a provider digest equal to a player of an offered artifact, else the
-//     release offers a different program than the archive holds
-//     (`bare-executable-beside-archive`);
+//  7b. per platform P: the release ships no other package form for P
+//     beside its archives (a non-archive desktop package such as `.exe`,
+//     `.AppImage` or `.dmg`, a bare binary, or a container the worker does
+//     not read whose name permits P) other than the offered archive's own
+//     player for P: every such asset has a provider digest equal to a player
+//     of P's offered artifact, else the release offers a different program
+//     for P than the archive holds and P is excluded
+//     (`other-package-form-beside-archive`);
 //  8. for at least one supported desktop platform P there is an artifact whose
 //     typed role is `desktop-game-runtime` from exact digest-bound archive
 //     bytes, which neither its asset name (Core's filename classifier and
@@ -72,11 +75,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 7;
+export const GENERATOR_VERSION = 8;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 7;
-export const FACTS_TABLE_FORMAT = 6;
+export const FACTS_PARSER_VERSION = 8;
+export const FACTS_TABLE_FORMAT = 7;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -258,12 +261,13 @@ export interface ListingFactsEntry {
    */
   observed_releases: ObservedReleaseFact[];
   /**
-   * The release's bare `.exe` and `.msi` assets in ascending asset id, with
-   * the provider's size and digest (null when the provider states none). One
-   * whose digest is not a player of the offered archive is a different
-   * program. Empty for an ineligible entry.
+   * The release's other package forms (`otherPackageForm`) in ascending asset
+   * id, with the provider's size and digest (null when the provider states
+   * none) and the platforms each can serve. One whose digest is not a player
+   * of a platform's offered archive is a different program for that
+   * platform. Empty for an ineligible entry.
    */
-  bare_executables: BareExecutable[];
+  other_packages: OtherPackage[];
   /** Archives of the release Core refused; never offered. Empty when ineligible. */
   refused_archives: RefusedArchive[];
   /** Consecutive non-complete attempts since `observed_at`; last-good facts stay. */
@@ -417,9 +421,9 @@ function checkSuggestion(suggestion: unknown, where: string) {
     throw new Error(`${where} is not a filename classification.`);
 }
 
-/** At most this many observed releases, bare executables and refused archives per entry. */
+/** At most this many observed releases, other packages and refused archives per entry. */
 const maxObservedReleases = 16;
-const maxBareExecutables = 32;
+const maxOtherPackages = 32;
 const maxRefusedArchives = 32;
 
 function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
@@ -442,26 +446,33 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
     )
       throw new Error(`${at} needs a release id in ascending order, a tag, a verdict and a time.`);
   }
-  const executables = entry.bare_executables;
-  if (!Array.isArray(executables) || executables.length > maxBareExecutables)
-    throw new Error(`${where}.bare_executables must be a bounded list.`);
-  for (const [index, executable] of executables.entries()) {
-    const at = `${where}.bare_executables[${index}]`;
-    if (!isRecord(executable)) throw new Error(`${at} must be an object.`);
-    exact(executable, ["asset_id", "name", "size", "sha256"], at);
+  const others = entry.other_packages;
+  if (!Array.isArray(others) || others.length > maxOtherPackages)
+    throw new Error(`${where}.other_packages must be a bounded list.`);
+  for (const [index, other] of others.entries()) {
+    const at = `${where}.other_packages[${index}]`;
+    if (!isRecord(other)) throw new Error(`${at} must be an object.`);
+    exact(other, ["asset_id", "name", "size", "sha256", "platforms"], at);
+    const kind = typeof other.name === "string" ? otherPackageForm(other.name) : undefined;
+    const served = Array.isArray(other.platforms) ? (other.platforms as unknown[]) : [];
+    const fixed = kind && kind !== "container" ? formPlatforms[kind] : undefined;
     if (
-      !positive(executable.asset_id) ||
+      !positive(other.asset_id) ||
       (index > 0 &&
-        Number((executables[index - 1] as Record<string, unknown>).asset_id) >=
-          executable.asset_id) ||
-      !bounded(executable.name, 255) ||
-      !/\.(?:exe|msi)$/iu.test(executable.name) ||
-      !Number.isSafeInteger(executable.size) ||
-      Number(executable.size) < 0 ||
-      !(executable.sha256 === null || sha(executable.sha256))
+        Number((others[index - 1] as Record<string, unknown>).asset_id) >= other.asset_id) ||
+      !bounded(other.name, 255) ||
+      kind === undefined ||
+      !Number.isSafeInteger(other.size) ||
+      Number(other.size) < 0 ||
+      !(other.sha256 === null || sha(other.sha256)) ||
+      !Array.isArray(other.platforms) ||
+      served.length === 0 ||
+      JSON.stringify(served) !==
+        JSON.stringify(platforms.filter((platform) => served.includes(platform))) ||
+      (fixed !== undefined && JSON.stringify(served) !== JSON.stringify(fixed))
     )
       throw new Error(
-        `${at} needs an .exe or .msi asset in ascending order, its size and its digest or null.`,
+        `${at} needs another package form in ascending order, its size, its digest or null and the platforms its form serves.`,
       );
   }
   const refused = entry.refused_archives;
@@ -532,7 +543,7 @@ export function checkListingFactsEntry(
       "ineligible",
       "unread_forms",
       "observed_releases",
-      "bare_executables",
+      "other_packages",
       "refused_archives",
       "attempt",
       "artifacts",
@@ -595,7 +606,7 @@ export function checkListingFactsEntry(
       !bounded(entry.ineligible.detail, 512) ||
       entry.artifacts.length ||
       (entry.observed_releases as unknown[]).length ||
-      (entry.bare_executables as unknown[]).length ||
+      (entry.other_packages as unknown[]).length ||
       (entry.refused_archives as unknown[]).length
     )
       throw new Error(
@@ -682,6 +693,8 @@ export const unreadForms = [
   ".deb",
   ".rpm",
   ".flatpak",
+  ".run",
+  ".x86_64",
   ".jar",
 ] as const;
 /** Package forms only non-desktop systems install (mobile and console). */
@@ -976,7 +989,8 @@ function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
  * Words a tag's line drops: release-channel words, never a product name, alone
  * or glued to a number (`rc2`, `beta5`, `build123`). `release-1.2`,
  * `nightly-2026` and `v1.3` are one line; `game2-v1.1` and
- * `level-editor-v1.0.0` are lines of their own.
+ * `level-editor-v1.0.0` are lines of their own. `final` and `update` are not
+ * channel words: they can name a product (`final-fantasy`, `updater`).
  */
 const channelWords = new Set([
   "release",
@@ -1002,55 +1016,99 @@ const channelWords = new Set([
   "ci",
   "test",
   "testing",
-  "final",
   "hotfix",
-  "update",
 ]);
 /** A release-channel word, alone or with a number glued after it. */
 const channelMarker = (word: string) => {
   const match = /^([a-z]+)[0-9]*$/u.exec(word);
   return match !== null && channelWords.has(match[1]!);
 };
+/**
+ * Operating-system and architecture words a tag's line drops, as whole words
+ * only (`x86_64` is read as one word), so builds of one product for several
+ * systems are one line: `windows-v1.0`, `win64-1.0` and `linux` are the main
+ * line.
+ */
+const buildTargetWords = new Set([
+  "windows",
+  "win",
+  "win32",
+  "win64",
+  "linux",
+  "linux32",
+  "linux64",
+  "macos",
+  "mac",
+  "osx",
+  "darwin",
+  "universal",
+  "x64",
+  "x86",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+]);
+/** A word the line drops: a channel marker or a build target. */
+const droppedWord = (word: string) => channelMarker(word) || buildTargetWords.has(word);
+/** A version token: digits, optionally after one `v`, `r` or `b`. */
+const versionToken = (word: string) => /^[vrb]?[0-9]+$/u.test(word);
 
 /**
  * A release tag's line: its product words before the version, lowercase,
- * without release-channel markers. Derivation errs toward ONE line for
- * version and channel noise and toward DIFFERENT lines for different product
- * words:
+ * without release-channel or build-target words. Derivation errs toward ONE
+ * line for version, channel and build-target noise and toward DIFFERENT lines
+ * for different product words; a tag it cannot tell apart is a line of its
+ * own, so the identity is excluded rather than enrolled for another product:
  *  - the version starts at a real version token: a whole word of digits,
  *    optionally after one `v`, `r` or `b` (`v1`, `r14388`, `2025`), never a
- *    number followed by a letter (`d2x`, `game2` are product words); a
+ *    number followed by a letter (`x2`, `game2` are product words); a
  *    product word with a glued `v<digits>` ending (`game2v0`) is cut there;
- *  - a bare number of one or two digits after a product word and before
- *    another product word or a version (`game-64-v1`, `part-2-1.0`) is part of
- *    the product; as the last word, before `.`, or before another bare
- *    number it is the version (`game-2`, `game-1-2-0`);
+ *  - a `v`, `r` or `b` word directly followed (after a separator other than
+ *    `.`) by another version token is a product word (`r2-v1.0` is `r2`);
+ *  - a bare number of one or two digits directly after a product word, not
+ *    before `.`, is part of the product when it is the last kept word
+ *    (`game-2`, `sm-1`), or before another product word or a version
+ *    (`game-64-v1`, `part-2-1.0`); before another bare number it is the
+ *    version (`game-1-2-0`);
  *  - channel words, alone or glued to a number (`rc2`, `nightly20250101`),
- *    are dropped.
+ *    and build-target words (`win64`, `linux`, `x86_64`) are dropped.
  * A line spelling the repository's own name is the main line (`""`). A tag
  * that is not printable ASCII, or unknown, is a line of its own
  * (`#<release id>`), so it never merges with another.
  */
 export function releaseLine(tag: string | null, releaseId: number, repository: string): string {
   if (tag === null || !/^[\x21-\x7e]+$/u.test(tag)) return `#${releaseId}`;
-  const parts = [...tag.toLowerCase().matchAll(/([a-z0-9]+)([^a-z0-9]*)/gu)].map((match) => ({
+  const normalized = tag.toLowerCase().replace(/(?<![a-z0-9])x86[_-]64(?![a-z0-9])/gu, "x8664");
+  const parts = [...normalized.matchAll(/([a-z0-9]+)([^a-z0-9]*)/gu)].map((match) => ({
     word: match[1]!,
     after: match[2]!.slice(0, 1),
   }));
   const bareNumber = (word: string | undefined) => word !== undefined && /^[0-9]+$/u.test(word);
   const words: string[] = [];
+  let previousKept = false;
   for (const [index, { word, after }] of parts.entries()) {
-    if (channelMarker(word)) continue;
-    if (/^[vrb][0-9]+$/u.test(word)) break;
+    if (droppedWord(word)) {
+      previousKept = false;
+      continue;
+    }
+    const next = parts[index + 1];
+    if (/^[vrb][0-9]+$/u.test(word)) {
+      // `r2-v1.0`: a version-shaped word before another version names a product.
+      if (after === "." || next === undefined || !versionToken(next.word)) break;
+      words.push(word);
+      previousKept = true;
+      continue;
+    }
     if (bareNumber(word)) {
-      const next = parts[index + 1];
+      const rest = parts.slice(index + 1).filter((part) => !droppedWord(part.word));
       const partOfProduct =
-        words.length > 0 &&
+        previousKept &&
         word.length <= 2 &&
         after !== "." &&
-        next !== undefined &&
-        !channelMarker(next.word) &&
-        (!bareNumber(next.word) || next.after === ".");
+        (rest.length === 0 || !bareNumber(rest[0]!.word) || rest[0]!.after === ".");
       if (!partOfProduct) break;
       words.push(word);
       continue;
@@ -1061,17 +1119,37 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
       break;
     }
     words.push(word);
+    previousKept = true;
   }
   const name = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   return words.join("") === name ? "" : words.join("-");
 }
 
 /**
+ * The words of a name: split at separators, camel-case humps and letter/digit
+ * changes, lowercase (`OpenSpideyPS1` is `open`, `spidey`, `ps`, `1`;
+ * `zelda64recomp` is `zelda`, `64`, `recomp`).
+ */
+export function nameWords(value: string): string[] {
+  return value
+    .split(/[^A-Za-z0-9]+/u)
+    .flatMap((word) =>
+      word.split(
+        /(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])/u,
+      ),
+    )
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+}
+
+/**
  * Whether a release line names the listed product itself: the main line, or
- * a line whose words, joined, appear in the repository name or the listing's
- * id, name or original title (all lowercase, letters and digits only). Without
- * a listing binding, only such a line may be offered: a line of other product
- * words (a level editor's `level-editor-v1.0`) is never taken for the game.
+ * a line of at least three letters and digits that equals one whole word, or a
+ * contiguous run of whole words, of the repository name or the listing's id,
+ * name or original title (`nameWords`). A part of a word never counts: `rec`
+ * does not name `zelda64recomp`. Without a listing binding, only such a line
+ * may be offered: a line of other product words (a level editor's
+ * `level-editor-v1.0`) is never taken for the game.
  */
 export function lineNamesProduct(
   line: string,
@@ -1081,10 +1159,20 @@ export function lineNamesProduct(
   if (line === "") return true;
   if (line.startsWith("#")) return false;
   const joined = line.replace(/-/gu, "");
-  const normalized = (value: unknown) =>
-    typeof value === "string" ? value.toLowerCase().replace(/[^a-z0-9]/gu, "") : "";
+  if (joined.length < 3) return false;
   return [repository.split("/")[1], listing.id, listing.name, listing.original_game_title].some(
-    (value) => normalized(value).includes(joined),
+    (value) => {
+      if (typeof value !== "string") return false;
+      const words = nameWords(value);
+      for (let start = 0; start < words.length; start++) {
+        let run = "";
+        for (let end = start; end < words.length && run.length < joined.length; end++) {
+          run += words[end]!;
+          if (run === joined) return true;
+        }
+      }
+      return false;
+    },
   );
 }
 
@@ -1219,29 +1307,104 @@ function releaseLineProblem(
   return undefined;
 }
 
-/** A bare `.exe` or `.msi` asset of the release, as the provider states it. */
-export interface BareExecutable {
+/**
+ * A release asset that is another package form than the archives the worker
+ * reads, as the provider states it, with the platforms its form can serve.
+ * Its bytes are never downloaded.
+ */
+export interface OtherPackage {
   asset_id: number;
   name: string;
   size: number;
   /** The provider's SHA-256, or null when it states none (UNKNOWN). */
   sha256: string | null;
+  /** Supported platforms the form can serve, in `platforms` order. */
+  platforms: string[];
+}
+
+/** Platforms a single-system package form serves. */
+export const formPlatforms = {
+  windows: ["windows-x86-64"],
+  linux: ["linux-x86-64"],
+  macos: ["macos-x86-64", "macos-aarch64"],
+} as const;
+/**
+ * Extension-less release files that are documentation or checksums, never a
+ * program: exact whole names, any letter case.
+ */
+const documentNames = new Set([
+  "sha256sums",
+  "sha512sums",
+  "sha1sums",
+  "md5sums",
+  "checksums",
+  "license",
+  "licence",
+  "readme",
+  "changelog",
+  "copying",
+  "notice",
+  "authors",
+  "credits",
+]);
+
+/**
+ * The kind of another package form a release asset is, or undefined for an
+ * archive the worker reads or any other file:
+ *  - `windows`: `.exe`, `.msi`;
+ *  - `linux`: `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.run`, `.x86_64`, or
+ *    a bare binary: a name with no file extension (no final `.` followed by
+ *    one to five letters and digits including a letter), other than a
+ *    documentation or checksum name (`documentNames`);
+ *  - `macos`: `.dmg`, `.pkg`;
+ *  - `container`: a container the worker does not read (`.7z`, `.rar`,
+ *    `.jar`, `.tar`, `.tar.bz2`, `.tbz2`, `.tar.zst`); it serves every
+ *    platform its name permits.
+ */
+export function otherPackageForm(
+  name: string,
+): "windows" | "linux" | "macos" | "container" | undefined {
+  const form = packageFormOf(name);
+  if (form !== undefined) {
+    if ([".exe", ".msi"].includes(form)) return "windows";
+    if ([".appimage", ".deb", ".rpm", ".flatpak", ".run", ".x86_64"].includes(form)) return "linux";
+    if ([".dmg", ".pkg"].includes(form)) return "macos";
+    if ([".7z", ".rar", ".jar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"].includes(form))
+      return "container";
+    return undefined;
+  }
+  // A file extension: a final `.` and one to five letters and digits, one a letter.
+  if (/\.(?=[A-Za-z0-9]{1,5}$)[0-9]*[A-Za-z][A-Za-z0-9]*$/u.test(name)) return undefined;
+  return documentNames.has(name.toLowerCase()) ? undefined : "linux";
 }
 
 /**
- * The bare executables of the release that are not the offered package's own
- * player: an unknown digest, or one equal to no player of the offered
- * artifacts, is a different program than the archive holds.
+ * The platforms another package form serves: its system's platforms, or for
+ * a container every platform its name permits (every platform when Core
+ * could not classify the name).
  */
-function foreignExecutables(entry: ListingFactsEntry, runtimes: readonly PlatformRuntime[]) {
-  const offered = new Set(runtimes.map((runtime) => runtime.asset_id));
-  const players = new Set(
-    entry.artifacts
-      .filter((artifact) => offered.has(artifact.asset_id))
-      .flatMap((artifact) => artifact.players.map((player) => player.sha256)),
-  );
-  return entry.bare_executables.filter(
-    (executable) => executable.sha256 === null || !players.has(executable.sha256),
+export function otherPackagePlatforms(
+  name: string,
+  suggestion: NameSuggestion | undefined,
+): string[] {
+  const kind = otherPackageForm(name);
+  if (kind === undefined) return [];
+  if (kind !== "container") return [...formPlatforms[kind]];
+  return platforms.filter((platform) => !suggestion || namePermitsName(suggestion, platform));
+}
+
+/**
+ * The other packages of the release that serve this runtime's platform and
+ * are not its offered package's own player: an unknown digest, or one equal
+ * to no player the platform's offered artifact holds for it, is a different
+ * program.
+ */
+function foreignPackages(entry: ListingFactsEntry, runtime: PlatformRuntime) {
+  const players = new Set(runtime.players.map((player) => player.sha256));
+  return entry.other_packages.filter(
+    (other) =>
+      other.platforms.includes(runtime.platform) &&
+      (other.sha256 === null || !players.has(other.sha256)),
   );
 }
 
@@ -1418,7 +1581,7 @@ export const blockedReasons = [
   "stale-facts",
   "shared-repository",
   "ambiguous-release-line",
-  "bare-executable-beside-archive",
+  "other-package-form-beside-archive",
   "no-player",
   "tool-not-game",
   "no-authorizing-source",
@@ -1448,6 +1611,7 @@ export type FitDecision =
 
 /** When no platform fits, the identity's reason is the first of these any platform gave. */
 const reasonPriority: BlockedReason[] = [
+  "other-package-form-beside-archive",
   "ambiguous-player",
   "ambiguous-artifact",
   "core-refused",
@@ -1531,10 +1695,20 @@ export function fitDecision(
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
+  /** Per excluded platform, the other package forms beside its archive. */
+  const foreignOn: [string, OtherPackage[]][] = [];
   for (const platform of platforms) {
     const found = platformRuntime(entry, platform);
     if ("reason" in found) {
       misses.add(found.reason);
+      continue;
+    }
+    // Another package form for this platform that is not this archive's
+    // player: the release offers a different program here than it holds.
+    const foreign = foreignPackages(entry, found.runtime);
+    if (foreign.length) {
+      misses.add("other-package-form-beside-archive");
+      foreignOn.push([platform, foreign]);
       continue;
     }
     const hold = ["register-external", "launch"]
@@ -1550,6 +1724,25 @@ export function fitDecision(
     if (held.length)
       return blocked("route-held", `Registration or launch is held on ${held.join(", ")}.`);
     const reason = reasonPriority.find((candidate) => misses.has(candidate)) ?? "no-player";
+    if (reason === "other-package-form-beside-archive") {
+      const names = [
+        ...new Set(foreignOn.flatMap(([, foreign]) => foreign.map((other) => other.name))),
+      ];
+      const unknown = foreignOn.some(([, foreign]) =>
+        foreign.some((other) => other.sha256 === null),
+      );
+      return blocked(
+        reason,
+        `On ${foreignOn.map(([platform]) => platform).join(", ")} the release also ships ${names.length} other package file(s) that are not the offered archive's player (${names
+          .slice(0, 3)
+          .join(
+            ", ",
+          )}${unknown ? "; a digest is UNKNOWN" : ""}), so it offers a different program there than the archive holds.`.slice(
+          0,
+          1000,
+        ),
+      );
+    }
     const vetoes = entryExclusions(entry).map(
       (item) => `${item.reason} ${item.token} (${item.name})`,
     );
@@ -1560,20 +1753,6 @@ export function fitDecision(
       }`.slice(0, 1000),
     );
   }
-  const foreign = foreignExecutables(entry, runtimes);
-  if (foreign.length)
-    return blocked(
-      "bare-executable-beside-archive",
-      `The release also ships ${foreign.length} bare program(s) that are not the offered archive's player (${foreign
-        .slice(0, 3)
-        .map((executable) => executable.name)
-        .join(
-          ", ",
-        )}${foreign.some((executable) => executable.sha256 === null) ? "; a digest is UNKNOWN" : ""}), so it offers a different program than the archive holds.`.slice(
-        0,
-        1000,
-      ),
-    );
   if (!authoredGuideFits(record))
     return blocked(
       "guide-bound",
@@ -2240,42 +2419,80 @@ export function gateLine(tag: string | null, id: number, repository: string) {
     "ci",
     "test",
     "testing",
-    "final",
     "hotfix",
-    "update",
   ];
-  const isChannel = (word: string) => channel.includes(word.replace(/[0-9]+$/u, ""));
+  const targets = [
+    "windows",
+    "win",
+    "win32",
+    "win64",
+    "linux",
+    "linux32",
+    "linux64",
+    "macos",
+    "mac",
+    "osx",
+    "darwin",
+    "universal",
+    "x64",
+    "x86",
+    "amd64",
+    "arm64",
+    "aarch64",
+    "i386",
+    "i686",
+  ];
   const isNumber = (word: string) => /^[0-9]+$/u.test(word);
+  const isVersion = (word: string) => /^[vrb]?[0-9]+$/u.test(word);
   // Words and the first separator character after each ("" at the end).
   const lower = tag.toLowerCase();
-  const words: { text: string; then: string }[] = [];
+  const scanned: { text: string; then: string }[] = [];
   let position = 0;
   while (position < lower.length) {
     const start = lower.slice(position).search(/[a-z0-9]/u);
     if (start < 0) break;
     let end = position + start;
     while (end < lower.length && /[a-z0-9]/u.test(lower[end]!)) end++;
-    words.push({ text: lower.slice(position + start, end), then: lower[end] ?? "" });
+    scanned.push({ text: lower.slice(position + start, end), then: lower[end] ?? "" });
     position = end;
   }
+  // Mark dropped words; `x86_64` / `x86-64` is one build-target word.
+  const words = scanned.map((word, index) => {
+    const previous = scanned[index - 1];
+    const glued64 =
+      word.text === "64" &&
+      previous?.text === "x86" &&
+      (previous.then === "_" || previous.then === "-");
+    const dropped =
+      glued64 || targets.includes(word.text) || channel.includes(word.text.replace(/[0-9]+$/u, ""));
+    return { ...word, dropped };
+  });
   const kept: string[] = [];
-  let index = 0;
-  for (; index < words.length; index++) {
-    const { text, then } = words[index]!;
-    if (isChannel(text)) continue;
-    if (/^[vrb]?[0-9]+$/u.test(text)) {
-      if (!isNumber(text)) break;
-      // A short number between product words belongs to the product.
+  let afterProductWord = false;
+  for (let index = 0; index < words.length; index++) {
+    const { text, then, dropped } = words[index]!;
+    if (dropped) {
+      afterProductWord = false;
+      continue;
+    }
+    if (isVersion(text) && !isNumber(text)) {
+      // A version-shaped word directly before another version is a product word.
       const following = words[index + 1];
-      if (
-        kept.length === 0 ||
-        text.length > 2 ||
-        then === "." ||
-        !following ||
-        isChannel(following.text) ||
-        (isNumber(following.text) && following.then !== ".")
-      )
-        break;
+      if (then !== "." && following && isVersion(following.text)) {
+        kept.push(text);
+        afterProductWord = true;
+        continue;
+      }
+      break;
+    }
+    if (isNumber(text)) {
+      const following = words.slice(index + 1).find((word) => !word.dropped);
+      const product =
+        afterProductWord &&
+        text.length <= 2 &&
+        then !== "." &&
+        (following === undefined || !isNumber(following.text) || following.then === ".");
+      if (!product) break;
       kept.push(text);
       continue;
     }
@@ -2285,12 +2502,13 @@ export function gateLine(tag: string | null, id: number, repository: string) {
       break;
     }
     kept.push(text);
+    afterProductWord = true;
   }
   const own = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   return kept.join("") === own ? "" : kept.join("-");
 }
-/** Whether an unbound line names the listed product, restated: see `lineNamesProduct`. */
-function gateLineNamesProduct(
+/** Whether an unbound line names the listed product, restated: see `lineNamesProduct`. Exported for its unit table only. */
+export function gateLineNamesProduct(
   line: string,
   repository: string,
   listing: Record<string, unknown>,
@@ -2298,20 +2516,50 @@ function gateLineNamesProduct(
   if (line === "") return true;
   if (line[0] === "#") return false;
   const needle = line.split("-").join("");
+  if (needle.length < 3) return false;
   for (const value of [
     repository.split("/")[1],
     listing.id,
     listing.name,
     listing.original_game_title,
-  ])
-    if (
-      typeof value === "string" &&
-      value
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gu, "")
-        .includes(needle)
-    )
-      return true;
+  ]) {
+    if (typeof value !== "string") continue;
+    // Whole words: separators, camel-case humps and letter/digit changes.
+    const words: string[] = [];
+    let current = "";
+    let previous = "";
+    for (let index = 0; index < value.length; index++) {
+      const character = value[index]!;
+      const kind = /[a-z]/u.test(character)
+        ? "lower"
+        : /[A-Z]/u.test(character)
+          ? "upper"
+          : /[0-9]/u.test(character)
+            ? "digit"
+            : "";
+      const nextLower = /[a-z]/u.test(value[index + 1] ?? "");
+      const boundary =
+        kind === "" ||
+        (previous === "lower" && kind === "upper") ||
+        (previous === "upper" && kind === "upper" && nextLower) ||
+        (previous === "digit" && kind !== "digit") ||
+        (previous !== "digit" && previous !== "" && kind === "digit");
+      if (boundary && current) {
+        words.push(current.toLowerCase());
+        current = "";
+      }
+      if (kind) current += character;
+      previous = kind;
+    }
+    if (current) words.push(current.toLowerCase());
+    // A contiguous run of whole words spells the line exactly.
+    for (let first = 0; first < words.length; first++)
+      for (let last = first; last < words.length; last++) {
+        const run = words.slice(first, last + 1).join("");
+        if (run === needle) return true;
+        if (run.length >= needle.length) break;
+      }
+  }
   return false;
 }
 /** The line a listing's own release URL binds it to, restated. */
@@ -2383,18 +2631,40 @@ function gateEnrollmentProblems(
       )
         problems.push(`${id} offers a stable release older than another line's prerelease.`);
   }
-  // A bare program beside the archives must be byte-equal to a player of an
-  // offered archive; an unknown digest is not.
-  const offeredPlayers: string[] = [];
-  for (const runtime of enrollment.runtimes)
-    for (const artifact of entry.artifacts)
-      if (artifact.asset_id === runtime.asset_id)
-        for (const player of artifact.players) offeredPlayers.push(player.sha256);
-  for (const executable of entry.bare_executables)
-    if (typeof executable.sha256 !== "string" || !offeredPlayers.includes(executable.sha256))
-      problems.push(
-        `${id} rests on a release that also ships a different bare program (${executable.name}).`,
-      );
+  // Per platform, another package form serving it must be byte-equal to a
+  // player the offered archive holds for that platform; an unknown digest is
+  // not. The gate names each form's platforms itself and widens them by the
+  // recorded ones (a container's name verdict), never narrows them.
+  for (const runtime of enrollment.runtimes) {
+    const artifact = entry.artifacts.find((item) => item.asset_id === runtime.asset_id);
+    const named = new Set(runtime.players.map((player) => player.path));
+    const digests = (artifact?.players ?? [])
+      .filter((player) => named.has(player.path))
+      .map((player) => player.sha256);
+    for (const other of entry.other_packages) {
+      const lower = other.name.toLowerCase();
+      const served = new Set<string>(Array.isArray(other.platforms) ? other.platforms : []);
+      if (lower.endsWith(".exe") || lower.endsWith(".msi")) served.add("windows-x86-64");
+      if (
+        [".appimage", ".deb", ".rpm", ".flatpak", ".run", ".x86_64"].some((form) =>
+          lower.endsWith(form),
+        ) ||
+        !/\.[0-9]*[a-z][a-z0-9]*$/u.test(lower.slice(Math.max(0, lower.length - 6)))
+      )
+        served.add("linux-x86-64");
+      if (lower.endsWith(".dmg") || lower.endsWith(".pkg")) {
+        served.add("macos-x86-64");
+        served.add("macos-aarch64");
+      }
+      if (
+        served.has(runtime.platform) &&
+        (typeof other.sha256 !== "string" || !digests.includes(other.sha256))
+      )
+        problems.push(
+          `${id} rests on a release that also ships another package for ${runtime.platform} (${other.name}).`,
+        );
+    }
+  }
   if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
     problems.push(`${id} does not rest on the committed facts entry.`);
   if (

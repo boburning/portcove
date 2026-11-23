@@ -46,8 +46,10 @@ import {
   readGateBaseline,
   fitContext,
   gateLine,
+  gateLineNamesProduct,
   listedRepositories,
   releaseLine,
+  lineNamesProduct,
   type ArtifactFactV2,
   type ListingFactsEntry,
   type ListingFactsTable,
@@ -218,7 +220,7 @@ function entry(
         packaged: true,
       },
     ],
-    bare_executables: [],
+    other_packages: [],
     refused_archives: [],
     attempt: null,
     artifacts,
@@ -2257,10 +2259,10 @@ void test("release forms the worker does not read are recorded, and decide the r
   assert.deepEqual(entryOf(ids.mixed).unread_forms, [".apk", ".dmg", ".msi"]);
   assert.equal(entryOf(ids.none).ineligible!.reason, "no-release-archive");
   const generation = generateRegistrations(records, result.table);
-  // The bare `.msi` beside the archive is a different program than it holds.
+  // The `.msi` beside the archive is a different Windows program than it holds.
   assert.deepEqual(generation.enrollments, []);
   const queues = registrationQueues(generation);
-  assert.deepEqual(queues.reasons["bare-executable-beside-archive"], [ids.mixed]);
+  assert.deepEqual(queues.reasons["other-package-form-beside-archive"], [ids.mixed]);
   assert.deepEqual(queues.reasons["unsupported-archive-format"], [ids.desktop]);
   assert.deepEqual(queues.reasons["non-desktop-platform"], [ids.mobile]);
   assert.deepEqual(queues.reasons["no-release-archive"], [ids.none]);
@@ -2858,10 +2860,51 @@ void test("release lines err toward one line for version noise and different lin
     ["half-life-2-v1", "owner/spider-game", "half-life-2"],
     ["half-life-v1", "owner/spider-game", "half-life"],
     ["sm-2-v1", "owner/spider-game", "sm-2"],
-    // ...but as the final token it is the version.
-    ["sm-1", "owner/spider-game", "sm"],
-    ["sm-2", "owner/spider-game", "sm"],
+    // ...and so is a final one directly after a product word (B2): `sm-1` and
+    // `sm-2` may be two games, so they are two lines. A repository tagging
+    // major versions this way is `ambiguous-release-line`: an honest exclusion.
+    ["sm-1", "owner/spider-game", "sm-1"],
+    ["sm-2", "owner/spider-game", "sm-2"],
+    ["sm-1", "owner/sm", "sm-1"],
+    ["game-2", "owner/spider-game", "game-2"],
+    ["game-3", "owner/spider-game", "game-3"],
+    ["game-2-v1.0", "owner/spider-game", "game-2"],
+    ["game-2-v1.1", "owner/spider-game", "game-2"],
+    ["game-2-win64", "owner/spider-game", "game-2"],
+    // After a dropped word a bare number is the version.
+    ["game-beta-2", "owner/spider-game", "game"],
+    // A version-shaped word before another version is a product word (B2).
+    ["r2-v1.0", "owner/spider-game", "r2"],
+    ["b2-v1.0", "owner/spider-game", "b2"],
     ["texture-studio-v1.0.0", "owner/spider-game", "texture-studio"],
+    // These stay the main line.
+    ["v2", "owner/spider-game", ""],
+    ["2.0", "owner/spider-game", ""],
+    ["v2.0-win", "owner/spider-game", ""],
+    ["1.0.0-windows-x64", "owner/spider-game", ""],
+    ["64-v1", "owner/spider-game", ""],
+    ["b5", "owner/spider-game", ""],
+    ["r3", "owner/spider-game", ""],
+    ["hotfix-1", "owner/spider-game", ""],
+    ["latest", "owner/spider-game", ""],
+    ["nightly", "owner/spider-game", ""],
+    ["continuous", "owner/spider-game", ""],
+    ["20250101", "owner/spider-game", ""],
+    ["2025-01-01-nightly", "owner/spider-game", ""],
+    ["build-123", "owner/spider-game", ""],
+    // Operating-system and architecture words are dropped (F3).
+    ["windows-v1.0", "owner/spider-game", ""],
+    ["win64-1.0", "owner/spider-game", ""],
+    ["linux", "owner/spider-game", ""],
+    ["macos", "owner/spider-game", ""],
+    ["x64", "owner/spider-game", ""],
+    ["arm64", "owner/spider-game", ""],
+    ["v1.0-linux-x86_64", "owner/spider-game", ""],
+    ["spider-game-linux-x86_64", "owner/spider-game", ""],
+    ["level-editor-win64-v1.0", "owner/spider-game", "level-editor"],
+    // `final` and `update` can name a product; they are not channel words (F2).
+    ["final-v1.0", "owner/spider-game", "final"],
+    ["update-v1.0", "owner/spider-game", "update"],
   ];
   for (const [tag, repository, expected] of rows) {
     assert.equal(releaseLine(tag, 7, repository), expected, `fit: ${tag} on ${repository}`);
@@ -2870,6 +2913,46 @@ void test("release lines err toward one line for version noise and different lin
   for (const derive of [releaseLine, gateLine]) {
     assert.equal(derive("v1.0\u202e", 7, "owner/x"), "#7", "a non-ASCII tag is a line of its own");
     assert.equal(derive(null, 9, "owner/x"), "#9");
+  }
+});
+
+void test("a line names the product only as whole words of at least three characters (F1)", () => {
+  // [line, repository, listing fields, names the product]
+  const rows: [string, string, Record<string, unknown>, boolean][] = [
+    ["", "owner/anything", {}, true],
+    ["#7", "owner/rec", {}, false],
+    // Part of a word never counts.
+    ["rec", "owner/zelda64recomp", {}, false],
+    ["open", "owner/reopen-game", {}, false],
+    ["spidey", "owner/OpenSpideyPS1", {}, true],
+    ["open", "owner/OpenSpideyPS1", {}, true],
+    ["spid", "owner/OpenSpideyPS1", {}, false],
+    // Whole words, and contiguous runs of them, across camel case and digits.
+    ["recomp", "owner/zelda64recomp", {}, true],
+    ["zelda64", "owner/zelda64recomp", {}, true],
+    ["zelda-64", "owner/zelda64recomp", {}, true],
+    ["ps1", "owner/OpenSpideyPS1", {}, true],
+    ["sotn", "owner/sotn-decomp", {}, true],
+    ["spider-game", "owner/spidergame", {}, true],
+    ["spidergame", "owner/spider-game", {}, true],
+    ["texture-studio", "owner/omf", { name: "Texture Studio" }, true],
+    ["studio", "owner/omf", { id: "zz-texture-studio" }, true],
+    ["sotn", "owner/elsewhere", { original_game_title: "SOTN" }, true],
+    // Shorter than three characters is never enough.
+    ["sm", "owner/sm-decomp", {}, false],
+    ["x2", "owner/x2-game", {}, false],
+  ];
+  for (const [line, repository, fields, expected] of rows) {
+    assert.equal(
+      lineNamesProduct(line, repository, fields),
+      expected,
+      `fit: ${line} on ${repository}`,
+    );
+    assert.equal(
+      gateLineNamesProduct(line, repository, fields),
+      expected,
+      `gate: ${line} on ${repository}`,
+    );
   }
 });
 
@@ -2955,6 +3038,53 @@ void test("an unbound named release line enrolls only when it names the listed p
   assert.throws(() => gateGeneration(null, forged), /unbound release line of other product words/u);
 });
 
+void test("final short numbers and version-shaped product words keep products apart (B2)", () => {
+  const releases = (tags: string[]) =>
+    tags.map((tag, index) => ({
+      release_id: 7 + index,
+      tag,
+      prerelease: false,
+      published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
+      packaged: true,
+    }));
+  const id = "sm";
+  const window = (tags: string[]) =>
+    entry([artifact()], { tag: tags.at(-1)!, release_id: 7 + tags.length - 1 }, id, {
+      observed_releases: releases(tags),
+    });
+  // On repository `fixture-owner/sm`, `sm-1` and `sm-2` may be two games:
+  // the newest (game 2) is never enrolled for an unbound listing.
+  for (const tags of [
+    ["sm-1", "sm-2"],
+    ["game-2", "game-3"],
+    ["r2-v1.0", "b2-v1.0"],
+  ])
+    assert.equal(
+      reasonOf(decide(listing(id), window(tags))),
+      "ambiguous-release-line",
+      tags.join(),
+    );
+  // One product's releases stay one line.
+  for (const tags of [
+    ["v1.0", "v2.0-win"],
+    ["windows-v1.0", "linux-v1.1"],
+    ["1.0.0-windows-x64", "b5"],
+  ])
+    assert.ok(decide(listing(id), window(tags)).fit, tags.join());
+  // A listing bound to `sm-2` is read on that line and enrolls.
+  const bound = listing(id, {
+    release_url: "https://github.com/fixture-owner/sm/releases/tag/sm-2",
+  });
+  const two = window(["sm-1", "sm-2"]);
+  assert.ok(decide(bound, two).fit);
+  // The gate restates it: forging a bound listing away is refused.
+  const generation = generateRegistrations([bound], table(two));
+  assert.equal(gateGeneration(null, generation).added.length, 1);
+  const forged = structuredClone(generation);
+  forged.records = [listing(id)];
+  assert.throws(() => gateGeneration(null, forged), /release line is ambiguous/u);
+});
+
 void test("two different archives for one platform are ambiguous even with one program name (D3)", () => {
   const game = player("Game/Game.exe", "pe-x86-64", "game-build");
   const studio = player("Game/Game.exe", "pe-x86-64", "studio-build");
@@ -2994,7 +3124,7 @@ void test("two different archives for one platform are ambiguous even with one p
   assert.throws(() => gateGeneration(null, forged), /2 different archives/u);
 });
 
-void test("a bare program beside the archive that is not its player excludes the release (R4)", async () => {
+void test("another package form beside the archive excludes only the platforms it serves (B3)", async () => {
   const id = "zz-codegen-release";
   const generatorZip = "TableTennis-Windows-v1.7.0.zip";
   const inspect = byAsset({ 11: [player("bin/rexglue.exe")] });
@@ -3016,41 +3146,146 @@ void test("a bare program beside the archive that is not its player excludes the
     { inspect },
   );
   const facts = both.table.entries[0]!;
-  assert.deepEqual(facts.bare_executables, [
-    { asset_id: 12, name: "TableTennis-v1.7.0.exe", size: 100, sha256: sha("v1.0-12") },
+  assert.deepEqual(facts.other_packages, [
+    {
+      asset_id: 12,
+      name: "TableTennis-v1.7.0.exe",
+      size: 100,
+      sha256: sha("v1.0-12"),
+      platforms: ["windows-x86-64"],
+    },
   ]);
-  assert.equal(reasonOf(decide(listing(id), facts)), "bare-executable-beside-archive");
-  // A setup program beside a portable archive is a different program too.
+  assert.equal(reasonOf(decide(listing(id), facts)), "other-package-form-beside-archive");
+
+  // Linux: a tarball holding only a generator beside the game's AppImage.
+  const linuxId = "zz-codegen-linux";
+  const linux = await derive(
+    [listing(linuxId, { platforms: ["linux-x86-64"] })],
+    observerReport({
+      [linuxId]: {
+        releases: [
+          releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+            { id: 11, name: linuxTar },
+            { id: 12, name: "Game-v1.0.AppImage" },
+            { id: 13, name: "SHA256SUMS" },
+          ]),
+        ],
+      },
+    }),
+    undefined,
+    { inspect: byAsset({ 11: [player("bin/Game", "elf64-x86-64")] }) },
+  );
+  const linuxFacts = linux.table.entries[0]!;
+  assert.deepEqual(
+    linuxFacts.other_packages.map((other) => [other.name, other.platforms]),
+    [["Game-v1.0.AppImage", ["linux-x86-64"]]],
+    "a checksum file is not a program",
+  );
+  assert.equal(reasonOf(decide(listing(linuxId), linuxFacts)), "other-package-form-beside-archive");
+
+  // Windows: a launcher-only zip beside the game in a `.7z` the worker does not read.
+  const sevenId = "zz-launcher-7z";
+  const seven = await derive(
+    [listing(sevenId)],
+    observerReport({
+      [sevenId]: {
+        releases: [
+          releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+            { id: 11, name: windowsZip },
+            { id: 12, name: "Game-win64.7z" },
+          ]),
+        ],
+      },
+    }),
+    undefined,
+    { inspect: byAsset({ 11: [player("Launcher.exe")] }) },
+  );
+  const sevenFacts = seven.table.entries[0]!;
+  assert.deepEqual(sevenFacts.other_packages[0]!.platforms, ["windows-x86-64"]);
+  assert.equal(reasonOf(decide(listing(sevenId), sevenFacts)), "other-package-form-beside-archive");
+
+  // Fixture entries for the per-platform rule.
   const game = player("Unseen/Unseen.exe");
-  const bare = (sha256: string | null, name = "Unseen-Setup.exe") => ({
+  const linuxGame = player("Unseen/Unseen", "elf64-x86-64");
+  const other = (
+    sha256: string | null,
+    name = "Unseen-Setup.exe",
+    platforms = ["windows-x86-64"],
+  ) => ({
     asset_id: 30,
     name,
     size: 2048,
     sha256,
+    platforms,
   });
+  const both2 = listing(unseen, { platforms: ["windows-x86-64", "linux-x86-64"] });
+  // Portable zip, Setup.exe and a Linux tarball: Windows is excluded, Linux enrolls.
+  const setupAndLinux = entry(
+    [artifact(windowsZip, [game], 11), artifact(linuxTar, [linuxGame], 12)],
+    {},
+    unseen,
+    { other_packages: [other(sha("setup-bytes"))] },
+  );
+  const decided = decide(both2, setupAndLinux);
+  assert.ok(decided.fit);
+  assert.deepEqual(decided.enrollment.platforms, ["linux-x86-64"]);
+  // A setup program beside the portable archive alone excludes the release.
   const setup = entry([artifact(windowsZip, [game])], {}, unseen, {
-    bare_executables: [bare(sha("setup-bytes"))],
+    other_packages: [other(sha("setup-bytes"))],
   });
-  assert.equal(reasonOf(decide(listing(), setup)), "bare-executable-beside-archive");
-  // A bare program without a provider digest is UNKNOWN, so excluded.
+  assert.equal(reasonOf(decide(listing(), setup)), "other-package-form-beside-archive");
+  // Another package without a provider digest is UNKNOWN, so excluded there.
   const unknown = entry([artifact(windowsZip, [game])], {}, unseen, {
-    bare_executables: [bare(null, "Unseen.exe")],
+    other_packages: [other(null, "Unseen.exe")],
   });
-  assert.equal(reasonOf(decide(listing(), unknown)), "bare-executable-beside-archive");
-  // The archive's own player offered bare as well is the same package.
+  assert.equal(reasonOf(decide(listing(), unknown)), "other-package-form-beside-archive");
+  // A single-file program equal to the archive's player is the same package.
   const same = entry([artifact(windowsZip, [game])], {}, unseen, {
-    bare_executables: [bare(game.sha256, "Unseen.exe")],
+    other_packages: [other(game.sha256, "Unseen.exe")],
   });
   assert.ok(decide(listing(), same).fit);
-  // The gate restates the rule from the facts alone.
+  // An AppImage equal to the Windows player is still another program on Linux.
+  const crossed = entry(
+    [artifact(windowsZip, [game], 11), artifact(linuxTar, [linuxGame], 12)],
+    {},
+    unseen,
+    { other_packages: [other(game.sha256, "Unseen.AppImage", ["linux-x86-64"])] },
+  );
+  const crossedDecision = decide(both2, crossed);
+  assert.ok(crossedDecision.fit);
+  assert.deepEqual(crossedDecision.enrollment.platforms, ["windows-x86-64"]);
+
+  // The gate restates the rule per platform from the facts alone.
   const generation = generateRegistrations([listing()], table(same));
   assert.equal(gateGeneration(null, generation).added.length, 1);
   for (const forgedDigest of [sha("setup-bytes"), null]) {
     const forged = structuredClone(generation);
-    forged.facts.entries[0]!.bare_executables = [bare(forgedDigest)];
+    forged.facts.entries[0]!.other_packages = [other(forgedDigest)];
     forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
-    assert.throws(() => gateGeneration(null, forged), /different bare program/u);
+    assert.throws(() => gateGeneration(null, forged), /another package for windows-x86-64/u);
   }
+  // Recorded platforms cannot narrow a form: an `.exe` marked as macOS-only
+  // still serves Windows to the gate.
+  const narrowed = structuredClone(generation);
+  narrowed.facts.entries[0]!.other_packages = [
+    other(sha("setup-bytes"), "Unseen-Setup.exe", ["macos-x86-64", "macos-aarch64"]),
+  ];
+  narrowed.enrollments[0]!.facts_sha256 = digestOf(narrowed.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, narrowed), /another package for windows-x86-64/u);
+  // A Linux enrollment is not refused for a Windows setup program.
+  const linuxOnly = generateRegistrations([both2], table(setupAndLinux));
+  assert.equal(gateGeneration(null, linuxOnly).added.length, 1);
+  // The table check refuses a form recorded with platforms it cannot serve.
+  assert.throws(
+    () =>
+      checkListingFactsTable(
+        table({
+          ...setupAndLinux,
+          other_packages: [other(sha("setup-bytes"), "Unseen-Setup.exe", ["linux-x86-64"])],
+        }),
+      ),
+    /platforms its form serves/u,
+  );
   // A delimited code-generator program name is a tool; a glued one is judged by the rules above.
   const glue = entry([artifact(windowsZip, [player("bin/rex-glue.exe")])]);
   assert.equal(glue.artifacts[0]!.excluded_players[0]!.token, "glue");

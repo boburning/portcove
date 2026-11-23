@@ -980,7 +980,7 @@ mod tests {
             "NXEngine-evo-v2.6-win64.zip",
             // An engine reimplementation is a real game port, as a whole
             // word too: a release offering another program is decided by the
-            // release's content (`bare-executable-beside-archive`), not a word.
+            // release's content (`other-package-form-beside-archive`), not a word.
             "the-force-engine-v1.0-win.zip",
             "Game-Engine-Windows-v1.6.0.zip",
             "Engine.exe",

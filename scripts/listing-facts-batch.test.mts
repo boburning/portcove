@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -54,6 +55,7 @@ import {
   checkerChanges,
   checkerPaths,
   checkerSeparationProblem,
+  factsEntryCount,
   ciRunFor,
   claimsBatch,
   clockProblems,
@@ -218,7 +220,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
         packaged: true,
       },
     ],
-    bare_executables: [],
+    other_packages: [],
     refused_archives: [],
     attempt: null,
     artifacts: [artifact],
@@ -432,6 +434,24 @@ void test("the facts table and the code that checks it must be separate changes 
     assert.ok(checker.includes(expected), expected);
   for (const file of checker.filter((entry) => !entry.endsWith("/")))
     assert.notEqual(read(file), undefined, `${file} is named but does not exist`);
+  // Fixed directory entries must exist (derived module directories may not).
+  for (const directory of [
+    ".github/actions/setup-rust/",
+    ".github/actions/stop-if-superseded/",
+    "vendor/",
+    "crates/portcove-core/src/package_shape/",
+  ])
+    assert.ok(
+      checker.includes(directory) && statSync(join(root, directory)).isDirectory(),
+      `${directory} is named but is not a directory`,
+    );
+  // Every workspace member's manifest, derived from the workspace manifest.
+  for (const manifest of [
+    "tools/rust-portability/Cargo.toml",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "crates/portcove-listing-carrier/Cargo.toml",
+  ])
+    assert.ok(checker.includes(manifest), manifest);
   assert.deepEqual(
     checkerChanges(
       ["crates/portcove-core/src/package_shape/machine.rs", "docs/CATALOG.md"],
@@ -441,6 +461,8 @@ void test("the facts table and the code that checks it must be separate changes 
   );
   const facts = batchAllowlist[0];
   const enrollment = batchAllowlist[1];
+  const entry = { id: "port.example" };
+  const filled = { baseline: { entries: [entry] }, current: { entries: [entry] } };
   for (const path of [
     ".github/workflows/ci.yml",
     ".github/workflows/listing-facts-batch.yml",
@@ -452,18 +474,63 @@ void test("the facts table and the code that checks it must be separate changes 
     "crates/portcove-core/src/package_shape/listing.rs",
   ])
     assert.match(
-      checkerSeparationProblem([facts, enrollment, path], checker) ?? "",
+      checkerSeparationProblem([facts, enrollment, path], checker, filled) ?? "",
       /must be separate changes/u,
       path,
     );
   // The facts alone, a batch's generated outputs, and a checker change with
   // the enrollment it necessarily regenerates are not refused.
-  assert.equal(checkerSeparationProblem([...batchAllowlist], checker), undefined);
+  assert.equal(checkerSeparationProblem([...batchAllowlist], checker, filled), undefined);
   assert.equal(
-    checkerSeparationProblem([enrollment, "scripts/catalog-generated-registration.mts"], checker),
+    checkerSeparationProblem(
+      [enrollment, "scripts/catalog-generated-registration.mts"],
+      checker,
+      filled,
+    ),
     undefined,
   );
-  assert.equal(checkerSeparationProblem([facts, "docs/CATALOG.md"], checker), undefined);
+  assert.equal(checkerSeparationProblem([facts, "docs/CATALOG.md"], checker, filled), undefined);
+});
+
+void test("an empty facts table on both sides may change with its checker (B1)", () => {
+  const checker = checkerPaths((file) => {
+    try {
+      return readFileSync(join(root, file), "utf8");
+    } catch {
+      return undefined;
+    }
+  });
+  const facts = batchAllowlist[0];
+  const change = [facts, "scripts/listing-package-facts.mts"];
+  const empty = { format: 6, entries: [] };
+  const filled = { format: 6, entries: [{ id: "port.example" }] };
+  // Empty to empty: a format bump rewrites a table with nothing to verify.
+  assert.equal(
+    checkerSeparationProblem(change, checker, { baseline: empty, current: empty }),
+    undefined,
+  );
+  assert.equal(
+    checkerSeparationProblem(change, checker, { baseline: null, current: empty }),
+    undefined,
+  );
+  // Empty to non-empty, non-empty to anything, or an unreadable side: refused.
+  for (const [baseline, current] of [
+    [empty, filled],
+    [null, filled],
+    [filled, empty],
+    [filled, filled],
+    [{ format: 6 }, empty],
+    [empty, "not a table"],
+  ] as const)
+    assert.match(
+      checkerSeparationProblem(change, checker, { baseline, current }) ?? "",
+      /must be separate changes/u,
+      JSON.stringify([baseline, current]),
+    );
+  assert.equal(factsEntryCount(null), 0);
+  assert.equal(factsEntryCount(empty), 0);
+  assert.equal(factsEntryCount(filled), 1);
+  assert.equal(factsEntryCount({}), undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -645,10 +712,16 @@ void test("a refused archive, the release's line facts and its installers are re
   );
   // A refused archive left out is a mismatch: the entry records every archive.
   assert.equal(await reason({ ...entry, refused_archives: [] }, refusing(sameRefusal)), "mismatch");
-  // A forged bare-executable list or release line record is refused.
-  const setup = { asset_id: 24, name: "Setup.exe", size: 64, sha256: sha("installer") };
+  // A forged other-package list or release line record is refused.
+  const setup = {
+    asset_id: 24,
+    name: "Setup.exe",
+    size: 64,
+    sha256: sha("installer"),
+    platforms: ["windows-x86-64"],
+  };
   assert.equal(
-    await reason({ ...entry, bare_executables: [setup] }, refusing(sameRefusal)),
+    await reason({ ...entry, other_packages: [setup] }, refusing(sameRefusal)),
     "release-changed",
   );
   assert.equal(
@@ -661,7 +734,8 @@ void test("a refused archive, the release's line facts and its installers are re
     ),
     "release-changed",
   );
-  // A bare executable beside the archives must be recorded with its size and digest.
+  // Another package form beside the archives must be recorded with its size,
+  // digest and platforms: an entry that omits it is refused (B3, F8).
   const installer = structuredClone(release);
   installer.assets.push({
     id: 24,
@@ -682,17 +756,98 @@ void test("a refused archive, the release's line facts and its installers are re
   });
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), "release-changed");
   const recordedInstaller = { ...setup, name: "Install-Game.exe" };
-  recorded.bare_executables = [recordedInstaller];
+  recorded.other_packages = [recordedInstaller];
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), undefined);
   for (const forged of [
     { ...recordedInstaller, sha256: sha("other-program") },
     { ...recordedInstaller, sha256: null },
     { ...recordedInstaller, size: 65 },
+    { ...recordedInstaller, platforms: ["linux-x86-64"] },
   ])
     assert.equal(
-      await reason({ ...recorded, bare_executables: [forged] }, refusing(sameRefusal), installer),
+      await reason({ ...recorded, other_packages: [forged] }, refusing(sameRefusal), installer),
       "release-changed",
     );
+  // An unread container is recorded with the platforms its name permits.
+  const container = structuredClone(release);
+  container.assets.push({
+    id: 25,
+    name: "Game-win64.7z",
+    size: 64,
+    sha256: sha("container"),
+    url: "https://github.com/x/g.7z",
+  });
+  const withContainer = structuredClone(entry);
+  withContainer.observation.assets_sha256 = assetsDigest({
+    id: 8,
+    version: "v1.0",
+    published_at: null,
+    provider_prerelease: false,
+    assets_complete: true,
+    malformed_assets: 0,
+    assets: container.assets,
+  });
+  assert.equal(await reason(withContainer, refusing(sameRefusal), container), "release-changed");
+  withContainer.other_packages = [
+    {
+      asset_id: 25,
+      name: "Game-win64.7z",
+      size: 64,
+      sha256: sha("container"),
+      platforms: ["windows-x86-64"],
+    },
+  ];
+  assert.equal(await reason(withContainer, refusing(sameRefusal), container), undefined);
+});
+
+void test("reproduction restates the observed releases from the release list (F8)", async () => {
+  const { release, entry, players } = fixture(unseen, [player("Game/Game.exe")]);
+  // An older release of another line, in the observer's window.
+  const tool = {
+    id: 7,
+    repository: release.repository,
+    tag_name: "texture-studio-v1.0.0",
+    draft: false,
+    prerelease: false,
+    published_at: "2026-10-01T00:00:00Z",
+    assets: [
+      {
+        id: 31,
+        name: "Editor.zip",
+        size: 10,
+        sha256: sha("editor"),
+        url: "https://github.com/x/e",
+      },
+    ],
+  };
+  const run = async (copy: ListingFactsEntry, ...listedReleases: ProviderRelease[]) =>
+    (
+      await reproduceFacts({
+        entries: [copy],
+        readRelease: reader({ 8: release }),
+        listReleases: lister(...listedReleases),
+        inspect: inspector(players),
+        classify: coreClassifier,
+        boundLines: unbound([copy]),
+      })
+    ).refused[0];
+  // The entry's single observed release matches a list of that release alone.
+  assert.equal(await run(entry, release), undefined);
+  // Omitting another line's release from the observed releases is refused, so
+  // the release-line exclusion cannot be forged away.
+  const omitted = await run(entry, release, tool);
+  assert.equal(omitted?.reason, "mismatch");
+  assert.match(omitted?.detail ?? "", /observed releases/u);
+  // Recording it as the list states it reproduces.
+  const complete = structuredClone(entry);
+  complete.observed_releases.unshift({
+    release_id: 7,
+    tag: "texture-studio-v1.0.0",
+    prerelease: false,
+    published_at: "2026-10-01T00:00:00.000Z",
+    packaged: true,
+  });
+  assert.equal(await run(complete, release, tool), undefined);
 });
 
 void test("reproduction is budgeted: oversized assets, too many entries or bytes and the clock refuse", async () => {
@@ -731,14 +886,29 @@ void test("reproduction is budgeted: oversized assets, too many entries or bytes
 
 void test("reproduction proves the named release is still the newest stable one (F2)", async () => {
   const { release, entry, players } = fixture();
-  const run = (listReleases: Parameters<typeof reproduceFacts>[0]["listReleases"]) =>
+  // The entry records the newer release 9 as the list states it (F8).
+  const recording = (tag: string, prerelease: boolean) => {
+    const copy = structuredClone(entry);
+    copy.observed_releases.push({
+      release_id: 9,
+      tag,
+      prerelease,
+      published_at: "2026-11-10T00:00:00.000Z",
+      packaged: false,
+    });
+    return copy;
+  };
+  const run = (
+    listReleases: Parameters<typeof reproduceFacts>[0]["listReleases"],
+    recorded = entry,
+  ) =>
     reproduceFacts({
-      entries: [entry],
+      entries: [recorded],
       readRelease: reader({ 8: release }),
       listReleases,
       inspect: inspector(players),
       classify: coreClassifier,
-      boundLines: unbound([entry]),
+      boundLines: unbound([recorded]),
     });
   const other = (fields: Partial<ProviderRelease>): ProviderRelease => ({
     ...structuredClone(release),
@@ -748,12 +918,24 @@ void test("reproduction proves the named release is still the newest stable one 
     ...fields,
   });
   // A newer prerelease or draft does not displace the stable release.
-  assert.deepEqual((await run(lister(other({ tag_name: "v2.0-rc1" }), release))).verified, [
-    unseen,
-  ]);
   assert.deepEqual(
-    (await run(lister(other({ tag_name: "v3.0", prerelease: true }), release))).verified,
+    (await run(lister(other({ tag_name: "v2.0-rc1" }), release), recording("v2.0-rc1", true)))
+      .verified,
     [unseen],
+  );
+  assert.deepEqual(
+    (
+      await run(
+        lister(other({ tag_name: "v3.0", prerelease: true }), release),
+        recording("v3.0", true),
+      )
+    ).verified,
+    [unseen],
+  );
+  // Left out of the entry, the newer release is a mismatch.
+  assert.equal(
+    (await run(lister(other({ tag_name: "v2.0-rc1" }), release))).refused[0]!.reason,
+    "mismatch",
   );
   assert.deepEqual(
     (await run(lister(other({ tag_name: "alphabet-1.0", draft: true }), release))).verified,
@@ -772,7 +954,7 @@ void test("reproduction proves the named release is still the newest stable one 
   // as the worker chooses; an entry without an authored listing is refused.
   const onLine = (boundLines: ReadonlyMap<string, string | null>) =>
     reproduceFacts({
-      entries: [entry],
+      entries: [recording("alphabet-1.0", false)],
       readRelease: reader({ 8: release }),
       listReleases: lister(other({ tag_name: "alphabet-1.0" }), release),
       inspect: inspector(players),

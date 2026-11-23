@@ -27,9 +27,11 @@
 //    recorded with a bounded refusal class and never offered, and the other
 //    archives still decide their platforms.
 //  - Every entry records the observed releases (for the release-line rule)
-//    and the release's bare `.exe`/`.msi` assets with the provider's size and
-//    digest, never their bytes (a bare program that is not the archive's own
-//    player means the release offers a different program). A listing whose release URL
+//    and the release's other package forms (`otherPackagesOf`: non-archive
+//    desktop packages, bare binaries and unread containers) with the
+//    provider's size and digest and the platforms each serves, never their
+//    bytes (another package that is not the archive's own player for a
+//    platform means the release offers a different program there). A listing whose release URL
 //    names a tag is read on that tag's release line only.
 //  - Candidates are the authored listing-only identities, including those
 //    the generated route already offers (`workerRecords`), so offered
@@ -75,7 +77,9 @@ import {
   fitContext,
   releaseLine,
   type Generation,
-  type BareExecutable,
+  type OtherPackage,
+  otherPackageForm,
+  otherPackagePlatforms,
   type ObservedReleaseFact,
   type RefusalClass,
   type RefusedArchive,
@@ -107,7 +111,11 @@ import {
   type PlayerFact,
   type Role,
 } from "./catalog-generated-registration.mts";
-import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import {
+  listingPackageLimit,
+  listingProviderIdentity,
+  listingReleaseLimit,
+} from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const defaultBudget = {
@@ -418,21 +426,71 @@ export const recordedTag = (version: string): string | null =>
     ? version
     : null;
 /**
- * The release's bare `.exe` and `.msi` assets in ascending asset id, with the
- * provider's size and digest. Their bytes are never downloaded: an asset
- * without a provider digest is recorded as unknown (null) and the release is
- * excluded unless the digest is known to equal an offered player.
+ * The release's other package forms (`otherPackageForm`) in ascending asset
+ * id, with the provider's size and digest and the platforms each form serves:
+ * a container's by Core's verdict on its name (`suggestion`; every platform
+ * when Core did not classify it). Their bytes are never downloaded: an asset
+ * without a provider digest is recorded as unknown (null) and excludes the
+ * platforms it serves unless the digest is known to equal an offered player.
  */
-export const bareExecutablesOf = (release: ObservedRelease): BareExecutable[] =>
+export const otherPackagesOf = (
+  release: ObservedRelease,
+  suggestion: (name: string) => NameSuggestion | undefined,
+): OtherPackage[] =>
   release.assets
-    .filter((asset) => [".exe", ".msi"].includes(packageFormOf(asset.name) ?? ""))
+    .filter((asset) => otherPackageForm(asset.name) !== undefined)
     .map((asset) => ({
       asset_id: asset.id,
       name: asset.name,
       size: asset.size,
       sha256: asset.sha256,
+      platforms: otherPackagePlatforms(
+        asset.name,
+        otherPackageForm(asset.name) === "container" ? suggestion(asset.name) : undefined,
+      ),
     }))
     .toSorted((left, right) => left.asset_id - right.asset_id);
+/** Names of the release's unread containers, whose name verdicts decide their platforms. */
+export const containerNames = (release: ObservedRelease | undefined) =>
+  (release?.assets ?? [])
+    .filter((asset) => otherPackageForm(asset.name) === "container")
+    .map((asset) => asset.name);
+/**
+ * Observed releases as the facts record them, in ascending release id: the
+ * tag, Core's prerelease verdict (null when Core gave none), the publication
+ * time and whether a package file is among the assets. Null fields are
+ * unknown.
+ */
+export const observedReleaseFacts = (
+  releases: readonly ObservedRelease[],
+  prerelease: (release: ObservedRelease) => boolean | undefined,
+): ObservedReleaseFact[] =>
+  releases
+    .toSorted((left, right) => left.id - right.id)
+    .map((release) => {
+      const published = Date.parse(release.published_at ?? "");
+      return {
+        release_id: release.id,
+        tag: recordedTag(release.version),
+        prerelease: prerelease(release) ?? null,
+        published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
+        packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
+      };
+    });
+/**
+ * The releases a listing observation keeps from a provider list: the newest
+ * `listingReleaseLimit` by publication time (then id), each with at most
+ * `listingPackageLimit` assets, as the observer selects them.
+ */
+export const observerWindow = (releases: readonly ObservedRelease[]): ObservedRelease[] =>
+  releases
+    .toSorted(
+      (left, right) =>
+        Date.parse(right.published_at ?? "") - Date.parse(left.published_at ?? "") ||
+        right.id - left.id,
+    )
+    .slice(0, listingReleaseLimit)
+    .map((release) => ({ ...release, assets: release.assets.slice(0, listingPackageLimit) }));
 /** Reader rules only; TAR.XZ is read by the Linux reader. */
 export const readerPlatform = (name: string) =>
   name.toLowerCase().endsWith(".tar.xz") ? "linux-x86-64" : "windows-x86-64";
@@ -825,9 +883,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     [...choice].map(([id, chosen]) => [id, chosen.release]),
   );
   await names.add({
-    assets: [...latest.values()].flatMap((release) =>
-      (release?.assets ?? []).filter((asset) => isArchive(asset.name)).map((asset) => asset.name),
-    ),
+    assets: [...latest.values()].flatMap((release) => [
+      ...(release?.assets ?? [])
+        .filter((asset) => isArchive(asset.name))
+        .map((asset) => asset.name),
+      ...containerNames(release),
+    ]),
     programs: [...entries.values(), ...held.values()].flatMap((entry) =>
       entry.artifacts.flatMap(candidatesOf).map((player) => basenameOf(player.display_path)),
     ),
@@ -868,19 +929,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   };
   /** The observed releases, for the release-line rule; null fields are unknown. */
   const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
-    observed
-      .get(id)!
-      .releases.toSorted((left, right) => left.id - right.id)
-      .map((release) => {
-        const published = Date.parse(release.published_at ?? "");
-        return {
-          release_id: release.id,
-          tag: recordedTag(release.version),
-          prerelease: names.prerelease(release) ?? null,
-          published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
-          packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
-        };
-      });
+    observedReleaseFacts(observed.get(id)!.releases, (release) => names.prerelease(release));
   const base = (id: string, repositoryId: number) => ({
     port_id: id,
     provider: "github" as const,
@@ -903,7 +952,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       ineligible: { reason, detail },
       unread_forms: release ? unreadFormsOf(release) : (entries.get(id)?.unread_forms ?? []),
       observed_releases: [],
-      bare_executables: [],
+      other_packages: [],
       refused_archives: [],
       attempt: null,
       artifacts: [],
@@ -1024,7 +1073,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       ineligible: null,
       unread_forms: unreadFormsOf(release),
       observed_releases: observedReleasesOf(id),
-      bare_executables: bareExecutablesOf(release),
+      other_packages: otherPackagesOf(release, (name) => names.suggestion(name)),
       refused_archives: (refused as RefusedArchive[]).toSorted(
         (left, right) => left.asset_id - right.asset_id,
       ),
