@@ -18,9 +18,10 @@
 #  4. `deliver`: pushes the one-commit batch branch and opens the pull request.
 #  5. `notify`: files one issue per stop condition and the freshness alert.
 #
-# Only the built-in workflow token is used. GitHub starts no workflow for a
-# pull request that token opens, so a person closes and reopens each batch
-# pull request to start its required checks (see the pull request body).
+# Only the built-in workflow token is used. GitHub creates the `pull_request`
+# runs of a pull request that token opens in an approval-required state: a
+# person with write access starts them (see the pull request body). A merge
+# with that token starts no `push` run.
 name: Listing facts batch
 
 on:

@@ -32,6 +32,7 @@ import {
 import {
   batchAllowlist,
   batchBranchPrefix,
+  derivedBatchPaths,
   batchInputs,
   batchPullBody,
   batchPullProblems,
@@ -215,6 +216,8 @@ void test("the batch allowlist is exactly the facts table and what catalog gener
     "crates/portcove-core/catalog/listings.json",
   ]);
   assert.deepEqual(pathViolations([...batchAllowlist]), []);
+  // Only the facts table is an input; the rest must be canonical outputs.
+  assert.deepEqual(derivedBatchPaths, batchAllowlist.slice(1));
   for (const outside of [
     "scripts/catalog-generated-registration.mts",
     "scripts/listing-package-facts.mts",
@@ -977,7 +980,8 @@ void test("the enrollment delta and the batch pull request body state what chang
     assert.ok(body.includes(heading), heading);
   assert.match(body, /Refs #8569/u);
   assert.doesNotMatch(body, /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #/iu);
-  assert.match(body, /closes and reopens this pull request/u);
+  assert.match(body, /Approve workflows to run/u);
+  assert.doesNotMatch(body, /reopen/u);
 });
 
 void test("only the job's own batch pull requests count; a fork or a person cannot hold the job (D6)", () => {

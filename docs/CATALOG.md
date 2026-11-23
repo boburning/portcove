@@ -4269,21 +4269,32 @@ Every deriving run publishes `catalog-route-fit.mts --json` as the
 blocked reason, the most frequent unread package forms and the most frequent
 name vetoes. That report stays computed from the committed catalog and facts.
 
-###### What the built-in token cannot do
+###### What the built-in token does
 
-GitHub starts no workflow for events the built-in `GITHUB_TOKEN` causes, other
-than `workflow_dispatch` and `repository_dispatch`
-([GitHub documentation](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow)).
-So a batch pull request the job opens gets no `pull_request` or
-`pull_request_target` run: its five required checks and `closing-inventory`
-never start on their own, and the job waits. A person starts them by closing
-and reopening the pull request (one action per batch of up to 64 games, not
-per game). The job does not work around this. Merging with the built-in token
-also starts no `push` run, so `main` CI, and the catalog publication that
-follows a green `main` run, pick the batch up with the next ordinary merge or
-on the publication schedule's next CI-green commit. Removing the per-batch
-action needs a credential whose events start workflows, such as a GitHub App
-installation token, which is an owner decision and a new secret.
+Events the built-in `GITHUB_TOKEN` causes create no workflow run, with two
+exceptions
+([GitHub documentation](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs)):
+`workflow_dispatch` and `repository_dispatch` always do, and a `pull_request`
+event with the `opened`, `synchronize` or `reopened` activity type creates
+its runs in an approval-required state, which a user with write access starts
+with **Approve workflows to run**. CI declares `pull_request`, so a batch pull
+request the job opens gets CI runs that wait for that approval; the job waits
+with it, and an approval counts as a human intervention. Whether the
+`pull_request_target` `closing-inventory` check, which the guarded merge
+requires, runs for such a pull request is not stated there, and neither is
+how the ruleset's extra approval for unattributed changes interacts with a
+bot-authored batch. A push with the built-in token, including its merge,
+starts no `push` run, so `main` CI, and the catalog publication that follows
+a green `main` run, pick the batch up only with the next ordinary qualifying
+`main` run. Runs without approval need a GitHub App installation token or a
+personal token, which is an owner decision and a new secret.
+
+The first authorized pilot batch records, on that pull request: whether the
+approval banner appears; which of the five required gates and
+`closing-inventory` start and attach to the exact bot head; whether the
+guarded merge needs the unattributed-change approval separately; and whether
+the next ordinary qualifying `main` run selects and publishes the batch. Only
+that publication makes the batch delivered.
 
 ###### Cadence and drain
 
@@ -4292,7 +4303,7 @@ I = 24 identities and 2 GiB; a batch lands at most 64 added, 32 withdrawn and
 64 changed routes and reproduces at most 64 entries and 4 GiB. A run derives
 only while no batch is open, so each landed batch costs two runs, the one
 that derives it and the one that merges it, plus the wait until a person
-reopens it to start its checks.
+approves its workflow runs.
 
 When this job was added, 1,110 listing-only GitHub identities had no facts
 (`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47
@@ -4301,8 +4312,8 @@ deriving runs while the byte budget does not bind (an average below
 bytes, such as those without a release archive, need none). Almost every
 deriving run of that pass settles new identities and is therefore a batch,
 so the pass takes about 2 × 47 = 94 runs: 23.5 days at this cadence when
-each batch is reopened before the next run, plus every reopen that waits
-longer. The pass itself has no 30-day limit: new identities are not yet
+each batch's runs are approved before the next run, plus every approval that
+waits longer. The pass itself has no 30-day limit: new identities are not yet
 offered. What the 30-day facts age bounds is the offered facts, which every
 landed batch reconfirms; they stay fresh while a batch lands at least every
 30 days. A quiet catalog proposes a reconfirmation batch once an offered
@@ -4314,7 +4325,18 @@ Each run's `backlog` report gives the current numbers.
 
 ###### Switching it on
 
-The owner, in the repository settings:
+The job stays disabled until the real cohort, independent review, exact
+gates, base-relative bounds and an activation decision are in place. Before
+activation, the owner decides the path scope: the recorded direction on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
+names only the facts and enrollment tables, while a batch that enrolls also
+rewrites `catalog.json` and `listings.json`, because catalog generation
+writes each generated route into the operational catalog and keeps only the
+listing's other platforms in the discovery directory. Those two paths are
+never authored by the batch: CI requires each of them, and the enrollment
+table, to be the byte-for-byte output of `generate-catalog.mts` from the
+facts table and the unchanged sources (`derivedBatchPaths`). Without them a
+batch could not offer a route. Then the owner, in the repository settings:
 
 1. Actions, General, Workflow permissions: allow GitHub Actions to create and
    approve pull requests (the built-in token cannot open the batch pull
@@ -4322,7 +4344,8 @@ The owner, in the repository settings:
 2. Optionally dispatch the workflow once with the default dry run and read
    its summary and artifacts.
 3. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true`.
-4. For each batch pull request, close and reopen it to start its checks.
+4. For each batch pull request, approve its workflow runs (the pilot
+   records what else, if anything, it needs).
 
 Nothing else changes: no ruleset, required check, environment, secret or
 signing setting. To switch it off, delete the variable or set it to anything

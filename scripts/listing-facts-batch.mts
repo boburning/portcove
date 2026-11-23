@@ -122,6 +122,29 @@ export const batchAllowlist = [
   "crates/portcove-core/catalog/listings.json",
 ] as const;
 
+/**
+ * The allowed paths a batch never authors: each must be byte-for-byte what
+ * `scripts/generate-catalog.mts` writes from the facts table and the
+ * unchanged sources (`generate-catalog.mts --check` compares every output).
+ */
+export const derivedBatchPaths = batchAllowlist.filter((file) => file !== factsTablePath);
+
+/** Problems when the derived batch paths are not the canonical generator output. */
+function canonicalDerivativeProblems(): string[] {
+  const result = spawnSync(process.execPath, ["scripts/generate-catalog.mts", "--check"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 10 * 60_000,
+    killSignal: "SIGKILL",
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return result.status === 0
+    ? []
+    : [
+        `${derivedBatchPaths.join(", ")} must be the byte-for-byte output of catalog generation from the facts table: ${(result.stderr || "generate-catalog.mts --check failed").trim().slice(-400)}`,
+      ];
+}
+
 /** Paths outside the batch allowlist. */
 export function pathViolations(paths: readonly string[]): string[] {
   const allowed = new Set<string>(batchAllowlist);
@@ -634,7 +657,7 @@ export function handoffObservations(directory: string) {
 /** Reconfirmed facts older than this are refreshed by a batch even when nothing else changed. */
 export const refreshAfterDays = 14;
 /**
- * Whether a derived batch is worth a pull request (and a person's reopen):
+ * Whether a derived batch is worth a pull request (and a person's approval):
  * the enrollment changed, an entry appeared, disappeared or changed in
  * anything but a reconfirmation, or a committed eligible entry was last
  * confirmed more than `refreshAfterDays` before the new table's time, so
@@ -710,7 +733,7 @@ export function batchPullBody(input: {
     "",
     "No title-specific review happens on this route; the documented rules, the gate and the reproduction are the review (docs/CATALOG.md, scheduled facts batch job).",
     "",
-    "GitHub starts no workflow for a pull request the workflow token opens, so the required checks do not start on their own. To start them, a person closes and reopens this pull request. The next scheduled run merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
+    "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. The next scheduled run merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
   ].join("\n");
 }
 
@@ -908,7 +931,7 @@ export const runsPerBatch = 2;
 /**
  * Days until the offered identities whose release changed are refreshed and
  * landed: the worker's run count for them, times the runs each landed batch
- * costs, at the configured cadence. Waits for a person to reopen a batch come
+ * costs, at the configured cadence. Waits for a person to approve a batch's runs come
  * on top; the freshness alert covers those.
  */
 export function offeredDrainDays(summary: WorkerSummary) {
@@ -1313,6 +1336,9 @@ async function main(argv: string[]): Promise<string> {
         const violations = changed ? pathViolations(changed) : ["(unlisted)"];
         if (violations.length)
           problems.push(`Paths outside the batch allowlist: ${violations.join(", ")}.`);
+        // Only the facts table is an input: every other allowed path must be
+        // the byte-for-byte output catalog generation writes from it.
+        problems.push(...canonicalDerivativeProblems());
         // The job verifies its own fresh batch before any pull request or
         // inputs artifact exists; pull-request CI checks the run it names.
         if (option["own-run"] !== "true")
