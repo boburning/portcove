@@ -15,7 +15,8 @@
 #     its persisted state, catalog generation writes the outputs, and the job
 #     refuses its own batch on a path outside the allowlist, a gate refusal
 #     or an entry it cannot reproduce from the exact release bytes.
-#  4. `deliver`: pushes the one-commit batch branch and opens the pull request.
+#  4. `deliver`: pushes the one-commit batch branch, opens the pull request
+#     and only then saves the worker state, so a failed delivery moves no cursor.
 #  5. `notify`: files one issue per stop condition and the freshness alert.
 #
 # Only the built-in workflow token is used. GitHub creates the `pull_request`
@@ -64,11 +65,17 @@ jobs:
       issues: read
       pull-requests: read
       checks: read
+      # Finds the CI workflow run the guarded merge binds to.
+      actions: read
     outputs:
       blocked: ${{ steps.blocked.outputs.blocked }}
       pr_state: ${{ steps.pull.outputs.state }}
       pr_number: ${{ steps.pull.outputs.number }}
       pr_head: ${{ steps.pull.outputs.head }}
+      pr_head_ref: ${{ steps.pull.outputs.head_ref }}
+      pr_created_at: ${{ steps.pull.outputs.created_at }}
+      ci_run: ${{ steps.pull.outputs.ci_run }}
+      ci_attempt: ${{ steps.pull.outputs.ci_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
@@ -150,6 +157,8 @@ jobs:
           GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check > /dev/null
           echo "target=$target" >> "$GITHUB_OUTPUT"
           echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+      # Bound to the head's CI workflow run: every required context must be a
+      # successful job of that run attempt, not merely a check of that name.
       - name: Merge through the guarded delivery route
         timeout-minutes: 8
         env:
@@ -158,6 +167,8 @@ jobs:
           HEAD: ${{ needs.gate.outputs.pr_head }}
           TARGET: ${{ steps.compose.outputs.target }}
           TREE: ${{ steps.compose.outputs.tree }}
+          CI_RUN: ${{ needs.gate.outputs.ci_run }}
+          CI_ATTEMPT: ${{ needs.gate.outputs.ci_attempt }}
         run: |
           set -euo pipefail
           node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
@@ -170,8 +181,20 @@ jobs:
           cd "$RUNNER_TEMP/head"
           node "$GITHUB_WORKSPACE/scripts/pr-delivery.mts" merge --pr "$NUMBER" --head "$HEAD" \
             --target "$TARGET" --tree "$TREE" --verify-local-composition \
+            --run "$CI_RUN" --attempt "$CI_ATTEMPT" \
             --closure-intent-file "$RUNNER_TEMP/closure.json" \
             --merge-message-file "$RUNNER_TEMP/message.json"
+      # The merged batch branch is spent; a failure to delete it changes nothing else.
+      - name: Delete the merged batch branch
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.gate.outputs.pr_head_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$BRANCH" =~ ^automation/listing-facts-batch-[1-9][0-9]{0,19}$ ]]
+          git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ":refs/heads/${BRANCH}"
 
   derive:
     needs: gate
@@ -183,7 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     # The sum of its step budgets, so the stop assessment and artifacts still
     # run after the slowest permitted worker and reproduction.
-    timeout-minutes: 240
+    timeout-minutes: 250
     permissions:
       contents: read
       actions: read
@@ -293,6 +316,9 @@ jobs:
         timeout-minutes: 10
         # Compared with the previous commit: the main tip this batch starts from.
         run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+      # 45: the 2-minute canonical check, then the 30-minute reproduction
+      # deadline at which every download and Core run is cut (the entry is
+      # refused as over-budget), plus about a minute of release reads.
       - name: Reproduce every changed eligible entry from its exact bytes
         id: verify
         timeout-minutes: 45
@@ -345,7 +371,21 @@ jobs:
           if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$VERIFY" = success ] \
             && [ "$STOP" = false ] && [ "$MATERIAL" = true ]; then ready=true; fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
-          if [ "$ready" = true ]; then git format-patch -1 --stdout HEAD > "$WORK/batch.patch"; fi
+          if [ "$ready" = true ]; then
+            git format-patch -1 --stdout HEAD > "$WORK/batch.patch"
+            # What this run produced: a batch's provenance is bound to it.
+            node scripts/listing-facts-batch.mts outputs --run-id "$GITHUB_RUN_ID" --dry-run "$DRY_RUN" \
+              --patch "$WORK/batch.patch" --output "$WORK/outputs/outputs.json" > /dev/null
+          fi
+      - name: Retain this run's outputs record
+        if: ${{ !cancelled() && steps.ready.outputs.ready == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-outputs-${{ github.run_id }}
+          path: ${{ env.WORK }}/outputs/outputs.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain the batch, its report and the exception queues
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -368,14 +408,27 @@ jobs:
           name: registration-queues-${{ github.run_id }}
           path: ${{ env.WORK }}/route-fit.json
           retention-days: 30
+      # A ready batch's state is saved by `deliver`, only after its pull
+      # request opened: a failed delivery must not move the cursor.
+      - name: Hand the worker state to delivery
+        if: ${{ !cancelled() && env.DRY_RUN != 'true' && steps.ready.outputs.ready == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: listing-facts-batch-state-${{ github.run_id }}
+          path: |
+            ${{ env.WORK }}/state.json
+            ${{ env.WORK }}/history.json
+          if-no-files-found: error
+          retention-days: 1
       # A dry run saves no state: it must not move the cursor of real runs.
-      - name: Persist the worker state and run history
+      - name: Persist the worker state and run history of a run with nothing to propose
         # A refused batch saves nothing either: the next run derives it again.
         if: >-
           ${{ !cancelled() && env.DRY_RUN != 'true' &&
           hashFiles('work/listing-facts-batch/state.json') != '' &&
-          (steps.ready.outputs.ready == 'true' || (steps.assess.outputs.stop == 'false' &&
-          steps.generate.outputs.material == 'false')) }}
+          steps.ready.outputs.ready != 'true' && steps.assess.outputs.stop == 'false' &&
+          steps.generate.outputs.material == 'false' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
         with:
@@ -391,7 +444,7 @@ jobs:
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.derive.outputs.ready == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
       contents: write
       pull-requests: write
@@ -416,28 +469,51 @@ jobs:
         with:
           name: listing-facts-batch-${{ github.run_id }}
           path: work/listing-facts-batch
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 3
+        with:
+          name: listing-facts-batch-outputs-${{ github.run_id }}
+          path: work/listing-facts-batch/outputs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 3
+        with:
+          name: listing-facts-batch-state-${{ github.run_id }}
+          path: work/listing-facts-batch
       - name: Push the one-commit batch branch and open its pull request
         timeout-minutes: 4
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          REPRODUCED: ${{ needs.derive.outputs.reproduced }}
         run: |
           set -euo pipefail
           branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             am --quiet work/listing-facts-batch/batch.patch
-          node scripts/listing-facts-batch.mts paths --base HEAD~1
+          node scripts/listing-facts-batch.mts paths --base HEAD~1 --head HEAD
+          node scripts/listing-facts-batch.mts outputs-check --record work/listing-facts-batch/outputs/outputs.json \
+            --patch work/listing-facts-batch/batch.patch
           git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
           node scripts/listing-facts-batch.mts open-pull-request --branch "$branch" \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            --delta work/listing-facts-batch/delta.json --reproduced "${{ needs.derive.outputs.reproduced }}"
+            --delta work/listing-facts-batch/delta.json --reproduced "$REPRODUCED"
+      # Only now does the cursor move: a delivery that failed above saves no
+      # state, so the next run derives these identities again.
+      - name: Persist the worker state and run history
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 5
+        with:
+          path: |
+            work/listing-facts-batch/state.json
+            work/listing-facts-batch/history.json
+          key: listing-facts-batch-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
   notify:
     needs: [gate, derive, merge, deliver]
     if: >-
       always() && vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
-      needs.gate.result == 'success'
+      needs.gate.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -466,13 +542,16 @@ jobs:
           BLOCKED: ${{ needs.gate.outputs.blocked }}
           PR_STATE: ${{ needs.gate.outputs.pr_state }}
           PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          PR_CREATED_AT: ${{ needs.gate.outputs.pr_created_at }}
+          GATE: ${{ needs.gate.result }}
           DERIVE: ${{ needs.derive.result }}
           MERGE: ${{ needs.merge.result }}
           DELIVER: ${{ needs.deliver.result }}
         run: |
           set -euo pipefail
           node scripts/listing-facts-batch.mts collect --conditions work/listing-facts-batch/conditions.json \
-            --blocked "$BLOCKED" --pr-state "$PR_STATE" --pr-number "${PR_NUMBER:-none}" \
-            --derive "$DERIVE" --merge "$MERGE" --deliver "$DELIVER"
+            --blocked "${BLOCKED:-false}" --pr-state "${PR_STATE:-none}" --pr-number "${PR_NUMBER:-none}" \
+            --pr-created-at "${PR_CREATED_AT:-none}" \
+            --gate "$GATE" --derive "$DERIVE" --merge "$MERGE" --deliver "$DELIVER"
           node scripts/listing-facts-batch.mts issues --conditions work/listing-facts-batch/conditions.json \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

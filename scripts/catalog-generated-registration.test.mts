@@ -775,7 +775,7 @@ void test("the gate independently refuses enrollments that do not rest on their 
   assert.equal(gateGeneration(null, generation).added.length, 1);
 });
 
-void test("the gate checks one top-level directory across every name-permitted artifact (H3)", () => {
+void test("the gate keeps each name-permitted artifact's players under one top-level directory (H3)", () => {
   const generation = generateRegistrations([listing()], table(entry()));
   assert.equal(gateGeneration(null, generation).added.length, 1);
   // A second archive the name allows for the same platform holds the same
@@ -793,6 +793,12 @@ void test("the gate checks one top-level directory across every name-permitted a
     "ambiguous-player",
     "the generator agrees",
   );
+  // The loop skips a contradictory artifact, so such an artifact can never be
+  // the enrolled one: the gate refuses a runtime that rests on it.
+  const contradicted = structuredClone(generation);
+  contradicted.facts.entries[0]!.artifacts[0]!.contradictory = true;
+  contradicted.enrollments[0]!.facts_sha256 = digestOf(contradicted.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, contradicted), /contradicted or non-runtime artifact/u);
 });
 
 void test("malformed asset records and an undated newest release are invalid facts, never dropped (H4)", async () => {

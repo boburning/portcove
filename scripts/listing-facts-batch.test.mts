@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -26,6 +35,8 @@ import {
   artifactFact,
   assetsDigest,
   InspectionError,
+  OverBudgetError,
+  boundedTimeout,
   type ByteInspector,
   type NameClassifier,
 } from "./listing-package-facts.mts";
@@ -37,8 +48,20 @@ import {
   batchPullBody,
   batchPullProblems,
   batchWorkflowPath,
+  allowlistProblems,
+  changedEntries,
   changedPaths,
+  checkerChanges,
+  checkerPaths,
+  checkerSeparationProblem,
+  ciRunFor,
   claimsBatch,
+  clockProblems,
+  clockSkewMs,
+  batchOutputs,
+  batchWaitDays,
+  modeViolations,
+  outputsProblems,
   collectConditions,
   freshnessAlertDays,
   refreshAfterDays,
@@ -55,6 +78,8 @@ import {
   mergeMessage,
   noProgressRuns,
   parseProviderRelease,
+  parseProviderReleaseList,
+  parseRawDiff,
   pathViolations,
   provenanceProblems,
   queueSummary,
@@ -62,6 +87,7 @@ import {
   requiredCheckState,
   requiredContexts,
   stopConditions,
+  stopConditionNames,
   stopIssueBody,
   tableDelta,
   type ProviderRelease,
@@ -208,6 +234,32 @@ const reader =
     if (found instanceof Error) throw found;
     return structuredClone(found);
   };
+/** A provider release as the REST release list states it. */
+const listed = (release: ProviderRelease) => ({
+  id: release.id,
+  tag_name: release.tag_name,
+  draft: release.draft,
+  prerelease: release.prerelease,
+  published_at: release.published_at,
+  assets: release.assets.map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    size: asset.size,
+    browser_download_url: asset.url,
+    ...(asset.sha256 ? { digest: `sha256:${asset.sha256}` } : {}),
+  })),
+});
+/** The release list reader: the given releases, read through the strict list parser. */
+const lister =
+  (...releases: (ProviderRelease | Record<string, unknown>)[]) =>
+  async (repositoryId: number) => {
+    assert.equal(repositoryId, 4242);
+    return parseProviderReleaseList(
+      releases.map((release) =>
+        "repository" in release ? listed(release as ProviderRelease) : release,
+      ),
+    );
+  };
 const inspector =
   (players: PlayerFact[] | Error, log: string[] = []): ByteInspector =>
   async (asset) => {
@@ -239,9 +291,11 @@ void test("the batch allowlist is exactly the facts table and what catalog gener
   ])
     assert.deepEqual(pathViolations([batchAllowlist[0], outside]), [outside], outside);
   // Untracked files and both sides of a change count.
+  const raw = (mode: string, file: string) =>
+    `:${mode === "000000" ? "000000" : "100644"} ${mode} ${"0".repeat(40)} ${"1".repeat(40)} M\0${file}\0`;
   const git = (args: string[]) =>
     args[0] === "diff"
-      ? `${batchAllowlist[0]}\0scripts/x.mts\0`
+      ? `${raw("100644", batchAllowlist[0])}${raw("100644", "scripts/x.mts")}`
       : args[0] === "ls-files"
         ? "notes.txt\0"
         : undefined;
@@ -253,8 +307,156 @@ void test("the batch allowlist is exactly the facts table and what catalog gener
   );
 });
 
+void test("an allowlisted path must stay a regular, non-executable file (F4)", () => {
+  const header = (from: string, to: string) =>
+    `:${from} ${to} ${"0".repeat(40)} ${"1".repeat(40)} M`;
+  const facts = batchAllowlist[0];
+  assert.deepEqual(parseRawDiff(`${header("100644", "100644")}\0${facts}\0`), [
+    { path: facts, modes: ["100644", "100644"] },
+  ]);
+  assert.equal(parseRawDiff("not a raw diff\0x\0"), undefined);
+  assert.equal(parseRawDiff(`${header("100644", "100644")}\0`), undefined);
+  // Added, changed and deleted regular files are fine.
+  for (const modes of [
+    ["000000", "100644"],
+    ["100644", "100644"],
+    ["100644", "000000"],
+  ] as [string, string][])
+    assert.deepEqual(modeViolations([{ path: facts, modes }]), [], modes.join());
+  // A symlink, an executable bit or a gitlink at an allowlisted name is not.
+  for (const mode of ["120000", "100755", "160000"]) {
+    assert.equal(modeViolations([{ path: facts, modes: ["100644", mode] }]).length, 1, mode);
+    assert.equal(modeViolations([{ path: facts, modes: [mode, "100644"] }]).length, 1, mode);
+    assert.match(allowlistProblems([{ path: facts, modes: ["100644", mode] }]).join(), /regular/u);
+  }
+  // Modes outside the allowlist are already a path violation.
+  assert.deepEqual(modeViolations([{ path: "scripts/x.mts", modes: ["000000", "100755"] }]), []);
+  assert.match(allowlistProblems(undefined).join(), /could not list/u);
+
+  // Against real git: the raw diff names each kind of change by mode.
+  const directory = mkdtempSync(join(tmpdir(), "listing-facts-modes-"));
+  try {
+    const run = (args: string[]) => {
+      const result = spawnSync("git", args, { cwd: directory, encoding: "utf8" });
+      return result.status === 0 ? result.stdout : undefined;
+    };
+    const must = (args: string[]) => assert.notEqual(run(args), undefined, args.join(" "));
+    must(["init", "--quiet"]);
+    must(["config", "user.email", "fixture@example.invalid"]);
+    must(["config", "user.name", "fixture"]);
+    must(["config", "core.symlinks", "true"]);
+    mkdirSync(join(directory, "crates/portcove-core/catalog"), { recursive: true });
+    for (const file of batchAllowlist) writeFileSync(join(directory, file), "{}\n");
+    must(["add", "-A"]);
+    must(["commit", "--quiet", "-m", "base"]);
+    const base = run(["rev-parse", "HEAD"])!.trim();
+    const kinds: Record<string, () => void> = {
+      symlink: () => {
+        rmSync(join(directory, batchAllowlist[0]));
+        symlinkSync("listings.json", join(directory, batchAllowlist[0]));
+      },
+      executable: () => chmodSync(join(directory, batchAllowlist[1]), 0o755),
+      // Staged directly: the index holds a commit where the file was.
+      gitlink: () => must(["update-index", "--cacheinfo", `160000,${base},${batchAllowlist[2]}`]),
+    };
+    for (const [kind, change] of Object.entries(kinds)) {
+      must(["reset", "--quiet", "--hard", base]);
+      if (kind !== "gitlink") {
+        change();
+        must(["add", "-A"]);
+      } else change();
+      must(["commit", "--quiet", "-m", kind]);
+      const entries = changedEntries(run, base, "HEAD");
+      assert.ok(entries, kind);
+      assert.equal(modeViolations(entries).length, 1, `${kind}: ${JSON.stringify(entries)}`);
+      // The paths themselves are allowlisted: only the mode check refuses.
+      assert.deepEqual(pathViolations(changedPaths(run, base, "HEAD")!), [], kind);
+    }
+    must(["reset", "--quiet", "--hard", base]);
+    writeFileSync(join(directory, batchAllowlist[0]), '{"x":1}\n');
+    must(["commit", "--quiet", "-am", "regular"]);
+    assert.deepEqual(allowlistProblems(changedEntries(run, base, "HEAD")), []);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("the facts table and the code that checks it must be separate changes (F1)", () => {
+  const read = (file: string) => {
+    try {
+      return readFileSync(join(root, file), "utf8");
+    } catch {
+      return undefined;
+    }
+  };
+  const checker = checkerPaths(read);
+  // Derived, not listed: the workflows, the import closure of the checker
+  // scripts, the CLI dispatch and Core's inspection module with the Core
+  // modules it names.
+  for (const expected of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/listing-facts-batch.yml",
+    ".github/actions/setup-rust/",
+    "scripts/listing-facts-batch.mts",
+    "scripts/listing-package-facts.mts",
+    "scripts/catalog-generated-registration.mts",
+    "scripts/validation-plan.mts",
+    "scripts/generate-catalog.mts",
+    // Imported, never named in the roots.
+    "scripts/bounded-zip.mts",
+    "scripts/runtime-values.mts",
+    "scripts/catalog-route-facts.mts",
+    "apps/desktop/src/catalog-values.generated.ts",
+    "Cargo.lock",
+    "crates/portcove-cli/src/main.rs",
+    "crates/portcove-core/src/package_shape.rs",
+    "crates/portcove-core/src/package_shape/",
+    "crates/portcove-core/src/archive.rs",
+    "crates/portcove-core/src/route_facts.rs",
+  ])
+    assert.ok(checker.includes(expected), expected);
+  for (const file of checker.filter((entry) => !entry.endsWith("/")))
+    assert.notEqual(read(file), undefined, `${file} is named but does not exist`);
+  assert.deepEqual(
+    checkerChanges(
+      ["crates/portcove-core/src/package_shape/machine.rs", "docs/CATALOG.md"],
+      checker,
+    ),
+    ["crates/portcove-core/src/package_shape/machine.rs"],
+  );
+  const facts = batchAllowlist[0];
+  const enrollment = batchAllowlist[1];
+  for (const path of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/listing-facts-batch.yml",
+    "scripts/listing-facts-batch.mts",
+    "scripts/listing-package-facts.mts",
+    "scripts/catalog-generated-registration.mts",
+    "scripts/validation-plan.mts",
+    "crates/portcove-core/src/package_shape/machine.rs",
+    "crates/portcove-core/src/package_shape/listing.rs",
+  ])
+    assert.match(
+      checkerSeparationProblem([facts, enrollment, path], checker) ?? "",
+      /must be separate changes/u,
+      path,
+    );
+  // The facts alone, a batch's generated outputs, and a checker change with
+  // the enrollment it necessarily regenerates are not refused.
+  assert.equal(checkerSeparationProblem([...batchAllowlist], checker), undefined);
+  assert.equal(
+    checkerSeparationProblem([enrollment, "scripts/catalog-generated-registration.mts"], checker),
+    undefined,
+  );
+  assert.equal(checkerSeparationProblem([facts, "docs/CATALOG.md"], checker), undefined);
+});
+
 // ---------------------------------------------------------------------------
 // Reproduction.
+
+/** Every entry's listing binds no release line. */
+const unbound = (entries: readonly ListingFactsEntry[]) =>
+  new Map(entries.map((entry) => [entry.port_id, null] as const));
 
 void test("an entry is reproduced only when its exact bytes rebuild byte-equal facts", async () => {
   const { release, entry, players } = fixture();
@@ -262,8 +464,10 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
   const ok = await reproduceFacts({
     entries: [entry],
     readRelease: reader({ 8: release }),
+    listReleases: lister(release),
     inspect: inspector(players, log),
     classify: coreClassifier,
+    boundLines: unbound([entry]),
   });
   assert.deepEqual(ok, { verified: [unseen], refused: [], bytes: 4096 });
   // Only the release's archives are read, never other files.
@@ -277,8 +481,10 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     const result = await reproduceFacts({
       entries: [copy.entry],
       readRelease: reader({ 8: copy.release }),
+      listReleases: lister(copy.release),
       inspect: inspector(inspected),
       classify: coreClassifier,
+      boundLines: unbound([copy.entry]),
     });
     assert.deepEqual(result.verified, []);
     return result.refused[0]!.reason;
@@ -348,8 +554,10 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
   const unavailable = await reproduceFacts({
     entries: [entry],
     readRelease: reader({ 8: new Error("rate limited") }),
+    listReleases: lister(release),
     inspect: inspector(players),
     classify: coreClassifier,
+    boundLines: unbound([entry]),
   });
   assert.equal(unavailable.refused[0]!.reason, "release-unavailable");
 });
@@ -394,8 +602,10 @@ void test("a refused archive, the release's line facts and its installers are re
     reproduceFacts({
       entries: [copy],
       readRelease: reader({ 8: provider }),
+      listReleases: lister(provider),
       inspect,
       classify: coreClassifier,
+      boundLines: unbound([copy]),
     });
   const sameRefusal = new InspectionError("refused", true, "core-source-invalid");
   assert.deepEqual(await run(entry, refusing(sameRefusal)), {
@@ -465,8 +675,10 @@ void test("reproduction is budgeted: oversized assets, too many entries or bytes
     reproduceFacts({
       entries,
       readRelease: reader({ 8: release }),
+      listReleases: lister(release),
       inspect: inspector(players),
       classify: coreClassifier,
+      boundLines: unbound(entries),
       budget: { ...reproductionBudget, ...budget },
       ...(clock ? { clock } : {}),
     });
@@ -489,6 +701,132 @@ void test("reproduction is budgeted: oversized assets, too many entries or bytes
     maxArchiveBytes: 512 * 1024 ** 2,
     maxMilliseconds: 30 * 60_000,
   });
+});
+
+void test("reproduction proves the named release is still the newest stable one (F2)", async () => {
+  const { release, entry, players } = fixture();
+  const run = (listReleases: Parameters<typeof reproduceFacts>[0]["listReleases"]) =>
+    reproduceFacts({
+      entries: [entry],
+      readRelease: reader({ 8: release }),
+      listReleases,
+      inspect: inspector(players),
+      classify: coreClassifier,
+      boundLines: unbound([entry]),
+    });
+  const other = (fields: Partial<ProviderRelease>): ProviderRelease => ({
+    ...structuredClone(release),
+    id: 9,
+    published_at: "2026-11-10T00:00:00Z",
+    assets: [],
+    ...fields,
+  });
+  // A newer prerelease or draft does not displace the stable release.
+  assert.deepEqual((await run(lister(other({ tag_name: "v2.0-rc1" }), release))).verified, [
+    unseen,
+  ]);
+  assert.deepEqual(
+    (await run(lister(other({ tag_name: "v3.0", prerelease: true }), release))).verified,
+    [unseen],
+  );
+  assert.deepEqual(
+    (await run(lister(other({ tag_name: "alphabet-1.0", draft: true }), release))).verified,
+    [unseen],
+  );
+  const refused = async (listReleases: Parameters<typeof run>[0]) => {
+    const result = await run(listReleases);
+    assert.deepEqual(result.verified, []);
+    return result.refused[0]!;
+  };
+  // An older release whose bytes reproduce must not enroll.
+  const newer = await refused(lister(other({ tag_name: "alphabet-1.0" }), release));
+  assert.equal(newer.reason, "not-latest-stable");
+  assert.match(newer.detail, /id 9, not the recorded id 8/u);
+  // A newer tag Core cannot classify, a newest release without a parseable
+  // time and an unreadable asset are unknown, never a fall-back.
+  assert.equal(
+    (await refused(lister(other({ tag_name: "v9-unclassified" }), release))).reason,
+    "not-latest-stable",
+  );
+  assert.match(
+    (await refused(lister(other({ tag_name: "v2.0-rc1", published_at: null }), release))).detail,
+    /no parseable publication time/u,
+  );
+  assert.match(
+    (
+      await refused(
+        lister({ ...listed(release), assets: [...listed(release).assets, { id: "x" }] }),
+      )
+    ).detail,
+    /cannot read/u,
+  );
+  // A full page may hide newer releases; an unreadable list is unavailable.
+  const page = Array.from({ length: 100 }, (_, index) =>
+    listed(other({ id: 100 + index, tag_name: "v2.0-rc1" })),
+  );
+  assert.match((await refused(lister(...page))).detail, /100 or more releases/u);
+  assert.equal(
+    (
+      await refused(async () => {
+        throw new Error("rate limited");
+      })
+    ).reason,
+    "release-unavailable",
+  );
+  assert.equal(
+    (await refused(async () => parseProviderReleaseList([{ id: 8 }]))).reason,
+    "release-unavailable",
+  );
+  assert.throws(() => parseProviderReleaseList({}), /malformed/u);
+});
+
+void test("a reproduction that reaches its deadline refuses the entry as over-budget (F7)", async () => {
+  const { release, entry, players } = fixture();
+  // Every download and Core run is cut to the time left; none starts after it.
+  assert.equal(boundedTimeout(undefined), 10 * 60_000);
+  assert.equal(boundedTimeout(1_000_000 + 5000, 1_000_000), 5000);
+  assert.equal(boundedTimeout(1_000_000 + 60 * 60_000, 1_000_000), 10 * 60_000);
+  assert.throws(() => boundedTimeout(1_000_000, 1_000_000), OverBudgetError);
+  const base = {
+    entries: [entry, { ...entry, port_id: "zz-second" }],
+    readRelease: reader({ 8: release }),
+    listReleases: lister(release),
+    classify: coreClassifier,
+    boundLines: unbound([entry, { ...entry, port_id: "zz-second" }]),
+  };
+  // A download or Core run that reached the deadline is over-budget, not a
+  // fact about the bytes, and later entries are refused the same way.
+  const cut = await reproduceFacts({
+    ...base,
+    inspect: async () => {
+      throw new OverBudgetError("The Core inspection reached the deadline.");
+    },
+  });
+  assert.deepEqual(
+    cut.refused.map((refusal) => refusal.reason),
+    ["over-budget", "over-budget"],
+  );
+  // A classification cut at the deadline refuses everything as over-budget.
+  const late = await reproduceFacts({
+    ...base,
+    inspect: inspector(players),
+    classify: async () => {
+      throw new OverBudgetError("The Core name classification reached the deadline.");
+    },
+  });
+  assert.deepEqual(
+    late.refused.map((refusal) => refusal.reason),
+    ["over-budget", "over-budget"],
+  );
+  // A passed deadline refuses before any read.
+  const reads: string[] = [];
+  const passed = await reproduceFacts({
+    ...base,
+    inspect: inspector(players, reads),
+    deadline: Date.now() - 1,
+  });
+  assert.deepEqual(reads, []);
+  assert.ok(passed.refused.every((refusal) => refusal.reason === "over-budget"));
 });
 
 void test("only eligible entries a change adds or changes are reproduced", () => {
@@ -723,6 +1061,52 @@ function zip(files: Record<string, Buffer>, deflate = false) {
   end.writeUInt32LE(offset, 16);
   return Buffer.concat([...locals, directory, end]);
 }
+
+void test("a batch's provenance is bound to the facts table its run produced (F5)", () => {
+  const facts = Buffer.from('{"entries":[]}\n');
+  const patch = Buffer.from("From 0000 Mon Sep 17 00:00:00 2001\n");
+  const record = (fields: Partial<ReturnType<typeof batchOutputs>> = {}) =>
+    Buffer.from(
+      JSON.stringify({
+        ...batchOutputs({
+          runId: provenance.workflow_run_id,
+          dryRun: false,
+          factsTable: facts,
+          patch,
+        }),
+        ...fields,
+      }),
+    );
+  assert.deepEqual(JSON.parse(record().toString()), {
+    format: 1,
+    run_id: provenance.workflow_run_id,
+    dry_run: false,
+    facts_table_sha256: createHash("sha256").update(facts).digest("hex"),
+    batch_patch_sha256: createHash("sha256").update(patch).digest("hex"),
+  });
+  assert.deepEqual(outputsProblems(provenance, record(), facts), []);
+  assert.deepEqual(outputsProblems(provenance, record(), facts, patch), []);
+  // Another table, another patch, another run, or a dry run never back a batch.
+  assert.match(
+    outputsProblems(provenance, record(), Buffer.from("{}")).join(),
+    /not the one the named run produced/u,
+  );
+  assert.match(
+    outputsProblems(provenance, record(), facts, Buffer.from("x")).join(),
+    /batch patch is not/u,
+  );
+  assert.match(outputsProblems(provenance, record({ run_id: "1" }), facts).join(), /another run/u);
+  assert.match(
+    outputsProblems(provenance, record({ dry_run: true }), facts).join(),
+    /was a dry run/u,
+  );
+  assert.match(outputsProblems(provenance, undefined, facts).join(), /no outputs\.json/u);
+  assert.match(outputsProblems(provenance, Buffer.from("{"), facts).join(), /not JSON/u);
+  assert.match(
+    outputsProblems(provenance, Buffer.from('{"format":2}'), facts).join(),
+    /malformed/u,
+  );
+});
 
 void test("the retained inputs must carry the recorded digest and match the files beside them", () => {
   const observations = Buffer.from('{"listings":[]}\n');
@@ -987,6 +1371,76 @@ void test("the notify job adds a failed batch and failed jobs, never doubling a 
   );
 });
 
+void test("a batch waiting for its checks for days, and a failed gate job, file a stop issue (F8, F10)", () => {
+  const waiting = (prState: string, prCreatedAt: string) =>
+    collectConditions(
+      { conditions: [], freshness: null },
+      {
+        prState,
+        prNumber: "12",
+        prCreatedAt,
+        now: "2026-11-23T00:00:00.000Z",
+        jobs: {},
+      },
+    ).conditions;
+  assert.equal(batchWaitDays, 3);
+  for (const state of ["waiting-for-checks", "pending"]) {
+    assert.deepEqual(waiting(state, "2026-11-21T00:00:00.000Z"), [], state);
+    const [condition, ...rest] = waiting(state, "2026-11-19T00:00:00.000Z");
+    assert.deepEqual(rest, []);
+    assert.equal(condition!.name, "batch-waiting");
+    assert.match(condition!.detail, /#12 has waited 4 days .*Approve workflows to run/u);
+  }
+  // A green, failed or absent batch, or an unknown opening time, never waits.
+  for (const state of ["green", "failed", "none"])
+    assert.ok(
+      !waiting(state, "2026-11-01T00:00:00.000Z").some((item) => item.name === "batch-waiting"),
+      state,
+    );
+  assert.deepEqual(waiting("pending", "none"), []);
+  // One issue per condition: the waiting stop has its own reused title.
+  assert.ok(stopConditionNames.includes("batch-waiting"));
+  // A failed gate job is a worker error, filed like every other job's.
+  assert.deepEqual(
+    collectConditions(
+      { conditions: [], freshness: null },
+      { prState: "none", prNumber: "none", jobs: { gate: "failure", derive: "skipped" } },
+    ).conditions,
+    [{ name: "worker-error", detail: "The gate job ended failure." }],
+  );
+});
+
+void test("the guarded merge binds to the head's own successful CI run (F10)", () => {
+  const head = "a".repeat(40);
+  const run = (fields: Record<string, unknown> = {}) => ({
+    id: 10,
+    run_attempt: 1,
+    head_sha: head,
+    path: ".github/workflows/ci.yml",
+    event: "pull_request",
+    status: "completed",
+    conclusion: "success",
+    ...fields,
+  });
+  assert.deepEqual(ciRunFor([run()], head), { id: 10, attempt: 1 });
+  // The newest run, then the newest attempt, decides.
+  assert.deepEqual(
+    ciRunFor([run(), run({ id: 12 }), run({ id: 12, run_attempt: 2 }), run({ id: 11 })], head),
+    { id: 12, attempt: 2 },
+  );
+  for (const fields of [
+    { head_sha: "b".repeat(40) },
+    { path: ".github/workflows/other.yml" },
+    { event: "push" },
+    { status: "in_progress" },
+    { conclusion: "failure" },
+    { run_attempt: 0 },
+    { id: "10" },
+  ])
+    assert.equal(ciRunFor([run(fields)], head), undefined, JSON.stringify(fields));
+  assert.equal(ciRunFor(["not a run", null], head), undefined);
+});
+
 void test("the freshness watchdog compares the facts' own time with the real clock", () => {
   const { entry } = fixture();
   const table = { ...emptyFactsTable("2026-11-01T00:00:00.000Z"), entries: [entry] };
@@ -995,11 +1449,53 @@ void test("the freshness watchdog compares the facts' own time with the real clo
   assert.ok(freshnessAlertDays > refreshAfterDays && freshnessAlertDays < 30);
   assert.equal(factsFallingBehind(table, "2026-11-22T00:00:00.000Z"), undefined);
   assert.match(factsFallingBehind(table, "2026-11-23T00:00:00.000Z")!, /22 days ago/u);
-  // An empty table offers nothing that could go stale.
+  // An empty table alerts too once it is old, so a first batch that never
+  // lands is visible (F8); a fresh empty table does not.
+  assert.match(
+    factsFallingBehind(emptyFactsTable("2026-01-01T00:00:00.000Z"), "2026-11-09T00:00:00.000Z")!,
+    /No facts batch has landed since the empty facts table was written 312 days ago/u,
+  );
   assert.equal(
-    factsFallingBehind(emptyFactsTable("2026-01-01T00:00:00.000Z"), "2026-11-09T00:00:00.000Z"),
+    factsFallingBehind(emptyFactsTable("2026-11-01T00:00:00.000Z"), "2026-11-09T00:00:00.000Z"),
     undefined,
   );
+  // A time ahead of the clock is an alert, never a negative age (F3).
+  assert.match(
+    factsFallingBehind(table, "2026-10-31T23:00:00.000Z")!,
+    /ahead of the clock .*generated_at 2026-11-01/u,
+  );
+  // Within the 10-minute skew it is not.
+  assert.equal(
+    factsFallingBehind({ ...table, entries: [] }, "2026-10-31T23:55:00.000Z"),
+    undefined,
+  );
+  const observedAhead = structuredClone(table);
+  observedAhead.generated_at = "2026-11-20T00:00:00.000Z";
+  observedAhead.entries[0]!.observation.observed_at = "2026-12-01T00:00:00.000Z";
+  assert.match(
+    factsFallingBehind(observedAhead, "2026-11-21T00:00:00.000Z")!,
+    new RegExp(`${unseen} observed_at 2026-12-01`, "u"),
+  );
+});
+
+void test("a facts change may not record times ahead of the clock (F3)", () => {
+  const { entry } = fixture();
+  const now = Date.parse("2026-11-21T00:00:00.000Z");
+  const table = { ...emptyFactsTable("2026-11-21T00:05:00.000Z"), entries: [entry] };
+  // Within the 10-minute skew, and an unchanged table, pass.
+  assert.equal(clockSkewMs, 10 * 60_000);
+  assert.deepEqual(clockProblems(null, table, now), []);
+  assert.deepEqual(clockProblems(table, table, now + 365 * 86_400_000 * -1), []);
+  const ahead = { ...table, generated_at: "2026-11-21T00:11:00.000Z" };
+  assert.match(clockProblems(null, ahead, now).join(), /generated_at .* ahead of the clock/u);
+  const observed = structuredClone(table);
+  observed.entries[0]!.observation.observed_at = "2026-11-21T00:11:00.000Z";
+  assert.match(clockProblems(null, observed, now).join(), /observed_at .* ahead of the clock/u);
+  // An unchanged observed_at is not judged again; an unparseable time is ahead.
+  const baseline = structuredClone(observed);
+  baseline.generated_at = "2026-11-20T00:00:00.000Z";
+  assert.deepEqual(clockProblems(baseline, observed, now), []);
+  assert.equal(clockProblems(null, { ...table, generated_at: "soon" }, now).length, 1);
 });
 
 // ---------------------------------------------------------------------------
@@ -1294,6 +1790,37 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   assert.doesNotMatch(workflow.jobs.notify!.if!, /blocked/u);
   // Only the built-in token: no secrets, no personal tokens.
   assert.doesNotMatch(text, /secrets\./u);
+  // No expression is interpolated into a shell script: every value reaches
+  // `run:` through `env:` as a shell variable (F6).
+  for (const [name, job] of Object.entries(workflow.jobs))
+    for (const step of job.steps)
+      assert.doesNotMatch(
+        step.run ?? "",
+        /\$\{\{/u,
+        `${name}: ${step.run?.slice(0, 60)} interpolates an expression`,
+      );
+  // The worker state is saved only after the batch pull request opened (F9);
+  // derive saves it only for a run that proposes nothing.
+  const deliverSteps = workflow.jobs.deliver!.steps;
+  const opened = deliverSteps.findIndex((step) => /open-pull-request/u.test(step.run ?? ""));
+  const saved = deliverSteps.findIndex((step) =>
+    String(step.uses).startsWith("actions/cache/save"),
+  );
+  assert.ok(
+    opened >= 0 && saved > opened,
+    "deliver saves the state after opening the pull request",
+  );
+  assert.match(String((save as { if?: string }).if), /steps\.ready\.outputs\.ready != 'true'/u);
+  // The delivered patch is the one this run recorded, and the outputs
+  // record is retained for the pull-request check (F5).
+  assert.match(text, /outputs-check --record/u);
+  assert.match(text, /name: listing-facts-batch-outputs-\$\{\{ github\.run_id \}\}/u);
+  // The merge binds to the head's CI run (F10) and cleans up its branch.
+  assert.match(text, /--run "\$CI_RUN" --attempt "\$CI_ATTEMPT"/u);
+  assert.equal(workflow.jobs.gate!.permissions!.actions, "read");
+  assert.match(text, /":refs\/heads\/\$\{BRANCH\}"/u);
+  // A failed gate job still reaches the stop assessment (F10).
+  assert.match(workflow.jobs.notify!.if!, /needs\.gate\.result != 'skipped'/u);
   // Merges go through the guarded route only, never an API shortcut.
   assert.match(text, /scripts\/pr-delivery\.mts"? merge[^\n]*\n[^\n]*--verify-local-composition/u);
   assert.doesNotMatch(text, /pulls\/[^\s]*\/merge|gh pr merge|enable_pr_auto_merge|--admin/u);

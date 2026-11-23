@@ -4261,37 +4261,55 @@ Each run, in one concurrency group (`listing-facts-batch`):
    against that tip, and merges through the guarded route
    (`scripts/pr-delivery.mts merge`, exact head, that target and tree checked
    from local objects with `--verify-local-composition`, since GitHub rebuilds
-   its merge preview lazily, closure intent and merge message). A failed check stops the job. Missing or pending
-   checks wait.
+   its merge preview lazily, closure intent and merge message). The merge is
+   bound with `--run`/`--attempt` to the head's newest successful
+   `pull_request` CI run, so every required context must be a successful job
+   of that run attempt; without such a run the batch still waits. The merged
+   batch branch is then deleted (a failed deletion changes nothing else). A
+   failed check stops the job. Missing or pending checks wait, and a batch
+   that has waited more than 3 days (`batchWaitDays`) files `batch-waiting`.
 3. Otherwise the job derives one batch from the tip of `main`: the newest
    main observer handoff (`catalog-upstream-observations-*`) and the worker
    state restored from the Actions cache. It retains the run's inputs (the
    observations, the prior state and `inputs.json` with their digests) as the
    `listing-facts-batch-inputs-<run id>` artifact before the worker runs,
    then runs the worker once with `--workflow-run-id`, `--source-commit` and
-   `--inputs-sha256`, regenerates the catalog and commits locally. It refuses
+   `--inputs-sha256`, regenerates the catalog and commits locally. A batch it
+   can propose is retained with its outputs record
+   (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
+   of the batch patch, and whether the run was a dry run). It refuses
    its own batch on a path outside the allowlist, a gate refusal, an entry it
    cannot reproduce, or any stop condition, and proposes nothing when the
    change is not material: no enrollment changed, no entry appeared,
    disappeared or changed other than by reconfirmation, and no offered entry
    was last confirmed more than 14 days before.
 4. A ready batch is pushed as the one-commit branch
-   `automation/listing-facts-batch-<run id>` and opened as a pull request.
+   `automation/listing-facts-batch-<run id>` and opened as a pull request,
+   after the deliver job checks that the applied patch and facts table are
+   the ones the outputs record names. Only then is the worker state saved.
 5. Stop conditions and the freshness alert are filed; a deriving run also
    publishes the exception queues.
 
 A dry run never saves the worker state, so it cannot move the cursor real
 runs follow. A refused batch saves none either, so the next run derives it
-again. A batch a person closes unmerged has already moved the cursor: its
+again. A ready batch's state goes to the deliver job as a one-day artifact
+and is saved there only after its pull request opened, so a failed push or
+pull request leaves the cursor where it was and the next run derives the same
+identities again (a pushed branch whose pull request failed stays behind,
+unused). A batch a person closes unmerged has already moved the cursor: its
 new identities wait for the next pass, and changed releases are offered
-again when the release changes or its facts are next reconfirmed.
+again when the release changes or its facts are next reconfirmed. Its branch
+is not deleted; delete it by hand.
 
 ###### Reproducible facts and the path allowlist
 
 A batch may change only `listing-package-facts.generated.json`,
 `generated-registration.generated.json`, `catalog.json` and `listings.json`:
 the facts table and exactly the outputs `scripts/generate-catalog.mts`
-rewrites from it. It never changes `deltaBounds`, `GENERATOR_VERSION`, a
+rewrites from it. The allowlist is by name, so each of those paths must also
+stay a regular, non-executable file on both sides (`git diff --raw` modes
+`000000` or `100644`): a symlink, an executable bit or a gitlink at an
+allowed name is a violation. It never changes `deltaBounds`, `GENERATOR_VERSION`, a
 script, a workflow or an authored listing, and `generate-catalog.mts --check`
 still requires every output to equal what the facts produce.
 
@@ -4301,7 +4319,12 @@ opened it. For every eligible entry the change adds or changes against the
 gate's baseline, CI reads the release by numeric repository and release id
 from the GitHub REST API, requires those ids to name the listing's own
 repository, the recorded tag, publication time, Core's stable verdict and the
-asset-list digest, requires the entry to record exactly
+asset-list digest, lists the repository's releases by id (one page of 100,
+the observer's page size) and re-applies the worker's `latestStable` and
+`unreadableReleases` to require the release to be still the newest stable
+one (an older release whose bytes reproduce does not enroll; a full page,
+an unclassified newer tag or an unreadable newer release refuses as
+`not-latest-stable`), requires the entry to record exactly
 the release's archives, re-downloads each digest-bound archive, re-runs
 `inspect-listing-artifact` and Core's name classification, and requires a
 byte-equal artifact fact. A refused archive must be refused again with the
@@ -4316,13 +4339,34 @@ parser version, coverage, repository binding and unread forms. A
 reconfirmation re-reads nothing, so whoever can merge can keep a
 reconfirmation's date moving; an ineligible entry offers nothing, and its
 withdrawals stay bounded by the gate. One change may reproduce at most 64
-entries and 4 GiB with no archive over 512 MiB; the 30-minute deadline is
-checked before each archive and one download or Core run stops at 10 minutes
-(`reproductionBudget`); the worker's
-batch bound (`boundFactsBatch`) keeps every batch inside that budget. A change
-over budget, an oversized or unavailable asset or a changed release refuses
-the entry: it is never trusted. A push to `main` was verified on its pull
-request and re-reads nothing.
+entries and 4 GiB with no archive over 512 MiB (`reproductionBudget`). The
+30-minute deadline is checked before each entry and archive, and every
+download, Core inspection and name classification is cut to the time left
+(at most 10 minutes each) and not started past it, so an item that reaches
+the deadline is an `over-budget` refusal, never a step timeout. After the
+deadline only the two release reads of the entry in hand remain (30 seconds
+each). The worker's batch bound (`boundFactsBatch`) keeps every batch inside
+that budget. A change over budget, an oversized or unavailable asset or a
+changed release refuses the entry: it is never trusted. A facts change may
+not record `generated_at`, or any added or changed `observed_at`, more than
+10 minutes ahead of the clock (`clockProblems`): facts age is measured from
+those times. A push to `main` was verified on its pull request and re-reads
+nothing.
+
+The pull-request check runs the pull request's own code. So `plan` and
+`verify` refuse a change that edits the facts table together with any path
+the check depends on (`checkerPaths`): the two workflows and their Rust
+setup, `Cargo.lock`, the CLI's `main.rs` and `catalog.rs`, the relative
+import closure of `listing-facts-batch.mts`, `listing-package-facts.mts`,
+`catalog-generated-registration.mts`, `generate-catalog.mts` and
+`validation-plan.mts`, and Core's `package_shape` module with its
+submodules and every Core module they name directly. The two must be
+separate changes, checker first. The enrollment table alone is not refused:
+a rule change regenerates it in the same change, from facts that change
+cannot edit. This catches accidents only. The list is derived from the
+checked-out code, Core's deeper dependencies are not in it, and a deliberate
+change that loosens the checker and edits the facts in one pull request,
+or that removes this refusal, is held only by review.
 
 A change claims to be a batch when its branch is a batch branch or it
 changes the table's `provenance`. CI then also holds it to the path allowlist
@@ -4330,11 +4374,15 @@ and checks the provenance against the run it names: that run must be this
 repository's batch workflow, started by the schedule or a dispatch, on `main`
 at the recorded source commit, the pull request branch must be that run's
 batch branch, and the run's retained `inputs.json` must have the recorded
-digest and match the observations and state retained beside it. The inputs
-artifact is kept 30 days. CI reads the change's paths from the committed
-range, so files earlier CI steps leave behind do not count. A dispatched dry
-run also retains inputs; its run id passes the provenance check, but it pushes
-no branch, and its facts still need reproduction like any other change.
+digest and match the observations and state retained beside it. The
+provenance is also bound to the run's outputs: the run's outputs record must
+name that run, must not be a dry run, and must hold the SHA-256 of exactly
+the facts table under check. The inputs and outputs artifacts are kept 30
+days. CI reads the change's paths from the committed range, so files earlier
+CI steps leave behind do not count. Both artifacts are read with CI's own
+built-in token (`actions: read`, a same-repository run); no credential is
+added. That read is not yet observed live: if GitHub refuses it on a batch
+pull request, the check refuses the batch, never passes it.
 
 ###### Stop and wait
 
@@ -4349,7 +4397,9 @@ workflow issues and pull requests, a recurrence may open a new issue instead
 of reopening the old one. A `reproduction-refused` issue names up to five
 refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
 `path-allowlist`, `required-check-failed` (or a job batch that is not a
-well-formed one-commit pull request), `no-progress` (three
+well-formed one-commit pull request), `batch-waiting` (an open batch whose
+required checks have not all finished more than 3 days after it was opened,
+most likely because its runs wait for approval), `no-progress` (three
 consecutive runs settled nothing while work waited), `backlog-growing` (four
 consecutive runs grew the backlog), `large-withdrawal` (more than 16 routes in
 one batch), `repository-identity-changed`, `rule-version-changed` (the facts
@@ -4357,21 +4407,26 @@ parser, generator or Core filename rule version changed since the previous
 run), `observer-coverage-dropped` (a quarter fewer observed identities than
 the previous run), `drain-exceeds-facts-age` (refreshing the offered
 identities whose release changed takes 30 days or more, counting two runs per
-landed batch) and `worker-error` (also a job that timed out or was
-cancelled). A stop condition found while deriving also withholds that run's
+landed batch) and `worker-error` (also any job, the `gate` job included, that
+failed, timed out or was cancelled). A stop condition found while deriving also withholds that run's
 batch. An open batch pull request that still fails stops the job again after
 its issue is closed; close that pull request too.
 
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
-open. When the table has entries and is more than 21 days old, the job files
+open. When the table is more than 21 days old, including the empty table
+before the first batch lands, or records a time more than 10 minutes ahead
+of the clock, the job files
 `Listing facts batch: facts are falling behind the clock`. It does not stop
 the job, whose next batch is the remedy. Every job and every step has a
 finite timeout, and each job's timeout is at least the sum of its steps', so
 a slow step fails inside the job and the stop assessment still runs: the CLI
-build 30 minutes, the worker 60 (its own downloads and Core runs stop at 10
-minutes each), reproduction 45 (its own deadline 30, plus one 10-minute
-download or Core run), and the derive job 240.
+build 30 minutes; the worker 60 (each download and Core run stops at 10
+minutes, but the worker has no overall deadline, so a run past 60 minutes
+fails as `worker-error`); reproduction 45 (the 2-minute canonical check, the
+provenance reads of about 6 minutes in pull-request CI, the 30-minute
+deadline and about a minute of release reads); the derive job 250 and the
+deliver job 40.
 
 ###### Exception queues
 
@@ -4397,7 +4452,10 @@ GitHub's GraphQL closing inventory to the REST reconstruction. Approving the
 runs is CI permission, not merge eligibility: the guarded merge separately
 requires the five exact-head contexts, a complete closing inventory and the
 composition checks. The `Protect main` ruleset requires the five contexts,
-zero approving reviews and no required workflow. Its extra approval applies
+zero approving reviews and no required workflow. GitHub matches a required
+context by its name only, so a check run of that name from any source with
+`checks: write` on the repository satisfies it; the job's own merge is
+stricter, because it is bound to the five jobs of the head's CI run. Its extra approval applies
 only to Copilot pull requests not attributed to a person and has no effect
 when the ruleset requires zero approvals
 ([GitHub documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#additional-approval-for-unattributed-copilot-pull-requests)),
@@ -4457,17 +4515,31 @@ table, to be the byte-for-byte output of `generate-catalog.mts` from the
 facts table and the unchanged sources (`derivedBatchPaths`). Without them a
 batch could not offer a route. Then the owner, in the repository settings:
 
-1. Actions, General, Workflow permissions: allow GitHub Actions to create and
+1. Accept that a hand-written pull request changing both the facts checker
+   and the facts table is held only by review (the separation refusal above
+   catches accidents), and decide whether the checker paths should need a
+   review.
+2. Actions, General, Workflow permissions: allow GitHub Actions to create and
    approve pull requests (the built-in token cannot open the batch pull
-   request otherwise). The job requests its own write permissions per job.
-2. Optionally dispatch the workflow once with the default dry run and read
+   request otherwise). This setting is repository-wide: it lets every
+   workflow's built-in token in this repository create and approve pull
+   requests, not only this job's. The job requests its own write permissions
+   per job.
+3. Optionally dispatch the workflow once with the default dry run and read
    its summary and artifacts.
-3. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true`.
-4. For each batch pull request, approve its workflow runs (**Approve
+4. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true` (unset
+   or any other value is off).
+5. For each batch pull request, approve its workflow runs (**Approve
    workflows to run**). That approval is a human intervention, and it grants
    CI permission only: the job merges later through the guarded route when
-   the exact-head checks pass. The pilot records what else, if anything, a
-   batch needs.
+   the exact-head checks pass. A merged batch reaches `main` CI and catalog
+   publication with the next ordinary qualifying `main` run. The pilot
+   records what else, if anything, a batch needs; close and reopen is not
+   documented as required unless the pilot shows it.
+6. Watch the first live batch and record the actual behaviour, including
+   whether the guarded merge of a bot-authored squash is eligible.
+7. Removing the per-batch approval needs a GitHub App installation or another
+   credential: an owner decision, not part of this job.
 
 Nothing else changes: no ruleset, required check, environment, secret or
 signing setting. To switch it off, delete the variable or set it to anything
