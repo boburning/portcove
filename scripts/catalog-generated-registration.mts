@@ -18,8 +18,9 @@
 //  2. its declared runtime engine is not the ScummVM project;
 //  3. its availability is not `source-only` or `unavailable`;
 //  4. its project or release URL names a GitHub repository (a readable upstream);
-//  5. one facts entry exists for it, names that same repository and was written
-//     by the current facts parser version;
+//  5. one facts entry exists for it, names that same repository, was written
+//     by the current facts parser version and judged release text with the
+//     listing's own words (`listing_words`, else `repository-mismatch`);
 //  6. the worker did not complete the entry as ineligible (no stable release,
 //     no supported or digest-bound archive, only non-desktop package forms, an
 //     archive over the limits, a permanent Core refusal, a changed repository
@@ -38,7 +39,8 @@
 //     and no newer prerelease on the main line or another product-naming line
 //     follows it (`ambiguous-release-line`); a tag of only channel words with
 //     a date, time or hash is a prerelease (`channelOnlyTag`), and so is a
-//     release whose title or first body line states one (`statesPrerelease`);
+//     release whose title or first body line states one where a status
+//     stands (`releaseStatement`, `statesPrerelease`);
 //  7b. the release ships no other package form (a non-archive desktop
 //     package such as `.exe`, `.msix`, `.AppImage`, `.sh` or `.dmg`, a bare
 //     binary, or any other asset that is neither a read archive, a library,
@@ -47,7 +49,8 @@
 //     for (one whose name permits P), other than that archive's own player
 //     for P: every such asset has a provider digest equal to a player of P's
 //     archives, or is the same product and version in another package form
-//     whose archives' players are named for that product (`sameProductForm`,
+//     whose archives' players are named exactly for that product
+//     (`sameProductForm`, `programNamesProduct`, `sameVersion`,
 //     a contradiction detector, never proof the archive is the game), else
 //     the release offers a different package than the archive where the rule
 //     would bind, the archives' role is unknown and the whole identity is
@@ -83,7 +86,10 @@
 //     (a `download` hold does not block registration; this route never offers
 //     a download);
 // 11. on no platform is the one program named for a launcher, settings or
-//     setup step (`launcherProgram`): the whole identity is `launcher-entry`.
+//     setup step (`launcherProgram`): the whole identity is `launcher-entry`,
+//     and the gate refuses every runtime of such an identity.
+// A source-named archive holding programs counts in rules 7b, 7c and 9 as an
+// ordinary candidate (`countedArchive`) and is never itself offered.
 // The route's platforms are every P satisfying 8 to 10.
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";

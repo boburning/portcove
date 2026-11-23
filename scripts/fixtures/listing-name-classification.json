@@ -192,7 +192,18 @@
       "Upset.exe",
       "game",
       "game-installer.exe",
-      "launcher"
+      "launcher",
+      "GameCodegen.exe",
+      "GameRecomp.exe",
+      "game-gen",
+      "the-mapper.exe",
+      "Table.exe",
+      "MyGame.exe",
+      "Game-x64.exe",
+      "game.x86_64",
+      "supergame2.exe",
+      "Table_Game.exe",
+      "gamegen"
     ]
   },
   "output": {
@@ -988,6 +999,50 @@
       },
       {
         "name": "launcher",
+        "tool_token": null
+      },
+      {
+        "name": "GameCodegen.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameRecomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game-gen",
+        "tool_token": null
+      },
+      {
+        "name": "the-mapper.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table.exe",
+        "tool_token": null
+      },
+      {
+        "name": "MyGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "supergame2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamegen",
         "tool_token": null
       }
     ]

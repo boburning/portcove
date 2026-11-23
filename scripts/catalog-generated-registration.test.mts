@@ -56,6 +56,7 @@ import {
   gateLauncher,
   gateProduct,
   gateStatement,
+  gateListingWords,
   bodyFirstLine,
   listingWords,
   listingCounts,
@@ -5830,4 +5831,520 @@ void test("every archive answering 404 is upstream-unavailable; one 404 is that 
     globalThis.fetch = original;
     await rm(work, { recursive: true, force: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Review repairs: the fit rule and the gate agree on launcher identities (B1),
+// product-named programs (B2, F2), release text (F1), source-named archives
+// holding programs (F3) and data packs (F4).
+
+const allPlatforms = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"];
+const runningOn: Record<string, (machine: string) => boolean> = Object.fromEntries(
+  allPlatforms.map((platform) => [platform, (machine: string) => machineRunsOn(machine, platform)]),
+);
+/** The gate's verdict on one enrollment forced onto these facts for one artifact and platform. */
+function forcedOn(
+  facts: ListingFactsEntry,
+  record: AuthoredPort,
+  assetId: number,
+  platform: string,
+) {
+  const offered = facts.artifacts.find((item) => item.asset_id === assetId)!;
+  const generation = generateRegistrations([record], table(facts));
+  generation.enrollments = [
+    {
+      port_id: record.listing.id,
+      platforms: [platform],
+      generator_version: 0,
+      facts_sha256: digestOf(facts),
+      repository: facts.repository,
+      repository_id: facts.repository_id,
+      release: {
+        id: facts.observation.release_id!,
+        tag: facts.observation.tag!,
+        observed_at: facts.observation.observed_at,
+      },
+      runtimes: [
+        {
+          platform,
+          asset_id: assetId,
+          asset_name: offered.name,
+          archive_sha256: offered.sha256,
+          source: "exact-release-structured",
+          players: offered.players.filter((item) => runningOn[platform]!(item.machine)),
+        },
+      ],
+    },
+  ];
+  try {
+    gateGeneration(null, generation);
+    return "accepted";
+  } catch (error) {
+    return (error as Error).message;
+  }
+}
+
+void test("a launcher on a platform the fit would not enroll still refuses every forged runtime (B1)", () => {
+  const record = listing(unseen, { platforms: ["windows-x86-64", "linux-x86-64"] });
+  // The fit withholds the identity; a forged Windows-only enrollment from
+  // the clean Windows zip is refused by the gate as well.
+  const facts = entry([
+    named("Game-win64.zip", [player("Game/Game.exe")], 11, "windows"),
+    named("Game-linux.tar.gz", [player("Game/launcher", "elf64-x86-64")], 12, "linux"),
+  ]);
+  assert.equal(reasonOf(decide(record, facts)), "launcher-entry");
+  assert.match(forcedGate(facts, 11, record), /only program on linux-x86-64/u);
+  assert.match(forcedGate(facts, 12, record, "linux-x86-64"), /launcher, settings or setup/u);
+  // The cross-platform shape of the 1c test, forced past the fit.
+  const both = entry([
+    named("Game-v1.0-windows.zip", [player("Game/Game.exe")], 11, "windows"),
+    named("Game-v1.0-linux.tar.gz", [player("Game/launcher", "elf64-x86-64")], 12, "linux"),
+  ]);
+  assert.match(forcedGate(both, 11, record), /only program on linux-x86-64/u);
+  // A launcher that is not the platform's one program, or one the fit cannot
+  // decide (a refused archive beside it, a second archive), does not refuse
+  // the identity: the fit enrolls Windows and the gate accepts it.
+  for (const linux of [
+    [
+      named(
+        "Game-linux.tar.gz",
+        [player("Game/launcher", "elf64-x86-64"), player("Game/game", "elf64-x86-64")],
+        12,
+        "linux",
+      ),
+    ],
+    [
+      named("Game-linux.tar.gz", [player("Game/launcher", "elf64-x86-64")], 12, "linux"),
+      named("Game-extra-linux.tar.gz", [player("Game/launcher", "elf64-x86-64", "x")], 13, "linux"),
+    ],
+  ]) {
+    const mixed = entry([
+      named("Game-win64.zip", [player("Game/Game.exe")], 11, "windows"),
+      ...linux,
+    ]);
+    const decision = decide(record, mixed);
+    assert.ok(decision.fit, JSON.stringify(decision));
+    assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64"]);
+    assert.equal(forcedGate(mixed, 11, record), "accepted");
+  }
+});
+
+void test("the gate refuses every enrollment the fit did not choose, over generated entries (B1, F3)", () => {
+  const random = seeded(8630);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const names: [string, string][] = [
+    ["Game-win64.zip", "windows"],
+    ["Game-1.0-win64.zip", "windows"],
+    ["Game-linux.tar.gz", "linux"],
+    ["Game-1.0-linux.tar.gz", "linux"],
+    ["Game-macos.zip", "macos"],
+    ["Game-1.0.zip", "unknown"],
+    ["Game-1.0-win64-source.zip", "windows"],
+    ["Game-src.zip", "unknown"],
+    ["Game-1.0-update.zip", "unknown"],
+  ];
+  const programs = [
+    "Game/Game.exe",
+    "Game/Launcher.exe",
+    "Game/Other.exe",
+    "Game/game",
+    "Game/launcher",
+    "Tools/Game.exe",
+    "Game.app/Contents/MacOS/Game",
+  ];
+  const machines = [
+    "pe-x86-64",
+    "pe-x86-64",
+    "elf64-x86-64",
+    "elf64-x86-64",
+    "macho-universal-arm64+x86-64",
+    "macho-arm64",
+    "pe-x86",
+  ];
+  const forms = ["Game-1.0-Setup.exe", "Game-1.0.AppImage", "Game.7z", "SHA256SUMS", "Tool.exe"];
+  const record = listing(unseen, { platforms: allPlatforms });
+  let forced = 0;
+  let fits = 0;
+  let launchers = 0;
+  for (let round = 0; round < 1500; round++) {
+    const artifacts = Array.from({ length: 1 + Math.floor(random() * 3) }, (_, index) => {
+      const [name, os] = pick(names);
+      const count = Math.floor(random() * 3);
+      const players = [
+        ...new Map(
+          Array.from({ length: count }, () => {
+            const path = pick(programs);
+            const machine = pick(machines);
+            return [path, player(path, machine, random() < 0.3 ? "shared" : path)];
+          }),
+        ).values(),
+      ];
+      return named(name, players, 11 + index, os);
+    });
+    const extra: Partial<ListingFactsEntry> = {};
+    if (random() < 0.2) {
+      const name = pick(forms);
+      const kind = otherPackageForm(name);
+      if (kind !== undefined)
+        extra.other_packages = [
+          otherForm(30, name, kind === "container" ? allPlatforms : gateFormPlatforms(name)),
+        ];
+    }
+    if (random() < 0.1)
+      extra.refused_archives = [
+        {
+          asset_id: 40,
+          name: "Game-linux-x64.zip",
+          size: 100,
+          sha256: sha("refused"),
+          name_suggestion: { ...suggestion(neutralZip), os: "linux" },
+          refusal: "core-unsupported",
+        },
+      ];
+    const facts = entry(artifacts, {}, unseen, extra);
+    const decision = decide(record, facts);
+    if (decision.fit) fits++;
+    else if (decision.reason === "launcher-entry") launchers++;
+    const chosen = new Set(
+      decision.fit
+        ? decision.enrollment.runtimes.map((runtime) => `${runtime.platform}|${runtime.asset_id}`)
+        : [],
+    );
+    for (const artifact of facts.artifacts)
+      for (const platform of allPlatforms) {
+        const verdict = forcedOn(facts, record, artifact.asset_id, platform);
+        if (chosen.has(`${platform}|${artifact.asset_id}`)) continue;
+        forced++;
+        assert.notEqual(
+          verdict,
+          "accepted",
+          `${platform} ${artifact.name} ${JSON.stringify(artifact.players.map((p) => [p.display_path, p.machine]))} beside ${JSON.stringify(facts.artifacts.map((a) => [a.name, a.players.map((p) => [p.display_path, p.machine])]))} fit=${decision.fit ? "fit" : decision.reason}`,
+        );
+      }
+    if (decision.fit)
+      assert.equal(
+        gateGeneration(null, generateRegistrations([record], table(facts))).added.length,
+        1,
+      );
+  }
+  assert.ok(forced > 3000, `only ${forced} forged enrollments`);
+  assert.ok(fits > 50, `only ${fits} fits`);
+  assert.ok(launchers > 20, `only ${launchers} launcher-entry identities`);
+});
+
+void test("only a program named exactly for the product relieves another package form (B2, F2)", () => {
+  const withheld = (artifact: ArtifactFactV2, form: string, platforms: string[]) => {
+    const record = listing(unseen, { platforms });
+    const facts = entry([artifact], {}, unseen, {
+      other_packages: [otherForm(19, form, platforms)],
+    });
+    assert.equal(reasonOf(decide(record, facts)), "other-package-form-beside-archive", form);
+    assert.match(
+      forcedOn(facts, record, artifact.asset_id, platforms[0]!),
+      /another package for/u,
+      `gate: ${artifact.name} beside ${form}`,
+    );
+  };
+  const enrolls = (artifact: ArtifactFactV2, form: string, platforms: string[]) => {
+    const record = listing(unseen, { platforms });
+    const facts = entry([artifact], {}, unseen, {
+      other_packages: [otherForm(19, form, platforms)],
+    });
+    const decision = decide(record, facts);
+    assert.ok(decision.fit, `${artifact.name} beside ${form}: ${JSON.stringify(decision)}`);
+    assert.equal(
+      gateGeneration(null, generateRegistrations([record], table(facts))).added.length,
+      1,
+      `gate: ${artifact.name} beside ${form}`,
+    );
+  };
+  const windows = (name: string, program: string) => named(name, [player(program)], 11, "windows");
+  const linux = (name: string, program: string) =>
+    named(name, [player(program, "elf64-x86-64")], 11, "linux");
+  // A NAME never establishes that the archive is the game: a program that
+  // merely shares a word with, starts with, or contains the product is
+  // another program.
+  withheld(windows("Game-1.0-win64.zip", "Game/GameCodegen.exe"), "Game-1.0-Setup.exe", W);
+  withheld(windows("Game-1.0-win64.zip", "GameRecomp.exe"), "Install-Game-1.0.exe", W);
+  withheld(linux("Game-1.0-linux.tar.gz", "game-gen"), "Game-1.0.AppImage", L);
+  withheld(windows("The-Game-1.0-win64.zip", "the-mapper.exe"), "The-Game-1.0-Setup.exe", W);
+  withheld(windows("TableGame-1.0-win64.zip", "Table.exe"), "TableGame-1.0-Setup.exe", W);
+  withheld(windows("Game-1.0-win64.zip", "Game/MyGame.exe"), "Game-1.0-Setup.exe", W);
+  // The product's own program still relieves, with variant words or
+  // trailing digits only.
+  enrolls(windows("Game-1.0-win64.zip", "Game/Game.exe"), "Game-1.0-Setup.exe", W);
+  enrolls(windows("Game-1.0-win64.zip", "Game/Game-x64.exe"), "Game-1.0-Setup.exe", W);
+  for (const form of ["Game-1.0.AppImage", "Game-1.0.deb", "Game-1.0.flatpak"])
+    enrolls(linux("Game-1.0-linux.tar.gz", "Game"), form, L);
+  enrolls(linux("Game-1.0-linux.tar.gz", "Game/game.x86_64"), "game_1.0_amd64.deb", L);
+  enrolls(
+    named(
+      "Game-1.0-macos.zip",
+      [player("Game.app/Contents/MacOS/Game", "macho-universal-arm64+x86-64")],
+      11,
+      "macos",
+    ),
+    "Game-1.0.dmg",
+    M,
+  );
+  enrolls(windows("Super-Game-1.0-win64.zip", "supergame2.exe"), "Super-Game-1.0-Setup.exe", W);
+  enrolls(windows("TableGame-1.0-win64.zip", "Table_Game.exe"), "TableGame-1.0-Setup.exe", W);
+  // F2: a Debian revision, an unversioned AppImage and trailing zero
+  // components are the same version.
+  enrolls(linux("Game-1.0-linux.tar.gz", "Game"), "game_1.0-1_amd64.deb", L);
+  enrolls(linux("Game-1.0-linux.tar.gz", "Game"), "Game.AppImage", L);
+  enrolls(linux("Game-1.0.0-linux.tar.gz", "Game"), "Game-1.0.AppImage", L);
+  enrolls(windows("Game-1.0-win64.zip", "Game/Game.exe"), "Game-1.0.0-Setup.exe", W);
+  // Another version, and any other unversioned form, still compete.
+  withheld(linux("Game-1.0-linux.tar.gz", "Game"), "game_1.1-1_amd64.deb", L);
+  withheld(linux("Game-1.0-linux.tar.gz", "Game"), "Game-1.0.1.AppImage", L);
+  withheld(windows("Game-1.0-win64.zip", "Game/Game.exe"), "Game-Setup.exe", W);
+  withheld(windows("Game-1.0-win64.zip", "Game/Game.exe"), "Game.7z", W);
+  for (const [name, words, version] of [
+    ["game_1.0-1_amd64.deb", ["game"], ["1", "0"]],
+    ["game_1.0-12.deb", ["game"], ["1", "0"]],
+    ["Game-1.0-1.zip", ["game"], ["1", "0", "1"]],
+  ] as const) {
+    assert.deepEqual(productIdentity(name), { words, version }, `fit: ${name}`);
+    assert.deepEqual(gateProduct(name), { words, version }, `gate: ${name}`);
+  }
+});
+
+void test("a generator glued to the game's name beside the AppImage is withheld (B2, Linux pin)", async () => {
+  const id = "zz-codegen-glued-linux";
+  const run = await derive(
+    [listing(id, { platforms: ["linux-x86-64"] })],
+    observerReport({
+      [id]: {
+        releases: [
+          releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+            { id: 11, name: linuxTar },
+            { id: 12, name: "Game-v1.0.AppImage" },
+            { id: 13, name: "SHA256SUMS" },
+          ]),
+        ],
+      },
+    }),
+    undefined,
+    { inspect: byAsset({ 11: [player("bin/gamegen", "elf64-x86-64")] }) },
+  );
+  const facts = run.table.entries[0]!;
+  assert.deepEqual(
+    facts.other_packages.map((other) => other.name),
+    ["Game-v1.0.AppImage"],
+  );
+  const record = listing(id, { platforms: ["linux-x86-64"] });
+  assert.equal(reasonOf(decide(record, facts)), "other-package-form-beside-archive");
+  assert.match(forcedOn(facts, record, 11, "linux-x86-64"), /another package for linux-x86-64/u);
+});
+
+void test("a status word states a prerelease only where a status stands (F1)", () => {
+  const repository = "fixture-owner/zz-unseen";
+  const rows: [string, string | null][] = [
+    // (iii) next to a version, last in the title, or parenthesised.
+    ["Game 1.0 (Beta)", "beta"],
+    ["[RC] Game 1.0 for everyone", "release-candidate"],
+    ["v2.0-beta.2", "beta"],
+    ["Beta build 7", "beta"],
+    ["Game 2.0 beta", "beta"],
+    ["This is beta software for testing", null],
+    ["Join the alpha test group on our forum", null],
+    ["Beta testers wanted for the new mode", null],
+    // (ii) URLs, link targets, image references and compare ranges.
+    ["Full Changelog: https://github.com/o/r/compare/v0.9-beta...v1.0", null],
+    ["**Full Changelog**: v0.9-beta...v1.0", null],
+    ["![banner](beta.png) Version 1.0", null],
+    ['<img src="beta.png"> Version 1.0', null],
+    ["See [the notes](https://example.com/beta-2) for v1.0", null],
+    ["Download at www.example.com/beta 2", null],
+    ["Screenshot beta.png attached", null],
+    ["[Beta 2](https://example.com/notes)", "beta"],
+    // (iv) negations and past transitions.
+    ["Out of beta", null],
+    ["No longer a release candidate", null],
+    ["Changes since beta 3", null],
+    ["Changes since the last beta", null],
+    ["Not a beta: v1.0", null],
+    ["Graduated from alpha 4", null],
+    ["Final Beta", "beta"],
+    ["Beta 3 is out", "beta"],
+  ];
+  for (const [line, token] of rows) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+  // (i) and (v): the listing's name, title and id words are the product's
+  // own words before the first version; after a version they state again.
+  const listingRows: [string, string, Record<string, unknown>, string | null][] = [
+    ["Alpha Centauri Port v1.0", "fixture-owner/smac-port", { name: "Alpha Centauri" }, null],
+    ["Alpha Centauri Port v1.0", "fixture-owner/smac-port", { name: "Other" }, null],
+    [
+      "Alpha Centauri 1.0",
+      "fixture-owner/smac-port",
+      { original_game_title: "Alpha Centauri" },
+      null,
+    ],
+    ["Beta Squadron 1.2", "fixture-owner/squadron", { name: "Beta Squadron" }, null],
+    ["Beta Squadron 1.2", "fixture-owner/squadron", { name: "Squadron" }, null],
+    ["Super Beta 2", "fixture-owner/sb", { name: "Super Beta" }, null],
+    ["Super Beta 2", "fixture-owner/sb", { name: "Super Game" }, "beta"],
+    ["RC Racing v3", "fixture-owner/racing", { id: "rc-racing" }, null],
+    ["RC Racing v3", "fixture-owner/racing", { name: "Racing" }, null],
+    ["Beta Squadron 1.3 Beta 2", "fixture-owner/squadron", { name: "Beta Squadron" }, "beta"],
+    ["Beta Squadron 1.3 (beta)", "fixture-owner/squadron", { name: "Beta Squadron" }, "beta"],
+    ["Beta Squadron", "fixture-owner/squadron", { name: "Beta Squadron" }, null],
+    ["v1.2 Beta", "fixture-owner/beta", { name: "Beta" }, "beta"],
+    ["RC Racing v3 RC1", "fixture-owner/racing", { id: "rc-racing" }, "release-candidate"],
+  ];
+  for (const [line, repo, fields, token] of listingRows) {
+    const words = listingWords({ id: "zz-listing", name: "Zz", ...fields });
+    assert.equal(
+      releaseStatement(line, repo, words),
+      token,
+      `fit: ${line} ${JSON.stringify(fields)}`,
+    );
+    assert.equal(
+      gateStatement(line, repo, words),
+      token,
+      `gate: ${line} ${JSON.stringify(fields)}`,
+    );
+  }
+  // The body's first line is judged after removing what states nothing: a
+  // banner image line or a link-only line is skipped.
+  assert.equal(bodyFirstLine("![beta](beta.png)\n\nVersion 1.0 is here"), "Version 1.0 is here");
+  assert.equal(
+    textStatement(
+      "v1.0",
+      "**Full Changelog**: https://github.com/o/r/compare/v0.9-beta...v1.0",
+      repository,
+    ),
+    null,
+  );
+  assert.deepEqual(textStatement("v1.0", "![x](y.png)\nBeta 2 of the new engine", repository), {
+    field: "body-first-line",
+    token: "beta",
+  });
+});
+
+void test("fit and gate read release text alike over generated lines (F1)", () => {
+  const random = seeded(8631);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const pieces = [
+    "beta",
+    "Beta",
+    "alpha",
+    "RC",
+    "rc2",
+    "pre",
+    "release",
+    "Pre-release",
+    "candidate",
+    "prerelease",
+    "v1.0",
+    "1.0rc1",
+    "2",
+    "3.1",
+    "build",
+    "version",
+    "out",
+    "of",
+    "no",
+    "longer",
+    "since",
+    "the",
+    "last",
+    "a",
+    "game",
+    "squadron",
+    "(",
+    ")",
+    "[",
+    "]",
+    "beta.png",
+    "![x](beta.png)",
+    "https://x.io/beta",
+    "v0.9-beta...v1.0",
+    "beta._2",
+    "1._x._beta",
+    "_",
+    ".",
+    "-",
+    ":",
+    "<b>",
+    "[link](https://x.io/rc1)",
+  ];
+  const repositories = ["fixture-owner/beta-squadron", "fixture-owner/game", "fixture-owner/rc"];
+  const listings = [[], ["beta", "squadron"], ["game"], ["alpha"]];
+  let stated = 0;
+  for (let round = 0; round < 20_000; round++) {
+    const line = Array.from({ length: 1 + Math.floor(random() * 7) }, () => pick(pieces)).join(
+      pick([" ", " ", "", "-"]),
+    );
+    const repository = pick(repositories);
+    const words = pick(listings);
+    const fit = releaseStatement(line, repository, words);
+    assert.equal(
+      gateStatement(line, repository, words),
+      fit,
+      `${line} ${repository} ${words.join(",")}`,
+    );
+    if (fit !== null) stated++;
+  }
+  assert.ok(stated > 2000 && stated < 18_000, `${stated} statements`);
+});
+
+void test("release text is judged with the listing's own words by worker, fit and gate (F1)", async () => {
+  const id = "zz-beta-squadron";
+  const record = listing(id, { name: "Beta Squadron" });
+  const releases = [
+    {
+      ...releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]),
+      text: { name: "Beta Squadron 1.0", body: null },
+    },
+    {
+      ...releaseWith(2, "v3.0", "2026-10-20T00:00:00Z", [{ id: 21, name: windowsZip }]),
+      text: {
+        name: "Beta Squadron 3.0",
+        body: "**Full Changelog**: https://github.com/o/r/compare/v3.0-beta...v3.0",
+      },
+    },
+  ];
+  const run = await derive([record], observerReport({ [id]: { releases } }));
+  const facts = run.table.entries[0]!;
+  assert.deepEqual(facts.listing_words, ["beta", "squadron", "zz"]);
+  assert.equal(facts.observation.tag, "v3.0");
+  assert.deepEqual(
+    facts.observed_releases.map((release) => release.statement),
+    [null, null],
+  );
+  const decision = decide(record, facts);
+  assert.ok(decision.fit, JSON.stringify(decision));
+  assert.equal(gateGeneration(null, generateRegistrations([record], table(facts))).added.length, 1);
+  // A trailing status after the version is a prerelease again: v1.0 is offered.
+  const second = await derive(
+    [record],
+    observerReport({
+      [id]: {
+        releases: [
+          releases[0]!,
+          { ...releases[1]!, text: { name: "Beta Squadron 3.0 Beta 2", body: null } },
+        ],
+      },
+    }),
+  );
+  assert.equal(second.table.entries[0]!.observation.tag, "v1.0");
+  // Facts judged with other words are refused by the facts check (a title
+  // statement left out), the fit rule and the gate.
+  const forged = structuredClone(facts);
+  forged.listing_words = ["squadron", "zz"];
+  forged.observed_releases[1]!.title = "Squadron 3.0 Beta";
+  assert.throws(() => checkListingFactsTable(table(forged)), /prerelease statement/u);
+  const renamed = structuredClone(facts);
+  renamed.listing_words = ["other", "zz"];
+  assert.equal(reasonOf(decide(record, renamed)), "repository-mismatch");
+  const generation = generateRegistrations([record], table(facts));
+  generation.facts = table(renamed);
+  generation.enrollments[0]!.facts_sha256 = digestOf(renamed);
+  assert.throws(() => gateGeneration(null, generation), /other listing words/u);
+  assert.deepEqual(gateListingWords(record.listing), listingWords(record.listing));
 });

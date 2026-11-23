@@ -3731,7 +3731,10 @@ blocked reason:
 3. Its availability is not `source-only` or `unavailable`.
 4. Its project or release URL names a GitHub repository.
 5. One `listing-package-facts.generated.json` entry names it and that same
-   repository, written by the current facts parser version.
+   repository, written by the current facts parser version, and records the
+   listing's own words its release text was judged with (`listing_words`,
+   [release text](#release-text-statements)); facts judged with another
+   listing name's words are `repository-mismatch` until observed again.
 6. The worker did not complete the entry as ineligible. The ineligible
    reasons are listed below.
 7. That entry's observation is `complete` and its asset list is complete.
@@ -3789,7 +3792,8 @@ blocked reason:
     interpreter or build helper: that excludes the whole identity
     (`bundled-toolchain`). The one program is not named for a launcher,
     settings or setup step on any platform; that excludes the whole identity
-    too (`launcher-entry`).
+    too (`launcher-entry`), and the gate refuses every runtime of such an
+    identity, including platforms the fit would not enroll.
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3884,7 +3888,14 @@ withheld this way when listing data or release-bound metadata declares the
 launcher as the game's runtime entry; a reviewed `route_facts_v1`
 enrollment can still offer it. `setup` and `installer` programs are usually
 already excluded by Core's tool veto; the launcher rule names them as a
-second guard. The gate restates the rule with its own word splitter.
+second guard. The gate restates the rule with its own word splitter and
+applies it to the whole identity: for each platform it takes the candidates
+of its own one-program check, and when exactly one offerable archive (by
+SHA-256) holds the platform's players, they are one program under one
+top-level directory, no refused archive's name permits the platform, and that
+program is launcher-named, it refuses every runtime of the identity. So an
+enrollment forged for a clean Windows zip beside a Linux tarball whose only
+program is a launcher is refused, as the fit rule withholds it.
 
 One program name is not one package, and equal programs are not one package
 either. A release can carry the full game and a small update archive that
@@ -4130,34 +4141,68 @@ statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
 `pre-release`), `release-candidate` (`release` followed by `candidate`, or a
 standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
 with digits). Words are split at separators and letter/digit changes, never
-inside a word, so `Arc`, `Alphabet` and `Betamax` state nothing. A status word
-that is also a word of the repository's own name (`alpha-quest`, `AlphaQuest`)
-names the product and states nothing.
+inside a word, so `Arc`, `Alphabet` and `Betamax` state nothing.
+
+A status word states the release's status only where a status stands, never
+anywhere in a sentence:
+
+- what never states anything is removed first: image references
+  (`![banner](beta.png)`), HTML tags, link targets (the link text stays),
+  URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
+  "Full Changelog" line) and image file names;
+- the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
+  before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
+  or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
+  line's last word (`Final Beta`, `Release candidate`), or inside parentheses
+  or brackets (`Game 1.0 (Beta)`); `This is beta software for testing` states
+  nothing;
+- a negation or past transition before it states nothing (`not`, `no`,
+  `longer`, `since`, `after`, `from`, `post`, `past`, `former`,
+  `formerly`, `previously`, `was`, `were`, `leaving`, `left`, `leaves`,
+  `exits`, `exited`, `ended`, `ends`, `graduated`, `graduates`, `than`,
+  `over`, `beyond`, and `out of`, skipping `a`, `an`, `the`, `last`,
+  `latest`, `previous`, `final` and `first`): `Out of beta`, `No longer a
+  release candidate`, `Changes since the last beta`;
+- the product's own words name the product before the line's first number:
+  the repository name's words and the listing's id, name and original title
+  words (`listing_words`). `Alpha Centauri Port v1.0` for a listing titled
+  `Alpha Centauri`, `Beta Squadron 1.2` and `RC Racing v3` state nothing,
+  while the same word after a version states again: `Beta Squadron 1.3 Beta
+  2` is a prerelease.
 
 Only two places are judged: the release title, and the body's first line
-that holds a letter or digit once leading Markdown heading, quote, list and
-emphasis marks are removed (within the first 4,096 characters, at most 256
-characters of it). A project-level remark further down ("pre-release quality"
-in a long description) is never read. The facts record, per observed release,
-whether the observer reported the text (`text`: `observed` or `unobserved`),
-the title when it is bounded printable text (`title`), and the statement
-found (`statement`: `{ field: "title" | "body-first-line", token }`, or
-null). The body itself is never stored. The recorded verdict (`prerelease`)
-includes the statement, and the facts check refuses a recorded title whose
-statement is not the recorded one. The fit rule and, independently, the gate
+that holds a letter or digit once what states nothing and leading Markdown
+heading, quote, list and emphasis marks are removed (within the first 4,096
+characters, at most 256 characters of it), so a banner image or link-only
+line is skipped. A project-level remark further down ("pre-release quality"
+in a long description) is never read. The facts record, per entry, the
+listing words the text was judged with (`listing_words`), and per observed
+release whether the observer reported the text (`text`: `observed` or
+`unobserved`), the title when it is bounded printable text (`title`), and
+the statement found (`statement`: `{ field: "title" | "body-first-line",
+token }`, or null). The body itself is never stored. The recorded verdict
+(`prerelease`) includes the statement, and the facts check refuses a recorded
+title whose statement, judged with the recorded listing words, is not the
+recorded one. The fit rule and, independently, the gate re-derive the
+listing words from the listing and refuse facts judged with other words,
 re-derive the title's statement from the recorded title and read the body's
 from the record. Reproduction compares the release list's current title and
-body where the entry records the text as observed.
+body where the entry records the text as observed. One table pins the
+fit's and the gate's statement rules on the same rows, and a generated
+comparison checks that both read every line alike.
 
-The listing observer report does not carry release titles or bodies today
-(its provider facts omit them), so every release's text is recorded
-`unobserved`. Unobserved text is UNKNOWN optional evidence, not a statement
-either way: the tag and provider flag still decide, and the route-fit report
-lists every identity whose offered release text is unobserved
-(`registration_queues.release_text_unobserved`). The rule applies to an
-identity as soon as its observer report carries the release `name` and
-`body`. `registration_queues.release_statements` lists every observed release
-with a statement per identity.
+The rule is inert today. The listing observer report does not carry release
+titles or bodies (its provider facts omit them), so every release's text is
+recorded `unobserved`. Unobserved text is UNKNOWN optional evidence, not a
+statement either way: the tag and provider flag still decide, and the
+route-fit report lists every identity whose offered release text is
+unobserved (`registration_queues.release_text_unobserved`). To feed it, the
+observer's per-release provider facts must carry the GitHub release `name`
+and `body` (bounded; the worker reads them as `text: { title, body }` and
+keeps only the title and the statement); the next facts run then records
+each release's text as `observed` and the rule applies.
+`registration_queues.release_statements` lists every observed release with a
+statement per identity.
 
 ##### Other package forms
 
@@ -4241,10 +4286,6 @@ ignored:
 - lockfiles, configuration, translations and metadata: `.lock`, `.toml`
   (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
   `.css`, `.desktop`;
-- data, configuration and mod payloads measured beside real releases that
-  cannot be the desktop package: `.rtz` (route data), `.vbmod` and `.pk4`
-  (mod and game data packs), `.py` (a script payload) and `.aot` (an
-  ahead-of-time compiled assembly cache);
 - the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
   `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
   `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
@@ -4268,10 +4309,12 @@ ignored:
   Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
 
 Nothing else that can carry or launch a program is on the list: `.js`,
-`.bat`, `.cmd`, `.ps1`, `.command`, `.nupkg`, `.7z`, `.lha`, `.db`, `.dat`,
-`.delta` and `.diff.gz` keep competing as unread containers. `.py` is on it
-by measurement, as a payload beside the release's packages; a Python script
-is never the desktop package a player registers.
+`.py`, `.bat`, `.cmd`, `.ps1`, `.command`, `.aot`, `.nupkg`, `.7z`, `.lha`,
+`.db`, `.dat`, `.delta` and `.diff.gz` keep competing as unread containers.
+Game data packs for a host engine (`.pk4`, `.vbmod`, `.rtz`) compete too:
+beside an archive whose only program is the engine, ignoring them would
+enroll the engine as the game. A script or an ahead-of-time compiled image
+can be, or launch, the program.
 
 The identity is excluded as a whole (`other-package-form-beside-archive`)
 when the release carries such an asset for a platform the release also
@@ -4300,26 +4343,41 @@ changes, dropping package-form parts (`GameSetup` is `game`). A form is the
 same product when its product words are not empty and equal those of every
 archive that could be offered for the platform (a runtime archive from exact
 bytes whose name vetoes nothing and that holds a player for the platform),
-its version equals theirs, and each such archive's player for the platform is
-named for that product: the program's words (without build-variant words)
-share a whole word of at least three characters with the product words, or
-one joined spelling contains the other and the shorter has at least four
-characters (`supertux2` and `supertux`). So `Game-1.0-linux.tar.gz` beside
-`Game-1.0.AppImage`, `Game-1.0.deb` or `Game-1.0.flatpak`,
-`Game-1.0-win64.zip` beside `Game-1.0-Setup.exe`, and `Game-1.0-macos.zip`
-beside `Game-1.0.dmg` enroll, each archive holding the game's own program.
-Another product (`GameStudio-1.0-win64.zip` beside `Game-1.0-Setup.exe`),
-another version (`Game-1.1-Setup.exe`), an update or other payload
-(`Game-1.0-update.7z`), empty product words on either side (`Setup.exe`), a
-second offerable archive of other product words, or an archive named for the
-game whose program is not (`TableTennis-v1.7.0.zip` holding only
-`rexglue.exe` beside `TableTennis-v1.7.0.exe`, or a code-generator archive
-beside `Install-Game-1.0.exe`) keep the form a competitor.
+its version is theirs (`sameVersion`), and each such archive's player for the
+platform is named exactly for that product (`programNamesProduct`): the
+program's words without build-variant words (architecture, bitness, platform
+and console words), joined, equal the product words joined, also once
+trailing digits are removed from the program (`supergame2.exe` for
+`Super-Game`). A shared word, a prefix or a containment in either direction
+never relieves. Versions are equal once trailing zero components are removed
+(`1.0.0` is `1.0`); a Debian revision after the upstream version is
+packaging, not the version (`game_1.0-1_amd64.deb` is `1.0`); an AppImage
+that names no version is the same version as the archive (`Game.AppImage`
+beside `Game-1.0-linux.tar.gz`); two unversioned names are the same version.
+So `Game-1.0-linux.tar.gz` holding `Game` beside `Game-1.0.AppImage`,
+`Game-1.0.deb`, `game_1.0-1_amd64.deb` or `Game-1.0.flatpak`,
+`Game-1.0-win64.zip` holding `Game.exe` beside `Game-1.0-Setup.exe`, and
+`Game-1.0-macos.zip` beside `Game-1.0.dmg` enroll. Another product
+(`GameStudio-1.0-win64.zip` beside `Game-1.0-Setup.exe`), another version
+(`Game-1.1-Setup.exe`, `Game-1.0.1.AppImage`), any other unversioned form
+beside a versioned archive (`Game-Setup.exe`, `Game.7z`), an update or other
+payload (`Game-1.0-update.7z`), empty product words on either side
+(`Setup.exe`), a second offerable archive of other product words, or an
+archive named for the game whose program is another one keep the form a
+competitor: `GameCodegen.exe` or `GameRecomp.exe` in `Game-1.0-win64.zip`
+beside `Game-1.0-Setup.exe` or `Install-Game-1.0.exe`, `game-gen` or
+`gamegen` in `Game-1.0-linux.tar.gz` beside `Game-1.0.AppImage`,
+`the-mapper.exe` in `The-Game-1.0-win64.zip`, and `Table.exe` in
+`TableGame-1.0-win64.zip` beside their installers.
 
 This attribution is a contradiction detector. It does not prove the archive
 is the game: it only stops treating the same product in another package form
 as a competitor, and every player-program rule still decides the archive.
 Names nominate and contradict; they never supply missing product semantics.
+The residual is stated plainly: an archive named for the game whose only
+program is literally named the product but is in fact a tool enrolls beside
+such a form exactly as it would with no competing form at all; the relief
+only removes a contradiction, it adds no risk of its own.
 The route-fit report lists every identity whose forms were attributed this
 way (`registration_queues.same_product_forms`) as a review queue.
 
@@ -4333,14 +4391,15 @@ or a `.dmg` of another version withholds the whole identity. A reviewed
 
 ###### Source archives
 
-A source or compliance archive is never the game package. An archive is a
-source archive when Core's filename classifier gives it the `source-archive`
-role, or its name holds `source`, `sources` or `src` as a whole
-separator-delimited word (`Game-1.0-src.tar.gz`, `Game-Source-1.0.zip`), or
-it is a third-party library source dump: it holds no native program at all,
-at least three quarters of its listing's distinct file names are source or
-build files, and its product words share no word with the repository's name
-(`zlib-1.3.zip` in a game's release). The source and build files are a
+A source or compliance archive is never the game package. Only an archive
+whose listing shows no executable program (no player and no tool-vetoed
+program) can be one: it is a source archive when Core's filename classifier
+gives it the `source-archive` role, or its name holds `source`, `sources` or
+`src` as a whole separator-delimited word (`Game-1.0-src.tar.gz`,
+`Game-Source-1.0.zip`), or it is a third-party library source dump: at least
+three quarters of its listing's distinct file names are source or build
+files, and its product words share no word with the repository's name
+(`somelib-1.3.zip` in a game's release). The source and build files are a
 closed list of extensions (`.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.c++`, `.hpp`,
 `.hh`, `.hxx`, `.inl`, `.ipp`, `.m`, `.mm`, `.rs`, `.go`, `.java`, `.kt`,
 `.cs`, `.swift`, `.zig`, `.s`, `.asm`, `.py`, `.js`, `.ts`, `.cmake`, `.mk`,
@@ -4349,7 +4408,14 @@ closed list of extensions (`.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.c++`, `.hpp`,
 counts (`listing_counts`: `leaves` and `source_leaves` of Core's `leaves`).
 A source archive is never offered, never counts as one of a platform's
 competing archives (`ambiguous-artifact`), never counts for the toolchain
-rule, and offers no platform to another package form. The route-fit report
+rule, and offers no platform to another package form. A source-named archive
+that holds programs is an ordinary candidate for every count: its programs
+count for `ambiguous-player`, its bytes for `ambiguous-artifact`, its
+toolchain for `bundled-toolchain`, and it offers its platforms to other
+package forms, so `Game-1.0-win64.zip` holding `Game.exe` beside
+`Game-1.0-win64-source.zip` holding `Other.exe` never enrolls by dropping
+the second. It is still never offered itself, because its own name
+contradicts it (`contradictory-role`). The route-fit report
 lists them per identity (`registration_queues.source_archives`). The gate
 restates the rule with its own code from the recorded names and counts.
 
@@ -4522,8 +4588,15 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 16, the facts parser version from 5 to 17 and
-the facts table format from 4 to 13 (generator 16, parser 17 and format 13:
+generator version from 5 to 17, the facts parser version from 5 to 18 and
+the facts table format from 4 to 14 (generator 17, parser 18 and format 14:
+release text judged only where a status stands, with the listing's own
+words recorded per entry (`listing_words`), an identity-wide launcher
+refusal in the gate, product-form relief only for a program named exactly
+for the product, Debian revisions, unversioned AppImages and trailing zero
+version components, source-named archives holding programs counted as
+ordinary candidates, and `.rtz`, `.vbmod`, `.pk4`, `.py` and `.aot` back
+off the non-program list; generator 16, parser 17 and format 13:
 release text statements in the title or first body line, an identity-wide
 `bundled-toolchain`, `launcher-entry`, product-word attribution of the same
 product in another package form, source archives with recorded listing
