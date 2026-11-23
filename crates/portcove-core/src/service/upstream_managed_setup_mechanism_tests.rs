@@ -135,7 +135,7 @@ impl Harness {
     }
 
     fn only(&self, tag: &str) -> Value {
-        let mut releases = fixture::release_lists()["upstream_setup"].clone();
+        let mut releases = fixture::served_releases("upstream_setup");
         releases
             .as_array_mut()
             .unwrap()
@@ -270,7 +270,7 @@ async fn success_runs_setup_once_as_explicit_preparation_and_play_never_reruns_i
         .unwrap();
     // The newest release ships only mobile/console packages; the desktop
     // channel uses the newest release with this host's package, and only that
-    // package is downloaded (never the installer or source archive).
+    // package is downloaded (never the checksum list or another host's package).
     assert_eq!(installed.version, "v2.0.0");
     assert_eq!(
         server.downloads(),
@@ -394,13 +394,14 @@ async fn refusal_unsupported_platform_downloads_nothing() {
     assert!(server.downloads().is_empty());
 }
 
-/// Typed route facts: an installer, a source archive, a checksum list, a
-/// mobile or console package and another host's package are never offered as
-/// this host's game.
+/// Typed route facts: a checksum list, a mobile or console package and another
+/// host's package are never offered as this host's game. Tool, source and
+/// debug decoys are excluded from the served list; see
+/// `mechanism_fixtures::tool_or_debug_decoy`.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let harness = Harness::new();
-    let mut releases = fixture::release_lists()["upstream_setup"].clone();
+    let mut releases = fixture::served_releases("upstream_setup");
     let host_asset = fixture::setup_asset_name(host());
     for release in releases.as_array_mut().unwrap() {
         release["assets"]

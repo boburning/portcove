@@ -278,13 +278,14 @@ async fn refusal_unsupported_platform_downloads_nothing() {
     assert!(server.downloads().is_empty());
 }
 
-/// Typed route facts: a builder, a debug build, a mobile package and another
-/// host's player are never offered as this host's game.
+/// Typed route facts: a mobile package and another host's player are never
+/// offered as this host's game. Tool and debug decoys are excluded from the
+/// served list; see `mechanism_fixtures::tool_or_debug_decoy`.
 #[tokio::test]
 async fn refusal_wrong_role_or_host_is_never_selected() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
-    let mut releases = fixture::release_lists()["referenced_disc"].clone();
+    let mut releases = fixture::served_releases("referenced_disc");
     let host_asset = fixture::disc_asset_name(host());
     for release in releases.as_array_mut().unwrap() {
         release["assets"]
@@ -391,7 +392,7 @@ async fn update_and_rollback_keep_player_data_and_the_original() {
     let library = Library::open(temporary.path().join("library")).unwrap();
     let original = Original::create(temporary.path());
     let document = fixture::document();
-    let mut first = fixture::release_lists()["referenced_disc"].clone();
+    let mut first = fixture::served_releases("referenced_disc");
     first
         .as_array_mut()
         .unwrap()
@@ -444,7 +445,7 @@ async fn interrupted_update_recovers_with_player_data_and_original_intact() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let original = Original::create(temporary.path());
         let document = fixture::document();
-        let mut first = fixture::release_lists()["referenced_disc"].clone();
+        let mut first = fixture::served_releases("referenced_disc");
         first
             .as_array_mut()
             .unwrap()

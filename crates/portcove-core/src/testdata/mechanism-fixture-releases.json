@@ -8,14 +8,14 @@
       "published_at": "2026-11-03T00:00:00Z",
       "assets": [
         {
-          "name": "mechanism-setup-android-arm64.apk",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-setup-android-arm64.apk",
+          "name": "mechanism-prep-android-arm64.apk",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-prep-android-arm64.apk",
           "size": 11,
           "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333331"
         },
         {
-          "name": "mechanism-setup-switch.nro",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-setup-switch.nro",
+          "name": "mechanism-prep-switch.nro",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v3.0.0/mechanism-prep-switch.nro",
           "size": 11,
           "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333332"
         }
@@ -28,26 +28,26 @@
       "published_at": "2026-11-02T00:00:00Z",
       "assets": [
         {
-          "name": "mechanism-setup-windows-x64.zip",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-windows-x64.zip",
+          "name": "mechanism-prep-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-windows-x64.zip",
           "size": 11,
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222221"
         },
         {
-          "name": "mechanism-setup-linux-x64.zip",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-linux-x64.zip",
+          "name": "mechanism-prep-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-linux-x64.zip",
           "size": 11,
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         },
         {
-          "name": "mechanism-setup-installer-windows-x64.exe",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-installer-windows-x64.exe",
+          "name": "mechanism-prep-installer-windows-x64.exe",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-installer-windows-x64.exe",
           "size": 11,
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222223"
         },
         {
-          "name": "mechanism-setup-source.tar.gz",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-source.tar.gz",
+          "name": "mechanism-prep-source.tar.gz",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-prep-source.tar.gz",
           "size": 11,
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222224"
         },
@@ -66,14 +66,14 @@
       "published_at": "2026-11-01T00:00:00Z",
       "assets": [
         {
-          "name": "mechanism-setup-windows-x64.zip",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-setup-windows-x64.zip",
+          "name": "mechanism-prep-windows-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-prep-windows-x64.zip",
           "size": 11,
           "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         },
         {
-          "name": "mechanism-setup-linux-x64.zip",
-          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-setup-linux-x64.zip",
+          "name": "mechanism-prep-linux-x64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-prep-linux-x64.zip",
           "size": 11,
           "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111112"
         }
