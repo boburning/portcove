@@ -643,21 +643,53 @@ const EXCEPTIONS_PATH: &str = "src/release/tests/selection_equivalence_exception
 
 /// Ports per adapter with at least one release fixture from their own
 /// repository. Adapters absent here have no own-fixture coverage.
-/// Uncovered: `referenced-disc` (0 of 1 ports) and `upstream-managed-setup`
-/// (0 of 4). Their release facts are not recorded in any fixture, and a
-/// fixture built from authored selectors would invent upstream facts.
+///
+/// `referenced-disc` and `upstream-managed-setup` are covered only by the
+/// synthetic mechanism identities in [`crate::mechanism_fixtures`], whose own
+/// fixture is `mechanism-fixture-releases.json`. Their cataloged ports remain
+/// without recorded release facts (0 of 1 and 0 of 4): a fixture built from
+/// those ports' authored selectors would invent upstream facts.
 const OWN_FIXTURE_COVERAGE: &[(&str, usize)] = &[
     ("generated-cache", 2),
     ("libultraship-portable", 2),
     ("n64-recomp-portable", 3),
     ("native-portable", 49),
     ("psx-recomp-managed", 71),
+    ("referenced-disc", 1),
     ("staged-source-portable", 7),
+    ("upstream-managed-setup", 1),
+];
+
+/// Own-fixture changes the synthetic mechanism fixtures are built to show.
+/// Each fixture's newest release (v3.0.0) holds only mobile or console
+/// packages. Under the frozen legacy rules it stood in front of the older
+/// desktop release on every desktop host; typed roles move the Stable and
+/// Beta candidates to v2.0.0. Nothing else changes on their own replay.
+const MECHANISM_OWN_DEFECTS: &[&str] = &[
+    "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+];
+
+/// Synthetic mechanism ports replayed with the embedded catalog. Each must be
+/// covered by its own fixture and by nothing else.
+const MECHANISM_FIXTURE_PORTS: &[(&str, &str)] = &[
+    ("referenced-disc", crate::mechanism_fixtures::DISC_PORT),
+    (
+        "upstream-managed-setup",
+        crate::mechanism_fixtures::SETUP_PORT,
+    ),
 ];
 
 #[test]
 fn typed_selection_matches_legacy_selection_except_named_defects() {
     let catalog = crate::Catalog::embedded().unwrap();
+    let mechanisms = crate::mechanism_fixtures::catalog();
     let lists = fixture_release_lists();
     assert!(
         lists.len() >= 100,
@@ -667,12 +699,14 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
     let mut exceptions = BTreeSet::new();
     let mut unexplained = Vec::new();
     let mut own_exceptions = Vec::new();
+    let mut mechanism_own = BTreeSet::new();
     let (mut assets_compared, mut candidates_compared) = (0usize, 0usize);
     let mut own_pairs = BTreeSet::new();
     let mut adapters = std::collections::BTreeMap::<String, (BTreeSet<&str>, usize)>::new();
     for port in catalog
         .ports()
         .iter()
+        .chain(mechanisms.ports())
         .filter(|port| port.release.provider == crate::ReleaseSource::Github)
     {
         let adapter = serde_json::to_value(port.adapter)
@@ -696,7 +730,12 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                 let mut record =
                     |tag: &str, channel: String, defect: Option<Defect>, detail: String| {
                         let row = format!("{} {platform:?} {fixture} {tag} {channel}", port.id);
+                        let mechanism =
+                            MECHANISM_FIXTURE_PORTS.iter().any(|(_, id)| *id == port.id);
                         match defect {
+                            Some(defect) if own && mechanism => {
+                                mechanism_own.insert(format!("{row} {defect:?}"));
+                            }
                             Some(_) if own => own_exceptions.push(format!("{row} {detail}")),
                             Some(defect) => {
                                 exceptions.insert(format!("{row} {defect:?}"));
@@ -824,6 +863,24 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
         own_coverage, OWN_FIXTURE_COVERAGE,
         "own-fixture coverage changed"
     );
+    // The synthetic fixtures deliberately contain a newest release with only
+    // mobile and console packages; their own replay shows the named defect
+    // fixed and nothing else.
+    assert_eq!(
+        mechanism_own.iter().map(String::as_str).collect::<Vec<_>>(),
+        MECHANISM_OWN_DEFECTS,
+        "mechanism fixture own-replay changes"
+    );
+    for (adapter, port) in MECHANISM_FIXTURE_PORTS {
+        let covered = &adapters[*adapter].0;
+        assert!(covered.contains(port), "{port} lacks its own fixture");
+        let fixtures = own_pairs
+            .iter()
+            .filter(|(id, _)| id == port)
+            .map(|(_, fixture)| *fixture)
+            .collect::<Vec<_>>();
+        assert_eq!(fixtures, ["mechanism-fixture-releases.json"], "{port}");
+    }
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(EXCEPTIONS_PATH);
     let actual = exceptions.iter().cloned().collect::<Vec<_>>().join("\n") + "\n";
     if std::env::var_os("PORTCOVE_WRITE_SELECTION_EQUIVALENCE").is_some() {

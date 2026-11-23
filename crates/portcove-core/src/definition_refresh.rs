@@ -48,6 +48,25 @@ struct Progress {
 
 impl Progress {
     fn error(&self, error: PortcoveError) -> PortcoveError {
+        // A definition that needs a newer engine is recorded with the same
+        // eligibility its availability assessment reports, so the refusal
+        // reads as "needs a newer Portcove" for this subject only.
+        let error = if crate::definition_capabilities::requires_newer_engine(&error) {
+            let eligibility = crate::DefinitionEligibility::escalate(
+                crate::DefinitionEligibilityReason::EngineCapabilityRequired,
+            );
+            error
+                .detail(
+                    "definition_eligibility_outcome",
+                    wire_name(eligibility.outcome),
+                )
+                .detail(
+                    "definition_eligibility_reason",
+                    wire_name(eligibility.reason),
+                )
+        } else {
+            error
+        };
         error
             .detail("definition_refresh_phase", self.phase)
             .detail("definition_policy_changed", self.policy_changed.to_string())
@@ -56,6 +75,14 @@ impl Progress {
                 self.launch_assessment_changed.to_string(),
             )
     }
+}
+
+// Unit enum variants always serialize as their snake_case wire name.
+fn wire_name(value: impl Serialize) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_default()
 }
 
 impl PortcoveService {

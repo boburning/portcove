@@ -195,7 +195,7 @@ impl DefinitionEligibility {
         }
     }
 
-    const fn escalate(reason: DefinitionEligibilityReason) -> Self {
+    pub(crate) const fn escalate(reason: DefinitionEligibilityReason) -> Self {
         Self {
             outcome: DefinitionEligibilityOutcome::Escalate,
             reason,

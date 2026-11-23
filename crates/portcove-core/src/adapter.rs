@@ -435,7 +435,15 @@ impl Adapter for StandardAdapter {
             recipe.require_runtime_environment()?;
         }
         Ok(LaunchSpec {
-            fixed_arguments_only: reviewed_launch.is_some() || port.managed_initialization.is_some()
+            // Literal text arguments only change how the former static list is
+            // represented, so they keep the previous computation. A typed path or
+            // an environment declaration is new behavior and forbids forwarding.
+            fixed_arguments_only: reviewed_launch.is_some_and(|values| {
+                !values.environment.is_empty()
+                    || values.arguments.iter().flatten().any(|value| {
+                        matches!(value, crate::reviewed_launch_contract::LaunchValue::Path(_))
+                    })
+            }) || port.managed_initialization.is_some()
                 // A portable player's alternate game-folder mode can change where it writes.
                 || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
@@ -7110,5 +7118,107 @@ mod tests {
             std::fs::read(install.join("data/pd.ntsc-final.z64")).unwrap(),
             canonical
         );
+    }
+
+    /// Moving an existing literal argument list into a reviewed launch
+    /// contract changes only its representation: the same arguments start the
+    /// player and player-forwarded arguments remain accepted.
+    #[test]
+    fn literal_launch_contract_move_keeps_forwarded_arguments() {
+        use crate::reviewed_launch_contract::{
+            LaunchValue, LaunchValues, ReviewedLaunchContractV1,
+        };
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("player.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let before = catalog.port("blacklabelhq-medievilrecomp").unwrap().clone();
+        let platform = Platform::WindowsX86_64;
+        assert!(!before.launch_arguments.is_empty());
+        let mut moved = before.clone();
+        let literal = std::mem::take(&mut moved.launch_arguments);
+        moved.reviewed_launch_contract_v1 = Some(ReviewedLaunchContractV1 {
+            asset_rules: BTreeMap::new(),
+            package_format: BTreeMap::new(),
+            launch: [(
+                platform,
+                LaunchValues {
+                    arguments: Some(literal.iter().cloned().map(LaunchValue::Text).collect()),
+                    environment: BTreeMap::new(),
+                },
+            )]
+            .into(),
+            environment_prefix: None,
+        });
+        crate::reviewed_launch_contract::validate(&moved).unwrap();
+        let spec = |port: &PortDefinition| {
+            AdapterRegistry
+                .get(AdapterKind::NativePortable)
+                .prepare_launch_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port,
+                        platform,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap()
+        };
+        let (before, after) = (spec(&before), spec(&moved));
+        assert_eq!(after.arguments, before.arguments);
+        assert_eq!(after.arguments, literal);
+        assert_eq!(after.environment, before.environment);
+        assert!(!before.fixed_arguments_only);
+        assert!(!after.fixed_arguments_only);
+        let forwarded = ["--fixture-forwarded".to_owned()];
+        for spec in [&before, &after] {
+            let command =
+                crate::process::ChildProcessPolicy::game_command(&spec.process_spec(), &forwarded)
+                    .unwrap();
+            let arguments = command
+                .get_args()
+                .map(|arg| arg.to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(arguments.last().unwrap(), "--fixture-forwarded");
+        }
+
+        // A typed path or an environment declaration is new launch behavior
+        // and still offers only the fixed launch.
+        for change in [
+            |values: &mut LaunchValues| {
+                values.arguments.as_mut().unwrap().push(LaunchValue::Path(
+                    crate::reviewed_launch_contract::LaunchPathValue {
+                        path: crate::launch_paths::LaunchPath::UserData,
+                    },
+                ));
+            },
+            |values: &mut LaunchValues| {
+                values.environment.insert(
+                    "BLACKLABELHQMEDIEVILRECOMP_SETTING".into(),
+                    LaunchValue::Text("1".into()),
+                );
+            },
+        ] {
+            let mut typed = moved.clone();
+            change(
+                typed
+                    .reviewed_launch_contract_v1
+                    .as_mut()
+                    .unwrap()
+                    .launch
+                    .get_mut(&platform)
+                    .unwrap(),
+            );
+            crate::reviewed_launch_contract::validate(&typed).unwrap();
+            assert!(spec(&typed).fixed_arguments_only);
+        }
     }
 }

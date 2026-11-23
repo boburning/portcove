@@ -361,8 +361,21 @@ void test("committed catalog holds all reach format-11 readers as their legacy s
   ) as { format_version: number; listings: Row[] };
   assert.equal(listings.format_version, compactActivationFormat);
   const result = restrictionsNotExpressibleToLegacy(listings);
-  // Only descriptive typed detail is lost; no hold semantics.
-  assert.deepEqual(result.hold_semantics_lost, []);
+  // Only descriptive typed detail is lost, except the reviewed exact-file
+  // permits (#8538). A format-11 reader drops each permit and keeps the whole
+  // first hold, so it stays held on every download: stricter, never looser.
+  const permitted = [
+    "chameleon-twist-recompiled",
+    "grand-theft-auto-san-andreas-unity",
+    "linewars-ii-sdl3",
+  ];
+  assert.deepEqual(result.hold_semantics_lost, permitted);
+  for (const entry of result.entries.filter((entry) => permitted.includes(entry.listing))) {
+    const semantic = entry.lost.filter(
+      (field) => field.startsWith("effect:") || field.startsWith("operation:"),
+    );
+    assert.deepEqual(semantic, semantic.length ? ["effect:permit"] : [], entry.listing);
+  }
   for (const listing of listings.listings) {
     if (!Array.isArray(listing.restrictions)) continue;
     const first = (listing.restrictions as { effect: string; operations: string[] }[]).find(

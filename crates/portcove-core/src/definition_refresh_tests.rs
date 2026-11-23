@@ -1061,7 +1061,11 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
 
 /// Rewrite one indexed entry with a named feature this reader does not know,
 /// keeping the index's digest and length bindings exact.
-fn with_unknown_named_feature(targets: &mut [(String, Vec<u8>)], id: &str) {
+fn with_changed_entry(
+    targets: &mut [(String, Vec<u8>)],
+    id: &str,
+    change: impl FnOnce(&mut Value),
+) {
     let mut index: Value = serde_json::from_slice(&targets[0].1).unwrap();
     let old = index["definitions"]
         .as_array()
@@ -1074,8 +1078,7 @@ fn with_unknown_named_feature(targets: &mut [(String, Vec<u8>)], id: &str) {
         .to_owned();
     let position = targets.iter().position(|(name, _)| *name == old).unwrap();
     let mut entry: Value = serde_json::from_slice(&targets[position].1).unwrap();
-    entry["definition_schema"] = 4.into();
-    entry["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+    change(&mut entry);
     let entry = serde_json::to_vec(&entry).unwrap();
     let digest = hex::encode(Sha256::digest(&entry));
     let target = format!("sha256/{digest}.json");
@@ -1094,10 +1097,35 @@ fn with_unknown_named_feature(targets: &mut [(String, Vec<u8>)], id: &str) {
     targets[position] = (target, entry);
 }
 
-/// A scheduled check records an unknown named feature exactly as a manual
-/// refresh of the same subject does, instead of only logging and skipping it.
+/// A scheduled check records an unknown named feature, or an entry schema
+/// newer than this reader, exactly as a manual refresh of the same subject
+/// does: as needing a newer engine, instead of only logging and skipping it.
 #[tokio::test]
 async fn scheduled_and_manual_refresh_record_the_same_unknown_named_feature_refusal() {
+    record_the_same_newer_engine_refusal(
+        |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+        },
+        ("unknown_required_feature", "native.future-layout-v7"),
+    )
+    .await;
+    // A future entry shape is refused on its schema number alone, before this
+    // reader interprets any field it does not know.
+    record_the_same_newer_engine_refusal(
+        |entry| {
+            entry["definition_schema"] = 5.into();
+            entry["future_layout"] = serde_json::json!({"shape": "unknown to this reader"});
+        },
+        ("unsupported_definition_schema", "5"),
+    )
+    .await;
+}
+
+async fn record_the_same_newer_engine_refusal(
+    change: impl FnOnce(&mut Value),
+    (detail, value): (&str, &str),
+) {
     use policy::provisioning::official_catalog::{
         automatic_refresh_fixture, serialize_automatic_refresh_fixtures,
     };
@@ -1106,7 +1134,7 @@ async fn scheduled_and_manual_refresh_record_the_same_unknown_named_feature_refu
     let catalog = Catalog::embedded().unwrap();
     let id = catalog.ports()[0].id.clone();
     let mut targets = repository_targets_for(&catalog, &id);
-    with_unknown_named_feature(&mut targets, &id);
+    with_changed_entry(&mut targets, &id, change);
     let document = availability_for(&targets, &id, 1);
     targets.push((
         format!("policy/official/{id}.json"),
@@ -1120,9 +1148,20 @@ async fn scheduled_and_manual_refresh_record_the_same_unknown_named_feature_refu
         assert_eq!(activity.operation, crate::ActivityOperation::UpdateCatalog);
         let failure = activity.failure.clone().unwrap();
         assert_eq!(failure.code, ErrorCode::Unsupported);
+        assert_eq!(failure.details[detail], value);
+        // The recorded value is the eligibility availability reports for a
+        // definition that needs a newer engine, not only a failed activity.
+        let wire = |value: Value| value.as_str().unwrap().to_owned();
         assert_eq!(
-            failure.details["unknown_required_feature"],
-            "native.future-layout-v7"
+            failure.details["definition_eligibility_outcome"],
+            wire(serde_json::to_value(DefinitionEligibilityOutcome::Escalate).unwrap())
+        );
+        assert_eq!(
+            failure.details["definition_eligibility_reason"],
+            wire(
+                serde_json::to_value(DefinitionEligibilityReason::EngineCapabilityRequired)
+                    .unwrap()
+            )
         );
         assert!(
             library

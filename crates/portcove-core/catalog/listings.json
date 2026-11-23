@@ -24593,7 +24593,7 @@
           }
         ]
       },
-      "download_block_reason": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+      "download_block_reason": "Only the reviewed v0.1 Windows ZIP can be downloaded, in a Portcove version that checks its exact file. Other files and releases are not yet reviewed. You can also register a permitted copy you already have. That ZIP includes separately authored Chiaro fonts and no game data. You supply your own Japanese Chameleon Twist ROM.",
       "restrictions": [
         {
           "id": "download",
@@ -24601,9 +24601,25 @@
           "operations": [
             "download"
           ],
-          "reason": "bundled-game-data",
-          "explanation": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+          "reason": "third-party-component-terms",
+          "explanation": "Only the reviewed v0.1 Windows ZIP can be downloaded, in a Portcove version that checks its exact file. Other files and releases are not yet reviewed. You can also register a permitted copy you already have. That ZIP includes separately authored Chiaro fonts and no game data. You supply your own Japanese Chameleon Twist ROM.",
           "tracking_issue": 125
+        },
+        {
+          "id": "approved-v0-1",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "v0.1",
+                "sha256": "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+                "asset_name": "ChameleonTwistJPRecompiled.zip"
+              }
+            ]
+          }
         }
       ],
       "original_game": {
@@ -44343,7 +44359,7 @@
           "-linux.zip"
         ]
       },
-      "download_block_reason": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+      "download_block_reason": "Only the reviewed v4.0 Windows and Linux ZIPs can be downloaded, in a Portcove version that checks their exact files. The Android package and earlier releases are not yet reviewed. You can also get v4.0 from upstream and register your own prepared Windows or Linux copy.",
       "restrictions": [
         {
           "id": "download",
@@ -44352,8 +44368,29 @@
             "download"
           ],
           "reason": "bundled-game-data",
-          "explanation": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+          "explanation": "Only the reviewed v4.0 Windows and Linux ZIPs can be downloaded, in a Portcove version that checks their exact files. The Android package and earlier releases are not yet reviewed. You can also get v4.0 from upstream and register your own prepared Windows or Linux copy.",
           "tracking_issue": 6134
+        },
+        {
+          "id": "reviewed-v4-0",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "v4.0",
+                "sha256": "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+                "asset_name": "SanAndreasUnity-4.0-windows.zip"
+              },
+              {
+                "version": "v4.0",
+                "sha256": "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+                "asset_name": "SanAndreasUnity-4.0-linux.zip"
+              }
+            ]
+          }
         }
       ],
       "platforms": [
@@ -53550,7 +53587,7 @@
           }
         ]
       },
-      "download_block_reason": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+      "download_block_reason": "Only the reviewed freeware v1.0.0 Windows x64 ZIP and Linux x64 archive can be downloaded, in a Portcove version that checks their exact files. Other files and releases are not yet reviewed. You can also get the package from the publisher, keep its notices and register your extracted copy.",
       "restrictions": [
         {
           "id": "download",
@@ -53559,8 +53596,29 @@
             "download"
           ],
           "reason": "bundled-game-data",
-          "explanation": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+          "explanation": "Only the reviewed freeware v1.0.0 Windows x64 ZIP and Linux x64 archive can be downloaded, in a Portcove version that checks their exact files. Other files and releases are not yet reviewed. You can also get the package from the publisher, keep its notices and register your extracted copy.",
           "tracking_issue": 6090
+        },
+        {
+          "id": "reviewed-v1-0-0",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "v1.0.0",
+                "sha256": "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+                "asset_name": "LineWars2-SDL3-v1.0.0-win64.zip"
+              },
+              {
+                "version": "v1.0.0",
+                "sha256": "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+                "asset_name": "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz"
+              }
+            ]
+          }
         }
       ],
       "platforms": [
