@@ -3303,6 +3303,11 @@ export interface ReviewedLaunchContractV1 {
     "macos-x86-64"?: AssetRules;
     "windows-x86-64"?: AssetRules;
   };
+  /**
+   * The reviewed title-specific prefix, such as `DKC2_`, that every launch
+   * environment name outside the small harmless allow-list carries.
+   */
+  environment_prefix?: string | null;
   launch?: {
     "linux-x86-64"?: LaunchValues;
     "macos-aarch64"?: LaunchValues;

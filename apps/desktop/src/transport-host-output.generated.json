@@ -27637,6 +27637,13 @@
             },
             "type": "object"
           },
+          "environment_prefix": {
+            "description": "The reviewed title-specific prefix, such as `DKC2_`, that every launch\nenvironment name outside the small harmless allow-list carries.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "launch": {
             "additionalProperties": false,
             "properties": {

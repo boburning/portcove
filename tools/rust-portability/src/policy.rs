@@ -403,13 +403,14 @@ const SCOPED: &[(&str, &[&str])] = &[
     ),
     // An exact rooted package name that recipe inspection must reject.
     ("crates/portcove-core/src/recipe_tests.rs", &["/etc/passwd"]),
-    // Host locations a reviewed launch environment value must refuse.
+    // Host locations a launch text value or argument must refuse.
     (
         "crates/portcove-core/src/reviewed_launch_contract.rs",
         &[
             "/usr/lib/fixture.so",
             "\\\\server\\share\\fixture.dll",
             "\\\\?\\C:\\fixture.dll",
+            "\\\\.\\pipe\\fixture",
             "C:\\fixture\\plugin.dll",
             "c:/fixture/plugin.dll",
         ],
