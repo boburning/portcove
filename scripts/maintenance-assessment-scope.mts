@@ -422,6 +422,28 @@ export interface SubjectScope {
   key: string;
   /** The newest clock value visible at `now`, in seconds (null when none). */
   visibleUntil: number | null;
+  /** Every clock value the subject depends on (its partition and the shared data). */
+  clock: readonly number[];
+}
+
+/** The newest of `values` visible at `nowSeconds`, or null when none is. */
+export function newestVisible(values: readonly number[], nowSeconds: number) {
+  return values.reduce<number | null>(
+    (newest, value) =>
+      value <= nowSeconds && (newest === null || value > newest) ? value : newest,
+    null,
+  );
+}
+
+/**
+ * The clock value a binding may record for a read: the planned value when the
+ * newest visible value did not change while Core read, otherwise -1, which no
+ * later run's value equals, so the next run reads the subject again.
+ */
+export function boundVisible(subject: SubjectScope, afterReadSeconds: number) {
+  return newestVisible(subject.clock, afterReadSeconds) === subject.visibleUntil
+    ? subject.visibleUntil
+    : -1;
 }
 
 export interface AssessmentScope {
@@ -456,12 +478,7 @@ export function assessmentScope(input: {
       policy: { ...input.policy, features: [...input.policy.features].sort() },
     }),
   );
-  const visible = (values: readonly number[]) =>
-    values.reduce<number | null>(
-      (newest, value) =>
-        value <= input.nowSeconds && (newest === null || value > newest) ? value : newest,
-      null,
-    );
+  const visible = (values: readonly number[]) => newestVisible(values, input.nowSeconds);
   const sharedVisible = visible(partition.sharedClock);
   const subjects = new Map<string, SubjectScope>();
   for (const id of input.ids) {
@@ -475,6 +492,7 @@ export function assessmentScope(input: {
           : ownVisible === null
             ? sharedVisible
             : Math.max(sharedVisible, ownVisible),
+      clock: [...partition.sharedClock, ...own.clock],
     });
   }
   return {

@@ -284,7 +284,8 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
     in-progress run of the same source may write a row, and never over a row
     from a newer acquisition; rows are never deleted. A read rewrites its row
     only when the key, fact, result or newest visible clock value changed.
-    The row keeps that clock value (`visible_until`).
+    The row keeps the clock value its read saw (`visible_until`), or -1 when
+    a value became visible while Core read, so the next run reads it again.
   - **Store-side selection.** `core_reassessment_due(source, desired)` takes
     each subject's key, fact digest and newest `observed_at` visible now. It
     returns only the subjects that need Core, with the first reason that

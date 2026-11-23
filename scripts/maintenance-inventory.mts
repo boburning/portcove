@@ -43,6 +43,7 @@ import {
 import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   assessmentScope,
+  boundVisible,
   listingsPath,
   mechanismOf,
   type AssessmentScope,
@@ -2290,11 +2291,20 @@ export async function collect(options: {
     onProcess: () => coreProcesses++,
   });
   const coreReadSeconds = (performance.now() - coreReadStarted) / 1000;
-  const subjects: CollectedSubject[] = authored.map((subject) => ({
-    ...subject,
-    capabilities: plan.reused.has(`port:${subject.id}`) ? null : coreRead.get(subject.id)!,
-    scope: scope?.subjects.get(subject.id),
-  }));
+  // A clock value that became visible while Core read is unknown to the plan;
+  // such a binding records -1, so the next run reads the subject again.
+  const afterReadSeconds = Math.floor(Date.now() / 1000);
+  const subjects: CollectedSubject[] = authored.map((subject) => {
+    const subjectScope = scope?.subjects.get(subject.id);
+    return {
+      ...subject,
+      capabilities: plan.reused.has(`port:${subject.id}`) ? null : coreRead.get(subject.id)!,
+      scope: subjectScope && {
+        ...subjectScope,
+        visibleUntil: boundVisible(subjectScope, afterReadSeconds),
+      },
+    };
+  });
   const mode = options.all ? "all" : "sample";
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");

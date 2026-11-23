@@ -6,6 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import {
   assessmentScope,
+  boundVisible,
   catalogPath,
   declaredCatalogKeys,
   declaredListingsKeys,
@@ -287,6 +288,15 @@ void test("source-catalog records name a port only through the declared owner fi
           undeclared.push(`${array}:${String(id)}:${value}`);
     }
   assert.deepEqual(undeclared, []);
+});
+
+void test("a binding records its clock value only when it did not move during the read", () => {
+  const subject = { key: "k", visibleUntil: 100, clock: [50, 100, 300] };
+  assert.equal(boundVisible(subject, 299), 100);
+  // A value became visible while Core read: the next run must read again.
+  assert.equal(boundVisible(subject, 300), -1);
+  assert.equal(boundVisible({ key: "k", visibleUntil: null, clock: [300] }, 300), -1);
+  assert.equal(boundVisible({ key: "k", visibleUntil: null, clock: [] }, 300), null);
 });
 
 void test("the declared catalog shape matches the embedded data, so new structure is reviewed", () => {
