@@ -37,6 +37,26 @@
       {
         "tag": "v1.0‮",
         "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
+        "provider_prerelease": false
       }
     ],
     "assets": [
@@ -74,7 +94,18 @@
       "Switchblade-v1.0-windows-x64.zip",
       "Game-v1.0-x64.zip",
       "Game-v1.0-win32.zip",
-      "Collection-v1.0-windows-x64.zip"
+      "Collection-v1.0-windows-x64.zip",
+      "Game-Studio-v1.0-windows-x64.zip",
+      "Studiopolis-v1.0-windows-x64.zip",
+      "Game-Extras-v1.0-windows-x64.zip",
+      "Table-Tennis-Engine-Windows-v1.6.0.zip",
+      "SOTN-v1.2.0-windows-x64.zip",
+      "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+      "Woof-v15.0.0-windows.zip",
+      "OpenTIE-v1.0-windows-x64.zip",
+      "MiniQuake-v0.9-macos-arm64.zip",
+      "Peggle-v1.0-windows-x64.zip",
+      "PokePlatinum-v1.1.0-linux-x86_64.tar.gz"
     ],
     "programs": [
       "game.exe",
@@ -118,7 +149,23 @@
       "Doom.exe",
       "Doom64.exe",
       "Quake.exe",
-      "Quake32.exe"
+      "Quake32.exe",
+      "TextureStudio.exe",
+      "SpiderMan.exe",
+      "SpiderMan2.exe",
+      "rexglue.exe",
+      "rex-glue.exe",
+      "Studiopolis.exe",
+      "Game Studio.exe",
+      "sotn.exe",
+      "openmb2",
+      "woof.exe",
+      "opentie.exe",
+      "miniquake",
+      "Peggle.exe",
+      "pokeplatinum",
+      "GameConfig.exe",
+      "Game_Settings.exe"
     ]
   },
   "output": {
@@ -166,6 +213,31 @@
       },
       {
         "tag": "v1.0‮",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
         "provider_prerelease": false,
         "prerelease": false
       }
@@ -450,6 +522,94 @@
         "arch": "x86-64",
         "tool_token": null,
         "system_token": null
+      },
+      {
+        "name": "Game-Studio-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "studio",
+        "system_token": null
+      },
+      {
+        "name": "Studiopolis-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-Extras-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Table-Tennis-Engine-Windows-v1.6.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": "engine",
+        "system_token": null
+      },
+      {
+        "name": "SOTN-v1.2.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Woof-v15.0.0-windows.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenTIE-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "MiniQuake-v0.9-macos-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Peggle-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
       }
     ],
     "programs": [
@@ -619,6 +779,70 @@
       },
       {
         "name": "Quake32.exe",
+        "tool_token": null
+      },
+      {
+        "name": "TextureStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rexglue.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rex-glue.exe",
+        "tool_token": "glue"
+      },
+      {
+        "name": "Studiopolis.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game Studio.exe",
+        "tool_token": "studio"
+      },
+      {
+        "name": "sotn.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openmb2",
+        "tool_token": null
+      },
+      {
+        "name": "woof.exe",
+        "tool_token": null
+      },
+      {
+        "name": "opentie.exe",
+        "tool_token": null
+      },
+      {
+        "name": "miniquake",
+        "tool_token": null
+      },
+      {
+        "name": "Peggle.exe",
+        "tool_token": null
+      },
+      {
+        "name": "pokeplatinum",
+        "tool_token": null
+      },
+      {
+        "name": "GameConfig.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game_Settings.exe",
         "tool_token": null
       }
     ]

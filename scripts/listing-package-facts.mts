@@ -20,9 +20,20 @@
 //    re-evaluated only when the release changes: no stable release, no
 //    package, only unsupported desktop forms (recorded), only non-desktop
 //    forms, an archive without a provider digest, over the per-archive or
-//    per-release limit, more bytes than one whole run may read, a permanent
-//    Core refusal, repeated transient failures, invalid facts (including a
-//    malformed or unclassifiable newer release), or a changed repository id.
+//    per-platform or overall archive limit, more bytes than one whole run may
+//    read, repeated transient failures, invalid facts (including a malformed
+//    or unclassifiable newer release), or a changed repository id.
+//  - A permanent Core refusal is scoped to its archive: the archive is
+//    recorded with a bounded refusal class and never offered, and the other
+//    archives still decide their platforms.
+//  - Every entry records the observed releases (for the release-line rule)
+//    and the release's bare `.exe`/`.msi` assets (an installer beside the
+//    archives makes the release install-driven). A listing whose release URL
+//    names a tag is read on that tag's release line only.
+//  - Candidates are the authored listing-only identities, including those
+//    the generated route already offers (`workerRecords`), so offered
+//    identities are refreshed first and their withdrawals count against the
+//    batch bound.
 //  - Every entry records the package forms of its release it does not read
 //    (`unread_forms`), also beside a supported archive.
 //  - Each identity is evaluated alone: a name Core cannot classify, a
@@ -58,6 +69,14 @@ import { fileURLToPath } from "node:url";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
 import {
   archiveForms,
+  archivesPerPlatform,
+  boundReleaseLine,
+  fitContext,
+  releaseLine,
+  type Generation,
+  type ObservedReleaseFact,
+  type RefusalClass,
+  type RefusedArchive,
   boundFactsBatch,
   compareCodePoints,
   checkFactsProvenance,
@@ -93,7 +112,10 @@ export const defaultBudget = {
   maxIdentities: 24,
   maxBytes: 2 * 1024 ** 3,
   maxArchiveBytes: 512 * 1024 ** 2,
-  maxArchivesPerRelease: 6,
+  /** Archives whose names allow one platform; more cannot be told apart. */
+  maxArchivesPerPlatform: 6,
+  /** Hard bound on a release's archives, whatever platforms their names allow. */
+  maxArchivesPerRelease: 16,
   /** Consecutive transient inspection failures before an identity is completed. */
   maxInspectionFailures: 3,
 } as const;
@@ -131,12 +153,17 @@ export interface ObservedRelease {
   /** Asset records in this release the worker cannot read; never dropped silently. */
   malformed_assets: number;
 }
-/** A failed inspection. `permanent` failures are not retried for this release. */
+/**
+ * A failed inspection. `permanent` failures are not retried for this release:
+ * the archive is recorded as refused with its bounded `refusal` class.
+ */
 export class InspectionError extends Error {
   readonly permanent: boolean;
-  constructor(message: string, permanent: boolean) {
+  readonly refusal: RefusalClass;
+  constructor(message: string, permanent: boolean, refusal: RefusalClass = "core-unknown") {
     super(message);
     this.permanent = permanent;
+    this.refusal = refusal;
   }
 }
 /** Reads verified archive bytes and returns their player candidates; throws on failure. */
@@ -175,7 +202,33 @@ interface Observation {
   malformedReleases: number;
 }
 
-/** Listing-only GitHub identities the generated route could serve: id -> listed repository. */
+/**
+ * The records the worker reads: the authored records before generated
+ * registration routes are added. A generated route is not an authored
+ * integration, so an identity the generated route already offers stays a
+ * candidate: its facts are refreshed, and its withdrawal is counted against
+ * the batch bound. Reading the assembled records instead would make every
+ * enrolled identity look operational and drop its facts on the next run.
+ * Every generated enrollment must name an authored listing-only GitHub
+ * identity; anything else is a broken catalog assembly.
+ */
+export function workerRecords(source: {
+  authored: readonly AuthoredPort[];
+  generation: Pick<Generation, "enrollments">;
+}): readonly AuthoredPort[] {
+  const candidates = listingOnly(source.authored);
+  for (const enrollment of source.generation.enrollments)
+    if (!candidates.has(enrollment.port_id))
+      throw new Error(
+        `Generated registration ${enrollment.port_id} has no authored listing-only GitHub record.`,
+      );
+  return source.authored;
+}
+
+/**
+ * Authored listing-only GitHub identities the generated route could serve,
+ * including those it already offers: id -> listed repository.
+ */
 function listingOnly(records: readonly AuthoredPort[]) {
   return new Map(
     records
@@ -333,6 +386,23 @@ const unreadFormsOf = (release: ObservedRelease | undefined) =>
         const form = packageFormOf(asset.name);
         return form && !(archiveForms as readonly string[]).includes(form) ? [form] : [];
       }),
+    ),
+  ].toSorted(compareCodePoints);
+/** A tag as the facts record it: bounded printable text, else unknown (null). */
+export const recordedTag = (version: string): string | null =>
+  version.length > 0 &&
+  Buffer.byteLength(version) <= 256 &&
+  version.trim() === version &&
+  !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}]/u.test(version)
+    ? version
+    : null;
+/** Sorted, unique names of the release's bare `.exe` and `.msi` assets. */
+export const bareExecutablesOf = (release: ObservedRelease) =>
+  [
+    ...new Set(
+      release.assets
+        .filter((asset) => [".exe", ".msi"].includes(packageFormOf(asset.name) ?? ""))
+        .map((asset) => asset.name),
     ),
   ].toSorted(compareCodePoints);
 /** Reader rules only; TAR.XZ is read by the Linux reader. */
@@ -654,6 +724,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const state = sanitizeState(inputs.state ?? initialState());
   const candidates = listingOnly(inputs.records);
   const recordById = new Map(inputs.records.map((record) => [record.listing.id, record]));
+  const context = fitContext(inputs.records);
   // Facts bind to the repository the listing names; a re-pointed listing rebinds.
   const bound = (entry: ListingFactsEntry) =>
     candidates.get(entry.port_id)?.toLowerCase() === entry.repository.toLowerCase();
@@ -666,7 +737,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     [...entries.values()]
       .filter((entry) => {
         const record = recordById.get(entry.port_id);
-        return record ? fitDecision(record, entry, previous.generated_at).fit : false;
+        return record ? fitDecision(record, entry, previous.generated_at, context).fit : false;
       })
       .map((entry) => entry.port_id),
   );
@@ -699,13 +770,26 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         provider_prerelease: release.provider_prerelease,
       })),
   });
+  // A listing whose release URL names a tag binds the identity to that tag's
+  // release line: only that line's releases can be offered.
+  const lineOf = (id: string, release: ObservedRelease) =>
+    releaseLine(recordedTag(release.version), release.id, candidates.get(id)!);
   const choice = new Map(
     [...observed]
       .filter(([, observation]) => complete(observation))
-      .map(([id, observation]) => [
-        id,
-        latestStable(observation.releases, (release) => names.prerelease(release)),
-      ]),
+      .map(([id, observation]) => {
+        const record = recordById.get(id);
+        const bound = record ? boundReleaseLine(record) : null;
+        return [
+          id,
+          latestStable(
+            bound === null
+              ? observation.releases
+              : observation.releases.filter((release) => lineOf(id, release) === bound),
+            (release) => names.prerelease(release),
+          ),
+        ];
+      }),
   );
   const latest = new Map<string, ObservedRelease | undefined>(
     [...choice].map(([id, chosen]) => [id, chosen.release]),
@@ -752,6 +836,21 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       assets_sha256: assetsDigest(release),
     };
   };
+  /** The observed releases, for the release-line rule; null fields are unknown. */
+  const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
+    observed
+      .get(id)!
+      .releases.toSorted((left, right) => left.id - right.id)
+      .map((release) => {
+        const published = Date.parse(release.published_at ?? "");
+        return {
+          release_id: release.id,
+          tag: recordedTag(release.version),
+          prerelease: names.prerelease(release) ?? null,
+          published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
+          packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
+        };
+      });
   const base = (id: string, repositoryId: number) => ({
     port_id: id,
     provider: "github" as const,
@@ -773,6 +872,9 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       observation,
       ineligible: { reason, detail },
       unread_forms: release ? unreadFormsOf(release) : (entries.get(id)?.unread_forms ?? []),
+      observed_releases: [],
+      bare_executables: [],
+      refused_archives: [],
       attempt: null,
       artifacts: [],
     };
@@ -858,13 +960,31 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   };
   const unclassified =
     "A release file or program name could not be classified by Core (malformed, over 1,024 bytes or refused), so it cannot be vetoed.";
+  /** A refused archive with Core's current name verdict; undefined if its name is unclassified. */
+  const refusedFor = (
+    asset: ObservedAsset & { sha256: string },
+    refusal: RefusalClass,
+  ): RefusedArchive | undefined => {
+    const suggestion = names.suggestion(asset.name);
+    return suggestion
+      ? {
+          asset_id: asset.id,
+          name: asset.name,
+          size: asset.size,
+          sha256: asset.sha256,
+          name_suggestion: suggestion,
+          refusal,
+        }
+      : undefined;
+  };
   const settle = (
     id: string,
     repositoryId: number,
     release: ObservedRelease,
     artifacts: (ArtifactFactV2 | undefined)[],
+    refused: (RefusedArchive | undefined)[] = [],
   ) => {
-    if (artifacts.some((artifact) => artifact === undefined)) {
+    if ([...artifacts, ...refused].some((fact) => fact === undefined)) {
       invalid(id, repositoryId, release, unclassified);
       return false;
     }
@@ -873,6 +993,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       observation: observationOf(id, release),
       ineligible: null,
       unread_forms: unreadFormsOf(release),
+      observed_releases: observedReleasesOf(id),
+      bare_executables: bareExecutablesOf(release),
+      refused_archives: (refused as RefusedArchive[]).toSorted(
+        (left, right) => left.asset_id - right.asset_id,
+      ),
       attempt: null,
       artifacts: artifacts as ArtifactFactV2[],
     };
@@ -925,6 +1050,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     release: ObservedRelease;
     archives: (ObservedAsset & { sha256: string })[];
     reusable: Map<string, ArtifactFactV2>;
+    reusableRefusals: Map<string, RefusalClass>;
     cost: number;
   };
   const needs: Need[] = [];
@@ -1031,8 +1157,14 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           ? factFor({ ...asset, sha256: artifact.sha256 }, candidatesOf(artifact))
           : undefined;
       });
-      if (settle(id, repositoryId, release, refreshed))
-        row(id, "unchanged", undefined, 0, same.artifacts.length);
+      const refusals = same.refused_archives.map((archive) => {
+        const asset = release.assets.find((candidate) => candidate.id === archive.asset_id);
+        return asset
+          ? refusedFor({ ...asset, sha256: archive.sha256 }, archive.refusal)
+          : undefined;
+      });
+      if (settle(id, repositoryId, release, refreshed, refusals))
+        row(id, "unchanged", undefined, 0, same.artifacts.length + same.refused_archives.length);
       return;
     }
     const archives = release.assets
@@ -1093,13 +1225,20 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       );
       return;
     }
-    if (archives.length > budget.maxArchivesPerRelease) {
+    // Archives count per platform their names allow; a hard overall bound
+    // keeps one release's inspection bounded whatever the names say.
+    const crowded = Object.entries(
+      archivesPerPlatform(archives.map((asset) => names.suggestion(asset.name)!)),
+    ).filter(([, count]) => count > budget.maxArchivesPerPlatform);
+    if (archives.length > budget.maxArchivesPerRelease || crowded.length) {
       ineligible(
         id,
         repositoryId,
         release,
         "too-many-assets",
-        `The release has more than ${budget.maxArchivesPerRelease} archives.`,
+        archives.length > budget.maxArchivesPerRelease
+          ? `The release has ${archives.length} archives; at most ${budget.maxArchivesPerRelease} are read.`
+          : `More than ${budget.maxArchivesPerPlatform} archives' names allow ${crowded.map(([platform]) => platform).join(", ")}.`,
       );
       return;
     }
@@ -1109,8 +1248,17 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         .flatMap((entry) => entry?.artifacts ?? [])
         .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
+    const reusableRefusals = new Map(
+      [prior, held.get(id)]
+        .flatMap((entry) => entry?.refused_archives ?? [])
+        .map((archive) => [`${archive.asset_id}/${archive.sha256}`, archive.refusal] as const),
+    );
     const cost = digestBound
-      .filter((asset) => !reusable.has(`${asset.id}/${asset.sha256}`))
+      .filter(
+        (asset) =>
+          !reusable.has(`${asset.id}/${asset.sha256}`) &&
+          !reusableRefusals.has(`${asset.id}/${asset.sha256}`),
+      )
       .reduce((sum, asset) => sum + asset.size, 0);
     if (cost > budget.maxBytes) {
       ineligible(
@@ -1122,7 +1270,15 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       );
       return;
     }
-    needs.push({ id, repositoryId, release, archives: digestBound, reusable, cost });
+    needs.push({
+      id,
+      repositoryId,
+      release,
+      archives: digestBound,
+      reusable,
+      reusableRefusals,
+      cost,
+    });
   };
   for (const id of [...observed.keys()].toSorted(compareCodePoints))
     await isolated(id, () => evaluate(id));
@@ -1136,6 +1292,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   let inspectedIdentities = 0;
   const inspectOne = async (need: Need) => {
     const found: { asset: ObservedAsset & { sha256: string }; players: PlayerFact[] }[] = [];
+    const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
     for (const asset of need.archives) {
@@ -1145,19 +1302,21 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
+      const knownRefusal = need.reusableRefusals.get(`${asset.id}/${asset.sha256}`);
+      if (knownRefusal) {
+        refused.push({ asset, refusal: knownRefusal });
+        reused++;
+        continue;
+      }
       try {
         inspected++;
         found.push({ asset, players: await inputs.inspect(asset, readerPlatform(asset.name)) });
       } catch (error) {
+        // A permanent refusal is scoped to its archive: it is recorded with
+        // its bounded class, never offered, and the other archives still fit.
         if (error instanceof InspectionError && error.permanent) {
-          ineligible(
-            need.id,
-            need.repositoryId,
-            need.release,
-            "core-refused",
-            safeText(error.message, "Core refused the archive."),
-          );
-          return;
+          refused.push({ asset, refusal: error.refusal });
+          continue;
         }
         const failures = (retry.get(need.id)?.failures ?? 0) + 1;
         if (failures >= budget.maxInspectionFailures) {
@@ -1186,6 +1345,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         need.repositoryId,
         need.release,
         found.map(({ asset, players }) => factFor(asset, players)),
+        refused.map(({ asset, refusal }) => refusedFor(asset, refusal)),
       )
     ) {
       settledIds.add(need.id);
@@ -1456,13 +1616,39 @@ function coreData(run: CoreRun, what: string): Record<string, unknown> {
   }
   if (isRecord(parsed) && parsed.ok === true && isRecord(parsed.data)) return parsed.data;
   // Core ran and refused these bytes: the same bytes are refused again.
-  throw new InspectionError(`Core refused the archive during ${what}.`, run.exited);
+  throw new InspectionError(
+    `Core refused the archive during ${what}.`,
+    run.exited,
+    refusalClassOf(isRecord(parsed) && isRecord(parsed.error) ? parsed.error.code : undefined),
+  );
+}
+
+/** Core's typed error code as a bounded refusal class; never Core's free text. */
+export function refusalClassOf(code: unknown): RefusalClass {
+  const known: Record<string, RefusalClass> = {
+    usage: "core-usage",
+    unsupported: "core-unsupported",
+    not_found: "core-not-found",
+    source_invalid: "core-source-invalid",
+    network: "core-network",
+    verification: "core-verification",
+    install: "core-install",
+    state: "core-state",
+    launch: "core-launch",
+    conflict: "core-conflict",
+    cancelled: "core-cancelled",
+  };
+  return typeof code === "string" && Object.hasOwn(known, code) ? known[code]! : "core-unknown";
 }
 
 export function cliInspector(cli: string, workDirectory: string): ByteInspector {
   return async (asset, platform) => {
     if (!asset.sha256 || !/^https:\/\/github\.com\//u.test(asset.url))
-      throw new InspectionError("Only digest-bound GitHub release assets are inspected.", true);
+      throw new InspectionError(
+        "Only digest-bound GitHub release assets are inspected.",
+        true,
+        "not-digest-bound",
+      );
     const directory = await mkdtemp(path.join(workDirectory, "asset-"));
     try {
       const file = path.join(
@@ -1492,11 +1678,19 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
         await pipeline(body, createWriteStream(file, { flags: "wx" }));
       } catch {
         if (received > asset.size)
-          throw new InspectionError("Archive bytes exceed the provider's size.", true);
+          throw new InspectionError(
+            "Archive bytes exceed the provider's size.",
+            true,
+            "size-exceeded",
+          );
         throw new InspectionError("Download was interrupted.", false);
       }
       if (received !== asset.size || hash.digest("hex") !== asset.sha256)
-        throw new InspectionError("Archive bytes differ from the provider's size or digest.", true);
+        throw new InspectionError(
+          "Archive bytes differ from the provider's size or digest.",
+          true,
+          "digest-mismatch",
+        );
       const data = coreData(
         await runCore(
           cli,
@@ -1600,7 +1794,7 @@ async function main(argv: string[]) {
   const cadenceHours = options["cadence-hours"] ? Number(options["cadence-hours"]) : undefined;
   if (cadenceHours !== undefined && !(cadenceHours > 0)) throw new Error(usage);
   const output = options.output ?? factsTablePath;
-  const { records } = readCatalogSource(catalogRoot);
+  const records = workerRecords(readCatalogSource(catalogRoot));
   const work = await mkdtemp(path.join(os.tmpdir(), "listing-facts-"));
   try {
     const cli = path.resolve(options.cli);

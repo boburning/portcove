@@ -21,6 +21,7 @@ import {
   type AuthoredPort,
 } from "./catalog-authoring.mts";
 import {
+  artifactExclusions,
   boundFactsBatch,
   checkFactsProvenance,
   compareCodePoints,
@@ -43,6 +44,7 @@ import {
   genericSelection,
   machineRunsOn,
   readGateBaseline,
+  releaseLine,
   type ArtifactFactV2,
   type ListingFactsEntry,
   type ListingFactsTable,
@@ -61,6 +63,7 @@ import {
   type NameClassifier,
   type ObservedAsset,
   type WorkerState,
+  workerRecords,
 } from "./listing-package-facts.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -203,6 +206,17 @@ function entry(
     },
     ineligible: null,
     unread_forms: [],
+    observed_releases: [
+      {
+        release_id: fields.release_id ?? 7,
+        tag: fields.tag ?? "v1.0",
+        prerelease: false,
+        published_at: fields.published_at ?? "2026-11-01T00:00:00.000Z",
+        packaged: true,
+      },
+    ],
+    bare_executables: [],
+    refused_archives: [],
     attempt: null,
     artifacts,
     ...extra,
@@ -1085,7 +1099,15 @@ void test("transient failures retry from a bounded queue; permanent refusals com
     first.state.retry.map((item) => item.port_id),
     ["zz-retry-a"],
   );
-  assert.equal(outcome(first, "zz-retry-b")!.reason, "core-refused");
+  // A permanent refusal is scoped to its archive (D5): the identity completes,
+  // records the refusal class, and blocks as core-refused when nothing else fits.
+  assert.equal(outcome(first, "zz-retry-b")!.outcome, "complete");
+  const refusedEntry = first.table.entries.find((item) => item.port_id === "zz-retry-b")!;
+  assert.deepEqual(
+    refusedEntry.refused_archives.map((archive) => archive.refusal),
+    ["core-unknown"],
+  );
+  assert.equal(reasonOf(decide(records[1]!, refusedEntry)), "core-refused");
   assert.equal(outcome(first, "zz-retry-c")!.outcome, "complete");
   const second = await derive(records, report, first.table, {
     state: first.state,
@@ -2506,4 +2528,487 @@ void test("the route fit report carries every exception queue with its identitie
   assert.deepEqual(queues.reasons["non-desktop-platform"], ["zz-queue-b"]);
   assert.deepEqual(Object.values(queues.reasons).flat().toSorted(), ["zz-queue-a", "zz-queue-b"]);
   assert.equal(enrollmentTable(assembled.generation).blocked["ambiguous-player"], 1);
+});
+
+// ---------------------------------------------------------------------------
+// #8569 real-data defects (D1-D6): fixtures rebuild the observed shapes; no
+// game data is committed.
+
+/** One worker run as `main()` runs it: records come from the assembled catalog source. */
+async function sourceRun(
+  authored: AuthoredPort[],
+  report: unknown,
+  facts: ListingFactsTable,
+  options: Parameters<typeof derive>[3] = {},
+) {
+  const source = assembleCatalogRecords(shared, authored, facts);
+  return await derive([...workerRecords(source)], report, facts, options);
+}
+
+void test("the worker keeps its own enrollments across runs and counts their withdrawals (D1)", async () => {
+  const ids = Array.from({ length: 40 }, (_, index) => `zz-keep-${String(index).padStart(2, "0")}`);
+  const authored = ids.map((id) => listing(id));
+  const start = "2026-11-02T00:00:00.000Z";
+  const report = (now: string, spec: (id: string) => ObservationSpec = () => ({})) =>
+    observerReport(Object.fromEntries(ids.map((id) => [id, { ...spec(id), observed_at: now }])));
+  let facts = (
+    await sourceRun(authored, report(start), emptyFactsTable(start), {
+      now: start,
+      budget: { maxIdentities: 100 },
+    })
+  ).table;
+  assert.deepEqual(enrolledIds(authored, facts), ids, "run 1 enrolls every identity");
+  // The assembled catalog now carries the generated routes. Reading those
+  // records (the defect) would make every enrolled identity look operational
+  // and drop its facts.
+  const assembled = assembleCatalogRecords(shared, authored, facts);
+  assert.equal(assembled.generation.enrollments.length, ids.length);
+  const dropped = await derive(assembled.records, report(dayAfter(start, 1)), facts, {
+    now: dayAfter(start, 1),
+  });
+  assert.equal(dropped.table.entries.length, 0, "the defect this test guards against");
+  let state: WorkerState | undefined;
+  for (let run = 2; run <= 6; run++) {
+    const now = dayAfter(start, run);
+    const result = await sourceRun(authored, report(now), facts, { state, now });
+    assert.deepEqual(enrolledIds(authored, result.table), ids, `run ${run} keeps run 1's routes`);
+    assert.equal(result.table.entries.length, ids.length);
+    gateGeneration(
+      enrollmentTable(generateRegistrations(authored, facts)),
+      generateRegistrations(authored, result.table),
+      deltaBounds,
+      facts,
+    );
+    facts = result.table;
+    state = result.state;
+  }
+  // Changed releases are the offered backlog, refreshed before growth.
+  const changed = await sourceRun(authored, report(dayAfter(start, 7), changedRelease), facts, {
+    state,
+    now: dayAfter(start, 7),
+    budget: { maxIdentities: 4 },
+  });
+  assert.ok(changed.backlog.enrolled_pending > 0, "offered identities wait as enrolled_pending");
+  assert.deepEqual(enrolledIds(authored, changed.table), ids, "still offered while pending");
+  // A genuine withdrawal (no stable release any more) counts against the bound.
+  const prereleaseOnly = (id: string): ObservationSpec => ({
+    releases: [
+      {
+        id: 9,
+        tag: "v2.0-rc1",
+        published_at: "2026-11-15T00:00:00Z",
+        assets: [{ id: 61, name: windowsZip, sha256: sha(`${id}-rc`) }],
+      },
+    ],
+  });
+  const withdrawing = await sourceRun(authored, report(dayAfter(start, 8), prereleaseOnly), facts, {
+    state,
+    now: dayAfter(start, 8),
+  });
+  const delta = gateGeneration(
+    enrollmentTable(generateRegistrations(authored, facts)),
+    generateRegistrations(authored, withdrawing.table),
+    deltaBounds,
+    facts,
+  );
+  assert.equal(delta.withdrawn.length, deltaBounds.withdrawn);
+  assert.equal(withdrawing.backlog.held_for_batch, ids.length - deltaBounds.withdrawn);
+  assert.match(delta.withdrawn[0]!.reason, /^no-stable-release/u);
+});
+
+void test("workerRecords refuses a generated enrollment without an authored listing-only record", () => {
+  const authored = [listing("zz-a")];
+  assert.throws(
+    () =>
+      workerRecords({
+        authored: [],
+        generation: generateRegistrations(authored, table(entry(undefined, {}, "zz-a"))),
+      }),
+    /no authored listing-only GitHub record/u,
+  );
+});
+
+/** A release spec with one Windows archive holding these players, by URL. */
+const releaseWith = (
+  id: number,
+  tag: string,
+  published: string,
+  assets: { id: number; name: string }[],
+  provider_prerelease = false,
+): ReleaseSpec => ({
+  id,
+  tag,
+  published_at: published,
+  provider_prerelease,
+  assets: assets.map((asset) => ({ ...asset, sha256: sha(`${tag}-${asset.id}`) })),
+});
+/** Players by asset id, read from the asset URL. */
+const byAsset =
+  (contents: Record<number, PlayerFact[] | Error>): ByteInspector =>
+  async (asset) => {
+    const found = contents[asset.id];
+    if (!found) return [player("Game/Game.exe")];
+    if (found instanceof Error) throw found;
+    return found;
+  };
+
+void test("a release is bound to its product's release line (D2a: a tool's release beside game betas)", async () => {
+  const id = "zz-line-texture";
+  const releases = [
+    releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]),
+    releaseWith(2, "texture-studio-v1.0.0", "2026-10-10T00:00:00Z", [{ id: 21, name: windowsZip }]),
+    releaseWith(3, "v2.0.0-beta", "2026-10-20T00:00:00Z", [{ id: 31, name: windowsZip }]),
+  ];
+  const inspect = byAsset({
+    11: [player("Game/Game.exe")],
+    21: [player("TextureStudio.exe")],
+    31: [player("Game/Game.exe")],
+  });
+  const unbound = await derive([listing(id)], observerReport({ [id]: { releases } }), undefined, {
+    inspect,
+  });
+  const facts = unbound.table.entries[0]!;
+  assert.equal(facts.observation.tag, "texture-studio-v1.0.0", "the latest stable is the tool's");
+  assert.equal(reasonOf(decide(listing(id), facts)), "ambiguous-release-line");
+  // The listing's own release URL binds the identity to the game's line.
+  const bound = listing(id, {
+    release_url: `https://github.com/fixture-owner/${id}/releases/tag/v1.0`,
+  });
+  const result = await derive([bound], observerReport({ [id]: { releases } }), undefined, {
+    inspect,
+  });
+  const decision = decide(bound, result.table.entries[0]);
+  assert.ok(decision.fit);
+  assert.equal(decision.enrollment.release.tag, "v1.0");
+  assert.equal(decision.enrollment.runtimes[0]!.players[0]!.display_path, "Game/Game.exe");
+  // A stable release older than a newer prerelease of another line is never offered.
+  const tooOld = [
+    releases[0]!,
+    releaseWith(4, "texture-studio-v2.0-beta", "2026-10-25T00:00:00Z", [
+      { id: 41, name: windowsZip },
+    ]),
+  ];
+  const older = await derive([bound], observerReport({ [id]: { releases: tooOld } }), undefined, {
+    inspect,
+  });
+  assert.equal(reasonOf(decide(bound, older.table.entries[0])), "ambiguous-release-line");
+  // The gate refuses the unbound tool release independently of the fit rule.
+  const generation = generateRegistrations([bound], result.table);
+  assert.equal(gateGeneration(null, generation).added.length, 1);
+  const forged = structuredClone(generation);
+  forged.records = [listing(id)];
+  assert.throws(() => gateGeneration(null, forged), /release line is ambiguous/u);
+  const prerelease = structuredClone(generation);
+  const entryCopy = prerelease.facts.entries[0]!;
+  entryCopy.observed_releases.push({
+    release_id: 99,
+    tag: "texture-studio-v2.0-beta",
+    prerelease: true,
+    published_at: "2026-10-25T00:00:00.000Z",
+    packaged: true,
+  });
+  prerelease.enrollments[0]!.facts_sha256 = digestOf(entryCopy);
+  assert.throws(() => gateGeneration(null, prerelease), /older than another line's prerelease/u);
+});
+
+void test("identities sharing a repository enroll only on lines of their own (D2b)", async () => {
+  const repository = "fixture-owner/zz-spider-pair";
+  const pair = ["zz-spider-one", "zz-spider-two"];
+  const releases = [
+    releaseWith(1, "sm1-v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]),
+    releaseWith(2, "sm2-v1.1", "2026-10-10T00:00:00Z", [{ id: 21, name: windowsZip }]),
+  ];
+  const inspect = byAsset({ 11: [player("SpiderMan.exe")], 21: [player("SpiderMan2.exe")] });
+  const report = observerReport(
+    Object.fromEntries(pair.map((id) => [id, { repository, releases }])),
+  );
+  const unbound = pair.map((id) =>
+    listing(id, { project_url: `https://github.com/${repository}` }),
+  );
+  const first = await derive(unbound, report, undefined, { inspect });
+  const generation = generateRegistrations(unbound, first.table);
+  assert.deepEqual(generation.enrollments, []);
+  assert.deepEqual(
+    generation.decisions.map(reasonOf),
+    ["shared-repository", "shared-repository"],
+    "the first title never gets the second title's newest release",
+  );
+  // Each listing names its own line through its release URL.
+  const bound = [
+    listing(pair[0], { release_url: `https://github.com/${repository}/releases/tag/sm1-v1.0` }),
+    listing(pair[1], { release_url: `https://github.com/${repository}/releases/tag/sm2-v1.1` }),
+  ];
+  const second = await derive(bound, report, undefined, { inspect });
+  const enrolled = generateRegistrations(bound, second.table);
+  assert.deepEqual(
+    enrolled.enrollments.map((row) => [
+      row.port_id,
+      row.release.tag,
+      row.runtimes[0]!.players[0]!.path,
+    ]),
+    [
+      ["zz-spider-one", "sm1-v1.0", "spiderman.exe"],
+      ["zz-spider-two", "sm2-v1.1", "spiderman2.exe"],
+    ],
+  );
+  assert.equal(gateGeneration(null, enrolled).added.length, 2);
+  // Two identities bound to the same line still share it.
+  const same = bound.map((record) =>
+    listing(record.listing.id, {
+      release_url: `https://github.com/${repository}/releases/tag/sm1-v1.0`,
+    }),
+  );
+  assert.deepEqual(generateRegistrations(same, second.table).decisions.map(reasonOf), [
+    "shared-repository",
+    "shared-repository",
+  ]);
+  // The gate restates the shared-repository rule from the listings alone.
+  const forged = structuredClone(enrolled);
+  forged.records = unbound.map((record) => ({ ...record }));
+  assert.throws(() => gateGeneration(null, forged), /shares its repository/u);
+});
+
+void test("release lines drop versions, channels and the repository's own name", () => {
+  const line = (tag: string) => releaseLine(tag, 7, "owner/Spider-Game");
+  assert.equal(line("v1.0"), "");
+  assert.equal(line("2.0.0-beta"), "");
+  assert.equal(line("r14388"), "");
+  assert.equal(line("release-1.2"), "");
+  assert.equal(line("nightly-2026-11-01"), "");
+  assert.equal(line("spider-game-v3"), "");
+  assert.equal(line("sm2-v1.1"), "sm2");
+  assert.equal(line("texture-studio-v1.0.0"), "texture-studio");
+  assert.equal(line("v1.0‮"), "#7", "a non-ASCII tag is a line of its own");
+  assert.equal(releaseLine(null, 9, "owner/x"), "#9");
+});
+
+void test("two different archives for one platform are ambiguous even with one program name (D3)", () => {
+  const game = player("Game/Game.exe", "pe-x86-64", "game-build");
+  const studio = player("Game/Game.exe", "pe-x86-64", "studio-build");
+  const two = entry([
+    artifact(windowsZip, [game], 11),
+    artifact("Game-Extras-v1.0-windows-x64.zip", [studio], 12),
+  ]);
+  assert.equal(reasonOf(decide(listing(), two)), "ambiguous-artifact");
+  // The same package twice (equal player bytes) is one package.
+  const twins = entry([
+    artifact(windowsZip, [game], 11),
+    artifact("Game-Extras-v1.0-windows-x64.zip", [game], 12),
+  ]);
+  assert.ok(decide(listing(), twins).fit);
+  // An authoring-tool archive is vetoed by its whole-word name and never counts.
+  const vetoed = entry([
+    artifact(windowsZip, [game], 11),
+    artifact("Game-Studio-v1.0-windows-x64.zip", [studio], 12),
+  ]);
+  assert.ok(vetoed.artifacts[1]!.contradictory);
+  assert.ok(decide(listing(), vetoed).fit);
+  // A title containing the word as part of a longer word is not vetoed.
+  const title = entry([
+    artifact("Studiopolis-v1.0-windows-x64.zip", [player("Studiopolis.exe")], 11),
+  ]);
+  assert.ok(decide(listing(), title).fit);
+  // The gate refuses two different archives independently.
+  const generation = generateRegistrations([listing()], table(twins));
+  assert.equal(gateGeneration(null, generation).added.length, 1);
+  const forged = structuredClone(generation);
+  forged.facts.entries[0]!.artifacts[1] = artifact(
+    "Game-Extras-v1.0-windows-x64.zip",
+    [studio],
+    12,
+  );
+  forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, forged), /2 different archives/u);
+});
+
+void test("a lone code generator beside an installer, or in an engine archive, never enrolls (D4)", async () => {
+  const id = "zz-engine-release";
+  const engineZip = "Table-Tennis-Engine-Windows-v1.6.0.zip";
+  const inspect = byAsset({ 11: [player("bin/rexglue.exe")] });
+  const both = await derive(
+    [listing(id)],
+    observerReport({
+      [id]: {
+        releases: [
+          releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+            { id: 11, name: engineZip },
+            { id: 12, name: "Install-TableTennis.exe" },
+          ]),
+        ],
+      },
+    }),
+    undefined,
+    { inspect },
+  );
+  const facts = both.table.entries[0]!;
+  assert.deepEqual(facts.bare_executables, ["Install-TableTennis.exe"]);
+  assert.equal(reasonOf(decide(listing(id), facts)), "installer-driven-release");
+  // Without the installer, the archive's whole-word `engine` role still vetoes it.
+  const archiveOnly = entry([artifact(engineZip, [player("bin/rexglue.exe")])]);
+  assert.equal(reasonOf(decide(listing(), archiveOnly)), "tool-not-game");
+  // A delimited code-generator program name is a tool; a glued one is judged by the rules above.
+  const glue = entry([artifact(windowsZip, [player("bin/rex-glue.exe")])]);
+  assert.equal(glue.artifacts[0]!.excluded_players[0]!.token, "glue");
+  assert.equal(reasonOf(decide(listing(), glue)), "tool-not-game");
+  // A bare program that is not an installer does not make a release install-driven.
+  const portable = entry([artifact()], {}, unseen, { bare_executables: ["Unseen.exe"] });
+  assert.ok(decide(listing(), portable).fit);
+  // The gate restates the installer rule.
+  const generation = generateRegistrations([listing()], table(portable));
+  const forged = structuredClone(generation);
+  forged.facts.entries[0]!.bare_executables = ["Game-Setup.exe", "Unseen.exe"];
+  forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, forged), /installer or setup program/u);
+});
+
+void test("the hand-checked correct shapes still enroll (D4 iii)", () => {
+  const shapes: [string, PlayerFact][] = [
+    ["SOTN-v1.2.0-windows-x64.zip", player("sotn.exe")],
+    ["OpenMB2-v0.3.0-linux-x86_64.tar.gz", player("OpenMB2/openmb2", "elf64-x86-64")],
+    ["Woof-v15.0.0-windows.zip", player("woof-15/woof.exe")],
+    ["OpenTIE-v1.0-windows-x64.zip", player("opentie.exe")],
+    [
+      "MiniQuake-v0.9-macos-arm64.zip",
+      player("MiniQuake.app/Contents/MacOS/miniquake", "macho-arm64"),
+    ],
+    ["Peggle-v1.0-windows-x64.zip", player("Peggle/Peggle.exe")],
+    ["PokePlatinum-v1.1.0-linux-x86_64.tar.gz", player("pokeplatinum", "elf64-x86-64")],
+  ];
+  for (const [name, program] of shapes) {
+    const facts = entry([artifact(name, [program])]);
+    assert.deepEqual(artifactExclusions(facts.artifacts[0]!), [], name);
+    assert.ok(decide(listing(), facts).fit, name);
+  }
+});
+
+void test("a launcher or settings program is selected with the generic wording", () => {
+  for (const program of ["Launcher.exe", "GameConfig.exe", "Game_Settings.exe"]) {
+    const generation = generateRegistrations(
+      [listing()],
+      table(entry([artifact(windowsZip, [player(`Game/${program}`)])])),
+    );
+    const record = generation.records[0]!;
+    const guide = record.listing.manual_setup as Guide;
+    assert.equal(guide.steps[2]!.instruction, genericSelection, program);
+  }
+});
+
+void test("a Core refusal is scoped to its archive and its class is reported (D5)", async () => {
+  const id = "zz-refused-mac";
+  const macZip2 = "Game-v1.0-macos-universal.zip";
+  const releases = [
+    releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [
+      { id: 11, name: windowsZip },
+      { id: 12, name: macZip2 },
+    ]),
+  ];
+  const inspect = byAsset({
+    11: [player("Game/Game.exe")],
+    12: new InspectionError(
+      "Core refused the archive during inspection.",
+      true,
+      "core-source-invalid",
+    ),
+  });
+  const result = await derive([listing(id)], observerReport({ [id]: { releases } }), undefined, {
+    inspect,
+  });
+  const facts = result.table.entries[0]!;
+  assert.equal(facts.ineligible, null);
+  assert.deepEqual(
+    facts.refused_archives.map((archive) => [archive.asset_id, archive.refusal]),
+    [[12, "core-source-invalid"]],
+  );
+  const decision = decide(listing(id), facts);
+  assert.ok(decision.fit);
+  assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64"]);
+  assert.ok(decision.enrollment.runtimes.every((runtime) => runtime.asset_id !== 12));
+  // The refusal is reused for the unchanged release: no bytes are read again.
+  let reads = 0;
+  await derive([listing(id)], observerReport({ [id]: { releases } }), result.table, {
+    now: "2026-11-22T00:00:00.000Z",
+    inspect: async (asset) => {
+      reads++;
+      return await inspect(asset, "windows-x86-64");
+    },
+  });
+  assert.equal(reads, 0);
+  // A refused archive whose name allows every platform blocks every platform.
+  const neutral = entry([artifact()], {}, unseen, {
+    refused_archives: [
+      {
+        asset_id: 12,
+        name: neutralZip,
+        size: 100,
+        sha256: sha("neutral"),
+        name_suggestion: suggestion(neutralZip),
+        refusal: "core-unsupported",
+      },
+    ],
+  });
+  assert.equal(reasonOf(decide(listing(), neutral)), "core-refused");
+  // The report queues group the refusal classes.
+  const assembled = assembleCatalogRecords(shared, [listing(id)], result.table);
+  assert.deepEqual(registrationQueues(assembled.generation).refusals, {
+    "core-source-invalid": [id],
+  });
+  // The gate refuses an enrollment decided beside a refused archive that could hold its game.
+  const generation = generateRegistrations([listing()], table(entry()));
+  const forged = structuredClone(generation);
+  forged.facts.entries[0]!.refused_archives = neutral.refused_archives;
+  forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
+  assert.throws(() => gateGeneration(null, forged), /refused archive that could hold its game/u);
+});
+
+void test("archives count per platform their names allow, within a hard overall bound (D6)", async () => {
+  const run = async (names: string[]) => {
+    const id = "zz-many";
+    const result = await derive(
+      [listing(id)],
+      observerReport({
+        [id]: {
+          releases: [
+            releaseWith(
+              1,
+              "v1.0",
+              "2026-10-01T00:00:00Z",
+              names.map((name, index) => ({ id: 100 + index, name })),
+            ),
+          ],
+        },
+      }),
+      undefined,
+      {
+        inspect: async (asset) =>
+          asset.name.includes("linux")
+            ? [player("Game/Game", "elf64-x86-64", "linux")]
+            : asset.name.includes("macos")
+              ? [player("Game.app/Contents/MacOS/Game", "macho-arm64", "mac")]
+              : [player("Game/Game.exe", "pe-x86-64", "windows")],
+      },
+    );
+    return result.table.entries[0]!;
+  };
+  // Six Windows, six Linux and four macOS archives: no platform holds more than six.
+  const spread = await run([
+    ...Array.from({ length: 6 }, () => windowsZip),
+    ...Array.from({ length: 6 }, () => linuxTar),
+    ...Array.from({ length: 4 }, () => "Game-v1.0-macos-arm64.zip"),
+  ]);
+  assert.equal(spread.ineligible, null);
+  assert.equal(spread.artifacts.length, 16);
+  // Seven archives a Windows name allows cannot be told apart.
+  const crowded = await run(Array.from({ length: 7 }, () => windowsZip));
+  assert.equal(crowded.ineligible?.reason, "too-many-assets");
+  // Neutral names allow every platform.
+  const neutral = await run([...Array.from({ length: 6 }, () => linuxTar), neutralZip]);
+  assert.equal(neutral.ineligible?.reason, "too-many-assets");
+  // The hard bound: seventeen archives are never read, whatever they are called.
+  const overall = await run([
+    ...Array.from({ length: 6 }, () => windowsZip),
+    ...Array.from({ length: 6 }, () => linuxTar),
+    ...Array.from({ length: 5 }, () => "Game-v1.0-macos-arm64.zip"),
+  ]);
+  assert.equal(overall.ineligible?.reason, "too-many-assets");
+  assert.match(overall.ineligible?.detail ?? "", /at most 16/u);
 });

@@ -1,5 +1,5 @@
 {
-  "format": 4,
+  "format": 5,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -21,6 +21,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -78,7 +89,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -90,6 +101,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -133,7 +155,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -145,6 +167,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -187,7 +220,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -199,6 +232,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -247,7 +291,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -259,6 +303,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -301,7 +356,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -313,6 +368,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -355,7 +421,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 5,
+      "parser_version": 6,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -367,6 +433,17 @@
       },
       "ineligible": null,
       "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 8,
+          "tag": "v1.0",
+          "prerelease": false,
+          "published_at": "2026-11-01T00:00:00.000Z",
+          "packaged": true
+        }
+      ],
+      "bare_executables": [],
+      "refused_archives": [],
       "attempt": null,
       "artifacts": [
         {
@@ -404,5 +481,5 @@
       ]
     }
   ],
-  "entries_sha256": "f3548f8cbdde80d51b63ab49a51c88602735abc196833770cf03fd05f119e7e8"
+  "entries_sha256": "dda464aeea6a5f4f0e12c9e4cf67b849bfc8e33285a2ea494af26bf6ab382a4d"
 }

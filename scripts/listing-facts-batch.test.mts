@@ -183,6 +183,17 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
     },
     ineligible: null,
     unread_forms: [],
+    observed_releases: [
+      {
+        release_id: 8,
+        tag: "v1.0",
+        prerelease: false,
+        published_at: "2026-11-01T00:00:00.000Z",
+        packaged: true,
+      },
+    ],
+    bare_executables: [],
+    refused_archives: [],
     attempt: null,
     artifacts: [artifact],
   };
@@ -341,6 +352,111 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     classify: coreClassifier,
   });
   assert.equal(unavailable.refused[0]!.reason, "release-unavailable");
+});
+
+void test("a refused archive, the release's line facts and its installers are reproduced too (D2, D4, D5)", async () => {
+  const { release, entry, players } = fixture();
+  const mac = {
+    id: 23,
+    name: "Game-v1.0-macos-universal.zip",
+    size: 512,
+    sha256: sha("mac"),
+    url: "https://github.com/fixture-owner/mac.zip",
+  };
+  release.assets.push(mac);
+  entry.observation.assets_sha256 = assetsDigest({
+    id: 8,
+    version: "v1.0",
+    published_at: null,
+    provider_prerelease: false,
+    assets_complete: true,
+    malformed_assets: 0,
+    assets: release.assets,
+  });
+  entry.refused_archives = [
+    {
+      asset_id: 23,
+      name: mac.name,
+      size: mac.size,
+      sha256: mac.sha256,
+      name_suggestion: suggestion(mac.name),
+      refusal: "core-source-invalid",
+    },
+  ];
+  const refusing =
+    (refusal: InspectionError | PlayerFact[]): ByteInspector =>
+    async (asset) => {
+      if (asset.id !== 23) return players.map((item) => ({ ...item }));
+      if (refusal instanceof Error) throw refusal;
+      return refusal;
+    };
+  const run = (copy: ListingFactsEntry, inspect: ByteInspector, provider = release) =>
+    reproduceFacts({
+      entries: [copy],
+      readRelease: reader({ 8: provider }),
+      inspect,
+      classify: coreClassifier,
+    });
+  const sameRefusal = new InspectionError("refused", true, "core-source-invalid");
+  assert.deepEqual(await run(entry, refusing(sameRefusal)), {
+    verified: [unseen],
+    refused: [],
+    bytes: 4096 + 512,
+  });
+  // A refusal that is not reproduced, or reproduced with another class, is a mismatch.
+  const reason = async (copy: ListingFactsEntry, inspect: ByteInspector, provider = release) =>
+    (await run(copy, inspect, provider)).refused[0]?.reason;
+  assert.equal(
+    await reason(entry, refusing([player("Game.app/Contents/MacOS/Game", "macho-arm64")])),
+    "mismatch",
+  );
+  assert.equal(
+    await reason(entry, refusing(new InspectionError("refused", true, "core-unsupported"))),
+    "mismatch",
+  );
+  assert.equal(
+    await reason(entry, refusing(new InspectionError("reset", false))),
+    "asset-unavailable",
+  );
+  // A refused archive left out is a mismatch: the entry records every archive.
+  assert.equal(await reason({ ...entry, refused_archives: [] }, refusing(sameRefusal)), "mismatch");
+  // A forged installer list or release line record is refused.
+  assert.equal(
+    await reason({ ...entry, bare_executables: ["Setup.exe"] }, refusing(sameRefusal)),
+    "release-changed",
+  );
+  assert.equal(
+    await reason(
+      {
+        ...entry,
+        observed_releases: [{ ...entry.observed_releases[0]!, tag: "sm2-v1.1" }],
+      },
+      refusing(sameRefusal),
+    ),
+    "release-changed",
+  );
+  // A bare installer beside the archives must be recorded.
+  const installer = structuredClone(release);
+  installer.assets.push({
+    id: 24,
+    name: "Install-Game.exe",
+    size: 64,
+    sha256: sha("installer"),
+    url: "https://github.com/x/i.exe",
+  });
+  const recorded = structuredClone(entry);
+  recorded.observation.assets_sha256 = assetsDigest({
+    id: 8,
+    version: "v1.0",
+    published_at: null,
+    provider_prerelease: false,
+    assets_complete: true,
+    malformed_assets: 0,
+    assets: installer.assets,
+  });
+  assert.equal(await reason(recorded, refusing(sameRefusal), installer), "release-changed");
+  recorded.bare_executables = ["Install-Game.exe"];
+  assert.equal(await reason(recorded, refusing(sameRefusal), installer), undefined);
 });
 
 void test("reproduction is budgeted: oversized assets, too many entries or bytes and the clock refuse", async () => {
@@ -1085,14 +1201,17 @@ void test("the exception queues report counts per reason and the top unsupported
       reasons: { "no-observation": ["a", "b", "c"], "ambiguous-player": ["d"], "too-large": [] },
       unread_forms: { ".7z": ["a", "b"], ".exe": ["c"], ".dmg": [] },
       exclusions: { "asset-tool-name:patcher": ["e"] },
+      refusals: { "core-source-invalid": ["f", "g"], "digest-mismatch": [] },
     },
   });
   assert.deepEqual(counts, {
     reasons: { "no-observation": 3, "ambiguous-player": 1 },
     unread_forms: { ".7z": 2, ".exe": 1 },
     exclusions: { "asset-tool-name:patcher": 1 },
+    refusals: { "core-source-invalid": 2 },
   });
   assert.match(markdown, /\| `no-observation` \| 3 \|/u);
+  assert.match(markdown, /\| `core-source-invalid` \| 2 \|/u);
   assert.match(markdown, /Top unread package forms/u);
   assert.throws(() => queueSummary({}), /registration_queues/u);
 });

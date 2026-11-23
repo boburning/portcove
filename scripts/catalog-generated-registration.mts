@@ -29,6 +29,14 @@
 //     non-complete upstream attempts since is at most `lastGoodRetentionDays`
 //     long; the worker's own backlog (`pending-inspection`) is not an upstream
 //     attempt (anything else is UNKNOWN or stale, never eligible);
+//  7a. the release belongs to this identity's product: no other catalog
+//     identity names the repository unless the listing's release URL binds
+//     this one to a release line no other identity is bound to
+//     (`shared-repository`); the observed releases form one release line or
+//     the listing binds one, the offered release is on it, and no newer
+//     prerelease of another line follows it (`ambiguous-release-line`);
+//  7b. the release ships no bare installer or setup program beside its
+//     archives (`installer-driven-release`);
 //  8. for at least one supported desktop platform P there is an artifact whose
 //     typed role is `desktop-game-runtime` from exact digest-bound archive
 //     bytes, which neither its asset name (Core's filename classifier and
@@ -43,7 +51,10 @@
 //     vetoes and same-program variants (architecture, system, console and
 //     debug words) at most `maxDistinctPrograms` (1) distinct program names
 //     remain, and one artifact's players sit under one top-level directory.
-//     Anything more could be several titles and is `ambiguous-player`;
+//     Anything more could be several titles and is `ambiguous-player`. When
+//     several such artifacts remain they are one package (equal player
+//     SHA-256 sets), else `ambiguous-artifact`; no archive Core refused has a
+//     name that allows P (`core-refused`);
 // 10. on P no acquisition restriction holds `register-external` or `launch`
 //     (a `download` hold does not block registration; this route never offers
 //     a download).
@@ -57,11 +68,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 5;
+export const GENERATOR_VERSION = 6;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 5;
-export const FACTS_TABLE_FORMAT = 4;
+export const FACTS_PARSER_VERSION = 6;
+export const FACTS_TABLE_FORMAT = 5;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -169,6 +180,48 @@ export interface ArtifactFactV2 {
   excluded_players: ExcludedPlayer[];
   contradictory: boolean;
 }
+/**
+ * One release the observer reported for the repository (newest first, within
+ * the observer's own release bound): enough to derive its release line.
+ */
+export interface ObservedReleaseFact {
+  release_id: number;
+  /** The tag as published, or null when it is not a bounded printable string. */
+  tag: string | null;
+  /** Core's prerelease verdict, or null when Core did not classify the tag. */
+  prerelease: boolean | null;
+  published_at: string | null;
+  /** Whether the release carries at least one package file. */
+  packaged: boolean;
+}
+/** Why Core (or the worker's byte binding) refused one archive. */
+export const refusalClasses = [
+  "core-usage",
+  "core-unsupported",
+  "core-not-found",
+  "core-source-invalid",
+  "core-network",
+  "core-verification",
+  "core-install",
+  "core-state",
+  "core-launch",
+  "core-conflict",
+  "core-cancelled",
+  "core-unknown",
+  "digest-mismatch",
+  "size-exceeded",
+  "not-digest-bound",
+] as const;
+export type RefusalClass = (typeof refusalClasses)[number];
+/** An archive whose bytes Core refused permanently; it is never offered. */
+export interface RefusedArchive {
+  asset_id: number;
+  name: string;
+  size: number;
+  sha256: string;
+  name_suggestion: NameSuggestion;
+  refusal: RefusalClass;
+}
 export interface ListingFactsEntry {
   port_id: string;
   provider: "github";
@@ -195,6 +248,19 @@ export interface ListingFactsEntry {
    * desktop forms (`unreadForms`) and non-desktop forms (`nonDesktopForms`).
    */
   unread_forms: string[];
+  /**
+   * The observed releases of the repository, in ascending release id, for the
+   * release-line rule. Empty for an ineligible entry.
+   */
+  observed_releases: ObservedReleaseFact[];
+  /**
+   * Names of the release's bare `.exe` and `.msi` assets, sorted and unique:
+   * an installer beside the archives makes the release install-driven.
+   * Empty for an ineligible entry.
+   */
+  bare_executables: string[];
+  /** Archives of the release Core refused; never offered. Empty when ineligible. */
+  refused_archives: RefusedArchive[];
   /** Consecutive non-complete attempts since `observed_at`; last-good facts stay. */
   attempt: {
     status: (typeof attemptStatuses)[number];
@@ -305,22 +371,7 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
   exact(value.source, ["kind", "shape_version", "archive_sha256"], `${where}.source`);
   if (!positive(value.source.shape_version) || value.source.archive_sha256 !== value.sha256)
     throw new Error(`${where} structural source must bind these exact archive bytes.`);
-  const suggestion = value.name_suggestion;
-  if (!isRecord(suggestion)) throw new Error(`${where}.name_suggestion must be an object.`);
-  exact(
-    suggestion,
-    ["rule_version", "role", "os", "arch", "tool_token", "system_token"],
-    `${where}.name_suggestion`,
-  );
-  if (
-    !positive(suggestion.rule_version) ||
-    !(suggestion.tool_token === null || toolToken(suggestion.tool_token)) ||
-    !(suggestion.system_token === null || toolToken(suggestion.system_token)) ||
-    !(roles as readonly unknown[]).includes(suggestion.role) ||
-    !targetOs.includes(suggestion.os as string) ||
-    !targetArch.includes(suggestion.arch as string)
-  )
-    throw new Error(`${where}.name_suggestion is not a filename classification.`);
+  checkSuggestion(value.name_suggestion, `${where}.name_suggestion`);
   const paths = new Set<string>();
   for (const [index, player] of [
     ...value.players.map((item: unknown) => ["players", item] as const),
@@ -345,6 +396,79 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
   }
   if ((value.role === "desktop-game-runtime") !== value.players.length > 0)
     throw new Error(`${where} claims a runtime role exactly when it holds players.`);
+}
+
+function checkSuggestion(suggestion: unknown, where: string) {
+  if (!isRecord(suggestion)) throw new Error(`${where} must be an object.`);
+  exact(suggestion, ["rule_version", "role", "os", "arch", "tool_token", "system_token"], where);
+  if (
+    !positive(suggestion.rule_version) ||
+    !(suggestion.tool_token === null || toolToken(suggestion.tool_token)) ||
+    !(suggestion.system_token === null || toolToken(suggestion.system_token)) ||
+    !(roles as readonly unknown[]).includes(suggestion.role) ||
+    !targetOs.includes(suggestion.os as string) ||
+    !targetArch.includes(suggestion.arch as string)
+  )
+    throw new Error(`${where} is not a filename classification.`);
+}
+
+/** At most this many observed releases, bare executables and refused archives per entry. */
+const maxObservedReleases = 16;
+const maxBareExecutables = 32;
+const maxRefusedArchives = 32;
+
+function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
+  const releases = entry.observed_releases;
+  if (!Array.isArray(releases) || releases.length > maxObservedReleases)
+    throw new Error(`${where}.observed_releases must be a bounded list.`);
+  for (const [index, release] of releases.entries()) {
+    const at = `${where}.observed_releases[${index}]`;
+    if (!isRecord(release)) throw new Error(`${at} must be an object.`);
+    exact(release, ["release_id", "tag", "prerelease", "published_at", "packaged"], at);
+    if (
+      !positive(release.release_id) ||
+      (index > 0 &&
+        Number((releases[index - 1] as Record<string, unknown>).release_id) >=
+          release.release_id) ||
+      !(release.tag === null || bounded(release.tag, 256)) ||
+      !(release.prerelease === null || typeof release.prerelease === "boolean") ||
+      !(release.published_at === null || timestamp(release.published_at)) ||
+      typeof release.packaged !== "boolean"
+    )
+      throw new Error(`${at} needs a release id in ascending order, a tag, a verdict and a time.`);
+  }
+  const executables = entry.bare_executables;
+  if (
+    !Array.isArray(executables) ||
+    executables.length > maxBareExecutables ||
+    executables.some(
+      (name: unknown, index: number) =>
+        !bounded(name, 255) ||
+        !/\.(?:exe|msi)$/iu.test(name) ||
+        (index > 0 && compareCodePoints(String(executables[index - 1]), name) >= 0),
+    )
+  )
+    throw new Error(`${where}.bare_executables must be sorted, unique .exe or .msi names.`);
+  const refused = entry.refused_archives;
+  if (!Array.isArray(refused) || refused.length > maxRefusedArchives)
+    throw new Error(`${where}.refused_archives must be a bounded list.`);
+  for (const [index, archive] of refused.entries()) {
+    const at = `${where}.refused_archives[${index}]`;
+    if (!isRecord(archive)) throw new Error(`${at} must be an object.`);
+    exact(archive, ["asset_id", "name", "size", "sha256", "name_suggestion", "refusal"], at);
+    if (
+      !positive(archive.asset_id) ||
+      (index > 0 &&
+        Number((refused[index - 1] as Record<string, unknown>).asset_id) >= archive.asset_id) ||
+      !bounded(archive.name, 255) ||
+      !Number.isSafeInteger(archive.size) ||
+      Number(archive.size) < 1 ||
+      !sha(archive.sha256) ||
+      !(refusalClasses as readonly unknown[]).includes(archive.refusal)
+    )
+      throw new Error(`${at} needs an asset in ascending order, its digest and a refusal class.`);
+    checkSuggestion(archive.name_suggestion, `${at}.name_suggestion`);
+  }
 }
 
 /** A Core tool token: a lowercase ASCII word. */
@@ -392,11 +516,15 @@ export function checkListingFactsEntry(
       "observation",
       "ineligible",
       "unread_forms",
+      "observed_releases",
+      "bare_executables",
+      "refused_archives",
       "attempt",
       "artifacts",
     ],
     where,
   );
+  checkReleaseFacts(entry, where);
   if (
     !Array.isArray(entry.unread_forms) ||
     entry.unread_forms.some(
@@ -450,11 +578,22 @@ export function checkListingFactsEntry(
     if (
       !(ineligibleReasons as readonly unknown[]).includes(entry.ineligible.reason) ||
       !bounded(entry.ineligible.detail, 512) ||
-      entry.artifacts.length
+      entry.artifacts.length ||
+      (entry.observed_releases as unknown[]).length ||
+      (entry.bare_executables as unknown[]).length ||
+      (entry.refused_archives as unknown[]).length
     )
-      throw new Error(`${where}.ineligible needs a known reason and no artifacts.`);
+      throw new Error(
+        `${where}.ineligible needs a known reason and no artifacts, releases or refusals.`,
+      );
   } else if (observation.release_id === null)
     throw new Error(`${where} without a release must be ineligible.`);
+  else if (
+    !(entry.observed_releases as ObservedReleaseFact[]).some(
+      (release) => release.release_id === observation.release_id && release.prerelease === false,
+    )
+  )
+    throw new Error(`${where} must record its own stable release among the observed releases.`);
   if (entry.attempt !== null) {
     if (!isRecord(entry.attempt)) throw new Error(`${where}.attempt must be an object.`);
     exact(entry.attempt, ["status", "first_at", "last_at", "failures"], `${where}.attempt`);
@@ -467,7 +606,9 @@ export function checkListingFactsEntry(
     )
       throw new Error(`${where}.attempt needs a status, a time span and a count.`);
   }
-  const assets = new Set<number>();
+  const assets = new Set<number>(
+    (entry.refused_archives as RefusedArchive[]).map((archive) => archive.asset_id),
+  );
   for (const [artifactIndex, artifact] of entry.artifacts.entries()) {
     checkArtifact(artifact, `${where}.artifacts[${artifactIndex}]`);
     if (assets.has(artifact.asset_id))
@@ -716,7 +857,26 @@ export function machineRunsOn(machine: string, platform: string): boolean {
 
 /** Whether an archive's name permits P: it names no other system or architecture. */
 function namePermits(artifact: ArtifactFactV2, platform: string) {
-  const named = artifact.name_suggestion;
+  return namePermitsName(artifact.name_suggestion, platform);
+}
+/** How many of these archive names allow each supported platform. */
+export function archivesPerPlatform(names: readonly NameSuggestion[]): Record<string, number> {
+  return Object.fromEntries(
+    platforms.map((platform) => [
+      platform,
+      names.filter((named) => namePermitsName(named, platform)).length,
+    ]),
+  );
+}
+/** Whether a name vetoes its archive by its own words, whatever the archive holds. */
+function nameVetoes(named: NameSuggestion) {
+  return (
+    named.tool_token !== null ||
+    named.system_token !== null ||
+    !["desktop-game-runtime", "unknown"].includes(named.role)
+  );
+}
+function namePermitsName(named: NameSuggestion, platform: string) {
   const wanted = platform === "macos-aarch64" ? "aarch64" : "x86-64";
   return (
     (named.os === "unknown" || named.os === hostOs[platform]) &&
@@ -793,6 +953,160 @@ const topDirectory = (path: string) => (path.includes("/") ? path.slice(0, path.
 function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
   return namePermits(artifact, platform);
 }
+
+// ---------------------------------------------------------------------------
+// Release lines: which product a release belongs to.
+
+/**
+ * Words a tag's line drops: release-channel words, never a product name.
+ * `release-1.2`, `nightly-2026` and `v1.3` are one line; `sm2-v1.1` and
+ * `texture-studio-v1.0.0` are lines of their own.
+ */
+const channelWords = new Set([
+  "release",
+  "releases",
+  "rel",
+  "version",
+  "ver",
+  "stable",
+  "latest",
+  "nightly",
+  "continuous",
+  "snapshot",
+  "preview",
+  "beta",
+  "alpha",
+  "rc",
+  "pre",
+  "prerelease",
+  "dev",
+  "build",
+  "ci",
+  "test",
+  "testing",
+  "final",
+  "hotfix",
+  "update",
+]);
+
+/**
+ * A release tag's line: the tag without its version part (the first number
+ * that starts the tag or a word, optionally after one letter such as `v`, `r`
+ * or `b`, and everything after it), lowercase, without release-channel words.
+ * A line spelling the repository's own name is the repository's main line
+ * (`""`). A tag that is not printable ASCII, or unknown, is a line of its own
+ * (`#<release id>`), so it never merges with another.
+ */
+export function releaseLine(tag: string | null, releaseId: number, repository: string): string {
+  if (tag === null || !/^[\x21-\x7e]+$/u.test(tag)) return `#${releaseId}`;
+  const lower = tag.toLowerCase();
+  const cut = lower.search(/(?:^|[^a-z0-9])[a-z]?[0-9]/u);
+  const words = (cut < 0 ? lower : lower.slice(0, cut))
+    .split(/[^a-z0-9]+/u)
+    .filter((word) => word && !channelWords.has(word));
+  const name = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
+  return words.join("") === name ? "" : words.join("-");
+}
+
+/**
+ * The release line the listing itself binds the identity to: the tag its
+ * `release_url` names on its own GitHub repository
+ * (`https://github.com/<owner>/<name>/releases/tag/<tag>`), or null.
+ */
+export function boundReleaseLine(record: AuthoredPort): string | null {
+  const identity = listingProviderIdentity(record.listing);
+  const url = record.listing.release_url;
+  if (identity?.provider !== "github" || typeof url !== "string") return null;
+  const prefix = `https://github.com/${identity.repository}/releases/tag/`.toLowerCase();
+  if (!url.toLowerCase().startsWith(prefix)) return null;
+  const encoded = url.slice(prefix.length);
+  if (!encoded || encoded.includes("/")) return null;
+  let tag: string;
+  try {
+    tag = decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+  return releaseLine(tag, 0, identity.repository);
+}
+
+/** Catalog-wide facts the fit rule needs beyond one record: who else names a repository. */
+export interface FitContext {
+  /** Lowercase GitHub repository -> every identity naming it, with its bound line. */
+  repositories: Map<string, { port_id: string; line: string | null }[]>;
+}
+export function fitContext(records: readonly AuthoredPort[]): FitContext {
+  const repositories = new Map<string, { port_id: string; line: string | null }[]>();
+  for (const record of records) {
+    const identity = listingProviderIdentity(record.listing);
+    if (identity?.provider !== "github") continue;
+    const key = identity.repository.toLowerCase();
+    repositories.set(key, [
+      ...(repositories.get(key) ?? []),
+      { port_id: record.listing.id, line: boundReleaseLine(record) },
+    ]);
+  }
+  return { repositories };
+}
+
+/** Why the observed releases do not tie this identity to one product's release, if they do not. */
+function releaseLineProblem(
+  record: AuthoredPort,
+  entry: ListingFactsEntry,
+  context: FitContext,
+): { reason: "shared-repository" | "ambiguous-release-line"; detail: string } | undefined {
+  const bound = boundReleaseLine(record);
+  const sharing = (context.repositories.get(entry.repository.toLowerCase()) ?? []).filter(
+    (other) => other.port_id !== entry.port_id,
+  );
+  const chosen = entry.observed_releases.find(
+    (release) => release.release_id === entry.observation.release_id,
+  )!;
+  const lineOf = (release: ObservedReleaseFact) =>
+    releaseLine(release.tag, release.release_id, entry.repository);
+  const chosenLine = lineOf(chosen);
+  if (sharing.length && (bound === null || sharing.some((other) => other.line === bound)))
+    return {
+      reason: "shared-repository",
+      detail: `${sharing.length + 1} catalog identities name this repository, and the listing binds this one to no release line of its own.`,
+    };
+  const lines = new Set([
+    chosenLine,
+    ...entry.observed_releases.filter((release) => release.packaged).map(lineOf),
+  ]);
+  if (bound !== null && bound !== chosenLine)
+    return {
+      reason: "ambiguous-release-line",
+      detail: "The offered release is not on the release line the listing names.",
+    };
+  if (lines.size > 1 && bound === null)
+    return {
+      reason: "ambiguous-release-line",
+      detail: `The repository's releases fall into ${lines.size} release lines, and the listing binds this identity to none.`,
+    };
+  // A stable release older than a newer prerelease of another line may be
+  // another product's older release: never offer it.
+  const published = Date.parse(chosen.published_at ?? "");
+  if (
+    entry.observed_releases.some(
+      (release) =>
+        release.prerelease !== false &&
+        lineOf(release) !== chosenLine &&
+        !(Date.parse(release.published_at ?? "") <= published),
+    )
+  )
+    return {
+      reason: "ambiguous-release-line",
+      detail: "A newer prerelease of another release line follows the offered stable release.",
+    };
+  return undefined;
+}
+
+/** A bare installer or setup program among the release's assets. */
+export const installerExecutable = (name: string) => {
+  const lower = name.toLowerCase();
+  return /^install/u.test(lower) || lower.includes("setup") || lower.includes("installer");
+};
 
 export interface PlatformRuntime {
   platform: string;
@@ -885,6 +1199,15 @@ function platformRuntime(
   entry: ListingFactsEntry,
   platform: string,
 ): { runtime: PlatformRuntime } | { reason: BlockedReason } {
+  // A refused archive whose own name allows P could be P's game or a second
+  // one: P is never decided around it.
+  if (
+    entry.refused_archives.some(
+      (archive) =>
+        !nameVetoes(archive.name_suggestion) && namePermitsName(archive.name_suggestion, platform),
+    )
+  )
+    return { reason: "core-refused" };
   const runtimes = entry.artifacts.filter((artifact) => artifact.role === "desktop-game-runtime");
   if (!runtimes.length)
     return {
@@ -918,6 +1241,17 @@ function platformRuntime(
     };
   }
   if (ambiguity(hosted)) return { reason: "ambiguous-player" };
+  // Several archives for P must be one package: the same players' bytes.
+  // Equal program names in different archives are not proof of that.
+  const packages = new Set(
+    hosted.map(({ players }) =>
+      players
+        .map(({ sha256 }) => sha256)
+        .toSorted(compareCodePoints)
+        .join(","),
+    ),
+  );
+  if (packages.size > 1) return { reason: "ambiguous-artifact" };
   const [{ artifact, players }] = hosted as [(typeof hosted)[number]];
   return {
     runtime: {
@@ -945,6 +1279,9 @@ export const blockedReasons = [
   ...ineligibleReasons,
   "incomplete-coverage",
   "stale-facts",
+  "shared-repository",
+  "ambiguous-release-line",
+  "installer-driven-release",
   "no-player",
   "tool-not-game",
   "no-authorizing-source",
@@ -952,6 +1289,7 @@ export const blockedReasons = [
   "unknown-platform",
   "wrong-host",
   "ambiguous-player",
+  "ambiguous-artifact",
   "route-held",
   "guide-bound",
 ] as const;
@@ -974,6 +1312,8 @@ export type FitDecision =
 /** When no platform fits, the identity's reason is the first of these any platform gave. */
 const reasonPriority: BlockedReason[] = [
   "ambiguous-player",
+  "ambiguous-artifact",
+  "core-refused",
   "wrong-host",
   "unknown-platform",
   "non-desktop-platform",
@@ -1012,6 +1352,7 @@ export function fitDecision(
   record: AuthoredPort,
   entry: ListingFactsEntry | undefined,
   generatedAt: string = entry?.observation.observed_at ?? initialFactsTime,
+  context: FitContext = fitContext([record]),
 ): FitDecision {
   const port_id = record.listing.id;
   const blocked = (reason: BlockedReason, detail: string): FitDecision => ({
@@ -1048,6 +1389,14 @@ export function fitDecision(
     );
   const freshness = factsFreshness(entry, generatedAt);
   if (freshness) return blocked(freshness.reason, freshness.detail);
+  const line = releaseLineProblem(record, entry, context);
+  if (line) return blocked(line.reason, line.detail);
+  const installers = entry.bare_executables.filter(installerExecutable);
+  if (installers.length)
+    return blocked(
+      "installer-driven-release",
+      `The release also ships ${installers.length} installer or setup program(s), so its archives are built or installed by them.`,
+    );
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
@@ -1231,6 +1580,8 @@ export interface RegistrationQueues {
   unread_forms: Record<string, string[]>;
   /** Every name-based veto as `reason:token`, with all of its identities. */
   exclusions: Record<string, string[]>;
+  /** Every refusal class of a refused archive, with the identities that have one. */
+  refusals: Record<string, string[]>;
 }
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
@@ -1260,6 +1611,11 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
           `${item.reason}:${item.token}`,
           entry.port_id,
         ]),
+      ),
+    ),
+    refusals: grouped(
+      generation.facts.entries.flatMap((entry) =>
+        entry.refused_archives.map((archive): [string, string] => [archive.refusal, entry.port_id]),
       ),
     ),
   };
@@ -1305,7 +1661,10 @@ function selectionInstruction(enrollment: GeneratedEnrollment) {
   if (!names.every((set) => set.size === 1)) return genericSelection;
   const distinct = new Set(names.map((set) => [...set][0]!));
   const [name] = distinct;
-  if (distinct.size !== 1 || !displayableName(name!)) return genericSelection;
+  // A launcher or settings program may be the documented entry point, but
+  // the guide never calls it the game.
+  if (distinct.size !== 1 || !displayableName(name!) || /launcher|settings|config/iu.test(name!))
+    return genericSelection;
   return `Select ${name} in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some.`;
 }
 
@@ -1482,8 +1841,11 @@ export function generateRegistrations(
   const entries = new Map(facts.entries.map((entry) => [entry.port_id, entry]));
   for (const id of entries.keys())
     if (!known.has(id)) throw new Error(`Listing package facts name ${id}, which is not listed.`);
+  const context = fitContext(records);
   const decisions = records
-    .map((record) => fitDecision(record, entries.get(record.listing.id), facts.generated_at))
+    .map((record) =>
+      fitDecision(record, entries.get(record.listing.id), facts.generated_at, context),
+    )
     .toSorted((left, right) => (left.port_id < right.port_id ? -1 : 1));
   const fitting = new Map(
     decisions.flatMap((decision) =>
@@ -1673,15 +2035,125 @@ function gateMachineRuns(machine: string, platform: string) {
   );
 }
 
-/** Problems with one enrollment, judged against its facts entry only. */
+/** The GitHub repository a listing names (its release URL, else its project URL), restated. */
+function gateRepository(listing: Record<string, unknown>): string | undefined {
+  const url = typeof listing.release_url === "string" ? listing.release_url : listing.project_url;
+  const match =
+    typeof url === "string"
+      ? /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:[/?#]|$)/u.exec(
+          url,
+        )
+      : null;
+  return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
+}
+/** A tag's release line, restated: see `releaseLine`. */
+function gateLine(tag: string | null, id: number, repository: string) {
+  if (tag === null || !/^[!-~]+$/u.test(tag)) return `#${id}`;
+  const lower = tag.toLowerCase();
+  const version = /(^|[^a-z0-9])[a-z]?[0-9]/u.exec(lower);
+  const head = version ? lower.slice(0, version.index) : lower;
+  const channel = [
+    "release",
+    "releases",
+    "rel",
+    "version",
+    "ver",
+    "stable",
+    "latest",
+    "nightly",
+    "continuous",
+    "snapshot",
+    "preview",
+    "beta",
+    "alpha",
+    "rc",
+    "pre",
+    "prerelease",
+    "dev",
+    "build",
+    "ci",
+    "test",
+    "testing",
+    "final",
+    "hotfix",
+    "update",
+  ];
+  const words: string[] = [];
+  for (const word of head.split(/[^a-z0-9]+/u))
+    if (word && !channel.includes(word)) words.push(word);
+  const own = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
+  return words.join("") === own ? "" : words.join("-");
+}
+/** The line a listing's own release URL binds it to, restated. */
+function gateBoundLine(listing: Record<string, unknown>): string | null {
+  const repository = gateRepository(listing);
+  const url = listing.release_url;
+  if (!repository || typeof url !== "string") return null;
+  const lower = url.toLowerCase();
+  const prefix = `https://github.com/${repository}/releases/tag/`;
+  if (!lower.startsWith(prefix)) return null;
+  const rest = url.slice(prefix.length);
+  if (!rest || rest.includes("/")) return null;
+  try {
+    return gateLine(decodeURIComponent(rest), 0, repository);
+  } catch {
+    return null;
+  }
+}
+/** Name words that veto an archive whatever it holds, restated. */
+function gateNameVetoes(named: NameSuggestion) {
+  return (
+    named.tool_token !== null ||
+    named.system_token !== null ||
+    (named.role !== "desktop-game-runtime" && named.role !== "unknown")
+  );
+}
+
+/** Problems with one enrollment, judged against its facts entry and listing only. */
 function gateEnrollmentProblems(
   enrollment: GeneratedEnrollment,
   entry: ListingFactsEntry | undefined,
   generatedAt: string,
+  listings: readonly Record<string, unknown>[] = [],
 ): string[] {
   const id = enrollment.port_id;
   if (!entry) return [`${id} has no facts entry.`];
   const problems: string[] = [];
+  // One product per release: no other identity names the repository unless
+  // the listing binds this one to a line of its own, the offered release is on
+  // that line, the releases form one line or the listing names it, and no newer
+  // prerelease of another line follows the offered release.
+  const own = listings.find((listing) => listing.id === id) ?? {};
+  const bound = gateBoundLine(own);
+  const repository = entry.repository.toLowerCase();
+  const others = listings.filter(
+    (listing) => listing.id !== id && gateRepository(listing) === repository,
+  );
+  if (others.length && (bound === null || others.some((other) => gateBoundLine(other) === bound)))
+    problems.push(`${id} shares its repository with another identity and no line of its own.`);
+  const offered = entry.observed_releases.find(
+    (release) => release.release_id === enrollment.release.id,
+  );
+  if (!offered || offered.prerelease !== false)
+    problems.push(`${id} offers a release its facts do not record as stable.`);
+  else {
+    const line = gateLine(offered.tag, offered.release_id, entry.repository);
+    const lines = new Set([line]);
+    for (const release of entry.observed_releases)
+      if (release.packaged) lines.add(gateLine(release.tag, release.release_id, entry.repository));
+    if (bound !== null ? bound !== line : lines.size !== 1)
+      problems.push(`${id} offers a release whose release line is ambiguous.`);
+    const at = Date.parse(offered.published_at ?? "");
+    for (const release of entry.observed_releases)
+      if (
+        release.prerelease !== false &&
+        gateLine(release.tag, release.release_id, entry.repository) !== line &&
+        !(Date.parse(release.published_at ?? "") <= at)
+      )
+        problems.push(`${id} offers a stable release older than another line's prerelease.`);
+  }
+  if (entry.bare_executables.some((name) => /^install|setup|installer/u.test(name.toLowerCase())))
+    problems.push(`${id} rests on a release that ships an installer or setup program.`);
   if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
     problems.push(`${id} does not rest on the committed facts entry.`);
   if (
@@ -1790,6 +2262,44 @@ function gateEnrollmentProblems(
       problems.push(
         `${where} rests on ${programs.size} distinct programs; only one program may enroll.`,
       );
+    // Every archive whose name allows the platform and holds its players is
+    // the same package (equal player bytes), and no refused archive could be
+    // the platform's game.
+    const packages = new Set<string>();
+    for (const candidate of entry.artifacts) {
+      const candidateName = candidate.name_suggestion;
+      if (
+        candidate.contradictory ||
+        candidate.role !== "desktop-game-runtime" ||
+        !["unknown", host.os].includes(candidateName.os) ||
+        !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
+          candidateName.arch,
+        )
+      )
+        continue;
+      const digests = candidate.players
+        .filter((player) => gateMachineRuns(player.machine, runtime.platform))
+        .map((player) => player.sha256)
+        .sort();
+      if (digests.length) packages.add(digests.join("+"));
+    }
+    if (packages.size > 1)
+      problems.push(
+        `${where} rests on one of ${packages.size} different archives for the platform.`,
+      );
+    for (const refused of entry.refused_archives) {
+      const refusedName = refused.name_suggestion;
+      if (refused.asset_id === runtime.asset_id)
+        problems.push(`${where} offers an archive Core refused.`);
+      if (
+        !gateNameVetoes(refusedName) &&
+        ["unknown", host.os].includes(refusedName.os) &&
+        ["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
+          refusedName.arch,
+        )
+      )
+        problems.push(`${where} is decided beside a refused archive that could hold its game.`);
+    }
     for (const player of runtime.players) {
       const observed = artifact.players.find(
         (candidate) =>
@@ -1834,12 +2344,14 @@ export function gateGeneration(
         `${delta[name].length} ${name} routes exceed the bound of ${bounds[name]}; land them as successive batches.`,
       );
   const entries = new Map(generation.facts.entries.map((entry) => [entry.port_id, entry]));
+  const listings = generation.records.map((record) => record.listing as Record<string, unknown>);
   for (const enrollment of generation.enrollments)
     problems.push(
       ...gateEnrollmentProblems(
         enrollment,
         entries.get(enrollment.port_id),
         generation.facts.generated_at,
+        listings,
       ),
     );
   if (problems.length)
@@ -1963,7 +2475,7 @@ export const sameExceptReconfirmation = (left: ListingFactsEntry, right: Listing
   reproducedFields(left) === reproducedFields(right);
 /** Archive bytes reproducing an entry downloads. */
 export const reproductionCost = (entry: ListingFactsEntry) =>
-  entry.artifacts.reduce((sum, artifact) => sum + artifact.size, 0);
+  [...entry.artifacts, ...entry.refused_archives].reduce((sum, artifact) => sum + artifact.size, 0);
 /** Entries of `next` that must be reproduced against `previous`, in port_id order. */
 export function reproductionPlan(previous: unknown, next: ListingFactsTable) {
   const before = new Map(
@@ -1999,11 +2511,12 @@ export function boundFactsBatch(
   reproduction: ReproductionBudget = reproductionBudget,
 ): { table: ListingFactsTable; deferred: ListingFactsEntry[] } {
   const byId = new Map(records.map((record) => [record.listing.id, record]));
+  const context = fitContext(records);
   const before = new Map(previous.entries.map((entry) => [entry.port_id, entry]));
   const after = new Map(next.entries.map((entry) => [entry.port_id, entry]));
   const enrolled = (id: string, entry: ListingFactsEntry | undefined, at: string) => {
     const record = byId.get(id);
-    const decision = record ? fitDecision(record, entry, at) : undefined;
+    const decision = record ? fitDecision(record, entry, at, context) : undefined;
     return decision?.fit ? JSON.stringify(decision.enrollment) : undefined;
   };
   const effect = (from: string | undefined, to: string | undefined) =>

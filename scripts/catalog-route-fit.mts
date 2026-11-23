@@ -542,6 +542,9 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
           ...Object.entries(report.registration_queues.unread_forms).map(([form, ids]) =>
             row(`unread form ${form}`, ids.length),
           ),
+          ...Object.entries(report.registration_queues.refusals).map(([refusal, ids]) =>
+            row(`refused archive ${refusal}`, ids.length),
+          ),
         ]
       : []),
   ];

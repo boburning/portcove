@@ -1144,6 +1144,8 @@ export function assembleCatalogRecords(
                               : 1;
   return {
     records,
+    /** The checked authored records before generated registration routes were added. */
+    authored,
     catalog,
     directory: { format_version, listings },
     generation,

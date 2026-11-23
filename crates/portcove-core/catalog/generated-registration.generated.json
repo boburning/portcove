@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 5,
+  "generator_version": 6,
   "facts_provenance": null,
   "enrollments": [],
   "blocked": {
@@ -27,6 +27,9 @@
     "observation-unavailable": 0,
     "incomplete-coverage": 0,
     "stale-facts": 0,
+    "shared-repository": 0,
+    "ambiguous-release-line": 0,
+    "installer-driven-release": 0,
     "no-player": 0,
     "tool-not-game": 0,
     "no-authorizing-source": 0,
@@ -34,6 +37,7 @@
     "unknown-platform": 0,
     "wrong-host": 0,
     "ambiguous-player": 0,
+    "ambiguous-artifact": 0,
     "route-held": 0,
     "guide-bound": 0
   },

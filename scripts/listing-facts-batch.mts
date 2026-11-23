@@ -62,6 +62,7 @@ import {
   gateBaselineRevision,
   readGateBaseline,
   reproductionBudget,
+  reproductionCost,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -74,12 +75,14 @@ import {
 import {
   artifactFact,
   assetsDigest,
+  bareExecutablesOf,
   cliClassifier,
   cliInspector,
   InspectionError,
   isArchive,
   NameVerdicts,
   readerPlatform,
+  recordedTag,
   safeText,
   type ByteInspector,
   type NameClassifier,
@@ -222,10 +225,7 @@ export async function reproduceFacts(inputs: {
   const deadline = clock() + budget.maxMilliseconds;
   const refused: Refusal[] = [];
   const verified: string[] = [];
-  const total = inputs.entries.reduce(
-    (sum, entry) => sum + entry.artifacts.reduce((bytes, artifact) => bytes + artifact.size, 0),
-    0,
-  );
+  const total = inputs.entries.reduce((sum, entry) => sum + reproductionCost(entry), 0);
   if (inputs.entries.length > budget.maxEntries || total > budget.maxBytes) {
     const detail = `The change asks to reproduce ${inputs.entries.length} entries and ${total} bytes; one change may reproduce at most ${budget.maxEntries} entries and ${budget.maxBytes} bytes.`;
     return {
@@ -247,7 +247,9 @@ export async function reproduceFacts(inputs: {
       refuse("over-budget", `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`);
       continue;
     }
-    const large = entry.artifacts.find((artifact) => artifact.size > budget.maxArchiveBytes);
+    const large = [...entry.artifacts, ...entry.refused_archives].find(
+      (artifact) => artifact.size > budget.maxArchiveBytes,
+    );
     if (large) {
       refuse("oversized-asset", `${large.name} exceeds ${budget.maxArchiveBytes} bytes.`);
       continue;
@@ -306,6 +308,23 @@ export async function reproduceFacts(inputs: {
       ],
       [names.prerelease(observed) === false, "the stable-release verdict"],
       [assetsDigest(observed) === entry.observation.assets_sha256, "the release asset list"],
+      // The release's own line facts: its tag, time and verdict as recorded,
+      // and the bare installer programs beside its archives. Other releases'
+      // lines come from the observer report the batch run retained.
+      [
+        entry.observed_releases.some(
+          (recorded) =>
+            recorded.release_id === release.id &&
+            recorded.tag === recordedTag(release.tag_name) &&
+            recorded.prerelease === false &&
+            recorded.published_at === entry.observation.published_at,
+        ),
+        "the release among the observed releases",
+      ],
+      [
+        JSON.stringify(bareExecutablesOf(observed)) === JSON.stringify(entry.bare_executables),
+        "the bare installer and program assets",
+      ],
     ];
     const differs = stated.filter(([same]) => !same).map(([, what]) => what);
     if (differs.length) {
@@ -317,7 +336,7 @@ export async function reproduceFacts(inputs: {
       .filter((asset) => isArchive(asset.name))
       .map((asset) => asset.id)
       .toSorted((left, right) => left - right);
-    const recorded = entry.artifacts
+    const recorded = [...entry.artifacts, ...entry.refused_archives]
       .map((artifact) => artifact.asset_id)
       .toSorted((left, right) => left - right);
     if (JSON.stringify(archives) !== JSON.stringify(recorded)) {
@@ -382,6 +401,47 @@ export async function reproduceFacts(inputs: {
         refuse(
           "mismatch",
           `${artifact.name}: the re-inspected players or Core's name verdicts differ from the recorded facts.`,
+        );
+        failed = true;
+        break;
+      }
+    }
+    // A refused archive is refused again, for the same class, under the same name verdict.
+    for (const archive of failed ? [] : entry.refused_archives) {
+      const asset = release.assets.find((candidate) => candidate.id === archive.asset_id)!;
+      if (
+        asset.name !== archive.name ||
+        asset.size !== archive.size ||
+        asset.sha256 !== archive.sha256 ||
+        JSON.stringify(names.suggestion(asset.name)) !== JSON.stringify(archive.name_suggestion)
+      ) {
+        refuse(
+          "release-changed",
+          `${archive.name} no longer has the recorded name, size, digest or name verdict.`,
+        );
+        failed = true;
+        break;
+      }
+      if (clock() >= deadline) {
+        refuse(
+          "over-budget",
+          `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`,
+        );
+        failed = true;
+        break;
+      }
+      let outcome: string;
+      try {
+        bytes += asset.size;
+        await inputs.inspect({ ...asset, sha256: archive.sha256 }, readerPlatform(asset.name));
+        outcome = "inspected";
+      } catch (error) {
+        outcome = error instanceof InspectionError && error.permanent ? error.refusal : "transient";
+      }
+      if (outcome !== archive.refusal) {
+        refuse(
+          outcome === "transient" ? "asset-unavailable" : "mismatch",
+          `${archive.name}: the recorded ${archive.refusal} refusal was not reproduced.`,
         );
         failed = true;
         break;
@@ -1052,6 +1112,7 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
   const reasons = sizes(queues.reasons);
   const forms = sizes(queues.unread_forms).slice(0, top);
   const exclusions = sizes(queues.exclusions).slice(0, top);
+  const refusals = sizes(queues.refusals);
   const table = (title: string, rows: readonly (readonly [string, number])[]) =>
     rows.length
       ? [
@@ -1072,11 +1133,13 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
       ...table("Blocked reasons", reasons),
       ...table("Top unread package forms", forms),
       ...table("Top name vetoes", exclusions),
+      ...table("Refused archives by class", refusals),
     ].join("\n"),
     counts: {
       reasons: Object.fromEntries(reasons),
       unread_forms: Object.fromEntries(sizes(queues.unread_forms)),
       exclusions: Object.fromEntries(sizes(queues.exclusions)),
+      refusals: Object.fromEntries(refusals),
     },
   };
 }
