@@ -25,6 +25,8 @@ import {
   leadWatch,
   parseWorkerState,
   providerWake,
+  learnedDigest,
+  discoveryTransferForecastQuery,
   runDiscoveryPasses,
   renderDiscoveryStatus,
   runDiscoveryWorker,
@@ -131,7 +133,17 @@ void test(
       "expired",
     );
     assert.equal(commit(store, second, 2, { cursor: 2 }).revision, 3);
-    store.finish(second, "partial", { sources: [] });
+    store.finish(second, "partial", {
+      committed: { sent_bytes: 4000, received_bytes: 1000 },
+    });
+    assert.deepEqual(
+      queryJson(environment, discoveryTransferForecastQuery),
+      {
+        state_bytes: Buffer.byteLength(JSON.stringify({ cursor: 2 }).replace(":", ": ")),
+        previous_transfer_bytes: 5000,
+      },
+      "the forecast reads measured state and the recent runs' transfer",
+    );
     assert.equal(store.acquire(lease("3"), options).revision, 3, "finish releases the lease");
 
     assert.throws(
@@ -781,4 +793,66 @@ void test("provider wake reports only a blocking quota or backoff", () => {
   assert.equal(providerWake(budget, at), undefined);
   budget.observeProvider({ resource: "search", remaining: 0, resetAt: "2026-11-01T05:10:00.000Z" });
   assert.equal(providerWake(budget, at), Date.parse("2026-11-01T05:10:01.000Z"));
+});
+
+void test("a pass that only restamps observation clocks has learned nothing", () => {
+  const state = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T05:00:00Z", records: 3 } } },
+  };
+  const later = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T06:00:00Z", records: 3 } } },
+  };
+  const changed = {
+    checkpoint: { sources: { quiver: { completed_at: "2026-11-01T06:00:00Z", records: 4 } } },
+  };
+  assert.equal(learnedDigest(state), learnedDigest(later));
+  assert.notEqual(learnedDigest(state), learnedDigest(changed));
+});
+
+void test("a pass that throws keeps the record of earlier passes", async () => {
+  const start = Date.parse("2026-11-01T05:00:00.000Z");
+  let calls = 0;
+  const first = {
+    format: "portcove-discovery-worker-result",
+    format_version: 1,
+    outcome: "partial",
+    progressed: true,
+    wake_at: new Date(start).toISOString(),
+    started_at: "",
+    finished_at: "",
+    canonical_overlap: "unknown",
+    sources: [],
+    notes: [],
+    leads: { records: 0, pending_families: 0, external: null },
+    committed: {
+      pages: 1,
+      observations: 0,
+      watch_changes: 0,
+      state_bytes: 0,
+      sent_bytes: 0,
+      received_bytes: 0,
+    },
+    budget: { requests: 0, bytes: 0, milliseconds_remaining: 0 },
+  } satisfies DiscoveryWorkerResult;
+  const run = await runDiscoveryPasses({
+    store: memoryStore().store,
+    runDir: os.tmpdir(),
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    connect: async () => {
+      throw new Error("not used");
+    },
+    now: () => start,
+    deadline: start + 3_600_000,
+    diskBytes: 1,
+    finalizationMs: 0,
+    admit: async () => {
+      if (calls++ === 0) return first;
+      throw new Error("psql exited 2: connection reset");
+    },
+  });
+  assert.equal(run.outcome, "failed");
+  assert.deepEqual(run.passes, [first], "the committed first pass stays in the record");
+  assert.match(run.reason ?? "", /pass 2 failed: .*connection reset/u);
 });
