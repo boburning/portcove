@@ -777,7 +777,11 @@ identity resolution or admission; the hosted bridge and its receipts still own
 canonical intake. Budget, quota, deadline and cancellation end a run as `partial`
 with its continuation intact. An inaccessible source is recorded as such and
 never as absence. Exit code 75 means deferred: inactive store, lease held,
-resource admission or missing credential.
+resource admission or missing credential. Any other failed database commit stops
+collection and fails the job at the last committed page, so a store error is
+never recorded as a source outcome. Stored state is capped at 8 MiB; reaching
+the cap fails every later commit until lead records move to row storage or are
+compacted, so watch `committed.state_bytes` in each result.
 
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop
