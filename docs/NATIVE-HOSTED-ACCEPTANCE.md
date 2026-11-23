@@ -449,6 +449,13 @@ Controlled read failures and injected input observations retain their fixture
 labels. No private originals, real user profile, release signing or physical
 controller are required by this selection.
 
+On a host without a saved SteamGridDB key, the local artwork scenario enters
+contextual setup from Background and cancels. It verifies that the native
+WebView returns focus to the setup action under the same role and that key
+status and artwork choice stay unchanged. The report records when a configured
+host or unavailable credential status prevents this observation. Provider
+authentication and saving a real key remain separate acceptance.
+
 Recovery bundle interruption waits for the restarted Library to display results
 for the exact active generation before entering Settings. In job
 [136765401809](https://github.com/boburning/portcove/actions/runs/44877522122/job/136765401809),
@@ -456,13 +463,6 @@ the initial workspace snapshot overlapped the explicit Resume command and
 that command reported the library busy. The harness waits for the renderer
 result within 60 seconds. It still requires the actual Core checkpoint, positive
 host exit, exact retained bytes and publication identity.
-
-On a host without a saved SteamGridDB key, the local artwork scenario enters
-contextual setup from Background and cancels. It verifies that the native
-WebView returns focus to the setup action under the same role and that key
-status and artwork choice stay unchanged. The report records when a configured
-host or unavailable credential status prevents this observation. Provider
-authentication and saving a real key remain separate acceptance.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
