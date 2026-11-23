@@ -305,8 +305,11 @@ retain recovery evidence.
 In Desktop, open the managed game's **Game settings** tab and choose
 **Read game settings**. Edit the values or choose **Use default**. Choose
 **Review changes** for that file, then **Save changes** to confirm the full
-review. Each review covers one file and up to 16 declared settings. A
-materialized setup binds the review to its installed version and revision.
+review. Each review covers one file and up to 16 declared settings. The game
+workspace's **Review changes** disclosure shows pending settings files and Mods
+together. Choose a file or Mods to open its own review. Each confirmation
+applies only the scope it shows. A materialized setup binds the settings review
+to its installed version and revision.
 If the setup or file changes, read the settings again and check your draft
 before proceeding. Reading and reviewing leave the game files untouched.
 Persisted bytes and fixtures do not establish actual game consumption. The

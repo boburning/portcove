@@ -2737,7 +2737,9 @@ async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
         "mgrayd-fable2pubgames-recomp",
         "v0.1.0",
         "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
-        None,
+        // User-selected registration is not a managed Install, so the
+        // upstream package download stays offered on every host.
+        Some(crate::AdapterKind::StagedSourcePortable),
         &[],
     )
     .await;
