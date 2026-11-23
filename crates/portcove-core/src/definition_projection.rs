@@ -347,6 +347,7 @@ impl DefinitionCatalogProjection {
         catalog.retain_embedded_file_patterns(baseline, selected)?;
         catalog.retain_unrelated_upstream_reviews(baseline, selected);
         catalog.retain_unrelated_mod_loaders(baseline, selected);
+        catalog.retain_unrelated_mod_sources(baseline, selected);
         catalog.retain_unrelated_package_settings(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)

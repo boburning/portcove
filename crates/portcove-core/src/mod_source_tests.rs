@@ -800,3 +800,20 @@ fn legacy_signed_catalogs_cannot_appoint_or_withdraw_a_source() {
     let mut appointed = original.clone();
     assert!(retain_from_baseline(&mut appointed, original).is_err());
 }
+
+#[test]
+fn installed_contracts_retain_only_the_installed_ports_sources() {
+    let catalog = Catalog::embedded().unwrap();
+    for id in ["zelda64-recomp", "quake-vkquake", "opentyrian-opentyrian"] {
+        let contract = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
+        let retained = contract.catalog(id).unwrap();
+        for port in retained.ports() {
+            let expected = if port.id == id {
+                catalog.port(id).unwrap().mod_sources.clone()
+            } else {
+                Vec::new()
+            };
+            assert_eq!(port.mod_sources, expected, "{id} retains {}", port.id);
+        }
+    }
+}

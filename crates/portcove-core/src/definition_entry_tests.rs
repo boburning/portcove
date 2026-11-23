@@ -313,6 +313,8 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
     for id in ["quake-ironwail", "quake-vkquake"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(15);
         for minimum in [14, 15] {
@@ -360,6 +362,8 @@ fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
     for id in ["corsixth-corsixth", "openloco-openloco"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(16);
         for minimum in [15, 16] {
@@ -385,6 +389,8 @@ fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
     for id in ["jgrennison-openttd-patches", "gladiator-openglad"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(17);
         for minimum in [16, 17] {
@@ -1922,7 +1928,12 @@ fn provider_bound_runtime_policies_exclude_older_readers_without_reinterpreting_
 #[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
-    for port in crate::Catalog::embedded().unwrap().ports() {
+    for current in crate::Catalog::embedded().unwrap().ports() {
+        // Existing official projections predate mod source data. A current
+        // port that declares sources needs schema 4, tested separately.
+        let mut owned = current.clone();
+        owned.mod_sources.clear();
+        let port = &owned;
         value["stable_id"] = json!(port.id);
         value["definition_schema"] = json!(if port.mod_loader.is_some() { 3 } else { 1 });
         value["port"] = serde_json::to_value(port).unwrap();
@@ -2660,6 +2671,8 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
     ] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         assert!(crate::native_temp::has_sibling_platforms(&creating_port));
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(10);

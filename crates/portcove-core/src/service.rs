@@ -15948,6 +15948,7 @@ fn main() {
         port.id = "external-source-probe".into();
         port.mod_loader = None;
         port.mod_provider_bindings = None;
+        port.mod_sources.clear();
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
         port.manually_validated_platforms.clear();
@@ -16514,6 +16515,7 @@ fn main() {
         port.id = "external-probe".into();
         port.mod_loader = None;
         port.mod_provider_bindings = None;
+        port.mod_sources.clear();
         port.name = "External probe".into();
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
@@ -19273,7 +19275,14 @@ fn main() {
                 DefinitionEligibilityOutcome::Eligible
             );
         }
-        let original = service.catalog.port("zelda64-recomp").unwrap().clone();
+        // The installed versions retain their creating definition, which for
+        // an indexed fixture predates mod source data.
+        let original = indexed
+            .as_ref()
+            .unwrap_or(&service.catalog)
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
         let mut document = service.catalog.authoritative_document();
         let changed = document
             .ports
