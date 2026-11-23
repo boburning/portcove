@@ -299,14 +299,18 @@ the lead (decision L2):
 - **Activation precondition: an archived copy.** Before the first `window` run,
   the lead prepares a `git bundle` of the complete `gh-pages` history, verifies
   it and records its SHA-256 on #1422, ready for an owner release-asset upload
-  through the existing release route (this change publishes nothing). Pruned
+  through the existing release route (this change publishes nothing). Run it
+  from a directory outside the clone and use one absolute path, so the 64 MB
+  bundle never lands inside the `gh-pages` tree where a restore commit could
+  pick it up. Pruned
   bodies otherwise exist only in `gh-pages` history; the bundle is what makes a
   restore possible "from nothing" if that history is lost before the first
   compaction, which archives it anyway.
 
   ```sh
-  git -C pages bundle create gh-pages-$(date -u +%Y%m%d).bundle refs/heads/gh-pages
-  git -C pages bundle verify gh-pages-*.bundle && sha256sum gh-pages-*.bundle
+  b="$PWD/gh-pages-$(date -u +%Y%m%d).bundle"
+  git -C pages bundle create "$b" refs/heads/gh-pages
+  git -C pages bundle verify "$b" && sha256sum "$b"
   ```
 
 - **History checkpoints after pruning.** A history-checkpoint bootstrap derives
@@ -339,8 +343,11 @@ after its bodies were pruned.
    "file missing" refusal) must bring back every pruned listing body, including
    bodies first published after `P` and pruned later, which
    `git checkout "$P" -- catalog/targets` misses. Restore each deleted path from
-   the parent of the commit that deleted it. Run this from the Portcove checkout
-   as a script (`PAGES=<scratch clone> bash full-restore.sh`):
+   the parent of the commit that deleted it. `$PAGES` must be a full,
+   non-shallow clone (step 1; `git -C "$PAGES" rev-parse --is-shallow-repository`
+   prints `false`): a shallow clone lacks the deleting commits and their
+   parents. Run this from the Portcove checkout as a script
+   (`PAGES=<scratch clone> bash full-restore.sh`):
 
    ```sh
    set -euo pipefail
