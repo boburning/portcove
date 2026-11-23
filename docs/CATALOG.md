@@ -139,7 +139,7 @@ value or text argument only when:
 - No `:`-separated segment of a token body, nor the body after its first
   character for a single `-` or `+` sigil (an attached short option such as
   `-oNUL`), is a Windows device name (`CON`, `PRN`, `AUX`, `NUL`,
-  `COM1`–`COM9`, `LPT1`–`LPT9`, case-insensitive, with or without an
+  `COM0`–`COM9`, `LPT0`–`LPT9`, case-insensitive, with or without an
   extension).
 - No token names a refused runtime option (below).
 
@@ -158,16 +158,18 @@ the looser shared rule `launch_paths::is_contained_launch_text`:
   `\\?\` paths and `scheme://` locations).
 - It is split into elements at `;`, `,`, `=` and ASCII whitespace. An element
   is refused when it starts with `@` (a response file), starts with an ASCII
-  letter and `:` (`C:\x` or drive-relative `C:x`), has a drive form after an
-  option sigil (`-C:x`, `--C:x` or the attached `-dC:x`), or starts with a
-  case-insensitive `file:` scheme.
+  letter and `:` (`C:\x` or drive-relative `C:x`), has a drive form after any
+  option sigil (`-C:x`, `--C:x` or the attached `-dC:x` and `--dC:x`), or
+  starts with a case-insensitive `file:` scheme.
 - Each element is split into segments at `:`, the path-list separator; a
   single `key:value` token such as `profile:fast` keeps two harmless segments.
-  A segment is refused when it starts with `/`, `\` or `~`, or when a
+  A segment before the last that has a `.` is refused (an alternate data
+  stream such as `a.txt:evil`). A segment is refused when it starts with `/`,
+  `\` or `~`, or when a
   component in either separator style is a parent reference (only dots and
   spaces with at least two dots, which Windows reads as `..`), ends in `..`,
-  is a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
-  `LPT1`–`LPT9`, including the superscript digits `¹` `²` `³`), or starts
+  is a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`,
+  `LPT0`–`LPT9`, including the superscript digits `¹` `²` `³`), or starts
   with `-` or `+` and is followed by a separator (`-I/etc`).
 
 Catalog `launch_environment`, source and user-data variable names pass the
@@ -227,11 +229,16 @@ sigil and before any `=`, names (case-insensitively)
 `remote-allow-origins`, `inspect`, `inspect-brk`, `inspect-port`,
 `inspect-wait`, `debug-port`, `load-extension`, `disable-extensions-except`,
 `browser-subprocess-path`, `js-flags`, `require`, `import`, `loader`,
-`experimental-loader`, `no-sandbox`, `disable-web-security` or
-`register-pepper-plugins`, or ends in `-cmd-prefix` or `-launcher`. This list
-does not bound every runtime's flags (for example a short `-e` or a
-`-Dproperty=value`), so review of a contract's literal arguments remains a
-publication-time responsibility. Legacy fields do not use this option list.
+`experimental-loader`, `no-sandbox`, `disable-web-security`,
+`register-pepper-plugins`, `r`, `m`, `env-file`, `inspect-brk-node`,
+`openssl-config`, `disable-gpu-sandbox`, `no-zygote` or `single-process`, or
+ends in `-cmd-prefix` or `-launcher`; a `-D` token is refused when its
+property starts (case-insensitively) with `com.sun.management` or
+`java.library.path`. This list does not bound every runtime's flags (for
+example a short `-e`, an attached `-mmodule` or another `-Dproperty=value`),
+and the bare tokens `-`, `--` and `=` stay accepted, so review of a contract's
+literal arguments remains a publication-time responsibility. Legacy fields do
+not use this option list.
 
 A reviewed launch contract whose platform entry has only literal text
 arguments keeps the previous decision about player-forwarded arguments, so

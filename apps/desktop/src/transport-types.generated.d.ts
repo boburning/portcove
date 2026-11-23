@@ -3305,9 +3305,10 @@ export interface ReviewedLaunchContractV1 {
   };
   /**
    * Optional restatement of the environment name prefix derived from the
-   * port ID: its uppercase ASCII letters and digits (a stem over 32
-   * characters keeps 24 and eight SHA-256 hex digits of the ID), followed by
-   * `_`. Any other value is refused.
+   * port ID: its ASCII letters and digits, uppercased, followed by `_`. A
+   * stem over 32 characters keeps its first 24 characters followed by the
+   * first 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any
+   * other value is refused.
    */
   environment_prefix?: string | null;
   launch?: {
