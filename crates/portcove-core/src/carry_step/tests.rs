@@ -8,7 +8,7 @@ fn ok() -> Result<()> {
 }
 
 fn write(root: &Path, relative: &str, bytes: &[u8]) {
-    let path = member(root, relative);
+    let path = crate::path::join_relative(root, relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, bytes).unwrap();
 }

@@ -287,7 +287,7 @@ fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
         &target.id,
         target.current_revision,
         Phase::Start,
-        &declared_state_paths(&service, id).unwrap(),
+        &declared_state_paths(&service, id, &path_layout).unwrap(),
     )
     .unwrap();
     let selected = service.activate_profile(id, &target.id).unwrap();
@@ -1018,7 +1018,7 @@ fn a_switch_interrupted_after_unparking_resumes_without_reparking_arrived_data()
         &other.id,
         1,
         Phase::Deployed,
-        &declared_state_paths(&w.service, "starship").unwrap(),
+        &declared_state_paths(&w.service, "starship", &layout).unwrap(),
     )
     .unwrap();
     // Recovery must neither re-park the arrived data nor fail on a name collision.
@@ -1133,7 +1133,7 @@ fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
         &other.id,
         1,
         Phase::Start,
-        &declared_state_paths(&w.service, "starship").unwrap(),
+        &declared_state_paths(&w.service, "starship", &layout).unwrap(),
     )
     .unwrap();
     fs::write(user(&w).join("mods/mine.o2r"), b"edited by the player").unwrap();
@@ -3694,4 +3694,687 @@ fn finishing_a_same_name_replacement_keeps_bytes_already_deployed_by_apply() {
         profile::selection(&connection, port).unwrap(),
         Some((w.default, after.revision))
     );
+}
+
+#[test]
+fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery() {
+    const PORT: &str = "interkarma-daggerfall-unity";
+    const NAME: &str = "wandererhud - pointycursor.dfmod";
+    let platform = crate::Platform::current().unwrap();
+    let (data, opposite, wrapper) = match platform {
+        crate::Platform::WindowsX86_64 => (
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.zip").as_slice(),
+        ),
+        crate::Platform::LinuxX86_64 => (
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.zip").as_slice(),
+        ),
+        _ => return,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let const_port = catalog.port(PORT).unwrap();
+    let executable = &const_port.executable_hints[&platform][0];
+    let (asset_name, size, sha256) = match platform {
+        crate::Platform::WindowsX86_64 => (
+            "dfu_windows_64bit-v1.1.1.zip",
+            50_240_819,
+            "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd",
+        ),
+        _ => (
+            "dfu_linux_64bit-v1.1.1.zip",
+            58_809_717,
+            "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a",
+        ),
+    };
+    // An inert executable stands in for the previously reviewed runtime. The
+    // test exercises normal manifest and library custody, and never launches it.
+    let version = "v1.1.1-cve-2025";
+    let id = "dfu-test-runtime";
+    let path = library.versions_dir().join(PORT).join(id);
+    fs::create_dir_all(&path).unwrap();
+    fs::write(path.join(executable), b"inert retained test runtime").unwrap();
+    crate::permissions::normalize_archive_entry(&path.join(executable), false, true).unwrap();
+    let artifact = crate::ArtifactIdentity {
+        asset_name: asset_name.into(),
+        size,
+        sha256: sha256.into(),
+    };
+    let qualification =
+        crate::InstallQualification::from_catalog(&catalog, PORT, platform).unwrap();
+    let (manifest_sha256, selected_executable, runtime) = crate::Installer::new(library.clone())
+        .unwrap()
+        .create_manifest(id, PORT, version, &artifact, &qualification, &path)
+        .unwrap();
+    let install = crate::InstallRecord {
+        id: id.into(),
+        port_id: PORT.into(),
+        version: version.into(),
+        path: path.clone(),
+        channel: crate::ReleaseChannel::Stable,
+        installed_at: Library::now(),
+        verified: true,
+        staged: false,
+        artifact,
+        manifest_sha256,
+        selected_executable,
+        runtime,
+    };
+    library.register_install(&install, true).unwrap();
+
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    let profile = service.ensure_default_profile(PORT).unwrap();
+    let user = library.user_dir(PORT);
+    fs::create_dir_all(user.join("PortableAppdata")).unwrap();
+    fs::write(
+        user.join("PortableAppdata/progress"),
+        b"keep newer progress",
+    )
+    .unwrap();
+    fs::write(user.join("Portable.txt"), []).unwrap();
+    // NativePortable activation collects the departing build and restores the
+    // canonical data into the staged build before it becomes active, so an
+    // active runtime carries the same marker and progress. Portcove never
+    // authors this marker; a player changes it beside the runtime player.
+    let runtime_marker = path.join("Portable.txt");
+    fs::write(&runtime_marker, []).unwrap();
+    let runtime_progress = path.join("PortableAppdata/progress");
+    fs::create_dir_all(runtime_progress.parent().unwrap()).unwrap();
+    fs::write(&runtime_progress, b"keep newer progress").unwrap();
+    let candidate = temporary.path().join(NAME);
+    fs::write(&candidate, opposite).unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    let code = temporary.path().join("easynpcbehavior.dfmod");
+    fs::write(
+        &code,
+        include_bytes!("fixtures/dfu-mods/easynpcbehavior-linux.dfmod"),
+    )
+    .unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &code, 1)
+            .is_err()
+    );
+
+    fs::write(&candidate, data).unwrap();
+    let live_mods = path.join(crate::profile_loader::DFU_MODS);
+    let unmanaged = live_mods.join("outside/manual.dfmod");
+    fs::create_dir_all(unmanaged.parent().unwrap()).unwrap();
+    fs::write(&unmanaged, b"player files outside ownership").unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(&unmanaged).unwrap(),
+        b"player files outside ownership"
+    );
+    fs::remove_file(&unmanaged).unwrap();
+    fs::remove_dir(unmanaged.parent().unwrap()).unwrap();
+    let scaffold = b"Please copy any .dfmod packages into this folder before running the game.";
+    let runtime_scaffold = live_mods.join("readme.txt");
+    let canonical_scaffold = user
+        .join(crate::profile_loader::DFU_MODS)
+        .join("readme.txt");
+    fs::create_dir_all(canonical_scaffold.parent().unwrap()).unwrap();
+    fs::write(&canonical_scaffold, scaffold).unwrap();
+    fs::write(&runtime_scaffold, b"player-authored note").unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(&runtime_scaffold).unwrap(),
+        b"player-authored note"
+    );
+    fs::write(&runtime_scaffold, scaffold).unwrap();
+
+    let raw = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    let candidate = temporary.path().join("PointyCursor.zip");
+    fs::write(&candidate, wrapper).unwrap();
+    let review = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    assert_eq!(review.sha256, raw.sha256);
+    assert_eq!(review.native_id, raw.native_id);
+    assert_ne!(review.plan_sha256, raw.plan_sha256);
+
+    let member = format!("Mods/{NAME}");
+    let repack = archive(temporary.path(), "repacked.zip", &[(&member, data)]);
+    fs::copy(&repack, &candidate).unwrap();
+    let repacked = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    assert_eq!(repacked.sha256, review.sha256);
+    assert_ne!(repacked.plan_sha256, review.plan_sha256);
+    assert!(
+        service
+            .apply_local_mod_package(PORT, &profile.id, &candidate, &review.plan_sha256, false)
+            .is_err()
+    );
+    assert!(!live_mods.join(NAME).exists());
+    let ambiguous = archive(
+        temporary.path(),
+        "ambiguous.zip",
+        &[(&member, data), ("Mods/other.dfmod", data)],
+    );
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &ambiguous, 1)
+            .is_err()
+    );
+    let mut inconsistent = wrapper.to_vec();
+    // The first local record is the zero-length Mods/ directory.
+    inconsistent[30] = b'm';
+    fs::write(&candidate, inconsistent).unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    fs::write(&candidate, wrapper).unwrap();
+    assert!(!review.needs_code_permission);
+    let applied = service
+        .apply_local_mod_package(PORT, &profile.id, &candidate, &review.plan_sha256, false)
+        .unwrap();
+    assert_eq!(applied.packages[0].sha256, review.sha256);
+    assert!(applied.packages[0].provider.is_none());
+    let runtime_mod = live_mods.join(NAME);
+    let canonical_mod = user.join(crate::profile_loader::DFU_MODS).join(NAME);
+    assert_eq!(fs::read(&canonical_mod).unwrap(), data);
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    service.dfu_restore_projection(&install, &path).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    service
+        .require_restore_profile_projection(PORT, &user)
+        .unwrap();
+    let marker = user.join("Portable.txt");
+    let manual_backup_path = canonical_mod.parent().unwrap().join("manual/keep.dfmod");
+    let backup = service.create_backup(PORT).unwrap();
+    // Backups collect the active runtime first, so marker changes made where
+    // the player makes them reach the canonical data and the backup.
+    fs::remove_file(&runtime_marker).unwrap();
+    let without_marker = service.create_backup(PORT).unwrap();
+    assert!(!marker.exists());
+    assert!(
+        service
+            .require_restore_profile_projection(PORT, &user)
+            .is_err()
+    );
+    fs::write(&runtime_marker, b"invalid").unwrap();
+    let invalid_marker = service.create_backup(PORT).unwrap();
+    assert_eq!(fs::read(&marker).unwrap(), b"invalid");
+    assert!(
+        service
+            .require_restore_profile_projection(PORT, &user)
+            .is_err()
+    );
+    fs::write(&runtime_marker, []).unwrap();
+    service.collect_active_user_data_if_launched(PORT).unwrap();
+    assert!(fs::read(&marker).unwrap().is_empty());
+    service
+        .require_restore_profile_projection(PORT, &user)
+        .unwrap();
+
+    fs::create_dir_all(manual_backup_path.parent().unwrap()).unwrap();
+    fs::write(&manual_backup_path, b"manual canonical mod").unwrap();
+    let with_manual_file = service.create_backup(PORT).unwrap();
+    assert!(!without_marker.path.join("data/Portable.txt").exists());
+    assert_eq!(
+        fs::read(invalid_marker.path.join("data/Portable.txt")).unwrap(),
+        b"invalid"
+    );
+    assert_eq!(
+        fs::read(
+            with_manual_file
+                .path
+                .join("data")
+                .join(crate::profile_loader::DFU_MODS)
+                .join("manual/keep.dfmod")
+        )
+        .unwrap(),
+        b"manual canonical mod"
+    );
+    let restore = |service: &PortcoveService, backup_id: &str| {
+        let action = crate::BackupAction::Restore;
+        let preview = service.preview_backup_action(PORT, backup_id, action)?;
+        let authorization =
+            service.authorize_backup_action(PORT, backup_id, action, &preview.preview_sha256)?;
+        service.restore_backup(PORT, backup_id, &authorization.token)
+    };
+    let error = restore(&service, &backup.id).unwrap_err();
+    assert_eq!(error.details["unknown_package"], "manual");
+    assert_eq!(
+        fs::read(&manual_backup_path).unwrap(),
+        b"manual canonical mod"
+    );
+    fs::remove_file(&manual_backup_path).unwrap();
+    fs::remove_dir(manual_backup_path.parent().unwrap()).unwrap();
+
+    let canonical_progress = user.join("PortableAppdata/progress");
+    fs::write(&runtime_progress, b"current progress").unwrap();
+    service.collect_active_user_data_if_launched(PORT).unwrap();
+    assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
+    for (declined, expected) in [
+        (&without_marker, "portable_marker"),
+        (&invalid_marker, "Portable.txt"),
+        (&with_manual_file, "unknown_package"),
+    ] {
+        let manifest = fs::read(declined.path.join("backup.json")).unwrap();
+        let error = restore(&service, &declined.id).unwrap_err();
+        assert!(
+            error.details.contains_key(expected) || error.message.contains(expected),
+            "{error:?}"
+        );
+        assert!(fs::read(&marker).unwrap().is_empty());
+        assert!(fs::read(&runtime_marker).unwrap().is_empty());
+        assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
+        assert_eq!(fs::read(&runtime_progress).unwrap(), b"current progress");
+        assert_eq!(
+            fs::read(declined.path.join("backup.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(fs::read(&canonical_mod).unwrap(), data);
+        assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+        assert!(!manual_backup_path.exists());
+    }
+    restore(&service, &backup.id).unwrap();
+    struct StopAfterRestorePublish;
+    impl crate::operation::LifecycleFaultInjector for StopAfterRestorePublish {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            if point == crate::operation::LifecycleFaultPoint::RestorePublished {
+                return Err(PortcoveError::state(
+                    "fixture stopped after restore publication",
+                ));
+            }
+            Ok(())
+        }
+    }
+    fs::write(&runtime_progress, b"pre-interruption progress").unwrap();
+    let interrupted_restore = PortcoveService::with_faults(
+        service.library().clone(),
+        std::sync::Arc::new(StopAfterRestorePublish),
+    )
+    .unwrap();
+    let failure = restore(&interrupted_restore, &backup.id).unwrap_err();
+    assert!(
+        failure
+            .message
+            .contains("fixture stopped after restore publication")
+    );
+    let restored_service = PortcoveService::new_read_only(service.library().clone()).unwrap();
+    restored_service
+        .recover_lifecycle_operations_for_test()
+        .unwrap();
+    assert!(fs::read(&marker).unwrap().is_empty());
+    assert_eq!(
+        fs::read(&canonical_progress).unwrap(),
+        b"keep newer progress"
+    );
+    assert_eq!(fs::read(&runtime_scaffold).unwrap(), scaffold);
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+
+    let clean = service
+        .create_clean_profile(PORT, &profile.id, "Clean", applied.revision)
+        .unwrap();
+    service.activate_profile(PORT, &clean.id).unwrap();
+    let reopened = PortcoveService::new_read_only(library).unwrap();
+    reopened.dfu_restore_projection(&install, &path).unwrap();
+    assert_eq!(fs::read(&runtime_scaffold).unwrap(), scaffold);
+    assert_eq!(fs::read(&canonical_scaffold).unwrap(), scaffold);
+    assert!(!runtime_mod.exists());
+    assert!(!canonical_mod.exists());
+    assert!(!user.join("PortableAppdata/progress").exists());
+    assert!(!runtime_progress.exists());
+
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(
+        fs::read(user.join("PortableAppdata/progress")).unwrap(),
+        b"keep newer progress"
+    );
+
+    reopened.dfu_restore_projection(&install, &path).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    fs::write(path.join("Portable.txt"), []).unwrap();
+    fs::write(path.join(".portcove-launched"), []).unwrap();
+    reopened.activate_profile(PORT, &clean.id).unwrap();
+    assert!(!runtime_progress.exists());
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    let clean_revision = reopened
+        .profile_revisions(PORT, &clean.id)
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    let projection = reopened.require_layout_for_revision(&applied).unwrap();
+    // The selected setup is already durable. Model loss immediately before
+    // publication and immediately after the full file reached its final name.
+    for prepublication in [true, false] {
+        dfu_deploy::record_test_pending(&projection, &install, &clean_revision, &applied).unwrap();
+        if prepublication {
+            fs::remove_file(&runtime_mod).unwrap();
+        }
+        reopened.dfu_restore_projection(&install, &path).unwrap();
+        assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    }
+    let outside = live_mods.join("manual/keep.dfmod");
+    fs::create_dir_all(outside.parent().unwrap()).unwrap();
+    fs::write(&outside, b"retained unmanaged nested file").unwrap();
+    assert!(reopened.synchronize_restored_user_data(PORT).is_err());
+    assert!(reopened.collect_active_user_data_if_launched(PORT).is_err());
+    assert!(reopened.preview_removal(PORT).is_err());
+    assert_eq!(
+        fs::read(&outside).unwrap(),
+        b"retained unmanaged nested file"
+    );
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    fs::remove_file(&outside).unwrap();
+    fs::remove_dir(outside.parent().unwrap()).unwrap();
+
+    // A stale, unnamed sibling from a stopped projection is outside the Mods
+    // scan. Reopening never adopts or clears it.
+    let abandoned = live_mods
+        .parent()
+        .unwrap()
+        .join(".portcove-dfu-interrupted-test");
+    fs::create_dir(&abandoned).unwrap();
+    fs::write(abandoned.join("staged"), b"abandoned staged bytes").unwrap();
+    reopened.activate_profile(PORT, &clean.id).unwrap();
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    assert_eq!(
+        fs::read(abandoned.join("staged")).unwrap(),
+        b"abandoned staged bytes"
+    );
+    let mut case_only = applied.clone();
+    case_only.packages[0].native_id = NAME.to_ascii_uppercase();
+    assert!(require_dfu_basename_stability(&applied, &case_only).is_err());
+
+    fs::write(&runtime_mod, b"outside edit").unwrap();
+    assert!(reopened.activate_profile(PORT, &clean.id).is_err());
+    assert_eq!(fs::read(&runtime_mod).unwrap(), b"outside edit");
+    fs::write(&runtime_mod, data).unwrap();
+
+    struct WriteProgressBeforePark {
+        progress: PathBuf,
+        stop_after_park: bool,
+    }
+    impl crate::operation::LifecycleFaultInjector for WriteProgressBeforePark {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            use crate::operation::LifecycleFaultPoint;
+            if point == LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark {
+                fs::write(&self.progress, b"native progress after preimage review")?;
+            }
+            if self.stop_after_park && point == LifecycleFaultPoint::DfuDepartingSaveGroupParked {
+                return Err(PortcoveError::state(
+                    "fixture stopped after parking runtime saves",
+                ));
+            }
+            Ok(())
+        }
+    }
+    let selected = || profile::selection(&reopened.library().connection().unwrap(), PORT).unwrap();
+    for stop_after_park in [false, true] {
+        let interrupted = PortcoveService::with_faults(
+            reopened.library().clone(),
+            std::sync::Arc::new(WriteProgressBeforePark {
+                progress: runtime_progress.clone(),
+                stop_after_park,
+            }),
+        )
+        .unwrap();
+        let error = interrupted.activate_profile(PORT, &clean.id).unwrap_err();
+        assert!(projection.journal().is_file());
+        assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+        drop(interrupted);
+        let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+        if stop_after_park {
+            assert!(error.message.contains("fixture stopped after parking"));
+            assert!(!runtime_progress.exists());
+            let journal_path = projection.journal();
+            let original = fs::read(&journal_path).unwrap();
+            let mut journal: serde_json::Value = serde_json::from_slice(&original).unwrap();
+            let id = journal["dfu_save_park"]["id"].as_str().unwrap();
+            let parked = path
+                .join(format!(".portcove-dfu-save-park-{id}"))
+                .join("progress");
+            assert_eq!(
+                fs::read(&parked).unwrap(),
+                b"native progress after preimage review"
+            );
+
+            // A parked group bound to another revision must never be adopted.
+            journal["dfu_save_park"]["to"]["digest"] = serde_json::json!("different-revision");
+            fs::write(&journal_path, serde_json::to_vec(&journal).unwrap()).unwrap();
+            assert!(recovered.activate_profile(PORT, &clean.id).is_err());
+            assert!(!runtime_progress.exists());
+            assert_eq!(
+                fs::read(&parked).unwrap(),
+                b"native progress after preimage review"
+            );
+            fs::write(&journal_path, original).unwrap();
+        } else {
+            assert!(error.message.contains("runtime progress differs"));
+        }
+        let held = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+        assert!(held.message.contains("runtime progress differs"));
+        assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+        assert_eq!(
+            fs::read(&runtime_progress).unwrap(),
+            b"native progress after preimage review"
+        );
+        assert_eq!(
+            fs::read(
+                projection
+                    .parked(&profile.id)
+                    .join("PortableAppdata/progress")
+            )
+            .unwrap(),
+            b"keep newer progress"
+        );
+
+        // The player preserves the newer data before completing the reviewed
+        // switch. Routine recovery must never choose for them.
+        let preserved = temporary
+            .path()
+            .join(format!("preserved-progress-{stop_after_park}"));
+        fs::rename(&runtime_progress, &preserved).unwrap();
+        fs::write(&runtime_progress, b"keep newer progress").unwrap();
+        recovered.activate_profile(PORT, &clean.id).unwrap();
+        assert!(!projection.journal().exists());
+        assert!(!runtime_progress.exists());
+        assert_eq!(
+            fs::read(&preserved).unwrap(),
+            b"native progress after preimage review"
+        );
+        recovered.activate_profile(PORT, &profile.id).unwrap();
+        assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    }
+    struct StopAfterCleanupPark;
+    impl crate::operation::LifecycleFaultInjector for StopAfterCleanupPark {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            if point == crate::operation::LifecycleFaultPoint::DfuSaveDuplicateCleanup {
+                return Err(PortcoveError::state(
+                    "fixture stopped before duplicate cleanup",
+                ));
+            }
+            Ok(())
+        }
+    }
+    let cleanup_interrupted = PortcoveService::with_faults(
+        reopened.library().clone(),
+        std::sync::Arc::new(StopAfterCleanupPark),
+    )
+    .unwrap();
+    let error = cleanup_interrupted
+        .activate_profile(PORT, &clean.id)
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("fixture stopped before duplicate cleanup")
+    );
+    assert!(!runtime_progress.exists());
+    let journal: serde_json::Value =
+        serde_json::from_slice(&fs::read(projection.journal()).unwrap()).unwrap();
+    let id = journal["dfu_save_park"]["id"].as_str().unwrap();
+    let cleanup = path.join(format!(".portcove-dfu-save-cleanup-{id}"));
+    assert_eq!(
+        fs::read(cleanup.join("progress")).unwrap(),
+        b"keep newer progress"
+    );
+    drop(cleanup_interrupted);
+    let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+    let cleanup_progress = cleanup.join("progress");
+    fs::write(&cleanup_progress, b"native progress after cleanup custody").unwrap();
+    let changed = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+    assert_eq!(changed.details["preserved"], cleanup.display().to_string());
+    assert_eq!(
+        fs::read(&cleanup_progress).unwrap(),
+        b"native progress after cleanup custody"
+    );
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert!(!runtime_progress.exists());
+
+    let changed_copy = temporary.path().join("changed-cleanup-progress");
+    fs::rename(&cleanup_progress, &changed_copy).unwrap();
+    fs::write(&cleanup_progress, b"keep newer progress").unwrap();
+    let extra = cleanup.join("extra-progress");
+    fs::write(&extra, b"native additional progress").unwrap();
+    let unexpected = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+    assert_eq!(
+        unexpected.details["preserved"],
+        cleanup.display().to_string()
+    );
+    assert_eq!(fs::read(&extra).unwrap(), b"native additional progress");
+    assert_eq!(fs::read(&cleanup_progress).unwrap(), b"keep newer progress");
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert!(!runtime_progress.exists());
+
+    let extra_copy = temporary.path().join("additional-cleanup-progress");
+    fs::rename(&extra, &extra_copy).unwrap();
+    // Leave an unchanged subset as if cleanup had previously deleted a member.
+    fs::remove_file(&cleanup_progress).unwrap();
+    recovered.activate_profile(PORT, &clean.id).unwrap();
+    assert_eq!(
+        fs::read(changed_copy).unwrap(),
+        b"native progress after cleanup custody"
+    );
+    assert_eq!(fs::read(extra_copy).unwrap(), b"native additional progress");
+    assert!(!cleanup.exists());
+    assert!(!runtime_progress.exists());
+    assert!(!projection.journal().exists());
+    recovered.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+}
+
+#[test]
+fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() {
+    let temporary = tempfile::tempdir().unwrap();
+    let path = temporary.path().join("wandererhud - pointycursor.dfmod");
+    fs::write(
+        &path,
+        include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod"),
+    )
+    .unwrap();
+    let make = || crate::dfu_mod::inspect_data_only(&path, crate::Platform::LinuxX86_64).unwrap();
+    let first = make();
+    assert_eq!(first.optional_dependencies.len(), 1);
+    let target = first.optional_dependencies[0].clone();
+    let mut dependency = make();
+    dependency.package.file_name = format!("{target}.dfmod");
+    dependency.guid = "fixture-dependency-guid".into();
+    dependency.title = "Fixture dependency".into();
+    dependency.optional_dependencies.clear();
+    let mut rows = vec![(first, true), (dependency, false)];
+    require_dfu_metadata(&rows).unwrap();
+    rows[1].1 = true;
+    assert!(require_dfu_metadata(&rows).is_err());
+    rows.clear();
+    for i in 0..MAX_DFU_PACKAGES + 1 {
+        let mut package = make();
+        package.package.file_name = format!("fixture-{i}.dfmod");
+        package.guid = format!("fixture-guid-{i}");
+        package.title = format!("Fixture {i}");
+        package.optional_dependencies.clear();
+        rows.push((package, true));
+    }
+    require_dfu_metadata(&rows[..MAX_DFU_PACKAGES]).unwrap();
+    assert!(require_dfu_metadata(&rows).is_err());
+    assert_eq!(MAX_DFU_OBSERVED_FILES, 2 * MAX_DFU_PACKAGES);
+}
+
+/// Each root detects a different regression of the Mods root to a raw
+/// `user.join("DaggerfallUnity_Data/StreamingAssets/Mods")`. On Windows, an
+/// ordinary (`Prefix::Disk`) user root keeps `/` in the raw string, which atomic
+/// publication then prefixed with `\\?\` (os error 123), so that case fails on
+/// the regression. A verbatim root cannot: `PathBuf::push` rejoins a path pushed
+/// onto a verbatim base with `\`. On Unix only the component shape is checked.
+#[test]
+fn dfu_mods_root_is_composed_from_native_components() {
+    use std::path::{Component, MAIN_SEPARATOR};
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("interkarma-daggerfall-unity").unwrap();
+    let loader = crate::profile_loader::configured_loader(port).unwrap();
+    let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
+    let temporary = tempfile::tempdir().unwrap();
+    let ordinary = temporary.path().join("interkarma-daggerfall-unity");
+    let verbatim = std::fs::canonicalize(temporary.path())
+        .unwrap()
+        .join("interkarma-daggerfall-unity");
+    #[cfg(windows)]
+    {
+        use std::path::Prefix;
+        fn kind(path: &Path) -> Option<Prefix<'_>> {
+            match path.components().next() {
+                Some(Component::Prefix(prefix)) => Some(prefix.kind()),
+                _ => None,
+            }
+        }
+        assert!(
+            matches!(kind(&ordinary), Some(Prefix::Disk(_))),
+            "{ordinary:?}"
+        );
+        assert!(
+            matches!(kind(&verbatim), Some(Prefix::VerbatimDisk(_))),
+            "{verbatim:?}"
+        );
+        // Control: only the ordinary root discriminates a raw declared join.
+        let declared = "DaggerfallUnity_Data/StreamingAssets/Mods";
+        assert!(ordinary.join(declared).to_str().unwrap().contains('/'));
+    }
+    for user in [&ordinary, &verbatim] {
+        let layout = Layout::for_user(user)
+            .with_loader(loader.clone())
+            .for_dfu_platform(crate::Platform::WindowsX86_64);
+        let mods = layout.mods();
+        let text = mods.to_str().unwrap();
+        assert!(!text.contains(foreign), "{text}");
+        let added = mods
+            .strip_prefix(user)
+            .unwrap()
+            .components()
+            .map(|component| match component {
+                Component::Normal(name) => name.to_str().unwrap().to_owned(),
+                other => panic!("unexpected mods root component {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(added, ["DaggerfallUnity_Data", "StreamingAssets", "Mods"]);
+        let live = live_package_path(&layout, "wandererhud - pointycursor.dfmod").unwrap();
+        assert_eq!(live.parent(), Some(mods.as_path()));
+    }
 }

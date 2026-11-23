@@ -3050,6 +3050,26 @@ permission for the exact package's code, apply also requires
 `--allow-mod-code`. A reviewed replacement preserves its previous enabled
 state. Package store contents remain available to setup history.
 
+For Daggerfall Unity, select the original release ZIP for your platform or
+its original `.dfmod` file. A ZIP must contain a single `Mods/*.dfmod` bundle.
+If the ZIP changes after review, review it again before applying.
+Portcove accepts only the reviewed data-only texture bundle format and
+requires a compatible managed Windows or Linux runtime in its existing
+`Portable.txt` mode. The review covers the `v1.1.1-cve-2025` packages.
+An ordinarily accepted package from the same repository may also qualify when
+its complete immutable runtime payload matches the reviewed platform payload.
+Nexus account registration is independent of this local file path.
+
+Portcove checks the exact package, native filename, title and GUID. Executable
+code, unsupported bundle contents and unresolved loader identities are
+refused. Setup changes preserve unfamiliar files and directories in Mods and
+require review before proceeding. Portcove deploys the selected owned files and
+leaves the game's own enabled state and order settings to Daggerfall Unity.
+If an optional dependency is also enabled, Portcove holds the change until that
+combination has reviewed ordering behavior. Before switching or restoring a setup,
+close any copy of Daggerfall Unity you started outside Portcove and let it
+finish saving.
+
 #### Unattended updates
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass

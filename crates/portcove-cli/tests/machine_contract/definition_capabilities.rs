@@ -246,6 +246,8 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(expected.insert(("native-portable", 38)));
     assert!(expected.insert(("native-portable", 39)));
     assert!(expected.insert(("native-portable", 40)));
+    // Daggerfall Unity local mod bundles require a reader newer than packaged Linux libraries.
+    assert!(expected.insert(("native-portable", 41)));
     assert!(expected.insert(("native-portable", 42)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));

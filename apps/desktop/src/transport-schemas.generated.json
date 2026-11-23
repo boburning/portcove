@@ -6902,6 +6902,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -6926,6 +6942,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
@@ -42140,6 +42202,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -42164,6 +42242,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
@@ -61816,6 +61940,22 @@
         ],
         "type": "object"
       },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -61840,6 +61980,52 @@
           },
           "repository": {
             "type": "string"
+          },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "settings_file": {
             "type": "string"
