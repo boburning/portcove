@@ -15,6 +15,21 @@ use crate::{
 };
 
 pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
+pub(crate) const DFU_MODS: &str = "DaggerfallUnity_Data/StreamingAssets/Mods";
+pub(crate) const DFU_CAPABILITY: u32 = 41;
+const DFU_MUTABLE: &[&str] = &[
+    DFU_MODS,
+    "Portable.txt",
+    "PortableAppdata",
+    "DaggerfallUnity_Data/StreamingAssets/GameFiles",
+];
+const DFU_SETTINGS: &str = "PortableAppdata/Mods/GameData/Mods.json";
+
+pub(crate) fn declares_dfu_loader(port: &PortDefinition) -> bool {
+    port.mod_loader
+        .as_ref()
+        .is_some_and(|binding| binding.contract == ModEngine::DaggerfallUnity.reference())
+}
 
 /// Package and native-state behavior implemented by Core. A family is usable
 /// only when an admitted definition and its exact runtime select the contract.
@@ -22,6 +37,7 @@ pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
 pub(crate) enum ModEngine {
     Libultraship,
     N64Recomp,
+    DaggerfallUnity,
 }
 
 impl ModEngine {
@@ -29,6 +45,7 @@ impl ModEngine {
         match self {
             Self::Libultraship => &["o2r", "otr"],
             Self::N64Recomp => &["nrm"],
+            Self::DaggerfallUnity => &["dfmod"],
         }
     }
 
@@ -37,6 +54,7 @@ impl ModEngine {
             id: match self {
                 Self::Libultraship => "libultraship",
                 Self::N64Recomp => "n64-recomp",
+                Self::DaggerfallUnity => "daggerfall-unity-data",
             }
             .into(),
             version: "1".into(),
@@ -129,6 +147,9 @@ fn definition_matches(loader: &ReviewedLoader, port: &PortDefinition) -> bool {
 
 fn authored_loader(port: &PortDefinition) -> Option<ReviewedLoader> {
     let binding = port.mod_loader.as_ref()?;
+    if binding.contract == ModEngine::DaggerfallUnity.reference() {
+        return authored_dfu_loader(port, binding);
+    }
     let engine = match port.adapter {
         AdapterKind::LibultrashipPortable if binding.native_game.is_none() => {
             ModEngine::Libultraship
@@ -148,6 +169,9 @@ fn authored_loader(port: &PortDefinition) -> Option<ReviewedLoader> {
         _ => return None,
     };
     if binding.contract != engine.reference()
+        || !binding.reviewed_artifacts.is_empty()
+        || !binding.reviewed_payload_sha256.is_empty()
+        || binding.reviewed_repository_id.is_some()
         || binding.settings_file.is_empty()
         || !binding.settings_file.ends_with(".json")
         || !binding
@@ -180,6 +204,246 @@ fn authored_loader(port: &PortDefinition) -> Option<ReviewedLoader> {
         platforms: Cow::Owned(binding.platforms.clone()),
     };
     definition_matches(&loader, port).then_some(loader)
+}
+
+fn authored_dfu_loader(
+    port: &PortDefinition,
+    binding: &crate::ModLoaderBinding,
+) -> Option<ReviewedLoader> {
+    let paths = [DFU_MODS, "Portable.txt", "PortableAppdata"];
+    let minimum = stable_version(&binding.minimum_version)?;
+    if port.adapter != AdapterKind::NativePortable
+        || port.release.provider != ReleaseSource::Github
+        || !port
+            .release
+            .repository
+            .eq_ignore_ascii_case(&binding.repository)
+        || binding.settings_file != DFU_SETTINGS
+        || binding.native_game.is_some()
+        || port.runtime_data_policy.is_some()
+        || !port.persistent_file_patterns.is_empty()
+        || !port.runtime_mutable_paths.is_empty()
+        || !port.runtime_mutable_file_patterns.is_empty()
+        || !paths.iter().all(|path| {
+            port.persistent_paths
+                .iter()
+                .any(|declared| declared == path)
+        })
+        || binding.platforms.is_empty()
+        || port
+            .persistent_paths
+            .iter()
+            .any(|path| !DFU_MUTABLE.contains(&path.as_str()))
+        || binding.reviewed_artifacts.len() != binding.platforms.len()
+        || binding
+            .reviewed_repository_id
+            .is_some_and(|id| id == 0 || id > 9_007_199_254_740_991)
+        || (binding.reviewed_repository_id.is_none() && !binding.reviewed_payload_sha256.is_empty())
+        || binding
+            .reviewed_payload_sha256
+            .iter()
+            .any(|(platform, hash)| {
+                !binding.platforms.contains(platform)
+                    || hash.len() != 64
+                    || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+        || binding
+            .platforms
+            .iter()
+            .enumerate()
+            .any(|(index, platform)| {
+                !port.platforms.contains(platform)
+                    || binding.platforms[..index].contains(platform)
+                    || dfu_executable(port, *platform).is_none()
+                    || !port.reviewed_package_layouts.contains_key(platform)
+                    || !binding
+                        .reviewed_artifacts
+                        .get(platform)
+                        .is_some_and(|review| {
+                            crate::archive::validate_relative_path(
+                                &review.identity.asset_name,
+                                false,
+                            )
+                            .is_ok()
+                                && profile::valid_native_id(&review.identity.asset_name)
+                                && review.identity.asset_name.ends_with(".zip")
+                                && review.identity.size > 0
+                                && review.identity.sha256.len() == 64
+                                && review
+                                    .identity
+                                    .sha256
+                                    .bytes()
+                                    .all(|byte| byte.is_ascii_hexdigit())
+                                && dfu_release_version(&review.tag).is_some_and(|version| {
+                                    version[0] == minimum[0] && version >= minimum
+                                })
+                        })
+            })
+    {
+        return None;
+    }
+    Some(ReviewedLoader {
+        engine: ModEngine::DaggerfallUnity,
+        adapter: AdapterKind::NativePortable,
+        repository: Cow::Owned(binding.repository.clone()),
+        minimum,
+        settings_file: Cow::Borrowed(DFU_SETTINGS),
+        native_game: None,
+        platforms: Cow::Owned(binding.platforms.clone()),
+    })
+}
+
+fn dfu_executable(port: &PortDefinition, platform: Platform) -> Option<&Path> {
+    let [name] = port.executable_hints.get(&platform)?.as_slice() else {
+        return None;
+    };
+    let suffix = match platform {
+        Platform::WindowsX86_64 => ".exe",
+        Platform::LinuxX86_64 => ".x86_64",
+        _ => return None,
+    };
+    (profile::valid_native_id(name)
+        && name.ends_with(suffix)
+        && crate::archive::validate_relative_path(name, false).is_ok())
+    .then(|| Path::new(name))
+}
+
+fn dfu_release_version(tag: &str) -> Option<[u16; 3]> {
+    if tag.is_empty()
+        || tag.len() > 128
+        || !tag
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b".-_".contains(&byte))
+    {
+        return None;
+    }
+    stable_version(tag.split('-').next()?)
+}
+
+fn exact_dfu_build(
+    port: &PortDefinition,
+    install_version: &str,
+    build: &RetainedBuildIdentity,
+) -> bool {
+    port.id == build.port_id
+        && dfu_executable(port, build.platform) == Some(build.selected_executable.as_path())
+        && port
+            .mod_loader
+            .as_ref()
+            .and_then(|loader| loader.reviewed_artifacts.get(&build.platform))
+            .is_some_and(|review| {
+                review.tag == install_version
+                    && review.identity.asset_name == build.artifact.asset_name
+                    && review.identity.size == build.artifact.size
+                    && review
+                        .identity
+                        .sha256
+                        .eq_ignore_ascii_case(&build.artifact.sha256)
+            })
+}
+
+/// Check package-owned contents in otherwise player-mutable areas before any
+/// saves are restored. A changed scaffold holds loader reuse, not installation.
+pub(crate) fn dfu_package_has_only_shipped_scaffolds(root: &Path) -> Result<bool> {
+    for name in ["Portable.txt", "PortableAppdata"] {
+        let path = root.join(name);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        if path.try_exists()? {
+            return Ok(false);
+        }
+    }
+    for (directory, size, sha256) in [
+        (
+            DFU_MODS,
+            73,
+            "e896aba38a1c16b82649240db3c58ec69fd888bb6bc409ebd40d0f3483a68f9e",
+        ),
+        (
+            "DaggerfallUnity_Data/StreamingAssets/GameFiles",
+            440,
+            "81b4be29764dd8856fcad72ac8041a6a8eb04dcb3e368f72b58abab2fee1f0c3",
+        ),
+    ] {
+        let directory = crate::path::join_relative(root, directory);
+        crate::path::refuse_symlink_ancestors(&directory)?;
+        if !directory.try_exists()? {
+            continue;
+        }
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            if entry.file_name() != "readme.txt"
+                || !crate::external_runtime::hash_stable_regular(&entry.path(), size, &|| Ok(()))
+                    .is_ok_and(|(digest, observed)| observed == size && digest == sha256)
+            {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn matching_dfu_runtime(
+    port: &PortDefinition,
+    install: &InstallRecord,
+    build: &RetainedBuildIdentity,
+    verify_files: bool,
+) -> Result<bool> {
+    if install.runtime.is_some()
+        || !build.matches_install(install)
+        || dfu_executable(port, build.platform) != Some(build.selected_executable.as_path())
+        || !port.mod_loader.as_ref().is_some_and(|binding| {
+            stable_version(&binding.minimum_version)
+                .zip(dfu_release_version(&install.version))
+                .is_some_and(|(minimum, actual)| actual[0] == minimum[0] && actual >= minimum)
+        })
+    {
+        return Ok(false);
+    }
+    if exact_dfu_build(port, &install.version, build) {
+        // These independently reviewed exact archives also cover legacy
+        // manifests written before ordinary numeric release IDs were retained.
+        return if verify_files {
+            crate::install::verify_exact_loader_files(install)
+        } else {
+            Ok(true)
+        };
+    }
+    let Some(binding) = port.mod_loader.as_ref() else {
+        return Ok(false);
+    };
+    let (Some(reviewed_sha256), Some(repository_id)) = (
+        binding.reviewed_payload_sha256.get(&build.platform),
+        binding.reviewed_repository_id,
+    ) else {
+        return Ok(false);
+    };
+    crate::install::matches_reviewed_loader_payload(
+        install,
+        (&binding.repository, repository_id),
+        build.platform,
+        DFU_MUTABLE,
+        reviewed_sha256,
+        verify_files,
+    )
+}
+
+pub(crate) fn verify_dfu_runtime_for_mutation(
+    service: &PortcoveService,
+    install: &InstallRecord,
+    build: &RetainedBuildIdentity,
+) -> Result<()> {
+    let installer = crate::Installer::new(service.library().clone())?;
+    let catalog = crate::install::retained_catalog_for_install(install)?.ok_or_else(|| {
+        PortcoveError::verification("Daggerfall Unity runtime has no retained definition")
+    })?;
+    let port = catalog.port(&install.port_id)?;
+    service.require_retained_build_permission(&installer, install, &catalog)?;
+    if matching_dfu_runtime(port, install, build, true)? {
+        return Ok(());
+    }
+    Err(PortcoveError::verification(
+        "Daggerfall Unity runtime differs from its reviewed loader payload",
+    ))
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
@@ -297,6 +561,9 @@ pub(crate) fn installed_loader(
     let Some(loader) = definition_loader(port, build.platform) else {
         return Ok(None);
     };
+    if loader.engine == ModEngine::DaggerfallUnity {
+        return Ok(matching_dfu_runtime(port, install, build, false)?.then_some(loader));
+    }
     Ok((install.runtime.is_none()
         && contract_matches(
             &loader,
@@ -508,7 +775,9 @@ impl PortcoveService {
         }
         let build = crate::install::retained_build_identity_for_install(install)?;
         Ok(installed_loader(install, &build)?.map(|loader| {
-            Layout::for_user(&self.library.user_dir(&install.port_id)).with_loader(loader)
+            Layout::for_user(&self.library.user_dir(&install.port_id))
+                .with_loader(loader)
+                .for_dfu_platform(build.platform)
         }))
     }
 
@@ -522,7 +791,9 @@ impl PortcoveService {
             needs_loader,
         )?;
         Ok(loader.map(|loader| {
-            Layout::for_user(&self.library.user_dir(&revision.build.port_id)).with_loader(loader)
+            Layout::for_user(&self.library.user_dir(&revision.build.port_id))
+                .with_loader(loader)
+                .for_dfu_platform(revision.build.platform)
         }))
     }
 
@@ -767,6 +1038,109 @@ mod tests {
             service.profile_revisions("starship", &profile.id).unwrap(),
             initial
         );
+    }
+
+    #[test]
+    fn dfu_loader_covers_only_the_two_exact_managed_security_release_packages() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("interkarma-daggerfall-unity").unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            assert_eq!(
+                definition_loader(port, platform).unwrap().engine,
+                ModEngine::DaggerfallUnity
+            );
+            let executable = dfu_executable(port, platform).unwrap();
+            let review = &port.mod_loader.as_ref().unwrap().reviewed_artifacts[&platform];
+            let mut build = RetainedBuildIdentity {
+                install_id: "dfu-fixture".into(),
+                port_id: port.id.clone(),
+                artifact: review.identity.clone(),
+                manifest_sha256: "a".repeat(64),
+                selected_executable: executable.into(),
+                runtime: None,
+                installed_contract_sha256: "b".repeat(64),
+                definition: None,
+                platform,
+            };
+            assert!(exact_dfu_build(port, &review.tag, &build));
+            assert!(!exact_dfu_build(port, "v1.1.1", &build));
+            build.selected_executable = Path::new("other").join(executable);
+            assert!(!exact_dfu_build(port, &review.tag, &build));
+            build.selected_executable = executable.into();
+            build.artifact.sha256 = "c".repeat(64);
+            assert!(!exact_dfu_build(port, &review.tag, &build));
+        }
+        assert!(definition_loader(port, Platform::MacosX86_64).is_none());
+        let mut historical = port.clone();
+        historical.mod_loader = None;
+        assert!(definition_loader(&historical, Platform::WindowsX86_64).is_none());
+    }
+
+    #[test]
+    fn dfu_reviewed_binding_tracks_ports_and_successors_without_code_changes() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut previous = catalog.port("interkarma-daggerfall-unity").unwrap().clone();
+        previous.id = "fixture-another-dfu-fork".into();
+        previous.release.repository = "fixture/another-dfu-fork".into();
+        let platform = Platform::LinuxX86_64;
+        let loader = previous.mod_loader.as_mut().unwrap();
+        loader.repository = previous.release.repository.clone();
+        loader.reviewed_repository_id = Some(42);
+        let original = loader.reviewed_artifacts.get_mut(&platform).unwrap();
+        original.tag = "v1.4.8".into();
+        original.identity = crate::ArtifactIdentity {
+            asset_name: "portable-linux.zip".into(),
+            size: 1234,
+            sha256: "1".repeat(64),
+        };
+        let original = original.clone();
+        let mut next = previous.clone();
+        let upgraded = next
+            .mod_loader
+            .as_mut()
+            .unwrap()
+            .reviewed_artifacts
+            .get_mut(&platform)
+            .unwrap();
+        upgraded.tag = "v1.4.9".into();
+        upgraded.identity.asset_name = "portable-linux-next.zip".into();
+        upgraded.identity.size = 5678;
+        upgraded.identity.sha256 = "2".repeat(64);
+        let upgraded = upgraded.clone();
+        assert!(validate(&previous).is_ok());
+        assert!(validate_successor(&previous, &next).is_ok());
+        let mut build = RetainedBuildIdentity {
+            install_id: "synthetic-ordinary-github-install".into(),
+            port_id: previous.id.clone(),
+            artifact: original.identity.clone(),
+            manifest_sha256: "a".repeat(64),
+            selected_executable: dfu_executable(&previous, platform).unwrap().into(),
+            runtime: None,
+            installed_contract_sha256: "b".repeat(64),
+            definition: None,
+            platform,
+        };
+        assert!(exact_dfu_build(&previous, &original.tag, &build));
+        assert!(!exact_dfu_build(&next, &upgraded.tag, &build));
+        build.artifact = upgraded.identity;
+        assert!(!exact_dfu_build(&previous, &upgraded.tag, &build));
+        assert!(exact_dfu_build(&next, &upgraded.tag, &build));
+        let mut drift = next.clone();
+        drift.release.repository = "foreign/another-dfu-fork".into();
+        assert!(validate(&drift).is_err());
+        drift = next.clone();
+        drift.reviewed_package_layouts.remove(&platform);
+        assert!(validate(&drift).is_err());
+        drift = next.clone();
+        drift
+            .mod_loader
+            .as_mut()
+            .unwrap()
+            .reviewed_artifacts
+            .clear();
+        assert!(validate(&drift).is_err());
+        // Scope never sets a release pin or introduces a #315 grant.
+        assert!(next.release.curated.is_empty());
     }
 
     #[test]

@@ -729,6 +729,12 @@ Retained format 11 carries the loader rule through source-only preparation.
 Embedded Windows installations retain the Windows package route using
 the existing format.
 
+NativePortable capability 41 admits the `daggerfall-unity-data` mod loader
+binding. A definition that declares it must require capability 41 or later.
+Older readers cannot interpret its reviewed artifacts, payload digests and
+repository ID. [Native mod loader bindings](DEFINITION-DELIVERY.md#native-mod-loader-bindings)
+owns the binding contract.
+
 NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
 `release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
 GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a

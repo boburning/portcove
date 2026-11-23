@@ -375,6 +375,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::endless_sky::NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::profile_loader::DFU_CAPABILITY,
+        });
         supported.extend(AdapterKind::ALL.into_iter().filter_map(|template| {
             crate::package_shape::enforcement_capability(template).map(|contract_version| Self {
                 template,
@@ -1043,6 +1047,20 @@ mod tests {
             .map(|entry| (entry.template, entry.contract_version))
             .collect();
         assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
+    }
+
+    #[test]
+    fn daggerfall_unity_requires_a_reader_newer_than_packaged_linux_libraries() {
+        let request = request("native-portable", 41, 41);
+        let older = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable
+                    || entry.contract_version <= crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            })
+            .collect::<Vec<_>>();
+        assert!(check_definition_capabilities(&request).unwrap().compatible);
+        assert!(!check_with_inventory(&request, &older).unwrap().compatible);
     }
 
     #[test]

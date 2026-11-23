@@ -1,0 +1,905 @@
+//! Owned-file projection for the retained Daggerfall Unity loader.
+
+use super::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RevisionKey {
+    profile: String,
+    revision: u64,
+    digest: String,
+}
+
+impl From<&ProfileRevision> for RevisionKey {
+    fn from(revision: &ProfileRevision) -> Self {
+        Self {
+            profile: revision.profile_id.clone(),
+            revision: revision.revision,
+            digest: revision.digest.clone(),
+        }
+    }
+}
+
+#[derive(Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct RuntimeProjection {
+    applied: Option<RevisionKey>,
+    pending: Option<RevisionKey>,
+}
+
+fn read_receipt(path: &Path) -> Result<RuntimeProjection> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(RuntimeProjection::default())
+        }
+        Err(error) => Err(error.into()),
+        Ok(_) => Ok(serde_json::from_slice(&crate::path::read_bounded_regular(
+            path,
+            16 * 1024,
+        )?)?),
+    }
+}
+
+fn receipt_path(layout: &Layout, install: &crate::InstallRecord) -> Result<PathBuf> {
+    if !profile::valid_native_id(&install.id)
+        || crate::archive::validate_relative_path(&install.id, false).is_err()
+    {
+        return Err(PortcoveError::verification(
+            "Daggerfall Unity retained build ID is invalid",
+        ));
+    }
+    Ok(layout
+        .store()
+        .join("dfu-projection")
+        .join(format!("{}.json", install.id)))
+}
+
+fn write_receipt(path: &Path, receipt: &RuntimeProjection) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let parent = path.parent().ok_or_else(|| {
+        PortcoveError::state("Daggerfall Unity projection has no receipt directory")
+    })?;
+    fs::create_dir_all(parent)?;
+    crate::durability::write_json_atomically(path, receipt, path.try_exists()?)
+}
+
+fn receipt_revision(
+    connection: &rusqlite::Connection,
+    key: Option<&RevisionKey>,
+    install: &crate::InstallRecord,
+) -> Result<Option<ProfileRevision>> {
+    key.map(|key| {
+        let revision = profile::revision_by_number(connection, &key.profile, key.revision)?;
+        if revision.digest != key.digest
+            || !revision.build.matches_install(install)
+            || revision.loader
+                != Some(crate::profile_loader::ModEngine::DaggerfallUnity.reference())
+        {
+            return Err(PortcoveError::verification(
+                "Daggerfall Unity projection receipt does not match the retained build",
+            ));
+        }
+        Ok(revision)
+    })
+    .transpose()
+}
+
+// This optional scaffold is identical in both reviewed v1.1.1-cve-2025
+// runtime packages. Layout enables this exception only for that admitted loader.
+pub(super) fn is_shipped_scaffold(path: &Path, name: &str) -> bool {
+    name == "readme.txt"
+        && crate::external_runtime::hash_stable_regular(path, 73, &|| Ok(())).is_ok_and(
+            |(hash, size)| {
+                size == 73
+                    && hash == "e896aba38a1c16b82649240db3c58ec69fd888bb6bc409ebd40d0f3483a68f9e"
+            },
+        )
+}
+
+fn portable_marker(path: &Path) -> Result<bool> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() && metadata.len() == 0 => Ok(true),
+        Ok(_) => Err(PortcoveError::verification(
+            "Daggerfall Unity Portable.txt must be an empty regular file",
+        )),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+#[derive(Serialize)]
+pub(super) struct LocalDfuZip {
+    archive_sha256: String,
+    member: String,
+}
+
+pub(super) fn stage_local_zip(source: &Path, destination: &Path) -> Result<(PathBuf, LocalDfuZip)> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Cursor, Read};
+
+    let invalid = || {
+        PortcoveError::verification(
+            "Daggerfall Unity mod ZIP must contain one original Mods/*.dfmod file",
+        )
+    };
+    let bytes =
+        crate::external_runtime::read_single_link_metadata(source, crate::dfu_mod::MAX_BYTES)?;
+    let archive_sha256 = hex::encode(Sha256::digest(&bytes));
+    let limits = crate::zip_read::Limits {
+        bytes: crate::dfu_mod::MAX_BYTES,
+        entries: 2,
+        metadata: 64 * 1024,
+        ..crate::zip_read::CARTRIDGE
+    };
+    let mut archive =
+        crate::zip_read::open(Cursor::new(bytes.as_slice()), limits, &mut |_| Ok(()))?;
+    crate::zip_read::require_contiguous_local_records(
+        &bytes,
+        archive.central_directory_start(),
+        archive.len(),
+    )?;
+    let mut candidate = None;
+    for index in 0..archive.len() {
+        let entry = archive.by_index_raw(index).map_err(|_| invalid())?;
+        let name = entry.name().map_err(|_| invalid())?;
+        let directory = entry.is_dir();
+        let kind = entry.unix_mode().unwrap_or_default() & 0o170000;
+        let (_, _) = crate::archive::validate_relative_path(name.as_ref(), directory)?;
+        if directory
+            && name == "Mods/"
+            && entry.size() == 0
+            && entry.compressed_size() == 0
+            && entry.compression() == zip::CompressionMethod::Stored
+            && matches!(kind, 0 | 0o040000)
+        {
+            continue;
+        }
+        let leaf = name
+            .strip_prefix("Mods/")
+            .filter(|leaf| profile::valid_native_id(leaf) && leaf.ends_with(".dfmod"))
+            .ok_or_else(invalid)?;
+        if candidate.is_some()
+            || !entry.is_file()
+            || !matches!(kind, 0 | 0o100000)
+            || !matches!(
+                entry.compression(),
+                zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated
+            )
+            || !(1..=crate::dfu_mod::MAX_BYTES).contains(&entry.size())
+            || entry.size() > entry.compressed_size().saturating_mul(128)
+        {
+            return Err(invalid());
+        }
+        candidate = Some((index, name.to_string(), leaf.to_owned(), entry.size()));
+    }
+    let (index, member, leaf, size) = candidate.ok_or_else(invalid)?;
+    let mut member_bytes = Vec::new();
+    archive
+        .by_index(index)
+        .map_err(|_| invalid())?
+        .take(size + 1)
+        .read_to_end(&mut member_bytes)?;
+    if member_bytes.len() as u64 != size {
+        return Err(invalid());
+    }
+    let path = destination.join(leaf);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&path)?
+        .write_all(&member_bytes)?;
+    Ok((
+        path,
+        LocalDfuZip {
+            archive_sha256,
+            member,
+        },
+    ))
+}
+
+pub(super) fn store_reviewed_package(
+    layout: &Layout,
+    source: &Path,
+    inspection: &crate::ModPackageInspection,
+) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    let destination = layout.package(&inspection.sha256, &inspection.file_name);
+    crate::path::refuse_symlink_ancestors(&destination)?;
+    let expected = &inspection.sha256;
+    if destination.try_exists()? {
+        if crate::external_runtime::hash_stable_regular(&destination, inspection.size, &|| Ok(()))
+            .is_ok_and(|(sha256, size)| &sha256 == expected && size == inspection.size)
+        {
+            return Ok(());
+        }
+        return Err(PortcoveError::verification(
+            "stored Daggerfall Unity package was modified",
+        ));
+    }
+    let bytes =
+        crate::external_runtime::read_single_link_metadata(source, crate::dfu_mod::MAX_BYTES)?;
+    if bytes.len() as u64 != inspection.size || &hex::encode(Sha256::digest(&bytes)) != expected {
+        return Err(PortcoveError::verification(
+            "Daggerfall Unity mod changed after review",
+        ));
+    }
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("mod storage has no parent"))?;
+    fs::create_dir_all(parent)?;
+    crate::durability::write_bytes_atomically_checked(&destination, &bytes, false, None, || {
+        crate::path::refuse_symlink_ancestors(&destination)
+    })
+}
+
+pub(super) fn deploy_owned_files(
+    layout: &Layout,
+    from: Option<&ProfileRevision>,
+    to: &ProfileRevision,
+) -> Result<()> {
+    let owners = from
+        .into_iter()
+        .chain(std::iter::once(to))
+        .collect::<Vec<_>>();
+    require_clean(
+        &observe(layout, &owners)?,
+        "changing owned Daggerfall Unity files",
+    )?;
+    let previous = from.into_iter().flat_map(enabled).collect::<Vec<_>>();
+    let desired = enabled(to).collect::<Vec<_>>();
+    let current_matches = |path: &Path, file: &ResolvedPackage| {
+        crate::external_runtime::hash_stable_regular(path, file.size, &|| Ok(()))
+            .is_ok_and(|(digest, size)| digest == file.sha256 && size == file.size)
+    };
+    let changed =
+        || PortcoveError::conflict("Daggerfall Unity mod files changed during publication");
+    // Revalidate each exact path before mutation, and use create-new for absent
+    // destinations. Unmanaged siblings and recursive subdirectories stay put.
+    for file in desired.iter().copied() {
+        let live = live_package_path(layout, &file.native_id)?;
+        crate::path::refuse_symlink_ancestors(&live)?;
+        if current_matches(&live, file) {
+            continue;
+        }
+        let old = previous.iter().find(|old| old.native_id == file.native_id);
+        let replacing = live.try_exists()?;
+        if replacing && !old.is_some_and(|old| current_matches(&live, old)) {
+            return Err(changed());
+        }
+        let source = layout.package(&file.sha256, &file.native_id);
+        let bytes =
+            crate::external_runtime::read_single_link_metadata(&source, crate::dfu_mod::MAX_BYTES)?;
+        if bytes.len() as u64 != file.size || !current_matches(&source, file) {
+            return Err(changed());
+        }
+        use sha2::{Digest, Sha256};
+        if hex::encode(Sha256::digest(&bytes)) != file.sha256 {
+            return Err(changed());
+        }
+        let mods = layout.mods();
+        let parent = mods
+            .parent()
+            .ok_or_else(|| PortcoveError::state("Daggerfall Unity Mods has no parent"))?;
+        fs::create_dir_all(&mods)?;
+        crate::path::refuse_symlink_ancestors(parent)?;
+        // A crash may strand this operation-private folder, which is outside
+        // Unity's recursive Mods scan. Publication is rename-only: a mount
+        // boundary fails closed without a copy into Mods.
+        let staging = tempfile::Builder::new()
+            .prefix(".portcove-dfu-")
+            .tempdir_in(parent)?;
+        let staged = staging.path().join(&file.native_id);
+        let mut handle = fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&staged)?;
+        handle.write_all(&bytes)?;
+        handle.sync_all()?;
+        drop(handle);
+        crate::path::refuse_symlink_ancestors(&live)?;
+        if replacing {
+            if !old.is_some_and(|old| current_matches(&live, old)) {
+                return Err(changed());
+            }
+            fs::rename(&staged, &live)?;
+        } else {
+            crate::durability::rename_noreplace(&staged, &live)?;
+        }
+        crate::durability::sync_publication(&mods)?;
+    }
+    for file in previous.iter().copied() {
+        if desired
+            .iter()
+            .any(|wanted| wanted.native_id == file.native_id)
+        {
+            continue;
+        }
+        let live = live_package_path(layout, &file.native_id)?;
+        crate::path::refuse_symlink_ancestors(&live)?;
+        if live.try_exists()? {
+            if !current_matches(&live, file) {
+                return Err(changed());
+            }
+            fs::remove_file(live)?;
+            crate::durability::sync_publication(&layout.mods())?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn record_test_pending(
+    layout: &Layout,
+    install: &crate::InstallRecord,
+    from: &ProfileRevision,
+    to: &ProfileRevision,
+) -> Result<()> {
+    write_receipt(
+        &receipt_path(layout, install)?,
+        &RuntimeProjection {
+            applied: Some(from.into()),
+            pending: Some(to.into()),
+        },
+    )
+}
+
+fn observed_save_group(path: &Path) -> Result<Option<crate::AdoptionCopyPlan>> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+        Ok(_) => crate::library_transfer::reviewed_tree(path).map(Some),
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct SavePark {
+    id: uuid::Uuid,
+    from: RevisionKey,
+    to: RevisionKey,
+    preimage_sha256: String,
+}
+
+fn save_group_digest(group: &crate::AdoptionCopyPlan) -> Result<String> {
+    Ok(crate::signed_catalog::digest(&serde_json::to_vec(group)?))
+}
+
+fn clean_parked_duplicate(
+    root: &Path,
+    path: &Path,
+    preimage: &crate::AdoptionCopyPlan,
+) -> Result<()> {
+    use crate::external_runtime::{hash_stable_regular, open_identity_handle, same_file};
+    let hold = || preserved(save_group_drift(), path);
+    let clean = || -> Result<()> {
+        crate::path::refuse_symlink_ancestors(path)?;
+        let root_handle = open_identity_handle(path)?;
+        if !root_handle.metadata()?.is_dir() {
+            return Err(hold());
+        }
+        let require_root = || -> Result<()> {
+            crate::path::refuse_symlink_ancestors(path)?;
+            if !same_file(&root_handle, &open_identity_handle(path)?)? {
+                return Err(hold());
+            }
+            Ok(())
+        };
+        let require_file = |file: &crate::AdoptionCopyFile| -> Result<fs::File> {
+            require_root()?;
+            let member = path.join(&file.relative_path);
+            crate::path::refuse_symlink_ancestors(&member)?;
+            let handle = open_identity_handle(&member)?;
+            let (hash, size) = hash_stable_regular(&member, file.size, &|| Ok(()))?;
+            if hash != file.sha256
+                || size != file.size
+                || !same_file(&handle, &open_identity_handle(&member)?)?
+            {
+                return Err(hold());
+            }
+            Ok(handle)
+        };
+        // Enumerate only the reviewed directory paths. An unknown child is
+        // refused immediately, without reading or recursively deleting it.
+        let mut directories = vec![(path.to_path_buf(), None)];
+        let mut files = Vec::new();
+        let mut index = 0;
+        while index < directories.len() {
+            require_root()?;
+            let directory = &directories[index].0;
+            crate::path::refuse_symlink_ancestors(directory)?;
+            let mut children = Vec::new();
+            for entry in fs::read_dir(directory)? {
+                let entry = entry?;
+                let member = entry.path();
+                let relative = member.strip_prefix(path).map_err(|_| hold())?;
+                let kind = entry.file_type()?;
+                if kind.is_dir()
+                    && preimage
+                        .directories
+                        .binary_search(&relative.to_path_buf())
+                        .is_ok()
+                {
+                    crate::path::refuse_symlink_ancestors(&member)?;
+                    children.push((member.clone(), Some(open_identity_handle(&member)?)));
+                } else if kind.is_file() {
+                    let position = preimage
+                        .files
+                        .binary_search_by(|file| file.relative_path.as_path().cmp(relative))
+                        .map_err(|_| hold())?;
+                    require_file(&preimage.files[position])?;
+                    files.push(position);
+                } else {
+                    return Err(hold());
+                }
+            }
+            directories.extend(children);
+            index += 1;
+        }
+        for position in files {
+            let file = &preimage.files[position];
+            let handle = require_file(file)?;
+            require_root()?;
+            let member = path.join(&file.relative_path);
+            if !same_file(&handle, &open_identity_handle(&member)?)? {
+                return Err(hold());
+            }
+            fs::remove_file(member)?;
+        }
+        for (directory, handle) in directories.into_iter().rev() {
+            require_root()?;
+            crate::path::refuse_symlink_ancestors(&directory)?;
+            if let Some(handle) = &handle
+                && !same_file(handle, &open_identity_handle(&directory)?)?
+            {
+                return Err(hold());
+            }
+            // remove_dir refuses a nonempty directory, including a child
+            // inserted after the verified inventory.
+            fs::remove_dir(directory)?;
+        }
+        drop(root_handle);
+        crate::durability::sync_publication(root)
+    };
+    clean().map_err(|error| preserved(error, path))
+}
+
+/// Name the directory a refusal left in place in its ordinary Windows spelling.
+/// Operations keep the extended path; only the reported detail changes.
+fn preserved(error: PortcoveError, path: &Path) -> PortcoveError {
+    error.detail(
+        "preserved",
+        crate::path::ordinary_path(path).display().to_string(),
+    )
+}
+
+fn save_group_drift() -> PortcoveError {
+    PortcoveError::conflict(
+        "Daggerfall Unity runtime progress differs from the selected setup; preserve it and review the save group",
+    )
+}
+
+impl PortcoveService {
+    /// The extra runtime root is derived from the retained executable contract;
+    /// it is never taken from the archive, a caller path or the profile JSON.
+    fn dfu_save_root(&self, revision: &ProfileRevision) -> Result<PathBuf> {
+        let install = self.dfu_retained_install(revision)?;
+        crate::output_root::validate_install_path(&self.library, &install.port_id, &install.path)
+    }
+
+    fn dfu_retained_install(&self, revision: &ProfileRevision) -> Result<crate::InstallRecord> {
+        let connection = self.library.connection()?;
+        crate::Library::install_by_id(&connection, Some(&revision.build.install_id))?
+            .filter(|install| revision.build.matches_install(install))
+            .ok_or_else(|| {
+                PortcoveError::conflict("Daggerfall Unity runtime changed before save preparation")
+            })
+    }
+
+    pub(super) fn preflight_dfu_save_switch(
+        &self,
+        layout: &Layout,
+        departing: &ProfileRevision,
+        target: &ProfileRevision,
+    ) -> Result<()> {
+        if layout.dfu_platform.is_none() || departing.save_group == target.save_group {
+            return Ok(());
+        }
+        let runtime = self.dfu_save_root(departing)?.join("PortableAppdata");
+        if let Some(live) = observed_save_group(&runtime)?
+            && Some(live) != observed_save_group(&layout.user.join("PortableAppdata"))?
+        {
+            return Err(save_group_drift());
+        }
+        Ok(())
+    }
+
+    pub(super) fn restore_dfu_save_group(
+        &self,
+        layout: &Layout,
+        departing: &ProfileRevision,
+        target: &ProfileRevision,
+    ) -> Result<()> {
+        if layout.dfu_platform.is_none() || departing.save_group == target.save_group {
+            return Ok(());
+        }
+        if departing.build != target.build {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity save-group switches require the same exact managed runtime",
+            ));
+        }
+        let root = self.dfu_save_root(target)?;
+        let active = root.join("PortableAppdata");
+        let previous = layout.parked(&departing.profile_id).join("PortableAppdata");
+        let arriving = layout.user.join("PortableAppdata");
+        let journal_path = layout.journal();
+        let mut journal: serde_json::Value = serde_json::from_slice(
+            &crate::external_runtime::read_single_link_metadata(&journal_path, 64 * 1024)?,
+        )?;
+        if journal["from"].as_str() != Some(departing.profile_id.as_str())
+            || journal["to"].as_str() != Some(target.profile_id.as_str())
+            || journal["revision"].as_u64() != Some(target.revision)
+            || journal["phase"].as_str() != Some(Phase::Deployed.name())
+        {
+            return Err(save_group_drift());
+        }
+        let from = RevisionKey::from(departing);
+        let to = RevisionKey::from(target);
+        let old = observed_save_group(&previous)?;
+        let next = observed_save_group(&arriving)?;
+        let live = observed_save_group(&active)?;
+        let mut park = journal
+            .get("dfu_save_park")
+            .cloned()
+            .map(serde_json::from_value::<SavePark>)
+            .transpose()?;
+        let parked_path =
+            |park: &SavePark| root.join(format!(".portcove-dfu-save-park-{}", park.id));
+        let cleanup_path =
+            |park: &SavePark| root.join(format!(".portcove-dfu-save-cleanup-{}", park.id));
+        let hold = |path: &Path| preserved(save_group_drift(), path);
+
+        // Recovery checks the named parked state before interpreting an absent
+        // active directory as a successful switch to an empty save group.
+        let mut parked = None;
+        if let Some(record) = park.as_ref() {
+            let path = parked_path(record);
+            if record.from != from
+                || record.to != to
+                || old.as_ref().map(save_group_digest).transpose()?.as_deref()
+                    != Some(record.preimage_sha256.as_str())
+            {
+                return Err(hold(&path));
+            }
+            let cleanup = cleanup_path(record);
+            crate::path::refuse_symlink_ancestors(&cleanup)?;
+            if cleanup.try_exists()? {
+                crate::path::refuse_symlink_ancestors(&path)?;
+                if path.try_exists()? || live != next {
+                    return Err(hold(&cleanup));
+                }
+                return clean_parked_duplicate(
+                    &root,
+                    &cleanup,
+                    old.as_ref().ok_or_else(|| hold(&cleanup))?,
+                );
+            }
+            let observed = observed_save_group(&path).map_err(|error| preserved(error, &path))?;
+            if let Some(observed) = observed {
+                if save_group_digest(&observed)? != record.preimage_sha256 {
+                    if live.is_none() {
+                        crate::durability::rename_noreplace(&path, &active)
+                            .map_err(|_| hold(&path))?;
+                        crate::durability::sync_publication(&root)?;
+                        return Err(hold(&active));
+                    }
+                    return Err(hold(&path));
+                }
+                if live.is_some() && live != next {
+                    return Err(hold(&path));
+                }
+                parked = Some(path);
+            }
+        }
+        if live == next && parked.is_none() {
+            return Ok(());
+        }
+        if parked.is_none() && live.is_some() && live != old {
+            return Err(save_group_drift());
+        }
+
+        let staging = tempfile::Builder::new()
+            .prefix(".portcove-dfu-saves-")
+            .tempdir_in(&root)?;
+        let staged = staging.path().join("arriving");
+        if live != next && next.is_some() {
+            crate::service::copy_tree(&arriving, &staged)?;
+            if observed_save_group(&staged)? != next || observed_save_group(&arriving)? != next {
+                return Err(save_group_drift());
+            }
+        }
+        if observed_save_group(&active)? != live || observed_save_group(&previous)? != old {
+            return Err(save_group_drift());
+        }
+        if parked.is_none()
+            && let Some(live) = live.as_ref()
+        {
+            let digest = save_group_digest(live)?;
+            let record = if let Some(record) = park.take() {
+                if record.preimage_sha256 != digest {
+                    return Err(save_group_drift());
+                }
+                record
+            } else {
+                let record = SavePark {
+                    id: uuid::Uuid::new_v4(),
+                    from,
+                    to,
+                    preimage_sha256: digest,
+                };
+                journal["dfu_save_park"] = serde_json::to_value(&record)?;
+                crate::durability::write_json_atomically(&journal_path, &journal, true)?;
+                record
+            };
+            let path = parked_path(&record);
+            park = Some(record);
+            crate::path::refuse_symlink_ancestors(&path)?;
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark,
+            )?;
+            crate::durability::rename_noreplace(&active, &path)?;
+            crate::durability::sync_publication(&root)?;
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupParked,
+            )?;
+            let observed = observed_save_group(&path).map_err(|error| preserved(error, &path))?;
+            if observed.as_ref() != Some(live) {
+                crate::durability::rename_noreplace(&path, &active).map_err(|_| hold(&path))?;
+                crate::durability::sync_publication(&root)?;
+                return Err(hold(&active));
+            }
+            parked = Some(path);
+        }
+        if live != next && next.is_some() {
+            crate::durability::rename_noreplace(&staged, &active)?;
+            crate::durability::sync_publication(&root)?;
+        }
+        if observed_save_group(&active)? != next {
+            return Err(save_group_drift());
+        }
+        if let Some(path) = parked {
+            if observed_save_group(&path).map_err(|error| preserved(error, &path))? != old {
+                return Err(hold(&path));
+            }
+            let cleanup = cleanup_path(park.as_ref().ok_or_else(|| hold(&path))?);
+            crate::path::refuse_symlink_ancestors(&path)?;
+            crate::path::refuse_symlink_ancestors(&cleanup)?;
+            crate::durability::rename_noreplace(&path, &cleanup)?;
+            crate::durability::sync_publication(&root)?;
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuSaveDuplicateCleanup,
+            )?;
+            clean_parked_duplicate(&root, &cleanup, old.as_ref().ok_or_else(|| hold(&cleanup))?)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_dfu_backup_mode(
+        &self,
+        layout: &Layout,
+        revision: &ProfileRevision,
+        root: &Path,
+    ) -> Result<bool> {
+        let install = self.dfu_retained_install(revision)?;
+        let receipt = read_receipt(&receipt_path(layout, &install)?)?;
+        let connection = self.library.connection()?;
+        let applied = receipt_revision(&connection, receipt.applied.as_ref(), &install)?;
+        let pending = receipt_revision(&connection, receipt.pending.as_ref(), &install)?;
+        if applied.is_none() && pending.is_none() && enabled(revision).next().is_none() {
+            return Ok(false);
+        }
+        if !portable_marker(&root.join("Portable.txt"))? {
+            return Err(restore_projection_hold(revision).detail("portable_marker", "missing"));
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn dfu_restore_projection(
+        &self,
+        install: &crate::InstallRecord,
+        runtime_root: &Path,
+    ) -> Result<()> {
+        let connection = self.library.connection()?;
+        let Some((profile_id, number)) = profile::selection(&connection, &install.port_id)? else {
+            return Ok(());
+        };
+        let next = profile::revision_by_number(&connection, &profile_id, number)?;
+        let expected_loader = crate::profile_loader::ModEngine::DaggerfallUnity.reference();
+        if next.loader.as_ref() != Some(&expected_loader) {
+            return Ok(());
+        }
+        // Restoring data to a different retained build cannot activate mods for it.
+        if !next.build.matches_install(install) {
+            return Ok(());
+        }
+        let Some(layout) = self.layout_for_install(install)? else {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity loader is unavailable for the retained build",
+            ));
+        };
+        crate::profile_loader::verify_dfu_runtime_for_mutation(self, install, &next.build)?;
+        let owned_root = crate::output_root::validate_install_path(
+            &self.library,
+            &install.port_id,
+            &install.path,
+        )?;
+        crate::path::refuse_symlink_ancestors(runtime_root)?;
+        if owned_root != fs::canonicalize(runtime_root)? {
+            return Err(PortcoveError::verification(
+                "Daggerfall Unity runtime mod root differs from its retained build",
+            ));
+        }
+        let runtime = Layout {
+            user: runtime_root.to_path_buf(),
+            ..layout
+        };
+        let canonical = self.require_layout_for_revision(&next)?;
+        if !portable_marker(&runtime.user.join("Portable.txt"))?
+            && !portable_marker(&canonical.user.join("Portable.txt"))?
+        {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity local mod profiles require the reviewed Portable.txt mode",
+            ));
+        }
+        require_exact_managed_packages(&canonical.user, &canonical, &next, || {
+            PortcoveError::conflict(
+                "Daggerfall Unity canonical mods do not match the selected setup",
+            )
+        })?;
+        let receipt_path = receipt_path(&runtime, install)?;
+        let mut receipt = read_receipt(&receipt_path)?;
+        let applied = receipt_revision(&connection, receipt.applied.as_ref(), install)?;
+        let pending = receipt_revision(&connection, receipt.pending.as_ref(), install)?;
+        let owners = applied.iter().chain(pending.iter()).collect::<Vec<_>>();
+        require_clean(
+            &observe(&runtime, &owners)?,
+            "projecting Daggerfall Unity mods",
+        )?;
+        let next_key = RevisionKey::from(&next);
+        if let Some(pending) = pending.as_ref() {
+            deploy(&runtime, applied.as_ref(), pending)?;
+            receipt.applied = receipt.pending.take();
+            write_receipt(&receipt_path, &receipt)?;
+        }
+        if receipt.applied.as_ref() == Some(&next_key) {
+            return require_exact_managed_packages(&runtime.user, &runtime, &next, || {
+                PortcoveError::conflict(
+                    "Daggerfall Unity runtime mods do not match the recorded setup",
+                )
+            });
+        }
+        let from = pending.as_ref().or(applied.as_ref());
+        require_code_allowed(&runtime, &next)?;
+        receipt.pending = Some(next_key);
+        write_receipt(&receipt_path, &receipt)?;
+        deploy(&runtime, from, &next)?;
+        require_exact_managed_packages(&runtime.user, &runtime, &next, || {
+            PortcoveError::conflict("Daggerfall Unity runtime mods changed during projection")
+        })?;
+        receipt.applied = receipt.pending.take();
+        write_receipt(&receipt_path, &receipt)
+    }
+
+    pub(super) fn require_dfu_target_clean(
+        &self,
+        layout: &Layout,
+        revision: &ProfileRevision,
+    ) -> Result<()> {
+        if layout.dfu_platform.is_none() {
+            return Ok(());
+        }
+        let connection = self.library.connection()?;
+        let install = crate::Library::install_by_id(&connection, Some(&revision.build.install_id))?
+            .filter(|install| revision.build.matches_install(install))
+            .ok_or_else(|| {
+                PortcoveError::conflict("Daggerfall Unity runtime changed after review")
+            })?;
+        crate::profile_loader::verify_dfu_runtime_for_mutation(self, &install, &revision.build)?;
+        let runtime = Layout {
+            user: crate::output_root::validate_install_path(
+                &self.library,
+                &install.port_id,
+                &install.path,
+            )?,
+            store: layout.store.clone(),
+            loader: layout.loader.clone(),
+            dfu_platform: layout.dfu_platform,
+        };
+        if !portable_marker(&runtime.user.join("Portable.txt"))?
+            && !portable_marker(&layout.user.join("Portable.txt"))?
+        {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity local mod profiles require the reviewed Portable.txt mode",
+            ));
+        }
+        let receipt = read_receipt(&receipt_path(&runtime, &install)?)?;
+        let applied = receipt_revision(&connection, receipt.applied.as_ref(), &install)?;
+        let pending = receipt_revision(&connection, receipt.pending.as_ref(), &install)?;
+        let owners = applied.iter().chain(pending.iter()).collect::<Vec<_>>();
+        require_clean(
+            &observe(&runtime, &owners)?,
+            "reviewing Daggerfall Unity mods",
+        )
+    }
+
+    pub(crate) fn require_dfu_runtime_ownership(
+        &self,
+        port_id: &str,
+        install: Option<&crate::InstallRecord>,
+        runtime_root: &Path,
+    ) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(runtime_root)?;
+        let platform = crate::Platform::current()?;
+        let mut layout = Layout::for_user(&self.library.user_dir(port_id));
+        layout.user = runtime_root.to_path_buf();
+        layout.dfu_platform = Some(platform);
+        let connection = self.library.connection()?;
+        let receipt = match install {
+            Some(install) => read_receipt(&receipt_path(&layout, install)?)?,
+            None => RuntimeProjection::default(),
+        };
+        let Some(install) =
+            install.filter(|_| receipt.applied.is_some() || receipt.pending.is_some())
+        else {
+            return require_clean(
+                &observe(&layout, &[])?,
+                "checking unclaimed Daggerfall Unity runtime files",
+            );
+        };
+        if self.layout_for_install(install)?.is_none() {
+            return Err(PortcoveError::verification(
+                "Daggerfall Unity receipt lost its retained loader",
+            ));
+        }
+        let applied = receipt_revision(&connection, receipt.applied.as_ref(), install)?;
+        let pending = receipt_revision(&connection, receipt.pending.as_ref(), install)?;
+        let owners = applied.iter().chain(pending.iter()).collect::<Vec<_>>();
+        require_clean(
+            &observe(&layout, &owners)?,
+            "checking Daggerfall Unity runtime ownership",
+        )?;
+        if let Some(applied) = applied.as_ref().filter(|_| pending.is_none()) {
+            require_exact_managed_packages(runtime_root, &layout, applied, || {
+                PortcoveError::conflict(
+                    "Daggerfall Unity runtime mods require recovery before player data can be collected",
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn dfu_projection_selected(&self, port_id: &str) -> Result<bool> {
+        let projection_dir = Layout::for_user(&self.library.user_dir(port_id))
+            .store()
+            .join("dfu-projection");
+        crate::path::refuse_symlink_ancestors(&projection_dir)?;
+        if projection_dir.try_exists()? {
+            return Ok(true);
+        }
+        let connection = self.library.connection()?;
+        let Some((profile_id, _)) = profile::selection(&connection, port_id)? else {
+            return Ok(false);
+        };
+        let latest = profile_current(&connection, port_id, &profile_id)?;
+        // Merely creating an empty default profile does not take ownership
+        // of the existing game's ordinary manual mod and data handling.
+        Ok(
+            latest.loader == Some(crate::profile_loader::ModEngine::DaggerfallUnity.reference())
+                && !latest.packages.is_empty(),
+        )
+    }
+}

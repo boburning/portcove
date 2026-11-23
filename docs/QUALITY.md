@@ -536,6 +536,15 @@ stale-review refusal, saved-data and backup assertions, retry policy, cleanup an
 application/IPC/safety deadlines remain unchanged. The original failures remain
 evidence; these calibrations alone do not establish successful native workflows.
 
+On November 21, hosted Windows artwork job 136791041646 recorded the exact
+Cover import at revision 1. The editor remained busy with thumbnail and artwork
+reads in flight, and an earlier read took 16.35 seconds. The native test now
+allows up to 60 seconds for the exact committed digest and for the editor to
+settle. Its 10-minute scenario watchdog includes both role confirmations,
+reload and owned cleanup. The test still requires the original digest, revision
+and focus assertions. The observed import and picker results remain partial
+evidence until the renderer and recovery checks pass.
+
 The November 18 hosted Windows review-continuation run at `6c01ccf6`
 (`44395050884/1`, job `135122626956`) positively recorded the owned native
 **Cancel** response in `backup-native-restore-cancelled.json`. The subsequent

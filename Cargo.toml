@@ -73,9 +73,9 @@ tokio-util = { version = "0.7.20", features = ["io"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 unicode-normalization = "0.1.26"
-uuid = { version = "1.29.0", features = ["v4", "serde"] }
-url = "2.5.8"
-xxhash-rust = { version = "0.8.19", default-features = false, features = ["xxh3"] }
+uuid = { version = "1.29.3", features = ["v4", "serde"] }
+url = "2.5.9"
+xxhash-rust = { version = "0.8.21", default-features = false, features = ["xxh3"] }
 # Keep Cargo resolution on the reviewed ZIP release instead of a younger compatible version.
 zip = { version = "=9.4.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = [
@@ -95,7 +95,7 @@ windows-sys = { version = "0.61.2", features = [
   "Win32_UI_Shell",
 ] }
 windows-version = "0.100.0"
-rpassword = "7.5.4"
+rpassword = "7.5.5"
 rustix = { version = "1.1.6", features = ["fs"] }
 same-file = "1.0.6"
 

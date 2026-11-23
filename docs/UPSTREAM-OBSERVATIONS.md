@@ -1561,11 +1561,14 @@ is explicitly enabled. First activation and later format upgrades require the
 reviewed released CLI and its exact SHA-256. The preparation command checks
 that reader's carrier and directory-format capabilities before making a bundle.
 The publisher records the verified reader version and digest. After activation,
-a reviewed exact legacy target in the existing publication bundle can add an
-explicit safety withdrawal. It must
-preserve the other signed legacy rows and advance above the current revision.
-The compact successor carries the same withdrawals and preserves its other
-rows and prior withdrawals.
+the legacy target follows the [legacy-hold policy](SIGNED-CATALOG.md#legacy-holds-after-compact-activation):
+it changes only to add a safety withdrawal or a download hold, advances above
+the current revision and preserves the other signed legacy rows. The compact
+successor carries the same withdrawals, preserves its other rows and prior
+withdrawals, and publishes above the legacy successor. Compact preparation
+excludes and reports an observer candidate that fails Core validation; the
+definitions and the remaining candidates still publish. Legacy preparation
+keeps its fallback and publishes none of the candidates in that case.
 If prior metadata has expired, the publisher first renews the exact known
 targets through historical signature verification.
 
