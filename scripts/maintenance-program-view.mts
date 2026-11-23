@@ -663,7 +663,8 @@ export const authorityKinds: readonly AuthorityKind[] = [
       "Catalog generator or check scripts that select their records by a literal catalog identity or a literal upstream repository of an operational definition.",
     detector:
       "scripts/catalog-*-*.mts (not tests) containing a quoted catalog identity or operational release repository",
-    retired: false,
+    // #1422 moved these expansions into authored records or structural shorthands.
+    retired: true,
     detect(root, context) {
       const repositories = new Map<string, string[]>();
       for (const port of portRecords(context)) {

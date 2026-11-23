@@ -57,7 +57,6 @@
       ]
     }
   },
-  "chocolate_family_windows_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -91,6 +90,25 @@
       "-savedir",
       "savegames"
     ],
+    "persistent_paths": [
+      "game.wad",
+      "hexen.cfg",
+      "chocolate-hexen.cfg",
+      "savegames",
+      "autoload",
+      "music-packs"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "HEXEN",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HEXEN",
+        "suffix": ".png"
+      }
+    ],
+    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
     "presentation": {
       "installation_method": "staged-game-files",
       "source_requirements": [

@@ -4,7 +4,9 @@ import {
   annotateCatalogAuthoring,
   annotateCatalogGuideCopy,
   annotateDiscoveryPlatforms,
+  hasCatalogAuthoringEquivalence,
 } from "./catalog-guide-copy-impact.mts";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -2010,4 +2012,44 @@ void test("proven per-title layout conversions retain generator and embedded cat
     )[0]?.filter,
     "package(=portcove-core)",
   );
+});
+
+void test("authoring equivalence excludes every authored file a Rust source reads raw", () => {
+  const ports = "crates/portcove-core/catalog/ports";
+  const rawReaders = new Set<string>();
+  const sources = path.resolve(import.meta.dirname, "../crates");
+  for (const entry of readdirSync(sources, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".rs")) continue;
+    const text = readFileSync(path.join(entry.parentPath, entry.name), "utf8");
+    for (const match of text.matchAll(/catalog\/ports\/([a-z0-9][a-z0-9-]*)\.json/gu))
+      rawReaders.add(match[1]!);
+  }
+  assert.ok(rawReaders.size > 0);
+  const ordinary = readdirSync(ports)
+    .map((name) => name.replace(/\.json$/u, ""))
+    .find((id) => !rawReaders.has(id))!;
+  const proven = (id: string) => {
+    const file = `${ports}/${id}.json`;
+    const text = readFileSync(file, "utf8");
+    const after = createHash("sha256").update(text).digest("hex");
+    return hasCatalogAuthoringEquivalence(
+      [
+        {
+          status: "M",
+          oldPath: file,
+          newPath: file,
+          oldMode: "100644",
+          newMode: "100644",
+          catalog_authoring: {
+            kind: "catalog-authoring-equivalence-v1",
+            before: "0".repeat(64),
+            after,
+          },
+        },
+      ],
+      (path) => readFileSync(path, "utf8"),
+    );
+  };
+  assert.equal(proven(ordinary), true);
+  for (const id of rawReaders) assert.equal(proven(id), false, id);
 });
