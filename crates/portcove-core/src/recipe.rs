@@ -732,9 +732,9 @@ impl PortcoveService {
         let layout = self.layout_for_install(install)?.ok_or_else(|| {
             PortcoveError::unsupported("the recipe build has no reviewed mod loader")
         })?;
-        // Earlier steps were verified when they were staged; recheck their
-        // identity and presence here, and leave the byte-level check to apply.
-        verified_acquisitions(&catalog, recipe, &layout, prior, Depth::Recorded)?;
+        // Earlier steps were verified when they were staged and are rechecked by
+        // every plan and in full by apply; this step only needs to know which
+        // packages they already cover, so its work does not grow with them.
         if prior
             .iter()
             .any(|acquisition| acquisition.native_id == native_id)
@@ -864,11 +864,14 @@ impl PortcoveService {
     /// Durably records staged review steps, one record per package, so a
     /// review interrupted by a restart resumes instead of downloading again.
     /// [`PortcoveService::plan_recipe_acquisition`] records each step it stages.
-    pub fn record_recipe_acquisitions(
+    pub(crate) fn record_recipe_acquisitions(
         &self,
         recipe: &ProfileRecipe,
         acquisitions: &[RecipeAcquisitionPlan],
     ) -> Result<()> {
+        if !hash_ok(&recipe.identity_sha256) {
+            return Err(invalid("its identity digest is malformed"));
+        }
         let directory = self.acquisition_records(&recipe.port_id, &recipe.identity_sha256);
         crate::path::refuse_symlink_ancestors(&directory)?;
         fs::create_dir_all(&directory)?;
@@ -955,18 +958,19 @@ impl PortcoveService {
 
     /// Releases each step whose staged bytes no longer match, so a fresh review
     /// shows it as missing instead of repeatedly offering it as ready.
+    /// `layout` must be the recipe installation's own layout, so native code
+    /// is checked with the loader that reviewed it.
     fn forget_unverifiable_acquisitions(
         &self,
         recipe: &ProfileRecipe,
+        layout: &crate::profile_deploy::Layout,
         acquisitions: &[RecipeAcquisitionPlan],
     ) {
-        let layout =
-            crate::profile_deploy::Layout::for_user(&self.library.user_dir(&recipe.port_id));
         for acquisition in acquisitions {
             if verified_acquisitions(
                 self.catalog(),
                 recipe,
-                &layout,
+                layout,
                 std::slice::from_ref(acquisition),
                 Depth::Content,
             )
@@ -1470,7 +1474,14 @@ impl PortcoveService {
             match self.plan_recipe_import_at(&plan.recipe, &plan.acquisitions, Depth::Content) {
                 Ok(current) => current,
                 Err(error) => {
-                    self.forget_unverifiable_acquisitions(&plan.recipe, &plan.acquisitions);
+                    let layout = self.layout_for_install(&plan_install)?.unwrap_or_else(|| {
+                        crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id))
+                    });
+                    self.forget_unverifiable_acquisitions(
+                        &plan.recipe,
+                        &layout,
+                        &plan.acquisitions,
+                    );
                     return Err(error);
                 }
             };
@@ -1700,12 +1711,16 @@ fn verified_acquisitions(
         ));
     }
     let mut verified = BTreeMap::new();
+    // Steps of one closure share a provider plan; check each plan's digest once.
+    let mut digested = BTreeSet::new();
+    let packages = recipe
+        .packages
+        .iter()
+        .map(|item| (item.native_id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
     for acquisition in acquisitions {
         let plan = &acquisition.provider_plan;
-        let package = recipe
-            .packages
-            .iter()
-            .find(|item| item.native_id == acquisition.native_id);
+        let package = packages.get(acquisition.native_id.as_str()).copied();
         let (origin, exact_requirements) = reviewed_origin(plan, &acquisition.native_id)?;
         let reference = package.and_then(|package| package.provider.as_ref());
         let identity = reference
@@ -1735,13 +1750,14 @@ fn verified_acquisitions(
         if !agrees
             || recipe.identity_sha256 != acquisition.recipe_identity_sha256
             || plan.port_id != recipe.port_id
-            || digest(plan)? != plan.plan_sha256
+            || (!digested.contains(plan.plan_sha256.as_str()) && digest(plan)? != plan.plan_sha256)
             || verified.contains_key(&acquisition.native_id)
         {
             return Err(PortcoveError::conflict(
                 "the provider review does not match this exact recipe",
             ));
         }
+        digested.insert(plan.plan_sha256.as_str());
         let package =
             package.ok_or_else(|| PortcoveError::conflict("the recipe package changed"))?;
         if exact_requirements != package.provider_requires {

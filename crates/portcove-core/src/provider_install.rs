@@ -665,7 +665,10 @@ impl PortcoveService {
                 file.size.min(MAX_DOWNLOAD_BYTES).saturating_mul(2),
             )?;
             let download_budget = MAX_DOWNLOAD_BYTES;
-            let extraction_budget = MAX_EXTRACTED_BYTES;
+            // Extraction can expand past the claimed size; it never takes the
+            // reserve, whatever the archive declares.
+            let extraction_budget =
+                MAX_EXTRACTED_BYTES.min(crate::setup_capacity::staging_allowance(staging.path())?);
             let extension = file
                 .file_name
                 .rsplit_once('.')

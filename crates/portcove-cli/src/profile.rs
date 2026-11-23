@@ -16,7 +16,9 @@ use crate::{
     render_read_success,
 };
 
-const MAX_REQUEST_BYTES: u64 = 256 * 1024;
+/// Plans and revision requests are Core documents of one setup; read them
+/// with the setup contract's document bound so whatever Core wrote reads back.
+const MAX_REQUEST_BYTES: u64 = portcove_core::MAX_SETUP_DOCUMENT_BYTES as u64;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum PolicyArg {
@@ -647,7 +649,10 @@ fn read_plan<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
         .take(MAX_REQUEST_BYTES + 1)
         .read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_REQUEST_BYTES {
-        return Err(PortcoveError::usage("plan file exceeds 256 KiB"));
+        return Err(PortcoveError::usage(format!(
+            "plan file exceeds {} MiB",
+            MAX_REQUEST_BYTES / (1024 * 1024)
+        )));
     }
     // `data` wrappers from `--json` output are accepted as well as the bare plan.
     let value: serde_json::Value = serde_json::from_slice(&bytes)
@@ -922,7 +927,10 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
             .read_to_end(&mut bytes)?;
     }
     if bytes.len() as u64 > MAX_REQUEST_BYTES {
-        return Err(PortcoveError::usage("revision request exceeds 256 KiB"));
+        return Err(PortcoveError::usage(format!(
+            "revision request exceeds {} MiB",
+            MAX_REQUEST_BYTES / (1024 * 1024)
+        )));
     }
     serde_json::from_slice(&bytes)
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
@@ -1757,18 +1765,23 @@ pub(crate) async fn execute(
         ProfileCommand::RecipePlan {
             recipe_file,
             acquisitions,
-        } => render_read_success(
-            mode,
-            name,
-            service.plan_recipe_import_with_acquisitions(
-                &read_recipe(&recipe_file)?,
-                &acquisitions
-                    .iter()
-                    .map(read_plan)
-                    .collect::<Result<Vec<_>>>()?,
-            )?,
-            recipe_plan_text,
-        ),
+        } => {
+            let recipe = read_recipe(&recipe_file)?;
+            // Without explicit acquisitions, resume the steps Core recorded
+            // for this exact recipe.
+            let plan = if acquisitions.is_empty() {
+                service.plan_recipe_import(&recipe)?
+            } else {
+                service.plan_recipe_import_with_acquisitions(
+                    &recipe,
+                    &acquisitions
+                        .iter()
+                        .map(read_plan)
+                        .collect::<Result<Vec<_>>>()?,
+                )?
+            };
+            render_read_success(mode, name, plan, recipe_plan_text)
+        }
         ProfileCommand::RecipeApply {
             recipe_file,
             name: display_name,

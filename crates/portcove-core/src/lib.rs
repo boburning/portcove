@@ -165,6 +165,7 @@ pub mod runtime_diagnostics;
 mod runtime_path_policy;
 mod service;
 mod setup_capacity;
+pub use setup_capacity::{MAX_SETUP_DOCUMENT_BYTES, MAX_SETUP_PACKAGES};
 mod signed_catalog;
 mod source;
 mod source_assessment;

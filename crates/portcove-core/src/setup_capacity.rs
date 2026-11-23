@@ -30,9 +30,9 @@ use std::path::Path;
 use crate::{PortcoveError, Result};
 
 /// Distinct packages one setup may hold, at every stage.
-pub(crate) const MAX_SETUP_PACKAGES: usize = 4096;
+pub const MAX_SETUP_PACKAGES: usize = 4096;
 /// Parse budget for one stored revision or profile record.
-pub(crate) const MAX_SETUP_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
+pub const MAX_SETUP_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
 /// Parse budget for one recipe document (see the module documentation).
 pub(crate) const MAX_RECIPE_DOCUMENT_BYTES: usize = 2 * MAX_SETUP_DOCUMENT_BYTES;
 /// Free space kept on the staging volume after admitting staged bytes, so
@@ -60,6 +60,11 @@ pub(crate) fn require_staging_space(directory: &Path, bytes: u64) -> Result<()> 
         .detail("available_bytes", available.to_string()));
     }
     Ok(())
+}
+
+/// Bytes that can still be staged under `directory` while keeping the reserve.
+pub(crate) fn staging_allowance(directory: &Path) -> Result<u64> {
+    Ok(fs4::available_space(directory)?.saturating_sub(STAGING_RESERVE_BYTES))
 }
 
 /// A human-readable size for player-facing bound messages.
