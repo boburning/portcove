@@ -65,6 +65,10 @@ import {
   sourceArchive,
   textStatement,
   launcherProgram,
+  programRoleWord,
+  gateRoleProgram,
+  archiveProductRelated,
+  gateArchiveRelated,
   gateLineNamesProduct,
   gateRoleWord,
   gateHelper,
@@ -192,6 +196,10 @@ function listing(id = unseen, fields: Record<string, unknown> = {}): AuthoredPor
     listing: {
       id,
       name: "Unseen Observed Runtime",
+      // The product its fixture archives name (`Game-v1.0-…`): an archive
+      // whose product shares no word with the listing or its repository is
+      // withheld (`archive-product-unrelated`).
+      original_game_title: "Game",
       summary: "A native runtime observed only through release facts.",
       project_url: `https://github.com/fixture-owner/${id}`,
       availability: "packages",
@@ -218,6 +226,23 @@ function artifact(
     suggestion(name),
     programToken,
   );
+}
+/**
+ * A listing titled for an archive's product, and an entry whose facts judged
+ * release text with that listing's words: R4 withholds an archive whose
+ * product shares no word with the listing or its repository.
+ */
+function titledFor(archive: string, fields: Record<string, unknown> = {}) {
+  const record = listing(unseen, {
+    original_game_title: productIdentity(archive).words.join(" "),
+    ...fields,
+  });
+  const facts = (
+    artifacts: ArtifactFactV2[],
+    extra: Partial<ListingFactsEntry> = {},
+  ): ListingFactsEntry =>
+    entry(artifacts, {}, unseen, { listing_words: listingWords(record.listing), ...extra });
+  return { record, facts };
 }
 function entry(
   artifacts: ArtifactFactV2[] = [artifact()],
@@ -2306,8 +2331,10 @@ void test("system tokens in an archive name veto it as non-desktop; titles that 
     assert.equal(fact.contradictory, true, name);
     assert.equal(reasonOf(decide(listing(), entry([fact]))), "non-desktop-platform", name);
   }
-  for (const name of ["HaikuQuest-v1.0-windows-x64.zip", "Switchblade-v1.0-windows-x64.zip"])
-    assert.equal(decide(listing(), entry([artifact(name, [player("Game.exe")])])).fit, true, name);
+  for (const name of ["HaikuQuest-v1.0-windows-x64.zip", "Switchblade-v1.0-windows-x64.zip"]) {
+    const { record, facts } = titledFor(name);
+    assert.equal(decide(record, facts([artifact(name, [player("Game.exe")])])).fit, true, name);
+  }
 });
 
 void test("the gate refuses an enrollment resting on a non-desktop machine even when the fit rule is bypassed", () => {
@@ -2379,7 +2406,13 @@ void test("two distinct programs on a platform are ambiguous; builds of one prog
     // Architecture, console and debug builds of one program.
     [[exe("openjk.x86_64.exe"), exe("openjk.x86.exe", "pe-x86")], "fit"],
     [[exe("Game/Game.exe"), exe("Game/Game-64.exe"), exe("Game/Game.console.exe")], "fit"],
-    [[exe("Game/Game.x64.exe"), exe("Game/Game_win64.exe"), exe("Game/Game.debug.exe")], "fit"],
+    // R2 (review at f92d6f2c): a debug build is one program by name, but a
+    // role word in a program name always withholds; this row was "fit".
+    [[exe("Game/Game.x64.exe"), exe("Game/Game_win64.exe")], "fit"],
+    [
+      [exe("Game/Game.x64.exe"), exe("Game/Game_win64.exe"), exe("Game/Game.debug.exe")],
+      "role-program",
+    ],
     // A number glued to the name is part of the name (H2): Doom 64 is not
     // Doom, and `Game64.exe` cannot be told from such a title by name alone.
     [[exe("Doom.exe"), exe("Doom64.exe")], "ambiguous-player"],
@@ -3541,10 +3574,11 @@ void test("two different archives for one platform are ambiguous even with one p
   assert.ok(vetoed.artifacts[1]!.contradictory);
   assert.ok(decide(listing(), vetoed).fit);
   // A title containing the word as part of a longer word is not vetoed.
-  const title = entry([
+  const studiopolis = titledFor("Studiopolis-v1.0-windows-x64.zip");
+  const title = studiopolis.facts([
     artifact("Studiopolis-v1.0-windows-x64.zip", [player("Studiopolis.exe")], 11),
   ]);
-  assert.ok(decide(listing(), title).fit);
+  assert.ok(decide(studiopolis.record, title).fit);
   // The gate refuses two different archives independently.
   const generation = generateRegistrations([listing()], table(twins));
   assert.equal(gateGeneration(null, generation).added.length, 1);
@@ -3651,8 +3685,11 @@ void test("an update archive holding the game's program is never chosen over the
     assert.equal(reasonOf(decide(listing(), alone)), "contradictory-role", word);
     assert.match(forcedGate(alone, 12), /role-named/u, word);
   }
-  for (const title of ["Updated-Game-v1.0.zip", "Deltarune-Fan-v1.0.zip", "Patchwork-v1.0.zip"])
-    assert.ok(decide(listing(), entry([named(title, [game], 12)])).fit, title);
+  // The listing names each archive's product (R4 withholds an unrelated one).
+  for (const title of ["Updated-Game-v1.0.zip", "Deltarune-Fan-v1.0.zip", "Patchwork-v1.0.zip"]) {
+    const { record, facts } = titledFor(title);
+    assert.ok(decide(record, facts([named(title, [game], 12)])).fit, title);
+  }
   // A role word with trailing digits is still that role word (R1).
   for (const title of ["Game-Windows-Update1.zip", "Game-patch01-win64.zip", "Game-debug2.zip"]) {
     const alone = entry([named(title, [game], 12)]);
@@ -3736,6 +3773,15 @@ void test("an update archive holding the game's program is never chosen over the
     ["Updated-Game.zip", false],
     ["DebugQuest-v1.zip", true],
     ["Debuggery-v1.zip", false],
+    // R3 (review at f92d6f2c): dedicated, headless and demo builds.
+    ["Game-Dedicated-1.0-win64.zip", true],
+    ["Game-Headless-1.0-linux.tar.gz", true],
+    ["Game-Demo-1.0-win64.zip", true],
+    ["GameDemo-1.0-win64.zip", true],
+    ["Game-demo2-win64.zip", true],
+    ["Demolition-1.0-win64.zip", false],
+    ["Demos-1.0-win64.zip", false],
+    ["Headlessness-1.0.zip", false],
   ];
   for (const [name, expected] of occurrenceRows) {
     assert.equal(archiveRoleToken(name) !== null, expected, `fit ${name}`);
@@ -4963,7 +5009,16 @@ void test("the hand-checked correct shapes still enroll (D4 iii)", () => {
   for (const [name, program] of shapes) {
     const facts = entry([artifact(name, [program])]);
     assert.deepEqual(artifactExclusions(facts.artifacts[0]!), [], name);
-    assert.ok(decide(listing(), facts).fit, name);
+    // The listing names the archive's product; a listing that does not is
+    // withheld (R4).
+    const titled = titledFor(name);
+    assert.ok(decide(titled.record, titled.facts([artifact(name, [program])])).fit, name);
+    const other = titledFor("Unrelated.zip");
+    assert.equal(
+      reasonOf(decide(other.record, other.facts([artifact(name, [program])]))),
+      "archive-product-unrelated",
+      name,
+    );
   }
 });
 
@@ -4974,6 +5029,14 @@ void test("a launcher, settings or setup program as the only player is withheld 
     "GameConfig.exe",
     "Game_Settings.exe",
     "GameLauncher.exe",
+    // R5 (review at f92d6f2c): launch, start, cfg, configure and loader.
+    "Launch.exe",
+    "StartGame.exe",
+    "Game-start.exe",
+    "GameCfg.exe",
+    "Configure.exe",
+    "GameLoader.exe",
+    "Install.exe",
   ]) {
     const facts = entry([named(windowsZip, [player(`Game/${program}`)], 11, "windows")]);
     const decision = decide(listing(), facts);
@@ -5001,8 +5064,19 @@ void test("a launcher, settings or setup program as the only player is withheld 
     assert.equal(launcherProgram(`Game/${program}`), true, program);
     assert.equal(gateLauncher(`Game/${program}`), true, program);
   }
-  // Words that merely contain the letters are not launcher words.
-  for (const program of ["Launch.exe", "Settler.exe", "Game.exe", "Upset.exe"]) {
+  // Words that merely contain the letters are not launcher words. `Launch.exe`
+  // was such a row before R5 made `launch` a launcher word; it is now above.
+  for (const program of [
+    "Settler.exe",
+    "Game.exe",
+    "Upset.exe",
+    "Starfall.exe",
+    "Startup.exe",
+    "Restart.exe",
+    "Installation.exe",
+    "Loaders2.exe",
+    "Cfgame.exe",
+  ]) {
     assert.equal(launcherProgram(`Game/${program}`), false, program);
     assert.equal(gateLauncher(`Game/${program}`), false, program);
     assert.ok(
@@ -5010,6 +5084,9 @@ void test("a launcher, settings or setup program as the only player is withheld 
       program,
     );
   }
+  // `Configurator.exe` is no launcher word either (Core's tool veto excludes it).
+  assert.equal(launcherProgram("Game/Configurator.exe"), false);
+  assert.equal(gateLauncher("Game/Configurator.exe"), false);
   // The guide's generic wording stays as a second guard.
   const generation = generateRegistrations([listing()], table(entry([artifact()])));
   assert.notEqual(
@@ -5316,6 +5393,23 @@ void test("release text statements: title and first body line only, whole words,
     ["Source release", null],
     ["Final release", null],
     ["", null],
+    // R6 (review at f92d6f2c): a qualified status word, early access and
+    // unstable state a prerelease where a status stands.
+    ["Public beta test", "beta"],
+    ["Open alpha", "alpha"],
+    ["Closed Beta for the new mode", "beta"],
+    ["Early access 0.3 (unstable)", "early-access"],
+    ["v0.4 Early Access", "early-access"],
+    ["Game 1.0 (unstable)", "unstable"],
+    ["v2.0 unstable", "unstable"],
+    ["Now on the store in early access for everyone", null],
+    ["Fixes an unstable framerate on start", null],
+    ["Open the beta menu with F1", null],
+    ["Out of early access", null],
+    ["Leaving early access 1.0", null],
+    ["No longer a public beta", null],
+    ["Opener Beta Edition 2", null],
+    ["Publicity release", null],
   ];
   for (const [line, token] of rows) {
     assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
@@ -6033,11 +6127,31 @@ void test("the gate refuses every enrollment the fit did not choose, over genera
 });
 
 void test("only a program named exactly for the product relieves another package form (B2, F2)", () => {
-  const withheld = (artifact: ArtifactFactV2, form: string, platforms: string[]) => {
-    const record = listing(unseen, { platforms });
-    const facts = entry([artifact], {}, unseen, {
+  // The listing names the archive's product unless a row says otherwise, so
+  // each row tests the program name alone.
+  const titled = (artifact: ArtifactFactV2, platforms: string[], title?: string) =>
+    listing(unseen, {
+      platforms,
+      original_game_title: title ?? productIdentity(artifact.name).words.join(" "),
+    });
+  const factsOf = (
+    record: AuthoredPort,
+    artifact: ArtifactFactV2,
+    form: string,
+    platforms: string[],
+  ) =>
+    entry([artifact], {}, unseen, {
+      listing_words: listingWords(record.listing),
       other_packages: [otherForm(19, form, platforms)],
     });
+  const withheld = (
+    artifact: ArtifactFactV2,
+    form: string,
+    platforms: string[],
+    title?: string,
+  ) => {
+    const record = titled(artifact, platforms, title);
+    const facts = factsOf(record, artifact, form, platforms);
     assert.equal(reasonOf(decide(record, facts)), "other-package-form-beside-archive", form);
     assert.match(
       forcedOn(facts, record, artifact.asset_id, platforms[0]!),
@@ -6046,10 +6160,8 @@ void test("only a program named exactly for the product relieves another package
     );
   };
   const enrolls = (artifact: ArtifactFactV2, form: string, platforms: string[]) => {
-    const record = listing(unseen, { platforms });
-    const facts = entry([artifact], {}, unseen, {
-      other_packages: [otherForm(19, form, platforms)],
-    });
+    const record = titled(artifact, platforms);
+    const facts = factsOf(record, artifact, form, platforms);
     const decision = decide(record, facts);
     assert.ok(decision.fit, `${artifact.name} beside ${form}: ${JSON.stringify(decision)}`);
     assert.equal(
@@ -6070,13 +6182,35 @@ void test("only a program named exactly for the product relieves another package
   withheld(windows("The-Game-1.0-win64.zip", "the-mapper.exe"), "The-Game-1.0-Setup.exe", W);
   withheld(windows("TableGame-1.0-win64.zip", "Table.exe"), "TableGame-1.0-Setup.exe", W);
   withheld(windows("Game-1.0-win64.zip", "Game/MyGame.exe"), "Game-1.0-Setup.exe", W);
-  // The product's own program still relieves, with variant words or
-  // trailing digits only.
+  // B2 (review at f92d6f2c): the program name is compared LITERALLY with
+  // the product: no trailing-digit pop, no variant-word drop and no
+  // architecture-word allowance. These rows enrolled before the literal
+  // rule (`Game-x64.exe`, `game.x86_64`, `supergame2.exe`) and are now
+  // withheld.
+  for (const program of [
+    "Game/Game-debug.exe",
+    "Game/Game2.exe",
+    "Game/Game-2.exe",
+    "Game/Game64.exe",
+    "Game/Game-x64.exe",
+    "Game/Game.console.exe",
+  ])
+    withheld(windows("Game-1.0-win64.zip", program), "Game-1.0-Setup.exe", W);
+  withheld(linux("Game-1.0-linux.tar.gz", "Game/game.x86_64"), "game_1.0_amd64.deb", L);
+  withheld(windows("Super-Game-1.0-win64.zip", "supergame2.exe"), "Super-Game-1.0-Setup.exe", W);
+  // R4: the relief attributes the other form to the LISTING's product: the
+  // same product as the archive is not enough when the listing names another.
+  withheld(
+    windows("Game-1.0-win64.zip", "Game/Game.exe"),
+    "Game-1.0-Setup.exe",
+    W,
+    "Different Title",
+  );
+  // The product's own program, named literally, still relieves.
   enrolls(windows("Game-1.0-win64.zip", "Game/Game.exe"), "Game-1.0-Setup.exe", W);
-  enrolls(windows("Game-1.0-win64.zip", "Game/Game-x64.exe"), "Game-1.0-Setup.exe", W);
   for (const form of ["Game-1.0.AppImage", "Game-1.0.deb", "Game-1.0.flatpak"])
     enrolls(linux("Game-1.0-linux.tar.gz", "Game"), form, L);
-  enrolls(linux("Game-1.0-linux.tar.gz", "Game/game.x86_64"), "game_1.0_amd64.deb", L);
+  enrolls(linux("Game-1.0-linux.tar.gz", "Game/game"), "game_1.0_amd64.deb", L);
   enrolls(
     named(
       "Game-1.0-macos.zip",
@@ -6087,7 +6221,7 @@ void test("only a program named exactly for the product relieves another package
     "Game-1.0.dmg",
     M,
   );
-  enrolls(windows("Super-Game-1.0-win64.zip", "supergame2.exe"), "Super-Game-1.0-Setup.exe", W);
+  enrolls(windows("Super-Game-1.0-win64.zip", "Super_Game.exe"), "Super-Game-1.0-Setup.exe", W);
   enrolls(windows("TableGame-1.0-win64.zip", "Table_Game.exe"), "TableGame-1.0-Setup.exe", W);
   // F2: a Debian revision, an unversioned AppImage and trailing zero
   // components are the same version.
@@ -6311,7 +6445,8 @@ void test("release text is judged with the listing's own words by worker, fit an
   ];
   const run = await derive([record], observerReport({ [id]: { releases } }));
   const facts = run.table.entries[0]!;
-  assert.deepEqual(facts.listing_words, ["beta", "squadron", "zz"]);
+  // `game` is the fixture listing's original title (its archives' product).
+  assert.deepEqual(facts.listing_words, ["beta", "game", "squadron", "zz"]);
   assert.equal(facts.observation.tag, "v3.0");
   assert.deepEqual(
     facts.observed_releases.map((release) => release.statement),
@@ -6347,4 +6482,126 @@ void test("release text is judged with the listing's own words by worker, fit an
   generation.enrollments[0]!.facts_sha256 = digestOf(renamed);
   assert.throws(() => gateGeneration(null, generation), /other listing words/u);
   assert.deepEqual(gateListingWords(record.listing), listingWords(record.listing));
+});
+
+void test("role words in program names and folders, role archives and unrelated archives withhold, in fit and gate (R2, R3, R4)", () => {
+  // R2: a role word in a program's file name or in any folder of its path
+  // always withholds the whole identity; the gate refuses a forced runtime.
+  for (const program of [
+    "Game/Game-debug.exe",
+    "Game/Game-dedicated.exe",
+    "Game/Game-demo.exe",
+    "Game/Game-headless.exe",
+    "Game/GameServer.exe",
+    "Game/GameEditor.exe",
+    "server/Game.exe",
+    "tools/Game.exe",
+    "editor/Game.exe",
+    "Game/sdk/Game.exe",
+    "Game Demo/Game.exe",
+  ]) {
+    assert.ok(programRoleWord(program) !== null, `fit ${program}`);
+    assert.ok(gateRoleProgram(program), `gate ${program}`);
+    const facts = entry([named(windowsZip, [player(program)], 11, "windows")]);
+    const decision = decide(listing(), facts);
+    assert.ok(!decision.fit, program);
+    assert.ok(
+      ["role-program", "tool-not-game"].includes(reasonOf(decision)),
+      `${program}: ${reasonOf(decision)}`,
+    );
+    if (facts.artifacts[0]!.players.length) {
+      assert.equal(reasonOf(decision), "role-program", program);
+      assert.match(forcedGate(facts, 11), /another role than the game/u, program);
+    }
+  }
+  // Beside the game's own program, in the same archive, it still withholds.
+  const beside = entry([
+    named(windowsZip, [player("Game/Game.exe"), player("Game/Game-debug.exe")], 11, "windows"),
+  ]);
+  assert.equal(reasonOf(decide(listing(), beside)), "role-program");
+  assert.match(forcedGate(beside, 11), /another role than the game/u);
+  // Whole words only: a word that merely contains the letters is no role.
+  for (const program of [
+    "Game/Observer.exe",
+    "Game/Demon.exe",
+    "Toolset/Game.exe",
+    "Editorial/Game.exe",
+    "Game/Serverless.exe",
+    "Game/Demos.exe",
+  ]) {
+    assert.equal(programRoleWord(program), null, `fit ${program}`);
+    assert.equal(gateRoleProgram(program), false, `gate ${program}`);
+    assert.ok(
+      decide(listing(), entry([named(windowsZip, [player(program)], 11, "windows")])).fit,
+      program,
+    );
+  }
+  // `Debugger.exe` is no role word either (Core's tool veto excludes it).
+  assert.equal(programRoleWord("Game/Debugger.exe"), null);
+  assert.equal(gateRoleProgram("Game/Debugger.exe"), false);
+  // R3: dedicated, headless and demo archives withhold, with or without an
+  // installer of their own.
+  const game = player("Game/Game.exe");
+  for (const [archive, installer] of [
+    ["Game-Dedicated-1.0-win64.zip", "Game-Dedicated-1.0-Setup.exe"],
+    ["Game-Headless-1.0-win64.zip", "Game-Headless-1.0-Setup.exe"],
+    ["Game-Demo-1.0-win64.zip", "Game-Demo-1.0-Setup.exe"],
+  ] as const) {
+    const alone = entry([named(archive, [game], 12, "windows")]);
+    assert.equal(reasonOf(decide(listing(), alone)), "contradictory-role", archive);
+    assert.match(forcedGate(alone, 12), /role-named/u, archive);
+    const installed = entry([named(archive, [game], 12, "windows")], {}, unseen, {
+      other_packages: [otherForm(19, installer, W)],
+    });
+    assert.equal(
+      reasonOf(decide(listing(), installed)),
+      "other-package-form-beside-archive",
+      installer,
+    );
+    assert.match(forcedGate(installed, 12), /role-named/u, installer);
+    assert.match(forcedGate(installed, 12), /another package for/u, installer);
+  }
+  // R4: an archive whose product shares no word with the listing or its
+  // repository is not the listing's: `Other-1.0-win64.zip` for listing Game.
+  const other = entry([named("Other-1.0-win64.zip", [player("Other.exe")], 11, "windows")]);
+  const unrelated = decide(listing(), other);
+  assert.equal(reasonOf(unrelated), "archive-product-unrelated");
+  assert.match(forcedGate(other, 11), /shares no word with the listing or its repository/u);
+  for (const [archive, related] of [
+    ["Other-1.0-win64.zip", false],
+    ["win64.zip", false],
+    ["Game-1.0-win64.zip", true],
+    ["Unseen-Game-1.0-win64.zip", true],
+    ["Gamer-1.0-win64.zip", false],
+    ["Fixture-Tools-1.0.zip", true],
+  ] as const) {
+    assert.equal(
+      archiveProductRelated(archive, listingWords(listing().listing), `fixture-owner/${unseen}`),
+      related,
+      `fit ${archive}`,
+    );
+    assert.equal(
+      gateArchiveRelated(archive, gateListingWords(listing().listing), `fixture-owner/${unseen}`),
+      related,
+      `gate ${archive}`,
+    );
+  }
+  // The repository's name words relate an archive too: a listing named
+  // otherwise whose repository is the product's.
+  const record = listing("zz-elsewhere", {
+    name: "Different Title",
+    original_game_title: "Elsewhere",
+    project_url: "https://github.com/fixture-owner/other-port",
+  });
+  const byRepository = entry(
+    [named("Other-1.0-win64.zip", [player("Other.exe")], 11, "windows")],
+    {},
+    "zz-elsewhere",
+    { repository: "fixture-owner/other-port", listing_words: listingWords(record.listing) },
+  );
+  assert.ok(decide(record, byRepository).fit);
+  assert.equal(
+    gateGeneration(null, generateRegistrations([record], table(byRepository))).added.length,
+    1,
+  );
 });

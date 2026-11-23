@@ -1,5 +1,5 @@
 {
-  "format": 14,
+  "format": 15,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -10,6 +10,7 @@
       "repository_id": 4242,
       "listing_words": [
         "a",
+        "game",
         "observed",
         "runtime",
         "sample",
@@ -18,7 +19,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -109,6 +110,7 @@
       "repository_id": 4242,
       "listing_words": [
         "b",
+        "game",
         "observed",
         "only",
         "patcher",
@@ -118,7 +120,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -196,6 +198,7 @@
       "listing_words": [
         "archive",
         "c",
+        "game",
         "observed",
         "patcher",
         "runtime",
@@ -204,7 +207,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -280,6 +283,7 @@
       "repository_id": 4242,
       "listing_words": [
         "d",
+        "game",
         "observed",
         "runtime",
         "sample",
@@ -288,7 +292,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -370,6 +374,7 @@
       "repository_id": 4242,
       "listing_words": [
         "e",
+        "game",
         "observed",
         "recomp",
         "runtime",
@@ -378,7 +383,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -454,6 +459,7 @@
       "repository_id": 4242,
       "listing_words": [
         "f",
+        "game",
         "linux",
         "observed",
         "runtime",
@@ -462,7 +468,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -538,6 +544,7 @@
       "repository_id": 4242,
       "listing_words": [
         "g",
+        "game",
         "mac",
         "observed",
         "runtime",
@@ -546,7 +553,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 18,
+      "parser_version": 19,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -616,5 +623,5 @@
       ]
     }
   ],
-  "entries_sha256": "7943d4e9fedb0f787dfa8952687c6f231357a12346bf772b49ab73f4927d698b"
+  "entries_sha256": "79ac293b6421fa75e3eca15ea736611bcf2550090749a39d5f0ec23da33c557f"
 }

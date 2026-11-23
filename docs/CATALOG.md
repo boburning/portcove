@@ -3759,9 +3759,11 @@ blocked reason:
 9. No other package form of the release serves a platform the release also
    offers a readable archive for, unless it is that archive's own program
    (its provider SHA-256 equals a player those archives hold for that
-   platform) or the same product in another package form: its product words
-   and version equal those of every archive that could be offered for the
-   platform, and each such archive's player there is named for that product
+   platform) or the listed product in another package form: its product
+   words are the listing's product (its id, name or original title words
+   joined), its product words and version equal those of every archive that
+   could be offered for the platform, and each such archive's player there is
+   named literally for that product
    ([other package forms](#other-package-forms)). Any other form, including
    one with no provider digest (UNKNOWN), means the release offers a
    different package than its archive where the rule would bind, such as the
@@ -3774,8 +3776,8 @@ blocked reason:
     binds the archive's provider SHA-256 and holds player candidates with
     their own SHA-256. No other fact source is accepted. The artifact is not
     contradictory, its name carries no tool or system token and no
-    [archive role word](#one-program-per-platform) such as `update`, and it
-    names no other system or architecture than the platform's. It holds a player
+    [archive role word](#one-program-per-platform) such as `update` or
+    `demo`, and it names no other system or architecture than the platform's. It holds a player
     candidate whose platform-true machine runs on the platform and whose name
     carries no tool token. It is no [source archive](#source-archives).
     Each player's own machine decides where it runs:
@@ -3793,7 +3795,13 @@ blocked reason:
     (`bundled-toolchain`). The one program is not named for a launcher,
     settings or setup step on any platform; that excludes the whole identity
     too (`launcher-entry`), and the gate refuses every runtime of such an
-    identity, including platforms the fit would not enroll.
+    identity, including platforms the fit would not enroll. No program of an
+    archive that could be the game, on any platform, has a
+    [program role word](#one-program-per-platform) in its file name or any
+    folder of its path (`role-program`). The archive offered on every
+    platform names a product that shares at least one word with the listing's
+    id, name or original title words or the repository name's words
+    (`archive-product-unrelated`); this rule only withholds.
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3877,11 +3885,13 @@ and also requires an enrollment to name every player of its artifact that runs
 on the platform.
 
 A launcher alone is not the game either. When the one program of a platform
-is named for a launcher, settings or setup step (`launcher`, `settings`,
-`config`, `setup` or `installer` as a whole word of its file name, split like
-product names, so `GameLauncher.exe` and `Game_Settings.exe` count and
-`Configurator.exe`, `Launch.exe` and `Settler.exe` do not), the whole
-identity is withheld as `launcher-entry`. Such a program often builds or
+is named for a launcher, loader, settings or setup step (`launcher`,
+`launch`, `start`, `loader`, `settings`, `config`, `cfg`, `configure`,
+`setup`, `install` or `installer` as a whole word of its file name, split
+like product names, so `GameLauncher.exe`, `Launch.exe`, `StartGame.exe`,
+`GameCfg.exe` and `Game_Settings.exe` count and `Configurator.exe`,
+`Restart.exe`, `Startup.exe` and `Settler.exe` do not), the whole identity
+is withheld as `launcher-entry`. Such a program often builds or
 prepares the game on first start without bundling a toolchain, and nothing
 in the facts says it is the game's runtime entry. Reconsider an identity
 withheld this way when listing data or release-bound metadata declares the
@@ -3897,6 +3907,30 @@ program is launcher-named, it refuses every runtime of the identity. So an
 enrollment forged for a clean Windows zip beside a Linux tarball whose only
 program is a launcher is refused, as the fit rule withholds it.
 
+A program named, or placed, for another role is not the game either. When a
+program of any archive that could be the game (on any platform) holds
+`debug`, `dedicated`, `headless`, `server`, `tools`, `editor`, `sdk` or
+`demo` as a whole word of its file name or of any folder of its path
+(`Game-debug.exe`, `GameServer.exe`, `server/Game.exe`, `tools/Game.exe`,
+`Game Demo/Game.exe`), the whole identity is withheld as `role-program`, even
+beside the game's own program: a debug build is the same program by name,
+but nothing says which one the player should register. A word only
+containing the letters (`Serverless.exe`, `Demos.exe`, `Toolset/`,
+`Editorial/`) is another word. A demo is withheld too: it is not the listed
+game. The gate restates the word list and splitter and refuses every
+enrollment of such an identity, and every runtime naming such a program.
+
+An archive the listing does not name is not attributed to it. When the
+archive a platform would be offered from has product words
+([other package forms](#other-package-forms), `productIdentity`) that share
+no word with the listing's own words (`listing_words`) or the repository
+name's words (`Other-1.0-win64.zip` holding `Other.exe` for a listing named
+`Game` of repository `owner/game`, or an archive with no product words at
+all such as `win64.zip`), the whole identity is withheld as
+`archive-product-unrelated`. A shared word never proves the archive is the
+game; this rule only withholds. The gate restates it for every runtime and
+for the identity-wide candidate of each platform.
+
 One program name is not one package, and equal programs are not one package
 either. A release can carry the full game and a small update archive that
 holds the same game program (the same player SHA-256), or the game and an
@@ -3904,8 +3938,10 @@ authoring-tool archive whose program has the same file name. Two archives are
 the same package only when their own bytes are (equal archive SHA-256).
 
 First, an archive whose own name holds a role word is never offered:
-`update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols` or
-`debug`. The archive name is split into words like product names are
+`update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols`,
+`debug`, `dedicated`, `headless` or `demo` (`Game-Dedicated-1.0-win64.zip`,
+`Game-Demo-1.0-win64.zip`, withheld with or without an installer of their
+own). The archive name is split into words like product names are
 (separators, camel-case humps and letter/digit changes, as
 [release lines](#release-lines) split names), so a role word with a trailing
 number or glued into a camel-case name is that role word
@@ -4140,8 +4176,9 @@ the offered release, the line count, and the newer-prerelease check). The
 statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
 `pre-release`), `release-candidate` (`release` followed by `candidate`, or a
 standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
-with digits). Words are split at separators and letter/digit changes, never
-inside a word, so `Arc`, `Alphabet` and `Betamax` state nothing.
+with digits), `early-access` (`early` followed by `access`) and `unstable`.
+Words are split at separators and letter/digit changes, never inside a word,
+so `Arc`, `Alphabet`, `Betamax` and `Publicity` state nothing.
 
 A status word states the release's status only where a status stands, never
 anywhere in a sentence:
@@ -4153,16 +4190,19 @@ anywhere in a sentence:
 - the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
   before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
   or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
-  line's last word (`Final Beta`, `Release candidate`), or inside parentheses
-  or brackets (`Game 1.0 (Beta)`); `This is beta software for testing` states
-  nothing;
+  line's last word (`Final Beta`, `Release candidate`), inside parentheses
+  or brackets (`Game 1.0 (Beta)`, `Early access 0.3 (unstable)`), or directly
+  after `public`, `open` or `closed` (`Public beta test`, `Open alpha`);
+  `This is beta software for testing`, `Open the beta menu with F1` and `Now
+  in early access for everyone` state nothing;
 - a negation or past transition before it states nothing (`not`, `no`,
   `longer`, `since`, `after`, `from`, `post`, `past`, `former`,
   `formerly`, `previously`, `was`, `were`, `leaving`, `left`, `leaves`,
   `exits`, `exited`, `ended`, `ends`, `graduated`, `graduates`, `than`,
   `over`, `beyond`, and `out of`, skipping `a`, `an`, `the`, `last`,
-  `latest`, `previous`, `final` and `first`): `Out of beta`, `No longer a
-  release candidate`, `Changes since the last beta`;
+  `latest`, `previous`, `final`, `first`, `public`, `open` and `closed`):
+  `Out of beta`, `Out of early access`, `No longer a public beta`, `Changes
+  since the last beta`;
 - the product's own words name the product before the line's first number:
   the repository name's words and the listing's id, name and original title
   words (`listing_words`). `Alpha Centauri Port v1.0` for a listing titled
@@ -4187,7 +4227,12 @@ recorded one. The fit rule and, independently, the gate re-derive the
 listing words from the listing and refuse facts judged with other words,
 re-derive the title's statement from the recorded title and read the body's
 from the record. Reproduction compares the release list's current title and
-body where the entry records the text as observed. One table pins the
+body where the entry records the text as observed. Where the entry records a
+release's text as `unobserved` but the provider now reports text that states
+a prerelease (a stable-flagged release titled `v1.0 Beta`), reproduction
+refuses the entry as `mismatch` so the worker observes it again: unobserved
+text never keeps an enrollment through reconfirmation once the text is
+known to state a prerelease. One table pins the
 fit's and the gate's statement rules on the same rows, and a generated
 comparison checks that both read every line alike.
 
@@ -4343,13 +4388,18 @@ changes, dropping package-form parts (`GameSetup` is `game`). A form is the
 same product when its product words are not empty and equal those of every
 archive that could be offered for the platform (a runtime archive from exact
 bytes whose name vetoes nothing and that holds a player for the platform),
-its version is theirs (`sameVersion`), and each such archive's player for the
-platform is named exactly for that product (`programNamesProduct`): the
-program's words without build-variant words (architecture, bitness, platform
-and console words), joined, equal the product words joined, also once
-trailing digits are removed from the program (`supergame2.exe` for
-`Super-Game`). A shared word, a prefix or a containment in either direction
-never relieves. Versions are equal once trailing zero components are removed
+its version is theirs (`sameVersion`), the product is the LISTING's
+(`listingProductNames`: the product words joined equal the listing's id,
+name or original title words joined, so `Game-1.0-Setup.exe` beside
+`Game-1.0-win64.zip` for a listing titled "Different Title" still competes),
+and each such archive's player for the platform is named literally for that
+product (`programNamesProduct`): the program's file name lowercased, without
+a trailing `.exe`, with every character that is not a letter or digit
+removed, equals the product words joined. Nothing else is dropped: no
+trailing digits, no variant word, no architecture word, so `Game-debug.exe`,
+`Game2.exe`, `Game-2.exe`, `Game64.exe`, `Game-x64.exe`, `game.x86_64` and
+`supergame2.exe` (for `Super-Game`) keep the form a competitor. A shared
+word, a prefix or a containment in either direction never relieves. Versions are equal once trailing zero components are removed
 (`1.0.0` is `1.0`); a Debian revision after the upstream version is
 packaging, not the version (`game_1.0-1_amd64.deb` is `1.0`); an AppImage
 that names no version is the same version as the archive (`Game.AppImage`
@@ -4525,8 +4575,11 @@ refused archive's name allows the platform) and `guide-bound`. Release
 content, each for the whole identity: `other-package-form-beside-archive`,
 `bundled-toolchain` (reconsider when the release ships an archive without the
 toolchain, or a reviewed `route_facts_v1` enrollment covers the first-start
-build) and `launcher-entry` (reconsider when listing data or release-bound
-metadata declares the launcher as the game's runtime entry). When no platform fits, the reason is the first of
+build), `launcher-entry` (reconsider when listing data or release-bound
+metadata declares the launcher as the game's runtime entry), `role-program`
+(a program or its folder named for a debug, server, tools, editor, SDK or
+demo role) and `archive-product-unrelated` (the offered archive's product
+shares no word with the listing or its repository). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
 `tool-not-game`, `no-authorizing-source` and `no-player` that any platform
@@ -4535,7 +4588,7 @@ gave. `bundled-toolchain` follows `core-refused` in that order.
 identity's helper names), `inspection_failures` (the
 `repeated-inspection-failure` identities by typed cause),
 `same_product_forms` (per identity, the other package forms attributed to
-the archive's product: a review queue), `source_archives` (per identity, its
+the listing's product: a review queue), `source_archives` (per identity, its
 source archives), `release_statements` (per identity, every observed release
 whose text states a prerelease, as `<tag>: <field> <token>`) and
 `release_text_unobserved` (identities whose offered release text the
@@ -4588,8 +4641,14 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 17, the facts parser version from 5 to 18 and
-the facts table format from 4 to 14 (generator 17, parser 18 and format 14:
+generator version from 5 to 18, the facts parser version from 5 to 19 and
+the facts table format from 4 to 15 (generator 18, parser 19 and format 15:
+product-form relief only for a program named literally for the product and
+only for the listing's product, `role-program`, `archive-product-unrelated`,
+`dedicated`, `headless` and `demo` archive role words, `launch`, `start`,
+`install`, `cfg`, `configure` and `loader` launcher words, qualified,
+`early-access` and `unstable` release text statements, and reproduction
+refusing unobserved text that now states a prerelease; generator 17, parser 18 and format 14:
 release text judged only where a status stands, with the listing's own
 words recorded per entry (`listing_words`), an identity-wide launcher
 refusal in the gate, product-form relief only for a program named exactly

@@ -792,7 +792,16 @@ export async function reproduceFacts(inputs: {
         ? undefined
         : core || releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
     };
-    const observed: ObservedRelease = asRecorded({
+    // A release the entry records unobserved whose text the provider now
+    // reports with a prerelease statement (a stable-flagged release titled
+    // "… Beta") is no longer the release the entry describes: it is observed
+    // again, never kept enrolled by reconfirmation.
+    const unobservedStatement = (item: ObservedRelease) =>
+      item.text !== null &&
+      entry.observed_releases.find((recorded) => recorded.release_id === item.id)?.text ===
+        "unobserved" &&
+      releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
+    const reproduced: ObservedRelease = {
       id: release.id,
       version: release.tag_name,
       published_at: release.published_at,
@@ -807,7 +816,14 @@ export async function reproduceFacts(inputs: {
         sha256,
       })),
       text: { title: release.name, body: release.body },
-    });
+    };
+    const stating = [reproduced, ...observerWindow(listed.releases)].find(unobservedStatement);
+    if (stating)
+      return {
+        reason: "mismatch",
+        detail: `Release ${stating.id} is recorded with unobserved text, but its text now states a prerelease; it is observed again.`,
+      };
+    const observed = asRecorded(reproduced);
     const published = Date.parse(release.published_at ?? "");
     await names.add({
       releases: [{ tag: release.tag_name, provider_prerelease: release.prerelease }],

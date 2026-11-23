@@ -203,7 +203,33 @@
       "game.x86_64",
       "supergame2.exe",
       "Table_Game.exe",
-      "gamegen"
+      "gamegen",
+      "StartGame.exe",
+      "Game-start.exe",
+      "GameCfg.exe",
+      "Configure.exe",
+      "GameLoader.exe",
+      "Install.exe",
+      "Starfall.exe",
+      "Startup.exe",
+      "Restart.exe",
+      "Installation.exe",
+      "Loaders2.exe",
+      "Cfgame.exe",
+      "Game-debug.exe",
+      "Game-dedicated.exe",
+      "Game-demo.exe",
+      "Game-headless.exe",
+      "GameServer.exe",
+      "GameEditor.exe",
+      "Observer.exe",
+      "Demon.exe",
+      "Serverless.exe",
+      "Debugger.exe",
+      "Demos.exe",
+      "Game2.exe",
+      "Game-2.exe",
+      "Super_Game.exe"
     ]
   },
   "output": {
@@ -1043,6 +1069,110 @@
       },
       {
         "name": "gamegen",
+        "tool_token": null
+      },
+      {
+        "name": "StartGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-start.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameCfg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configure.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameLoader.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Install.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Starfall.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Startup.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Restart.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Installation.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Loaders2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Cfgame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dedicated.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-demo.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-headless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "GameEditor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "Observer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Demon.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Serverless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Debugger.exe",
+        "tool_token": "debugger"
+      },
+      {
+        "name": "Demos.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Super_Game.exe",
         "tool_token": null
       }
     ]

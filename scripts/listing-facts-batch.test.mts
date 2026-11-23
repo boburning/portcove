@@ -3067,9 +3067,25 @@ void test("reproduction restates a release's own text where the entry records it
       boundLines: unbound([recorded]),
     });
   const beta = { ...release, name: "v1.0 Beta", body: null };
-  // Recorded unobserved (the observer reported no text): the provider's text
-  // is left unobserved too, exactly as the worker recorded it.
-  assert.deepEqual((await run(entry, beta)).verified, [unseen]);
+  // Recorded unobserved (the observer reported no text): text that states
+  // nothing is left unobserved, exactly as the worker recorded it.
+  assert.deepEqual((await run(entry, { ...release, name: "v1.0", body: "Fixes." })).verified, [
+    unseen,
+  ]);
+  // R1 (review at f92d6f2c): recorded unobserved, but the provider's text now
+  // states a prerelease (title or first body line): reconfirmation refuses
+  // the entry as a mismatch so the worker observes it again. Before R1 this
+  // row was verified.
+  const unobservedBeta = await run(entry, beta);
+  assert.deepEqual(unobservedBeta.verified, []);
+  assert.equal(unobservedBeta.refused[0]!.reason, "mismatch");
+  assert.match(unobservedBeta.refused[0]!.detail, /unobserved text/u);
+  const unobservedBody = await run(entry, {
+    ...release,
+    name: "v1.0",
+    body: "## Public beta test",
+  });
+  assert.equal(unobservedBody.refused[0]!.reason, "mismatch");
   // Recorded observed: the provider's title must still state no prerelease.
   const observed = structuredClone(entry);
   observed.observed_releases[0] = {
