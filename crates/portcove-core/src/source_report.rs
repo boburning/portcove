@@ -204,7 +204,7 @@ pub(crate) fn unavailable_report(
             (
                 "source_not_checked_yet",
                 "Portcove hasn’t finished checking these files yet.",
-                "Check them again to finish. Nothing is wrong with the files as far as Portcove knows.",
+                "Portcove ran out of time before checking these files. Check them again, or check fewer games at a time.",
             )
         }
         _ => (

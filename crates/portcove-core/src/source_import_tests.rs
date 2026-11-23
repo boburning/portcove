@@ -2860,6 +2860,58 @@ fn move_keeps_the_original_when_store_ownership_is_unknown_at_removal() {
     assert!(service.library().source(PROFILE).unwrap().is_some());
 }
 
+#[test]
+fn a_refused_late_ownership_check_restores_the_original_name() {
+    let (temporary, library, source) = library_fixture();
+    let readable = temporary.path().join("Steam");
+    fs::create_dir_all(readable.join("steamapps")).unwrap();
+    let damaged = temporary.path().join("Damaged Steam");
+    fs::create_dir_all(damaged.join("steamapps")).unwrap();
+    fs::write(
+        damaged.join("steamapps").join("libraryfolders.vdf"),
+        "\"libraryfolders\" { \"0\" {",
+    )
+    .unwrap();
+    let switched = Arc::new(AtomicBool::new(false));
+    // Records become unreadable after the original was moved aside but
+    // before it is deleted.
+    let service = traced_service_with_faults(
+        library,
+        Arc::new(SwitchAt(
+            LifecycleFaultPoint::SourceImportOriginalQuarantined,
+            switched.clone(),
+        )),
+    )
+    .unwrap()
+    .with_store_install_host(Arc::new(SwitchingSteamHost {
+        readable,
+        damaged,
+        switched,
+    }));
+    let result = import(&service, &source, SourceImportMode::Move);
+    assert_eq!(result.outcome, SourceImportOutcome::CopiedOriginalRetained);
+    assert_eq!(
+        result.retained_original_path.as_deref(),
+        Some(source.as_path())
+    );
+    assert_eq!(
+        fs::read(&source).unwrap(),
+        b"synthetic format-only disc source"
+    );
+    let leftovers = fs::read_dir(source.parent().unwrap())
+        .unwrap()
+        .filter(|entry| {
+            entry
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-source-import-")
+        })
+        .count();
+    assert_eq!(leftovers, 0);
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn large_raw_ps2_iso_guard_applies_only_to_use_current_location() {

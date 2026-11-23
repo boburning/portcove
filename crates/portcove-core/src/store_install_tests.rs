@@ -9,6 +9,7 @@ struct FixtureHost {
     gog: Vec<RegisteredStoreInstall>,
     gog_unread: u32,
     epic: Vec<PathBuf>,
+    unread_locations: Vec<(GameStore, String)>,
 }
 
 impl StoreInstallHost for FixtureHost {
@@ -25,6 +26,10 @@ impl StoreInstallHost for FixtureHost {
 
     fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
         self.epic.clone()
+    }
+
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        self.unread_locations.clone()
     }
 }
 
@@ -141,6 +146,7 @@ fn steam_libraries_gog_and_epic_installs_are_listed_read_only() {
         ],
         gog_unread: 0,
         epic: vec![manifests],
+        unread_locations: Vec::new(),
     };
     let detection = detect(&host);
     let report = &detection.report;
@@ -1145,7 +1151,7 @@ fn unreadable_store_records_block_a_move_as_not_yet_checked() {
     assert!(
         error
             .message
-            .contains("could not read every game location Steam recorded")
+            .contains("couldn’t read every game location Steam recorded")
     );
     // A file larger than any real list is unreadable too.
     fs::write(
@@ -1268,4 +1274,28 @@ fn store_names_are_listed_in_reading_order() {
         store_list(&[GameStore::Steam, GameStore::Gog, GameStore::Epic]),
         "Steam, GOG and Epic"
     );
+}
+
+#[test]
+fn an_unreadable_host_location_blocks_a_move_as_not_yet_checked() {
+    let temporary = tempfile::tempdir().unwrap();
+    let outside = temporary.path().join("Originals");
+    fs::create_dir_all(&outside).unwrap();
+    // For example Steam's registry install path exists but cannot be read.
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            unread_locations: vec![(
+                GameStore::Steam,
+                "HKCU\\Software\\Valve\\Steam\\SteamPath".into(),
+            )],
+            ..FixtureHost::default()
+        },
+    );
+    let error = service
+        .refuse_store_install_move("profile", &canonical(&outside))
+        .unwrap_err();
+    assert_eq!(error.details["store_ownership"], "not_checked");
+    assert_eq!(error.details["unchecked_stores"], "Steam");
+    assert!(error.details["unread_record"].ends_with("SteamPath"));
 }

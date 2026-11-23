@@ -139,7 +139,9 @@ impl PortcoveService {
             self.catalog().source_profile(id)?;
         }
         let started = Instant::now();
-        checkpoint(operation, started, limits)?;
+        // The deadline is enforced per original below, so running out of time
+        // yields not-yet-checked rows rather than an error.
+        operation.checkpoint()?;
         let library = self.library().identity_record()?;
         let catalog_sha256 = fingerprint(&self.catalog().authoritative_document())?;
         let (effective, catalog_binding_sha256) = effective_binding(self.library())?;
@@ -205,9 +207,7 @@ impl PortcoveService {
                             operation.checkpoint()?;
                             // An interrupted read past the deadline is
                             // unfinished work, not a missing or unreadable file.
-                            let error = if time_budget_reached(started, limits)
-                                && !error.details.contains_key("observed_health")
-                            {
+                            let error = if is_time_budget_error(&error) {
                                 time_budget_error()
                             } else {
                                 error
@@ -377,11 +377,17 @@ fn checkpoint(
 ) -> Result<()> {
     operation.checkpoint()?;
     if started.elapsed() >= Duration::from_millis(limits.max_elapsed_ms) {
-        return Err(PortcoveError::unsupported(
-            "registered-source inspection cooperative time budget reached",
-        ));
+        return Err(time_budget_error());
     }
     Ok(())
+}
+
+/// Only the cooperative deadline itself (a checkpoint, or the deadline reader
+/// refusing the next read) means "not yet checked". A filesystem or
+/// verification error that merely arrives late keeps its own meaning.
+fn is_time_budget_error(error: &PortcoveError) -> bool {
+    error.details.get("scan_limit").map(String::as_str) == Some("time")
+        || error.message.contains(DEADLINE_READ_MESSAGE)
 }
 
 fn time_budget_reached(started: Instant, limits: &RegisteredSourceInspectionLimits) -> bool {
@@ -701,6 +707,8 @@ fn observe_raw_bytes<'a>(
     Ok(&cache.get(&key).expect("raw identity was retained").identity)
 }
 
+const DEADLINE_READ_MESSAGE: &str = "registered-source inspection time budget reached";
+
 struct DeadlineReader<'a> {
     file: &'a mut File,
     started: Instant,
@@ -712,7 +720,7 @@ impl Read for DeadlineReader<'_> {
         if self.started.elapsed() >= self.maximum {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
-                "registered-source inspection time budget reached",
+                DEADLINE_READ_MESSAGE,
             ));
         }
         self.file.read(buffer)

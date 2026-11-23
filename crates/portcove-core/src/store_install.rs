@@ -115,6 +115,12 @@ pub trait StoreInstallHost: Send + Sync {
     fn checked_stores(&self) -> Vec<GameStore> {
         vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
     }
+    /// Places where the host looks for store folders (a registry value, an
+    /// environment variable) that exist but could not be read. Each one
+    /// leaves the store's locations incomplete.
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        Vec::new()
+    }
 }
 
 /// Reads no store. Unit-test services default to it so they never read the
@@ -848,12 +854,17 @@ impl PortcoveService {
                     .detail("store_folder", folder.display().to_string()))
             }
             StoreFolderOwnership::Undetermined { unread } => {
-                let mut stores = unread.iter().map(|(store, _)| *store).collect::<Vec<_>>();
-                stores.dedup();
+                // Unique, in reading order.
+                let mut stores = Vec::new();
+                for (store, _) in &unread {
+                    if !stores.contains(store) {
+                        stores.push(*store);
+                    }
+                }
                 let names = store_list(&stores);
                 let (_, first) = &unread[0];
                 Err(PortcoveError::conflict(format!(
-                    "Portcove could not read every game location {names} recorded, so it cannot confirm these files are safe to move. Copy them into Portcove or use them where they are."
+                    "Portcove couldn’t read every game location {names} recorded, so it can’t confirm these files are safe to move. Copy them into Portcove or use them where they are."
                 ))
                 .detail("profile_id", profile_id)
                 .detail("store_ownership", "not_checked")
@@ -925,8 +936,12 @@ pub(crate) fn store_folder_ownership(
         folder,
         evidence: OwnershipEvidence::StoreRecord,
     };
-    let mut unread = Vec::<(GameStore, String)>::new();
     let stores = host.checked_stores();
+    let mut unread = host
+        .unread_store_locations()
+        .into_iter()
+        .filter(|(store, _)| stores.contains(store))
+        .collect::<Vec<_>>();
     if stores.contains(&GameStore::Steam) {
         let found = steam_libraries(host);
         if let Some(folder) = found.libraries.iter().find(|folder| covers(folder)) {
@@ -1018,8 +1033,10 @@ fn record_ownership(
     };
     for entry in entries {
         let Ok(entry) = entry else {
+            // The rest of the listing is unknown; one unread mark suffices
+            // and stopping guarantees the walk ends.
             unreadable(directory);
-            continue;
+            break;
         };
         let name = entry.file_name();
         if !name
@@ -1092,6 +1109,21 @@ impl StoreInstallHost for SystemStoreInstallHost {
             vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
         } else {
             vec![GameStore::Steam]
+        }
+    }
+
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        #[cfg(windows)]
+        {
+            let mut unread = windows::steam_registry_unread();
+            if std::env::var_os("ProgramData").is_none() {
+                unread.push((GameStore::Epic, "%ProgramData%".to_owned()));
+            }
+            unread
+        }
+        #[cfg(not(windows))]
+        {
+            Vec::new()
         }
     }
 
@@ -1169,7 +1201,7 @@ mod windows {
         },
     };
 
-    use super::{RegisteredStoreInstall, RegisteredStoreInstalls, product_number};
+    use super::{GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, product_number};
 
     /// Registry key names are at most 255 characters (a Windows limit).
     const MAX_NAME_UNITS: usize = 256;
@@ -1289,6 +1321,37 @@ mod windows {
         roots
     }
 
+    /// Steam's registry locations that exist but could not be read; a Steam
+    /// client there could hold libraries Portcove would not see.
+    pub(super) fn steam_registry_unread() -> Vec<(GameStore, String)> {
+        let mut unread = Vec::new();
+        for (parent, label, path, view, value) in [
+            (
+                HKEY_CURRENT_USER,
+                "HKCU",
+                "Software\\Valve\\Steam",
+                0,
+                "SteamPath",
+            ),
+            (
+                HKEY_LOCAL_MACHINE,
+                "HKLM",
+                "SOFTWARE\\Valve\\Steam",
+                KEY_WOW64_32KEY,
+                "InstallPath",
+            ),
+        ] {
+            let readable = match open_status(parent, path, view) {
+                Ok(key) => string(&key, value).is_some() || !value_exists(&key, value),
+                Err(status) => status == ERROR_FILE_NOT_FOUND,
+            };
+            if !readable {
+                unread.push((GameStore::Steam, format!("{label}\\{path}\\{value}")));
+            }
+        }
+        unread
+    }
+
     /// Every game key under GOG's registry list. A key that exists but cannot
     /// be read, or whose install path cannot be read, is counted as unread so
     /// an incomplete list is never mistaken for a complete one.
@@ -1329,8 +1392,11 @@ mod windows {
                 break;
             }
             if status != ERROR_SUCCESS {
+                // A failed index (for example a deleted list key) may fail
+                // for every later index too, so stop: the list is already
+                // marked incomplete.
                 unread();
-                continue;
+                break;
             }
             name.truncate(length as usize);
             let Ok(name) = String::from_utf16(&name) else {

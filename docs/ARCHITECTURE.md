@@ -3145,9 +3145,11 @@ work are bounded. The elapsed limit does not interrupt blocked filesystem calls;
 adapters must await the worker before terminal settlement. When it runs out, the
 original being read and every later one are reported as `NotChecked` with state
 `source_not_checked_yet`, never as missing, unreadable or unsupported, and the
-originals already checked keep their results. The final fences recheck only the
-retained handles, so they run to completion past the deadline and stop only for
-cancellation. These dated facts
+originals already checked keep their results. The batch's own final fences
+recheck the retained handles and re-list retained directories (bounded by the
+inventory budgets), so they run to completion past the deadline and stop only
+for cancellation. A caller with its own deadline, such as the game-file query
+refresh, still discards the whole result when that deadline passes. These dated facts
 write no registrations and establish neither continuous freshness nor route,
 platform or selected-release eligibility. Legacy identity remains unknown.
 Public CLI/Desktop transport and complete game-file query predicates remain

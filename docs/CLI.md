@@ -3588,9 +3588,9 @@ The observation age defaults to 300 seconds and is bounded to 1–1800 seconds.
 `--max-file-bytes`, `--max-hash-bytes` and `--max-elapsed-ms` may reduce the
 respective 2 GiB, 32 GiB and 30-second caps; larger or zero limits are refused.
 The elapsed limit is cooperative and cannot interrupt an individual filesystem
-call. When it runs out, originals not yet read report `not_checked` with state
-`source_not_checked_yet`; originals already read keep their results, and the
-command does not fail. A game-file state does not grant setup or launch authority.
+call. The same deadline also bounds projecting and publishing the routes, so a
+query that runs out of time still fails and discards its result. A game-file state
+does not grant setup or launch authority.
 
 ### Qualified Ghostship recovery (API 69)
 

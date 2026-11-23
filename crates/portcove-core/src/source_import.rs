@@ -1127,8 +1127,14 @@ fn cleanup_original(
         return Ok(Some(quarantine));
     }
     if let Err(error) = service.refuse_store_install_move(&plan.profile_id, &quarantine) {
+        // Put the original back under its own name so a store game that
+        // uses it keeps working; keep the quarantine name only if that fails.
         operation.last_error = Some(error.message);
         store.put(operation)?;
+        if !source.try_exists()? && crate::durability::rename_noreplace(&quarantine, source).is_ok()
+        {
+            return Ok(Some(source.clone()));
+        }
         return Ok(Some(quarantine));
     }
     if let Err(error) = service
