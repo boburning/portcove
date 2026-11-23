@@ -483,7 +483,7 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
             .await;
         let selected = [format!("{SETUP_REPOSITORY}/releases/download/{tag}/{name}")];
         if name.ends_with("-source.tar.gz") {
-            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // Observed behavior, tracked as a defect (#8602), not a
             // contract: a source archive that is the only supported archive
             // is selected and downloaded as the game. The generic package
             // choice (`release.rs`, `choose_asset_for_variant`) applies the
@@ -494,7 +494,7 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
             assert_eq!(error.code, ErrorCode::Verification, "{name}: {error:?}");
             assert_eq!(server.downloads(), selected, "{name}");
         } else if name.contains("-installer-") && cfg!(windows) {
-            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // Observed behavior, tracked as a defect (#8602), not a
             // contract: `.exe` is a supported package form on Windows, and the
             // same generic choice selects the installer as the game. Only the
             // selection is pinned here; what install then does with the
@@ -576,7 +576,7 @@ async fn refusal_missing_or_moved_original() {
     fs::rename(&moved, &harness.original).unwrap();
 }
 
-/// Observed behavior, tracked as a defect (TRACKING-ISSUE), not a contract.
+/// Observed behavior, tracked as a defect (#8602), not a contract.
 ///
 /// A package that lacks its declared setup program installs successfully and
 /// then can never be prepared, so the player gets an installed game that is
@@ -860,7 +860,7 @@ async fn interrupted_preparation_recovers_with_player_data_intact() {
 /// player's progress intact; the new package needs its own preparation.
 ///
 /// The rollback part records observed behavior, tracked as a defect
-/// (TRACKING-ISSUE), not a contract. After update and preparation, rollback
+/// (#8602), not a contract. After update and preparation, rollback
 /// activates the unprepared v2 package that the preparation was derived from:
 /// that copy cannot be launched, and the last working version (prepared v1)
 /// is no longer reachable by rollback. Publishing a prepared copy records the

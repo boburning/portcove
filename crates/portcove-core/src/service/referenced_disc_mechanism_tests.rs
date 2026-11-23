@@ -346,7 +346,7 @@ async fn refusal_wrong_role_or_host_is_never_selected() {
             .install(DISC_PORT, None, None, None, true, |_| {})
             .await;
         if name.contains("-builder-") || name.ends_with("-debug.zip") {
-            // Observed behavior, tracked as a defect (TRACKING-ISSUE), not a
+            // Observed behavior, tracked as a defect (#8602), not a
             // contract: a builder or debug package that is the only host
             // archive is selected, downloaded and installed as the player.
             // The generic package choice (`release.rs`,
