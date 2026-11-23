@@ -39,6 +39,15 @@ import {
   externalListValidators,
   markExternalListUnchanged,
   responseValidator,
+  completeExternalInventory,
+  dueExternalInventoryItems,
+  externalInventoryDue,
+  markExternalInventoryUnchanged,
+  mergeExternalInventoryItem,
+  parseUnbakedGame,
+  parseUnbakedInventory,
+  recordExternalInventory,
+  recordExternalInventoryItemFailure,
   leadPaths,
   mergeExternalList,
   parseExternalList,
@@ -149,6 +158,160 @@ async function readRevisionDirectory(
   return files;
 }
 
+/** Records between durable saves while an inventory baseline reads item records. */
+const inventorySaveEvery = 25;
+/**
+ * One inventory baseline step: the inventory on its refresh interval (a
+ * conditional read), then every due item record while the run's budget
+ * allows. Each record's findings merge as it is read and are saved in
+ * batches, so an interrupted run resumes from the next due item. The list's
+ * complete clock moves only once no item is due. Returns false at a budget or
+ * provider boundary, which ends list collection for this run.
+ */
+async function collectExternalInventory(
+  host: DiscoveryCollectionHost,
+  id: string,
+  url: string,
+  cap: number,
+) {
+  const at = host.journal.started_at;
+  const note = (status: string, extra: Record<string, unknown>) =>
+    host.journal.notes.push({ phase: "external-inventory", source: id, status, ...extra });
+  // As for list reads: a read that fails once the run's time is spent says
+  // nothing about the source.
+  const boundary = (error: unknown) =>
+    host.budget.remaining().milliseconds <= 0 ||
+    (error instanceof GitHubApiError &&
+      [
+        "budget_exhausted",
+        "rate_limited",
+        "quota_unknown",
+        "quota_stale",
+        "deadline_exceeded",
+        "cancelled",
+      ].includes(error.code));
+  const fits = () => {
+    const reserve = researchReserve(host, 22);
+    const left = host.budget.remaining();
+    return left.requests > reserve.requests && left.bytes >= cap + reserve.bytes;
+  };
+  try {
+    if (externalInventoryDue(host.leads.external, id, at)) {
+      if (!fits()) {
+        note("deferred", { resume: "Read the inventory on a later admitted run" });
+        return false;
+      }
+      const etag = host.leads.external?.inventories?.[id]?.etag;
+      const response = await host.source.http.request(
+        "GET",
+        url,
+        undefined,
+        false,
+        cap,
+        etag ? { conditional: { etag } } : {},
+      );
+      host.save(`external-inventory-${id}`, {
+        url,
+        status: response.status,
+        headers: response.headers,
+        text: response.text,
+      });
+      if (response.status === 304 && etag && response.requests === 1)
+        host.leads = {
+          ...host.leads,
+          external: markExternalInventoryUnchanged(host.leads.external!, id, at),
+        };
+      else {
+        if (response.status !== 200)
+          throw new Error(`External inventory returned HTTP ${String(response.status)}`);
+        host.leads = {
+          ...host.leads,
+          external: recordExternalInventory(
+            host.leads.external,
+            id,
+            parseUnbakedInventory(response.text),
+            at,
+            observationHash(response.text),
+            response.requests === 1 ? responseValidator(response.headers.etag) : undefined,
+          ),
+        };
+      }
+      host.persist();
+    }
+  } catch (error) {
+    if (boundary(error)) {
+      host.persist();
+      return false;
+    }
+    host.leads = {
+      ...host.leads,
+      external: recordExternalListFailure(host.leads.external, id, at, errorMessage(error)),
+    };
+    note("partial", {
+      evidence: url,
+      error: errorMessage(error),
+      resume: "Retained items, hints and the last complete clock are unchanged",
+    });
+    host.persist();
+    return true;
+  }
+  const inventory = host.leads.external?.inventories?.[id];
+  if (!inventory) return true;
+  let unsaved = 0;
+  for (const slug of dueExternalInventoryItems(host.leads.external, id, at)) {
+    if (!fits()) {
+      note("deferred", { next: slug, resume: "Read the remaining item records on a later run" });
+      host.persist();
+      return false;
+    }
+    const recordUrl = `https://unbaked.games/api/games/${slug}.json`;
+    try {
+      const response = await host.source.http.request("GET", recordUrl, undefined, false, cap);
+      if (response.status !== 200)
+        throw new Error(`External inventory record returned HTTP ${String(response.status)}`);
+      host.save(`external-inventory-${id}-${slug}`, { url: recordUrl, text: response.text });
+      host.leads = linkExternalHints(
+        {
+          ...host.leads,
+          external: mergeExternalInventoryItem(
+            host.leads.external!,
+            id,
+            slug,
+            parseUnbakedGame(response.text, slug),
+            at,
+          ),
+        },
+        at,
+      );
+    } catch (error) {
+      if (boundary(error)) {
+        host.persist();
+        return false;
+      }
+      host.leads = {
+        ...host.leads,
+        external: recordExternalInventoryItemFailure(host.leads.external!, id, slug, at),
+      };
+      note("partial", {
+        evidence: recordUrl,
+        error: errorMessage(error),
+        resume: "Retry this record after a day",
+      });
+    }
+    if (++unsaved >= inventorySaveEvery) {
+      host.persist();
+      unsaved = 0;
+    }
+  }
+  if (!dueExternalInventoryItems(host.leads.external, id, at).length)
+    host.leads = {
+      ...host.leads,
+      external: completeExternalInventory(host.leads.external!, id, at, url),
+    };
+  host.persist();
+  return true;
+}
+
 export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
   if (host.externalCollectionAttempted) return host.leadSummary().external;
   host.externalCollectionAttempted = true;
@@ -175,7 +338,10 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
       "quota_stale",
       "retry_exhausted",
     ].includes(error.code);
+  let listsStopped = false;
   for (const list of externalLeadLists) {
+    // Inventory baselines run after every list and hint resolution.
+    if ("inventory" in list) continue;
     if (!externalListDue(host.leads.external, list.id, at)) continue;
     const left = host.budget.remaining();
     // One list read may follow up to four redirects; keep the research reserve after them.
@@ -252,7 +418,9 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
           conditional ? { conditional } : {},
         );
         host.save(name, { url: sourceUrl, revision, ...response });
-        if (response.status === 304 && conditional) {
+        // A 304 describes the retained copy only for the URL that was asked
+        // conditionally; after a redirect it is not trusted.
+        if (response.status === 304 && conditional && response.requests === 1) {
           // Unchanged since the retained read: its entries and hints stand.
           host.leads = {
             ...host.leads,
@@ -264,10 +432,13 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
         if (response.status !== 200)
           throw new Error(`External list returned HTTP ${String(response.status)}`);
         responseText = response.text;
+        // Validators belong to the URL that answered; keep them only when the
+        // configured URL answered directly.
+        const direct = response.requests === 1;
         read = {
           bytes: response.bytes,
-          etag: responseValidator(response.headers.etag),
-          last_modified: responseValidator(response.headers["last-modified"]),
+          etag: direct ? responseValidator(response.headers.etag) : undefined,
+          last_modified: direct ? responseValidator(response.headers["last-modified"]) : undefined,
         };
         parsed = parseExternalList(list.id, response.text);
         if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
@@ -363,6 +534,7 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
       });
       if (budgetRefusal) {
         host.persist();
+        listsStopped = true;
         break;
       }
     }
@@ -466,6 +638,15 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
     }
     host.persist();
   }
+  // A resumable inventory baseline takes what remains; hints it creates are
+  // resolved on the next pass or run.
+  if (!listsStopped && host.budget.remaining().milliseconds > 0)
+    for (const list of externalLeadLists)
+      if (
+        "inventory" in list &&
+        !(await collectExternalInventory(host, list.id, list.url, list.cap))
+      )
+        break;
   host.persist();
   return host.leadSummary().external;
 }

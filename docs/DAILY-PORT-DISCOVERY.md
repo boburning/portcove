@@ -493,27 +493,31 @@ still requires terminal pagination and the same complete set of app IDs.
 #### Reviewed source policies
 
 `sourcePolicies` in `daily-discovery-sources.mts` names the reviewed sources
-outside normal automated collection. Each is reported in every run with its
-role, reason and reconsideration condition, and neither role makes a run's
+outside normal automated collection. Each is reported whenever it is read, with
+its role, reason and reconsideration condition, and neither role makes a run's
 coverage partial.
 
 - **Reference: PCGamingWiki.** The unofficial-ports page yields no structured
-  rows, so it is captured at most every 30 days as one page fingerprint
-  (`snapshot_kind: reference-capture`). A changed page enters manual review
+  rows, so it is captured at most every 30 days as one fingerprint of the
+  page's content without comments, scripts or whitespace
+  (`snapshot_kind: reference-capture`); a failed capture is retried next run. A changed page enters manual review
   once; the reviewer records the wiki revision and changed rows and verifies
   candidate leads against primary upstreams. On 2026-11-18 and 2026-11-23 the
   page, MediaWiki `parse`/`query` and Cargo `cargoquery` endpoints answered
   HTTP 403 from a Cloudflare edge block. Promote it to collection once a
   supported structured surface answers and yields rows.
-- **Suspended: PortForge.** `zamiba/portforge-mediaitems` answered HTTP 404 to
+- **Suspended: PortForge.** Only the provider's answer about the repository
+  (HTTP 403, 404, 410 or 451) keeps the suspension; quota, credential, server
+  and network failures are ordinary failures that keep the run partial. `zamiba/portforge-mediaitems` answered HTTP 404 to
   the 2026-11-23 audit; Git reported authentication required and raw files 404,
   so private, renamed and deleted are indistinguishable. A winget installer
   redirect ties the earlier `portforge` publisher to `zamiba`; no successor
   repository is attributable. Each run makes one metadata probe and records
   its HTTP status, error class, environment and the last good tree clock.
   The retained checkpoint and provenance stay. Full collection resumes when the
-  same repository reads again; a publisher-named successor needs review before
-  it becomes the source, and a surviving fork never replaces it.
+  same repository reads again under its own name. A repository answering under
+  another name is a successor: it is reported (`successor`) and needs review
+  before it becomes the source, and a surviving fork never replaces it.
 
 A failed reviewed-source read records the request URL, error class, HTTP status
 and execution environment (`github-actions` or `local`). A runtime access
@@ -538,15 +542,29 @@ transport: the Decomp Buddy finds feed
 `data/projects/games.json` (8 MiB cap). RecompSoftware first resolves `main` to
 an immutable commit, then reads that exact revision; its successful clock retains
 the source URL, revision and SHA-256 of received content. Decomp Buddy's
-aggregated catalog is not read; its finds feed plus the two original lists
-cover it.
+published catalog is read too, but it leaves out projects without a desktop
+download, so the finds feed and the two original lists stay inputs.
 
-Four structured sources follow the same contract:
+Further structured sources follow the same contract (shapes verified live on
+2026-11-23; each feed answers conditional requests):
 
-- decomp.fun's hourly `v1/projects.json` (repository per matching decompilation).
+- Decomp Buddy's `catalog.json` (schema 1; 4,148 entries on 2026-11-23): one
+  entry per game, so a multi-game repository keeps one claim per game. Each
+  claim keeps the console, desktop platforms, release, Decomp Buddy's
+  completeness label, a `takedown` status and lineage: its `sources` become
+  `origin` (`portsdr`, `alexbeav-psx`, `decomp-buddy-finds` or the named list).
+  An unknown schema or a count that disagrees with the entries fails the read.
+- Decomp Buddy's `waiting.json`: projects that have no Windows, macOS or Linux
+  download yet (status `waiting`). Its `hidden` rows are Decomp Buddy's own
+  rejections and count as excluded.
+- decomp.fun's hourly `v1/projects.json` and per-game `v1/games.json`. Every
+  project keeps its own identity; a game's leading project never suppresses
+  another (`status` is `leader` or `alternate-of:<leader>`). Each claim keeps
+  the game slot and its matching progress in tenths, so a small percentage move
+  is not a research change.
 - unbaked's weekly `api/additions.json` (every project the registry gained in its
-  published weeks). The registry's full per-game baseline belongs to the
-  historical backfill.
+  published weeks, a rolling seven-week window) and its complete registry
+  baseline (below).
 - PortMaster's `ports.json`. Its index names no upstream field, so only GitHub,
   GitLab and Codeberg links in its own descriptions and instructions are hints;
   links to PortMaster's own repositories are not upstreams, and its handheld ARM
@@ -559,6 +577,30 @@ Four structured sources follow the same contract:
   on every later read; a different repository at that path is a failed read
   that keeps the last good clock.
 
+#### unbaked registry baseline
+
+`api/games.json` lists every registry game (7,723 on 2026-11-23) but no
+repositories; each row links its per-game record. The `unbaked-registry` list
+is a resumable baseline that runs after every other list and hint resolution:
+
+1. The inventory is read daily as a conditional request. Each row is
+   fingerprinted without its star count, which moves daily.
+2. Every due game record is read while the run's budget allows: never-read
+   games first, then games whose row changed, then the longest unread, and any
+   game unread for thirty days (reconciliation). A failed record waits a day.
+3. Each record's projects merge as soon as it is read and are saved every 25
+   records, so an interrupted run keeps them and resumes from the next due game.
+4. The list's complete clock moves only once no game is due; its scope is the
+   inventory read it describes.
+
+A game without public code keeps `candidate-without-public-code` on its
+projects' claims and is counted in the summary as an unresolved research
+candidate. A project's official site stands in when it has no repository;
+general tools are excluded. A game leaving the inventory drops its progress,
+never its hints. Additions remain the incremental feed, and ordinary upstream
+watches follow changes to known projects; additions are not a complete change
+log.
+
 Each list is read at most once per run, again after its refresh interval
 (seven days by default), and only while twenty-two requests (the research
 reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
@@ -567,11 +609,13 @@ clock and hints, records its failed attempt, waits two days before another read
 and is recorded as a partial note. Parser diagnostics never copy list bytes. A
 failure anywhere in this step leaves the rest of `collect` running.
 
-Lists that answer conditional requests (the Decomp Buddy finds feed, decomp.fun
-and unbaked additions) are read daily with the validators of their retained
-read. A 304 records `unchanged_at` and keeps the retained entries and hints
-without a new parse. Validators apply only to a copy parsed by the list's
-current parser version, so a parser change always reads the source in full.
+Lists that answer conditional requests (the Decomp Buddy feeds, decomp.fun and
+unbaked) are read daily with the validators of their retained read. A 304
+records `unchanged_at` and keeps the retained entries and hints without a new
+parse. Validators apply only to a copy parsed by the list's current parser
+version and only when the configured URL answered without a redirect, so a
+parser change or a redirect always reads the source in full. A source that sent
+no validators is read on the default interval instead.
 Each list clock records the bytes its read transferred. A single read is
 bounded by the run's byte budget and the physical read ceiling (an eighth of
 the machine's memory, at most 512 MiB).
@@ -584,8 +628,12 @@ URL on any other host (a SourceForge project root, a self-hosted forge or an
 independent site) is retained as a `web` hint in the `unsupported-host` state.
 It is taken up when a provider adapter supports its host or an attributed
 source names a resolvable repository for the project; it is never researched
-as a GitHub repository. Video, social, chat, storefront, encyclopedia, archive,
-donation, link-shortening and aggregator pages are not upstreams.
+as a GitHub repository. A web location ignores the scheme and fragment and keeps
+the query; a SourceForge route or project site becomes its project root. Video,
+social, chat, storefront, encyclopedia, archive, donation, link-shortening and
+aggregator pages, and GitHub, GitLab or Codeberg routes other than a
+repository, are not upstreams. A `www.` forge host is the forge itself; a
+non-HTTPS repository link is never turned into a mapping.
 Name-only entries are counted, never mapped. A list no longer naming a
 repository is not deletion evidence. Hints are not leads: they grant no
 admission, support, catalog or planning facts, and list text is never followed

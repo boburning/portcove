@@ -82,6 +82,8 @@ const passClocks = new Set([
   "checked_at",
   "attempted_at",
   "unchanged_at",
+  // A read's measured transfer, not something learned.
+  "bytes",
 ]);
 
 /** Digest of what a pass learned: collector state without its observation clocks. */

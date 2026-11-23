@@ -106,6 +106,17 @@ export function failureFacts(error: unknown) {
   };
 }
 
+/**
+ * The page's content for change detection: markup comments, scripts and styles
+ * carry per-request parser and cache details, and whitespace is not content.
+ */
+export function pageContent(html: string) {
+  return html
+    .replace(/<!--[\s\S]*?-->/gu, "")
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/giu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
 /** A low-frequency reference capture of the PCGamingWiki page, never automated coverage. */
 export async function collectPcgamingwikiSource(
   c: Pick<SourceContext, "http" | "save">,
@@ -123,7 +134,9 @@ export async function collectPcgamingwikiSource(
     truncated: false,
     snapshot_kind: "reference-capture",
     // One fingerprint of the captured page: a change hands it to manual review.
-    records: captured ? [{ key: "page", fingerprint: observationHash(page.text) }] : [],
+    records: captured
+      ? [{ key: "page", fingerprint: observationHash(pageContent(page.text)) }]
+      : [],
     http_status: page.status,
     environment: executionEnvironment(),
     coverage: "Reference capture for manual review only; no automated table coverage",
@@ -450,24 +463,48 @@ export async function collectDiscoverySources(
     // A suspended source: one metadata probe. Only the same repository, read
     // without a redirect, resumes full collection.
     let meta: Record<string, unknown>;
-    try {
-      meta = await metadata(c, "zamiba/portforge-mediaitems");
-    } catch (error) {
-      if (
-        error instanceof GitHubApiError &&
-        ["budget_exhausted", "rate_limited", "deadline_exceeded", "cancelled"].includes(error.code)
-      )
-        throw error;
-      const policy = sourcePolicies.portforge;
+    const policy = sourcePolicies.portforge;
+    const suspended = (error: unknown, extra: Record<string, unknown> = {}) => {
       fail("portforge", "https://api.github.com/repos/zamiba/portforge-mediaitems", error, {
         coverage_role: policy.role,
         suspended_since: policy.since,
         reason: policy.reason,
         reconsider: policy.reconsider,
         last_good: known.sources["portforge-tree"]?.completed_at ?? null,
+        ...extra,
       });
-      throw new SuspendedSource();
+      return new SuspendedSource();
+    };
+    try {
+      meta = await metadata(c, "zamiba/portforge-mediaitems");
+    } catch (error) {
+      // Only the provider's answer about this repository keeps the suspension.
+      // Quota, credential, network and other failures say nothing about it and
+      // are reported as ordinary failures, which keep the run partial.
+      if (
+        error instanceof GitHubApiError &&
+        ![
+          "budget_exhausted",
+          "rate_limited",
+          "quota_unknown",
+          "quota_stale",
+          "retry_exhausted",
+          "credential_unavailable",
+          "deadline_exceeded",
+          "cancelled",
+        ].includes(error.code) &&
+        [403, 404, 410, 451].includes(error.status ?? 0)
+      )
+        throw suspended(error);
+      throw error;
     }
+    // A renamed or transferred repository answers under another name: that is a
+    // successor, which needs review before it becomes the source.
+    if (str(meta.full_name).toLowerCase() !== "zamiba/portforge-mediaitems")
+      throw suspended(new Error("The repository now answers under another name"), {
+        successor: str(meta.full_name),
+        next_action: "Review the successor's attribution before it becomes the source",
+      });
     const ref = await commit(c, meta);
     const tree = rec(
       (await metadataRequest(c, `repos/${str(meta.full_name)}/git/trees/${ref}?recursive=1`)).data,

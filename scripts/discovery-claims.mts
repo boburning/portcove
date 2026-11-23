@@ -86,21 +86,39 @@ export function externalWebLocation(value: string) {
     url.port ||
     !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/u.test(host) ||
     nonProjectHost.test(host) ||
-    host in hosts ||
-    host === "raw.githubusercontent.com"
+    // Any other GitHub, GitLab or Codeberg route (gists, archives, raw files)
+    // names no project; a repository on those hosts is resolved, not kept as web.
+    /(?:^|\.)(?:github\.com|githubusercontent\.com|gitlab\.com|codeberg\.org)$/u.test(host)
   )
     return null;
   let parts = url.pathname.split("/").filter(Boolean);
   if (parts.some((part) => part.length > 200 || /^\.+$/u.test(part)) || parts.length > 12)
     return null;
-  // SourceForge serves one project under several routes; its project root is the identity.
-  if (/(?:^|\.)sourceforge\.net$/u.test(host)) {
-    const project = parts[0] === "projects" || parts[0] === "p" ? parts[1] : undefined;
+  let search = url.search.length > 1 && url.search.length <= 200 ? url.search : "";
+  let site = host;
+  // SourceForge serves one project under several routes and a project site
+  // (`<name>.sourceforge.net`); its project root is the identity.
+  const sourceforge = host.match(/^(?:(?<name>[a-z0-9-]+)\.)?sourceforge\.net$/u);
+  if (sourceforge) {
+    const named = sourceforge.groups?.name;
+    const project =
+      named && named !== "www"
+        ? named
+        : parts[0] === "projects" || parts[0] === "p"
+          ? parts[1]
+          : undefined;
     if (!project || !segment.test(project)) return null;
-    parts = ["projects", project];
+    site = "sourceforge.net";
+    parts = ["projects", project.toLowerCase()];
+    search = "";
   }
-  const url_ = `${url.protocol}//${host}${parts.length ? `/${parts.join("/")}` : ""}`;
-  return { key: url_.toLowerCase(), url: url_, host: "web" } as const;
+  const path = `${parts.length ? `/${parts.join("/")}` : ""}${search}`;
+  // One site served over HTTP and HTTPS is one location; the key ignores the scheme.
+  return {
+    key: `https://${site}${path}`.toLowerCase(),
+    url: `${sourceforge ? "https:" : url.protocol}//${site}${path}`,
+    host: "web",
+  } as const;
 }
 /** A repository on a resolvable host, or else an official URL on any other host. */
 export function externalLocation(value: string) {
@@ -117,7 +135,10 @@ export function externalRepository(value: string) {
   } catch {
     return null;
   }
-  const host = hosts[url.hostname.toLowerCase() as keyof typeof hosts];
+  // `www.` serves the same repositories. A non-HTTPS repository link is never
+  // turned into a mapping.
+  const hostname = url.hostname.toLowerCase().replace(/^www\./u, "");
+  const host = hosts[hostname as keyof typeof hosts];
   if (url.protocol !== "https:" || url.username || url.password || url.port || !host) return null;
   const parts = url.pathname.split("/").filter(Boolean);
   let project = parts.slice(0, 2);
@@ -129,7 +150,7 @@ export function externalRepository(value: string) {
   if (project.length < 2) return null;
   project[project.length - 1] = project.at(-1)!.replace(/\.git$/iu, "");
   if (project.some((part) => !segment.test(part) || /^\.+$/u.test(part))) return null;
-  const canonical = `https://${url.hostname.toLowerCase()}/${project.join("/")}`;
+  const canonical = `https://${hostname}/${project.join("/")}`;
   return { key: canonical.toLowerCase(), url: canonical, host } as const;
 }
 export const inert = (value: unknown) =>

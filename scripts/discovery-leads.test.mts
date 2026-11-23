@@ -37,6 +37,7 @@ import {
   selectExternalResolutions,
   externalListValidators,
   externalWebLocation,
+  externalRepository,
   markExternalListUnchanged,
   sourceEntry,
   progressBand,
@@ -1265,19 +1266,10 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   await rerun("2026-10-26T12:56:46.011Z", 150);
   assert.deepEqual(
     fetched.slice(4).map((u) => new URL(u).hostname),
-    [
-      // The finds feed is a daily conditional read.
-      "tanookistudios.com",
-      "portsdr.com",
-      "alexbeavs-ps1-ports.github.io",
-      "raw.githubusercontent.com",
-    ],
+    // The finds fixture sends no validators, so it is read weekly, not daily.
+    ["portsdr.com", "alexbeavs-ps1-ports.github.io", "raw.githubusercontent.com"],
   );
-  assert.equal(
-    session.leads.external?.lists["decomp-buddy-finds"]?.fingerprint,
-    findsClock?.fingerprint,
-    "an unchanged feed keeps its entries",
-  );
+  assert.deepEqual(session.leads.external?.lists["decomp-buddy-finds"], findsClock);
   const recovered: ExternalLeadState["lists"] = session.leads.external?.lists ?? {};
   assert.equal(recovered["portsdr"]?.entries, 1);
   assert.equal(session.leads.external?.lists["alexbeav-psx"], undefined);
@@ -1911,7 +1903,27 @@ void test("official URLs on unsupported hosts are retained as unresolved web hin
   });
   assert.equal(
     externalWebLocation("https://git.example.dev/team/engine.git?tab=readme#top")?.key,
-    "https://git.example.dev/team/engine.git",
+    "https://git.example.dev/team/engine.git?tab=readme",
+    "the query names the page; the fragment does not",
+  );
+  assert.equal(
+    externalWebLocation("http://Example.org/Game/")?.key,
+    externalWebLocation("https://example.org/game")?.key,
+    "one site over HTTP and HTTPS is one location",
+  );
+  assert.equal(
+    externalWebLocation("https://openlara.sourceforge.net/docs/")?.key,
+    "https://sourceforge.net/projects/openlara",
+    "a SourceForge project site is its project",
+  );
+  for (const forge of [
+    "https://gist.github.com/owner/abc",
+    "https://codeload.github.com/owner/repo/zip/main",
+  ])
+    assert.equal(externalWebLocation(forge), null, forge);
+  assert.equal(
+    externalRepository("https://www.github.com/Owner/Repo")?.key,
+    "https://github.com/owner/repo",
   );
   for (const rejected of [
     "https://www.youtube.com/watch?v=x",
@@ -2092,4 +2104,22 @@ void test("a conditional list read keeps its retained copy until the source chan
   assert.deepEqual(sent, [{ etag: '"v1"' }]);
   assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
   assert.deepEqual(session.leads.external?.hints, first.hints);
+
+  // A 304 that arrives after a redirect does not describe the retained copy.
+  const redirected = new Date(Date.parse(later) + 2 * 86400000).toISOString();
+  session.externalCollectionAttempted = false;
+  Object.assign(session, { journal: { ...session.journal, started_at: redirected, notes: [] } });
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async () => ({ requests: 2, bytes: 0, status: 304, headers: {}, text: "" }),
+      },
+      sdk: await fixtureGitHub(() => assert.fail("no hint is due")),
+    },
+  });
+  await session.collectExternalLists();
+  assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.equal(session.leads.external?.attempts?.["decomp-buddy-finds"]?.outcome, "partial");
 });

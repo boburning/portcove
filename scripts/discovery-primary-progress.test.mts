@@ -680,3 +680,51 @@ void test("an unreadable suspended source is probed once and reported with its r
   // PCGamingWiki is a reference capture outside coverage.
   assert.equal(sources.find((source) => source.id === "pcgamingwiki")!.coverage_role, "reference");
 });
+
+void test("a suspended source never takes a successor or hides an unrelated failure", async () => {
+  const run = async (answer: () => unknown) => {
+    const requested: string[] = [];
+    const sdk = await fixtureGitHub(({ endpoint }) => {
+      requested.push(endpoint);
+      if (endpoint === "repos/zamiba/portforge-mediaitems") return answer();
+      throw new Error(`unrelated unavailable registry ${endpoint}`);
+    });
+    const sources = await collectDiscoverySources(
+      {
+        sdk,
+        budget: new DiscoveryBudget(
+          "ordinary",
+          () => {},
+          () => epoch,
+        ),
+        save: () => {},
+        http: {
+          request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+        },
+      },
+      emptyCheckpoint(),
+    );
+    return {
+      portforge: sources.filter((source) => source.id.startsWith("portforge")),
+      requested,
+    };
+  };
+  // A renamed or transferred repository answers under another name.
+  const renamed = await run(() => ({
+    id: 7,
+    full_name: "someone/portforge-mediaitems",
+    default_branch: "main",
+  }));
+  assert.equal(renamed.portforge.length, 1);
+  assert.equal(renamed.portforge[0]!.coverage_role, "suspended");
+  assert.equal(renamed.portforge[0]!.successor, "someone/portforge-mediaitems");
+  assert.ok(
+    !renamed.requested.some((endpoint) => endpoint.includes("/git/")),
+    "a successor is never read as the source",
+  );
+  // A server failure says nothing about the repository: it keeps the run partial.
+  const unavailable = await run(() => Response.json({ message: "down" }, { status: 503 }));
+  assert.equal(unavailable.portforge.length, 1);
+  assert.equal(unavailable.portforge[0]!.status, "inaccessible");
+  assert.equal(unavailable.portforge[0]!.coverage_role, undefined);
+});

@@ -138,6 +138,11 @@ void test("the wiki capture hands table evidence off to a human reviewer", async
   assert.match(String(changed.coverage), /manual review/u);
   assert.match(String(changed.reconsider), /structured surface/u);
 
+  // Per-request comments, scripts and whitespace are not page changes.
+  body = `<!-- parser cache 42 --><table><tr><td>Changed implementation</td></tr></table>
+    <script>var request = 7;</script>`;
+  const noise = await collectPcgamingwikiSource(context);
+  assert.equal(noise.records[0]!.fingerprint, changed.records[0]!.fingerprint);
   body = "<table><thead><tr><th>Game</th></tr></thead><tbody></tbody></table>";
   const edited = await collectPcgamingwikiSource(context);
   assert.notEqual(edited.records[0]!.fingerprint, changed.records[0]!.fingerprint);

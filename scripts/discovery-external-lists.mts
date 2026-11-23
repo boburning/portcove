@@ -19,6 +19,20 @@ import type {
   ExternalSourceEntry,
   ParsedExternalList,
 } from "./discovery-claims.mts";
+import {
+  parseDecompBuddyCatalog,
+  parseDecompBuddyWaiting,
+  parseDecompFunGames,
+  parseDecompFunProjects,
+} from "./discovery-source-parsers.mts";
+export {
+  parseDecompBuddyCatalog,
+  parseDecompBuddyWaiting,
+  parseDecompFunGames,
+  parseDecompFunProjects,
+  parseUnbakedGame,
+  parseUnbakedInventory,
+} from "./discovery-source-parsers.mts";
 export {
   externalLocation,
   externalRepository,
@@ -62,12 +76,45 @@ export const externalLeadLists = [
     revision_path: "data/projects/games.json",
     reviewed_revision: "e981757f31fdb58b85e546069cf303daac56cc61",
   },
-  // decomp.fun's hourly index of matching decompilation projects.
+  // Decomp Buddy's published catalog: released projects, one entry per game,
+  // with lineage naming the lists each came from. It leaves out projects
+  // without a desktop download, so the finds feed and the original lists stay.
+  {
+    id: "decomp-buddy-catalog",
+    url: "https://tanookistudios.com/decomp-buddy/catalog.json",
+    format: "decomp-buddy-catalog",
+    cap: 64 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // Decomp Buddy's projects still waiting for a Windows, macOS or Linux download.
+  {
+    id: "decomp-buddy-waiting",
+    url: "https://tanookistudios.com/decomp-buddy/waiting.json",
+    format: "decomp-buddy-waiting",
+    cap: 64 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // decomp.fun's hourly index of matching decompilation projects, leaders and
+  // alternates alike, with each project's game slot and progress band.
   {
     id: "decomp-fun",
     url: "https://decomp.fun/v1/projects.json",
     format: "decomp-fun-json",
-    cap: 8 * 1024 * 1024,
+    cap: 64 * 1024 * 1024,
+    parser: 2,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // decomp.fun's per-game slots: each game's leading project and every other.
+  {
+    id: "decomp-fun-games",
+    url: "https://decomp.fun/v1/games.json",
+    format: "decomp-fun-games",
+    cap: 64 * 1024 * 1024,
     parser: 1,
     conditional: true,
     refresh_days: 1,
@@ -81,6 +128,18 @@ export const externalLeadLists = [
     parser: 1,
     conditional: true,
     refresh_days: 1,
+  },
+  // unbaked's complete registry: the inventory, then each game's record, read
+  // resumably and reconciled on change or after thirty days.
+  {
+    id: "unbaked-registry",
+    url: "https://unbaked.games/api/games.json",
+    format: "unbaked-inventory",
+    cap: 64 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+    inventory: true,
   },
   // PortMaster's package index names upstream projects only in its prose; those
   // links are read as hints. Its handheld ARM packages say nothing about desktop builds.
@@ -159,10 +218,36 @@ export interface ExternalHint {
     retry_at?: string;
   };
 }
+/** One inventory item's collection progress. */
+export interface ExternalInventoryItem {
+  /** The inventory row's current fingerprint. */
+  row: string;
+  /** When the item's record was last read completely, and the row it described. */
+  fetched_at?: string;
+  fetched_row?: string;
+  /** A failed record read waits a day before another attempt. */
+  failed_at?: string;
+  public_code: boolean;
+  /** Projects the item's last complete record named. */
+  projects?: number;
+}
+/**
+ * A resumable inventory baseline: the inventory read, then one record read per
+ * item. Each item's findings merge when its record is read, so an interrupted
+ * run keeps them; the list's complete clock moves only once no item is due.
+ */
+export interface ExternalInventoryProgress {
+  inventory_at: string;
+  inventory_sha256: string;
+  etag?: string;
+  unchanged_at?: string;
+  items: Record<string, ExternalInventoryItem>;
+}
 export interface ExternalLeadState {
   lists: Record<string, ExternalListClock>;
   hints: Record<string, ExternalHint>;
   attempts?: Record<string, ExternalListAttempt>;
+  inventories?: Record<string, ExternalInventoryProgress>;
 }
 
 /** Decomp Buddy's published finds feed: `{ updatedAt, games: [{ repo: "owner/name", title }] }`. */
@@ -334,23 +419,6 @@ export function bindExternalListSource(
   };
 }
 
-/** decomp.fun `projects.json`: `{ projects: [{ repository, game_title, name }] }`. */
-export function parseDecompFunProjects(text: string): ParsedExternalList {
-  bounded(text, 8 * 1024 * 1024, "decomp.fun index");
-  const value = json(text, "decomp.fun index");
-  if (!isRecord(value) || !Array.isArray(value.projects))
-    throw new Error("Unsupported decomp.fun index shape");
-  let unlinked = 0;
-  const rows: { url: string; title: string }[] = [];
-  for (const project of value.projects) {
-    if (!isRecord(project)) throw new Error("Malformed decomp.fun project");
-    const title = inert(project.game_title) || inert(project.name);
-    if (typeof project.repository === "string") rows.push({ url: project.repository, title });
-    else unlinked++;
-  }
-  return collect(rows, unlinked);
-}
-
 /** unbaked `additions.json`: `{ weeks: [{ games: [{ title, projects: [{ url, name }] }] }] }`. */
 export function parseUnbakedAdditions(text: string): ParsedExternalList {
   bounded(text, 8 * 1024 * 1024, "unbaked additions");
@@ -460,9 +528,15 @@ export function parseOsgcGames(text: string): ParsedExternalList {
 }
 
 export function parseExternalList(id: string, text: string): ParsedExternalList {
+  const format = externalLeadLists.find((candidate) => candidate.id === id)?.format;
+  if (format === "decomp-buddy-catalog") return parseDecompBuddyCatalog(text);
+  if (format === "decomp-buddy-waiting") return parseDecompBuddyWaiting(text);
+  if (format === "decomp-fun-games") return parseDecompFunGames(text);
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   if (!list) throw new Error("Unknown external lead list");
   if (list.format === "recompsoftware-json") return parseRecompSoftwareCatalog(text);
+  if (list.format === "unbaked-inventory")
+    throw new Error("An inventory list is read item by item, not parsed whole");
   if (list.format === "decomp-fun-json") return parseDecompFunProjects(text);
   if (list.format === "unbaked-additions-json") return parseUnbakedAdditions(text);
   if (list.format === "portmaster-json") return parsePortMasterIndex(text);
@@ -610,7 +684,189 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
     )
       throw new Error("Invalid retained external hint resolution");
   }
+  if (value.inventories !== undefined) {
+    if (!isRecord(value.inventories)) throw new Error("Invalid retained external inventories");
+    for (const [id, raw] of Object.entries(value.inventories))
+      if (
+        !listId.test(id) ||
+        !isRecord(raw) ||
+        !clock(raw.inventory_at) ||
+        typeof raw.inventory_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(raw.inventory_sha256) ||
+        (raw.etag !== undefined && responseValidator(raw.etag) === undefined) ||
+        (raw.unchanged_at !== undefined && !clock(raw.unchanged_at)) ||
+        !isRecord(raw.items) ||
+        Object.entries(raw.items).some(
+          ([slug, item]) =>
+            !/^[a-z0-9][a-z0-9-]{0,159}$/u.test(slug) ||
+            !isRecord(item) ||
+            typeof item.row !== "string" ||
+            typeof item.public_code !== "boolean" ||
+            (item.fetched_at !== undefined && !clock(item.fetched_at)) ||
+            (item.fetched_row !== undefined && typeof item.fetched_row !== "string") ||
+            (item.failed_at !== undefined && !clock(item.failed_at)) ||
+            (item.projects !== undefined &&
+              (!Number.isSafeInteger(item.projects) || Number(item.projects) < 0)),
+        )
+      )
+        throw new Error("Invalid retained external inventory");
+  }
   return structuredClone(value) as unknown as ExternalLeadState;
+}
+
+/** Days after which an unchanged inventory item's record is read again. */
+export const inventoryReconcileDays = 30;
+/**
+ * Records one complete inventory read. Items keep their progress while their
+ * row is listed; a new item starts unread. An item leaving the inventory drops
+ * its progress, never its hints: leaving a registry is not deletion evidence.
+ */
+export function recordExternalInventory(
+  state: ExternalLeadState | undefined,
+  id: string,
+  rows: readonly { slug: string; fingerprint: string; public_code: boolean }[],
+  observedAt: string,
+  contentSha256: string,
+  etag?: string,
+): ExternalLeadState {
+  if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
+  const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
+  const previous = next.inventories?.[id]?.items ?? {};
+  const items: Record<string, ExternalInventoryItem> = {};
+  for (const row of rows)
+    items[row.slug] = { ...previous[row.slug], row: row.fingerprint, public_code: row.public_code };
+  next.inventories = {
+    ...next.inventories,
+    [id]: {
+      inventory_at: observedAt,
+      inventory_sha256: contentSha256,
+      ...(etag ? { etag } : {}),
+      items,
+    },
+  };
+  return next;
+}
+/** The inventory answered 304: its items still describe it. */
+export function markExternalInventoryUnchanged(
+  state: ExternalLeadState,
+  id: string,
+  observedAt: string,
+): ExternalLeadState {
+  const inventory = state.inventories?.[id];
+  if (!inventory) throw new Error("An unchanged inventory needs its retained read");
+  const next = structuredClone(state);
+  next.inventories![id] = { ...inventory, unchanged_at: observedAt };
+  return next;
+}
+/** Whether the inventory itself is due for a read on the list's refresh interval. */
+export function externalInventoryDue(
+  state: ExternalLeadState | undefined,
+  id: string,
+  now: string,
+) {
+  const inventory = state?.inventories?.[id];
+  const last = [inventory?.inventory_at, inventory?.unchanged_at]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  const days =
+    list && "refresh_days" in list && (!("conditional" in list) || inventory?.etag)
+      ? Number(list.refresh_days)
+      : externalListRefreshDays;
+  return !last || Date.parse(now) - Date.parse(last) >= days * 86400000;
+}
+/**
+ * Items whose record is due: never read, changed since the last read, or older
+ * than the reconciliation interval. Unread items come first, then changed
+ * ones, then the longest unread; a failed read waits one day.
+ */
+export function dueExternalInventoryItems(
+  state: ExternalLeadState | undefined,
+  id: string,
+  now: string,
+) {
+  const items = Object.entries(state?.inventories?.[id]?.items ?? {});
+  const at = Date.parse(now);
+  const rank = (item: ExternalInventoryItem) =>
+    !item.fetched_at ? 0 : item.fetched_row !== item.row ? 1 : 2;
+  return items
+    .filter(
+      ([, item]) =>
+        !(item.failed_at && at - Date.parse(item.failed_at) < 86400000) &&
+        (!item.fetched_at ||
+          item.fetched_row !== item.row ||
+          at - Date.parse(item.fetched_at) >= inventoryReconcileDays * 86400000),
+    )
+    .sort(
+      ([a, x], [b, y]) =>
+        rank(x) - rank(y) ||
+        (x.fetched_at ?? "").localeCompare(y.fetched_at ?? "") ||
+        a.localeCompare(b),
+    )
+    .map(([slug]) => slug);
+}
+/** Merges one item's complete record: its findings stand even if the run stops next. */
+export function mergeExternalInventoryItem(
+  state: ExternalLeadState,
+  id: string,
+  slug: string,
+  parsed: ParsedExternalList,
+  observedAt: string,
+): ExternalLeadState {
+  const item = state.inventories?.[id]?.items[slug];
+  if (!item) throw new Error("Unknown external inventory item");
+  if (!clock(observedAt)) throw new Error("Invalid external inventory clock");
+  const next = structuredClone(state);
+  mergeEntries(next, id, parsed.entries, observedAt);
+  const { failed_at: _failed, ...rest } = item;
+  next.inventories![id]!.items[slug] = {
+    ...rest,
+    fetched_at: observedAt,
+    fetched_row: item.row,
+    projects: parsed.entries.length + parsed.unlinked,
+  };
+  return next;
+}
+/** A failed item read keeps its last complete record and waits a day. */
+export function recordExternalInventoryItemFailure(
+  state: ExternalLeadState,
+  id: string,
+  slug: string,
+  attemptedAt: string,
+): ExternalLeadState {
+  const item = state.inventories?.[id]?.items[slug];
+  if (!item) throw new Error("Unknown external inventory item");
+  const next = structuredClone(state);
+  next.inventories![id]!.items[slug] = { ...item, failed_at: attemptedAt };
+  return next;
+}
+/**
+ * Records the list complete once no item is due. The clock's scope is the
+ * inventory read it describes; every item's last complete record stands.
+ */
+export function completeExternalInventory(
+  state: ExternalLeadState,
+  id: string,
+  observedAt: string,
+  evidence: string,
+): ExternalLeadState {
+  const inventory = state.inventories?.[id];
+  if (!inventory) throw new Error("A complete inventory needs its retained read");
+  if (dueExternalInventoryItems(state, id, observedAt).length)
+    throw new Error("An inventory with due items is not complete");
+  const next = structuredClone(state);
+  const parser = parserVersion(id);
+  next.lists[id] = {
+    completed_at: observedAt,
+    evidence,
+    entries: Object.values(next.hints).filter((hint) => hint.lists.includes(id)).length,
+    unlinked: 0,
+    fingerprint: inventory.inventory_sha256,
+    ...(parser !== undefined ? { parser } : {}),
+  };
+  next.attempts = { ...next.attempts, [id]: { attempted_at: observedAt, outcome: "complete" } };
+  return next;
 }
 
 export function isExternalListId(id: unknown): id is string {
@@ -629,7 +885,13 @@ export function externalListDue(state: ExternalLeadState | undefined, id: string
     .sort()
     .at(-1);
   const list = externalLeadLists.find((candidate) => candidate.id === id);
-  const days = list && "refresh_days" in list ? Number(list.refresh_days) : externalListRefreshDays;
+  // A list read daily relies on conditional reads; a source that sent no
+  // validators is read on the default interval instead.
+  const validated = Boolean(clockValue?.etag || clockValue?.last_modified);
+  const days =
+    list && "refresh_days" in list && (!("conditional" in list) || validated)
+      ? Number(list.refresh_days)
+      : externalListRefreshDays;
   return !previous || Date.parse(now) - Date.parse(previous) >= days * 86400000;
 }
 /** Records a failed list read without touching its hints or last successful clock. */
@@ -651,18 +913,14 @@ export function recordExternalListFailure(
 /** Merges one complete, validated list observation. Absent entries are retained:
  * leaving a curated list is not evidence that an upstream was deleted.
  */
-export function mergeExternalList(
-  state: ExternalLeadState | undefined,
+/** Merges one source's entries into the hints in place, keeping every prior claim. */
+function mergeEntries(
+  next: ExternalLeadState,
   id: string,
-  parsed: ParsedExternalList,
+  entries: readonly ExternalListEntry[],
   observedAt: string,
-  evidence: string,
-  read: { bytes?: number; etag?: string | undefined; last_modified?: string | undefined } = {},
-): ExternalLeadState {
-  if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
-  if (!clock(observedAt)) throw new Error("Invalid external list clock");
-  const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
-  for (const entry of parsed.entries) {
+) {
+  for (const entry of entries) {
     const old = next.hints[entry.key];
     const previous = old?.source_entries?.[id];
     const retained = entry.source_entries
@@ -700,6 +958,20 @@ export function mergeExternalList(
           last_observed_at: observedAt,
         };
   }
+}
+
+export function mergeExternalList(
+  state: ExternalLeadState | undefined,
+  id: string,
+  parsed: ParsedExternalList,
+  observedAt: string,
+  evidence: string,
+  read: { bytes?: number; etag?: string | undefined; last_modified?: string | undefined } = {},
+): ExternalLeadState {
+  if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
+  if (!clock(observedAt)) throw new Error("Invalid external list clock");
+  const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
+  mergeEntries(next, id, parsed.entries, observedAt);
   const parser = parserVersion(id);
   next.lists[id] = {
     completed_at: observedAt,
@@ -857,7 +1129,7 @@ export function externalHintSummary(
   // created it, and as originated by the sources its claims name as lineage
   // (or, without lineage, by its discovering list), so a claim several
   // aggregators repeat counts once for its originating source.
-  const contribution: Record<
+  const contribution = new Map<
     string,
     {
       hints: number;
@@ -868,24 +1140,31 @@ export function externalHintSummary(
       unresolved_hosts: number;
       coverage: Partial<Record<ExternalHintCoverage, number>>;
     }
-  > = {};
-  const row = (id: string) =>
-    (contribution[id] ??= {
-      hints: 0,
-      discovered: 0,
-      originated: 0,
-      platform_claims: 0,
-      pending_changes: 0,
-      unresolved_hosts: 0,
-      coverage: {},
-    });
-  const unsupportedHosts: Record<string, number> = {};
+  >();
+  // Keys are source-supplied lineage strings, so they live in a Map.
+  const row = (id: string) => {
+    let entry = contribution.get(id);
+    if (!entry) {
+      entry = {
+        hints: 0,
+        discovered: 0,
+        originated: 0,
+        platform_claims: 0,
+        pending_changes: 0,
+        unresolved_hosts: 0,
+        coverage: {},
+      };
+      contribution.set(id, entry);
+    }
+    return entry;
+  };
+  const unsupportedHosts = new Map<string, number>();
   for (const [key, hint] of Object.entries(state?.hints ?? {})) {
     const status = externalHintCoverage(hint, key, covered ?? new Set(), paths, now);
     counts[status]++;
     if (status === "unsupported-host") {
       const hostname = new URL(hint.url).hostname;
-      unsupportedHosts[hostname] = (unsupportedHosts[hostname] ?? 0) + 1;
+      unsupportedHosts.set(hostname, (unsupportedHosts.get(hostname) ?? 0) + 1);
     }
     const origins = new Set(
       Object.values(hint.source_entries ?? {}).flatMap((rows) =>
@@ -914,17 +1193,32 @@ export function externalHintSummary(
           last_complete: state?.lists[list.id] ?? null,
           last_attempt: state?.attempts?.[list.id] ?? null,
           due: externalListDue(state, list.id, now),
-          contribution: contribution[list.id] ?? null,
+          contribution: contribution.get(list.id) ?? null,
         },
       ]),
     ),
     // Originating sources outside the configured lists (lineage named by a claim).
-    origins: Object.fromEntries(
-      Object.entries(contribution)
-        .filter(([id]) => !externalListIds.includes(id))
-        .map(([id, value]) => [id, value.originated]),
+    origins: [...contribution]
+      .filter(([id]) => !externalListIds.includes(id))
+      .map(([source, value]) => ({ source, originated: value.originated })),
+    unsupported_hosts: Object.fromEntries(unsupportedHosts),
+    // Inventory baselines: progress, and registry games without public code,
+    // which stay unresolved research candidates rather than discoveries.
+    inventories: Object.fromEntries(
+      Object.entries(state?.inventories ?? {}).map(([id, inventory]) => {
+        const items = Object.values(inventory.items);
+        return [
+          id,
+          {
+            inventory_at: inventory.inventory_at,
+            items: items.length,
+            read: items.filter((item) => item.fetched_at).length,
+            due: dueExternalInventoryItems(state, id, now).length,
+            candidates_without_public_code: items.filter((item) => !item.public_code).length,
+          },
+        ];
+      }),
     ),
-    unsupported_hosts: unsupportedHosts,
     unsupported_host_reconsideration:
       "Retained as unresolved; taken up when a provider adapter supports the host or an attributed source names a resolvable repository for the project",
     hints: Object.keys(state?.hints ?? {}).length,
