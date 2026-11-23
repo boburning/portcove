@@ -636,3 +636,83 @@ fn open_surge_windows_profile_guard_uses_the_retained_binding() {
     port.user_data_environment = None;
     check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap();
 }
+
+/// An identity that no catalog entry, retained definition or production source
+/// names: the declared fields alone must select each rule below.
+const UNFAMILIAR: &str = "unfamiliar-data-only-fixture";
+
+fn unfamiliar_identity_is_absent_from_production_sources() {
+    fn visit(directory: &Path, found: &mut Vec<String>) {
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if !(name.contains("test") || name == "testdata") {
+                    visit(&path, found);
+                }
+            } else if !name.contains("test")
+                && std::fs::read(&path)
+                    .unwrap()
+                    .windows(UNFAMILIAR.len())
+                    .any(|window| window == UNFAMILIAR.as_bytes())
+            {
+                found.push(path.display().to_string());
+            }
+        }
+    }
+    let mut found = Vec::new();
+    visit(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut found,
+    );
+    let catalog = crate::Catalog::embedded().unwrap();
+    assert!(catalog.port(UNFAMILIAR).is_err());
+    assert!(
+        found.is_empty(),
+        "fixture identity in production: {found:?}"
+    );
+}
+
+#[test]
+fn open_surge_user_data_guard_follows_the_declared_environment_not_the_identity() {
+    unfamiliar_identity_is_absent_from_production_sources();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("surge-the-rabbit-opensurge").unwrap().clone();
+    port.id = UNFAMILIAR.into();
+    let unicode = format!(r"{}:\Game library Ω\user\{UNFAMILIAR}", 'D');
+    let unicode = Path::new(&unicode);
+    let error = check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap_err();
+    assert_eq!(
+        error.presentation().presentation_key,
+        "opensurge_user_data_path_unsupported"
+    );
+    port.user_data_environment = Some("OTHER_USER_PATH".into());
+    check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap();
+    port.user_data_environment = None;
+    check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap();
+}
+
+#[test]
+fn cvlod_source_path_policy_follows_the_declared_recipe_not_the_identity() {
+    unfamiliar_identity_is_absent_from_production_sources();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("cvlod-recomp").unwrap().clone();
+    port.id = UNFAMILIAR.into();
+    port.release.user_prepared.clear();
+    port.setup_executable_hints.clear();
+    port.platforms = vec![
+        Platform::WindowsX86_64,
+        Platform::LinuxX86_64,
+        Platform::MacosAarch64,
+    ];
+    port.release.managed_build = std::collections::BTreeMap::from([(
+        Platform::WindowsX86_64,
+        crate::CartridgeBuildRecipe::CvlodSourceV1,
+    )]);
+    port.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+    assert_eq!(port.adapter, AdapterKind::N64RecompPortable);
+    validate(&port).unwrap();
+    port.release.managed_build.clear();
+    let error = validate(&port).unwrap_err();
+    assert!(error.message.contains("fixed CVLoD source recipe"));
+}
