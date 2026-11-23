@@ -167,8 +167,9 @@ fn permitted_platforms(policy: ExternalProfilePolicy) -> &'static [Platform] {
 ///
 /// These two guards walk an upstream-owned profile outside Portcove storage
 /// and accept any GitHub-backed portable player, so this pin is their only
-/// binding to the reviewed upstream. The definition model has no signed
-/// per-policy subject binding to replace it with yet.
+/// structural binding to the reviewed upstream. Each delivered definition is
+/// signed individually; whether that binding replaces this pin, or a
+/// package-shape validator is added instead, is an open maintainer decision.
 fn reviewed_subject(policy: ExternalProfilePolicy) -> Option<(&'static str, &'static str)> {
     match policy {
         ExternalProfilePolicy::DuneDynastyAllegroV1 => {
@@ -1271,16 +1272,10 @@ mod tests {
 
     #[test]
     fn unfamiliar_fixture_identity_stays_out_of_production_source() {
-        let source = include_str!("native_external_profile.rs");
-        let production = &source[..source.find("#[cfg(test)]\nmod tests {").unwrap()];
-        assert!(!production.contains(UNFAMILIAR_ID));
-        assert!(!production.contains(UNFAMILIAR_REPOSITORY));
-        assert!(
-            crate::Catalog::embedded()
-                .unwrap()
-                .port(UNFAMILIAR_ID)
-                .is_err()
-        );
+        crate::native_external_profile_consumer_tests::assert_absent_from_production_sources(&[
+            UNFAMILIAR_ID,
+            UNFAMILIAR_REPOSITORY,
+        ]);
     }
 
     #[test]

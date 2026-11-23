@@ -989,7 +989,12 @@ its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
 XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
 Managed CorsixTH gives its Windows and Linux player the neutral name
 `PLAYER` for the upstream blank-name fallback. It leaves the name already
-stored in the player's external profile to CorsixTH.
+stored in the player's external profile to CorsixTH. This `PLAYER` value is a
+separate title-bound launch behavior, not part of the external-profile policy:
+an equivalent definition under another identity keeps the profile guard but not
+the name. It cannot move to the definition's `launch_environment` because
+external-profile policies forbid launch environment, so moving it to data needs
+a catalog contract change.
 
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
@@ -1032,9 +1037,13 @@ the higher version specified for the selected layout.
 A policy is bound to the authenticated definition that satisfies its structural
 layout (adapter, permitted platforms, launch and data constraints, and the
 exact upstream package and executable shape its validator requires), not to a
-compiled list of port identities. The Dune Dynasty and fheroes2 policies have no
-such package-shape validator, so they remain bound to their reviewed identity
-and repository until a signed per-policy binding exists.
+compiled list of port identities. Every delivered definition is already signed
+individually: its delivery binds the exact definition bytes (`definition_sha256`)
+and, for a managed GitHub subject, the numeric `repository_id`. The Dune Dynasty
+and fheroes2 policies have no package-shape validator, so they keep their
+reviewed identity and repository pins until the maintainers decide whether that
+per-definition signature is a sufficient binding or add a package-shape
+validator for them.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a
