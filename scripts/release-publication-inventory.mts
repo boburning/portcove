@@ -69,7 +69,9 @@ type ReleaseProjection = "publication" | "notes" | "raw";
  * page was read and the provider reported exhaustion, and the resume re-read
  * the head page and the last accepted page unchanged. Pages read before the
  * interruption are not re-observed, so an in-place edit of an older record, or
- * an add and a delete that cancel out behind the head page, can go unseen. A
+ * an add and a delete that cancel out behind the head page, can go unseen.
+ * Releases list newest first, so a new Release lands on the head page; tags
+ * list alphabetically, so a tag composite usually misses a new tag. A
  * composite is therefore not allocation or conflict authority on its own:
  * confirm it with a single-pass read or the caller's freshness bracket. */
 export type CompositePublicationInventory<T> = {

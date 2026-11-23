@@ -258,11 +258,7 @@ void test("initial public pair associates first allocations with exact retained 
 });
 void test("retired failed allocations do not consume either genuine published cohort slot", () => {
   const f = fixture();
-  const failed = {
-    ...f.allocations[0]!,
-    version: "0.0.9",
-    prepared_commit: "d".repeat(40),
-  };
+  const failed = { ...f.allocations[0]!, version: "0.0.9", prepared_commit: "d".repeat(40) };
   const pair = inspectInitialPublicJourneyCohort(
     [failed, ...f.allocations],
     f.files,
@@ -270,11 +266,7 @@ void test("retired failed allocations do not consume either genuine published co
   );
   assert.equal(pair.prior.version, "0.1.0");
   assert.equal(pair.candidate.version, "0.1.1");
-  const nextUnpublished = {
-    ...failed,
-    version: "0.1.2",
-    prepared_commit: "e".repeat(40),
-  };
+  const nextUnpublished = { ...failed, version: "0.1.2", prepared_commit: "e".repeat(40) };
   assert.deepEqual(
     inspectInitialPublicJourneyCohort(
       [...f.allocations, nextUnpublished],
@@ -346,10 +338,7 @@ void test("raw pair/setup imports cannot enter actual parent or public custody f
     /actual parent\/public Tough pair/,
   );
   await assert.rejects(
-    requireActualPublicJourneyPackage({
-      kind: "actual-public-journey-package",
-      authority: "none",
-    }),
+    requireActualPublicJourneyPackage({ kind: "actual-public-journey-package", authority: "none" }),
     /actual public immutable package custody/,
   );
 });
