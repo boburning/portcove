@@ -27,6 +27,7 @@ import {
 import type { ExternalResolution, LeadState } from "./discovery-leads.mts";
 import {
   bindExternalListSource,
+  externalHintSummary,
   externalLeadLists,
   externalListDue,
   leadPaths,
@@ -70,7 +71,7 @@ export interface DiscoveryCollectionHost {
   knownLeadUrls(): Set<string>;
   /** Normalized external-hint keys already covered by canonical issues or catalog lineage. */
   externalCovered(): Set<string>;
-  leadSummary(): { external: unknown };
+  leadSummary(): { external: ReturnType<typeof externalHintSummary> | null };
 }
 
 const object = (v: unknown): Record<string, unknown> => {
