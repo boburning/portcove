@@ -496,6 +496,13 @@ shrinks.
 | 200        | 2,478,558    | 8,922,800 | 5,087,120                               | 6,293,881                                        |
 | 400        | 2,177,290    | 8,163,715 | 5,914,276                               | 6,141,705                                        |
 
+The template's manual setup is shorter than most generated route guides, so
+these embedded-directory figures are optimistic. An earlier same-day run
+applied the generator's own `generatedRecord` and `checkedAuthoredPort`. In
+that run, 400 identities grew `listings.json` to 7,036,903 bytes, 93,413 below
+the 85% guard. That guard, not the compact carrier, is the next limit; the
+compact target stayed under 2.8 MB wire and 10.1 MB decoded.
+
 **Storage runway.** The retained catalog tree measured 404,914,714 of
 805,306,368 bytes (768 MiB), and the Pages tree 404,922,011 of 900,000,000.
 The 47 retained legacy listing bodies make up 390,631,685 bytes.
