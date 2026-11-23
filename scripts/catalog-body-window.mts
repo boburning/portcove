@@ -1,8 +1,9 @@
 // Catalog listing-body window (#1422; design CATALOG-DISTRIBUTION-SCALING.md
 // 6.1-6.2). The served catalog keeps every signed metadata version, but only
 // the listing bodies a client or the publisher can still need: the current
-// body, the previous body, the newest body of each listing target, and every
-// pinned publication's bodies. Older bodies stay in `gh-pages` Git history and
+// body, the previous body, the newest body of each listing target, the body
+// the latest signed policy version names for each target, and every pinned
+// publication's bodies. Older bodies stay in `gh-pages` Git history and
 // are verified from the listing-floor ledger that `portcove-release-tools`
 // derives from the bodies before any of them can be pruned.
 //
@@ -228,6 +229,14 @@ export function planBodyWindow(input: WindowInput): WindowPlan {
     distinct.forEach((digest, index) =>
       reason(target, digest, index ? "previous body" : "current body"),
     );
+  }
+  // The verifier requires, from bytes, the body the latest signed policy
+  // version names for each target, even one the current publication no
+  // longer names (legacy after the cutover, compact after a legacy return).
+  for (const target of listingTargets) {
+    const latest = versions.find((version) => input.policies.get(version)!.has(target));
+    if (latest !== undefined)
+      reason(target, input.policies.get(latest)!.get(target)!.sha256, "latest named");
   }
   for (const pin of input.pins) {
     const pinned = input.policies.get(pin.policy_version);

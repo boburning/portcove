@@ -48,6 +48,20 @@ struct Publication {
 /// (the cutover). A listing change roughly every third publication, the rest
 /// renewals; one withdrawal; compact re-encodings at an unchanged revision.
 fn history() -> Vec<Publication> {
+    carriers(false, 1)
+}
+
+/// The same history, except that after version 2,500 compact is withdrawn
+/// and legacy alone continues (a legacy-only return).
+fn legacy_return() -> Vec<Publication> {
+    carriers(true, 2)
+}
+
+/// `step` spaces listing revisions; a gap leaves unused lower revisions that
+/// a forged ledger entry could claim without equivocating.
+fn carriers(legacy_returns: bool, step: u64) -> Vec<Publication> {
+    let legacy_named = |version: u64| version <= 2_500 || legacy_returns;
+    let compact_named = |version: u64| version > 1_500 && (version <= 2_500 || !legacy_returns);
     let mut publications = Vec::new();
     let mut revision = 1;
     let mut withdrawn: Vec<String> = Vec::new();
@@ -59,17 +73,17 @@ fn history() -> Vec<Publication> {
             withdrawn.push("withdrawn-row".into());
         }
         if changed || version == 1_200 {
-            revision += 1;
+            revision += step;
             let label = format!("r{revision}");
-            if version <= 2_500 {
+            if legacy_named(version) {
                 legacy_body = legacy(revision, &withdrawn, &label);
             }
-            if version > 1_500 {
+            if compact_named(version) {
                 compact_body = Some(compact(revision, &withdrawn, &label, 6));
             }
         } else if version == 1_501 {
             // Compact activation beside legacy at a new shared revision.
-            revision += 1;
+            revision += step;
             legacy_body = legacy(revision, &withdrawn, &format!("r{revision}"));
             compact_body = Some(compact(revision, &withdrawn, &format!("r{revision}"), 6));
         } else if version % 97 == 0
@@ -79,10 +93,12 @@ fn history() -> Vec<Publication> {
             *body = compact(revision, &withdrawn, &format!("r{revision}"), 9);
         }
         let mut bodies = Vec::new();
-        if version <= 2_500 {
+        if legacy_named(version) {
             bodies.push((LEGACY_TARGET, legacy_body.clone()));
         }
-        if let Some(body) = &compact_body {
+        if compact_named(version)
+            && let Some(body) = &compact_body
+        {
             bodies.push((COMPACT_TARGET, body.clone()));
         }
         publications.push(Publication { version, bodies });
@@ -398,10 +414,100 @@ fn falsified_or_incomplete_ledgers_fail_closed_or_cannot_lower_a_floor() {
         message(verify(&publications, &window, Some(&raised)))
             .contains("newest listing body is outside the served tree")
     );
-    // Pruning the newest body itself fails closed even with its entry.
+    // Pruning the newest body itself fails closed even with its entry: it is
+    // also the body the latest signed policy version names.
     let without_newest = tree(&publications, |_, _| false);
     assert!(
         message(verify(&publications, &without_newest, Some(&ledger)))
-            .contains("newest listing body is outside the served tree")
+            .contains("body is outside the served tree")
     );
+}
+
+/// Distinct bodies of one target, oldest first, with their facts.
+fn bodies_of(publications: &[Publication], target: &str) -> Vec<(Vec<u8>, u64, String)> {
+    let mut bodies: Vec<(Vec<u8>, u64, String)> = Vec::new();
+    for publication in publications {
+        for (named, body) in &publication.bodies {
+            if *named == target && bodies.last().is_none_or(|(last, _, _)| last != body) {
+                let facts = bundle::listing_revision(target, body).unwrap();
+                bodies.push((body.clone(), facts.revision, facts.decoded_sha256));
+            }
+        }
+    }
+    bodies
+}
+
+/// F1: a writer without a signing key deletes the newest body of a listing
+/// target that is no longer current, serves an older body still named by
+/// signed metadata, and lowers the deleted body's ledger entry to that older
+/// body's facts so every unsigned floor stays consistent. The body the latest
+/// signed policy version names must be served, so the attack is refused; the
+/// honest window that serves it still prunes everything else.
+fn latest_named_body_is_required(publications: &[Publication], stale: &str, current: &str) {
+    let complete = tree(publications, |_, _| true);
+    let (all, _) = verify(publications, &complete, None).unwrap();
+    let ledger = Ledger::parse(&all.ledger).unwrap();
+    // The target that is no longer current: its last body is its latest named.
+    let last = publications.last().unwrap();
+    assert!(last.bodies.iter().all(|(target, _)| *target != stale));
+    assert!(last.bodies.iter().any(|(target, _)| *target == current));
+    let stale_bodies = bodies_of(publications, stale);
+    let (newest, newest_revision, _) = stale_bodies.last().unwrap().clone();
+    // Compact re-encodings share a revision; the older body has a lower one.
+    let (older, older_revision, _) = stale_bodies
+        .iter()
+        .rev()
+        .find(|(_, revision, _)| *revision < newest_revision)
+        .unwrap()
+        .clone();
+    // A lower revision no body uses, so the forged entry cannot equivocate.
+    let forged_revision = older_revision - 1;
+    assert!(!all.listing_revisions.contains_key(&forged_revision));
+    let current_newest = bodies_of(publications, current).pop().unwrap().0;
+
+    // Positive: only the latest named bodies (plus an older pinned body) are
+    // served; every other body is pruned and verified from the ledger.
+    let honest = tree(publications, |_, body| {
+        body == newest.as_slice() || body == older.as_slice() || body == current_newest.as_slice()
+    });
+    assert_eq!(honest.len(), 3);
+    let (outcome, _) = verify(publications, &honest, Some(&ledger)).unwrap();
+    assert_eq!(outcome, all);
+
+    // The attack: the newest stale body is deleted and its entry lowered.
+    let attacked = tree(publications, |_, body| {
+        body == older.as_slice() || body == current_newest.as_slice()
+    });
+    let mut recorder = Recorder::default();
+    for mut entry in ledger.entries().iter().cloned() {
+        if entry.target == stale && entry.sha256 == sha(&newest) {
+            entry.revision = forged_revision;
+        }
+        recorder.reference(&entry.target, &entry.sha256, Some(entry.policy_version));
+        recorder.facts(entry, true);
+    }
+    let lowered = recorder.ledger().unwrap().0;
+    let failure = message(verify(publications, &attacked, Some(&lowered)));
+    assert!(
+        failure.contains(&format!(
+            "latest signed {stale} body is outside the served tree"
+        )),
+        "{failure}"
+    );
+    // Also refused with the honest ledger: the latest named body is required.
+    let failure = message(verify(publications, &attacked, Some(&ledger)));
+    assert!(
+        failure.contains("body is outside the served tree"),
+        "{failure}"
+    );
+}
+
+#[test]
+fn a_lowered_entry_cannot_replace_the_latest_legacy_body_after_the_cutover() {
+    latest_named_body_is_required(&carriers(false, 2), LEGACY_TARGET, COMPACT_TARGET);
+}
+
+#[test]
+fn a_lowered_entry_cannot_replace_the_latest_compact_body_after_a_legacy_return() {
+    latest_named_body_is_required(&legacy_return(), COMPACT_TARGET, LEGACY_TARGET);
 }

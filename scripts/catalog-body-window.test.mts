@@ -125,6 +125,7 @@ void test("the window keeps current, previous, newest and pinned bodies and prun
   assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(6)))), [
     "current publication",
     "current body",
+    "latest named",
   ]);
   assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(5)))), [
     "previous publication",
@@ -199,7 +200,10 @@ void test("the newest revision of each listing target is kept even when no longe
     ]),
     historyMode: false,
   });
-  assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(2)))), ["newest revision"]);
+  assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(2)))), [
+    "latest named",
+    "newest revision",
+  ]);
   assert.deepEqual(plan.keep.get(bodyPath(compact, sha(body(4)))), [
     "previous publication",
     "previous body",
@@ -208,6 +212,36 @@ void test("the newest revision of each listing target is kept even when no longe
   assert.deepEqual(
     plan.prune.map(({ path: name }) => name).sort(),
     [bodyPath(legacy, sha(body(1))), bodyPath(compact, sha(body(3)))].sort(),
+  );
+});
+
+void test("the body the latest signed policy names is kept whatever the ledger's revisions say", () => {
+  // The ledger's revisions are unsigned. A ledger whose stale-carrier entries
+  // disagree with signed order must not move the window off the body that the
+  // latest signed policy version names, which the verifier requires.
+  const policiesWithCompact = new Map([
+    [1, new Map([[legacy, { sha256: sha(body(1)), length: body(1).length }]])],
+    [2, new Map([[legacy, { sha256: sha(body(2)), length: body(2).length }]])],
+    [3, new Map([[legacy, { sha256: sha(body(3)), length: body(3).length }]])],
+    [4, new Map([[compact, { sha256: sha(body(4)), length: body(4).length }]])],
+    [5, new Map([[compact, { sha256: sha(body(5)), length: body(5).length }]])],
+  ]);
+  const ledger = [{ ...entry(1, 1), revision: 9 }, entry(2, 2), entry(3, 3), entry(4, 4, compact)];
+  const plan = planBodyWindow({
+    policies: policiesWithCompact,
+    previous: 4,
+    pins: [],
+    publishedLedger: ledger,
+    nextLedger: ledger,
+    served: served([1, 2, 3]),
+    historyMode: false,
+  });
+  assert.equal(plan.refused, null);
+  assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(3)))), ["latest named"]);
+  assert.deepEqual(plan.keep.get(bodyPath(legacy, sha(body(1)))), ["newest revision"]);
+  assert.deepEqual(
+    plan.prune.map(({ path: name }) => name),
+    [bodyPath(legacy, sha(body(2)))],
   );
 });
 

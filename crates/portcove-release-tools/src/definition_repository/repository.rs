@@ -556,6 +556,12 @@ struct HistoricalRevisionFloors {
     recorder: listing_floor_ledger::Recorder,
     /// Highest revision per listing target known only from the ledger.
     ledger_floors: BTreeMap<String, u64>,
+    /// Per listing target, the highest signed `official-policy` version that
+    /// names it and the body path that version names. Signed data alone fixes
+    /// which body is a target's latest; the ledger cannot move it.
+    latest_named: BTreeMap<String, (u64, String)>,
+    /// Listing body paths whose served bytes were measured and parsed.
+    verified_bodies: BTreeSet<String>,
 }
 
 impl HistoricalRevisionFloors {
@@ -581,6 +587,15 @@ impl HistoricalRevisionFloors {
             let digest = hex::encode(&identity.hashes.sha256);
             let path = format!("targets/{digest}.{}", target.raw());
             let listing = portcove_listing_carrier::is_listing_target(target.raw());
+            if listing {
+                let latest = self
+                    .latest_named
+                    .entry(target.raw().to_owned())
+                    .or_insert((version, path.clone()));
+                if version >= latest.0 {
+                    *latest = (version, path.clone());
+                }
+            }
             let Some(raw) = files.get(&path) else {
                 if listing
                     && let Some(entry) = self
@@ -612,6 +627,7 @@ impl HistoricalRevisionFloors {
             if listing {
                 self.recorder
                     .reference(target.raw(), &digest, Some(version));
+                self.verified_bodies.insert(path.clone());
             }
             // The physical body is immutable, but every signed reference must
             // independently agree with its measured length and digest.
@@ -727,7 +743,18 @@ impl HistoricalRevisionFloors {
 
     /// Every successor is checked against the newest body of each listing
     /// target, so that body must be served: a pruned body above it fails closed.
+    /// The body the latest signed policy version names for each target must be
+    /// served and verified from its bytes, so an unsigned ledger entry can never
+    /// stand in for it (and so never lower that target's floor).
     fn check_ledger_floors(&self) -> Result<()> {
+        for (target, (_, path)) in &self.latest_named {
+            if !self.verified_bodies.contains(path) {
+                return invalid(&format!(
+                    "catalog latest signed {target} body is outside the served tree; restore it \
+from a pinned publication (docs/RELEASING.md) before publishing"
+                ));
+            }
+        }
         for (target, revision) in &self.ledger_floors {
             let served = if target == portcove_listing_carrier::COMPACT_TARGET {
                 self.compact_listing.as_ref().map(|floor| floor.revision)

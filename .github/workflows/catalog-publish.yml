@@ -110,8 +110,9 @@ jobs:
             exit 0
           fi
           # The readback compares the last catalog commit with its parent, past
-          # any later application-only Pages commits.
-          git fetch --quiet --depth=8 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+          # any later application-only Pages commits: deepen in bounded steps
+          # (up to 64 commits) until both are present.
+          node scripts/catalog-readback-depth.mts --site site
           receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
           status="$RUNNER_TEMP/catalog-publication-late-observation.json"
           node scripts/catalog-publication-continuation.mts --site site --output "$receipt" --status "$status"

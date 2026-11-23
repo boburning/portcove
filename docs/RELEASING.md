@@ -255,11 +255,11 @@ in `gh-pages` Git history. `CATALOG_RETAIN_BODIES` at the top of
 `catalog-publish.yml` selects the mode, and changing it is a reviewed change by
 the lead (decision L2):
 
-| Mode            | What a publication does                                                                                                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `all` (default) | Exactly what it did before the window existed. Every body is served and read.                                                                                                                                          |
-| `ledger`        | Also serves `catalog/history-ledger/listing-floors.json`. The first run derives it from every retained body; later runs re-derive each entry whose body is served and append new ones. Nothing is pruned.              |
-| `window`        | Also prunes listing bodies from the served tree, keeping the current and previous body of each live carrier, the newest body of every listing target, both publications' bodies and every pinned publication's bodies. |
+| Mode            | What a publication does                                                                                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `all` (default) | Exactly what it did before the window existed. Every body is served and read.                                                                                                                                                                                                                    |
+| `ledger`        | Also serves `catalog/history-ledger/listing-floors.json`. The first run derives it from every retained body; later runs re-derive each entry whose body is served and append new ones. Nothing is pruned.                                                                                        |
+| `window`        | Also prunes listing bodies from the served tree, keeping the current and previous body of each live carrier, the newest body of every listing target, the body the latest signed policy version names for every listing target, both publications' bodies and every pinned publication's bodies. |
 
 - **Ledger.** One entry per distinct listing body: the first policy version
   naming it, its target, SHA-256 and length, and what history verification
@@ -267,7 +267,12 @@ the lead (decision L2):
   digest. Each entry must match a retained signed descriptor, and the ledger
   must extend the published one exactly. It is not signed. The newest body of
   each target, which sets every floor, is never pruned, and the verifier refuses
-  a pruned body whose entry would sit above it.
+  a pruned body whose entry would sit above it. The verifier also requires, from
+  its bytes, the body that the highest signed `official-policy` version naming
+  each listing target names, even for a carrier that is no longer current
+  (legacy after the compact cutover, compact after a legacy return). Signed
+  data alone fixes which body that is, so a `gh-pages` writer without a signing
+  key cannot delete it and lower its ledger entry to drop a floor.
 - **Fail closed.** A body is pruned only when an earlier publication already
   served its ledger entry and this run re-verified it. Without a published
   ledger, with an unretained pin, with checkpointed history or with any
@@ -299,12 +304,32 @@ after its bodies were pruned.
    ```
 
 2. Pick the pin `P`: the newest one whose readback receipt passed. The verify
-   output lists the bodies its policy version names. Restore exactly those, or
-   for a full restore every listing body under `catalog/targets`:
+   output lists the bodies its policy version names. To restore one
+   publication, restore exactly those:
 
    ```sh
    git -C pages checkout "$P" -- catalog/targets/<sha256>.policy/official/catalog.listings.json
-   git -C pages checkout "$P" -- catalog/targets   # full restore
+   ```
+
+   A **full restore** (turning the window off, or any "file missing" refusal)
+   must bring back every pruned listing body, including bodies first published
+   after `P` and pruned later, which `git checkout "$P" -- catalog/targets`
+   misses. Restore each deleted path from the parent of the commit that
+   deleted it. `--no-renames` is required: Git otherwise reports a pruned body
+   and a new, similar body as one rename and hides the deletion.
+
+   ```sh
+   git -C pages log --no-renames --diff-filter=D --name-only --format='C %H' \
+     -- 'catalog/targets/*catalog.listings*' |
+   while IFS= read -r line; do
+     case "$line" in
+       "C "*) commit=${line#C } ;;
+       "") ;;
+       *) git -C pages checkout "$commit^" -- "$line"
+          digest=${line#catalog/targets/}; digest=${digest%%.*}
+          [ "$(sha256sum "pages/$line" | cut -d' ' -f1)" = "$digest" ] || { echo "digest differs: $line"; exit 1; } ;;
+     esac
+   done
    ```
 
    Restore only paths whose name digest equals their content digest and that
@@ -316,8 +341,10 @@ after its bodies were pruned.
    `offline_targets`, their SHA-256 values,
    `"initial_root_profile": "single-owner-one-of-one-v1"`, `"repository":
    "pages/catalog"` and, unless every body is back, `"listing_floor_ledger":
-   {"prior": "pages/catalog/history-ledger/listing-floors.json"}`. The report
-   must equal one from a complete tree except for its ledger counters.
+   {"prior": "pages/catalog/history-ledger/listing-floors.json"}`. After a full
+   restore, verify **without** a ledger: every body must verify from its bytes.
+   The report must equal one from a complete tree except for its ledger
+   counters.
 4. Commit and push normally to `gh-pages`, never with force. Then dispatch an
    ordinary catalog publication run so the newest catalog commit is again a
    publisher commit; the late readback refuses a catalog tree changed outside a
@@ -356,6 +383,67 @@ change's release tools:
   `catalog-publish.yml`. The keyless publisher context check over the pruned
   tree, and the signed fixture publications in
   `definition_repository::tests::listing_floor_ledger`, cover the rest.
+
+**Full-restore rehearsal after later pruning, November 23, 2026 (offline,
+nothing pushed).** A local clone of `gh-pages` at `758583339`, this change's
+release tools (release build) and `scripts/catalog-body-window.mts --apply`.
+The three publications are the real signed publications that followed the
+pin, replayed onto a pruned branch: each run copied that publication's added
+and changed `catalog` files, verified history against the previous ledger
+(writing the next one), applied the window with the previous ledger and
+committed.
+
+| Step                                    | Result                                                                                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Backfill at `345447603` (policy 56)     | 43 entries, all from bodies.                                                                                                            |
+| Prune at policy 56, pin `P = 345447603` | Kept 2 bodies, pruned 41 (340,300,907 bytes).                                                                                           |
+| Publication 1 (`8b17b76dd`, policy 57)  | Verified: 44 entries, 3 from bodies, 41 from the ledger. Pruned 1.                                                                      |
+| Publication 2 (`2441db401`, policy 58)  | Verified: 45 entries, 3 from bodies, 42 from the ledger. Pruned 0.                                                                      |
+| Publication 3 (`680c995b8`, policy 59)  | Verified: 46 entries, 4 from bodies, 42 from the ledger. Pruned 1: `f807e3dc…`, first published by policy 57, after the pin.            |
+| Old full restore (`checkout "$P"`)      | Refused without a ledger: "catalog public repository file missing: targets/f807e3dc….policy/official/catalog.listings.json".            |
+| Corrected full restore                  | 46 of 46 bodies back, digests checked. Verified without a ledger; the report and `catalog/targets` equal those of the real `680c995b8`. |
+
+The first attempt at the corrected loop, without `--no-renames`, missed 2
+bodies: Git reported each as a 61% rename to a new body. The whole rehearsal
+took 19 s. Signing was not exercised; the publications were real signed
+history, not new signatures.
+
+**Recovery horizon and compaction.** Pruned bodies are recoverable only from
+`gh-pages` Git history (the full restore needs the commits that deleted them).
+Before an owner history compaction
+([design 6.6](design/CATALOG-DISTRIBUTION-SCALING.md#66-git-history-growth-and-compaction)),
+re-pin to post-compaction commits and archive the old history as a `git bundle`
+release asset. After compaction, restoring a pin that was removed, or any body
+pruned before the compaction, needs that bundle (`git fetch <bundle>
+'refs/heads/*:refs/bundle/*'` into the scratch clone, then the restore above).
+
+**Operating plan.** Measured on November 23, 2026: `gh-pages` packs to 63.87 MiB
+(67.0 MB); policy v1–v60 took 7.69 days (7.8 publications a day); the served
+tree has 1,614 files and each publication adds 3 metadata files plus 1 listing
+body.
+
+- **History compaction (owner).** The trigger is 2 GiB packed (2,147.5 MB), so
+  2,147.5 − 67.0 ≈ 2,080 MB of headroom. Legacy-only growth is about 6.7–6.8 MB
+  a day: 2,080 ÷ 6.8 ≈ 306 and 2,080 ÷ 6.7 ≈ 311, so about 310 days. After the
+  compact-only cutover, growth is `browse/` 5.5 MB plus compact 17.3–22.2 MB,
+  about 22.8–27.7 MB a day: 2,080 ÷ 27.7 ≈ 75 and 2,080 ÷ 22.8 ≈ 91, so a
+  compaction about every 75–91 days. The window does not change this: pruned
+  bodies stay in history.
+- **Ledger entry cap, 16,384.** One entry per distinct listing body; 47 legacy
+  bodies exist today. At one body per publication (legacy-only or compact-only)
+  (16,384 − 47) ÷ 7.8 ≈ 2,094 days, about 5.7 years (mid-2032). While legacy and
+  compact are both published, about two bodies a publication, ≈ 1,047 days,
+  about 2.9 years (late 2029) if that lasted throughout.
+- **Served file bound, 65,536.** With the window, about 3 files a publication:
+  (65,536 − 1,614) ÷ (3 × 7.8) ≈ 2,732 days, about 7.5 years. Without it,
+  about 4 a publication: ≈ 2,049 days, about 5.6 years.
+- **History checkpoints first.** Every retained metadata version is still
+  verified and served, and the ledger only grows, so the history-checkpoint
+  work (design 6.4–6.5) must land before the earlier of these bounds, about
+  late 2029 at the dual-carrier rate.
+- **Root expiry.** The published `catalog/metadata/1.root.json` expires
+  2027-10-30T15:29:53Z; the owner re-signs Root before then, independently of
+  the window.
 
 <a id="release-task-order"></a>
 <a id="preflight"></a>

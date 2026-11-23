@@ -131,6 +131,9 @@ retention redesign requires separate work. Once the lead activates the
 listing bodies leave the served tree. They stay in `gh-pages` Git history, and
 the listing-floor ledger keeps what history verification derives from them.
 Metadata, current and previous bodies, and pinned publications stay served.
+Metadata stale across two or more publications inside the 600-second Pages
+cache window can name a pruned body and get a 404; the client treats that as an
+incomplete delivery and recovers on its next refresh.
 
 The catalog publisher bounds the retained signed repository at 768 MiB.
 The publication job checks the exact staged Pages tree against its separate
