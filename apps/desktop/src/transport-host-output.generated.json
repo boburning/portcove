@@ -10711,14 +10711,14 @@
       },
       "PendingSetupBinding": {
         "additionalProperties": false,
-        "description": "The exact facts a stage belongs to. Any change invalidates the stage.",
+        "description": "The exact facts a stage belongs to. A change invalidates the stage.",
         "properties": {
           "artifact_role": {
             "$ref": "#/$defs/ArtifactRole",
             "description": "Typed route fact for the downloaded artifact. A filename suggestion\ndescribes it; it never authorizes a runtime."
           },
           "definition_sha256": {
-            "description": "Digest of the strict definition and selection known for this port, or\nof their absence for a listing-only project.",
+            "description": "Digest of the catalog content this setup depends on: the retained\nsigned definition entry and its contracts when one is selected, else\nthe documented setup fields of the embedded definition, else their\nabsence for a listing-only project. It never covers Portcove's own\nserialization of a definition, so an application update alone keeps\nthe binding.",
             "type": "string"
           },
           "retained": {
@@ -10742,6 +10742,7 @@
         "type": "object"
       },
       "PendingSetupInvalidation": {
+        "description": "A fact that makes this setup route itself invalid. A newer upstream\nrelease is not one; Core reports it as a notice instead.",
         "oneOf": [
           {
             "additionalProperties": false,
@@ -10763,7 +10764,7 @@
           },
           {
             "additionalProperties": false,
-            "description": "The strict definition or its selection changed.",
+            "description": "The catalog content this setup depends on changed.",
             "properties": {
               "kind": {
                 "const": "definition-changed",
@@ -10772,24 +10773,6 @@
             },
             "required": [
               "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "A complete upstream observation or reviewed pin names a newer release.",
-            "properties": {
-              "current_release_tag": {
-                "type": "string"
-              },
-              "kind": {
-                "const": "release-superseded",
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "current_release_tag"
             ],
             "type": "object"
           },
@@ -10842,20 +10825,6 @@
               "kind"
             ],
             "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "The chosen program changed or is missing.",
-            "properties": {
-              "kind": {
-                "const": "selected-result-changed",
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind"
-            ],
-            "type": "object"
           }
         ]
       },
@@ -10872,7 +10841,7 @@
                 "type": "null"
               }
             ],
-            "description": "Absent only for a record written before stages existed. Core binds it\nto the current facts when the player first continues that setup."
+            "description": "Absent only on the read-time mapping of a format 1 or 2 record. Core\nbinds it to the current facts when the player first moves the setup\npast `artifact-obtained`."
           },
           "stage": {
             "$ref": "#/$defs/PendingSetupStage"
@@ -10891,7 +10860,7 @@
         "oneOf": [
           {
             "additionalProperties": false,
-            "description": "The verified package is retained; nothing has been run.",
+            "description": "The verified package is retained; nothing has been run. Never stored:\nit is the read-time stage of a format 1 or 2 record.",
             "properties": {
               "stage": {
                 "const": "artifact-obtained",
@@ -10905,7 +10874,7 @@
           },
           {
             "additionalProperties": false,
-            "description": "Portcove handed the upstream setup to the player.",
+            "description": "The player opened the setup folder or the retained setup guide.",
             "properties": {
               "handoff": {
                 "$ref": "#/$defs/UpstreamSetupHandoff"
@@ -10922,32 +10891,6 @@
               "stage",
               "handoff",
               "opened_at"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "Portcove waits for the player's named next action.",
-            "properties": {
-              "action": {
-                "$ref": "#/$defs/PlayerSetupAction"
-              },
-              "exit_code": {
-                "description": "The upstream setup's reported exit code, when one was reported.\nIt never decides completion.",
-                "format": "int32",
-                "type": [
-                  "integer",
-                  "null"
-                ]
-              },
-              "stage": {
-                "const": "player-action-needed",
-                "type": "string"
-              }
-            },
-            "required": [
-              "stage",
-              "action"
             ],
             "type": "object"
           },
@@ -11019,7 +10962,6 @@
         "enum": [
           "artifact-obtained",
           "upstream-setup-opened",
-          "player-action-needed",
           "final-selected",
           "registration-reviewed",
           "invalidated"
@@ -11039,14 +10981,6 @@
           "linux-x86-64",
           "macos-x86-64",
           "macos-aarch64"
-        ],
-        "type": "string"
-      },
-      "PlayerSetupAction": {
-        "enum": [
-          "finish-upstream-setup",
-          "choose-installed-game",
-          "retry-upstream-setup"
         ],
         "type": "string"
       },
@@ -11441,7 +11375,7 @@
         "type": "object"
       },
       "RetainedSetupBytes": {
-        "description": "Verified bytes the setup folder retains, rechecked before each stage.",
+        "description": "Verified bytes the setup folder retains.",
         "oneOf": [
           {
             "additionalProperties": false,
@@ -11571,7 +11505,7 @@
         "type": "object"
       },
       "UpstreamSetupHandoff": {
-        "description": "What Portcove handed to the player. Portcove never runs the upstream\ninstaller itself from a pending setup.",
+        "description": "What the player opened. Portcove never runs the upstream installer itself\nfrom a pending setup.",
         "oneOf": [
           {
             "additionalProperties": false,
@@ -11648,7 +11582,7 @@
             "type": "null"
           }
         ],
-        "description": "Where the player is in the upstream setup that follows the download.\nFormat 3 persists it; earlier formats map a finished download to\n`artifact-obtained` on read without writing it back."
+        "description": "Where the player is in the upstream setup that follows the download.\nPublication writes format 1 or 2 without it, which earlier releases\nread; Core maps a finished download to `artifact-obtained` on read\nwithout writing it back. Format 3 persists it only once the player\nmoves the setup past that stage."
       },
       "reason": {
         "type": [
@@ -25849,14 +25783,14 @@
       },
       "PendingSetupBinding": {
         "additionalProperties": false,
-        "description": "The exact facts a stage belongs to. Any change invalidates the stage.",
+        "description": "The exact facts a stage belongs to. A change invalidates the stage.",
         "properties": {
           "artifact_role": {
             "$ref": "#/$defs/ArtifactRole",
             "description": "Typed route fact for the downloaded artifact. A filename suggestion\ndescribes it; it never authorizes a runtime."
           },
           "definition_sha256": {
-            "description": "Digest of the strict definition and selection known for this port, or\nof their absence for a listing-only project.",
+            "description": "Digest of the catalog content this setup depends on: the retained\nsigned definition entry and its contracts when one is selected, else\nthe documented setup fields of the embedded definition, else their\nabsence for a listing-only project. It never covers Portcove's own\nserialization of a definition, so an application update alone keeps\nthe binding.",
             "type": "string"
           },
           "retained": {
@@ -25880,6 +25814,7 @@
         "type": "object"
       },
       "PendingSetupInvalidation": {
+        "description": "A fact that makes this setup route itself invalid. A newer upstream\nrelease is not one; Core reports it as a notice instead.",
         "oneOf": [
           {
             "additionalProperties": false,
@@ -25901,7 +25836,7 @@
           },
           {
             "additionalProperties": false,
-            "description": "The strict definition or its selection changed.",
+            "description": "The catalog content this setup depends on changed.",
             "properties": {
               "kind": {
                 "const": "definition-changed",
@@ -25910,24 +25845,6 @@
             },
             "required": [
               "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "A complete upstream observation or reviewed pin names a newer release.",
-            "properties": {
-              "current_release_tag": {
-                "type": "string"
-              },
-              "kind": {
-                "const": "release-superseded",
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "current_release_tag"
             ],
             "type": "object"
           },
@@ -25980,20 +25897,6 @@
               "kind"
             ],
             "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "The chosen program changed or is missing.",
-            "properties": {
-              "kind": {
-                "const": "selected-result-changed",
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind"
-            ],
-            "type": "object"
           }
         ]
       },
@@ -26010,7 +25913,7 @@
                 "type": "null"
               }
             ],
-            "description": "Absent only for a record written before stages existed. Core binds it\nto the current facts when the player first continues that setup."
+            "description": "Absent only on the read-time mapping of a format 1 or 2 record. Core\nbinds it to the current facts when the player first moves the setup\npast `artifact-obtained`."
           },
           "stage": {
             "$ref": "#/$defs/PendingSetupStage"
@@ -26065,7 +25968,7 @@
                 "type": "null"
               }
             ],
-            "description": "Where the player is in the upstream setup that follows the download.\nFormat 3 persists it; earlier formats map a finished download to\n`artifact-obtained` on read without writing it back."
+            "description": "Where the player is in the upstream setup that follows the download.\nPublication writes format 1 or 2 without it, which earlier releases\nread; Core maps a finished download to `artifact-obtained` on read\nwithout writing it back. Format 3 persists it only once the player\nmoves the setup past that stage."
           },
           "reason": {
             "type": [
@@ -26094,7 +25997,7 @@
         "oneOf": [
           {
             "additionalProperties": false,
-            "description": "The verified package is retained; nothing has been run.",
+            "description": "The verified package is retained; nothing has been run. Never stored:\nit is the read-time stage of a format 1 or 2 record.",
             "properties": {
               "stage": {
                 "const": "artifact-obtained",
@@ -26108,7 +26011,7 @@
           },
           {
             "additionalProperties": false,
-            "description": "Portcove handed the upstream setup to the player.",
+            "description": "The player opened the setup folder or the retained setup guide.",
             "properties": {
               "handoff": {
                 "$ref": "#/$defs/UpstreamSetupHandoff"
@@ -26125,32 +26028,6 @@
               "stage",
               "handoff",
               "opened_at"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "Portcove waits for the player's named next action.",
-            "properties": {
-              "action": {
-                "$ref": "#/$defs/PlayerSetupAction"
-              },
-              "exit_code": {
-                "description": "The upstream setup's reported exit code, when one was reported.\nIt never decides completion.",
-                "format": "int32",
-                "type": [
-                  "integer",
-                  "null"
-                ]
-              },
-              "stage": {
-                "const": "player-action-needed",
-                "type": "string"
-              }
-            },
-            "required": [
-              "stage",
-              "action"
             ],
             "type": "object"
           },
@@ -26222,7 +26099,6 @@
         "enum": [
           "artifact-obtained",
           "upstream-setup-opened",
-          "player-action-needed",
           "final-selected",
           "registration-reviewed",
           "invalidated"
@@ -26315,14 +26191,6 @@
           "problem"
         ],
         "type": "object"
-      },
-      "PlayerSetupAction": {
-        "enum": [
-          "finish-upstream-setup",
-          "choose-installed-game",
-          "retry-upstream-setup"
-        ],
-        "type": "string"
       },
       "PortAction": {
         "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
@@ -28712,7 +28580,7 @@
         "type": "object"
       },
       "RetainedSetupBytes": {
-        "description": "Verified bytes the setup folder retains, rechecked before each stage.",
+        "description": "Verified bytes the setup folder retains.",
         "oneOf": [
           {
             "additionalProperties": false,
@@ -30858,7 +30726,7 @@
         "type": "object"
       },
       "UpstreamSetupHandoff": {
-        "description": "What Portcove handed to the player. Portcove never runs the upstream\ninstaller itself from a pending setup.",
+        "description": "What the player opened. Portcove never runs the upstream installer itself\nfrom a pending setup.",
         "oneOf": [
           {
             "additionalProperties": false,

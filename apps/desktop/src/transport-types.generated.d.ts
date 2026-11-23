@@ -947,12 +947,7 @@ export type CapabilityFeature =
 export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type PendingSetupStageKind =
-  | "artifact-obtained"
-  | "upstream-setup-opened"
-  | "player-action-needed"
-  | "final-selected"
-  | "registration-reviewed"
-  | "invalidated";
+  "artifact-obtained" | "upstream-setup-opened" | "final-selected" | "registration-reviewed" | "invalidated";
 export type OutputListingStatuses = PortListingStatus[];
 /**
  * Upstream-owned browser routes. These grant no download or import capability.
@@ -1064,7 +1059,7 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 /**
- * Verified bytes the setup folder retains, rechecked before each stage.
+ * Verified bytes the setup folder retains.
  */
 export type RetainedSetupBytes =
   | {
@@ -1117,15 +1112,6 @@ export type PendingSetupStage =
       stage: "upstream-setup-opened";
     }
   | {
-      action: PlayerSetupAction;
-      /**
-       * The upstream setup's reported exit code, when one was reported.
-       * It never decides completion.
-       */
-      exit_code?: number | null;
-      stage: "player-action-needed";
-    }
-  | {
       selection: SelectedSetupResult;
       stage: "final-selected";
     }
@@ -1140,8 +1126,8 @@ export type PendingSetupStage =
       stage: "invalidated";
     };
 /**
- * What Portcove handed to the player. Portcove never runs the upstream
- * installer itself from a pending setup.
+ * What the player opened. Portcove never runs the upstream installer itself
+ * from a pending setup.
  */
 export type UpstreamSetupHandoff =
   | {
@@ -1151,7 +1137,10 @@ export type UpstreamSetupHandoff =
       kind: "guide";
       url: string;
     };
-export type PlayerSetupAction = "finish-upstream-setup" | "choose-installed-game" | "retry-upstream-setup";
+/**
+ * A fact that makes this setup route itself invalid. A newer upstream
+ * release is not one; Core reports it as a notice instead.
+ */
 export type PendingSetupInvalidation =
   | {
       current_source_url: string;
@@ -1159,10 +1148,6 @@ export type PendingSetupInvalidation =
     }
   | {
       kind: "definition-changed";
-    }
-  | {
-      current_release_tag: string;
-      kind: "release-superseded";
     }
   | {
       explanation: string;
@@ -1174,9 +1159,6 @@ export type PendingSetupInvalidation =
     }
   | {
       kind: "retained-bytes-changed";
-    }
-  | {
-      kind: "selected-result-changed";
     };
 /**
  * What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a
@@ -6385,8 +6367,10 @@ export interface PendingSetupRecord {
   port_id: string;
   /**
    * Where the player is in the upstream setup that follows the download.
-   * Format 3 persists it; earlier formats map a finished download to
-   * `artifact-obtained` on read without writing it back.
+   * Publication writes format 1 or 2 without it, which earlier releases
+   * read; Core maps a finished download to `artifact-obtained` on read
+   * without writing it back. Format 3 persists it only once the player
+   * moves the setup past that stage.
    */
   progress?: PendingSetupProgress | null;
   reason: string | null;
@@ -6397,15 +6381,16 @@ export interface PendingSetupRecord {
  */
 export interface PendingSetupProgress {
   /**
-   * Absent only for a record written before stages existed. Core binds it
-   * to the current facts when the player first continues that setup.
+   * Absent only on the read-time mapping of a format 1 or 2 record. Core
+   * binds it to the current facts when the player first moves the setup
+   * past `artifact-obtained`.
    */
   binding?: PendingSetupBinding | null;
   stage: PendingSetupStage;
   updated_at: string;
 }
 /**
- * The exact facts a stage belongs to. Any change invalidates the stage.
+ * The exact facts a stage belongs to. A change invalidates the stage.
  */
 export interface PendingSetupBinding {
   /**
@@ -6430,8 +6415,12 @@ export interface PendingSetupBinding {
     | "debug-symbols"
     | "unknown";
   /**
-   * Digest of the strict definition and selection known for this port, or
-   * of their absence for a listing-only project.
+   * Digest of the catalog content this setup depends on: the retained
+   * signed definition entry and its contracts when one is selected, else
+   * the documented setup fields of the embedded definition, else their
+   * absence for a listing-only project. It never covers Portcove's own
+   * serialization of a definition, so an application update alone keeps
+   * the binding.
    */
   definition_sha256: string;
   retained: RetainedSetupBytes;
