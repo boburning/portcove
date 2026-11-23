@@ -83,11 +83,15 @@ fn inspect_listing_publication(
     } else {
         (bytes, raw_sha256.clone())
     };
+    // Decoding the staged target is pure in-memory parsing and validation, so
+    // any failure is a refusal of the candidate's content, not a state error.
+    // Publication preparation excludes optional enrichment only on a refusal.
     let document = if target == portcove_listing_carrier::COMPACT_TARGET {
-        ListingDeliveryDocument::parse_compact(payload)?
+        ListingDeliveryDocument::parse_compact(payload)
     } else {
-        ListingDeliveryDocument::parse(payload)?
-    };
+        ListingDeliveryDocument::parse(payload)
+    }
+    .map_err(|error| PortcoveError::verification(error.to_string()))?;
     Ok((
         ListingPublicationIdentity {
             target: target.into(),

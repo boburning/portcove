@@ -6,8 +6,15 @@ import test from "node:test";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   extractHistoricalLinuxCli,
+  prepareHistoricalLinuxInputs,
   readHistoricalLinuxInputs,
 } from "./updater-historical-inputs.mts";
+import { createHash } from "node:crypto";
+import {
+  downloadPinnedPortcoveReleaseAsset,
+  downloadPortcoveReleaseAsset,
+  fetchPublicPortcoveApi,
+} from "./portcove-release-download.mts";
 
 function historicalManifest(root: string) {
   return {
@@ -101,4 +108,94 @@ void test("historical CLI decoding rejects unadmitted compressed bytes before de
     () => extractHistoricalLinuxCli(Buffer.from("not a gzip archive")),
     /byte count differs/u,
   );
+});
+
+void test(
+  "historical inputs keep their request, redirect, bound and pin behavior on the shared transport",
+  { skip: process.platform !== "linux" || process.arch !== "x64" },
+  async (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "historical-linux-transport-"));
+    const appimage = "Portcove_0.1.0-alpha.2_amd64.AppImage";
+    const origin = `https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/${appimage}`;
+    let destination = "https://release-assets.githubusercontent.com/object";
+    let body: Buffer = Buffer.alloc(89795064);
+    const requests: { url: string; redirect: unknown; headers: unknown }[] = [];
+    t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+      requests.push({ url, redirect: options.redirect, headers: options.headers });
+      if (url === origin) return Response.redirect(destination, 302);
+      return new Response(body);
+    });
+    let attempt = 0;
+    const prepare = () =>
+      prepareHistoricalLinuxInputs(root, path.join(root, `inputs-${++attempt}`));
+    // Exact-size substituted bytes fail the historical pin with its own wording.
+    await assert.rejects(prepare(), new RegExp(`Historical ${appimage} digest differs`, "u"));
+    assert.deepEqual(requests, [
+      { url: origin, redirect: "manual", headers: undefined },
+      { url: destination, redirect: "manual", headers: undefined },
+    ]);
+    body = Buffer.alloc(16);
+    await assert.rejects(prepare(), new RegExp(`Historical ${appimage} byte count differs`, "u"));
+    body = Buffer.alloc(89795065);
+    await assert.rejects(prepare(), /Historical download byte bound/u);
+    destination = "https://other.example/object";
+    await assert.rejects(prepare(), /Historical release redirect refused/u);
+    assert.ok(!requests.some((request) => request.url === destination));
+  },
+);
+
+void test("published release downloads require exact coordinates, delivery origin and pinned bytes", async (t) => {
+  const bytes = Buffer.from("pinned");
+  const pin = {
+    name: "tool.tar.gz",
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+  let destination = "https://release-assets.githubusercontent.com/object";
+  let body = bytes;
+  let status = 200;
+  const requests: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    requests.push(url);
+    if (url.startsWith("https://api.github.com/")) {
+      assert.equal(options.redirect, "error");
+      // Anonymous: no authorization header is ever sent.
+      assert.equal(
+        Object.keys(options.headers as Record<string, string>).some(
+          (name) => name.toLowerCase() === "authorization",
+        ),
+        false,
+      );
+      return new Response(JSON.stringify({ id: 1 }), { status });
+    }
+    assert.equal(options.redirect, "manual");
+    assert.equal(options.headers, undefined);
+    if (url === "https://github.com/boburning/portcove/releases/download/v1/tool.tar.gz")
+      return Response.redirect(destination, 302);
+    return new Response(body);
+  });
+  assert.deepEqual(await downloadPinnedPortcoveReleaseAsset("v1", pin), bytes);
+  assert.equal(requests.length, 2);
+  await assert.rejects(
+    downloadPinnedPortcoveReleaseAsset("v1", { ...pin, name: "../other" }),
+    /coordinate/u,
+  );
+  await assert.rejects(downloadPortcoveReleaseAsset("v1", "a", 0), /bound/u);
+  assert.equal(requests.length, 2);
+  body = Buffer.from("denied");
+  await assert.rejects(downloadPinnedPortcoveReleaseAsset("v1", pin), /digest differs/u);
+  body = Buffer.from("oversize");
+  await assert.rejects(
+    downloadPinnedPortcoveReleaseAsset("v1", pin),
+    /Portcove download byte bound/u,
+  );
+  destination = "https://other.example/object";
+  await assert.rejects(downloadPinnedPortcoveReleaseAsset("v1", pin), /redirect refused/u);
+  assert.ok(!requests.includes(destination));
+  assert.deepEqual(await fetchPublicPortcoveApi("releases/tags/v1"), { id: 1 });
+  assert.equal(requests.at(-1), "https://api.github.com/repos/boburning/portcove/releases/tags/v1");
+  await assert.rejects(fetchPublicPortcoveApi("../users/x"), /Invalid public/u);
+  await assert.rejects(fetchPublicPortcoveApi("releases/tags/v1", 4), /API byte bound/u);
+  status = 403;
+  await assert.rejects(fetchPublicPortcoveApi("releases/tags/v1"), /unavailable \(403\)/u);
 });

@@ -340,3 +340,68 @@ fn publication_inspects_the_compact_producer_body_and_retained_legacy_together()
     files.insert(old.into(), revised);
     assert!(inspect_definition_publication_bytes(&files).is_err());
 }
+
+#[test]
+fn a_refused_listing_target_is_a_verification_refusal_for_either_carrier() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::Digest as _;
+    use std::io::Write as _;
+    let index = br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec();
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    let mut refused: Value = serde_json::from_slice(legacy).unwrap();
+    // Core's observation schema refuses an unknown field.
+    refused["directory"]["listings"][0]["upstream_observation"]["unexpected_field"] = json!(true);
+    let refused = serde_json::to_vec(&refused).unwrap();
+    let code = |files: &BTreeMap<String, Vec<u8>>| {
+        inspect_definition_publication_bytes(files)
+            .unwrap_err()
+            .code
+    };
+    for bytes in [refused.clone(), b"{".to_vec()] {
+        let files = BTreeMap::from([
+            (INDEX.into(), index.clone()),
+            (portcove_listing_carrier::LEGACY_TARGET.into(), bytes),
+        ]);
+        assert_eq!(code(&files), crate::ErrorCode::Verification);
+    }
+    // The same refusal inside a well-formed compact carrier, beside a control
+    // carrier that differs only by the refused field.
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    let (decoded, _) = portcove_listing_carrier::decode(wire).unwrap();
+    let carrier = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&bytes).unwrap();
+        serde_json::to_vec(&json!({
+            "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+            "decoded_bytes": bytes.len(),
+            "decoded_sha256": hex::encode(sha2::Sha256::digest(&bytes)),
+            "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
+        }))
+        .unwrap()
+    };
+    let mut document: Value = serde_json::from_slice(&decoded).unwrap();
+    // Above the retained legacy revision, so re-encoded bytes are no equivocation.
+    document["revision"] = json!(2);
+    let mut files = BTreeMap::from([
+        (INDEX.into(), index),
+        (
+            portcove_listing_carrier::LEGACY_TARGET.into(),
+            legacy.to_vec(),
+        ),
+        (
+            portcove_listing_carrier::COMPACT_TARGET.into(),
+            carrier(&document),
+        ),
+    ]);
+    inspect_definition_publication_bytes(&files).unwrap();
+    let listing = &mut document["directory"]["listings"][0];
+    assert!(listing["upstream_observation"].is_object());
+    listing["upstream_observation"]["unexpected_field"] = json!(true);
+    files.insert(
+        portcove_listing_carrier::COMPACT_TARGET.into(),
+        carrier(&document),
+    );
+    assert_eq!(code(&files), crate::ErrorCode::Verification);
+}

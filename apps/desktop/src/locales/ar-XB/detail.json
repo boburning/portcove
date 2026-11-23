@@ -125,6 +125,26 @@
     "toVersion": "الإصدار النشط",
     "unreadable": "تعذرت قراءتها"
   },
+  "changeReview": {
+    "mods_zero": "التعديلات · لا توجد تغييرات",
+    "mods_one": "التعديلات · {{count}} تغيير",
+    "mods_two": "التعديلات · تغييران",
+    "mods_few": "التعديلات · {{count}} تغييرات",
+    "mods_many": "التعديلات · {{count}} تغييرًا",
+    "mods_other": "التعديلات · {{count}} تغيير",
+    "open_zero": "لا توجد تغييرات للمراجعة",
+    "open_one": "مراجعة {{count}} تغيير",
+    "open_two": "مراجعة تغييرين",
+    "open_few": "مراجعة {{count}} تغييرات",
+    "open_many": "مراجعة {{count}} تغييرًا",
+    "open_other": "مراجعة {{count}} تغيير",
+    "settings_zero": "إعدادات اللعبة · لا توجد تغييرات",
+    "settings_one": "إعدادات اللعبة · {{count}} تغيير",
+    "settings_two": "إعدادات اللعبة · تغييران",
+    "settings_few": "إعدادات اللعبة · {{count}} تغييرات",
+    "settings_many": "إعدادات اللعبة · {{count}} تغييرًا",
+    "settings_other": "إعدادات اللعبة · {{count}} تغيير"
+  },
   "identity": {
     "label": "هوية اللعبة والمنفذ",
     "offeredChannel": "قناة التحديث المتاحة",

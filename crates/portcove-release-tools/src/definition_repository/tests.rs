@@ -1605,6 +1605,31 @@ fn reviewed_legacy_successor_adds_or_keeps_holds_and_never_loosens_one() {
             changed("upstream_observation", json!({"provider":"github"})),
             "added row differs",
         ),
+        // Duplicate identities are refused, never collapsed: a repeated held
+        // row, and an exact added row delivered twice.
+        (
+            {
+                let mut v = added.clone();
+                let open = v["directory"]["listings"][1].clone();
+                v["directory"]["listings"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(open);
+                v
+            },
+            "listing withdrawal directory differs",
+        ),
+        (
+            {
+                let mut v = with_row(absent_legacy.clone());
+                v["directory"]["listings"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(absent_legacy.clone());
+                v
+            },
+            "listing withdrawal directory differs",
+        ),
     ];
     for (index, (proposal, expected)) in refusals.into_iter().enumerate() {
         let failure = check(&proposal).expect_err(&format!("refusal {index}"));
@@ -1619,6 +1644,38 @@ fn reviewed_legacy_successor_adds_or_keeps_holds_and_never_loosens_one() {
         let failure = check_with(&proposal, &withdrawn).unwrap_err();
         assert!(failure.contains("no unwithdrawn compact row"), "{failure}");
     }
+    // A compact directory that repeats an identity binds nothing.
+    let repeated = compact_document(
+        &[],
+        json!([
+            {"id":"held","download_block_reason":"Held, revised","a":1},
+            {"id":"open","a":2,"download_block_reason":"New hold"},
+            absent_compact.clone(),
+            absent_compact.clone()
+        ]),
+    );
+    let failure = check_with(&with_row(absent_legacy.clone()), &repeated).unwrap_err();
+    assert!(
+        failure.contains("listing withdrawal directory differs"),
+        "{failure}"
+    );
+    // A prior legacy target that repeats an identity cannot be succeeded.
+    let mut repeated_prior = older.clone();
+    repeated_prior["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"open","a":2}));
+    let failure = bundle::check_legacy_successor(
+        &serde_json::to_vec(&repeated_prior).unwrap(),
+        &serde_json::to_vec(&added).unwrap(),
+        &compact,
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(
+        failure.contains("listing withdrawal directory differs"),
+        "{failure}"
+    );
     // A compact row without the hold cannot authorize one.
     let unheld = compact_rows("Held", None, absent_compact);
     let failure = check_with(&added, &unheld).unwrap_err();

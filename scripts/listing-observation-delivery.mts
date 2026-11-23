@@ -1,7 +1,15 @@
 /** Existing observer facts -> the existing signed descriptive target. No executable authority. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -18,6 +26,11 @@ import { readUpstreamObservations } from "./maintenance-upstream.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  acquireCatalogReleasedReader,
+  liveReleasedReaderSources,
+} from "./catalog-released-reader.mts";
+import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
 
 import {
   compactListingCarrier,
@@ -739,6 +752,11 @@ export async function priorListingForRenewal(
     maximum,
   );
   if (hash(wire) !== identity) throw new Error("Historical listing target digest differs");
+  return retainedListingRenewal(wire, canonicalRecords, carrier);
+}
+
+/** The exact authenticated carrier, republished unchanged for the signer. */
+function retainedListingRenewal(wire: Buffer, canonicalRecords: number, carrier: string) {
   const { bytes, document: old } = readDeliveryCarrier(wire, carrier);
   return {
     bytes,
@@ -752,6 +770,60 @@ export async function priorListingForRenewal(
     canonical_records: canonicalRecords,
     delivered_records: old.directory.listings.length,
   };
+}
+
+/** Core's own refusal of a staged candidate publication. Only this excludes
+ * optional enrichment; every other inspection failure fails preparation. */
+export class CoreInspectionRefusal extends Error {}
+
+/** Core's JSON error exit codes for a refused input (`catalog inspect-*`). */
+const coreRefusalExitCodes: Record<string, number> = {
+  unsupported: 3,
+  source_invalid: 5,
+  verification: 11,
+};
+
+/** Classify a failed `portcove --json catalog inspect-*` run. A refusal is a
+ * completed process whose exit code and JSON envelope both name a Core input
+ * refusal. A timeout, signal, crash, output overflow, malformed output or any
+ * other Core error code (state, usage, ...) is an inspection failure. */
+export function classifyCoreInspectionFailure(error: unknown): CoreInspectionRefusal | Error {
+  const failure = isRecord(error) ? error : {};
+  const stdout =
+    typeof failure.stdout === "string"
+      ? failure.stdout
+      : Buffer.isBuffer(failure.stdout)
+        ? failure.stdout.toString("utf8")
+        : "";
+  if (failure.code === "ETIMEDOUT" || failure.code === "ENOBUFS" || failure.signal)
+    return new Error(
+      `Core publication inspection did not complete (${typeof failure.code === "string" ? failure.code : String(failure.signal)}); preparation stops instead of excluding candidates`,
+    );
+  let envelope: unknown;
+  try {
+    envelope = JSON.parse(stdout);
+  } catch {
+    envelope = undefined;
+  }
+  const code =
+    isRecord(envelope) && envelope.ok === false && isRecord(envelope.error)
+      ? envelope.error.code
+      : undefined;
+  const message =
+    isRecord(envelope) && isRecord(envelope.error) && typeof envelope.error.message === "string"
+      ? envelope.error.message.slice(0, 300)
+      : "";
+  if (
+    typeof code === "string" &&
+    Object.hasOwn(coreRefusalExitCodes, code) &&
+    failure.status === coreRefusalExitCodes[code]
+  )
+    return new CoreInspectionRefusal(
+      `Core refused the candidate publication (${code}): ${message}`,
+    );
+  return new Error(
+    `Core publication inspection failed without a candidate refusal (exit ${String(failure.status)}${typeof code === "string" ? `, ${code}` : ""}); preparation stops instead of excluding candidates${message ? `: ${message}` : ""}`,
+  );
 }
 
 function isolatedEnvironment(root: string) {
@@ -774,6 +846,60 @@ function isolatedEnvironment(root: string) {
   delete env.PORTCOVE_GITHUB_TOKEN;
   return env;
 }
+/** Run the frozen released reader's capability report in a private working
+ * directory with no credentials, and require the compact carrier and `format`. */
+async function probeReleasedReader(
+  reader: { cli: string; sha256: string },
+  format: number,
+  workspace: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  if (!/^[a-f0-9]{64}$/u.test(reader.sha256))
+    throw new Error(
+      "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
+    );
+  const bytes = await readControllerToolFile(reader.cli);
+  const digest = hash(bytes);
+  if (digest !== reader.sha256) throw new Error("Reviewed released CLI SHA-256 differs");
+  const probe = mkdtempSync(path.join(workspace, "released-reader-"));
+  const frozen = path.join(
+    probe,
+    process.platform === "win32" ? "released-reader.exe" : "released-reader",
+  );
+  writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
+  const temporary = path.join(probe, "temp");
+  mkdirSync(temporary);
+  const probeEnvironment: NodeJS.ProcessEnv = {
+    TEMP: temporary,
+    TMP: temporary,
+    TMPDIR: temporary,
+  };
+  for (const name of [
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+    "PORTCOVE_PREFERENCES",
+    "SystemRoot",
+  ])
+    if (environment[name] !== undefined) probeEnvironment[name] = environment[name];
+  const report: unknown = JSON.parse(
+    execFileSync(frozen, ["--json", "capabilities"], {
+      cwd: probe,
+      env: probeEnvironment,
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+      encoding: "utf8",
+    }),
+  );
+  return { version: requireCompactListingReader(report, format), sha256: digest };
+}
+
 export async function prepareObservationBundle(options: {
   bundle: string;
   canonical: string;
@@ -788,8 +914,17 @@ export async function prepareObservationBundle(options: {
   compact?: boolean;
   /** Reviewed recovery from an active compact carrier; no workflow passes it. */
   returnToLegacy?: boolean;
+  /** An explicit reviewed reader; rehearsal and tests override selection with it. */
   releasedReader?: { cli: string; sha256: string };
+  /** Select and verify the reader from the protected Preview pointer, and
+   * activate or advance compact delivery only when it is verified capable.
+   * No workflow passes it yet; enabling it is the activation step. */
+  officialReleasedReader?: boolean;
+  /** Replaces the live, anonymous acquisition (rehearsal fixtures, tests). */
+  acquireReleasedReader?: (privateRoot: string) => Promise<AcquiredReleasedReader>;
   readObservation?: () => Promise<UpstreamInput>;
+  /** Per-invocation Core CLI deadline; tests shorten it. */
+  cliTimeoutMs?: number;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
@@ -804,7 +939,7 @@ export async function prepareObservationBundle(options: {
   const cli = (args: string[]) =>
     execFileSync(options.cli, args, {
       env: environment,
-      timeout: 30000,
+      timeout: options.cliTimeoutMs ?? 30000,
       maxBuffer: 16 * 1024 * 1024,
       encoding: "utf8",
     });
@@ -823,8 +958,14 @@ export async function prepareObservationBundle(options: {
   let successor: Delivery | undefined;
   let renewal: Awaited<ReturnType<typeof priorListingForRenewal>> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
+  let activationLegacy: Buffer | null = null;
   if (options.returnToLegacy && (options.compact || authoredLegacy))
     throw new Error("A legacy-only return publishes neither a compact nor a reviewed legacy input");
+  const automatic = options.officialReleasedReader === true;
+  if (automatic && (options.compact || options.returnToLegacy || options.releasedReader))
+    throw new Error(
+      "Official released-reader selection decides activation itself; it takes no --compact, return or explicit reader",
+    );
   if (options.prior) {
     if (!existsSync(path.join(options.prior, "metadata/timestamp.json")))
       throw new Error(
@@ -863,6 +1004,8 @@ export async function prepareObservationBundle(options: {
       previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
       if (useCompact)
         retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
+      // Automatic first activation needs the current authenticated legacy.
+      else if (automatic) activationLegacy = previous;
     } catch (error) {
       // The signer authenticates the historical target before renewal. Never use
       // an unauthenticated observation, or replace a directory we could not read.
@@ -881,6 +1024,60 @@ export async function prepareObservationBundle(options: {
       diagnostics.push(
         `retained exact previous listing bytes for historical signer verification; prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
       );
+    }
+  }
+  // Automatic selection: verify the official reader only when activation or a
+  // compact format increase needs it. A failed selection never stops ordinary
+  // publication: a legacy-only prior stays legacy-only, and an active compact
+  // prior republishes both exact authenticated carriers until it verifies.
+  let officialReader: AcquiredReleasedReader | undefined;
+  let releasedReader: { version: string; sha256: string } | undefined;
+  let readerUnavailable: string | undefined;
+  if (automatic && !renewal) {
+    const previousCompact =
+      priorCompact && previous ? delivery(parseCatalogSource(previous.toString("utf8"))) : null;
+    const candidateFormat = compactDirectoryFormat(canonical, previousCompact);
+    const needed = priorCompact
+      ? candidateFormat > (previousCompact?.directory.format_version ?? 0)
+      : activationLegacy !== null;
+    if (needed) {
+      try {
+        if (candidateFormat !== latestListingFormat)
+          throw new Error("Official activation targets listing format " + latestListingFormat);
+        officialReader = await (
+          options.acquireReleasedReader ??
+          ((root: string) =>
+            acquireCatalogReleasedReader(root, liveReleasedReaderSources(process.cwd(), root)))
+        )(workspace);
+        const probed = await probeReleasedReader(
+          officialReader,
+          candidateFormat,
+          workspace,
+          environment,
+        );
+        if (probed.version !== officialReader.version)
+          throw new Error("Released CLI capabilities version differs from its official release");
+        releasedReader = probed;
+        if (!priorCompact) {
+          useCompact = true;
+          retainedLegacy = activationLegacy;
+        }
+      } catch (cause) {
+        officialReader = undefined;
+        readerUnavailable = cause instanceof Error ? cause.message.slice(0, 300) : "failed";
+        diagnostics.push(
+          `verified compatible released CLI unavailable; retaining prior listing carriers: ${readerUnavailable}`,
+        );
+        if (priorCompact) {
+          if (!previousWire || !retainedLegacy)
+            throw new Error("Compact renewal requires both authenticated prior targets", { cause });
+          renewal = retainedListingRenewal(
+            previousWire,
+            canonical.listings.length,
+            compactListingDeliveryTarget,
+          );
+        }
+      }
     }
   }
   if (useCompact && !retainedLegacy)
@@ -945,37 +1142,22 @@ export async function prepareObservationBundle(options: {
     : useCompact
       ? compactDirectoryFormat(canonical, previousDocument)
       : legacyListingFormat;
-  let releasedReader: { version: string; sha256: string } | undefined;
   if (
     !renewal &&
+    !releasedReader &&
     useCompact &&
     (!priorCompact || format > (previousDocument?.directory.format_version ?? 0))
   ) {
-    if (!options.releasedReader || !/^[a-f0-9]{64}$/u.test(options.releasedReader.sha256))
+    if (!options.releasedReader)
       throw new Error(
         "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
       );
-    const bytes = await readControllerToolFile(options.releasedReader.cli);
-    const digest = hash(bytes);
-    if (digest !== options.releasedReader.sha256)
-      throw new Error("Reviewed released CLI SHA-256 differs");
-    const frozen = path.join(
+    releasedReader = await probeReleasedReader(
+      options.releasedReader,
+      format,
       workspace,
-      process.platform === "win32" ? "released-reader.exe" : "released-reader",
+      environment,
     );
-    writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
-    const report: unknown = JSON.parse(
-      execFileSync(frozen, ["--json", "capabilities"], {
-        env: environment,
-        timeout: 30000,
-        maxBuffer: 1024 * 1024,
-        encoding: "utf8",
-      }),
-    );
-    releasedReader = {
-      version: requireCompactListingReader(report, format),
-      sha256: digest,
-    };
   }
   let compatible: Directory | undefined;
   if (!renewal) compatible = exportFormat(format);
@@ -1080,7 +1262,11 @@ export async function prepareObservationBundle(options: {
       writeFileSync(path.join(destinationRoot, compactListingDeliveryTarget), compactWire, {
         flag: "wx",
       });
-      cli(["--json", "catalog", "inspect-definition-publication", destinationRoot]);
+      try {
+        cli(["--json", "catalog", "inspect-definition-publication", destinationRoot]);
+      } catch (error) {
+        throw classifyCoreInspectionFailure(error);
+      }
     }
     return compactWire;
   };
@@ -1103,9 +1289,10 @@ export async function prepareObservationBundle(options: {
       );
     }
   } else if (!renewal && candidates.length) {
-    // Compact publication isolates invalid optional enrichment. Projection
-    // failures, including capacity exhaustion, still fail preparation; only a
-    // Core validation refusal of the staged publication excludes candidates.
+    // Compact publication isolates invalid optional enrichment. Only Core's
+    // refusal of the staged publication excludes candidates. Projection
+    // failures, capacity exhaustion of the encoded carrier, staging errors and
+    // a Core CLI crash, timeout or non-refusal error fail preparation.
     let validationRun = 0;
     const accepts = async (observations: readonly Record<string, unknown>[]) => {
       const candidate = project(observations);
@@ -1113,8 +1300,9 @@ export async function prepareObservationBundle(options: {
       try {
         await stage(candidate, scratch);
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        if (error instanceof CoreInspectionRefusal) return false;
+        throw error;
       } finally {
         rmSync(scratch, { recursive: true, force: true });
       }
@@ -1140,6 +1328,17 @@ export async function prepareObservationBundle(options: {
     revision: projected.revision,
     listing_format: format,
     ...(releasedReader ? { released_reader: releasedReader } : {}),
+    ...(officialReader
+      ? {
+          released_reader_source: officialReader.receipt,
+          // Publish rechecks this selection against each fresh Pages base.
+          released_reader_activation: {
+            version: officialReader.version,
+            tag: officialReader.receipt.tag,
+          },
+        }
+      : {}),
+    ...(readerUnavailable ? { released_reader_unavailable: readerUnavailable } : {}),
     changed: projected.changed,
     retained: projected.retained,
     updated: projected.updated,
@@ -1209,6 +1408,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "return-to-legacy": { type: "boolean", default: false },
       "released-reader": { type: "string" },
       "released-reader-sha256": { type: "string" },
+      "official-released-reader": { type: "boolean", default: false },
     },
   });
   for (const key of [
@@ -1239,6 +1439,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         observe: !values.offline,
         compact: values.compact,
         returnToLegacy: values["return-to-legacy"],
+        officialReleasedReader: values["official-released-reader"],
         ...(values["released-reader"] && values["released-reader-sha256"]
           ? {
               releasedReader: {

@@ -1312,6 +1312,130 @@ mod tests {
         })
     }
 
+    /// The release-tools signer binds an added legacy row to
+    /// `portcove_listing_carrier::legacy_row_projection` of the compact row;
+    /// preparation binds it to this export. Both must agree on every row.
+    fn assert_signer_projection_matches_export(document: &CatalogListingDocument) {
+        let current = serde_json::to_value(document).unwrap();
+        let legacy = serde_json::to_value(document.export_format(11).unwrap()).unwrap();
+        let (current, legacy) = (
+            current["listings"].as_array().unwrap(),
+            legacy["listings"].as_array().unwrap(),
+        );
+        assert_eq!(current.len(), legacy.len());
+        for (row, exported) in current.iter().zip(legacy) {
+            let mut exported = exported.clone();
+            exported
+                .as_object_mut()
+                .unwrap()
+                .remove("upstream_observation");
+            assert_eq!(
+                portcove_listing_carrier::legacy_row_projection(row),
+                exported,
+                "{}",
+                row["id"]
+            );
+            // A compact row's observation never reaches the legacy row.
+            let mut observed = row.clone();
+            observed["upstream_observation"] = json!({"provider": "github"});
+            assert_eq!(
+                portcove_listing_carrier::legacy_row_projection(&observed),
+                exported
+            );
+        }
+    }
+
+    #[test]
+    fn signer_legacy_row_projection_equals_core_format_eleven_export() {
+        let committed =
+            CatalogListingDocument::from_json(include_str!("../../catalog/listings.json")).unwrap();
+        assert_eq!(committed.format_version, RESTRICTION_LISTING_FORMAT);
+        assert_signer_projection_matches_export(&committed);
+
+        // Fixture rows for every format-12+ fact the export removes, and the
+        // omission of a media list that held only typed scenes.
+        let reason = "Fresh acquisition remains held for the documented permissions.";
+        let scene = json!({
+            "id":"igdb-screen","role":"screenshot",
+            "subject":{"kind":"port","port_id":"held-with-scenes"},
+            "caption":"IGDB shot",
+            "url":"https://images.igdb.com/igdb/image/upload/t_720p/fixture.png",
+            "sha256":"b".repeat(64),"width":1280,"height":720,
+            "attribution":"Fixture author","source_url":"https://www.igdb.com/games/fixture",
+            "license":"LicenseRef-IGDB-Terms",
+            "rights_url":"https://www.twitch.tv/p/en/legal/developer-agreement/",
+            "igdb":{"game_id":11,"record_id":21,"kind":"screenshot","image_id":"fixture","game_slug":"fixture"}
+        });
+        let shot = json!({
+            "id":"legacy","role":"screenshot",
+            "subject":{"kind":"port","port_id":"open-with-media"},
+            "caption":"Legacy shot",
+            "url":format!("https://raw.githubusercontent.com/owner/project/{}/shot.png", "a".repeat(40)),
+            "sha256":"a".repeat(64),"width":400,"height":200,
+            "attribution":"Fixture author","source_url":"https://example.com/source",
+            "license":"CC0-1.0","rights_url":"https://example.com/rights"
+        });
+        let mut mixed_scene = scene.clone();
+        mixed_scene["subject"]["port_id"] = json!("open-with-media");
+        let implementation = committed
+            .listings
+            .iter()
+            .find_map(|listing| listing.implementation.clone())
+            .unwrap();
+        let mut held = listing();
+        held["id"] = json!("held-with-scenes");
+        held["download_block_reason"] = json!(reason);
+        held["restrictions"] = json!([{
+            "id":"download","effect":"hold","operations":["download"],
+            "reason":"bundled-game-data","explanation":reason,"tracking_issue":1
+        }]);
+        held["implementation"] = serde_json::to_value(&implementation).unwrap();
+        held["media"] = json!([scene]);
+        held["original_game"] = json!({
+            "format_version": 1,
+            "id": "original-game",
+            "evidence_urls": ["https://example.com/original"],
+            "source_editions": [{
+                "id": "retail",
+                "title": "Retail edition",
+                "evidence_urls": ["https://example.com/retail"],
+                "verified_sources": [{
+                    "game_id": "original-source",
+                    "variant_id": "first-release",
+                    "representation_id": "retail-file-set",
+                }]
+            }, {
+                "id": "other",
+                "title": "Other edition",
+                "evidence_urls": ["https://example.com/other"]
+            }]
+        });
+        let mut open = listing();
+        open["id"] = json!("open-with-media");
+        open["media"] = json!([shot, mixed_scene]);
+        let fixtures = CatalogListingDocument::from_json(
+            &json!({"format_version": RESTRICTION_LISTING_FORMAT, "listings": [held, open, listing()]})
+                .to_string(),
+        )
+        .unwrap();
+        assert_signer_projection_matches_export(&fixtures);
+        let projected = serde_json::to_value(fixtures.export_format(11).unwrap()).unwrap();
+        let held = &projected["listings"][0];
+        for field in ["restrictions", "implementation", "media"] {
+            assert!(held.get(field).is_none(), "{field}");
+        }
+        assert_eq!(held["download_block_reason"], json!(reason));
+        assert!(
+            held["original_game"]["source_editions"][0]
+                .get("verified_sources")
+                .is_none()
+        );
+        assert_eq!(
+            projected["listings"][1]["media"].as_array().unwrap().len(),
+            1
+        );
+    }
+
     #[test]
     fn verified_original_editions_require_format_fourteen_and_unambiguous_bindings() {
         let mut value = listing();
