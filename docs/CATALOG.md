@@ -3745,10 +3745,13 @@ blocked reason:
    ([release lines](#release-lines)). No other catalog identity names the
    same repository, unless the listing's release URL binds this identity to a
    release line no other identity is bound to (`shared-repository`). The
-   repository's observed releases form one release line, or the listing binds
-   one; the offered release is on that line; without a binding, that line is
-   the main line or names the listed product; and no newer prerelease of
-   another line follows it (`ambiguous-release-line`).
+   repository's observed stable releases form one release line, or the
+   listing binds one; the offered release is on that line; without a
+   binding, that line is the main line or names the listed product; and no
+   newer prerelease on the main line or another line naming the product
+   follows it (`ambiguous-release-line`). The offered release is stable by
+   Core's rule and its tag is not only channel words with a date, time or
+   hash (`no-stable-release`).
 9. No other package form of the release serves a platform the release also
    offers a readable archive for, unless it is that archive's own program:
    its provider SHA-256 equals a player those archives hold for that platform
@@ -3764,8 +3767,9 @@ blocked reason:
     `desktop-game-runtime` from an `exact-release-structured` fact. That fact
     binds the archive's provider SHA-256 and holds player candidates with
     their own SHA-256. No other fact source is accepted. The artifact is not
-    contradictory, and its name carries no tool or system token and names no
-    other system or architecture than the platform's. It holds a player
+    contradictory, its name carries no tool or system token and no
+    [archive role word](#one-program-per-platform) such as `update`, and it
+    names no other system or architecture than the platform's. It holds a player
     candidate whose platform-true machine runs on the platform and whose name
     carries no tool token. Each player's own machine decides where it runs:
     another player in the same archive, such as a 32-bit helper or the other
@@ -3775,8 +3779,10 @@ blocked reason:
     platform's game or a second one, so the platform is never decided around
     it.
 11. On that platform the players are one program, and the archives holding
-    them are one package
-    ([one program per platform](#one-program-per-platform)).
+    them are one package or exactly one of them names the platform's system
+    beside only system-neutral others
+    ([one program per platform](#one-program-per-platform)). No such archive
+    bundles a compiler, interpreter or build helper (`bundled-toolchain`).
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3856,13 +3862,44 @@ enrollment can still offer it. The gate checks the same rule with its own code
 and also requires an enrollment to name every player of its artifact that runs
 on the platform.
 
-One program name is not one package. A release can carry the game's archive
-and an authoring-tool archive whose program has the same file name. When more
-than one archive whose name allows the platform holds players for it, those
-archives must be the same package: the same set of player SHA-256 digests,
-such as a ZIP and a TAR.GZ of one build. Otherwise the identity is
-`ambiguous-artifact`; the rule never picks among them by order. The gate
-checks this with its own code too.
+One program name is not one package, and equal programs are not one package
+either. A release can carry the full game and a small update archive that
+holds the same game program (the same player SHA-256), or the game and an
+authoring-tool archive whose program has the same file name. Two archives are
+the same package only when their own bytes are (equal archive SHA-256).
+
+First, an archive whose own name holds a role word as a whole
+separator-delimited word is never offered: `update`, `updater`, `hotfix`,
+`delta`, `incremental`, `patch`, `symbols` or `debug` (`update-0.5.10.zip`,
+`Game-debug-win64.zip`; `Updated-Game.zip`, `Deltarune-Fan.zip` and
+`Patchwork.zip` pass). It is reported as an `asset-role-name` exclusion with
+the word as its token. Then, when more than one distinct archive whose name
+allows the platform still holds players for it, the platform is
+`ambiguous-artifact`, never chosen by order or size, with one exception:
+when exactly one of them names the platform's operating system in its name
+and every other is system-neutral, the explicit one is chosen. So a
+`Game-v1.0.zip` beside a `Game-v1.0.tar.gz` of the same game is ambiguous for
+every platform both allow, `Game-v1.0-windows.zip` beside `Game-v1.0.tar.gz`
+offers the Windows archive on Windows and the neutral tarball on Linux, and
+two Windows-named archives stay ambiguous. The one-program rule still counts
+the players of every such archive. The gate checks each part with its own
+code too.
+
+An archive that bundles a compiler, interpreter or build helper builds or
+prepares the game on the player's machine ("build on first start"), so a
+person must look at it. Core's inspection returns the archive's listing as
+names only (every distinct lowercase path component); the worker records
+the components that equal a helper name, with or without `.exe`, as the
+artifact's `bundled_toolchain`: `zig`, `clang`, `gcc`, `g++`, `cc1`, `ld`,
+`lld`, `python`, `python3`, `pip`, `node`, `cmake`, `ninja`, `make`,
+`msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta` and `xdelta3`.
+`7z` and `7za` are ordinary extraction helpers and are not on the list. Only a
+whole component matches, so `python311.dll`, `scripts/` or `node_modules/`
+never do. Any such archive among the platform's candidates makes the platform
+`bundled-toolchain`, whatever the program is called: a program name cannot
+prove the release does not build itself. The route-fit report lists the
+helper names per identity (`registration_queues.bundled_toolchains`). The
+gate refuses an enrollment decided beside such an archive with its own check.
 
 ##### Release lines
 
@@ -3896,6 +3933,15 @@ different product words:
   or `rev` are dropped, alone or glued to a number (`rc2`, `beta5`,
   `build123`, `nightly20250101`, `release1.2`). `final` and `update` are not
   channel words: they can name a product.
+- A commit hash (7 to 40 hex characters with at least one digit and one
+  letter `a`–`f`) is version noise: `native-only-1a2b3c4` is line
+  `native-only` and `dev-abc1234` is the main line, while `deadbeef-v1` (no
+  digit) is line `deadbeef`. `v.` before digits is a version (`v.0.1.1`).
+- `tester`, `prealpha`, `canary`, `wip`, `experimental`, `fixed`, `fix`,
+  `new` and `pr<digits>` are channel words when they stand next to a version,
+  date or hash, or when the tag holds nothing else (`wip-v0.4`, `pr42`,
+  `v1.0-fix`, `new`). Between product words they stay product words:
+  `new-game-v1` is line `new-game` and `fix-it-v1` is `fix-it`.
 - Operating-system and architecture words are dropped as whole words
   (`windows`, `win`, `win32`, `win64`, `linux`, `linux64`, `macos`, `mac`,
   `osx`, `darwin`, `universal`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`,
@@ -3920,18 +3966,38 @@ can offer it. The same holds for version-shaped product words: `v1-2` is
 line `v1-2` and `v1-r1` is line `v1`, so a repository tagging that way beside
 `v1.3` is excluded too.
 
+A tag that consists only of rolling-channel words (`nightly`, `continuous`,
+`latest`, `dev`, `build`, `snapshot`, `canary`, `preview`, `test`, `wip`,
+`experimental` and similar) plus dates, times, hashes and system or
+architecture words is a prerelease for the newest-stable choice even when the
+provider does not flag it: `build_20261120_2250`, `nightly-2025-01-01`,
+`continuous`, `latest` and `dev-abc1234`. A date or time word is an even
+number of two to fourteen digits. `release-2025-01-01`, `build-123`,
+`nightly-1` and `2025.01.01` are not such tags. The worker records the
+combined verdict, and the fit rule and the gate each restate the tag rule
+(`channelOnlyTag`, `gateChannelOnlyTag`) for the offered release and every
+observed release.
+
 The worker records each observed release (within the observer's own bound of
-the newest releases) with its tag, Core's prerelease verdict, publication time
-and whether it carries a package file. The fit rule and, independently, the
-gate refuse an identity when:
+the newest releases) with its tag, its prerelease verdict, publication time
+and whether it carries a package file. Each check sees these releases:
+
+- The line count (below) sees only the stable packaged releases, plus any
+  release whose verdict Core did not give: a prerelease's tag noise never
+  makes a second line.
+- The product check sees the offered release's own line.
+- The newer-prerelease check sees every prerelease (and unknown verdict)
+  published after the offered release whose line differs from it.
+
+The fit rule and, independently, the gate refuse an identity when:
 
 - another catalog identity names the same repository through its release URL
   or project URL (any path below the repository counts), unless the listing's
   `release_url` names a tag on its repository
   (`…/releases/tag/<tag>`) whose line no other identity sharing the
   repository is bound to (`shared-repository`);
-- the packaged releases fall into more than one line and the listing binds
-  none, or the offered release is not on the bound line
+- the stable packaged releases fall into more than one line and the listing
+  binds none, or the offered release is not on the bound line
   (`ambiguous-release-line`);
 - the listing binds no line and the offered release's line is neither the
   main line nor names the listed product: joined, it is at least three
@@ -3943,9 +4009,13 @@ gate refuse an identity when:
   not name `quest64recomp`. A window of only a tool's releases
   (`level-editor-v1.0.x`) is never taken for the game, while `part-v1.2` on a
   `part-decomp` repository is (`ambiguous-release-line`);
-- a prerelease of another line, or a release whose verdict Core did not give,
-  is newer than the offered stable release (`ambiguous-release-line`): the
-  offered release may be another product's older release.
+- a prerelease on the main line or on another line that names the product,
+  or a release whose verdict Core did not give or whose tag is unknown, is
+  newer than the offered stable release and on another line
+  (`ambiguous-release-line`): the offered release may be another product's
+  older release, such as a tool's stable release beside the game's newer
+  betas. A newer prerelease on a line of other product words (a tool's beta
+  beside the game) does not decide the game.
 
 A listing bound to a line is read on that line only: the worker offers that
 line's latest stable release. This uses the existing `release_url` field; no
@@ -4121,7 +4191,7 @@ and up to five examples with port id, vetoed name and outcome. The reasons are
 `asset-system-name`, `asset-architecture-name` and `player-tool-name`.
 `ambiguous-player` groups the identities whose players are not one program,
 with token `several-programs` or `several-directories` and the program names
-as the example. A group of real games
+as the example. `bundled-toolchain` groups archives by the helper they bundle. A group of real games
 excluded by one token means the rule needs fixing, not a single game.
 `facts_provenance` carries the facts table's provenance, or `null`. Generation is pure: when a fact stops holding, the next run
 omits that route. The delta records the withdrawal reason. Withdrawal removes
@@ -4155,13 +4225,16 @@ the forms are in the detail and `unread_forms`), `non-desktop-platform`,
 Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
 tool-role archive name), `contradictory-role`, `non-desktop-platform`,
 `unknown-platform`, `wrong-host`, `ambiguous-player`, `ambiguous-artifact`,
-`core-refused` (a refused archive's name allows the platform) and
-`guide-bound`. Release content: `other-package-form-beside-archive` (the
+`core-refused` (a refused archive's name allows the platform),
+`bundled-toolchain` and `guide-bound`. Release content: `other-package-form-beside-archive` (the
 whole identity). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
 `tool-not-game`, `no-authorizing-source` and `no-player` that any platform
-gave.
+gave. `bundled-toolchain` follows `core-refused` in that order.
+`registration_queues` also holds `bundled_toolchains` (each withheld
+identity's helper names) and `inspection_failures` (the
+`repeated-inspection-failure` identities by typed cause).
 
 The gate compares the generation with a baseline. The baseline is the
 committed table at the merge base, never the working tree, so repeated runs and
@@ -4199,15 +4272,17 @@ refused.
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
 version. The same reviewed change must therefore raise the `changed` bound in
 `deltaBounds` for that change only. #8569 raised the generator version and
-the facts parser version from 5 to 11 and the facts table format from 4 to 10
+the facts parser version from 5 to 12 and the facts table format from 4 to 11
 (iOS shape at any depth, glued numbers in program names, the gate's directory
 check, unreadable asset records, ARM64EC, release lines, shared
 repositories, one package per platform, per-archive Core refusals,
 per-platform archive counts, new tool tokens, the other-package-form rule
 excluding the identity where another form competes with an offered archive,
 split-file volumes, unread compressed and disk-image forms, the
-non-program file list and the inverted default that makes every unlisted
-form compete). It landed with an empty facts table and no
+non-program file list, the inverted default that makes every unlisted
+form compete, archive role words, one package by archive bytes, bundled
+toolchains, channel-only tags, stable-only release lines and typed
+inspection failure causes). It landed with an empty facts table and no
 enrollment, so no bound changed. A curated change that adds integrations to
 more generated identities than the `withdrawn` bound must be split into
 changes within it.
@@ -4241,7 +4316,8 @@ release. The latest stable release follows Core's reviewed prerelease rule: the
 provider flag, or a tag such as `-alpha`, `-rc`, `-preview` or `-nightly`. It
 verifies each archive's size and SHA-256, runs
 `portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection))
-and then deletes the bytes. Core's temporary workspace is inside the worker's
+and then deletes the bytes. From the archive's listing (Core's `names`) it
+records only the bundled toolchain helpers. Core's temporary workspace is inside the worker's
 own scratch directory, and a timed-out run is killed, so nothing leaks. Each
 archive becomes an `exact-release-structured` fact with the player candidates
 Core found outside any tool, installer or server location. A listing whose
@@ -4358,7 +4434,12 @@ re-evaluated only when the release or its asset list changes:
   archive is never offered; it blocks only the platforms its name allows, and
   `core-refused` becomes the identity's reason only when no platform fits. An
   unchanged refused archive is not read again;
-- `repeated-inspection-failure`: three transient failures in a row;
+- `repeated-inspection-failure`: three transient failures in a row. The
+  entry records the last failure's typed `cause` (`network` for a download,
+  `over-budget` for a timeout or deadline, `unreadable-archive` when Core read
+  the bytes but returned nothing usable, or a refusal class such as
+  `digest-mismatch` or `core-source-invalid`); every other reason records a
+  null cause;
 - `invalid-facts`: the identity's facts failed validation, such as a path with
   a control character, `:` or `\`, a release file or program name Core could
   not classify, a release record the worker cannot read, an asset record it

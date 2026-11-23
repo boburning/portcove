@@ -84,7 +84,11 @@ import {
   type RefusalClass,
   type RefusedArchive,
   boundFactsBatch,
+  bundledToolchain,
+  channelOnlyTag,
+  failureCauses,
   compareCodePoints,
+  type FailureCause,
   checkFactsProvenance,
   checkListingFactsEntry,
   checkListingFactsTable,
@@ -134,6 +138,8 @@ export interface RetryItem {
   port_id: string;
   since: string;
   failures: number;
+  /** The last failure's typed cause. */
+  cause?: FailureCause;
 }
 export interface WorkerState {
   format: 2;
@@ -170,20 +176,44 @@ export interface ObservedRelease {
 export class InspectionError extends Error {
   readonly permanent: boolean;
   readonly refusal: RefusalClass;
-  constructor(message: string, permanent: boolean, refusal: RefusalClass = "core-unknown") {
+  /** The typed cause a transient failure is reported with. */
+  readonly cause: FailureCause;
+  constructor(
+    message: string,
+    permanent: boolean,
+    refusal: RefusalClass = "core-unknown",
+    cause: FailureCause = permanent ? refusal : "unreadable-archive",
+  ) {
     super(message);
     this.permanent = permanent;
     this.refusal = refusal;
+    this.cause = cause;
   }
 }
+/** The typed cause of a failed inspection, bounded to `failureCauses`. */
+export const failureCauseOf = (error: unknown): FailureCause =>
+  error instanceof InspectionError
+    ? error.cause
+    : error instanceof OverBudgetError
+      ? "over-budget"
+      : "unreadable-archive";
 /**
  * The caller's wall-clock deadline (epoch ms) ran out before or during one
  * download or Core run. Reproduction names it an `over-budget` refusal; it is
  * never a fact about the bytes.
  */
 export class OverBudgetError extends Error {}
-/** Reads verified archive bytes and returns their player candidates; throws on failure. */
-export type ByteInspector = (asset: ObservedAsset, readerPlatform: string) => Promise<PlayerFact[]>;
+/** What Core read from one archive: its player candidates and its listing as names. */
+export interface ArchiveInspection {
+  players: PlayerFact[];
+  /** Every distinct lowercase path component of the archive's files (Core's `names`). */
+  names: string[];
+}
+/** Reads verified archive bytes and returns their inspection; throws on failure. */
+export type ByteInspector = (
+  asset: ObservedAsset,
+  readerPlatform: string,
+) => Promise<ArchiveInspection>;
 /** Core's `catalog.classify-listing-names` data. */
 export interface NameClassification {
   filename_rule_version: number;
@@ -511,6 +541,7 @@ export function artifactFact(
   candidates: readonly PlayerFact[],
   suggestion: NameSuggestion,
   programToken: (name: string) => string | null,
+  names: readonly string[] = [],
 ): ArtifactFactV2 {
   // Core's listing-only tool veto excludes a player, never the whole archive;
   // a tool token in the archive's own name vetoes the archive below.
@@ -548,6 +579,7 @@ export function artifactFact(
     players: players.toSorted((left, right) => compareCodePoints(left.path, right.path)),
     excluded_players: excluded.toSorted((left, right) => compareCodePoints(left.path, right.path)),
     contradictory,
+    bundled_toolchain: bundledToolchain(names),
   };
 }
 
@@ -655,11 +687,18 @@ export class NameVerdicts {
       throw new Error("Core refused a known-good name classification; the CLI is unusable.");
     return verdicts;
   }
-  /** The reviewed prerelease verdict, or undefined when Core did not classify the tag. */
+  /**
+   * The prerelease verdict, or undefined when Core did not classify the tag:
+   * Core's reviewed rule, and a tag of only channel words with a date, time
+   * or hash (`channelOnlyTag`) even when the provider does not flag it.
+   */
   prerelease(release: { version: string; provider_prerelease: boolean }) {
-    return this.#prerelease.get(
+    const verdict = this.#prerelease.get(
       tagKey({ tag: release.version, provider_prerelease: release.provider_prerelease }),
     );
+    return verdict === undefined
+      ? undefined
+      : verdict || channelOnlyTag(recordedTag(release.version));
   }
   /** The asset name's suggestion, or undefined when Core did not classify it. */
   suggestion(name: string) {
@@ -945,11 +984,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     reason: IneligibleReason,
     detail: string,
     observation = observationOf(id, release),
+    cause: FailureCause | null = null,
   ) => {
     const entry: ListingFactsEntry = {
       ...base(id, repositoryId),
       observation,
-      ineligible: { reason, detail },
+      ineligible: { reason, detail, cause },
       unread_forms: release ? unreadFormsOf(release) : (entries.get(id)?.unread_forms ?? []),
       observed_releases: [],
       other_packages: [],
@@ -1030,12 +1070,16 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     row(id, outcome ?? "retained-last-good", status);
   };
   /** Facts for known candidates with Core's current name verdicts; undefined if a name is unclassified. */
-  const factFor = (asset: ObservedAsset & { sha256: string }, players: readonly PlayerFact[]) => {
+  const factFor = (
+    asset: ObservedAsset & { sha256: string },
+    players: readonly PlayerFact[],
+    listing: readonly string[],
+  ) => {
     const suggestion = names.suggestion(asset.name);
     const programs = players.map((player) => basenameOf(player.display_path));
     if (!suggestion || programs.some((name) => names.programToken(name) === undefined))
       return undefined;
-    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!);
+    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!, listing);
   };
   const unclassified =
     "A release file or program name could not be classified by Core (malformed, over 1,024 bytes or refused), so it cannot be vetoed.";
@@ -1233,7 +1277,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       const refreshed = same.artifacts.map((artifact) => {
         const asset = release.assets.find((candidate) => candidate.id === artifact.asset_id);
         return asset
-          ? factFor({ ...asset, sha256: artifact.sha256 }, candidatesOf(artifact))
+          ? factFor(
+              { ...asset, sha256: artifact.sha256 },
+              candidatesOf(artifact),
+              artifact.bundled_toolchain,
+            )
           : undefined;
       });
       const refusals = same.refused_archives.map((archive) => {
@@ -1370,14 +1418,19 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   let bytes = 0;
   let inspectedIdentities = 0;
   const inspectOne = async (need: Need) => {
-    const found: { asset: ObservedAsset & { sha256: string }; players: PlayerFact[] }[] = [];
+    const found: {
+      asset: ObservedAsset & { sha256: string };
+      players: PlayerFact[];
+      names: readonly string[];
+    }[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
     for (const asset of need.archives) {
       const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
       if (known) {
-        found.push({ asset, players: candidatesOf(known) });
+        // The recorded helpers stand for the listing already read.
+        found.push({ asset, players: candidatesOf(known), names: known.bundled_toolchain });
         reused++;
         continue;
       }
@@ -1389,7 +1442,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       }
       try {
         inspected++;
-        found.push({ asset, players: await inputs.inspect(asset, readerPlatform(asset.name)) });
+        found.push({ asset, ...(await inputs.inspect(asset, readerPlatform(asset.name))) });
       } catch (error) {
         // A permanent refusal is scoped to its archive: it is recorded with
         // its bounded class, never offered, and the other archives still fit.
@@ -1398,17 +1451,25 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           continue;
         }
         const failures = (retry.get(need.id)?.failures ?? 0) + 1;
+        const cause = failureCauseOf(error);
         if (failures >= budget.maxInspectionFailures) {
           ineligible(
             need.id,
             need.repositoryId,
             need.release,
             "repeated-inspection-failure",
-            `Inspection failed ${failures} runs in a row.`,
+            `Inspection failed ${failures} runs in a row; the last cause was ${cause}.`,
+            undefined,
+            cause,
           );
           return;
         }
-        retry.set(need.id, { port_id: need.id, since: retry.get(need.id)?.since ?? now, failures });
+        retry.set(need.id, {
+          port_id: need.id,
+          since: retry.get(need.id)?.since ?? now,
+          failures,
+          cause,
+        });
         notComplete(need.id, "failed");
         return;
       }
@@ -1423,7 +1484,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         need.id,
         need.repositoryId,
         need.release,
-        found.map(({ asset, players }) => factFor(asset, players)),
+        found.map(({ asset, players, names: listing }) => factFor(asset, players, listing)),
         refused.map(({ asset, refusal }) => refusedFor(asset, refusal)),
       )
     ) {
@@ -1633,7 +1694,8 @@ function sanitizeState(state: WorkerState): WorkerState {
         typeof item.since === "string" &&
         !Number.isNaN(Date.parse(item.since)) &&
         Number.isSafeInteger(item.failures) &&
-        Number(item.failures) > 0,
+        Number(item.failures) > 0 &&
+        (item.cause === undefined || (failureCauses as readonly unknown[]).includes(item.cause)),
     ),
     held: Array.isArray(state.held) ? state.held : [],
   };
@@ -1707,14 +1769,24 @@ function coreData(run: CoreRun, what: string): Record<string, unknown> {
   try {
     parsed = JSON.parse(run.stdout);
   } catch {
-    throw new InspectionError(`Core gave no ${what} result.`, false);
+    throw new InspectionError(
+      `Core gave no ${what} result.`,
+      false,
+      "core-unknown",
+      run.exited ? "unreadable-archive" : "over-budget",
+    );
   }
   if (isRecord(parsed) && parsed.ok === true && isRecord(parsed.data)) return parsed.data;
-  // Core ran and refused these bytes: the same bytes are refused again.
+  // Core ran and refused these bytes: the same bytes are refused again. A
+  // run that was killed (its timeout) settles nothing about the bytes.
+  const refusal = refusalClassOf(
+    isRecord(parsed) && isRecord(parsed.error) ? parsed.error.code : undefined,
+  );
   throw new InspectionError(
     `Core refused the archive during ${what}.`,
     run.exited,
-    refusalClassOf(isRecord(parsed) && isRecord(parsed.error) ? parsed.error.code : undefined),
+    refusal,
+    run.exited ? refusal : "over-budget",
   );
 }
 
@@ -1763,10 +1835,15 @@ export function cliInspector(
         });
       } catch {
         if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
-        throw new InspectionError("Download failed.", false);
+        throw new InspectionError("Download failed.", false, "core-unknown", "network");
       }
       if (!response.ok || !response.body)
-        throw new InspectionError(`Download failed: ${response.status}.`, false);
+        throw new InspectionError(
+          `Download failed: ${response.status}.`,
+          false,
+          "core-unknown",
+          "network",
+        );
       const hash = createHash("sha256");
       let received = 0;
       const body = Readable.fromWeb(response.body as never);
@@ -1785,7 +1862,7 @@ export function cliInspector(
             "size-exceeded",
           );
         if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
-        throw new InspectionError("Download was interrupted.", false);
+        throw new InspectionError("Download was interrupted.", false, "core-unknown", "network");
       }
       if (received !== asset.size || hash.digest("hex") !== asset.sha256)
         throw new InspectionError(
@@ -1815,9 +1892,14 @@ export function cliInspector(
       if (!inspection.exited && pastDeadline(deadline))
         throw new OverBudgetError("The Core inspection reached the deadline.");
       const data = coreData(inspection, "inspection");
-      if (data.sha256 !== asset.sha256 || !Array.isArray(data.player_candidates))
+      if (
+        data.sha256 !== asset.sha256 ||
+        !Array.isArray(data.player_candidates) ||
+        !Array.isArray(data.names) ||
+        data.names.some((name: unknown) => typeof name !== "string")
+      )
         throw new InspectionError("Core returned no inspection for these bytes.", false);
-      return data.player_candidates.flatMap((player: unknown) =>
+      const players = data.player_candidates.flatMap((player: unknown) =>
         isRecord(player) &&
         typeof player.path === "string" &&
         typeof player.display_path === "string" &&
@@ -1833,6 +1915,7 @@ export function cliInspector(
             ]
           : [],
       );
+      return { players, names: data.names as string[] };
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

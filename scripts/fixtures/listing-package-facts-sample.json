@@ -1,5 +1,5 @@
 {
-  "format": 10,
+  "format": 11,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -79,7 +79,8 @@
               "token": "crashhandler"
             }
           ],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -89,7 +90,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -145,7 +146,8 @@
               "token": "patcher"
             }
           ],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -155,7 +157,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -210,7 +212,8 @@
             }
           ],
           "excluded_players": [],
-          "contradictory": true
+          "contradictory": true,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -220,7 +223,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -281,7 +284,8 @@
             }
           ],
           "excluded_players": [],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -291,7 +295,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -346,7 +350,8 @@
             }
           ],
           "excluded_players": [],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -356,7 +361,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -411,7 +416,8 @@
             }
           ],
           "excluded_players": [],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     },
@@ -421,7 +427,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 11,
+      "parser_version": 12,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -476,10 +482,11 @@
             }
           ],
           "excluded_players": [],
-          "contradictory": false
+          "contradictory": false,
+          "bundled_toolchain": []
         }
       ]
     }
   ],
-  "entries_sha256": "9074417de1069da38eff9d3dd53028a0331d2603be81054a8f40852b7ca66f99"
+  "entries_sha256": "46b4c34f027035123cf402dc05e739490b8d1a653d21da5dc3e96eb6ee770ea9"
 }

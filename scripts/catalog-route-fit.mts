@@ -568,6 +568,13 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
             "withheld beside another package form (asset names with --json)",
             Object.keys(report.registration_queues.other_package_forms).length,
           ),
+          row(
+            "withheld for a bundled toolchain (helper names with --json)",
+            Object.keys(report.registration_queues.bundled_toolchains).length,
+          ),
+          ...Object.entries(report.registration_queues.inspection_failures).map(([cause, ids]) =>
+            row(`repeated inspection failure: ${cause}`, ids.length),
+          ),
         ]
       : []),
   ];

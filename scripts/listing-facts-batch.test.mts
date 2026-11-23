@@ -267,7 +267,7 @@ const inspector =
   async (asset) => {
     log.push(asset.name);
     if (players instanceof Error) throw players;
-    return players.map((item) => ({ ...item }));
+    return { players: players.map((item) => ({ ...item })), names: [] };
   };
 
 // ---------------------------------------------------------------------------
@@ -676,9 +676,9 @@ void test("a refused archive, the release's line facts and its installers are re
   const refusing =
     (refusal: InspectionError | PlayerFact[]): ByteInspector =>
     async (asset) => {
-      if (asset.id !== 23) return players.map((item) => ({ ...item }));
+      if (asset.id !== 23) return { players: players.map((item) => ({ ...item })), names: [] };
       if (refusal instanceof Error) throw refusal;
-      return refusal;
+      return { players: refusal, names: [] };
     };
   const run = (copy: ListingFactsEntry, inspect: ByteInspector, provider = release) =>
     reproduceFacts({
@@ -1074,7 +1074,7 @@ void test("only eligible entries a change adds or changes are reproduced", () =>
   assert.equal(needsReproduction(entry, rebound), true);
   const ineligible = {
     ...structuredClone(entry),
-    ineligible: { reason: "too-large", detail: "x" },
+    ineligible: { reason: "too-large", detail: "x", cause: null },
     artifacts: [],
   } as ListingFactsEntry;
   assert.equal(needsReproduction(entry, ineligible), false);

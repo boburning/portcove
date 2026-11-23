@@ -731,9 +731,10 @@ export async function reproduceFacts(inputs: {
       if (clock() >= deadline) return { reason: "over-budget", detail: overBudget };
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
+      let listing: string[];
       try {
         bytes += asset.size;
-        players = await inputs.inspect(bound, readerPlatform(asset.name));
+        ({ players, names: listing } = await inputs.inspect(bound, readerPlatform(asset.name)));
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
@@ -756,8 +757,12 @@ export async function reproduceFacts(inputs: {
           reason: "mismatch",
           detail: `Core could not classify a name in ${artifact.name}.`,
         };
-      const rebuilt: ArtifactFactV2 = artifactFact(bound, players, suggestion, (name) =>
-        names.programToken(name)!,
+      const rebuilt: ArtifactFactV2 = artifactFact(
+        bound,
+        players,
+        suggestion,
+        (name) => names.programToken(name)!,
+        listing,
       );
       if (JSON.stringify(rebuilt) !== JSON.stringify(artifact))
         return {

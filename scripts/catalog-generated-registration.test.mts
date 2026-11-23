@@ -23,6 +23,9 @@ import {
 import {
   artifactExclusions,
   boundFactsBatch,
+  bundledToolchain,
+  channelOnlyTag,
+  gateChannelOnlyTag,
   checkFactsProvenance,
   compareCodePoints,
   machineSystem,
@@ -69,6 +72,7 @@ import {
   maximumNameBytes,
   otherPackagesOf,
   runCore,
+  type ArchiveInspection,
   type ByteInspector,
   type DeriveResult,
   type NameClassifier,
@@ -314,11 +318,22 @@ function observerReport(specs: Record<string, ObservationSpec>) {
     })),
   };
 }
+/** A test inspector may answer with players only: the listing is then empty. */
+type TestInspector = (
+  asset: ObservedAsset,
+  platform: string,
+) => Promise<PlayerFact[] | ArchiveInspection>;
+const listed =
+  (inspect: TestInspector): ByteInspector =>
+  async (asset, platform) => {
+    const found = await inspect(asset, platform);
+    return Array.isArray(found) ? { players: found, names: [] } : found;
+  };
 /** Players per asset name; an Error value throws it. */
 function inspector(
-  contents: Record<string, PlayerFact[] | Error> = {},
+  contents: Record<string, PlayerFact[] | ArchiveInspection | Error> = {},
   log: string[] = [],
-): ByteInspector {
+): TestInspector {
   return async (asset: ObservedAsset) => {
     log.push(asset.name);
     const found = contents[asset.name] ?? [player("Game/Game.exe")];
@@ -332,7 +347,7 @@ async function derive(
   previous: ListingFactsTable = emptyFactsTable("2026-11-01T00:00:00.000Z"),
   options: {
     state?: WorkerState | undefined;
-    inspect?: ByteInspector;
+    inspect?: TestInspector;
     now?: string;
     budget?: Record<string, number>;
   } = {},
@@ -343,7 +358,7 @@ async function derive(
     table: previous,
     ...(options.state ? { state: options.state } : {}),
     ...(options.budget ? { budget: options.budget } : {}),
-    inspect: options.inspect ?? inspector(),
+    inspect: listed(options.inspect ?? inspector()),
     classify: coreClassifier,
     now: options.now ?? "2026-11-21T00:00:00.000Z",
   });
@@ -810,7 +825,10 @@ void test("the gate keeps each name-permitted artifact's players under one top-l
   const contradicted = structuredClone(generation);
   contradicted.facts.entries[0]!.artifacts[0]!.contradictory = true;
   contradicted.enrollments[0]!.facts_sha256 = digestOf(contradicted.facts.entries[0]);
-  assert.throws(() => gateGeneration(null, contradicted), /contradicted or non-runtime artifact/u);
+  assert.throws(
+    () => gateGeneration(null, contradicted),
+    /contradicted, role-named or non-runtime artifact/u,
+  );
 });
 
 void test("malformed asset records and an undated newest release are invalid facts, never dropped (H4)", async () => {
@@ -1027,7 +1045,7 @@ void test("every identity of a 60-identity fixture is attempted within a bounded
   }
   const report = observerReport(specs);
   const flaky = new Set(ids.slice(55, 58));
-  const inspect: ByteInspector = async (asset) => {
+  const inspect: TestInspector = async (asset) => {
     const id = /fixture-owner\/([^/]+)\//u.exec(asset.url)![1]!;
     if (flaky.has(id)) throw new Error("network reset");
     return asset.name === linuxTar ? [player("Game", "elf64-x86-64")] : [player("Game.exe")];
@@ -1105,9 +1123,10 @@ void test("transient failures retry from a bounded queue; permanent refusals com
   const records = ids.map((id) => listing(id));
   const report = observerReport(Object.fromEntries(ids.map((id) => [id, {}])));
   let calls = 0;
-  const inspect: ByteInspector = async (asset) => {
+  const inspect: TestInspector = async (asset) => {
     calls++;
-    if (asset.url.includes("zz-retry-a")) throw new Error("reset");
+    if (asset.url.includes("zz-retry-a"))
+      throw new InspectionError("Download failed.", false, "core-unknown", "network");
     if (asset.url.includes("zz-retry-b"))
       throw new InspectionError("Core refused the archive during inspection.", true);
     return [player("Game.exe")];
@@ -1140,6 +1159,23 @@ void test("transient failures retry from a bounded queue; permanent refusals com
   });
   assert.equal(outcome(third, "zz-retry-a")!.reason, "repeated-inspection-failure");
   assert.deepEqual(third.state.retry, []);
+  // The typed cause is recorded and grouped for the queue (A5).
+  const failed = third.table.entries.find((item) => item.port_id === "zz-retry-a")!;
+  assert.equal(failed.ineligible!.cause, "network");
+  assert.deepEqual(
+    registrationQueues(generateRegistrations(records, third.table)).inspection_failures,
+    { network: ["zz-retry-a"] },
+  );
+  // A cause outside the bounded classes, or on another reason, is refused.
+  const forged = structuredClone(failed);
+  forged.ineligible!.cause = "flaky" as never;
+  assert.throws(() => checkListingFactsTable(table(forged)), /cause/u);
+  const misplaced = structuredClone(refusedEntry);
+  misplaced.artifacts = [];
+  misplaced.observed_releases = [];
+  misplaced.refused_archives = [];
+  misplaced.ineligible = { reason: "no-digest", detail: "x", cause: "network" };
+  assert.throws(() => checkListingFactsTable(table(misplaced)), /cause/u);
   calls = 0;
   await derive(records, report, third.table, {
     state: third.state,
@@ -1286,7 +1322,7 @@ void test("one hostile or odd path marks only its identity invalid; the run cont
   const report = observerReport(
     Object.fromEntries([...ids, "zz-hostile-ok"].map((id) => [id, {}])),
   );
-  const inspect: ByteInspector = async (asset) => {
+  const inspect: TestInspector = async (asset) => {
     const index = ids.findIndex((id) => asset.url.includes(`/${id}/`));
     return [player(index >= 0 ? hostile[index]! : "Game/Game.exe")];
   };
@@ -1592,10 +1628,10 @@ void test("an oversized tag and release file name settle only their identity; an
       [good]: {},
     }),
     table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-    inspect: async (asset) => {
+    inspect: listed(async (asset) => {
       log.push(asset.url);
       return [player("Game/Game.exe")];
-    },
+    }),
     classify: refusingLikeCore(coreClassifier, refusals),
     now: "2026-11-21T00:00:00.000Z",
   });
@@ -1633,7 +1669,7 @@ void test("a name Core refuses alone is isolated by splitting the request; an un
     records,
     observerReport: report,
     table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-    inspect: inspector(),
+    inspect: listed(inspector()),
     classify,
     now: "2026-11-21T00:00:00.000Z",
   });
@@ -1645,7 +1681,7 @@ void test("a name Core refuses alone is isolated by splitting the request; an un
       records,
       observerReport: report,
       table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-      inspect: inspector(),
+      inspect: listed(inspector()),
       classify: async () => {
         throw new Error("no CLI");
       },
@@ -1756,7 +1792,7 @@ void test("malformed per-identity observations never fail the run (fuzz)", async
       records,
       observerReport: report,
       table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-      inspect: inspector(),
+      inspect: listed(inspector()),
       classify: refusingLikeCore(anyNameClassifier, refusals),
       now: "2026-11-21T00:00:00.000Z",
       budget: { maxIdentities: 100 },
@@ -1978,7 +2014,7 @@ void test("table provenance is optional, checked when present and carried into t
     records: [listing()],
     observerReport: observerReport({ [unseen]: {} }),
     table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
-    inspect: inspector(),
+    inspect: listed(inspector()),
     classify: coreClassifier,
     now: "2026-11-21T00:00:00.000Z",
     provenance,
@@ -2700,7 +2736,7 @@ const releaseWith = (
 });
 /** Players by asset id, read from the asset URL. */
 const byAsset =
-  (contents: Record<number, PlayerFact[] | Error>): ByteInspector =>
+  (contents: Record<number, PlayerFact[] | Error>): TestInspector =>
   async (asset) => {
     const found = contents[asset.id];
     if (!found) return [player("Game/Game.exe")];
@@ -2737,7 +2773,19 @@ void test("a release is bound to its product's release line (D2a: a tool's relea
   assert.ok(decision.fit);
   assert.equal(decision.enrollment.release.tag, "v1.0");
   assert.equal(decision.enrollment.runtimes[0]!.players[0]!.display_path, "Game/Game.exe");
-  // A stable release older than a newer prerelease of another line is never offered.
+  // A stable release older than a newer prerelease on the main line, or on
+  // a line naming the product, is never offered: here the listing binds the
+  // tool's line, and the game's betas follow it.
+  const toolBound = listing(id, {
+    release_url: `https://github.com/fixture-owner/${id}/releases/tag/texture-studio-v1.0.0`,
+  });
+  const besideBetas = await derive([toolBound], observerReport({ [id]: { releases } }), undefined, {
+    inspect,
+  });
+  assert.equal(besideBetas.table.entries[0]!.observation.tag, "texture-studio-v1.0.0");
+  assert.equal(reasonOf(decide(toolBound, besideBetas.table.entries[0])), "ambiguous-release-line");
+  // A newer prerelease on a line of other product words (a tool's beta)
+  // does not decide the game's bound line (A4 ii).
   const tooOld = [
     releases[0]!,
     releaseWith(4, "texture-studio-v2.0-beta", "2026-10-25T00:00:00Z", [
@@ -2747,7 +2795,7 @@ void test("a release is bound to its product's release line (D2a: a tool's relea
   const older = await derive([bound], observerReport({ [id]: { releases: tooOld } }), undefined, {
     inspect,
   });
-  assert.equal(reasonOf(decide(bound, older.table.entries[0])), "ambiguous-release-line");
+  assert.equal(reasonOf(decide(bound, older.table.entries[0])), "fit");
   // The gate refuses the unbound tool release independently of the fit rule.
   const generation = generateRegistrations([bound], result.table);
   assert.equal(gateGeneration(null, generation).added.length, 1);
@@ -2758,13 +2806,43 @@ void test("a release is bound to its product's release line (D2a: a tool's relea
   const entryCopy = prerelease.facts.entries[0]!;
   entryCopy.observed_releases.push({
     release_id: 99,
-    tag: "texture-studio-v2.0-beta",
+    tag: "v3.0-beta",
     prerelease: true,
     published_at: "2026-10-25T00:00:00.000Z",
     packaged: true,
   });
   prerelease.enrollments[0]!.facts_sha256 = digestOf(entryCopy);
-  assert.throws(() => gateGeneration(null, prerelease), /older than another line's prerelease/u);
+  // Bound to the main line, a newer main-line beta is the same line: accepted.
+  assert.equal(gateGeneration(null, prerelease).added.length, 1);
+  const toolGeneration = generateRegistrations([toolBound], besideBetas.table);
+  assert.equal(toolGeneration.enrollments.length, 0);
+  const forcedTool = structuredClone(generation);
+  forcedTool.records = [toolBound];
+  forcedTool.facts = besideBetas.table;
+  forcedTool.enrollments = [
+    {
+      ...generation.enrollments[0]!,
+      facts_sha256: digestOf(besideBetas.table.entries[0]),
+      release: {
+        id: 2,
+        tag: "texture-studio-v1.0.0",
+        observed_at: besideBetas.table.entries[0]!.observation.observed_at,
+      },
+      runtimes: [
+        {
+          ...generation.enrollments[0]!.runtimes[0]!,
+          asset_id: 21,
+          asset_name: windowsZip,
+          archive_sha256: besideBetas.table.entries[0]!.artifacts[0]!.sha256,
+          players: besideBetas.table.entries[0]!.artifacts[0]!.players,
+        },
+      ],
+    },
+  ];
+  assert.throws(
+    () => gateGeneration(null, forcedTool),
+    /older than a prerelease of the main or a product-naming line/u,
+  );
 });
 
 void test("identities sharing a repository enroll only on lines of their own (D2b)", async () => {
@@ -2929,6 +3007,41 @@ void test("release lines err toward one line for version noise and different lin
     // `final` and `update` can name a product; they are not channel words (F2).
     ["final-v1.0", "owner/spider-game", "final"],
     ["update-v1.0", "owner/spider-game", "update"],
+    // Tag-style noise is version or channel noise (A4): commit hashes,
+    // `v.` before digits, and conditional channel words beside a version,
+    // date or hash, or alone.
+    ["native-only-1a2b3c4", "owner/spider-game", "native-only"],
+    ["abc1234", "owner/spider-game", ""],
+    ["dev-abc1234", "owner/spider-game", ""],
+    ["v.0.1.1", "owner/spider-game", ""],
+    ["v.2", "owner/spider-game", ""],
+    ["pr42", "owner/spider-game", ""],
+    ["pr42-v1.0", "owner/spider-game", ""],
+    ["tester-v0.3", "owner/spider-game", ""],
+    ["test", "owner/spider-game", ""],
+    ["testing-2026-01-01", "owner/spider-game", ""],
+    ["prealpha-0.1", "owner/spider-game", ""],
+    ["pre-alpha-0.1", "owner/spider-game", ""],
+    ["preview-3", "owner/spider-game", ""],
+    ["snapshot-20260101", "owner/spider-game", ""],
+    ["canary-1a2b3c4d", "owner/spider-game", ""],
+    ["wip", "owner/spider-game", ""],
+    ["wip-v0.4", "owner/spider-game", ""],
+    ["experimental", "owner/spider-game", ""],
+    ["experimental-2", "owner/spider-game", ""],
+    ["fixed", "owner/spider-game", ""],
+    ["v1.0-fix", "owner/spider-game", ""],
+    ["v1.0.1-fixed", "owner/spider-game", ""],
+    ["new-v2", "owner/spider-game", ""],
+    ["new", "owner/spider-game", ""],
+    ["build_20261120_2250", "owner/spider-game", ""],
+    // Beside product words only, those words stay product words.
+    ["new-game-v1", "owner/spider-game", "new-game"],
+    ["fix-it-v1", "owner/spider-game", "fix-it"],
+    ["canary-tools-v1", "owner/spider-game", "canary-tools"],
+    // A hash needs a digit and a letter a-f: a hex-looking word is a product.
+    ["deadbeef-v1", "owner/spider-game", "deadbeef"],
+    ["1234567", "owner/spider-game", ""],
   ];
   for (const [tag, repository, expected] of rows) {
     assert.equal(releaseLine(tag, 7, repository), expected, `fit: ${tag} on ${repository}`);
@@ -2938,6 +3051,163 @@ void test("release lines err toward one line for version noise and different lin
     assert.equal(derive("v1.0\u202e", 7, "owner/x"), "#7", "a non-ASCII tag is a line of its own");
     assert.equal(derive(null, 9, "owner/x"), "#9");
   }
+});
+
+void test("a tag of only channel words with a date, time or hash is a prerelease (A3)", async () => {
+  // [tag, channel only]: the fit rule and the gate judge every row alike.
+  const rows: [string, boolean][] = [
+    ["build_20261120_2250", true],
+    ["nightly-2025-01-01", true],
+    ["nightly20250101", true],
+    ["continuous", true],
+    ["latest", true],
+    ["dev-abc1234", true],
+    ["canary-1a2b3c4d", true],
+    ["nightly-windows-x86_64", true],
+    ["test", true],
+    ["v1.0", false],
+    ["1.0.0", false],
+    ["2025.01.01", false],
+    ["release-2025-01-01", false],
+    ["build-123", false],
+    ["nightly-1", false],
+    ["latest-v2", false],
+    ["game-nightly", false],
+    ["stable", false],
+  ];
+  for (const [tag, expected] of rows) {
+    assert.equal(channelOnlyTag(tag), expected, `fit: ${tag}`);
+    assert.equal(gateChannelOnlyTag(tag), expected, `gate: ${tag}`);
+  }
+  // The worker never offers such a release as the newest stable one, even
+  // when the provider and Core call it stable.
+  const id = "zz-channel-only";
+  const releases = [
+    releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]),
+    releaseWith(2, "build_20261120_2250", "2026-10-20T00:00:00Z", [{ id: 21, name: windowsZip }]),
+  ];
+  const result = await derive([listing(id)], observerReport({ [id]: { releases } }));
+  const facts = result.table.entries[0]!;
+  assert.equal(facts.observation.tag, "v1.0");
+  assert.equal(
+    facts.observed_releases.find((release) => release.release_id === 2)!.prerelease,
+    true,
+  );
+  // The newer channel-only build is on the main line: v1.0 still fits.
+  assert.ok(decide(listing(id), facts).fit);
+  // The fit rule and the gate each refuse a channel-only release as the
+  // offered one, whatever the recorded verdict says.
+  const forged = structuredClone(facts);
+  forged.observation.tag = "nightly-2025-01-01";
+  forged.observed_releases.find((release) => release.release_id === 1)!.tag = "nightly-2025-01-01";
+  assert.equal(reasonOf(decide(listing(id), forged)), "no-stable-release");
+  const generation = generateRegistrations([listing(id)], result.table);
+  generation.facts = table(forged);
+  generation.enrollments[0]!.facts_sha256 = digestOf(forged);
+  assert.throws(() => gateGeneration(null, generation), /do not record as stable/u);
+});
+
+void test("release lines are counted over stable releases; prereleases only protect (A4)", () => {
+  const releaseFacts = (
+    items: [number, string, boolean | null, string][],
+  ): ListingFactsEntry["observed_releases"] =>
+    items.map(([release_id, tag, prerelease, published_at]) => ({
+      release_id,
+      tag,
+      prerelease,
+      published_at,
+      packaged: true,
+    }));
+  const withReleases = (
+    chosen: [number, string, string],
+    others: [number, string, boolean | null, string][],
+  ) =>
+    entry(
+      [artifact()],
+      { release_id: chosen[0], tag: chosen[1], published_at: chosen[2] },
+      unseen,
+      {
+        observed_releases: releaseFacts(
+          [
+            [chosen[0], chosen[1], false, chosen[2]] as [number, string, boolean, string],
+            ...others,
+          ].toSorted((left, right) => left[0] - right[0]),
+        ),
+      },
+    );
+  const gateOf = (facts: ListingFactsEntry, record = listing()) => {
+    const generation = generateRegistrations([listing()], table(entry()));
+    generation.records = [record];
+    generation.enrollments[0]!.repository = facts.repository;
+    generation.facts = table(facts);
+    generation.enrollments[0]!.facts_sha256 = digestOf(facts);
+    generation.enrollments[0]!.release = {
+      id: facts.observation.release_id!,
+      tag: facts.observation.tag!,
+      observed_at: facts.observation.observed_at,
+    };
+    try {
+      gateGeneration(null, generation);
+      return "fit";
+    } catch {
+      return "refused";
+    }
+  };
+  // Prerelease tag noise (a hash, a test build) no longer splits the line.
+  const noisy = withReleases(
+    [7, "v1.2", "2026-11-01T00:00:00.000Z"],
+    [
+      [5, "native-only-test-1a2b3c4", true, "2026-10-01T00:00:00.000Z"],
+      [6, "pr12-preview", true, "2026-10-15T00:00:00.000Z"],
+    ],
+  );
+  assert.equal(reasonOf(decide(listing(), noisy)), "fit");
+  assert.equal(gateOf(noisy), "fit");
+  // Two stable lines are still ambiguous.
+  const twoStable = withReleases(
+    [7, "v1.2", "2026-11-01T00:00:00.000Z"],
+    [[5, "level-editor-v1.0", false, "2026-10-01T00:00:00.000Z"]],
+  );
+  assert.equal(reasonOf(decide(listing(), twoStable)), "ambiguous-release-line");
+  assert.equal(gateOf(twoStable), "refused");
+  // `sm-1` beside `sm-2`, both stable, stay two lines.
+  const sm = withReleases(
+    [7, "sm-2", "2026-11-01T00:00:00.000Z"],
+    [[5, "sm-1", false, "2026-10-01T00:00:00.000Z"]],
+  );
+  const smListing = listing(unseen, { project_url: "https://github.com/fixture-owner/sm" });
+  const smEntry = { ...sm, repository: "fixture-owner/sm" };
+  assert.equal(reasonOf(decide(smListing, smEntry)), "ambiguous-release-line");
+  assert.equal(gateOf(smEntry, smListing), "refused");
+  // A tool's stable release beside the game's newer betas stays excluded:
+  // the tool line does not name the product (R1) and a newer main-line
+  // prerelease follows it.
+  const tool = withReleases(
+    [7, "texture-studio-v1.0.0", "2026-10-10T00:00:00.000Z"],
+    [[8, "v0.9-beta", true, "2026-10-20T00:00:00.000Z"]],
+  );
+  assert.equal(reasonOf(decide(listing(), tool)), "ambiguous-release-line");
+  assert.equal(gateOf(tool), "refused");
+  // Bound to the tool's line, the newer main-line beta still excludes (ii).
+  const bound = listing(unseen, {
+    release_url: `https://github.com/fixture-owner/${unseen}/releases/tag/texture-studio-v1.0.0`,
+  });
+  assert.equal(reasonOf(decide(bound, tool)), "ambiguous-release-line");
+  assert.equal(gateOf(tool, bound), "refused");
+  // A newer prerelease whose verdict Core did not give excludes on any other line.
+  const unknown = withReleases(
+    [7, "v1.2", "2026-11-01T00:00:00.000Z"],
+    [[8, "level-editor-v2", null, "2026-11-10T00:00:00.000Z"]],
+  );
+  assert.equal(reasonOf(decide(listing(), unknown)), "ambiguous-release-line");
+  assert.equal(gateOf(unknown), "refused");
+  // A newer beta of a tool's line (other product words) does not decide the game.
+  const toolBeta = withReleases(
+    [7, "v1.2", "2026-11-01T00:00:00.000Z"],
+    [[8, "level-editor-v2-beta", true, "2026-11-10T00:00:00.000Z"]],
+  );
+  assert.equal(reasonOf(decide(listing(), toolBeta)), "fit");
+  assert.equal(gateOf(toolBeta), "fit");
 });
 
 void test("a line names the product only as whole words of at least three characters (F1)", () => {
@@ -3134,11 +3404,16 @@ void test("two different archives for one platform are ambiguous even with one p
     artifact("Game-Extras-v1.0-windows-x64.zip", [studio], 12),
   ]);
   assert.equal(reasonOf(decide(listing(), two)), "ambiguous-artifact");
-  // The same package twice (equal player bytes) is one package.
-  const twins = entry([
+  // Equal player bytes in different archives are not one package (A1): an
+  // update archive can hold the same game program as the full build.
+  const samePlayers = entry([
     artifact(windowsZip, [game], 11),
     artifact("Game-Extras-v1.0-windows-x64.zip", [game], 12),
   ]);
+  assert.equal(reasonOf(decide(listing(), samePlayers)), "ambiguous-artifact");
+  // The same archive bytes under two asset ids are one package.
+  const copy = { ...artifact(windowsZip, [game], 11), asset_id: 12 };
+  const twins = entry([artifact(windowsZip, [game], 11), copy]);
   assert.ok(decide(listing(), twins).fit);
   // An authoring-tool archive is vetoed by its whole-word name and never counts.
   const vetoed = entry([
@@ -3156,13 +3431,198 @@ void test("two different archives for one platform are ambiguous even with one p
   const generation = generateRegistrations([listing()], table(twins));
   assert.equal(gateGeneration(null, generation).added.length, 1);
   const forged = structuredClone(generation);
-  forged.facts.entries[0]!.artifacts[1] = artifact(
-    "Game-Extras-v1.0-windows-x64.zip",
-    [studio],
-    12,
-  );
+  forged.facts.entries[0]!.artifacts[1] = artifact("Game-Extras-v1.0-windows-x64.zip", [game], 12);
   forged.enrollments[0]!.facts_sha256 = digestOf(forged.facts.entries[0]);
   assert.throws(() => gateGeneration(null, forged), /2 different archives/u);
+});
+
+/** An artifact fact for a name Core's fixture does not hold, with the verdict Core would give. */
+function named(
+  name: string,
+  players: PlayerFact[],
+  id: number,
+  os = "unknown",
+  listingNames: string[] = [],
+): ArtifactFactV2 {
+  return artifactFact(
+    {
+      id,
+      name,
+      url: `https://github.com/fixture-owner/x/releases/download/v1/${id}`,
+      size: 4096,
+      sha256: sha(`archive-${id}-${name}`),
+    },
+    players,
+    {
+      rule_version: classification.output.filename_rule_version,
+      role: "unknown",
+      os,
+      arch: "unknown",
+      tool_token: null,
+      system_token: null,
+    },
+    programToken,
+    listingNames,
+  );
+}
+/** The gate's verdict on an enrollment forced onto these facts for Windows. */
+function forcedGate(facts: ListingFactsEntry, assetId: number) {
+  const offered = facts.artifacts.find((item) => item.asset_id === assetId)!;
+  const generation = generateRegistrations([listing()], table(facts));
+  generation.enrollments = [
+    {
+      port_id: unseen,
+      platforms: ["windows-x86-64"],
+      generator_version: 0,
+      facts_sha256: digestOf(facts),
+      repository: facts.repository,
+      repository_id: facts.repository_id,
+      release: { id: 7, tag: "v1.0", observed_at: facts.observation.observed_at },
+      runtimes: [
+        {
+          platform: "windows-x86-64",
+          asset_id: assetId,
+          asset_name: offered.name,
+          archive_sha256: offered.sha256,
+          source: "exact-release-structured",
+          players: offered.players.filter((item) => item.machine === "pe-x86-64"),
+        },
+      ],
+    },
+  ];
+  try {
+    gateGeneration(null, generation);
+    return "accepted";
+  } catch (error) {
+    return (error as Error).message;
+  }
+}
+
+void test("an update archive holding the game's program is never chosen over the full build (A1)", () => {
+  const game = player("Game/Game.exe", "pe-x86-64", "same-game");
+  const full = named("Game-PC-v0.5.10-Windows-x64.zip", [game], 11, "windows");
+  const update = named("update-0.5.10.zip", [game], 12);
+  // The update archive is vetoed by its whole-word role name: the full build enrolls.
+  const both = entry([full, update]);
+  const decision = decide(listing(), both);
+  assert.ok(decision.fit);
+  assert.equal(decision.enrollment.runtimes[0]!.asset_name, "Game-PC-v0.5.10-Windows-x64.zip");
+  assert.ok(
+    artifactExclusions(update).some(
+      (item) => item.reason === "asset-role-name" && item.token === "update",
+    ),
+  );
+  // Each role word vetoes as a whole word only.
+  for (const word of [
+    "update",
+    "updater",
+    "hotfix",
+    "delta",
+    "incremental",
+    "patch",
+    "symbols",
+    "debug",
+  ]) {
+    const alone = entry([named(`Game-${word}-v1.0.zip`, [game], 12)]);
+    assert.equal(reasonOf(decide(listing(), alone)), "contradictory-role", word);
+    assert.match(forcedGate(alone, 12), /role-named/u, word);
+  }
+  for (const title of ["Updated-Game-v1.0.zip", "Deltarune-Fan-v1.0.zip", "Patchwork-v1.0.zip"])
+    assert.ok(decide(listing(), entry([named(title, [game], 12)])).fit, title);
+  // The gate refuses the update archive independently.
+  assert.match(forcedGate(both, 12), /role-named/u);
+  assert.equal(forcedGate(both, 11), "accepted");
+});
+
+void test("several archives for a platform are ambiguous unless exactly one names its system (A1)", () => {
+  const game = player("Game/Game.exe", "pe-x86-64", "same-game");
+  const linux = player("Game/Game", "elf64-x86-64", "same-game-linux");
+  // Two OS-neutral archives of one game: ambiguous, never chosen by order or size.
+  const neutralPair = entry([
+    named("Game-v1.0.zip", [game, linux], 11),
+    named("Game-v1.0.tar.gz", [game, linux], 12),
+  ]);
+  assert.equal(reasonOf(decide(listing(), neutralPair)), "ambiguous-artifact");
+  assert.match(forcedGate(neutralPair, 11), /2 different archives/u);
+  // One names Windows explicitly beside an OS-neutral one: the explicit one is chosen.
+  const explicit = entry([
+    named("Game-v1.0-windows.zip", [game], 11, "windows"),
+    named("Game-v1.0.tar.gz", [game, linux], 12),
+  ]);
+  const decision = decide(listing(), explicit);
+  assert.ok(decision.fit);
+  assert.deepEqual(
+    decision.enrollment.runtimes.map((runtime) => [runtime.platform, runtime.asset_id]),
+    [
+      ["windows-x86-64", 11],
+      ["linux-x86-64", 12],
+    ],
+  );
+  assert.equal(forcedGate(explicit, 11), "accepted");
+  assert.match(forcedGate(explicit, 12), /2 different archives/u);
+  // Names that separate the systems: each platform has one archive.
+  const separated = entry([
+    named("Game-v1.0-windows.zip", [game], 11, "windows"),
+    named("Game-v1.0-linux.tar.gz", [linux], 12, "linux"),
+  ]);
+  assert.ok(decide(listing(), separated).fit);
+  // Two explicit Windows archives stay ambiguous.
+  const twoExplicit = entry([
+    named("Game-v1.0-windows.zip", [game], 11, "windows"),
+    named("Game-v1.0-win64.zip", [game], 12, "windows"),
+    named("Game-v1.0.zip", [game], 13),
+  ]);
+  assert.equal(reasonOf(decide(listing(), twoExplicit)), "ambiguous-artifact");
+  assert.match(forcedGate(twoExplicit, 11), /3 different archives/u);
+});
+
+void test("an archive bundling a compiler or interpreter toolchain is withheld (A2)", () => {
+  const launcher = player("Game/Launcher.exe", "pe-x86-64", "launcher");
+  const toolchain = named("Game-v1.0-windows.zip", [launcher], 11, "windows", [
+    "game",
+    "launcher.exe",
+    "tools",
+    "zig",
+    "zig.exe",
+    "lib",
+  ]);
+  assert.deepEqual(toolchain.bundled_toolchain, ["zig"]);
+  assert.equal(reasonOf(decide(listing(), entry([toolchain]))), "bundled-toolchain");
+  assert.match(forcedGate(entry([toolchain]), 11), /bundles zig/u);
+  // Whole components only, with or without `.exe`, in any letter case.
+  assert.deepEqual(
+    bundledToolchain([
+      "Python.EXE",
+      "python311.dll",
+      "scripts",
+      "clang",
+      "7z.exe",
+      "7za.exe",
+      "g++",
+      "makefile",
+      "linker.dll",
+      "node_modules",
+      "CMake",
+    ]),
+    ["clang", "cmake", "g++", "python"],
+  );
+  // A normal game shipping python311.dll and a scripts/ folder is not withheld.
+  const normal = named("Game-v1.0-windows.zip", [launcher], 11, "windows", [
+    "game",
+    "launcher.exe",
+    "python311.dll",
+    "scripts",
+    "7z.exe",
+  ]);
+  assert.deepEqual(normal.bundled_toolchain, []);
+  assert.ok(decide(listing(), entry([normal])).fit);
+  // The report queue names the helpers per identity.
+  const generation = generateRegistrations([listing()], table(entry([toolchain])));
+  assert.deepEqual(registrationQueues(generation).bundled_toolchains, { [unseen]: ["zig"] });
+  // Recorded helper names outside the closed list are refused as facts.
+  const forged = structuredClone(toolchain);
+  forged.bundled_toolchain = ["notatool"];
+  assert.throws(() => checkListingFactsTable(table(entry([forged]))), /toolchain helper/u);
 });
 
 void test("another package form competing with an offered archive excludes the identity (B3, W1)", async () => {

@@ -57,6 +57,10 @@
       {
         "tag": "sm2-v1.1",
         "provider_prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
+        "provider_prerelease": false
       }
     ],
     "assets": [
@@ -244,6 +248,11 @@
       },
       {
         "tag": "sm2-v1.1",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
         "provider_prerelease": false,
         "prerelease": false
       }

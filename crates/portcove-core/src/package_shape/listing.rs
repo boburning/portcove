@@ -45,6 +45,10 @@ pub struct ListingArtifactInspection {
     pub files: usize,
     /// Player candidates in path order, each with machine and SHA-256.
     pub player_candidates: Vec<ListingPlayerCandidate>,
+    /// Every distinct lowercase path component of the regular files (each
+    /// directory name and file name, never a joined path), sorted: the
+    /// archive's listing as names only. Bounded by the inspected file bound.
+    pub names: Vec<String>,
 }
 
 /// One native executable a listing archive holds.
@@ -120,11 +124,19 @@ pub fn inspect_listing_artifact_archive(
             sha256: hex::encode(sha2::Digest::finalize(digest)),
         });
     }
+    let names = files
+        .iter()
+        .flat_map(|(relative, _, _)| relative.split('/'))
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     Ok(ListingArtifactInspection {
         sha256: expected_sha256.to_ascii_lowercase(),
         shape_version: SHAPE_VERSION,
         files: files.len(),
         player_candidates,
+        names,
     })
 }
 
@@ -562,6 +574,26 @@ mod tests {
                 machine: "pe-x86-64".into(),
                 sha256: hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&player)),
             }]
+        );
+        // The listing as names only: every distinct lowercase path component.
+        assert_eq!(
+            inspection.names,
+            ["data", "engine.dll", "game", "game.exe", "readme.txt"]
+        );
+    }
+
+    #[test]
+    fn the_listing_names_include_tool_directories_the_players_skip() {
+        let (_temporary, path, size, digest) = archive(&[
+            ("Game/Launcher.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/tools/Zig/zig.exe", pe(0x8664, EXECUTABLE)),
+        ]);
+        let inspection =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                .unwrap();
+        assert_eq!(
+            inspection.names,
+            ["game", "launcher.exe", "tools", "zig", "zig.exe"]
         );
     }
 
