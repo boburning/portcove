@@ -2849,9 +2849,10 @@ fn move_keeps_the_original_when_store_ownership_is_unknown_at_removal() {
     let result = import(&service, &source, SourceImportMode::Move);
     assert_eq!(result.outcome, SourceImportOutcome::CopiedOriginalRetained);
     assert!(!result.original_deleted);
+    // Core reports the canonical original (on Windows, a verbatim path).
     assert_eq!(
-        result.retained_original_path.as_deref(),
-        Some(source.as_path())
+        result.retained_original_path,
+        Some(fs::canonicalize(&source).unwrap())
     );
     assert_eq!(
         fs::read(&source).unwrap(),
@@ -2890,9 +2891,10 @@ fn a_refused_late_ownership_check_restores_the_original_name() {
     }));
     let result = import(&service, &source, SourceImportMode::Move);
     assert_eq!(result.outcome, SourceImportOutcome::CopiedOriginalRetained);
+    // Core reports the canonical original (on Windows, a verbatim path).
     assert_eq!(
-        result.retained_original_path.as_deref(),
-        Some(source.as_path())
+        result.retained_original_path,
+        Some(fs::canonicalize(&source).unwrap())
     );
     assert_eq!(
         fs::read(&source).unwrap(),
