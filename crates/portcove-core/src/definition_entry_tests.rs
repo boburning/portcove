@@ -2868,7 +2868,7 @@ fn mod_sources_require_their_named_reader_and_refuse_only_their_definition() {
     entry["required_features"] = json!(["mods.sources-v2"]);
     let newer = inspect(&entry).unwrap_err();
     assert_eq!(newer.code, crate::ErrorCode::Unsupported);
-    assert!(crate::definition_capabilities::is_unknown_required_feature(
+    assert!(crate::definition_capabilities::requires_newer_engine(
         &newer
     ));
     // This reader refuses an unknown kind or an invalid address per definition.
@@ -2994,12 +2994,14 @@ fn named_entry_ignores_only_bounded_top_level_advice() {
 #[test]
 fn daggerfall_unity_loader_capability_uses_the_named_feature_helper() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog
+    let mut port = catalog
         .ports()
         .iter()
         .find(|port| crate::profile_loader::declares_dfu_loader(port))
         .expect("the catalog has a Daggerfall Unity loader binding")
         .clone();
+    // This test covers the loader capability only; mod sources need schema 4.
+    port.mod_sources.clear();
     let mut entry = entry_for_port(&port);
     entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
     let floor = crate::profile_loader::DFU_CAPABILITY;
