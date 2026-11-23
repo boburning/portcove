@@ -4,7 +4,9 @@
 //! supported library can write, the supported importer reads. The document is
 //! written and read as a stream, so neither side keeps a second serialized copy
 //! next to the in-memory snapshot, and no whole-document byte ceiling exists that
-//! a growing library could cross. Each record keeps its own bound (profiles,
+//! a growing library could cross. The input is the player's own chosen export or
+//! a Portcove-owned bundle; reading it costs memory in proportion to its records,
+//! as producing it did. Each record keeps its own bound (profiles,
 //! revisions, retained-build references, memberships, held releases), and the
 //! parsed snapshot is the same size on both sides: the writer already held it.
 //! The bytes and their SHA-256 are identical to the earlier in-memory encoding,

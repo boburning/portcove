@@ -211,9 +211,10 @@ pub(crate) fn binding_preview(value: &RetainedBuildBindingPreview, catalog: &Cat
     }
     for retired in &value.retires {
         lines.push(format!(
-            "Stops offering recovery revision {} (install {}) to keep the newest 16 offers. The installation stays on disk and can be bound again.",
+            "Stops offering recovery revision {} (install {}) to keep the newest {} offers. The installation stays on disk and can be bound again.",
             retired.revision,
-            clean(&retired.build.install_id)
+            clean(&retired.build.install_id),
+            portcove_core::MAX_OFFERED_REVISIONS
         ));
     }
     lines.extend([

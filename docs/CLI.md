@@ -1830,8 +1830,9 @@ round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs
 Metadata JSON is written and read as a stream with no whole-document size
 ceiling, so any library Portcove can create exports and imports; each profile,
 revision and retained-build reference keeps its own byte bound. The recovery
-journal that carries the reviewed plan and content inventory is streamed the
-same way, so import and move recovery work at any size the library reaches. Source
+journal that carries the reviewed plan and content inventory has no size
+ceiling either and is read as a stream, so import and move recovery work at any
+size the library reaches. Source
 references remain subject to normal validation and relinking. If interrupted,
 use the [destination-specific recovery route](#recover-an-interrupted-transfer).
 

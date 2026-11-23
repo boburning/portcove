@@ -286,7 +286,7 @@ impl PortcoveService {
         })
     }
 
-    fn resolve_build_identity(
+    pub(crate) fn resolve_build_identity(
         &self,
         build: &RetainedBuildIdentity,
     ) -> Result<(
@@ -460,7 +460,7 @@ impl PortcoveService {
         let build = self.check_retained_build(&install)?;
         let previous = reference_from(&connection, port_id, setup_id)?;
         let pins = RetentionPins::read(&self.library, &connection, port_id, setup_id)?;
-        let successor = successor_history(previous.as_ref(), &build, 0, &pins)?;
+        let successor = successor_history(previous.as_ref(), &build.install_id, 0, &pins)?;
         // Consent covers what the retention policy retires, not only the binding.
         let retired = successor
             .retired
@@ -930,9 +930,9 @@ fn require_reference_outside_profile(
 /// offered build promotes it back instead of duplicating it. Same-build rebinding
 /// keeps history unchanged. When the offered history would exceed
 /// `MAX_OFFERED_REVISIONS`, the oldest unpinned offers are retired.
-fn successor_history(
+pub(crate) fn successor_history(
     previous: Option<&RetainedBuildReference>,
-    build: &RetainedBuildIdentity,
+    install_id: &str,
     now: i64,
     pins: &RetentionPins,
 ) -> Result<SuccessorHistory> {
@@ -943,8 +943,8 @@ fn successor_history(
         });
     };
     let mut history = previous.history.clone();
-    history.retain(|entry| entry.build.install_id != build.install_id);
-    if previous.build.install_id != build.install_id {
+    history.retain(|entry| entry.build.install_id != install_id);
+    if previous.build.install_id != install_id {
         history.push(RetainedBuildRevision {
             revision: previous.revision,
             build: previous.build.clone(),
@@ -1166,7 +1166,7 @@ pub(crate) fn write_successor_reference(
 ) -> Result<RetainedBuildReference> {
     let now = Library::now();
     let pins = RetentionPins::read(library, connection, &build.port_id, setup_id)?;
-    let SuccessorHistory { history, retired } = successor_history(previous, &build, now, &pins)?;
+    let SuccessorHistory { history, retired } = successor_history(previous, &build.install_id, now, &pins)?;
     for entry in &retired {
         tracing::info!(
             port_id = %build.port_id,

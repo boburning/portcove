@@ -657,9 +657,26 @@ impl PortcoveService {
     }
 
     pub fn profile_inventory(&self, port_id: &str) -> Result<ProfileInventory> {
+        // Many setups share a few exact builds; verify each build once per
+        // inventory instead of once per setup, so the work follows the number
+        // of installations rather than the number of setups.
+        let verified = std::cell::RefCell::new(BTreeMap::new());
         self.profile_inventory_with(port_id, |profile| {
-            let resolved = self.resolve_retained_build(port_id, &profile.id)?;
-            Ok((resolved.availability, resolved.install))
+            let reference = crate::retained_build::reference_from(
+                &self.library.connection()?,
+                port_id,
+                &profile.id,
+            )?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+            let key = serde_json::to_string(&reference.build)?;
+            if let Some(cached) = verified.borrow().get(&key) {
+                return Ok(Clone::clone(cached));
+            }
+            let (availability, install, _) = self.resolve_build_identity(&reference.build)?;
+            verified
+                .borrow_mut()
+                .insert(key, (availability, install.clone()));
+            Ok((availability, install))
         })
     }
 
@@ -804,6 +821,27 @@ impl PortcoveService {
         transaction.commit()?;
         Ok(stored)
     }
+}
+
+/// Refuses an activating publication before its payload moves when Default's
+/// next binding could not apply the retention policy (an interrupted setup
+/// switch must finish first). Otherwise the policy retires an offer inside the
+/// activation transaction and this check passes.
+pub(crate) fn require_default_retention_ready(
+    library: &Library,
+    connection: &Connection,
+    port_id: &str,
+    install_id: &str,
+) -> Result<()> {
+    if let Some(profile) = default_profile(connection, port_id)?
+        && let Some(reference) =
+            crate::retained_build::reference_from(connection, port_id, &profile.id)?
+    {
+        let pins =
+            crate::retained_build::RetentionPins::read(library, connection, port_id, &profile.id)?;
+        crate::retained_build::successor_history(Some(&reference), install_id, 0, &pins)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn owns_reference(

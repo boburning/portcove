@@ -511,6 +511,27 @@ fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_histo
     library.activate_staged(port_id).unwrap();
     assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
+    // While a setup switch is interrupted, the policy cannot retire anything:
+    // activation refuses before the payload is published, and nothing changes.
+    let journal = crate::profile_deploy::Layout::for_user(&library.user_dir(port_id)).journal();
+    std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+    std::fs::write(&journal, b"{}").unwrap();
+    let blocked = install(library, "blocked", b"blocked runtime", false);
+    let before = offered(&connection);
+    let refused = library.activate_staged(port_id).unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    assert_eq!(
+        library
+            .status(port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .staged
+            .unwrap()
+            .id,
+        blocked.id
+    );
+    assert_eq!(offered(&connection), before);
+    std::fs::remove_file(&journal).unwrap();
+
     // The old boundary: the next activation used to stop with "maximum number
     // of recovery builds". The selected setup pins revision 2 (runtime-0), so
     // the policy retires the oldest unpinned offer, runtime-1, instead.
@@ -561,6 +582,19 @@ fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_histo
             .unwrap()
             .is_some()
     );
+
+    // A library that crossed the old bound exports and imports end to end.
+    let workspace = tempfile::tempdir().unwrap();
+    let export_path = workspace.path().join("export.json");
+    let destination = workspace.path().join("imported");
+    service.write_library_metadata(&export_path).unwrap();
+    let plan =
+        PortcoveService::plan_library_import(&export_path, library.root(), &destination).unwrap();
+    assert!(plan.metadata.schema_version >= 11);
+    PortcoveService::import_library(&export_path, library.root(), &destination, &plan.plan_sha256)
+        .unwrap();
+    let imported = Library::open(&destination).unwrap().connection().unwrap();
+    assert_eq!(export(&imported).unwrap(), profiles);
 }
 
 #[test]

@@ -841,7 +841,7 @@ fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
     let none = RetentionPins::none();
 
     // The old boundary: the 17th superseded build used to refuse the binding.
-    let next = successor_history(Some(&reference), &identity("one-more"), 2, &none).unwrap();
+    let next = successor_history(Some(&reference), "one-more", 2, &none).unwrap();
     assert_eq!(next.history.len(), MAX_OFFERED_REVISIONS);
     assert_eq!(next.retired.len(), 1);
     assert_eq!(next.retired[0].build.install_id, "old-0");
@@ -852,7 +852,7 @@ fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
         pinned: ["old-0".to_owned()].into(),
         switch_pending: false,
     };
-    let next = successor_history(Some(&reference), &identity("one-more"), 2, &pinned).unwrap();
+    let next = successor_history(Some(&reference), "one-more", 2, &pinned).unwrap();
     assert_eq!(next.retired[0].build.install_id, "old-1");
     assert!(
         next.history
@@ -867,11 +867,11 @@ fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
         switch_pending: true,
     };
     let error =
-        successor_history(Some(&reference), &identity("one-more"), 2, &switching).unwrap_err();
+        successor_history(Some(&reference), "one-more", 2, &switching).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
 
     // Promoting an offered build swaps rather than grows, so nothing is retired.
-    let promoted = successor_history(Some(&reference), &identity("old-3"), 2, &switching).unwrap();
+    let promoted = successor_history(Some(&reference), "old-3", 2, &switching).unwrap();
     assert!(promoted.retired.is_empty());
     assert_eq!(promoted.history.len(), MAX_OFFERED_REVISIONS);
     assert!(
@@ -888,7 +888,7 @@ fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
     let mut retired = Vec::new();
     for number in 0..200 {
         let build = identity(&format!("build-{number}"));
-        let next = successor_history(Some(&current), &build, 3, &none).unwrap();
+        let next = successor_history(Some(&current), &build.install_id, 3, &none).unwrap();
         retired.extend(next.retired.iter().map(|entry| entry.revision));
         current = RetainedBuildReference {
             history: next.history,
