@@ -591,8 +591,13 @@ fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_histo
     let plan =
         PortcoveService::plan_library_import(&export_path, library.root(), &destination).unwrap();
     assert!(plan.metadata.schema_version >= 11);
-    PortcoveService::import_library(&export_path, library.root(), &destination, &plan.plan_sha256)
-        .unwrap();
+    PortcoveService::import_library(
+        &export_path,
+        library.root(),
+        &destination,
+        &plan.plan_sha256,
+    )
+    .unwrap();
     let imported = Library::open(&destination).unwrap().connection().unwrap();
     assert_eq!(export(&imported).unwrap(), profiles);
 }

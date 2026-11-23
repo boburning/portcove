@@ -1166,7 +1166,8 @@ pub(crate) fn write_successor_reference(
 ) -> Result<RetainedBuildReference> {
     let now = Library::now();
     let pins = RetentionPins::read(library, connection, &build.port_id, setup_id)?;
-    let SuccessorHistory { history, retired } = successor_history(previous, &build.install_id, now, &pins)?;
+    let SuccessorHistory { history, retired } =
+        successor_history(previous, &build.install_id, now, &pins)?;
     for entry in &retired {
         tracing::info!(
             port_id = %build.port_id,

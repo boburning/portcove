@@ -866,8 +866,7 @@ fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
         pinned: BTreeSet::new(),
         switch_pending: true,
     };
-    let error =
-        successor_history(Some(&reference), "one-more", 2, &switching).unwrap_err();
+    let error = successor_history(Some(&reference), "one-more", 2, &switching).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
 
     // Promoting an offered build swaps rather than grows, so nothing is retired.
