@@ -4487,10 +4487,7 @@ void test("each subject names its assessment inputs, when they last changed and 
 
 void test(
   "a batch over its time or output budget is split down to single ports, and a port that still exceeds it is a gap",
-  {
-    skip: process.platform === "win32" ? "the stub Core is a POSIX script" : false,
-    timeout: 60_000,
-  },
+  { timeout: 60_000 },
   async (context) => {
     const root = mkdtempSync(path.join(os.tmpdir(), "portcove-batch-budget-"));
     context.after(() => rmSync(root, { recursive: true, force: true }));
