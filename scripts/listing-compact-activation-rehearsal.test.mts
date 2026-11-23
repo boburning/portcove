@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  compactListingCarrier,
+  compactListingDecodedMaximum,
   compactListingDeliveryTarget,
+  encodeCompactListing,
   listingDeliveryMaximum,
   listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
@@ -17,6 +22,8 @@ import {
   writePriorRepository,
 } from "./listing-compact-activation-rehearsal.mts";
 import {
+  classifyCoreInspectionFailure,
+  CoreInspectionRefusal,
   isolateValidEnrichment,
   legacyHoldSuccessor,
   prepareObservationBundle,
@@ -25,6 +32,8 @@ import {
   reviewedLegacySuccessor,
 } from "./listing-observation-delivery.mts";
 import { writeStubCli } from "./fixtures/listing-prepare-fixture.mts";
+import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
+import { fixtureReleasedReaderSources } from "./fixtures/released-reader-fixture.mts";
 
 const reason = "Fresh acquisition remains held for the documented permissions.";
 const restriction = {
@@ -113,6 +122,21 @@ void test("the rehearsal drives every activation step through preparation", asyn
   assert.match(report.reader_gate.refused.without_compact_carrier, /listing format 15/u);
   assert.match(report.reader_gate.refused.without_candidate_format, /listing format 15/u);
   assert.match(report.reader_gate.refused.wrong_reader_digest, /SHA-256 differs/u);
+  const automatic = report.reader_gate.automatic_unverified ?? {};
+  assert.deepEqual(Object.keys(automatic), [
+    "withdrawn",
+    "lacks_candidate_format",
+    "substituted_archive",
+    "unattested_tag",
+    "off_protected_main",
+  ]);
+  for (const entry of Object.values(automatic)) assert.equal(entry.legacy_only_unchanged, true);
+  assert.match(automatic.withdrawn!.reason, /withdrawn/u);
+  assert.match(automatic.lacks_candidate_format!.reason, /listing format 15/u);
+  assert.match(automatic.substituted_archive!.reason, /attested identity/u);
+  assert.match(automatic.unattested_tag!.reason, /attestation subject differs/u);
+  assert.match(automatic.off_protected_main!.reason, /protected main/u);
+  assert.equal((report.activation.released_reader_source as { tag: string }).tag, "v0.1.0");
   assert.equal(report.activation.legacy_revision, 1);
   assert.equal(report.activation.compact_revision, 2);
   assert.equal(report.activation.compact_rows, 4);
@@ -543,3 +567,381 @@ void test("a carrier that must follow a signed revision is republished above it"
   assert.equal(raised.changed, true);
   assert.equal(document(raised.bytes).revision, 6);
 });
+
+/** An active compact prior over `listings`, as the signer would have accepted it. */
+function compactPrior(root: string, listings: Row[]) {
+  const legacy = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    listingDeliveryMaximum,
+    legacyExport(canonical),
+    operationalIds,
+  ).bytes;
+  const decoded = wire({
+    ...document(legacy),
+    revision: 2,
+    directory: { format_version: 15, listings },
+  });
+  return {
+    decoded,
+    prior: writePriorRepository(path.join(root, "prior"), {
+      [listingDeliveryTarget]: legacy,
+      [compactListingDeliveryTarget]: encodeCompactListing(decoded),
+    }),
+  };
+}
+
+/** Delegates to the stub CLI, except that publication inspection of a
+ * candidate carrying the refused observation field behaves as `behavior`. */
+function misbehavingCli(file: string, stub: string, behavior: string) {
+  writeFileSync(
+    file,
+    `#!${process.execPath}
+const fs = require("node:fs"), path = require("node:path"), zlib = require("node:zlib");
+const { execFileSync } = require("node:child_process");
+const args = process.argv.slice(2);
+if (args[2] === "inspect-definition-publication") {
+  const compact = path.join(args[3], ${JSON.stringify(compactListingDeliveryTarget)});
+  if (fs.existsSync(compact)) {
+    const wire = JSON.parse(fs.readFileSync(compact, "utf8"));
+    const text = zlib.gunzipSync(Buffer.from(wire.gzip_base64, "base64")).toString("utf8");
+    if (text.includes("unexpected_field")) { ${behavior} }
+  }
+}
+try { process.stdout.write(execFileSync(${JSON.stringify(stub)}, args)); }
+catch (error) { process.stdout.write(error.stdout ?? ""); process.exit(error.status ?? 1); }
+`,
+  );
+  chmodSync(file, 0o755);
+  return file;
+}
+
+void test("only Core's refusal of a staged candidate excludes compact enrichment", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const enrichment = enrichmentFixture();
+  const listings = [...canonical.listings, ...enrichment.rows];
+  const canonicalFile = fixture.write("enriched.json", { ...canonical, listings });
+  const { prior } = compactPrior(fixture.root, listings);
+  const prepare = (name: string, cli: string, cliTimeoutMs?: number) =>
+    prepareObservationBundle({
+      bundle: fixture.bundle,
+      canonical: canonicalFile,
+      catalog: fixture.catalog,
+      prior,
+      output: path.join(fixture.root, name),
+      cli,
+      tools: fixture.tools,
+      root: fixture.rootFile,
+      offlineTargets: fixture.offlineTargets,
+      readObservation: () => Promise.resolve(enrichment.mixedInput),
+      ...(cliTimeoutMs ? { cliTimeoutMs } : {}),
+    });
+  // Core's refusal envelope: the refused candidate alone is excluded.
+  const refused = await prepare("refused", fixture.cli);
+  assert.deepEqual(refused.excluded_candidates, [enrichment.invalid]);
+  const cli = (name: string, behavior: string) =>
+    misbehavingCli(path.join(fixture.root, `${name}-cli`), fixture.cli, behavior);
+  // A crash without Core's envelope fails preparation.
+  await assert.rejects(
+    prepare("crash", cli("crash", "process.exit(101);")),
+    /inspection failed without a candidate refusal \(exit 101\)/u,
+  );
+  // A Core error that is not an input refusal fails preparation.
+  await assert.rejects(
+    prepare(
+      "state",
+      cli(
+        "state",
+        'process.stdout.write(JSON.stringify({ ok: false, command: "catalog.inspect-definition-publication", error: { code: "state", message: "disk" } })); process.exit(13);',
+      ),
+    ),
+    /without a candidate refusal \(exit 13, state\)/u,
+  );
+  // A refusal envelope whose exit code disagrees is not a refusal.
+  await assert.rejects(
+    prepare(
+      "mismatch",
+      cli(
+        "mismatch",
+        'process.stdout.write(JSON.stringify({ ok: false, error: { code: "verification", message: "x" } })); process.exit(1);',
+      ),
+    ),
+    /without a candidate refusal \(exit 1, verification\)/u,
+  );
+  // A timeout fails preparation.
+  await assert.rejects(
+    prepare("timeout", cli("timeout", "setTimeout(() => process.exit(0), 20000); return;"), 1500),
+    /did not complete \(ETIMEDOUT\)/u,
+  );
+});
+
+void test("compact capacity overflow fails preparation instead of trimming candidates", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const enrichment = enrichmentFixture();
+  const candidates = enrichment.policies.map((policy) => policy.listing_update);
+  // Incompressible filler: base64 of a hash stream.
+  const stream: Buffer[] = [];
+  for (let index = 0; stream.length * 32 < 6_400_000; index++)
+    stream.push(createHash("sha256").update(String(index)).digest());
+  const entropy = Buffer.concat(stream).toString("base64");
+  const listingsWith = (length: number) => [
+    ...canonical.listings,
+    ...enrichment.rows,
+    row("capacity-filler", { summary: entropy.slice(0, length) }),
+  ];
+  const wireBytes = (decoded: Buffer) =>
+    Buffer.byteLength(
+      JSON.stringify({
+        carrier: compactListingCarrier,
+        decoded_bytes: decoded.length,
+        decoded_sha256: "0".repeat(64),
+        gzip_base64: gzipSync(decoded).toString("base64"),
+      }),
+    );
+  const projected = (length: number, observations: Record<string, unknown>[]) => {
+    const listings = listingsWith(length);
+    const previous = wire({
+      listing_delivery_schema: 1,
+      revision: 2,
+      withdrawn_ids: [],
+      directory: { format_version: 15, listings },
+    });
+    return publishedAbove(
+      projectListingDelivery(
+        { format_version: 15, listings },
+        observations,
+        previous,
+        0,
+        compactListingDecodedMaximum,
+        { format_version: 15, listings },
+        operationalIds,
+        Date.now(),
+        [],
+        true,
+      ),
+      0,
+    ).bytes;
+  };
+  // The smallest filler whose candidate projection exceeds the wire bound.
+  // Each candidate adds hundreds of compressed bytes; 64-byte precision keeps
+  // the candidate-free projection inside the bound.
+  // The wire grows linearly with incompressible filler: interpolate, then
+  // bisect a narrow window.
+  const start = 8_100_000;
+  const slope =
+    (wireBytes(projected(start + 100_000, candidates)) - wireBytes(projected(start, candidates))) /
+    100_000;
+  const estimate = Math.round(
+    start + (listingDeliveryMaximum - wireBytes(projected(start, candidates))) / slope,
+  );
+  let low = estimate - 4096;
+  let high = estimate + 4096;
+  assert.ok(wireBytes(projected(low, candidates)) <= listingDeliveryMaximum);
+  assert.ok(wireBytes(projected(high, candidates)) > listingDeliveryMaximum);
+  while (high - low > 64) {
+    const middle = Math.floor((low + high) / 2);
+    if (wireBytes(projected(middle, candidates)) > listingDeliveryMaximum) high = middle;
+    else low = middle;
+  }
+  const listings = listingsWith(high);
+  const canonicalFile = fixture.write("capacity.json", { ...canonical, listings });
+  // The prior compact target without the candidates fits; with them it does not.
+  const { prior } = compactPrior(fixture.root, listings);
+  await assert.rejects(
+    prepareObservationBundle({
+      bundle: fixture.bundle,
+      canonical: canonicalFile,
+      catalog: fixture.catalog,
+      prior,
+      output: path.join(fixture.root, "out"),
+      cli: fixture.cli,
+      tools: fixture.tools,
+      root: fixture.rootFile,
+      offlineTargets: fixture.offlineTargets,
+      readObservation: () => Promise.resolve(enrichment.validInput),
+    }),
+    /exceeds its transport byte bound/u,
+  );
+});
+
+void test("Core inspection failures are classified by process outcome and envelope", () => {
+  const envelope = (code: string) =>
+    JSON.stringify({
+      ok: false,
+      command: "catalog.inspect-definition-publication",
+      error: { code, message: "m" },
+    });
+  for (const [code, status] of [
+    ["verification", 11],
+    ["source_invalid", 5],
+    ["unsupported", 3],
+  ] as const)
+    assert.ok(
+      classifyCoreInspectionFailure({ status, stdout: envelope(code) }) instanceof
+        CoreInspectionRefusal,
+    );
+  for (const failure of [
+    { status: 13, stdout: envelope("state") },
+    { status: 2, stdout: envelope("usage") },
+    { status: 11, stdout: "not json" },
+    { status: 101, stdout: "" },
+    { status: null, signal: "SIGKILL", stdout: envelope("verification") },
+    { code: "ETIMEDOUT", status: null, stdout: envelope("verification") },
+    { code: "ENOBUFS", status: 11, stdout: envelope("verification") },
+    { code: "ENOENT" },
+  ])
+    assert.equal(
+      classifyCoreInspectionFailure(failure) instanceof CoreInspectionRefusal,
+      false,
+      JSON.stringify(failure),
+    );
+});
+
+void test("automatic reader selection activates, advances or renews exact carriers", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const stub = readFileSync(fixture.cli);
+  const legacy = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    listingDeliveryMaximum,
+    legacyExport(canonical),
+    operationalIds,
+  ).bytes;
+  const legacyPrior = writePriorRepository(path.join(fixture.root, "legacy-prior"), {
+    [listingDeliveryTarget]: legacy,
+  });
+  // An active compact target one format behind the candidate (format 14).
+  const compact14 = encodeCompactListing(
+    wire({
+      ...document(legacy),
+      revision: 2,
+      directory: {
+        format_version: 14,
+        listings: canonical.listings.map((listing) => {
+          const older: Row = { ...listing };
+          delete older.restrictions;
+          return older;
+        }),
+      },
+    }),
+  );
+  const compactPrior = writePriorRepository(path.join(fixture.root, "compact-prior"), {
+    [listingDeliveryTarget]: legacy,
+    [compactListingDeliveryTarget]: compact14,
+  });
+  const current = compactPrior15(fixture.root);
+  let acquisitions = 0;
+  const prepare = (
+    name: string,
+    prior: string,
+    official: Parameters<typeof fixtureReleasedReaderSources>[0] | null,
+    extra: Record<string, unknown> = {},
+  ) =>
+    prepareObservationBundle({
+      bundle: fixture.bundle,
+      canonical: fixture.canonical,
+      catalog: fixture.catalog,
+      prior,
+      output: path.join(fixture.root, name),
+      cli: fixture.cli,
+      tools: fixture.tools,
+      root: fixture.rootFile,
+      offlineTargets: fixture.offlineTargets,
+      observe: false,
+      officialReleasedReader: true,
+      acquireReleasedReader: (root: string) => {
+        acquisitions++;
+        if (!official) return Promise.reject(new Error("no official release reachable"));
+        return acquireCatalogReleasedReader(root, fixtureReleasedReaderSources(official).sources);
+      },
+      ...extra,
+    });
+  const read = (name: string, target: string) => {
+    const file = path.join(fixture.root, name, "bundle", target);
+    try {
+      return readFileSync(file);
+    } catch {
+      return null;
+    }
+  };
+  // First activation from a current legacy target.
+  const activated = await prepare("activate", legacyPrior, { binary: stub, version: "0.1.0" });
+  assert.equal(activated.listing_format, 15);
+  assert.deepEqual(read("activate", listingDeliveryTarget), legacy);
+  assert.ok(read("activate", compactListingDeliveryTarget));
+  assert.deepEqual(activated.released_reader_activation, { version: "0.1.0", tag: "v0.1.0" });
+  assert.equal(
+    (activated.released_reader as { sha256: string }).sha256,
+    createHash("sha256").update(stub).digest("hex"),
+  );
+  // Without a verified reader, legacy-only publication is byte-identical to
+  // preparation without automatic selection.
+  const plain = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.canonical,
+    catalog: fixture.catalog,
+    prior: legacyPrior,
+    output: path.join(fixture.root, "plain"),
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+  });
+  const unverified: [string, Parameters<typeof fixtureReleasedReaderSources>[0] | null][] = [
+    ["unreachable", null],
+    ["withdrawn", { binary: stub, version: "0.1.0", withdrawn: ["0.1.0"] }],
+    ["version", { binary: stub, version: "0.1.1" }],
+  ];
+  for (const [name, official] of unverified) {
+    const result = await prepare(`legacy-${name}`, legacyPrior, official);
+    assert.equal(result.listing_format, 11, name);
+    assert.equal(read(`legacy-${name}`, compactListingDeliveryTarget), null);
+    assert.deepEqual(
+      read(`legacy-${name}`, listingDeliveryTarget),
+      read("plain", listingDeliveryTarget),
+    );
+    assert.equal(result.revision, plain.revision);
+    assert.ok(result.released_reader_unavailable, name);
+  }
+  // A compact format increase with a verified reader advances the format.
+  const advanced = await prepare("advance", compactPrior, { binary: stub, version: "0.1.0" });
+  assert.equal(advanced.listing_format, 15);
+  assert.deepEqual(read("advance", listingDeliveryTarget), legacy);
+  // Without one, both exact authenticated carriers are renewed unchanged.
+  const renewed = await prepare("renew", compactPrior, {
+    binary: stub,
+    version: "0.1.0",
+    withdrawn: ["0.1.0"],
+  });
+  assert.equal(renewed.listing_format, 14);
+  assert.equal(renewed.changed, false);
+  assert.match(String(renewed.released_reader_unavailable), /withdrawn/u);
+  assert.deepEqual(read("renew", listingDeliveryTarget), legacy);
+  assert.deepEqual(read("renew", compactListingDeliveryTarget), compact14);
+  // A current compact target needs no reader: nothing is acquired.
+  const before = acquisitions;
+  const steady = await prepare("steady", current, null);
+  assert.equal(acquisitions, before);
+  assert.equal(steady.listing_format, 15);
+  assert.equal(steady.released_reader_unavailable, undefined);
+  // Automatic selection decides activation itself.
+  for (const extra of [
+    { compact: true },
+    { returnToLegacy: true },
+    { releasedReader: { cli: fixture.cli, sha256: "0".repeat(64) } },
+  ])
+    await assert.rejects(
+      prepare(`conflict-${Object.keys(extra)[0]}`, legacyPrior, null, extra),
+      /decides activation itself/u,
+    );
+});
+
+/** An active format-15 compact prior over the fixture canonical directory. */
+function compactPrior15(root: string) {
+  return compactPrior(path.join(root, "current"), canonical.listings).prior;
+}

@@ -173,8 +173,11 @@ fn collect_listing_withdrawals<'a>(
 /// A hold it adds or retells, and a row it adds, are bound to the same
 /// proposal's compact directory: the hold text equals that compact row's legacy
 /// `download_block_reason`, and an added row equals the compact row's format-11
-/// projection exactly. It can therefore only make a download stricter, using
-/// facts the compact readers receive in the same publication.
+/// projection exactly. A retold hold therefore only makes a download stricter.
+/// An added held row also delivers that compact row's current descriptive facts
+/// (name, summary, project URL, media, download hints and the other format-11
+/// fields) to format-11 readers, which until then kept their bundled row; those
+/// facts are exactly what compact readers receive in the same publication.
 pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u8]) -> Result<()> {
     const HOLD: &str = "download_block_reason";
     let prior: serde_json::Value = serde_json::from_slice(prior)?;
@@ -242,7 +245,7 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u
             }
             None if held(row) => {
                 if row.get("upstream_observation").is_some()
-                    || legacy_projection(current_row(id)?) != *row
+                    || portcove_listing_carrier::legacy_row_projection(current_row(id)?) != *row
                 {
                     return invalid("legacy listing added row differs from the compact listing");
                 }
@@ -279,43 +282,6 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u
 pub(super) struct ListingTargets {
     pub legacy: Option<ListingRevision>,
     pub compact: Option<ListingRevision>,
-}
-
-/// Core's format-11 export of a compact listing row, as JSON: typed
-/// restrictions, implementation, verified edition sources and typed IGDB scenes
-/// are format-12+ facts, and observations are never copied into a legacy row.
-fn legacy_projection(row: &serde_json::Value) -> serde_json::Value {
-    let mut row = row.clone();
-    let Some(fields) = row.as_object_mut() else {
-        return row;
-    };
-    for field in ["restrictions", "implementation", "upstream_observation"] {
-        fields.remove(field);
-    }
-    if let Some(media) = fields
-        .get_mut("media")
-        .and_then(serde_json::Value::as_array_mut)
-    {
-        media.retain(|asset| {
-            !(asset.get("igdb").is_some_and(|igdb| !igdb.is_null())
-                && matches!(asset["role"].as_str(), Some("header" | "screenshot")))
-        });
-        if media.is_empty() {
-            fields.remove("media");
-        }
-    }
-    if let Some(editions) = fields
-        .get_mut("original_game")
-        .and_then(|game| game.get_mut("source_editions"))
-        .and_then(serde_json::Value::as_array_mut)
-    {
-        for edition in editions {
-            if let Some(edition) = edition.as_object_mut() {
-                edition.remove("verified_sources");
-            }
-        }
-    }
-    row
 }
 
 pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {

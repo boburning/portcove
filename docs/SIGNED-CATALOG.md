@@ -213,7 +213,9 @@ history pointer cannot trigger a new bootstrap.
 The owner must resolve these before history bootstrap or compact listing
 activation. Each failure below stops publication in the prepare job's context
 check, before any role key is used. The last good publication stays served,
-but publication stays stopped until the cause is repaired.
+but publication stays stopped until the cause is repaired. Items 1, 2 and 5
+concern history bootstrap; compact activation alone does not depend on them,
+but activating both makes compact delivery one-way (item 5).
 
 1. **Unbounded chain.** Each publication adds one inventory segment and one
    parent checkpoint. Verification walks both chains under one shared bound of
@@ -222,39 +224,131 @@ but publication stays stopped until the cause is repaired.
    publications a day reach that in under three years. There is no bounded
    rebase. A rebase needs a fresh active checkpoint without a parent, and a
    defined way to keep archive-retention evidence once the segment chain
-   restarts.
+   restarts. _Open._
 2. **Root rotation.** Each checkpoint binds the compiled root's SHA-256. The
    first publication after a root rotation fails with `catalog history
    checkpoint was made under a different trusted root`. Bootstrap cannot
    recover it, because an existing pointer always selects segmented history.
    Rotation needs a defined checkpoint successor before history is activated.
+   _Open._
 3. **Fixed legacy listing.** After compact activation the legacy target's
    bytes are fixed, except for safety withdrawals and download holds (see
    [Legacy holds after compact activation](#legacy-holds-after-compact-activation)).
    _Partly satisfied by this repository's code and tests:_ a hold added or
    retold in the catalog after activation now reaches format-11 readers
-   without withdrawing the row. Still open: format-11 readers cannot receive a
-   typed restriction's permit, scope, second hold, non-download operation,
-   `reason` or `tracking_issue`. A hold that predates activation on a discovery
-   row the legacy target does not deliver stays with the reader's bundled row,
-   as it does before activation.
+   without withdrawing the row. An added held row also carries the compact
+   row's current descriptive facts to format-11 readers. Preparation binds
+   that row to Core's format-11 export and the signer to
+   `portcove_listing_carrier::legacy_row_projection`; Core's tests prove the
+   two are equal for every committed listing row and for fixture rows with
+   restrictions, implementation, verified sources and typed IGDB scenes.
+   Still open: format-11 readers cannot receive a typed restriction's permit,
+   scope, second hold, non-download operation, `reason` or `tracking_issue`. A
+   hold that predates activation on a discovery row the legacy target does not
+   deliver stays with the reader's bundled row, as it does before activation.
 4. **No enrichment fallback.** Legacy preparation drops all optional observer
    enrichment when Core refuses the candidate set and keeps publishing.
    _Satisfied by this repository's code and tests for compact preparation:_
    it excludes and reports only the candidates Core refuses, and each excluded
-   row keeps its prior signed observation. Legacy preparation keeps its
-   all-or-nothing fallback unchanged. A projection failure, including capacity
-   exhaustion, still fails compact preparation.
+   row keeps its prior signed observation. Only Core's own refusal counts: the
+   inspection must exit with Core's `verification`, `source_invalid` or
+   `unsupported` code and the matching JSON error envelope. Capacity
+   exhaustion of the encoded carrier, a projection failure, a Core crash,
+   timeout, output overflow or any other Core error fails compact preparation
+   with a precise error instead of excluding candidates. Legacy preparation
+   keeps its all-or-nothing fallback unchanged.
 5. **Rollback after history bootstrap.** A reviewed return to legacy-only
    delivery is available before history bootstrap (see
    [Returning to legacy-only delivery](#returning-to-legacy-only-delivery)).
    Once a checkpoint names a compact floor, the checkpoint refuses a successor
    without the compact carrier with `catalog history checkpoint listing requires
    its authenticated retained carriers`. Activating both makes compact delivery
-   one-way until a compact retirement checkpoint is defined.
+   one-way until a compact retirement checkpoint is defined. _Open._
 6. **Revision bump.** Compact activation must use a revision above the legacy
    target. A format-15 compact target beside a format-11 legacy target at the
    same revision decodes differently, and the release tools refuse it.
+   _Satisfied by this repository's code and tests:_ preparation publishes the
+   first compact target above the legacy revision, and the rehearsal checks it.
+7. **Released reader.** Compact delivery must stay readable by the released
+   CLI players run. _Satisfied by this repository's code and tests, not
+   enabled:_ see [Automatic released-reader selection](#automatic-released-reader-selection).
+   No caller-supplied path or SHA-256 is needed; the explicit
+   `--released-reader` path remains an override for rehearsal and tests.
+8. **Publish-time reader recheck.** A reader withdrawn between Prepare and the
+   Pages push must stop that push. _The script side is satisfied by code and
+   tests_ (`node scripts/catalog-released-reader.mts SITE`); the workflow step
+   that calls it is part of the activation change below.
+
+#### Automatic released-reader selection
+
+`--official-released-reader` on `scripts/listing-observation-delivery.mts`
+selects the reader from the protected `gh-pages` Preview pointer
+(`updates/preview/latest.json`, which also follows newer Beta and Stable
+releases) and verifies it without credentials. No token is read or sent:
+
+- The version must not be listed in `updates/withdrawn.json`.
+- The tag's object and peeled commit come from an anonymous `git ls-remote`,
+  and the commit must be an ancestor of protected `main`.
+- `SHA256SUMS` and the Linux x86-64 CLI archive come from the public release
+  download route under fixed byte bounds.
+- One anonymous API read lists the archive's attestations. A GitHub release
+  attestation, which GitHub issues only for an immutable release, must bind
+  the repository, owner and repository IDs, tag, exact tag object, archive and
+  `SHA256SUMS`. It is verified offline with `node:crypto` against GitHub's
+  Sigstore trusted root, read anonymously with `gh attestation trusted-root`.
+- The single regular archive member is unpacked privately. Its capability
+  report, run in a private directory with no credentials, must name the
+  `gzip-base64-json-v1` carrier and listing format 15, and the release
+  version.
+
+The reader is needed only for first activation and for a later compact format
+increase. When selection or the probe fails, preparation does not stop: a
+legacy-only prior stays legacy-only byte for byte, and an active compact prior
+republishes both exact authenticated carriers. The report records the reason
+in `released_reader_unavailable`. While a format increase stays unverified,
+the renewed carriers also hold back other listing changes, including new
+holds. GitHub allows 60 anonymous API requests an hour per address, so a
+shared runner address can delay activation; it cannot change what is
+published. The report retains the selected tag, tag object, source commit,
+release ID and archive digest in `released_reader_source`.
+`node scripts/catalog-released-reader.mts select DIR` is a read-only preflight
+that prints what the selection would verify and the reader's capabilities.
+
+#### Activation checklist
+
+Nothing in this repository passes `--official-released-reader`,
+`--compact` or `--return-to-legacy`; scheduled publication stays legacy-only
+and unchanged. Activation is one reviewed workflow change:
+
+1. **Verify.** On the `main` commit the change targets: the required checks
+   are green, and
+   `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
+   passes with a locally built CLI. Optionally run the `select` preflight
+   above and confirm it reports format 15 and `gzip-base64-json-v1`. Do not
+   request history bootstrap in the same change.
+2. **The one workflow change** in `.github/workflows/catalog-publish.yml`,
+   with no new permission, secret, environment or trigger:
+   - In the prepare job's observation step, pass
+     `--official-released-reader`, give the step `id: observe`, append
+     `reader_activation=` and the compact JSON of the report's
+     `released_reader_activation` (empty when absent) to `$GITHUB_OUTPUT`,
+     and expose it as a job output.
+   - In the publish job, set `CATALOG_READER_ACTIVATION` from that output and,
+     inside the Pages push retry loop after each fresh `site` worktree is
+     created, run `node scripts/catalog-released-reader.mts site` when it is
+     non-empty.
+3. **Read back** the first activated run: its prepare report shows
+   `listing_format` 15, `released_reader_source`, and a `legacy_sha256` equal
+   to the legacy target already served; Pages then serves
+   `policy/official/catalog.listings.compact.json` beside the unchanged legacy
+   target.
+4. **Roll back** before history bootstrap: revert the workflow change. That
+   stops further reader selection, but an existing compact target keeps
+   publishing. To return to legacy-only delivery, run one reviewed
+   publication with `--return-to-legacy` (see
+   [Returning to legacy-only delivery](#returning-to-legacy-only-delivery)),
+   then remove it again. After history bootstrap the return is refused
+   (item 5).
 
 ### Rehearsing compact activation
 
@@ -262,9 +356,13 @@ but publication stays stopped until the cause is repaired.
 runs the production preparation entry point, `prepareObservationBundle`, once per
 step against the committed catalog and the committed publication bundle. `PATH`
 is a locally built `portcove` CLI. It exports, validates and inspects every
-publication, and it stands in for the reviewed released reader unless
-`--released-reader PATH` names one. `DIR` must be an empty directory; each
-step's bundle and report stay there.
+publication. Activation runs the automatic released-reader selection over
+fixture Pages, tag, release-asset and attestation sources that publish `PATH`,
+or `--released-reader PATH` when given, under the version it reports. The
+fixture statement stands in for GitHub's signature, which
+`scripts/github-release-attestation.test.mts` verifies against a real GitHub
+release attestation. `DIR` must be an empty directory; each step's bundle and
+report stay there.
 
 The prior repository of each step is a fixture: its metadata names the
 previous step's listing targets, and the verification report is that
@@ -275,11 +373,14 @@ runs the same steps with a stand-in CLI whose one validation rule mirrors
 Core's refusal of an unknown observation field. Each step stops the rehearsal
 when its property fails:
 
-- **Released-reader gate.** Preparation refuses activation when the reader
-  lacks the `gzip-base64-json-v1` carrier, lacks the candidate's listing
-  format, or differs from its reviewed SHA-256. The candidate format is the
-  canonical directory's format, 15 for the committed catalog; the gate does
-  not pin format 15 itself.
+- **Released-reader gate.** With an explicit reader, preparation refuses
+  activation when the reader lacks the `gzip-base64-json-v1` carrier, lacks
+  the candidate's listing format, or differs from its reviewed SHA-256. With
+  automatic selection, a withdrawn version, a reader without format 15, a
+  substituted archive, an unattested tag object or a source off protected
+  `main` each leave the legacy-only publication byte for byte unchanged.
+- **Activation reader.** Activation verifies the selected reader and reports
+  its source.
 - **Activation.** The first compact target is format 15 and publishes above the
   legacy revision. Preparation keeps the signed legacy bytes it read from the
   prior repository.
@@ -320,7 +421,13 @@ dropped.
   compact row. Each row it adds equals that compact row's format-11
   projection exactly, without observations, and the compact target must
   deliver that row unwithdrawn. Preparation checks this against Core's
-  format-11 export; the signer checks it against the compact row.
+  format-11 export; the signer checks it against the compact row with the
+  shared projection Core's tests prove equal to that export.
+- A retold hold only makes a download stricter. An added held row is not only
+  a hold: it also gives format-11 readers, which until then kept their bundled
+  row, the compact row's current descriptive facts, such as name, summary,
+  project URL, media and download hints. Those are exactly the facts compact
+  readers receive in the same publication.
 - It never drops or clears a hold, removes a withdrawal, removes an unwithdrawn
   row or changes any other legacy fact.
 - The first compact publication keeps the legacy bytes exactly. From the next
