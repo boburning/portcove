@@ -4304,7 +4304,7 @@
           "reason": "The scheduled receipt pass needs a real migrated PostgreSQL store; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on ubuntu-latest",
           "cases": [
-            "scheduled receipt CLI admits and records a passed receipt against a migrated store"
+            "scheduled receipt CLI records a passed receipt against a migrated local store where admission is bypassed"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
