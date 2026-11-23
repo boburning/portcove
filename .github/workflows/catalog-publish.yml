@@ -92,7 +92,8 @@ jobs:
           # ls-remote exits 2 only for a missing branch; any other failure stops the run.
           rc=0; git ls-remote --exit-code --heads origin gh-pages > /dev/null || rc=$?
           if [ "$rc" = 0 ]; then
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # Every later step reads only the published tree, never its history.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             git worktree add --quiet --detach site refs/remotes/origin/gh-pages
           elif [ "$rc" != 2 ]; then
             echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
@@ -108,6 +109,9 @@ jobs:
           if [ ! -d site/catalog ]; then
             exit 0
           fi
+          # The readback compares the last catalog commit with its parent, past
+          # any later application-only Pages commits.
+          git fetch --quiet --depth=8 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
           receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
           status="$RUNNER_TEMP/catalog-publication-late-observation.json"
           node scripts/catalog-publication-continuation.mts --site site --output "$receipt" --status "$status"
@@ -344,7 +348,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           repository="$RUNNER_TEMP/catalog-work/repository"
           for attempt in 1 2 3 4; do
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # The new commit needs only the current head as its parent.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.

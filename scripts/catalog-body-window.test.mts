@@ -450,14 +450,22 @@ void test("signers never see the ledger, and retention stays off beside history"
   assert.match(retentionPlan(site, "window", "segmented").notice ?? "", /stays off/u);
 });
 
-void test("the workflow ships retention off", () => {
+void test("the workflow ships retention off and reads gh-pages without its history", () => {
   const workflow = parse(
     readFileSync(path.join(root, ".github/workflows/catalog-publish.yml"), "utf8"),
   ) as { env?: Record<string, string>; jobs: Record<string, { steps?: { run?: string }[] }> };
   assert.deepEqual(workflow.env, { CATALOG_RETAIN_BODIES: "all" });
   const prepare = workflow.jobs.prepare!.steps!.map((step) => step.run ?? "").join("\n");
+  assert.match(
+    prepare,
+    /git fetch --quiet --depth=1 origin refs\/heads\/gh-pages:refs\/remotes\/origin\/gh-pages/u,
+  );
   assert.match(prepare, /--retain-bodies "\$CATALOG_RETAIN_BODIES"/u);
   const publish = workflow.jobs.publish!.steps!.map((step) => step.run ?? "").join("\n");
+  assert.match(
+    publish,
+    /git fetch --quiet --depth=1 origin refs\/heads\/gh-pages:refs\/remotes\/origin\/gh-pages/u,
+  );
   assert.match(publish, /--retain-bodies "\$RETAIN_BODIES" --ledger /u);
   assert.match(
     publish,
