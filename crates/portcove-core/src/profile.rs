@@ -1509,7 +1509,7 @@ fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Pro
 fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>> {
     let mut statement = connection.prepare(
         "SELECT id, port_id, current_revision, profile_json FROM profiles
-         WHERE port_id=?1 ORDER BY is_default DESC, id LIMIT 65",
+         WHERE port_id=?1 ORDER BY is_default DESC, id",
     )?;
     let rows = statement.query_map([port_id], |row| {
         Ok((
