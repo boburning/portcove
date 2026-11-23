@@ -297,22 +297,33 @@ const NON_TITLE_PREFIXES: &[&str] = &[
 
 /// The bound on the stem of a derived environment prefix.
 pub(crate) const MAX_PREFIX_STEM: usize = 32;
+/// The characters a shortened stem keeps before its digest suffix.
+const SHORTENED_STEM_KEEP: usize = 24;
 
-/// The environment name prefix derived from a port ID: the ID's ASCII letters
-/// and digits, uppercased, in order, truncated to [`MAX_PREFIX_STEM`] and
-/// followed by one `_` (`blacklabelhq-medievilrecomp` becomes
-/// `BLACKLABELHQMEDIEVILRECOMP_`). It is `None`, and the contract may declare
-/// no environment entry except a harmless name, when the derivation is not a
-/// [`valid_environment_prefix`]: a stem shorter than three characters, a stem
-/// starting with a digit, or one that overlaps a reserved runtime, loader or
-/// non-title prefix.
+/// The environment name prefix derived from a port ID. The stem is the ID's
+/// ASCII letters and digits, uppercased, in order (`blacklabelhq-medievilrecomp`
+/// becomes `BLACKLABELHQMEDIEVILRECOMP_`). A stem longer than
+/// [`MAX_PREFIX_STEM`] keeps its first 24 characters followed by the first 8
+/// uppercase hexadecimal digits of the SHA-256 of the port ID, so long IDs
+/// sharing a start stay distinct. One `_` follows. It is `None`, and the
+/// contract may declare no environment entry except a harmless name, when the
+/// derivation is not a [`valid_environment_prefix`]: a stem shorter than three
+/// characters, a stem starting with a digit, or one that overlaps a reserved
+/// runtime, loader or non-title prefix.
 pub(crate) fn derived_environment_prefix(port_id: &str) -> Option<String> {
-    let stem = port_id
+    use sha2::Digest;
+    let mut stem = port_id
         .chars()
         .filter(char::is_ascii_alphanumeric)
         .map(|character| character.to_ascii_uppercase())
-        .take(MAX_PREFIX_STEM)
         .collect::<String>();
+    if stem.len() > MAX_PREFIX_STEM {
+        stem.truncate(SHORTENED_STEM_KEEP);
+        stem.push_str(
+            &hex::encode_upper(sha2::Sha256::digest(port_id.as_bytes()))
+                [..MAX_PREFIX_STEM - SHORTENED_STEM_KEEP],
+        );
+    }
     let prefix = format!("{stem}_");
     valid_environment_prefix(&prefix).then_some(prefix)
 }
@@ -483,10 +494,23 @@ mod tests {
                 "touhou-4-lotus-land-story-portable64",
                 Some("TOUHOU4LOTUSLANDSTORYPORTABLE64_"),
             ),
-            // Truncated to 32 characters.
+            // Exactly 32 characters stay whole.
+            (
+                "abcdefghij-abcdefghij-abcdefghij-ab",
+                Some("ABCDEFGHIJABCDEFGHIJABCDEFGHIJAB_"),
+            ),
+            // Longer stems keep 24 characters and 8 digest digits of the ID.
             (
                 "abcdefghij-abcdefghij-abcdefghij-abcdefghij",
-                Some("ABCDEFGHIJABCDEFGHIJABCDEFGHIJAB_"),
+                Some("ABCDEFGHIJABCDEFGHIJABCDCEBB1028_"),
+            ),
+            (
+                "vyruz-destruction-of-the-untel-empire-openvyruz",
+                Some("VYRUZDESTRUCTIONOFTHEUNTC70BED05_"),
+            ),
+            (
+                "vyruz-destruction-of-the-untel-empire-vurus",
+                Some("VYRUZDESTRUCTIONOFTHEUNT61E69DB3_"),
             ),
             // Too short, digit-first or colliding with a reserved runtime,
             // loader or non-title prefix: no environment entries.

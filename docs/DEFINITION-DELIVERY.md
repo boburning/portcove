@@ -59,7 +59,8 @@ reach players' machines and start a game process, so they follow the strict
 [launch value and environment rules](CATALOG.md#package-and-launch-declaration-compatibility):
 an environment name is accepted only when it is the reviewed harmless
 `PYTHONDONTWRITEBYTECODE` or starts with the prefix derived from the port ID
-(its uppercase ASCII letters and digits, truncated to 32, then `_`; a stated
+(its uppercase ASCII letters and digits, a stem over 32 shortened to 24 plus
+8 SHA-256 hex digits of the ID, then `_`; a stated
 `environment_prefix` other than that derivation is refused), and every
 literal text argument and environment value is 1 to 256 characters of
 `[A-Za-z0-9._=,+-:]` with no `..`, drive or stream form, device name or

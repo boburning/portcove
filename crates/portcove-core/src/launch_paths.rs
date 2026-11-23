@@ -131,7 +131,8 @@ pub(crate) const MAX_CONTRACT_TEXT_LEN: usize = 256;
 ///   `+` again. A token with a sigil has no `:`. In a token without a sigil,
 ///   every `:`-separated segment before the last has at least two characters
 ///   and no `.`, which refuses drive forms (`C:x`) and alternate data streams
-///   (`a.txt:evil`) while keeping `profile:fast`.
+///   (`a.txt:evil`) while keeping `profile:fast`; it does not start with a
+///   case-insensitive `file:` scheme.
 /// - No `:`-separated segment of a token's body, nor the body after its first
 ///   character for a single `-` or `+` sigil (an attached short option such as
 ///   `-oNUL`), is a reserved Windows device name with or without an extension.
@@ -198,6 +199,13 @@ fn contract_token(token: &str) -> bool {
             && !REFUSED_CONTRACT_OPTIONS.contains(&name.as_str())
             && !name.ends_with("-cmd-prefix")
             && !name.ends_with("-launcher");
+    }
+    if body
+        .as_bytes()
+        .get(..5)
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case(b"file:"))
+    {
+        return false;
     }
     let segments = body.split(':').collect::<Vec<_>>();
     segments.iter().all(|segment| contained_component(segment))

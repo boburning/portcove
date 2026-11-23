@@ -134,7 +134,8 @@ value or text argument only when:
   again. A token with a sigil contains no `:`. In a token without a sigil,
   every `:`-separated segment before the last has at least two characters and
   no `.`, which refuses drive forms (`C:x`, `--dir=C:x`, `-dC:x`) and
-  alternate data streams (`a.txt:evil`) while keeping `profile:fast`.
+  alternate data streams (`a.txt:evil`) while keeping `profile:fast`; a token
+  does not start with a case-insensitive `file:` scheme.
 - No `:`-separated segment of a token body, nor the body after its first
   character for a single `-` or `+` sigil (an attached short option such as
   `-oNUL`), is a Windows device name (`CON`, `PRN`, `AUX`, `NUL`,
@@ -194,9 +195,11 @@ data, not the contract rule.
 
 A reviewed launch contract's environment names are title-specific by
 construction. Its prefix is derived from the port identity, not chosen in the
-data: the port ID's ASCII letters and digits, uppercased, in order, truncated
-to 32 characters, followed by one `_` (`blacklabelhq-medievilrecomp` becomes
-`BLACKLABELHQMEDIEVILRECOMP_`). A contract may omit `environment_prefix`, or
+data: the port ID's ASCII letters and digits, uppercased, in order, followed
+by one `_` (`blacklabelhq-medievilrecomp` becomes
+`BLACKLABELHQMEDIEVILRECOMP_`). A stem longer than 32 characters keeps its
+first 24 characters followed by the first 8 uppercase hexadecimal digits of
+the SHA-256 of the port ID, so long IDs that share a start stay distinct. A contract may omit `environment_prefix`, or
 restate exactly that derivation; any other value is refused, and a restated
 prefix must be used by a name. A contract environment name is accepted only
 when it passes the shared name check above and either is the reviewed
