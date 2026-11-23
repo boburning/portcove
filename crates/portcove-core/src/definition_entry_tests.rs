@@ -2994,12 +2994,14 @@ fn named_entry_ignores_only_bounded_top_level_advice() {
 #[test]
 fn daggerfall_unity_loader_capability_uses_the_named_feature_helper() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog
+    let mut port = catalog
         .ports()
         .iter()
         .find(|port| crate::profile_loader::declares_dfu_loader(port))
         .expect("the catalog has a Daggerfall Unity loader binding")
         .clone();
+    // This test covers the loader capability only; mod sources need schema 4.
+    port.mod_sources.clear();
     let mut entry = entry_for_port(&port);
     entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
     let floor = crate::profile_loader::DFU_CAPABILITY;
