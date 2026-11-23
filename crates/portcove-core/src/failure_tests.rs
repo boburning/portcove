@@ -513,3 +513,40 @@ fn credential_transfer_refusal_keeps_the_exact_path_and_preservation_order() {
     assert!(warning < preserve && preserve < remove);
     assert!(summary.contains(path));
 }
+
+#[test]
+fn stale_settings_review_states_the_change_and_next_step_without_rewriting_facts() {
+    let error = PortcoveError::conflict(
+        "settings review is stale; read the configuration and review again",
+    )
+    .detail("settings_file", "private/settings.json")
+    .with_mutation_state(MutationState::NotStarted);
+    let before = error.report();
+    let report = error
+        .with_known_cause(KnownFailureCause::SettingsReviewStale)
+        .report();
+    assert_eq!(report.code, before.code);
+    assert_eq!(report.message, before.message);
+    assert_eq!(report.details, before.details);
+    assert_eq!(
+        report.presentation.mutation_state,
+        MutationState::NotStarted
+    );
+    assert_eq!(
+        report.presentation.recovery_actions,
+        before.presentation.recovery_actions
+    );
+    assert_eq!(
+        report.presentation.technical_message,
+        before.presentation.technical_message
+    );
+    assert_eq!(
+        report.presentation.presentation_key,
+        "settings_review_stale"
+    );
+    assert_eq!(
+        report.presentation.summary,
+        "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes."
+    );
+    assert!(!report.presentation.summary.contains("private"));
+}

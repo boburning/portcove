@@ -2702,6 +2702,7 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      gameSettingsJourney: Boolean(executionPlan.fixtures.gameSettingsJourney),
       managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
@@ -5408,7 +5409,13 @@ try {
         },
       },
       {
-        install: installScenarios,
+        install: (context) =>
+          installScenarios({
+            ...context,
+            ...(executionPlan.fixtures.gameSettingsJourney
+              ? { cli: required(values["preparation-cli"]) }
+              : {}),
+          }),
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
             ? selection.selected_scenarios.includes("native-standing-setup-source-return")

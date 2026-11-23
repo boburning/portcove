@@ -188,6 +188,27 @@ it.each([false, true])("opens prepared folder controls while busy is %s", async 
   picker.mockRestore();
 });
 
+it("opens the exact contextual artwork sheet and restores its trigger on close", async () => {
+  await render(
+    <DetailPanel
+      port={portDefinition()}
+      status={portStatus()}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={detailActions}
+      libraryGeneration={19}
+      opening={{ token: 1, destination: "artwork" }}
+    />,
+  );
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  await expect.element(sheet).toBeVisible();
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+    .toHaveFocus();
+});
+
 it.each(["dark", "light"] as const)(
   "aligns all padded disclosure markers to the first wrapped line in %s",
   async (theme) => {

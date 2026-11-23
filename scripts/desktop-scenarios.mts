@@ -366,6 +366,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-settings-review",
+    "A reviewed two-field Game settings change set is saved through native IPC to the exact installed target.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-managed-copy-result",
     "A reviewed managed copy replaces an external registration while preserving its files, retains the exact completion, and opens only that installation without launching.",
     {
@@ -951,6 +961,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-standing-setup-source-return requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-game-settings-review") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-game-settings-review requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
@@ -1152,6 +1167,9 @@ export function desktopHarnessDeadlineMs(
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
+  // Native Game settings review: owned Windows install, reviewed save, readback
+  // and stale refusal. Harness only.
+  if (selection.selected_scenarios.includes("native-game-settings-review")) return 600_000;
   // Linux job 137029418197 had confirmed the exact preparation result when
   // the 600 s watchdog cut off the remaining readback, restart and cleanup.
   if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 900_000;
@@ -1198,6 +1216,10 @@ export function desktopHarnessDeadlineMs(
       selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
       ? 1_200_000
       : 0,
+    // Hosted Windows job 136791041646 stopped after 81 s with the first of two
+    // roles still settling. Allow the two picker/confirmation sequences,
+    // bounded readback, reload and owned cleanup to run under one watchdog.
+    selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") ? 600_000 : 0,
     // Native gallery opens live typed screenshots, verifies cached bytes and restores focus.
     selection.selected_scenarios.includes("native-reviewed-screenshot-display") ? 600_000 : 0,
     // Linux keyboard fixture readiness has two finite 90s phases; retain room

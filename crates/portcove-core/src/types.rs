@@ -966,6 +966,23 @@ pub struct ModLoaderBinding {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_game: Option<String>,
     pub platforms: Vec<Platform>,
+    /// Exact retained package identities reviewed for this loader. These facts
+    /// narrow loader use; they do not select, admit or download an artifact.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_artifacts: BTreeMap<Platform, ModLoaderArtifact>,
+    /// SHA-256 of the canonical immutable path, size and SHA-256 inventory
+    /// from independently reviewed packages of this loader on each platform.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_payload_sha256: BTreeMap<Platform, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_repository_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModLoaderArtifact {
+    pub tag: String,
+    pub identity: ArtifactIdentity,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

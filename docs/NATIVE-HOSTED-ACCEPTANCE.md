@@ -231,6 +231,13 @@ external executable and save remain byte-identical. The completed receipt must
 survive navigation and open the exact current game without launching it. The
 CLI seeds the registration. This case verifies the Desktop transition and receipt.
 
+The standalone `native-game-settings-review` case is not a hosted group.
+Hosted runners present a high-integrity token, and Core's settings writer
+requires a medium-integrity token. Run 44933173974 reached the reviewed save and
+recorded that typed refusal. Run the case as explicit acceptance on an
+interactive medium-integrity Windows host; see
+[native desktop smoke tests](DEVELOPMENT-TOOLS.md#native-desktop-smoke-tests).
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,

@@ -573,6 +573,7 @@ pub(crate) enum ArtworkSlotArg {
     Cover,
     Detail,
     Landscape,
+    Logo,
 }
 
 impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
@@ -581,6 +582,26 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
             ArtworkSlotArg::Cover => Self::Cover,
             ArtworkSlotArg::Detail => Self::Detail,
             ArtworkSlotArg::Landscape => Self::Landscape,
+            ArtworkSlotArg::Logo => Self::Logo,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub(crate) enum SteamGridDbArtworkRoleArg {
+    PortraitCover,
+    LandscapeCover,
+    HeroBanner,
+    Logo,
+}
+
+impl From<SteamGridDbArtworkRoleArg> for portcove_core::SteamGridDbArtworkRole {
+    fn from(role: SteamGridDbArtworkRoleArg) -> Self {
+        match role {
+            SteamGridDbArtworkRoleArg::PortraitCover => Self::PortraitCover,
+            SteamGridDbArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
+            SteamGridDbArtworkRoleArg::HeroBanner => Self::HeroBanner,
+            SteamGridDbArtworkRoleArg::Logo => Self::Logo,
         }
     }
 }
@@ -649,13 +670,13 @@ pub(crate) enum SteamGridDbCommand {
         after_help = "Uses your own API key. Portcove records what it finds beside each image's credit. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. When SteamGridDB's image server also says the file is gone, or a check at least a day later still finds it missing, Portcove removes its copy of an image you didn't import yourself; your choice and the credit are kept, choosing the image again restores it, and nothing changes in Steam. Each run starts with the images checked longest ago and stops after three minutes."
     )]
     CheckListings,
-    /// List proposed static images for one SteamGridDB game and destination role.
+    /// List proposed static images for a SteamGridDB game and artwork role.
     Candidates {
         /// SteamGridDB game ID from `artwork steamgriddb search`.
         game_id: u64,
-        /// Destination image role to propose images for.
+        /// Artwork role to propose images for.
         #[arg(long, value_enum)]
-        role: DestinationArtworkRoleArg,
+        role: SteamGridDbArtworkRoleArg,
         /// Provider page of 50 images, starting at 0. An empty page ends the listing.
         #[arg(long, default_value_t = 0)]
         page: u32,
@@ -735,6 +756,28 @@ pub(crate) enum ArtworkCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Hide selected and automatic artwork for one port and slot.
+    Suppress {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to hide.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Show hidden artwork again with the selection it kept while hidden.
+    Unhide {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to show again.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Remove only regenerable artwork cache files.
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
@@ -765,6 +808,8 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Suppress { .. } => "artwork.suppress",
+            Self::Unhide { .. } => "artwork.unhide",
             Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",

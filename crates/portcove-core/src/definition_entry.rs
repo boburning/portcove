@@ -283,6 +283,16 @@ impl DefinitionContentIndex {
             }
             require_feature(required_features.as_ref(), Feature::ModLoader)?;
         }
+        if crate::profile_loader::declares_dfu_loader(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version >= crate::profile_loader::DFU_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Daggerfall Unity data-only loader requires its native-portable capability",
+            ));
+        }
         if let Some(settings) = &port.game_settings {
             settings.validate_port(&port)?;
         }

@@ -100,10 +100,26 @@ fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()
                 u16::from(b'\\'),
             ]
         };
+        // An ordinary Win32 path treats `/` as a separator, but the extended
+        // namespace treats it as a literal name character, so a mixed spelling
+        // such as `D:\root\Data/Mods\name` fails with ERROR_INVALID_NAME once
+        // prefixed. Spell every separator natively before adding the prefix.
+        // An already-verbatim path is passed through: its `/` is literal there.
+        let native_separators = |value: &mut [u16]| {
+            for unit in value.iter_mut() {
+                if *unit == u16::from(b'/') {
+                    *unit = u16::from(b'\\');
+                }
+            }
+        };
         let mut prefix = match path.components().next() {
             Some(Component::Prefix(component)) => match component.kind() {
-                Prefix::Disk(_) => extended_prefix(),
+                Prefix::Disk(_) => {
+                    native_separators(&mut value);
+                    extended_prefix()
+                }
                 Prefix::UNC(_, _) => {
+                    native_separators(&mut value);
                     value.drain(..2);
                     let mut prefix = extended_prefix();
                     prefix.extend("UNC".encode_utf16());
@@ -615,5 +631,43 @@ mod tests {
         assert!(!error.details["os_error"].is_empty());
         assert!(staged.join("still-running.exe").is_file());
         assert!(!destination.exists());
+    }
+
+    /// The original Daggerfall Unity failure: a declared `a/b/c` relative path
+    /// joined raw onto an ordinary (non-verbatim) disk root keeps `/` inside the
+    /// string, and prefixing it with `\\?\` made MoveFileExW reject it with
+    /// ERROR_INVALID_NAME (123). A verbatim root cannot reproduce this because
+    /// `PathBuf::push` re-parses the pushed path and rejoins it with `\`.
+    #[cfg(windows)]
+    #[test]
+    fn no_replace_publication_accepts_mixed_separators_under_an_ordinary_root() {
+        use std::path::{Component, Prefix};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        assert!(matches!(
+            root.components().next(),
+            Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::Disk(_))
+        ));
+        fs::create_dir_all(root.join("Data").join("Mods")).unwrap();
+        let staged = root.join("staged-directory");
+        fs::create_dir(&staged).unwrap();
+        fs::write(staged.join("member"), b"published").unwrap();
+        let destination = root.join("Data/Mods").join("published");
+        assert!(destination.to_str().unwrap().contains('/'));
+
+        rename_noreplace(&staged, &destination).unwrap();
+
+        assert!(!staged.exists());
+        assert_eq!(
+            fs::read(
+                root.join("Data")
+                    .join("Mods")
+                    .join("published")
+                    .join("member")
+            )
+            .unwrap(),
+            b"published"
+        );
     }
 }

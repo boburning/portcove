@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::{
-    ArtworkAttribution, ArtworkChoice, ArtworkMetadata, ArtworkProviderRecord, ArtworkSlot,
-    LocalArtworkAsset, PortcoveError, Result,
+    ArtworkAttribution, ArtworkChoice, ArtworkFraming, ArtworkMetadata, ArtworkProviderRecord,
+    ArtworkSlot, LocalArtworkAsset, PortcoveError, Result,
 };
 
 const MAX_ASSETS: usize = 4096;
@@ -72,28 +72,39 @@ pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
-const LANDSCAPE_CHOICES_TABLE: &str = "CREATE TABLE artwork_choices (
-        port_id TEXT NOT NULL, slot TEXT NOT NULL CHECK(slot IN ('cover','detail','landscape')),
-        revision INTEGER NOT NULL CHECK(revision>0), asset_sha256 TEXT REFERENCES artwork_assets(sha256),
-        PRIMARY KEY(port_id,slot)
-    )";
+const LANDSCAPE_CHOICES: &str = "CHECK(slot IN ('cover','detail','landscape'))";
+const LOGO_CHOICES: &str = "CHECK(slot IN ('cover','detail','landscape','logo'))";
 
-/// Library migration 57: the same choice table with the landscape slot admitted.
-/// Nothing references `artwork_choices`, so the rename keeps every constraint.
-pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()> {
+fn widen_slots(
+    transaction: &Transaction<'_>,
+    previous_table: &str,
+    slot_constraint: &str,
+) -> Result<()> {
     transaction.execute_batch(&format!(
-        "ALTER TABLE artwork_choices RENAME TO artwork_choices_v56;
-        {LANDSCAPE_CHOICES_TABLE};
+        "ALTER TABLE artwork_choices RENAME TO {previous_table};
+        CREATE TABLE artwork_choices (
+            port_id TEXT NOT NULL, slot TEXT NOT NULL {slot_constraint},
+            revision INTEGER NOT NULL CHECK(revision>0), asset_sha256 TEXT REFERENCES artwork_assets(sha256),
+            PRIMARY KEY(port_id,slot)
+        );
         INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256)
-            SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices_v56;
-        DROP TABLE artwork_choices_v56;"
+            SELECT port_id,slot,revision,asset_sha256 FROM {previous_table};
+        DROP TABLE {previous_table};"
     ))?;
     Ok(())
 }
 
-/// Checked on migration and every later open: the stored definition admits the
-/// landscape slot and no intermediate table remains.
-pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
+/// Library migration 57 admits the landscape slot and retains every revision.
+pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()> {
+    widen_slots(transaction, "artwork_choices_v56", LANDSCAPE_CHOICES)
+}
+
+/// Library migration 75 admits Logo without changing the existing asset store.
+pub(crate) fn migrate_logo_slot(transaction: &Transaction<'_>) -> Result<()> {
+    widen_slots(transaction, "artwork_choices_v73", LOGO_CHOICES)
+}
+
+fn verify_slots(connection: &Connection, previous_table: &str, accepted: &[&str]) -> Result<()> {
     let definition: Option<String> = connection
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
@@ -102,19 +113,71 @@ pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
         )
         .optional()?;
     let leftover: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='artwork_choices_v56')",
-        [],
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?1)",
+        [previous_table],
         |row| row.get(0),
     )?;
-    if leftover
-        || !definition
-            .is_some_and(|sql| sql.contains("CHECK(slot IN ('cover','detail','landscape'))"))
-    {
+    if leftover || !definition.is_some_and(|sql| accepted.iter().any(|value| sql.contains(value))) {
         return Err(PortcoveError::state(
-            "artwork choices do not admit the landscape slot",
+            "artwork choice slots do not match the library schema",
         ));
     }
     Ok(())
+}
+
+pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
+    verify_slots(
+        connection,
+        "artwork_choices_v56",
+        &[LANDSCAPE_CHOICES, LOGO_CHOICES],
+    )
+}
+
+pub(crate) fn verify_logo_slot(connection: &Connection) -> Result<()> {
+    verify_slots(connection, "artwork_choices_v73", &[LOGO_CHOICES])
+}
+
+const FRAMING_COLUMN: &str = "framing TEXT CHECK(framing IS NULL OR
+    (slot='detail' AND asset_sha256 IS NOT NULL AND length(framing) BETWEEN 1 AND 256))";
+
+pub(crate) fn migrate_framing(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_choices ADD COLUMN {FRAMING_COLUMN}"
+    ))?;
+    Ok(())
+}
+
+pub(crate) fn verify_framing(connection: &Connection) -> Result<()> {
+    verify_choice_column(connection, FRAMING_COLUMN)
+}
+
+fn verify_choice_column(connection: &Connection, column: &str) -> Result<()> {
+    let definition: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
+        [],
+        |row| row.get(0),
+    )?;
+    if !definition.contains(column) {
+        return Err(PortcoveError::verification(
+            "artwork choice fields do not match the library schema",
+        ));
+    }
+    Ok(())
+}
+
+/// Library migration 77: hiding a role is independent of its selection, so a
+/// hidden choice keeps its asset and framing and showing it again restores them.
+const SUPPRESSION_COLUMN: &str = "suppressed INTEGER NOT NULL DEFAULT 0 CHECK(suppressed IN (0,1))";
+
+pub(crate) fn migrate_suppression(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_choices ADD COLUMN {SUPPRESSION_COLUMN}"
+    ))?;
+    Ok(())
+}
+
+pub(crate) fn verify_suppression(connection: &Connection) -> Result<()> {
+    verify_choice_column(connection, SUPPRESSION_COLUMN)
 }
 
 /// Library migration 58: listing-check evidence beside each provider record. It
@@ -808,21 +871,60 @@ pub(crate) fn choice(
 ) -> Result<ArtworkChoice> {
     let recorded = connection
         .query_row(
-            "SELECT revision,asset_sha256 FROM artwork_choices WHERE port_id=?1 AND slot=?2",
+            "SELECT revision,asset_sha256,framing,suppressed FROM artwork_choices WHERE port_id=?1 AND slot=?2",
             params![port_id, slot.key()],
-            |row| Ok((row.get::<_, u64>(0)?, row.get::<_, Option<String>>(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, Option<String>>(2)?, row.get(3)?)),
         )
         .optional()?;
-    let (revision, asset_sha256) = recorded.unwrap_or((0, None));
-    if let Some(id) = &asset_sha256 {
-        validate_hash(id)?;
-    }
-    Ok(ArtworkChoice {
-        port_id: port_id.into(),
+    let (revision, asset_sha256, framing, suppressed) = recorded.unwrap_or((0, None, None, false));
+    read_choice(
+        port_id.into(),
         slot,
         revision,
         asset_sha256,
-    })
+        framing,
+        suppressed,
+    )
+}
+
+fn validate_choice_framing(
+    slot: ArtworkSlot,
+    asset_sha256: Option<&str>,
+    framing: Option<ArtworkFraming>,
+) -> Result<()> {
+    if let Some(framing) = framing {
+        if slot != ArtworkSlot::Detail || asset_sha256.is_none() {
+            return Err(PortcoveError::verification(
+                "artwork framing requires a selected background",
+            ));
+        }
+        framing.validate()?;
+    }
+    Ok(())
+}
+
+fn read_choice(
+    port_id: String,
+    slot: ArtworkSlot,
+    revision: u64,
+    asset_sha256: Option<String>,
+    framing: Option<String>,
+    suppressed: bool,
+) -> Result<ArtworkChoice> {
+    if let Some(id) = &asset_sha256 {
+        validate_hash(id)?;
+    }
+    let framing = framing.as_deref().map(serde_json::from_str).transpose()?;
+    let choice = ArtworkChoice {
+        port_id,
+        slot,
+        revision,
+        asset_sha256,
+        framing,
+        suppressed,
+    };
+    choice_value(&choice)?;
+    Ok(choice)
 }
 
 pub(crate) fn require_revision(
@@ -885,6 +987,36 @@ pub(crate) fn asset_exists(connection: &Connection, id: &str) -> Result<bool> {
     )?)
 }
 
+pub(crate) fn require_compatible_provider_listing(
+    connection: &Connection,
+    asset_sha256: &str,
+    incoming: &ArtworkAttribution,
+) -> Result<()> {
+    // A provider's collections may reuse a numeric ID. Existing storage keys
+    // know the asset and provider ID, so refuse an ambiguous Logo collision
+    // before recording listing or withdrawal evidence for either collection.
+    let existing: Option<String> = connection
+        .query_row(
+            "SELECT record_json FROM artwork_asset_providers
+             WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
+            params![asset_sha256, incoming.provider.key(), incoming.asset_id,],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(existing) = existing {
+        let existing: ArtworkAttribution = serde_json::from_str(&existing)?;
+        let logo = crate::SteamGridDbArtworkRole::Logo;
+        let involves_logo = existing.role == logo || incoming.role == logo;
+        if involves_logo && (existing.role != incoming.role || existing.game_id != incoming.game_id)
+        {
+            return Err(PortcoveError::conflict(
+                "This image shares a SteamGridDB identifier with a different artwork listing.",
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Keeps the first record for a provider image; attribution is never dropped or
 /// rewritten by a later identical import.
 pub(crate) fn write_provider(
@@ -902,6 +1034,7 @@ pub(crate) fn write_provider(
             "artwork provider attribution is dated in the future",
         ));
     }
+    require_compatible_provider_listing(connection, &record.asset_sha256, &record.attribution)?;
     let (recorded, total): (u64, u64) = connection.query_row(
         "SELECT (SELECT COUNT(*) FROM artwork_asset_providers WHERE asset_sha256=?1 AND NOT (provider=?2 AND asset_id=?3)),
                 (SELECT COUNT(*) FROM artwork_asset_providers)",
@@ -1035,19 +1168,48 @@ pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Resu
     Ok(())
 }
 
+pub(crate) enum ChoiceValue<'a> {
+    Automatic,
+    Image(&'a str, Option<ArtworkFraming>),
+    /// A hidden role, retaining any selected image and framing for when it is shown.
+    Hidden(Option<&'a str>, Option<ArtworkFraming>),
+}
+
+fn choice_value(choice: &ArtworkChoice) -> Result<ChoiceValue<'_>> {
+    let id = choice.asset_sha256.as_deref();
+    validate_choice_framing(choice.slot, id, choice.framing)?;
+    Ok(match (choice.suppressed, id) {
+        (true, id) => ChoiceValue::Hidden(id, choice.framing),
+        (false, None) => ChoiceValue::Automatic,
+        (false, Some(id)) => ChoiceValue::Image(id, choice.framing),
+    })
+}
+
 pub(crate) fn write_choice(
     connection: &Connection,
     port_id: &str,
     slot: ArtworkSlot,
     previous: u64,
-    id: Option<&str>,
+    value: ChoiceValue<'_>,
 ) -> Result<()> {
+    let (id, framing, suppressed) = match value {
+        ChoiceValue::Automatic => (None, None, false),
+        ChoiceValue::Image(id, framing) => (Some(id), framing, false),
+        ChoiceValue::Hidden(id, framing) => (id, framing, true),
+    };
+    validate_choice_framing(slot, id, framing)?;
+    let framing = framing.as_ref().map(serde_json::to_string).transpose()?;
     let revision = previous
         .checked_add(1)
         .filter(|value| *value <= i64::MAX as u64)
         .ok_or_else(|| PortcoveError::state("artwork revision is exhausted"))?;
-    connection.execute("INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256) VALUES (?1,?2,?3,?4)
-        ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision,asset_sha256=excluded.asset_sha256", params![port_id,slot.key(),revision,id])?;
+    connection.execute(
+        "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256,framing,suppressed)
+         VALUES (?1,?2,?3,?4,?5,?6)
+         ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision,
+         asset_sha256=excluded.asset_sha256,framing=excluded.framing,suppressed=excluded.suppressed",
+        params![port_id, slot.key(), revision, id, framing, suppressed],
+    )?;
     Ok(())
 }
 
@@ -1080,26 +1242,23 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
         .iter()
         .map(|id| asset(connection, id))
         .collect::<Result<Vec<_>>>()?;
-    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
+    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256,framing,suppressed FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
             row.get::<_, u64>(2)?,
             row.get::<_, Option<String>>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, bool>(5)?,
         ))
     })?;
     let choices = rows
         .map(|row| {
-            let (port_id, slot, revision, asset_sha256) = row?;
+            let (port_id, slot, revision, asset_sha256, framing, suppressed) = row?;
             let slot = ArtworkSlot::from_key(&slot)
                 .ok_or_else(|| PortcoveError::verification("unknown artwork slot"))?;
-            Ok(ArtworkChoice {
-                port_id,
-                slot,
-                revision,
-                asset_sha256,
-            })
+            read_choice(port_id, slot, revision, asset_sha256, framing, suppressed)
         })
         .collect::<Result<Vec<_>>>()?;
     let mut statement = connection.prepare(&format!(
@@ -1207,6 +1366,12 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
             "artwork provenance exceeds its record limit",
         ));
     }
+    let png_assets: BTreeSet<_> = metadata
+        .assets
+        .iter()
+        .filter(|asset| asset.format == crate::ArtworkImageFormat::Png)
+        .map(|asset| &asset.sha256)
+        .collect();
     let mut records = BTreeSet::new();
     let mut per_asset = std::collections::BTreeMap::<&String, usize>::new();
     for record in &metadata.providers {
@@ -1219,6 +1384,13 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
         }
         validate_hash(&record.asset_sha256)?;
         validate_attribution(&record.attribution)?;
+        if record.attribution.role == crate::SteamGridDbArtworkRole::Logo
+            && !png_assets.contains(&record.asset_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "a SteamGridDB logo requires a PNG asset",
+            ));
+        }
         if !ids.contains(&record.asset_sha256)
             || !records.insert((
                 &record.asset_sha256,
@@ -1334,6 +1506,7 @@ pub(crate) fn validate_metadata_with(
     let mut choices = BTreeSet::new();
     for choice in &metadata.choices {
         require_port(&choice.port_id)?;
+        choice_value(choice)?;
         if choice.revision == 0
             || choice.revision > i64::MAX as u64
             || !choices.insert((&choice.port_id, choice.slot.key()))
@@ -1384,7 +1557,7 @@ pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Re
             &choice.port_id,
             choice.slot,
             choice.revision - 1,
-            choice.asset_sha256.as_deref(),
+            choice_value(choice)?,
         )?;
     }
     Ok(())

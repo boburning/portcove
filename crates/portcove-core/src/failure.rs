@@ -185,6 +185,10 @@ pub(crate) enum KnownFailureCause {
     SettingsDefaultsConflict,
     #[cfg(any(test, windows))]
     SettingsDefaultsUnverified,
+    /// A reviewed settings change no longer matches the current file or
+    /// installation, so Core refused it before taking custody.
+    #[cfg(any(test, windows))]
+    SettingsReviewStale,
     /// Two copies of a settings file a newer version newly carries differ, so
     /// Core cannot tell which to keep. `other` is the saved copy, or the new
     /// version's copy when `other_is_saved` is false.
@@ -375,6 +379,11 @@ impl KnownFailureCause {
             Self::SettingsDefaultsConflict => (
                 "settings_defaults_conflict",
                 "Your settings and the new version’s defaults changed in different ways. Portcove kept your settings and the new defaults. You can keep using the installed version while the update waits.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsReviewStale => (
+                "settings_review_stale",
+                "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.",
             ),
             #[cfg(any(test, windows))]
             Self::SettingsDefaultsUnverified => (

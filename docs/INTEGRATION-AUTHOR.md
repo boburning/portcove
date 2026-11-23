@@ -316,6 +316,10 @@ capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
 
+API 101 adds the `logo` artwork slot and SteamGridDB role. Readers of artwork
+and SteamGridDB listing reports should recognize `logo`. The destination
+artwork handoff remains at schema 4, and operation events remain at schema 3.
+
 API 100 adds exact original and typed settings review for recipes, and commands
 to check or discard private acquisition. Use the fresh plan digest and applicable
 target-local permission to apply. Event schema remains 3.

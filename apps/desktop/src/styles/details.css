@@ -532,9 +532,6 @@
     grid-column: 2;
     grid-row: 1 / span 3;
   }
-  [data-detail-section="manage"] .detail-group > div > .artwork-controls:not([open]) {
-    justify-self: start;
-  }
   .detail-attention:empty {
     display: none;
   }
@@ -627,12 +624,6 @@
       grid-row: auto;
       justify-self: start;
     }
-  }
-  [data-detail-section="manage"]
-    [data-slot="management-row"]:has(.artwork-controls[open])
-    > div:last-child {
-    flex-basis: 100%;
-    justify-content: stretch;
   }
   @media (forced-colors: active) {
     .media-filmstrip > button[aria-pressed="true"] {

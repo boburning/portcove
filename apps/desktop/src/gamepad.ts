@@ -184,6 +184,23 @@ function controllerComboboxKey(input: HTMLInputElement, key: string) {
   document.documentElement.dataset.inputMode = "controller";
 }
 
+function moveControllerRange(direction: NavigationDirection) {
+  if (direction !== "left" && direction !== "right") return false;
+  const input = document.activeElement;
+  if (
+    !(input instanceof HTMLInputElement) ||
+    !input.matches('input[type="range"][data-controller-range]') ||
+    input.disabled
+  )
+    return false;
+  const before = input.value;
+  // Move one percentage point while preserving the finer native keyboard step.
+  if (direction === "right") input.stepUp(100);
+  else input.stepDown(100);
+  if (input.value !== before) input.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
 function controllerButton(
   buttons: Set<number>,
   back: () => void,
@@ -227,7 +244,7 @@ export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: n
             state.move
           ];
           controllerComboboxKey(input, key);
-        } else moveFocus(state.move);
+        } else if (!moveControllerRange(state.move)) moveFocus(state.move);
       }
       controllerButton(state.buttons, back, navigate);
     };

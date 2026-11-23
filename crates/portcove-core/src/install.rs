@@ -666,6 +666,10 @@ struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    /// Private extraction proved that the package shipped no additional
+    /// contents under otherwise mutable loader persistence paths.
+    #[serde(default, skip_serializing_if = "is_false")]
+    reviewed_loader_shipped_persistence: bool,
     /// Package defaults observed before preparation. The manifest binds them to
     /// its artifact; historical installs have no recorded baseline.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -3914,6 +3918,243 @@ pub(crate) fn retained_catalog_for_install(
 
 use crate::historical_artifacts::LegacyDkrArtifact;
 
+fn verify_loader_files(install: &InstallRecord, files: &[ManifestFile]) -> Result<bool> {
+    if files.is_empty()
+        || files.len() > 4096
+        || files
+            .iter()
+            .try_fold(0_u64, |sum, file| sum.checked_add(file.size))
+            .is_none_or(|bytes| bytes > 2 * 1024 * 1024 * 1024)
+    {
+        return Ok(false);
+    }
+    for member in files {
+        let path = manifest_member(&install.path, &member.path)?;
+        let (digest, bytes) =
+            crate::external_runtime::hash_stable_regular(&path, member.size, &|| Ok(()))?;
+        if !digest.eq_ignore_ascii_case(&member.sha256) || bytes != member.size {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+pub(crate) fn verify_exact_loader_files(install: &InstallRecord) -> Result<bool> {
+    verify_loader_files(install, &verified_manifest(install)?.files)
+}
+
+/// The admitted manifest supplies canonical release-owned file identities.
+/// Repack continuity additionally requires ordinary immutable GitHub provenance.
+pub(crate) fn matches_reviewed_loader_payload(
+    install: &InstallRecord,
+    repository: (&str, u64),
+    platform: Platform,
+    allowed_mutable_paths: &[&str],
+    reviewed_sha256: &str,
+    verify_files: bool,
+) -> Result<bool> {
+    let manifest = verified_manifest(install)?;
+    if manifest.platform != Some(platform)
+        || manifest
+            .github_artifact_identity
+            .as_ref()
+            .is_none_or(|identity| {
+                !identity.repository.eq_ignore_ascii_case(repository.0)
+                    || identity.repository_id != repository.1
+                    || identity.tag != install.version
+            })
+        || !manifest.reviewed_loader_shipped_persistence
+        || !manifest.mutable_file_patterns.is_empty()
+        || manifest
+            .mutable_paths
+            .iter()
+            .any(|path| !allowed_mutable_paths.contains(&path.as_str()))
+        || manifest.files.is_empty()
+        || manifest.files.len() > 4096
+    {
+        return Ok(false);
+    }
+    let mut rows = manifest
+        .files
+        .iter()
+        .map(|file| {
+            (
+                file.path.as_str(),
+                file.size,
+                file.sha256.to_ascii_lowercase(),
+            )
+        })
+        .collect::<Vec<_>>();
+    rows.sort_unstable_by_key(|row| row.0);
+    if !crate::signed_catalog::digest(&serde_json::to_vec(&rows)?)
+        .eq_ignore_ascii_case(reviewed_sha256)
+    {
+        return Ok(false);
+    }
+    if verify_files {
+        return verify_loader_files(install, &manifest.files);
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+mod reviewed_loader_payload_tests {
+    use super::*;
+    use crate::ReleaseChannel;
+
+    #[test]
+    fn ordinary_accepted_dfu_payload_reuses_loader_review_across_release_identities() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(dir.path().join("library")).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        // A Windows manifest cannot record the Unix executable bit a Linux
+        // package manifest requires, so every non-Windows host qualifies Linux.
+        let platform = if cfg!(windows) {
+            Platform::WindowsX86_64
+        } else {
+            Platform::LinuxX86_64
+        };
+        let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "interkarma-daggerfall-unity")
+            .unwrap();
+        let repo = "fixture/portable-game";
+        port.release.repository = repo.into();
+        let executable = port.executable_hints[&platform][0].clone();
+        let loader = port.mod_loader.as_mut().unwrap();
+        loader.repository = repo.into();
+        loader.reviewed_repository_id = Some(42);
+        let runtime = b"inert immutable fixture, never executed";
+        let paths = [(
+            executable.as_str(),
+            runtime.len() as u64,
+            crate::signed_catalog::digest(runtime),
+        )];
+        let reviewed = crate::signed_catalog::digest(&serde_json::to_vec(&paths).unwrap());
+        loader
+            .reviewed_payload_sha256
+            .insert(platform, reviewed.clone());
+        let port_id = port.id.clone();
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(&port_id).unwrap();
+        let allowed = [
+            "Portable.txt",
+            "PortableAppdata",
+            crate::profile_loader::DFU_MODS,
+            "DaggerfallUnity_Data/StreamingAssets/GameFiles",
+        ];
+
+        for (i, tag, repository_id, extra_shipped_file, expected) in [
+            (1, "v1.1.2", 42, false, true),
+            (2, "v1.1.3", 42, false, true),
+            (3, "v1.1.4", 43, false, false),
+            (4, "v1.1.5", 42, true, false),
+        ] {
+            let install_id = format!("runtime-{i}");
+            let root = library.versions_dir().join(&port_id).join(&install_id);
+            fs::create_dir_all(&root).unwrap();
+            let executable_path = root.join(&executable);
+            fs::write(&executable_path, runtime).unwrap();
+            crate::permissions::normalize_archive_entry(&executable_path, false, true).unwrap();
+            if extra_shipped_file {
+                fs::write(root.join("Portable.txt"), []).unwrap();
+            }
+            let asset = crate::ReleaseAsset {
+                name: format!("runtime-{i}.zip"),
+                url: format!("https://github.com/{repo}/releases/download/{tag}/runtime-{i}.zip"),
+                size: 123 + i,
+                sha256: format!("{i:064x}"),
+            };
+            let artifact = ArtifactIdentity {
+                asset_name: asset.name.clone(),
+                size: asset.size,
+                sha256: asset.sha256.clone(),
+            };
+            let mut resolved = crate::ScopedResolvedRelease::legacy(crate::ResolvedRelease {
+                version: tag.into(),
+                channel: ReleaseChannel::Stable,
+                published_at: None,
+                asset,
+                uploader_continuity: None,
+            })
+            .for_selection(port, platform, ReleaseChannel::Stable)
+            .unwrap();
+            resolved.github_identity =
+                Some(crate::definition_acquisition::GithubArtifactIdentity {
+                    repository: repo.into(),
+                    repository_id,
+                    release_id: i + 100,
+                    asset_id: i + 200,
+                    tag: tag.into(),
+                });
+            let qualification = InstallQualification::from_catalog(&catalog, &port_id, platform)
+                .unwrap()
+                .with_acquisition_resolution(resolved)
+                .unwrap();
+            let shape = installer.package_shape_record(port, &qualification, &root, &artifact);
+            let (manifest_sha256, selected_executable, runtime) = write_manifest_with_shape(
+                &install_id,
+                &port_id,
+                tag,
+                &artifact,
+                &qualification,
+                &root,
+                Some(shape),
+            )
+            .unwrap();
+            let install = InstallRecord {
+                id: install_id,
+                port_id: port_id.clone(),
+                version: tag.into(),
+                channel: ReleaseChannel::Stable,
+                verified: true,
+                staged: false,
+                installed_at: Library::now(),
+                path: root,
+                artifact,
+                manifest_sha256,
+                selected_executable,
+                runtime,
+            };
+            let build = retained_build_identity_for_install(&install).unwrap();
+            assert_eq!(
+                crate::profile_loader::require_contract(&install, &build, None, false)
+                    .unwrap()
+                    .is_some(),
+                expected
+            );
+            assert_eq!(
+                matches_reviewed_loader_payload(
+                    &install,
+                    (repo, 42),
+                    platform,
+                    &allowed,
+                    &reviewed,
+                    true
+                )
+                .unwrap(),
+                expected
+            );
+            if expected {
+                fs::write(&executable_path, b"immutable payload drift").unwrap();
+                assert!(
+                    !matches_reviewed_loader_payload(
+                        &install,
+                        (repo, 42),
+                        platform,
+                        &allowed,
+                        &reviewed,
+                        true
+                    )
+                    .unwrap_or(false)
+                );
+            }
+        }
+    }
+}
+
 fn legacy_dkr_artifact(
     install: &InstallRecord,
     manifest: &InstallManifest,
@@ -3987,6 +4228,7 @@ mod legacy_dkr_tests {
         };
         let manifest = InstallManifest {
             archive_data_admission: None,
+            reviewed_loader_shipped_persistence: false,
             shipped_settings_defaults: BTreeMap::new(),
             shipped_settings_capture_gaps: BTreeMap::new(),
             schema_version: schema,
@@ -4548,6 +4790,10 @@ fn write_manifest_with_shape(
     }
     let manifest = InstallManifest {
         archive_data_admission: None,
+        reviewed_loader_shipped_persistence: package_shape.is_some()
+            && qualification.acquisition.is_some()
+            && crate::profile_loader::declares_dfu_loader(catalog.port(port_id)?)
+            && crate::profile_loader::dfu_package_has_only_shipped_scaffolds(root).unwrap_or(false),
         shipped_settings_defaults: qualification.shipped_settings_defaults.clone(),
         shipped_settings_capture_gaps: qualification.shipped_settings_capture_gaps.clone(),
         schema_version: if qualification.shared_preferences.is_some() {

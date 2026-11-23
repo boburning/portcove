@@ -171,6 +171,11 @@ pub(crate) fn definition_requirements(
     }
     // A Windows tracked handoff needs a native-portable reader that tracks
     // successors whatever the adapter, listed beside the adapter's own floor.
+    let default_version = if crate::profile_loader::declares_dfu_loader(port) {
+        default_version.max(crate::profile_loader::DFU_CAPABILITY)
+    } else {
+        default_version
+    };
     let handoff = crate::launch::tracked_handoff_native_capability(port);
     if port.windows_tracked_handoff && port.adapter == crate::AdapterKind::NativePortable {
         let version = default_version.max(handoff);

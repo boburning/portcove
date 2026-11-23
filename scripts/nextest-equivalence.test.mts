@@ -171,38 +171,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const timeoutBudgets = [
     [
       "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::(native_portable::tests::compatible_archive_progression_sonic_additive_settings|tests::mstan_snes_installations_update_with_the_disposable_preloaded_mod_state)$/)",
+      "package(portcove-core) & test(/^service::tests::mstan_snes_installations_update_with_the_disposable_preloaded_mod_state$/)",
       240,
     ],
     [
       "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::native_portable::tests::tails_nativeportable_progression_rollback_backup_restore_recovery_1895$/)",
       180,
-    ],
-    [
-      "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_progression_(mega_man_x2|sonic|super_metroid|winback)$/)",
-      600,
-    ],
-    [
-      "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_mmx2_populated_install$/)",
-      600,
-    ],
-    [
-      "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_sonic_populated_install$/)",
-      600,
-    ],
-    [
-      "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_super_metroid_populated_install$/)",
-      420,
-    ],
-    [
-      "x86_64-pc-windows-msvc",
-      "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)",
-      600,
     ],
     [
       "x86_64-pc-windows-msvc",
@@ -294,21 +269,6 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     if (long) assert.equal(value.retries, 0);
     assert.equal(value["success-output"], "immediate");
   }
-  // The exact populated transitions precede their 600s family so their own
-  // finite budgets remain the effective first match.
-  const transitionFamily = overrideFor(
-    "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)",
-    "x86_64-pc-windows-msvc",
-  );
-  for (const title of ["mmx2", "sonic", "super_metroid"])
-    assert.ok(
-      overrides.indexOf(
-        overrideFor(
-          `package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_${title}_populated_install$/)`,
-          "x86_64-pc-windows-msvc",
-        ),
-      ) < overrides.indexOf(transitionFamily),
-    );
   // Exclusive slot reservation is limited to exact cases that conflict with any
   // concurrent disk or process work; contending families use serial groups.
   const capacityFilter =

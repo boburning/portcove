@@ -217,6 +217,7 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ArtworkSlot::Cover => "Cover",
         ArtworkSlot::Detail => "Detail image",
         ArtworkSlot::Landscape => "Landscape image",
+        ArtworkSlot::Logo => "Logo",
     };
     let availability = match state.availability {
         ArtworkAvailability::Fallback => "Generated fallback",
@@ -233,6 +234,13 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         human::port_name(catalog, &state.choice.port_id),
         state.choice.revision
     );
+    if state.choice.suppressed {
+        output.push_str(if state.selection.is_some() {
+            "\nArtwork hidden. Use artwork unhide to show the kept selection again, or artwork reset to return to automatic artwork."
+        } else {
+            "\nArtwork hidden. Use artwork unhide or artwork reset to return to automatic artwork."
+        });
+    }
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
@@ -796,6 +804,8 @@ mod tests {
                 slot: ArtworkSlot::Detail,
                 revision: 1,
                 asset_sha256: None,
+                framing: None,
+                suppressed: false,
             }),
             source: DestinationArtworkSource::UnassignedRole,
             selected_asset_sha256: None,

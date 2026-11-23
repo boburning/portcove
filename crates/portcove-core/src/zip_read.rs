@@ -608,6 +608,76 @@ fn preflight(
     })
 }
 
+/// Check the local records of a small, already preflighted ZIP. This strict
+/// format has no prefixes, descriptors, local extras, or unindexed records.
+pub(crate) fn require_contiguous_local_records(
+    bytes: &[u8],
+    central_start: u64,
+    entries: usize,
+) -> Result<()> {
+    let refuse = || invalid("local records do not match the checked directory");
+    let central_start = usize::try_from(central_start).map_err(|_| refuse())?;
+    let mut position = central_start;
+    let mut ranges = Vec::new();
+    for _ in 0..entries {
+        let central = bytes.get(position..position + 46).ok_or_else(refuse)?;
+        let name_length = usize::from(u16_at(central, 28));
+        let extra_length = usize::from(u16_at(central, 30));
+        let name_start = position + 46;
+        let name_end = name_start + name_length;
+        let raw_name = bytes.get(name_start..name_end).ok_or_else(refuse)?;
+        // A central NTFS timestamp record is present in both original ZIPs.
+        // Other extras could override the effective filename or byte range.
+        let extras = bytes
+            .get(name_end..name_end + extra_length)
+            .ok_or_else(refuse)?;
+        if !extras.is_empty() && (extras.len() != 36 || extras[..4] != [10, 0, 32, 0]) {
+            return Err(refuse());
+        }
+        let dos = u32_at(central, 38) & 0xffff;
+        if dos & !0x30 != 0
+            || (dos & 0x10 != 0 && !raw_name.ends_with(b"/"))
+            || (raw_name.ends_with(b"/") && u32_at(central, 16) != 0)
+        {
+            return Err(refuse());
+        }
+        let offset = u32_at(central, 42) as usize;
+        if offset >= central_start || central_start - offset < 30 {
+            return Err(refuse());
+        }
+        let local = bytes.get(offset..offset + 30).ok_or_else(refuse)?;
+        let data_start = offset + 30 + name_length;
+        let end = data_start
+            .checked_add(u32_at(central, 20) as usize)
+            .filter(|end| *end <= central_start)
+            .ok_or_else(refuse)?;
+        if &local[..4] != b"PK\x03\x04"
+            || u16_at(central, 8) & 8 != 0
+            || local[6..10] != central[8..12]
+            || local[14..26] != central[16..28]
+            || usize::from(u16_at(local, 26)) != name_length
+            || u16_at(local, 28) != 0
+            || bytes.get(offset + 30..data_start) != Some(raw_name)
+        {
+            return Err(refuse());
+        }
+        ranges.push((offset, end));
+        position = name_end + extra_length + usize::from(u16_at(central, 32));
+    }
+    ranges.sort_unstable();
+    let mut end = 0;
+    for (offset, next) in ranges {
+        if offset != end {
+            return Err(refuse());
+        }
+        end = next;
+    }
+    if end != central_start {
+        return Err(refuse());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 pub(crate) fn cartridge_preflight(
     file: &mut std::fs::File,

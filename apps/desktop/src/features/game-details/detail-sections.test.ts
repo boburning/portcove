@@ -5,6 +5,7 @@ describe("detail opening destination", () => {
   it.each([
     ["updates", true, true, "versions"],
     ["saves", true, true, "saves"],
+    ["artwork", true, true, "manage"],
     ["files", false, true, "files"],
     ["files", true, false, "files"],
     [undefined, true, true, "files"],

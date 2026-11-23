@@ -1390,6 +1390,45 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
   await captureParityState("library-short-covers-compact-grouped-menu-return");
 });
 
+it("opens the Cover editor from the game card and returns focus to the same More actions button", async () => {
+  await page.viewport(430, 740);
+  const snapshot = workspace("collection");
+  snapshot.statuses = snapshot.statuses.slice(0, 3);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  await mount("light", "collection", 3);
+  const opener = page.getByRole("button", { name: /^More actions for/ }).first();
+  await expect.element(opener).toBeVisible();
+  const origin = opener.element().getAttribute("data-detail-origin");
+  expect(origin).toMatch(/^library:card-more:collection-\d+$/);
+  opener.element().focus();
+  await userEvent.keyboard("{Enter}");
+  const menu = page.getByRole("menu", { name: /^More actions for/ });
+  await expect.element(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  const close = sheet.getByRole("button", { name: "Close", exact: true });
+  const coverTab = sheet.getByRole("tab", { name: "Cover image", exact: true });
+  await expect.element(close).toHaveFocus();
+  await expect.element(coverTab).toHaveAttribute("aria-selected", "true");
+  const bounds = sheet.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  await userEvent.keyboard("{Tab}");
+  await expect.element(coverTab).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+    .toHaveFocus();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await expect
+    .poll(() => (document.activeElement as HTMLElement | null)?.dataset.detailOrigin)
+    .toBe(origin);
+});
+
 it("keeps plain short Covers and their overflow menu reachable at 430px", async () => {
   await page.viewport(430, 640);
   const snapshot = workspace("collection");

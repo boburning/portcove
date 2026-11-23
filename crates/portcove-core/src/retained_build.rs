@@ -411,7 +411,7 @@ impl PortcoveService {
         Ok((identity, catalog))
     }
 
-    fn require_retained_build_permission(
+    pub(crate) fn require_retained_build_permission(
         &self,
         installer: &Installer,
         install: &InstallRecord,

@@ -799,3 +799,20 @@ fn removal_binds_extended_and_ordinary_windows_paths_to_the_same_owned_tree() {
         .unwrap();
     assert!(install.path.join("immutable.bin").is_file());
 }
+
+#[test]
+fn delisted_installed_port_still_collects_through_its_retained_contract() {
+    let (_temporary, mut service, install) = fixture(true);
+    write(&install.path, LAUNCH_MARKER, b"");
+    write(&install.path, "save.lua", b"delisted progress");
+    // Today's catalog no longer lists the port; its installed contract still
+    // owns collection, including the Daggerfall Unity runtime preflight.
+    service.replace_catalog_for_test(
+        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap(),
+    );
+    service.collect_active_user_data_if_launched(ID).unwrap();
+    assert_eq!(
+        fs::read(service.library.user_dir(ID).join("save.lua")).unwrap(),
+        b"delisted progress"
+    );
+}

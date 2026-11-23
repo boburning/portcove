@@ -18,6 +18,10 @@ function visibleControl(item: HTMLElement, includeAriaDisabled = false) {
 }
 
 export function navigationScope(): HTMLElement | Document {
+  const nativeModal = Array.from(
+    document.querySelectorAll<HTMLDialogElement>("dialog[data-portcove-native-modal][open]"),
+  ).at(-1);
+  if (nativeModal) return nativeModal;
   const surfaces = [
     ...document.querySelectorAll<HTMLElement>(
       "[role=dialog][aria-modal=true], [data-portcove-focus-scope]:not([data-closed])",
@@ -148,6 +152,11 @@ export function activateFocusedControl() {
 export function dismissActiveDialog() {
   const scope = navigationScope();
   if (scope === document) return false;
+  if (scope instanceof HTMLDialogElement) {
+    if (typeof scope.requestClose === "function") scope.requestClose();
+    else scope.close();
+    return true;
+  }
   const escape = new KeyboardEvent("keydown", {
     key: "Escape",
     bubbles: true,

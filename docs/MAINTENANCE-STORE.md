@@ -1653,3 +1653,90 @@ older research evidence, while private immutable recovery history remains.
 
 The owning adapter, scope, precision, failure and opt-out contract is
 [Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).
+
+## Program cutover view
+
+`node scripts/maintenance-program-view.mts` derives a read-only operator view of
+the dynamic native ports program (#1422). It is a projection, not a backlog or
+status authority: GitHub Projects and the canonical issues keep planning,
+priority and status, and `catalog.json` keeps support. The script reads no
+network, writes no store rows and edits no catalog data. It calls
+`routeFitReport` from `catalog-route-fit.mts` rather than classifying the
+catalog again, reads the handoff registry from `maintenance-handoffs.mts` and
+scans repository code for title-specific authorities. Output is deterministic
+JSON (`--json`, `--output FILE`) or a summary; it carries no timestamps.
+`--check` also verifies that two runs are byte-identical and that the authority
+inventory has not rotted. `--observations FILE` passes listing updates to route
+fit; `--observer-report FILE` reads a catalog upstream observer report.
+
+Each catalog identity is one subject with its product scope (`in-scope`, or
+`deferred-scummvm` when route fit reports `excluded-scummvm`), route-fit
+disposition and reason, family, declared restrictions and held operations, the
+title-specific authority kinds that still serve it, and one remaining action:
+`none`, `retire-title-authority`, `resolve-authority-inventory` (retirement is
+unknown because an authority kind cannot derive whom it serves),
+`data-enrollment`, `observation`, `bytes-worker`, `admission`,
+`missing-capability`, `upstream-condition` or `owner-decision` (deferred product
+scope).
+
+**Coverage gates.** Each gate is a ratio over a versioned denominator with a
+`state` of `passed`, `failed` or `unknown`, and lists the identities failing it
+and those whose result is unknown. Deferred ScummVM identities are in neither
+denominator.
+
+| Gate                | Denominator (version)                                               | Passing identity                                                           |
+| ------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `fitting`           | in-scope identities (`program-view/in-scope/1`)                     | a determined disposition other than `unobserved`                           |
+| `retired-authority` | in-scope `enrolled` identities (`program-view/in-scope-enrolled/1`) | no known title-specific authority detector matched it, and none is unknown |
+
+Passing the retired-authority gate means only that no detector in the inventory
+matched the identity; it is not proof that its behavior is data-declared. The
+gate is conservative: unknown never counts as retired. A kind that cannot
+derive the identities it serves takes them from its declared `covered_through`
+kind only when that kind derives them fully; a kind with no covering kind, with
+a covering kind that cannot derive identities, or with matched entries it cannot
+attribute (for example a `native_external_profile` module that is not keyed on
+`ExternalProfilePolicy`) is listed in `unknown_kinds`. Every enrolled identity
+it does not already fail is then `unknown`, outside the numerator, and the gate
+cannot pass.
+
+**Authority kinds.** The retired-authority gate is derived from code, not a
+hand list. `authorityKinds` declares each kind of title-specific authority with
+a detector over code shape: catalog generator scripts that select records by a
+literal identity or upstream repository; production Core Rust that names a
+literal identity; Core Rust compiled only under a Cargo feature (such as
+`#[cfg(any(test, feature = "qualification-fixtures"))]` items and modules) that
+names one, as the separate `qualification-fixture-title-code` kind; Core enum
+variants and module files whose names spell a catalog identity, listing name,
+GitHub repository name or family key, with the catalog as the dictionary
+(`title-named-core-item`); closed per-runtime contract enums
+(`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
+prepared runtime contracts) matched against definition values; the
+`native_external_profile` modules, covered through `ExternalProfilePolicy`;
+compiled provider binding tables; the `github_mods.rs` source table and
+`external-mod-portals.json`. Only `#[test]` functions and items gated on exactly
+`#[cfg(test)]`, and test-named files, are excluded; platform gates such as
+`cfg(any(test, windows))` are production code. Each kind reports its count,
+files, covered identities where derivable and any entries it cannot attribute,
+and is `retired` when its detector finds nothing.
+
+The view and its test fail on the detector rot they can see: a kind that finds
+nothing but is not declared retired, or matches while declared retired; an
+active kind that derives identities but covers none, unless it declares why it
+has no catalog consumer (`no_catalog_consumer`, as for
+`PreparedRuntimeSettingsContract`, which Core selects for a player-prepared
+runtime); and, for enum and table detectors, each declared enum, table or file
+that is missing, read without rows or found undeclared, unless that member is
+individually declared retired. The enum reader fails loudly on a `rename_all`
+other than kebab-case, a variant with fields or a discriminant, or a serde
+attribute it cannot read, rather than skipping variants. Rot outside these
+checks (a new title-specific shape no detector searches) stays possible; the
+detectors bound what the gate can claim.
+
+**Metrics.** Counts per disposition and family over all identities
+(`program-view/identities/1`), listing-only GitHub candidates with Windows
+packages, restricted identities and held operations, handoff classes with their
+dispatch state (`program-view/handoff-classes/1`) and, only when a report is
+supplied, observer source coverage by state (`program-view/observer-sources/1`).
+Without a report, observer coverage is `unknown`, never zero. A change in a
+denominator's meaning bumps its version.
