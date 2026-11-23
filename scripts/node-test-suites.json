@@ -1397,6 +1397,20 @@
       ]
     },
     {
+      "file": "scripts/discovery-source-parsers.test.mts",
+      "memberships": [
+        ["catalog-full", 1001],
+        ["roadmap-check", 1001]
+      ]
+    },
+    {
+      "file": "scripts/discovery-distribution-parsers.test.mts",
+      "memberships": [
+        ["catalog-full", 1002],
+        ["roadmap-check", 1002]
+      ]
+    },
+    {
       "file": "scripts/fallow-scope.test.mts",
       "memberships": [
         ["catalog-full-2", 8700],
@@ -1737,6 +1751,7 @@
             "watch evidence changes open new episodes and unchanged evidence stays quiet",
             "a restored store starts discovery collection inactive and refuses pre-restore leases",
             "local lead state imports once with its recorded strength",
+            "a local runner reads the shared store's leads without a lease and keeps its research",
             "stored collector state is not capped at a fixed size",
             "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten"
           ],

@@ -23,7 +23,9 @@ status export: its source coverage, new observations and due watches. Do not
 rebuild that coverage from first-page searches; research its gaps and due subjects. The interactive
 runner instructions below apply to local investigation, not hosted scheduling.
 Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
-clean, detached dedicated metadata checkout. Start `run` with `exec_command`
+clean, detached dedicated metadata checkout. With the maintenance store
+configured, `plan` reports `lead_collection: "shared-store"` and `collect` takes
+the store's leads ([local runner](../../../docs/DAILY-PORT-DISCOVERY.md#local-runner-on-the-shared-store)). Start `run` with `exec_command`
 using `tty:true`, `login:false` and the installed Vite+ Node environment. Retain
 its `session_id`; send protocol operations with `write_stdin` to that same
 process. A piped/noninteractive `run` is refused before Git or API work.
