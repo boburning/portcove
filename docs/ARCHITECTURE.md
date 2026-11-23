@@ -292,23 +292,48 @@ only the reviewed pending row, and keeps the existing user-selected execution
 intent, native-file and path checks.
 
 A finished download also records the player's typed setup stage
-(`service/pending_setup_stage.rs`): artifact obtained, upstream setup opened,
-player action needed, final program selected and registration reviewed. Record
-format 3 binds each stage to the retained source address, a digest of the
-strict definition and selection, the artifact's typed route-fact role and the
-retained package or publication receipt. Formats 1 and 2 stay readable; a
-finished earlier download maps to artifact obtained on read and is bound when
-the player continues. Each stage change replaces the exact row in one SQLite
-transaction, under the port lock, so an interruption leaves the earlier or the
-later stage. Resuming rechecks the retained digest instead of downloading
-again. A changed source, definition, held restriction, reviewed newer release,
-artifact role, retained bytes or chosen program invalidates the stage with a
-typed reason and Core's player message. An upstream setup exit, including code
-0, is never completion: only the player's selection, checked by Core, followed
-by reviewed registration completes setup. Desktop records the folder or setup
-guide handoff through Core; stages grant no update, removal or runtime
-ownership of the upstream output. Relinking preserves registration identity
-and history. Forgetting pending setup or removing a registration leaves user
+(`service/pending_setup_stage.rs`). Only stages the existing flow reaches
+exist: `artifact-obtained` (the download), `upstream-setup-opened` (Desktop
+opened the setup folder or retained setup guide), `final-selected` (the
+player's program choice through `choose_user_selected_runtime`, used by
+`external select-preview` and Desktop's preview command),
+`registration-reviewed` (authorization of the user-selected registration) and
+`invalidated`. Portcove never runs the upstream installer from a pending
+setup, so it observes no upstream exit; completion is the player's checked
+selection followed by reviewed registration.
+
+Publication keeps record format 1 (GitHub) or 2 (GitLab), which earlier
+releases read; `artifact-obtained` is a read-time mapping that is never
+written. Format 3 is written only at the first stage change past it, binding
+the stage to the retained source address, a definition digest, the artifact's
+typed route-fact role and the retained package or publication receipt. The
+definition digest covers the retained signed definition entry and contract
+bytes when one is selected, else an explicit list of setup fields of the
+embedded definition (identity, project address, adapter, platforms, release
+provider, repository, rolling tag, package and executable hints), else their
+absence for a listing-only project; it never hashes Portcove's own
+serialization, so an application update alone keeps it. An earlier release
+refuses a format 3 row, as it refuses any unknown record format: its startup
+download recovery fails, so it cannot open that library while the row exists.
+Running the newer release again and finishing or forgetting that setup removes
+the row. Only a player who opened, chose or reviewed a setup carries one.
+
+Each stage change replaces the exact row in one SQLite transaction, under the
+port lock, so an interruption leaves the earlier or the later stage. Opening
+the folder or guide only records the handoff; a failure to record it is logged
+and never fails the open. Choosing and reviewing recheck the bound catalog
+facts and the retained file's presence and size. Registration also verifies
+the retained package digest, bounded by its recorded size and cancellable.
+A changed source, definition, held restriction, artifact role or retained
+bytes invalidates the stage with a typed reason and Core's player message.
+A newer upstream release never invalidates: Core compares release identity
+and publication time as the download candidate does, and reports a newer
+version as a notice while registration proceeds. Capability reports and
+`setup pending` recheck the catalog facts on read without writing, so a stage
+a catalog change invalidated never reads as continuable. Stages grant no
+update, removal or runtime ownership of the upstream output.
+
+Relinking preserves registration identity and history. Forgetting pending setup or removing a registration leaves user
 files in place. Neither operation grants updates, save migration, backup,
 rollback or external deletion.
 

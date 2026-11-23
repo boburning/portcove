@@ -441,12 +441,18 @@ pub(crate) async fn execute(
                                 .as_ref()
                                 .map(|reason| format!("\n{}", human::clean(reason)))
                                 .unwrap_or_default(),
-                            // Core's stage message: what happened, then the next step.
-                            record
-                                .stage_message()
-                                .map(|message| format!(
-                                    "\n{}\n{}",
+                            // Core's current stage message: what happened, any
+                            // notice, then the next step.
+                            service
+                                .pending_setup_presentation(record)
+                                .map(|(_, message)| format!(
+                                    "\n{}{}\n{}",
                                     human::clean(&message.summary),
+                                    message
+                                        .notice
+                                        .as_deref()
+                                        .map(|notice| format!("\n{}", human::clean(notice)))
+                                        .unwrap_or_default(),
                                     human::clean(&message.next_step)
                                 ))
                                 .unwrap_or_default()

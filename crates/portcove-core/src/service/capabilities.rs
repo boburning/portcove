@@ -274,14 +274,17 @@ impl PortCapabilityReport {
         }
     }
 
+    /// `presented` is Core's current stage and message for `pending`, from
+    /// [`super::PortcoveService::pending_setup_presentation`].
     pub(super) fn add_setup_context(
         &mut self,
         listing: &crate::PortListing,
         pending: Option<&super::PendingSetupRecord>,
+        presented: Option<(super::PendingSetupStageKind, super::PendingSetupMessage)>,
     ) {
         self.setup_guide = listing.manual_setup.clone();
         self.pending_setup = pending.map(|p| p.state);
-        self.pending_setup_stage = pending.and_then(super::PendingSetupRecord::stage_kind);
+        self.pending_setup_stage = presented.as_ref().map(|(stage, _)| *stage);
         let mut setup = simple(
             CapabilityFeature::Setup,
             CapabilityMode::Unknown,
@@ -308,9 +311,12 @@ impl PortCapabilityReport {
         if let Some(pending) = pending {
             setup.mode = CapabilityMode::Manual;
             // Core's stage message says what happened and what to do next.
-            match (pending.state, pending.stage_message()) {
-                (super::PendingSetupState::Downloaded, Some(message)) => {
-                    setup.explanation = message.summary;
+            match (pending.state, presented) {
+                (super::PendingSetupState::Downloaded, Some((_, message))) => {
+                    setup.explanation = match message.notice {
+                        Some(notice) => format!("{} {notice}", message.summary),
+                        None => message.summary,
+                    };
                     setup.next_step = message.next_step;
                 }
                 (super::PendingSetupState::Downloaded, None) => {

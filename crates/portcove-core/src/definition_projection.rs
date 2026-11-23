@@ -197,6 +197,24 @@ impl DefinitionSnapshot {
         hex::encode(Sha256::digest(self.index_json.as_bytes()))
     }
 
+    /// Digest of this definition's own retained entry and contract bytes.
+    /// It changes only when that stored content changes, never with the
+    /// application's in-memory representation of it.
+    pub(crate) fn content_sha256(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        for part in [
+            self.namespace.as_bytes(),
+            self.stable_id.as_bytes(),
+            self.entry_json.as_bytes(),
+            self.contract_json.as_bytes(),
+        ] {
+            hasher.update((part.len() as u64).to_le_bytes());
+            hasher.update(part);
+        }
+        hex::encode(hasher.finalize())
+    }
+
     pub(crate) fn validate_bounds(&self) -> Result<()> {
         if self.namespace.len() > 255
             || self.stable_id.len() > 255

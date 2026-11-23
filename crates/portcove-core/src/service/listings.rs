@@ -102,7 +102,12 @@ impl PortcoveService {
             .find(|member| member.port_id == port_id);
         let pending = self.pending_setups()?;
         if let Some(report) = projected.capabilities.as_mut() {
-            report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
+            let pending = pending.iter().find(|p| p.port_id == port_id);
+            report.add_setup_context(
+                listing,
+                pending,
+                pending.and_then(|record| self.pending_setup_presentation(record)),
+            );
         }
         Ok(projected)
     }
@@ -205,9 +210,11 @@ impl PortcoveService {
                     Self::assess_listing_status(status, has_owner, launching, &restrictions);
                 projected.library_membership = members.get(&projected.port_id).cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
+                    let pending = pending.iter().find(|p| p.port_id == projected.port_id);
                     report.add_setup_context(
                         listing,
-                        pending.iter().find(|p| p.port_id == projected.port_id),
+                        pending,
+                        pending.and_then(|record| self.pending_setup_presentation(record)),
                     );
                     report.add_advisories(listing, &projected.status);
                 }

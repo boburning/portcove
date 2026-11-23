@@ -124,8 +124,11 @@ pub(crate) async fn open_pending_setup_folder(
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         let path = service.pending_setup_folder(&port_id, &pending_id)?;
         open_directory(&path)?;
-        // Core records the handoff so setup resumes at this stage.
-        service.note_pending_setup_opened(&port_id, &pending_id, None)?;
+        // Core records the handoff so setup resumes at this stage. The folder
+        // is already open, so a failure to record it never fails the open.
+        if let Err(error) = service.note_pending_setup_opened(&port_id, &pending_id, None) {
+            tracing::warn!(port_id = %port_id, error = %error, "pending setup handoff was not recorded");
+        }
         Ok(path)
     })
     .await
@@ -146,7 +149,11 @@ pub(crate) async fn open_pending_setup_resource(
         require_library_generation(state_generation(&state), generation)?;
         open_host_target(std::ffi::OsStr::new(&url))?;
         // Core decides whether this link is the setup guide and records it.
-        service.note_pending_setup_opened(&port_id, &pending_id, Some(&url))?;
+        // The link is already open, so a failure to record it never fails it.
+        if let Err(error) = service.note_pending_setup_opened(&port_id, &pending_id, Some(&url))
+        {
+            tracing::warn!(port_id = %port_id, error = %error, "pending setup handoff was not recorded");
+        }
         Ok(())
     })
     .await

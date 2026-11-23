@@ -79,8 +79,9 @@ pub(crate) async fn preview_user_selected_runtime(
 ) -> DesktopResult<ExternalRuntimePreview> {
     let state = state.inner().clone();
     blocking_worker(move || {
+        // Core records the choice for a waiting upstream setup, if any.
         service_at_generation(&state, generation)?
-            .preview_user_selected_runtime(&port_id, &executable, &working_directory, &arguments)
+            .choose_user_selected_runtime(&port_id, &executable, &working_directory, &arguments)
             .map_err(Into::into)
     })
     .await

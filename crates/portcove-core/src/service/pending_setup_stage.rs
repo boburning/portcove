@@ -4,39 +4,56 @@
 //! upstream steps that follow it, so closing Portcove, cancelling or a crash
 //! resumes at that place instead of starting over. Each stage is bound to the
 //! exact retained source, artifact role and definition it began with; a change
-//! invalidates the stage with a typed reason instead of continuing silently.
+//! to a fact that makes this route invalid invalidates the stage with a typed
+//! reason instead of continuing silently. A newer upstream release is not such
+//! a fact: Core reports it as a notice and registration of what the player
+//! already set up continues.
 //!
-//! No stage makes Portcove the owner of the upstream setup's output. An upstream
-//! setup that exits, even with code 0, is never completion: completion is the
-//! player's selection plus Core's verification of what was selected, followed
-//! by the existing reviewed, non-owning registration.
+//! Only stages that the existing flow reaches exist: the download itself, the
+//! player opening the setup folder or retained setup guide, the player choosing
+//! the installed program, and the player confirming the registration plan.
+//! Portcove never runs the upstream installer from a pending setup, so it
+//! observes no upstream exit. Completion is the player's selection plus Core's
+//! verification of what was selected, followed by the existing reviewed,
+//! non-owning registration.
+//!
+//! Compatibility: publication keeps the record format that earlier releases
+//! read (1 for GitHub, 2 for GitLab); Core maps it to `artifact-obtained` on
+//! read. Format 3 is written only when the player moves the setup past that
+//! stage.
 use super::*;
 use crate::route_facts::{self, ArtifactFact, ArtifactRole, AssetIdentity, FactSource, RoleClaim};
 
-/// Record format of a pending setup that carries a typed stage. Formats 1
-/// (GitHub) and 2 (GitLab) remain readable and map to their stage on read.
+/// Record format of a pending setup that carries a typed stage past
+/// `artifact-obtained`. Formats 1 (GitHub) and 2 (GitLab) remain the
+/// publication formats and map to `artifact-obtained` on read.
 pub(super) const STAGED_RECORD_FORMAT: u8 = 3;
 
 /// Where the player is in an upstream setup, and what that place is bound to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PendingSetupProgress {
-    /// Absent only for a record written before stages existed. Core binds it
-    /// to the current facts when the player first continues that setup.
+    /// Absent only on the read-time mapping of a format 1 or 2 record. Core
+    /// binds it to the current facts when the player first moves the setup
+    /// past `artifact-obtained`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binding: Option<PendingSetupBinding>,
     pub stage: PendingSetupStage,
     pub updated_at: String,
 }
 
-/// The exact facts a stage belongs to. Any change invalidates the stage.
+/// The exact facts a stage belongs to. A change invalidates the stage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PendingSetupBinding {
     /// Upstream project or release address of the retained listing.
     pub source_url: String,
-    /// Digest of the strict definition and selection known for this port, or
-    /// of their absence for a listing-only project.
+    /// Digest of the catalog content this setup depends on: the retained
+    /// signed definition entry and its contracts when one is selected, else
+    /// the documented setup fields of the embedded definition, else their
+    /// absence for a listing-only project. It never covers Portcove's own
+    /// serialization of a definition, so an application update alone keeps
+    /// the binding.
     pub definition_sha256: String,
     /// Typed route fact for the downloaded artifact. A filename suggestion
     /// describes it; it never authorizes a runtime.
@@ -45,7 +62,7 @@ pub struct PendingSetupBinding {
     pub retained: RetainedSetupBytes,
 }
 
-/// Verified bytes the setup folder retains, rechecked before each stage.
+/// Verified bytes the setup folder retains.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum RetainedSetupBytes {
@@ -65,7 +82,6 @@ pub enum RetainedSetupBytes {
 pub enum PendingSetupStageKind {
     ArtifactObtained,
     UpstreamSetupOpened,
-    PlayerActionNeeded,
     FinalSelected,
     RegistrationReviewed,
     Invalidated,
@@ -74,20 +90,13 @@ pub enum PendingSetupStageKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "stage", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum PendingSetupStage {
-    /// The verified package is retained; nothing has been run.
+    /// The verified package is retained; nothing has been run. Never stored:
+    /// it is the read-time stage of a format 1 or 2 record.
     ArtifactObtained,
-    /// Portcove handed the upstream setup to the player.
+    /// The player opened the setup folder or the retained setup guide.
     UpstreamSetupOpened {
         handoff: UpstreamSetupHandoff,
         opened_at: String,
-    },
-    /// Portcove waits for the player's named next action.
-    PlayerActionNeeded {
-        action: PlayerSetupAction,
-        /// The upstream setup's reported exit code, when one was reported.
-        /// It never decides completion.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        exit_code: Option<i32>,
     },
     /// The player chose the resulting program and Core checked it.
     FinalSelected { selection: SelectedSetupResult },
@@ -108,18 +117,9 @@ impl PendingSetupStage {
         match self {
             Self::ArtifactObtained => PendingSetupStageKind::ArtifactObtained,
             Self::UpstreamSetupOpened { .. } => PendingSetupStageKind::UpstreamSetupOpened,
-            Self::PlayerActionNeeded { .. } => PendingSetupStageKind::PlayerActionNeeded,
             Self::FinalSelected { .. } => PendingSetupStageKind::FinalSelected,
             Self::RegistrationReviewed { .. } => PendingSetupStageKind::RegistrationReviewed,
             Self::Invalidated { .. } => PendingSetupStageKind::Invalidated,
-        }
-    }
-
-    /// The last stage that could continue, for an invalidation record.
-    fn resumable_kind(&self) -> PendingSetupStageKind {
-        match self {
-            Self::Invalidated { previous, .. } => *previous,
-            stage => stage.kind(),
         }
     }
 
@@ -133,8 +133,8 @@ impl PendingSetupStage {
     }
 }
 
-/// What Portcove handed to the player. Portcove never runs the upstream
-/// installer itself from a pending setup.
+/// What the player opened. Portcove never runs the upstream installer itself
+/// from a pending setup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum UpstreamSetupHandoff {
@@ -142,14 +142,6 @@ pub enum UpstreamSetupHandoff {
     Folder,
     /// The retained upstream setup guide was opened.
     Guide { url: String },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum PlayerSetupAction {
-    FinishUpstreamSetup,
-    ChooseInstalledGame,
-    RetryUpstreamSetup,
 }
 
 /// Identity facts of the program the player chose, as Core checked them.
@@ -165,61 +157,45 @@ pub struct SelectedSetupResult {
     pub selected_at: String,
 }
 
+impl SelectedSetupResult {
+    /// The same program and plan, whenever it was chosen.
+    fn same_choice(&self, other: &Self) -> bool {
+        self.executable == other.executable
+            && self.working_directory == other.working_directory
+            && self.arguments == other.arguments
+            && self
+                .executable_sha256
+                .eq_ignore_ascii_case(&other.executable_sha256)
+            && self.executable_size == other.executable_size
+            && self.version == other.version
+    }
+}
+
+/// A fact that makes this setup route itself invalid. A newer upstream
+/// release is not one; Core reports it as a notice instead.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum PendingSetupInvalidation {
     /// The current listing names another upstream source.
     SourceChanged { current_source_url: String },
-    /// The strict definition or its selection changed.
+    /// The catalog content this setup depends on changed.
     DefinitionChanged,
-    /// A complete upstream observation or reviewed pin names a newer release.
-    ReleaseSuperseded { current_release_tag: String },
     /// A download restriction now holds for these exact bytes.
     RestrictionHolds { explanation: String },
     /// Typed route facts now give the artifact a different role.
     ArtifactRoleChanged { current_role: ArtifactRole },
     /// The retained package or its receipt changed or is missing.
     RetainedBytesChanged,
-    /// The chosen program changed or is missing.
-    SelectedResultChanged,
 }
 
-/// A player's action or an adapter's observation that moves the stage.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "event", rename_all = "kebab-case", deny_unknown_fields)]
-pub enum PendingSetupEvent {
-    UpstreamSetupOpened {
-        handoff: UpstreamSetupHandoff,
-    },
-    /// The upstream setup process ended. Its exit code is recorded, never
-    /// treated as completion.
-    UpstreamSetupExited {
-        exit_code: Option<i32>,
-    },
-    PlayerActionNeeded {
-        action: PlayerSetupAction,
-    },
-    ResultSelected {
-        executable: PathBuf,
-        working_directory: PathBuf,
-        arguments: Vec<String>,
-    },
-}
-
-/// Core's player explanation: what happened, then what to do next.
+/// Core's player explanation: what happened, then what to do next. A notice
+/// is information that does not block the next step.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PendingSetupMessage {
     pub summary: String,
     pub next_step: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PendingSetupResume {
-    pub port_id: String,
-    pub pending_id: String,
-    pub stage: PendingSetupStageKind,
-    pub message: PendingSetupMessage,
-    pub record: PendingSetupRecord,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<String>,
 }
 
 fn role_phrase(role: ArtifactRole) -> &'static str {
@@ -250,7 +226,11 @@ pub fn pending_setup_message(
     stage: &PendingSetupStage,
     role: Option<ArtifactRole>,
 ) -> PendingSetupMessage {
-    let message = |summary: String, next_step: String| PendingSetupMessage { summary, next_step };
+    let message = |summary: String, next_step: String| PendingSetupMessage {
+        summary,
+        next_step,
+        notice: None,
+    };
     let setup_tool = matches!(
         role,
         Some(ArtifactRole::Installer | ArtifactRole::Builder | ArtifactRole::Importer)
@@ -272,26 +252,6 @@ pub fn pending_setup_message(
             .into(),
             "Finish the upstream setup steps. Then choose the installed game program.".into(),
         ),
-        PendingSetupStage::PlayerActionNeeded { action, exit_code } => match action {
-            PlayerSetupAction::FinishUpstreamSetup => message(
-                "Upstream setup is not finished yet.".into(),
-                "Finish the upstream setup steps. Then choose the installed game program.".into(),
-            ),
-            PlayerSetupAction::ChooseInstalledGame => message(
-                "Upstream setup closed. Portcove hasn't checked what it installed.".into(),
-                "Choose the installed game program so Portcove can check it.".into(),
-            ),
-            PlayerSetupAction::RetryUpstreamSetup => message(
-                match exit_code {
-                    Some(code) => format!(
-                        "Upstream setup closed with exit code {code}. It might not have finished."
-                    ),
-                    None => "Upstream setup closed before it finished.".into(),
-                },
-                "Run the upstream setup again. If it finished, choose the installed game program."
-                    .into(),
-            ),
-        },
         PendingSetupStage::FinalSelected { selection } => message(
             format!(
                 "You chose {}. Portcove checked that it is a native program for this computer.",
@@ -322,12 +282,6 @@ fn invalidation_message(reason: &PendingSetupInvalidation) -> PendingSetupMessag
             "The catalog changed how this port is set up since you started.".to_owned(),
             format!("Forget this setup, then download the package again. {KEEP_FILES}"),
         ),
-        PendingSetupInvalidation::ReleaseSuperseded {
-            current_release_tag,
-        } => (
-            format!("Release {current_release_tag} replaced the release you downloaded."),
-            format!("Forget this setup, then download {current_release_tag}. {KEEP_FILES}"),
-        ),
         PendingSetupInvalidation::RestrictionHolds { explanation } => (
             format!("Portcove can no longer continue with this download. {explanation}"),
             format!("Forget this setup. {KEEP_FILES}"),
@@ -343,13 +297,20 @@ fn invalidation_message(reason: &PendingSetupInvalidation) -> PendingSetupMessag
             "The downloaded package changed or is missing since Portcove checked it.".to_owned(),
             format!("Forget this setup, then download the package again. {KEEP_FILES}"),
         ),
-        PendingSetupInvalidation::SelectedResultChanged => (
-            "The game program you chose changed or is missing since Portcove checked it."
-                .to_owned(),
-            "Choose the installed game program again.".to_owned(),
-        ),
     };
-    PendingSetupMessage { summary, next_step }
+    PendingSetupMessage {
+        summary,
+        next_step,
+        notice: None,
+    }
+}
+
+/// Core's notice when a newer version exists. It never blocks registration of
+/// the game the player already set up.
+fn newer_release_notice(version: &str) -> String {
+    format!(
+        "Version {version} is newer than the one you downloaded. You can still add the game you set up."
+    )
 }
 
 impl PendingSetupRecord {
@@ -359,7 +320,9 @@ impl PendingSetupRecord {
         self.progress.as_ref().map(|progress| progress.stage.kind())
     }
 
-    /// Core's player explanation for this record's current stage.
+    /// Core's player explanation for this record's stored stage. Use
+    /// [`PortcoveService::pending_setup_presentation`] to show a record: it
+    /// also rechecks the current catalog.
     pub fn stage_message(&self) -> Option<PendingSetupMessage> {
         let progress = self.progress.as_ref()?;
         Some(pending_setup_message(
@@ -381,7 +344,7 @@ impl PendingSetupRecord {
     }
 }
 
-/// Read-only mapping of an earlier record to its stage.
+/// Read-only mapping of a format 1 or 2 record to its stage.
 pub(super) fn map_legacy_stage(record: &mut PendingSetupRecord) {
     if record.progress.is_none() && record.state == PendingSetupState::Downloaded {
         record.progress = Some(PendingSetupProgress {
@@ -392,7 +355,8 @@ pub(super) fn map_legacy_stage(record: &mut PendingSetupRecord) {
     }
 }
 
-/// The legacy mapping is never written back; only a bound stage is durable.
+/// The read-time mapping is never written back; only a bound stage past
+/// `artifact-obtained` is durable.
 pub(super) fn storage_form(
     record: &PendingSetupRecord,
 ) -> std::borrow::Cow<'_, PendingSetupRecord> {
@@ -441,7 +405,8 @@ pub(super) fn validate_progress(record: &PendingSetupRecord) -> Result<()> {
             && text_ok(&selection.selected_at, 128)
     };
     let stage_ok = match &progress.stage {
-        PendingSetupStage::ArtifactObtained => true,
+        // Publication keeps format 1 or 2, so a stored stage is always later.
+        PendingSetupStage::ArtifactObtained => false,
         PendingSetupStage::UpstreamSetupOpened { handoff, opened_at } => {
             text_ok(opened_at, 128)
                 && match handoff {
@@ -449,7 +414,6 @@ pub(super) fn validate_progress(record: &PendingSetupRecord) -> Result<()> {
                     UpstreamSetupHandoff::Guide { url } => text_ok(url, 4096),
                 }
         }
-        PendingSetupStage::PlayerActionNeeded { .. } => true,
         PendingSetupStage::FinalSelected { selection } => selection_ok(selection),
         PendingSetupStage::RegistrationReviewed {
             selection,
@@ -461,9 +425,6 @@ pub(super) fn validate_progress(record: &PendingSetupRecord) -> Result<()> {
                     PendingSetupInvalidation::SourceChanged { current_source_url } => {
                         text_ok(current_source_url, 4096)
                     }
-                    PendingSetupInvalidation::ReleaseSuperseded {
-                        current_release_tag,
-                    } => text_ok(current_release_tag, 512),
                     PendingSetupInvalidation::RestrictionHolds { explanation } => {
                         text_ok(explanation, 2048)
                     }
@@ -485,6 +446,58 @@ pub(super) fn validate_progress(record: &PendingSetupRecord) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+/// The documented setup-relevant fields of an embedded definition: identity,
+/// project address, adapter, platforms, release provider and repository,
+/// rolling tag, package hints and executable hints. Fields added to the
+/// definition type later are not part of the binding until listed here.
+fn setup_definition_facts(port: &crate::PortDefinition) -> serde_json::Value {
+    serde_json::json!({
+        "id": port.id,
+        "project_url": port.project_url,
+        "adapter": port.adapter,
+        "platforms": port.platforms,
+        "release_provider": port.release.provider,
+        "release_repository": port.release.repository,
+        "rolling_tag": port.release.rolling_tag,
+        "asset_hints": port.release.asset_hints,
+        "executable_hints": port.executable_hints,
+    })
+}
+
+/// Digest of the catalog content a setup depends on. A retained signed entry
+/// is bound by its own stored bytes; only an embedded definition uses the
+/// explicit field subset.
+pub(super) fn setup_definition_sha256(
+    retained_entry_sha256: Option<String>,
+    port: Option<&crate::PortDefinition>,
+) -> Result<String> {
+    let embedded = match retained_entry_sha256 {
+        Some(_) => None,
+        None => port.map(setup_definition_facts),
+    };
+    Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+        "pending-setup-definition-v2",
+        retained_entry_sha256,
+        embedded,
+    ))?))
+}
+
+/// Release tags that name one release: a leading `v` and letter case differ
+/// between sources without naming another release.
+fn same_release_tag(left: &str, right: &str) -> bool {
+    let normal = |tag: &str| {
+        let tag = tag.trim();
+        tag.strip_prefix(['v', 'V'])
+            .unwrap_or(tag)
+            .to_ascii_lowercase()
+    };
+    normal(left) == normal(right)
+}
+
+fn release_time(value: &str) -> Option<time::OffsetDateTime> {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
 }
 
 fn clock() -> Result<String> {
@@ -527,13 +540,25 @@ fn source_url(listing: &PortListing) -> &str {
         .unwrap_or(&listing.project_url)
 }
 
+/// How much of the retained download a continuation rechecks.
+#[derive(Clone, Copy)]
+enum RetainedCheck<'a> {
+    /// The retained file is present with its recorded size, or the extracted
+    /// folder keeps its receipt. Used when the player chooses or reviews.
+    Presence,
+    /// The retained package matches its digest, bounded by its recorded size
+    /// and cancellable through the checkpoint. Used by registration.
+    Digest(&'a dyn Fn() -> Result<()>),
+}
+
 impl PortcoveService {
     fn pending_definition_sha256(&self, port_id: &str) -> Result<String> {
-        Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
-            "pending-setup-definition-v1",
+        setup_definition_sha256(
+            self.catalog
+                .definition_snapshot(port_id)
+                .map(crate::definition_projection::DefinitionSnapshot::content_sha256),
             self.catalog.port(port_id).ok(),
-            self.catalog.definition_selection(port_id),
-        ))?))
+        )
     }
 
     /// Typed route facts for the retained artifact under the current catalog.
@@ -556,8 +581,10 @@ impl PortcoveService {
         )
     }
 
-    /// Bind a stage to the current facts. The retained form is read from the
-    /// published folder: an unextracted package keeps its own file there.
+    /// Bind a stage to the current facts when the player first moves a
+    /// format 1 or 2 record past `artifact-obtained`. The retained form is
+    /// read from the published folder: an unextracted package keeps its own
+    /// file there.
     fn bind_pending_setup(&self, stored: &StoredDownload) -> Result<PendingSetupBinding> {
         let record = &stored.record;
         let package = record.path.join(&record.artifact.name);
@@ -582,85 +609,64 @@ impl PortcoveService {
         })
     }
 
-    /// The first stage of a download being handed off now.
-    pub(super) fn publication_progress(
-        &self,
-        record: &PendingSetupRecord,
-        extracted: bool,
-    ) -> Result<PendingSetupProgress> {
-        let archive_sha256 = record.archive_sha256.to_ascii_lowercase();
-        let fact = self.pending_artifact_fact(record);
-        Ok(PendingSetupProgress {
-            binding: Some(PendingSetupBinding {
-                source_url: source_url(&record.listing).to_owned(),
-                definition_sha256: self.pending_definition_sha256(&record.port_id)?,
-                artifact_role: fact.role,
-                role_source: fact.source,
-                retained: if extracted {
-                    RetainedSetupBytes::Extracted { archive_sha256 }
-                } else {
-                    RetainedSetupBytes::Package {
-                        file: record.artifact.name.clone(),
-                        sha256: archive_sha256,
-                        size: record.artifact.size,
-                    }
-                },
-            }),
-            stage: PendingSetupStage::ArtifactObtained,
-            updated_at: record.downloaded_at.clone(),
-        })
-    }
-
-    /// A newer release named by the current listing's complete observation or
-    /// by its reviewed pin for this host. Incomplete coverage is unknown and
-    /// never invalidates.
-    fn superseding_release(&self, record: &PendingSetupRecord) -> Option<String> {
+    /// The newest release that the current listing establishes as newer than
+    /// the downloaded one, compared by the release identity the download
+    /// candidate uses. A complete upstream observation must contain the
+    /// downloaded release to compare against; a reviewed pin counts only
+    /// when its publication time is known and later and its tag names
+    /// another release. Anything else is unknown and shows no notice.
+    pub(super) fn newer_pending_release(&self, record: &PendingSetupRecord) -> Option<String> {
         let listing = self.catalog.listing(&record.port_id).ok()?;
-        let bound = &record.artifact.release_tag;
-        if let (Some(maintenance), Ok(platform)) =
-            (&listing.release_maintenance, Platform::current())
-            && let Some(pin) = maintenance
-                .pinned_releases
-                .iter()
-                .find(|pin| pin.platform == platform)
-        {
-            return (pin.version != *bound).then(|| pin.version.clone());
-        }
-        let observation = listing.upstream_observation.as_ref()?;
-        if observation.status != crate::ListingObservationStatus::Complete {
-            return None;
-        }
-        let bound_release = observation
+        let observation = listing
+            .upstream_observation
+            .as_ref()
+            .filter(|observation| {
+                observation.status == crate::ListingObservationStatus::Complete
+            })?;
+        let bound = observation
             .releases
             .iter()
-            .find(|release| release.id == record.artifact.release_id);
-        if bound_release.is_some_and(|release| release.provider_prerelease) {
+            .find(|release| release.id == record.artifact.release_id)?;
+        if bound.provider_prerelease {
             // A chosen preview release is compared only with later previews'
             // channel, which this observation does not establish.
             return None;
         }
-        let newest = observation
+        let bound_at = release_time(&bound.published_at)?;
+        let newer = |version: &str, published_at: Option<&str>| {
+            let at = published_at.and_then(release_time)?;
+            (at > bound_at && !same_release_tag(version, &record.artifact.release_tag))
+                .then(|| (at, version.to_owned()))
+        };
+        let observed = observation
             .releases
             .iter()
-            .filter(|release| !release.provider_prerelease)
-            .max_by(|left, right| left.published_at.cmp(&right.published_at))?;
-        if newest.id == record.artifact.release_id {
-            return None;
-        }
-        match bound_release {
-            Some(release) if release.published_at >= newest.published_at => None,
-            _ => Some(newest.version.clone()),
-        }
+            .filter(|release| !release.provider_prerelease && release.id != bound.id)
+            .filter_map(|release| newer(&release.version, Some(&release.published_at)));
+        let pinned = listing
+            .release_maintenance
+            .as_ref()
+            .zip(Platform::current().ok())
+            .and_then(|(maintenance, platform)| {
+                maintenance
+                    .pinned_releases
+                    .iter()
+                    .find(|pin| pin.platform == platform)
+            })
+            .and_then(|pin| newer(&pin.version, pin.published_at.as_deref()));
+        observed
+            .chain(pinned)
+            .max_by(|left, right| left.0.cmp(&right.0))
+            .map(|(_, version)| version)
     }
 
-    /// Recheck every bound fact. The first changed fact is the reason.
-    fn pending_setup_invalidation(
+    /// Recheck the catalog facts a stage is bound to. These are cheap and
+    /// read nothing from the retained download.
+    fn catalog_fact_invalidation(
         &self,
-        stored: &StoredDownload,
+        record: &PendingSetupRecord,
         binding: &PendingSetupBinding,
-        stage: &PendingSetupStage,
     ) -> Result<Option<PendingSetupInvalidation>> {
-        let record = &stored.record;
         if let Ok(listing) = self.catalog.listing(&record.port_id) {
             let current = source_url(listing);
             if current != binding.source_url {
@@ -685,24 +691,50 @@ impl PortcoveService {
                 explanation: explanation.chars().take(2048).collect(),
             }));
         }
-        if let Some(current_release_tag) = self.superseding_release(record) {
-            return Ok(Some(PendingSetupInvalidation::ReleaseSuperseded {
-                current_release_tag,
-            }));
-        }
         let fact = self.pending_artifact_fact(record);
         if fact.role != binding.artifact_role {
             return Ok(Some(PendingSetupInvalidation::ArtifactRoleChanged {
                 current_role: fact.role,
             }));
         }
+        Ok(None)
+    }
+
+    /// Recheck every bound fact for a continuation. The first changed fact is
+    /// the reason.
+    fn pending_setup_invalidation(
+        &self,
+        stored: &StoredDownload,
+        binding: &PendingSetupBinding,
+        retained_check: RetainedCheck<'_>,
+    ) -> Result<Option<PendingSetupInvalidation>> {
+        if let Some(reason) = self.catalog_fact_invalidation(&stored.record, binding)? {
+            return Ok(Some(reason));
+        }
+        let record = &stored.record;
         let retained_matches = match &binding.retained {
             RetainedSetupBytes::Package { file, sha256, size } => {
                 let path = record.path.join(file);
                 refuse_symlink_ancestors(&path)?;
-                fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file())
-                    && crate::adapter::hash_file_bounded_with_checkpoint(&path, *size, || Ok(()))
-                        .is_ok_and(|(actual, _)| actual.eq_ignore_ascii_case(sha256))
+                let present = fs::symlink_metadata(&path)
+                    .is_ok_and(|metadata| metadata.is_file() && metadata.len() == *size);
+                match retained_check {
+                    RetainedCheck::Presence => present,
+                    RetainedCheck::Digest(checkpoint) => {
+                        present
+                            && match crate::adapter::hash_file_bounded_with_checkpoint(
+                                &path, *size, checkpoint,
+                            ) {
+                                Ok((actual, _)) => actual.eq_ignore_ascii_case(sha256),
+                                // Cancellation is the player's choice, not a
+                                // changed download.
+                                Err(error) if error.code == crate::ErrorCode::Cancelled => {
+                                    return Err(error);
+                                }
+                                Err(_) => false,
+                            }
+                    }
+                }
             }
             RetainedSetupBytes::Extracted { .. } => {
                 self.publication_receipt_matches(stored).unwrap_or(false)
@@ -711,12 +743,41 @@ impl PortcoveService {
         if !retained_matches {
             return Ok(Some(PendingSetupInvalidation::RetainedBytesChanged));
         }
-        if let Some(selection) = stage.selection()
-            && !selection_matches(selection)
-        {
-            return Ok(Some(PendingSetupInvalidation::SelectedResultChanged));
-        }
         Ok(None)
+    }
+
+    /// Core's current explanation of a saved setup for display. It rechecks
+    /// the catalog facts the stage is bound to without writing, so a stage
+    /// that a catalog change made invalid never reads as continuable, and
+    /// adds a notice when a newer version exists.
+    pub fn pending_setup_presentation(
+        &self,
+        record: &PendingSetupRecord,
+    ) -> Option<(PendingSetupStageKind, PendingSetupMessage)> {
+        let progress = record.progress.as_ref()?;
+        let role = progress
+            .binding
+            .as_ref()
+            .map(|binding| binding.artifact_role);
+        let current = match (&progress.binding, &progress.stage) {
+            (_, PendingSetupStage::Invalidated { .. }) | (None, _) => None,
+            (Some(binding), stage) => self
+                .catalog_fact_invalidation(record, binding)
+                .ok()
+                .flatten()
+                .map(|reason| PendingSetupStage::Invalidated {
+                    previous: stage.kind(),
+                    reason,
+                }),
+        };
+        let stage = current.as_ref().unwrap_or(&progress.stage);
+        let mut message = pending_setup_message(stage, role);
+        if stage.kind() != PendingSetupStageKind::Invalidated {
+            message.notice = self
+                .newer_pending_release(record)
+                .map(|version| newer_release_notice(&version));
+        }
+        Some((stage.kind(), message))
     }
 
     fn stored_pending_setup(&self, port_id: &str, pending_id: &str) -> Result<StoredDownload> {
@@ -724,6 +785,17 @@ impl PortcoveService {
             .into_iter()
             .find(|stored| stored.record.port_id == port_id && stored.record.id == pending_id)
             .ok_or_else(|| PortcoveError::conflict("pending setup changed or no longer exists"))
+    }
+
+    /// The finished download of this port, if one is waiting for setup.
+    fn downloaded_pending_setup(&self, port_id: &str) -> Result<Option<StoredDownload>> {
+        Ok(stored_downloads_from(&self.library.connection()?)?
+            .into_iter()
+            .find(|stored| {
+                stored.record.port_id == port_id
+                    && stored.record.state == PendingSetupState::Downloaded
+                    && stored.phase == "downloaded"
+            }))
     }
 
     /// Replace exactly the row that was read. SQLite commits the whole record
@@ -755,7 +827,8 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// The bound stage of a finished download, binding an earlier record now.
+    /// The stage of a finished download with its binding, binding a format 1
+    /// or 2 record to the current facts now.
     fn staged_progress(
         &self,
         stored: &StoredDownload,
@@ -777,12 +850,19 @@ impl PortcoveService {
         Ok((binding, progress.stage))
     }
 
+    /// Persist a stage past `artifact-obtained`. This is the only write of
+    /// record format 3.
     fn save_stage(
         &self,
         stored: &StoredDownload,
         binding: PendingSetupBinding,
         stage: PendingSetupStage,
     ) -> Result<PendingSetupRecord> {
+        if stage == PendingSetupStage::ArtifactObtained {
+            return Err(PortcoveError::state(
+                "artifact-obtained is the publication stage and is never stored",
+            ));
+        }
         let mut record = stored.record.clone();
         record.format_version = STAGED_RECORD_FORMAT;
         record.reason = None;
@@ -793,43 +873,6 @@ impl PortcoveService {
         });
         self.write_pending_stage(stored, &record)?;
         Ok(record)
-    }
-
-    /// Recheck the bound facts and persist an invalidation. Returns the error
-    /// a caller reports when the stage cannot continue.
-    fn require_current_stage(
-        &self,
-        stored: &StoredDownload,
-        binding: &PendingSetupBinding,
-        stage: &PendingSetupStage,
-    ) -> Result<Option<PendingSetupRecord>> {
-        if matches!(stage, PendingSetupStage::Invalidated { .. }) {
-            return Ok(None);
-        }
-        let Some(reason) = self.pending_setup_invalidation(stored, binding, stage)? else {
-            return Ok(None);
-        };
-        let stage = PendingSetupStage::Invalidated {
-            previous: stage.kind(),
-            reason,
-        };
-        Ok(Some(self.save_stage(stored, binding.clone(), stage)?))
-    }
-
-    fn resume_view(record: PendingSetupRecord) -> Result<PendingSetupResume> {
-        let stage = record
-            .stage_kind()
-            .ok_or_else(|| PortcoveError::state("downloaded setup has no stage"))?;
-        let message = record
-            .stage_message()
-            .ok_or_else(|| PortcoveError::state("downloaded setup has no stage"))?;
-        Ok(PendingSetupResume {
-            port_id: record.port_id.clone(),
-            pending_id: record.id.clone(),
-            stage,
-            message,
-            record,
-        })
     }
 
     fn invalidated_error(record: &PendingSetupRecord) -> PortcoveError {
@@ -848,159 +891,44 @@ impl PortcoveService {
         error
     }
 
-    /// Continue a saved setup at the stage the player reached. Completed work
-    /// is not repeated: retained bytes are rechecked against their digest, not
-    /// downloaded again. A changed bound fact invalidates the stage.
-    pub fn resume_pending_setup(
+    /// Refuse an invalidated stage, then recheck the bound facts and persist
+    /// an invalidation when one now holds.
+    fn require_continuable_stage(
         &self,
-        port_id: &str,
-        pending_id: &str,
-    ) -> Result<PendingSetupResume> {
-        let _lock = self
-            .library
-            .try_lock_port(port_id, "resume-pending-setup")?;
-        let stored = self.stored_pending_setup(port_id, pending_id)?;
-        let (binding, stage) = self.staged_progress(&stored)?;
-        if let Some(invalidated) = self.require_current_stage(&stored, &binding, &stage)? {
-            return Self::resume_view(invalidated);
-        }
-        let record = if stored
-            .record
-            .progress
-            .as_ref()
-            .is_some_and(|progress| progress.binding.is_some())
-        {
-            stored.record
-        } else {
-            self.save_stage(&stored, binding, stage)?
-        };
-        Self::resume_view(record)
-    }
-
-    /// Move a saved setup to its next stage. The upstream setup's exit never
-    /// completes it; only a selection Core checks can.
-    pub fn advance_pending_setup(
-        &self,
-        port_id: &str,
-        pending_id: &str,
-        event: PendingSetupEvent,
-    ) -> Result<PendingSetupResume> {
-        let _lock = self
-            .library
-            .try_lock_port(port_id, "advance-pending-setup")?;
-        let stored = self.stored_pending_setup(port_id, pending_id)?;
-        let (binding, stage) = self.staged_progress(&stored)?;
-        // A new selection replaces an earlier one, so only the setup's own
-        // bound facts are rechecked first. A changed chosen program can be
-        // chosen again; every other invalidation needs the setup forgotten.
-        let selecting = matches!(event, PendingSetupEvent::ResultSelected { .. });
-        if let PendingSetupStage::Invalidated { reason, .. } = &stage
-            && !(selecting && *reason == PendingSetupInvalidation::SelectedResultChanged)
-        {
+        stored: &StoredDownload,
+        binding: &PendingSetupBinding,
+        stage: &PendingSetupStage,
+        retained_check: RetainedCheck<'_>,
+    ) -> Result<()> {
+        if matches!(stage, PendingSetupStage::Invalidated { .. }) {
             return Err(Self::invalidated_error(&stored.record));
         }
-        let checked = if selecting {
-            PendingSetupStage::ArtifactObtained
-        } else {
-            stage.clone()
-        };
-        if let Some(reason) = self.pending_setup_invalidation(&stored, &binding, &checked)? {
+        if let Some(reason) = self.pending_setup_invalidation(stored, binding, retained_check)? {
             let invalidated = self.save_stage(
-                &stored,
-                binding,
+                stored,
+                binding.clone(),
                 PendingSetupStage::Invalidated {
-                    previous: stage.resumable_kind(),
+                    previous: stage.kind(),
                     reason,
                 },
             )?;
             return Err(Self::invalidated_error(&invalidated));
         }
-        let selected = stage.selection().is_some();
-        let next = match event {
-            PendingSetupEvent::UpstreamSetupOpened { handoff } => {
-                if let UpstreamSetupHandoff::Guide { url } = &handoff
-                    && !retained_setup_guide(&stored.record, url)
-                {
-                    return Err(PortcoveError::usage(
-                        "This link is not the saved setup guide.",
-                    ));
-                }
-                if selected {
-                    // Reopening setup keeps the checked selection.
-                    stage.clone()
-                } else {
-                    PendingSetupStage::UpstreamSetupOpened {
-                        handoff,
-                        opened_at: clock()?,
-                    }
-                }
-            }
-            PendingSetupEvent::UpstreamSetupExited { exit_code } => match stage.clone() {
-                PendingSetupStage::UpstreamSetupOpened { .. }
-                | PendingSetupStage::PlayerActionNeeded { .. } => {
-                    PendingSetupStage::PlayerActionNeeded {
-                        action: if exit_code.is_none_or(|code| code == 0) {
-                            PlayerSetupAction::ChooseInstalledGame
-                        } else {
-                            PlayerSetupAction::RetryUpstreamSetup
-                        },
-                        exit_code,
-                    }
-                }
-                stage if selected => stage,
-                _ => {
-                    return Err(PortcoveError::conflict(
-                        "upstream setup was not opened for this download",
-                    ));
-                }
-            },
-            PendingSetupEvent::PlayerActionNeeded { action } => {
-                if selected {
-                    return Err(PortcoveError::conflict(
-                        "a checked game program is already chosen for this setup",
-                    ));
-                }
-                PendingSetupStage::PlayerActionNeeded {
-                    action,
-                    exit_code: None,
-                }
-            }
-            PendingSetupEvent::ResultSelected {
-                executable,
-                working_directory,
-                arguments,
-            } => PendingSetupStage::FinalSelected {
-                selection: self.checked_setup_selection(
-                    port_id,
-                    &executable,
-                    &working_directory,
-                    &arguments,
-                )?,
-            },
-        };
-        let record = if next == stage
-            && stored
-                .record
-                .progress
-                .as_ref()
-                .is_some_and(|progress| progress.binding.is_some())
-        {
-            stored.record
-        } else {
-            self.save_stage(&stored, binding, next)?
-        };
-        Self::resume_view(record)
+        Ok(())
     }
 
     /// Record that the player opened this setup's upstream handoff: the
-    /// folder, or a retained setup guide. A release page is not setup and a
-    /// download still in recovery has no stage; neither changes anything.
+    /// folder, or a retained setup guide. It only records the handoff; it
+    /// reads no retained bytes, and the next continuation rechecks the bound
+    /// facts. A release page is not setup, a download still in recovery has
+    /// no stage, an invalidated stage stays invalidated and a chosen program
+    /// stays chosen; none of these changes anything.
     pub fn note_pending_setup_opened(
         &self,
         port_id: &str,
         pending_id: &str,
         guide_url: Option<&str>,
-    ) -> Result<Option<PendingSetupResume>> {
+    ) -> Result<Option<PendingSetupStageKind>> {
         let stored = self.stored_pending_setup(port_id, pending_id)?;
         if stored.record.progress.is_none() {
             return Ok(None);
@@ -1012,78 +940,86 @@ impl PortcoveService {
             }
             Some(_) => return Ok(None),
         };
-        self.advance_pending_setup(
-            port_id,
-            pending_id,
-            PendingSetupEvent::UpstreamSetupOpened { handoff },
-        )
-        .map(Some)
+        let _lock = self
+            .library
+            .try_lock_port(port_id, "note-pending-setup-opened")?;
+        let stored = self.stored_pending_setup(port_id, pending_id)?;
+        let (binding, stage) = self.staged_progress(&stored)?;
+        if matches!(
+            stage,
+            PendingSetupStage::Invalidated { .. }
+                | PendingSetupStage::FinalSelected { .. }
+                | PendingSetupStage::RegistrationReviewed { .. }
+        ) {
+            return Ok(Some(stage.kind()));
+        }
+        let next = PendingSetupStage::UpstreamSetupOpened {
+            handoff,
+            opened_at: clock()?,
+        };
+        Ok(self.save_stage(&stored, binding, next)?.stage_kind())
     }
 
-    /// Core's own check of the player's choice: the same native-program,
-    /// path-ownership and argument checks as registration review.
-    fn checked_setup_selection(
+    /// Check the program the player chose, as registration review does, and
+    /// record the choice as the `final-selected` stage of this port's waiting
+    /// setup. Without a waiting setup this is the plain preview. Choosing the
+    /// same program again keeps a stage that is already further on.
+    pub fn choose_user_selected_runtime(
         &self,
         port_id: &str,
         executable: &Path,
         working_directory: &Path,
         arguments: &[String],
-    ) -> Result<SelectedSetupResult> {
+    ) -> Result<crate::ExternalRuntimePreview> {
         let preview =
             self.preview_user_selected_runtime(port_id, executable, working_directory, arguments)?;
-        selected_result(&preview)
+        let Some(found) = self.downloaded_pending_setup(port_id)? else {
+            return Ok(preview);
+        };
+        let _lock = self
+            .library
+            .try_lock_port(port_id, "choose-pending-setup-result")?;
+        let stored = self.stored_pending_setup(port_id, &found.record.id)?;
+        let (binding, stage) = self.staged_progress(&stored)?;
+        self.require_continuable_stage(&stored, &binding, &stage, RetainedCheck::Presence)?;
+        let selection = selected_result(&preview)?;
+        if stage
+            .selection()
+            .is_none_or(|current| !current.same_choice(&selection))
+        {
+            self.save_stage(
+                &stored,
+                binding,
+                PendingSetupStage::FinalSelected { selection },
+            )?;
+        }
+        Ok(preview)
     }
 
     /// Record the registration plan the player just confirmed. A record still
-    /// in download recovery or invalidated keeps its state; registration
-    /// itself rechecks the stage.
+    /// in download recovery keeps its state; registration itself rechecks
+    /// the stage.
     pub(crate) fn record_pending_registration_review(
         &self,
         port_id: &str,
         preview: &crate::ExternalRuntimePreview,
     ) -> Result<()> {
-        let Some(stored) = stored_downloads_from(&self.library.connection()?)?
-            .into_iter()
-            .find(|stored| stored.record.port_id == port_id)
-        else {
+        let Some(found) = self.downloaded_pending_setup(port_id)? else {
             return Ok(());
         };
-        if stored.record.state != PendingSetupState::Downloaded || stored.phase != "downloaded" {
-            return Ok(());
-        }
         let _lock = self
             .library
             .try_lock_port(port_id, "review-pending-setup-registration")?;
-        let stored = self.stored_pending_setup(port_id, &stored.record.id)?;
+        let stored = self.stored_pending_setup(port_id, &found.record.id)?;
         let (binding, stage) = self.staged_progress(&stored)?;
-        if let PendingSetupStage::Invalidated { reason, .. } = &stage
-            && *reason != PendingSetupInvalidation::SelectedResultChanged
-        {
-            return Err(Self::invalidated_error(&stored.record));
-        }
-        if let Some(reason) = self.pending_setup_invalidation(
-            &stored,
-            &binding,
-            &PendingSetupStage::ArtifactObtained,
-        )? {
-            let invalidated = self.save_stage(
-                &stored,
-                binding,
-                PendingSetupStage::Invalidated {
-                    previous: stage.resumable_kind(),
-                    reason,
-                },
-            )?;
-            return Err(Self::invalidated_error(&invalidated));
-        }
+        self.require_continuable_stage(&stored, &binding, &stage, RetainedCheck::Presence)?;
         // The preview just checked the program it names; an earlier choice
         // is replaced by this reviewed one.
-        let selection = selected_result(preview)?;
         self.save_stage(
             &stored,
             binding,
             PendingSetupStage::RegistrationReviewed {
-                selection,
+                selection: selected_result(preview)?,
                 preview_sha256: preview.preview_sha256.clone(),
             },
         )?;
@@ -1091,7 +1027,14 @@ impl PortcoveService {
     }
 
     /// Registration completes a staged setup only while its bound facts hold.
-    pub(crate) fn require_pending_setup_continuable(&self, port_id: &str) -> Result<()> {
+    /// The retained package digest is verified here, bounded by its recorded
+    /// size and cancellable through the registration's checkpoint. A newer
+    /// upstream release never blocks this.
+    pub(crate) fn require_pending_setup_continuable(
+        &self,
+        port_id: &str,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
         let Some(stored) = stored_downloads_from(&self.library.connection()?)?
             .into_iter()
             .find(|stored| stored.record.port_id == port_id)
@@ -1104,26 +1047,10 @@ impl PortcoveService {
             ..
         }) = &stored.record.progress
         else {
-            // An earlier record keeps its earlier registration behavior.
+            // A format 1 or 2 record keeps its earlier registration behavior.
             return Ok(());
         };
-        if matches!(stage, PendingSetupStage::Invalidated { .. }) {
-            return Err(Self::invalidated_error(&stored.record));
-        }
-        // The program is checked again by the registration preview itself.
-        let check_stage = PendingSetupStage::ArtifactObtained;
-        if let Some(reason) = self.pending_setup_invalidation(&stored, binding, &check_stage)? {
-            let invalidated = self.save_stage(
-                &stored,
-                binding.clone(),
-                PendingSetupStage::Invalidated {
-                    previous: stage.kind(),
-                    reason,
-                },
-            )?;
-            return Err(Self::invalidated_error(&invalidated));
-        }
-        Ok(())
+        self.require_continuable_stage(&stored, binding, stage, RetainedCheck::Digest(checkpoint))
     }
 }
 
@@ -1154,16 +1081,6 @@ fn selected_result(preview: &crate::ExternalRuntimePreview) -> Result<SelectedSe
         version: preview.version.clone(),
         selected_at: clock()?,
     })
-}
-
-fn selection_matches(selection: &SelectedSetupResult) -> bool {
-    fs::symlink_metadata(&selection.executable).is_ok_and(|metadata| metadata.is_file())
-        && fs::symlink_metadata(&selection.working_directory)
-            .is_ok_and(|metadata| metadata.is_dir())
-        && crate::adapter::hash_file(&selection.executable).is_ok_and(|(sha256, size)| {
-            size == selection.executable_size
-                && sha256.eq_ignore_ascii_case(&selection.executable_sha256)
-        })
 }
 
 #[cfg(test)]

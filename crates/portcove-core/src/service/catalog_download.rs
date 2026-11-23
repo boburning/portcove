@@ -49,10 +49,9 @@ mod tests;
 #[path = "pending_setup_stage.rs"]
 mod stage;
 pub use stage::{
-    PendingSetupBinding, PendingSetupEvent, PendingSetupInvalidation, PendingSetupMessage,
-    PendingSetupProgress, PendingSetupResume, PendingSetupStage, PendingSetupStageKind,
-    PlayerSetupAction, RetainedSetupBytes, SelectedSetupResult, UpstreamSetupHandoff,
-    pending_setup_message,
+    PendingSetupBinding, PendingSetupInvalidation, PendingSetupMessage, PendingSetupProgress,
+    PendingSetupStage, PendingSetupStageKind, RetainedSetupBytes, SelectedSetupResult,
+    UpstreamSetupHandoff, pending_setup_message,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -237,8 +236,10 @@ pub struct PendingSetupRecord {
     pub downloaded_at: String,
     pub reason: Option<String>,
     /// Where the player is in the upstream setup that follows the download.
-    /// Format 3 persists it; earlier formats map a finished download to
-    /// `artifact-obtained` on read without writing it back.
+    /// Publication writes format 1 or 2 without it, which earlier releases
+    /// read; Core maps a finished download to `artifact-obtained` on read
+    /// without writing it back. Format 3 persists it only once the player
+    /// moves the setup past that stage.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progress: Option<PendingSetupProgress>,
 }
@@ -1361,7 +1362,6 @@ impl PortcoveService {
                         &payload,
                         &preview.preview_sha256,
                         &operation,
-                        true,
                     )
                 } else {
                     let target = payload.join(&artifact.name);
@@ -1378,7 +1378,6 @@ impl PortcoveService {
                         &payload,
                         &preview.preview_sha256,
                         &operation,
-                        false,
                     )
                 }
             }
@@ -1473,7 +1472,6 @@ impl PortcoveService {
         payload: &Path,
         preview_sha256: &str,
         operation: &OperationCoordinator,
-        extracted: bool,
     ) -> Result<PendingSetupRecord> {
         operation.checkpoint()?;
         self.require_download_destination(&record.path)?;
@@ -1531,9 +1529,9 @@ impl PortcoveService {
         }
         record.state = PendingSetupState::Downloaded;
         record.reason = None;
-        // The first setup stage is durable with the handoff itself.
-        record.format_version = stage::STAGED_RECORD_FORMAT;
-        record.progress = Some(self.publication_progress(&record, extracted)?);
+        // Publication keeps the format earlier releases read; its stage is
+        // `artifact-obtained` on read. Format 3 waits for a later stage.
+        record.progress = None;
         let json = encoded_download_record(&record)?;
         require_download_record_capacity(&transaction, &record.port_id, &json)?;
         crate::durability::rename_noreplace(payload, &record.path)?;
@@ -1555,6 +1553,8 @@ impl PortcoveService {
         }
         transaction.commit()?;
         drop(stage);
+        // Report the stage a reader of the stored record sees.
+        stage::map_legacy_stage(&mut record);
         Ok(record)
     }
 

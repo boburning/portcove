@@ -390,8 +390,9 @@ impl PortcoveService {
                 arguments,
                 &|| operation.checkpoint(),
             )?;
-            // A staged setup whose bound facts changed cannot complete here.
-            self.require_pending_setup_continuable(port_id)?;
+            // A staged setup whose bound facts changed cannot complete here;
+            // the retained package digest check can be cancelled.
+            self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
             self.library.consume_authorization(
                 authorization_token,
                 "register_user_selected",
