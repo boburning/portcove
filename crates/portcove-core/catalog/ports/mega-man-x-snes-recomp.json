@@ -7,11 +7,20 @@
     "project_url": "https://github.com/mstan/MegaManXSNESRecomp",
     "issue_number": 146,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
     "original_game_title": "Mega Man X (USA) (Rev 1)",
-    "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+        "tracking_issue": 146
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md",
       "steps": [
@@ -48,6 +57,24 @@
       "image_sha256": "df2f2bb2209038f4f05a538a5c4e6cd10c7a9ace4c2cd3b82765da71d2604da6",
       "game_slug": "mega-man-x",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x-usa-rev-1",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManXSNESRecomp",
+        "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-x-usa-rev-1-super-nintendo",
+          "title": "Mega Man X (USA) (Rev 1) (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManXSNESRecomp/blob/16cf34fc17e75225bc38bf20933530e7089aec5f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

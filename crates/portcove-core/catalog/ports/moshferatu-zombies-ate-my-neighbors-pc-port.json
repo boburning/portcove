@@ -47,6 +47,21 @@
         }
       ],
       "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zombies-ate-my-neighbors",
+      "evidence_urls": ["https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"],
+      "source_editions": [
+        {
+          "id": "zombies-ate-my-neighbors-super-nintendo",
+          "title": "Zombies Ate My Neighbors (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

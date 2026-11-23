@@ -1,3 +1,4 @@
+import { registerCollectionNavigation } from "../../collection-navigation";
 import {
   act,
   createElement,
@@ -124,6 +125,26 @@ describe("detail workspace navigation", () => {
     expect(selectedId).toBeUndefined();
   });
 
+  it("returns to the containing panel while a saved-folder review action reloads", async () => {
+    const panel = document.createElement("article");
+    panel.dataset.detailOrigin = "game-file-libraries-setup";
+    panel.tabIndex = -1;
+    const review = document.createElement("button");
+    review.dataset.detailOrigin = "ready-game-notice:port-a:hash";
+    const refresh = document.createElement("button");
+    panel.append(refresh, review);
+    document.body.append(panel);
+
+    await act(async () => navigation.open("port-a", review.dataset.detailOrigin, "files"));
+    review.remove();
+    await act(async () => navigation.close());
+
+    expect(document.activeElement).toBe(panel);
+    refresh.focus();
+    panel.append(review);
+    expect(document.activeElement).toBe(refresh);
+  });
+
   it("restores the stable command trigger after a command opens details", async () => {
     const commandTrigger = document.createElement("button");
     commandTrigger.dataset.detailOrigin = "command-trigger:library";
@@ -212,3 +233,40 @@ describe("detail workspace navigation", () => {
     expect(main.scrollTo).toHaveBeenLastCalledWith({ top: 114 });
   });
 });
+
+it.each([false, true])(
+  "awaits collection mounting and respects newer user intent: cancel=%s",
+  async (cancel) => {
+    const main = workspace.current!;
+    const collection = document.createElement("section");
+    collection.dataset.virtualCollection = "catalog";
+    const trigger = document.createElement("button");
+    trigger.dataset.detailOrigin = "catalog:card:port-a:details";
+    trigger.dataset.detailGameId = "port-a";
+    collection.append(trigger);
+    main.append(collection);
+    document.body.append(main);
+    let complete!: (value: boolean) => void;
+    const mounted = new Promise<boolean>((resolve) => {
+      complete = resolve;
+    });
+    const mount = vi.fn(() => mounted);
+    const unregister = registerCollectionNavigation(collection, {
+      mount,
+      prepareMove: () => undefined,
+    });
+    try {
+      await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin));
+      trigger.remove();
+      await act(async () => navigation.close());
+      expect(mount).toHaveBeenCalled();
+      expect(document.activeElement).not.toBe(trigger);
+      if (cancel) document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      collection.append(trigger);
+      await act(async () => complete(true));
+      expect(document.activeElement === trigger).toBe(!cancel);
+    } finally {
+      unregister();
+    }
+  },
+);

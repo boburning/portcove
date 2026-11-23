@@ -29,6 +29,37 @@ pub struct Observed<T> {
     pub freshness: ProviderFreshness,
 }
 
+/// One exact Thunderstore dependency coordinate from a version listing.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+pub struct ThunderstoreDependency {
+    pub namespace: String,
+    pub package: String,
+    pub version: String,
+}
+
+/// Why a provider's eligibility flag could not be determined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderStatusUnknown {
+    Omitted,
+    Null,
+    Malformed,
+}
+
+pub(crate) fn provider_status_flag(
+    value: &serde_json::Value,
+    key: &str,
+) -> Result<bool, ProviderStatusUnknown> {
+    match value.get(key) {
+        Some(serde_json::Value::Bool(flag)) => Ok(*flag),
+        Some(serde_json::Value::Null) => Err(ProviderStatusUnknown::Null),
+        Some(_) => Err(ProviderStatusUnknown::Malformed),
+        None => Err(ProviderStatusUnknown::Omitted),
+    }
+}
+
+pub(crate) const UNKNOWN_PROVIDER_ELIGIBILITY: &str = "The provider did not confirm this mod's availability. Check the provider's project page, then refresh the listing before reviewing an install or update.";
+
 /// A provider's own claims about one downloadable file. The checksum is the
 /// provider's claim; an MD5 or any provider-supplied digest never authenticates
 /// a publisher.
@@ -43,12 +74,43 @@ pub struct ProviderFileCandidate {
     pub download_url: String,
     pub claimed_md5: Option<String>,
     pub archived: bool,
+    /// Present when the wire response did not establish archival status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_unknown: Option<ProviderStatusUnknown>,
     /// Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
     pub claimed_scan: Option<String>,
+    /// Exact provider coordinates, independent of native loader requirements.
+    /// Absent for providers that do not supply this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thunderstore_dependencies: Option<Vec<ThunderstoreDependency>>,
+}
+
+/// Optional provider claims for catalog presentation. Missing metrics stay unknown.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderListing {
+    pub categories: Vec<String>,
+    pub artwork: Option<String>,
+    pub created_at: Option<i64>,
+    pub downloads: Option<u64>,
+    pub likes: Option<u64>,
+    pub ratings: Option<u64>,
+}
+
+pub(crate) fn artwork_url(value: &str, host: &str) -> Option<String> {
+    let url = reqwest::Url::parse(value).ok()?;
+    (url.scheme() == "https"
+        && url.host_str() == Some(host)
+        && url.port_or_known_default() == Some(443)
+        && url.username().is_empty()
+        && url.password().is_none()
+        && value.len() <= 1024)
+        .then(|| url.into())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderProject {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listing: Option<ProviderListing>,
     pub provider: String,
     pub project_id: String,
     pub name: String,
@@ -60,6 +122,9 @@ pub struct ProviderProject {
     pub game_id: Option<String>,
     pub updated_at: i64,
     pub obsolete: bool,
+    /// Present when the wire response did not establish project eligibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_unknown: Option<ProviderStatusUnknown>,
     pub profile_url: String,
     pub submitter: Option<String>,
     pub files: Vec<ProviderFileCandidate>,

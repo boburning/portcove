@@ -359,14 +359,28 @@ where
 
 /// Like [`download`], continuing from and keeping interrupted bytes in
 /// `partials` for this exact asset.
-pub(crate) async fn download_resuming<F>(
+pub(super) struct RetainedDownload<'a> {
+    pub(super) store: &'a super::partial_download::PartialDownloads,
+    pub(super) validate_publication: Option<Box<dyn Fn() -> Result<()> + Send>>,
+}
+
+impl<'a> RetainedDownload<'a> {
+    pub(super) fn private(store: &'a super::partial_download::PartialDownloads) -> Self {
+        Self {
+            store,
+            validate_publication: None,
+        }
+    }
+}
+
+pub(super) async fn download_resuming<F>(
     client: &reqwest::Client,
     asset: &ReleaseAsset,
     destination: &Path,
     operation: &OperationCoordinator,
     emit: &mut F,
     policy: ResumePolicy,
-    partials: Option<&super::partial_download::PartialDownloads>,
+    retained: Option<RetainedDownload<'_>>,
 ) -> Result<()>
 where
     F: FnMut(OperationEvent),
@@ -384,7 +398,9 @@ where
     };
     // Write straight into this asset's kept-bytes entry while holding it, so
     // bytes survive a failure, a crash or Portcove closing.
-    let lease = partials.and_then(|store| store.lease(asset));
+    let lease = retained
+        .as_ref()
+        .and_then(|target| target.store.lease(asset));
     if let Some(lease) = &lease {
         match lease.writer() {
             Ok(writer) => {
@@ -518,7 +534,23 @@ where
         lease.discard();
         return Err(error);
     }
-    lease.finish(destination)
+    let destination = destination.to_path_buf();
+    let operation = operation.clone();
+    let validate = retained.and_then(|target| target.validate_publication);
+    // Join the copy even after cancellation, so private staging is never
+    // removed while a publication worker can still write into it.
+    tokio::task::spawn_blocking(move || {
+        lease.finish(
+            &destination,
+            || operation.checkpoint(),
+            || match &validate {
+                Some(validate) => validate(),
+                None => Ok(()),
+            },
+        )
+    })
+    .await
+    .map_err(|error| PortcoveError::install(error.to_string()))?
 }
 
 #[cfg(test)]

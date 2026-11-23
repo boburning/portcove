@@ -25,6 +25,7 @@ const review: BackupReview = {
     safety_backup_will_be_created: true,
     retained_runtime_copy_will_be_deleted: false,
     preview_sha256: "reviewed-data",
+    restore_target_sha256: "a".repeat(64),
   },
 };
 let root: RenderResult;
@@ -78,11 +79,42 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
   await captureParityState("backup-restore-reviewed-fixture");
-  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  await expect.poll(() => document.activeElement?.id).toBe("backup-review-title");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
 });
+
+it.each([
+  { action: "delete", backup: review.preview.backup },
+  { action: "restore", backup: { ...review.preview.backup, id: "different" } },
+  { action: "restore", backup: { ...review.preview.backup, port_id: "other" } },
+  { action: "restore", backup: { ...review.preview.backup, sha256: "b".repeat(64) } },
+] as const)(
+  "holds a preview that no longer matches the selected backup and action (%#)",
+  async (response) => {
+    vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
+      ...review,
+      preview: { ...review.preview, ...response },
+    });
+    const apply = vi.fn();
+    await root.rerender(
+      <BackupReviewDialog
+        backup={review.preview.backup}
+        action="restore"
+        generation={7}
+        apply={apply}
+        close={vi.fn()}
+      />,
+    );
+    await expect
+      .poll(() => document.body.querySelector('[role="alert"]')?.textContent)
+      .toContain("this review matches the selected backup.");
+    expect(document.body.textContent).not.toContain("Restore this backup");
+    expect(document.body.textContent).not.toContain("Review again");
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
 
 it("tells the player when the reviewed backup is an automatic snapshot", async () => {
   const automatic = {
@@ -160,7 +192,7 @@ it("closes without reporting failure when native consent is declined", async () 
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });
 
-it("requires a fresh review after a changed selection fails and rejects duplicate application", async () => {
+it("holds an unconfirmed restore for reconciliation and rejects duplicate application", async () => {
   const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
   const apply = vi.fn().mockImplementation(
@@ -187,12 +219,55 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+    "Check the restore result in Activity",
+  );
   await captureParityState("backup-restore-failed-fixture");
   expect(document.body.textContent).not.toContain("Restore this backup");
-  await click("Review again");
-  expect(preview).toHaveBeenCalledTimes(2);
+  expect(document.body.textContent).not.toContain("Review again");
+  expect(preview).toHaveBeenCalledOnce();
 });
+
+it.each(["preview fails", "target is missing"] as const)(
+  "requires a new selection before considering another target when the initial %s",
+  async (caseName) => {
+    const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
+      ...review,
+      preview: { ...review.preview, restore_target_sha256: "b".repeat(64) },
+    });
+    if (caseName === "preview fails")
+      preview.mockRejectedValueOnce(new Error("Preview unavailable"));
+    else
+      preview.mockResolvedValueOnce({
+        ...review,
+        preview: { ...review.preview, restore_target_sha256: null },
+      });
+    const refresh = vi.fn().mockResolvedValue("ready");
+    const apply = vi.fn();
+    const dialog = (
+      <BackupReviewDialog
+        backup={review.preview.backup}
+        action="restore"
+        generation={7}
+        apply={apply}
+        close={() => undefined}
+        refreshRestoreReview={refresh}
+      />
+    );
+    await root.rerender(dialog);
+    expect(document.body.textContent).toContain("Close this review and choose the backup again");
+    expect(document.body.textContent).not.toContain("Refresh backup history");
+    expect(document.body.textContent).not.toContain("Restore this backup");
+    expect(preview).toHaveBeenCalledOnce();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+    await root.rerender(null);
+    await root.rerender(dialog);
+    expect(document.body.textContent).toContain("Restore this backup");
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
 
 it("ignores an old review after the library or selected backup changes", async () => {
   let finish!: (result: BackupReview) => void;

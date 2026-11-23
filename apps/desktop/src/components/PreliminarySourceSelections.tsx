@@ -30,7 +30,7 @@ export function PreliminarySourceSelections({
   selections?: Inspection[] | undefined;
   profiles: SourceProfile[];
   disabled: boolean;
-  onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+  onReview: (candidate: SourceRecord) => void;
   renderActions?: (candidate: SourceRecord) => ReactNode;
   headingLevel?: 3 | 4;
 }) {
@@ -38,7 +38,7 @@ export function PreliminarySourceSelections({
   if (selections.length === 0) return null;
   const Heading = headingLevel === 4 ? "h4" : "h3";
   return (
-    <section aria-label={t("preliminary.label")}>
+    <section aria-label={t("preliminary.label")} className="grid min-w-0 gap-2">
       <Heading>{t("preliminary.heading")}</Heading>
       <p>{t("preliminary.description")}</p>
       {selections.map((selection) => {

@@ -11,12 +11,13 @@
     "button": "Copiar texto",
     "copied": "Se copió el texto. Pégalo en una nueva incidencia de GitHub o envíalo al equipo de Portcove de otra forma.",
     "failed": "No se pudo copiar el texto automáticamente. Selecciónalo y cópialo abajo.",
+    "manualCopy": "Texto para copiar manualmente",
     "openFailed": "No se pudo abrir el formulario. Tu texto sigue aquí; inténtalo de nuevo o cópialo."
   },
   "feedback": {
     "copied": "Estos comentarios son demasiado largos para un enlace, así que se copiaron. Abre el formulario de comentarios en GitHub y pégalos.",
     "copyFailed": "Estos comentarios son demasiado largos para un enlace y no se pudieron copiar automáticamente. Selecciona y copia el texto de abajo y pégalo en el formulario de comentarios de GitHub.",
-    "description": "Esto es todo lo que irá en una incidencia de comentarios de GitHub. Elige qué intentabas hacer y hasta dónde llegaste, y describe con tus palabras lo que pasó. No se envía nada hasta que elijas cómo enviarlo, y las rutas de carpetas y tu nombre de usuario se sustituyen.",
+    "description": "Esto es todo lo que irá en una incidencia de comentarios de GitHub. Elige qué intentabas hacer y hasta dónde llegaste, y describe con tus palabras lo que pasó. No se envía nada hasta que elijas cómo enviarlo, y las rutas de carpetas y tu nombre de usuario se sustituyen. No incluyas archivos originales del juego ni partidas guardadas.",
     "title": "Enviar comentarios"
   },
   "problem": {
@@ -24,7 +25,7 @@
     "close": "Cerrar",
     "copied": "Este informe es demasiado largo para un enlace, así que se copió. Abre un nuevo informe de error en GitHub y pégalo.",
     "copyFailed": "Este informe es demasiado largo para un enlace y no se pudo copiar automáticamente. Selecciona y copia el texto de abajo y pégalo en un nuevo informe de error en GitHub.",
-    "description": "Esto es todo lo que irá en un informe de error de GitHub. No se envía nada hasta que elijas cómo enviarlo: desde tu cuenta de GitHub si has iniciado sesión, en GitHub o como texto copiado. Las rutas de carpetas y tu nombre de usuario se sustituyen.",
+    "description": "Esto es todo lo que irá en un informe de error de GitHub. No se envía nada hasta que elijas cómo enviarlo: desde tu cuenta de GitHub si has iniciado sesión, en GitHub o como texto copiado. Las rutas de carpetas y tu nombre de usuario se sustituyen. No incluyas archivos originales del juego ni partidas guardadas.",
     "open": "Informar de un problema",
     "prepareFailed": "No se pudo preparar el informe. Inténtalo de nuevo.",
     "submit": "Abrir en GitHub",

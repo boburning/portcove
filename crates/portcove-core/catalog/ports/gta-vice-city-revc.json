@@ -29,7 +29,16 @@
       "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md"
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Downloads are paused. The archived mirror carries both Vice City and GTA III. The archived project explicitly declines to license its code. Downloads can resume after review identifies the reVC project’s own Vice City package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted reVC copy with its original PC game files.",
+        "tracking_issue": 2853
+      }
+    ],
     "artwork": {
       "game_id": 733,
       "cover_id": 120935,
@@ -37,6 +46,15 @@
       "image_sha256": "a3d322aebc6ce090b7b5053b2dc5fc4b2724ed5d00fb6ba9116ff6de78d0ae65",
       "game_slug": "grand-theft-auto-vice-city",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-vice-city",
+      "evidence_urls": [
+        "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md",
+        "https://github.com/leanndroguedes/re3-19feb21"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

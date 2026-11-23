@@ -961,6 +961,7 @@ mod tests {
     ) -> ExternalRuntimeRecord {
         let inspected = inspect(runtime, spec, library).unwrap();
         ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "location-probe".into(),
             port_id: "location-probe".into(),

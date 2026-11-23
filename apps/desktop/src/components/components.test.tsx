@@ -57,7 +57,7 @@ describe("desktop components", () => {
       <Sidebar
         view="library"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={2}
         activities={[...completed, current]}
       />,
@@ -86,7 +86,7 @@ describe("desktop components", () => {
       <Sidebar
         view="catalog"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[activity({ started_at: now - 24 * 60 * 60 })]}
       />,
@@ -97,7 +97,7 @@ describe("desktop components", () => {
       <Sidebar
         view="catalog"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[
           activity({
@@ -204,8 +204,8 @@ describe("desktop components", () => {
       ["updates", "integrations", 3],
       ["integrations", "controls", 3],
       ["controls", "advanced", 2],
-      ["advanced", "about", 4],
-      ["about", null, 2],
+      ["advanced", "about", 3],
+      ["about", null, 3],
     ] as const;
     for (const [id, next, rowCount] of groups) {
       const start = html.indexOf(`data-settings-group="${id}"`);
@@ -237,8 +237,9 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(advanced).toContain("Report a problem or send feedback");
+    expect(advanced).not.toContain("Report a problem or send feedback");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
+    expect(about).toContain("Report a problem or send feedback");
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");
     expect(about).toContain("Open diagnostics");
@@ -256,6 +257,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[untestedPort]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -329,6 +331,7 @@ describe("desktop components", () => {
         view="library"
         ports={[retiredPort]}
         statuses={new Map()}
+        libraryCount={1}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -346,6 +349,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -358,6 +362,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}

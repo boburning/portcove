@@ -33,6 +33,7 @@ function favorites(
     only: false,
     setOnly: vi.fn(),
     toggle: vi.fn(async () => true),
+    setPorts: vi.fn(async () => true),
     refresh: vi.fn(async () => true),
     busy: false,
     failure: undefined,
@@ -54,6 +55,7 @@ it("counts favorites within actual composed search/channel results and reset pre
       view="catalog"
       ports={narrowed}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter={{ version: 1, channels: ["stable"] }}
       query="Keep"
@@ -64,11 +66,11 @@ it("counts favorites within actual composed search/channel results and reset pre
       clearFilters={clear}
     />,
   );
-  expect(host.querySelector('button[aria-label="Favorites 1"]')).not.toBeNull();
+  expect(host.querySelector("[data-favorites-filter]")).not.toBeNull();
   // Discover counts the favorite games left by search and channel filters, not stored choices.
   expect(
     host.querySelector('[role="status"][aria-label="Search results"]')?.textContent?.trim(),
-  ).toBe("1 game");
+  ).toBe("1 ungrouped project");
   expect(host.querySelector('button[aria-label="Favorite Keep first"]')).not.toBeNull();
   expect(host.querySelector('button[aria-label="Favorite Keep second"]')).toBeNull();
   const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -87,6 +89,7 @@ it("unavailable favorites expose actionable retry while ordinary details remain 
       view="catalog"
       ports={[fixtureValue(ports[0], "ports[0]")]}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}
@@ -120,6 +123,7 @@ it("keeps an unknown existing query unresolved instead of treating it as an empt
       view="catalog"
       ports={narrowed}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter={unsupported}
       setFilter={vi.fn()}
@@ -142,6 +146,7 @@ it("ends loading after a favorites read fails without reporting a successful emp
       view="catalog"
       ports={ports}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}

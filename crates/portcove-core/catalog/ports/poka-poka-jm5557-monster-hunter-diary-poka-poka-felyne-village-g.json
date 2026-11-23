@@ -4,6 +4,14 @@
     "id": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
     "name": "Monster Hunter Diary: Poka Poka Felyne Village G — poka-poka (jM5557)",
     "original_game_title": "Monster Hunter Diary: Poka Poka Felyne Village G",
+    "artwork": {
+      "game_id": 65178,
+      "cover_id": 80052,
+      "image_id": "co1pro",
+      "image_sha256": "12e8f2c05e4fe8ef21e9bffa8adc9dd35e0f25ce61f1f694c14c47252f49d356",
+      "game_slug": "monster-hunter-diary-poka-poka-airu-village-g",
+      "match_kind": "underlying-game"
+    },
     "summary": "This game has its own Yakumo static-recompilation profile. Check the README’s recorded status for its playability limits. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jM5557/poka-poka",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/jM5557/poka-poka"
     },
-    "issue_number": 3100
+    "issue_number": 3100,
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-diary-poka-poka-felyne-village-g",
+      "evidence_urls": ["https://github.com/jM5557/poka-poka"],
+      "source_editions": [
+        {
+          "id": "monster-hunter-diary-poka-poka-felyne-village-g-playstation-portable",
+          "title": "Monster Hunter Diary: Poka Poka Felyne Village G (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/jM5557/poka-poka/blob/9d110e05687ea1e057eb33b1cb41392edf949854/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

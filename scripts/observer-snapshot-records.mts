@@ -6,6 +6,8 @@ import { constants, createBrotliCompress, createBrotliDecompress } from "node:zl
 import { isRecord } from "./runtime-values.mts";
 
 export const observerRecordMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-4\n", "ascii");
+// Finite codec harness ceiling; byte, record and Brotli window bounds remain independent.
+export const observerRecordBudgetMs = 180_000;
 const chunkSize = 64 * 1024;
 type RecordInput = { name: string; bytes: Buffer };
 type Limits = { member: number; record: number; records: number; deadline: number };
@@ -14,7 +16,10 @@ function requireRecord(condition: unknown, message: string): asserts condition {
 }
 function remaining(limits: Limits) {
   const left = limits.deadline - Date.now();
-  requireRecord(Number.isFinite(left) && left > 0 && left <= 60000, "deadline exhausted");
+  requireRecord(
+    Number.isFinite(left) && left > 0 && left <= observerRecordBudgetMs,
+    "deadline exhausted",
+  );
   return Math.max(1, Math.ceil(left));
 }
 export function assertObserverRecordRuntime(version = process.versions.node) {
@@ -174,7 +179,7 @@ export async function decodeObserverRecords(
     payload: Buffer | null = null,
     offset = 0;
   try {
-    // Input is capped at four MiB, and split to keep both stream queues bounded.
+    // The member cap applies before decoding. Splitting keeps both stream queues bounded.
     const input = Readable.from(
       (function* () {
         for (let at = 0; at < compressed.length; at += chunkSize)

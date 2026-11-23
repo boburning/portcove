@@ -51,6 +51,15 @@
       "warnings": [
         "Use the exact own-ROM Virtua Fighter 3 set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-fighter-3",
+      "evidence_urls": [
+        "https://github.com/mr-finster/vf3-recomp",
+        "https://github.com/mr-finster/vf3-recomp/blob/a3d609445d09644892ddd3d2bf8f65b3a8bbd540/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

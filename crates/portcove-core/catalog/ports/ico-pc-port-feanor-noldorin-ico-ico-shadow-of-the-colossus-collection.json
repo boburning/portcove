@@ -3,9 +3,17 @@
   "listing": {
     "id": "ico-pc-port-feanor-noldorin-ico-ico-shadow-of-the-colossus-collection",
     "name": "ICO (ICO & Shadow of the Colossus Collection) — ICO PC Port (feanor-noldorin)",
-    "original_game_title": "ICO (ICO & Shadow of the Colossus Collection)",
+    "original_game_title": "ICO",
     "summary": "Upstream reports the title, opening and gameplay controls at 30 FPS. Long sessions have not been tried. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/feanor-noldorin/ico-recomp",
+    "artwork": {
+      "game_id": 144612,
+      "cover_id": 329257,
+      "image_id": "co7221",
+      "image_sha256": "e0df92cada2e8c192c7b519bc3c1650aab100c6795dc119b5613ff808114dbac",
+      "game_slug": "ico--1",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/feanor-noldorin/ico-recomp"
     },
-    "issue_number": 3378
+    "issue_number": 3378,
+    "original_game": {
+      "format_version": 1,
+      "id": "ico",
+      "evidence_urls": ["https://github.com/feanor-noldorin/ico-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

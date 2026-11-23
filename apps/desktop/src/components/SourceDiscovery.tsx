@@ -1,10 +1,19 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+  sourceImportCancelledWithoutChanges,
+} from "../features/source-intake/source-registration-receipt";
 import { countMessage } from "../localization";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type Ref, type RefObject } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
+import {
+  useOneOffFileSearch,
+  type OneOffFileSearch,
+} from "../features/game-file-discovery/use-game-file-scan";
 import type {
   SourceDiscoveryLimits,
-  SourceDiscoveryReport,
   SourceImportMode,
   SourceImportResult,
   SourceImportPlan,
@@ -120,31 +129,86 @@ export function SourceDiscoveryButton({
   generation,
   profiles,
   disabled,
+  requirementsAvailable = true,
+  fallbackFocus,
   onAdded,
 }: {
   generation: number;
   profiles: SourceProfile[];
   disabled: boolean;
+  requirementsAvailable?: boolean;
+  fallbackFocus?: RefObject<HTMLElement | null>;
   onAdded?: (() => Promise<unknown>) | undefined;
 }) {
-  const [openGeneration, setOpenGeneration] = useState<number>();
+  const searches = useOneOffFileSearch();
+  const previous = searches?.result;
+  const [opening, setOpening] = useState<{
+    generation: number;
+    profile: string;
+    previous?: OneOffFileSearch;
+    invalidated?: true;
+  }>();
+  const searchButton = useRef<HTMLButtonElement>(null);
+  const previousProfileAvailable = profiles.some((profile) => profile.id === previous?.profile);
+  const currentOpening = opening?.generation === generation ? opening : undefined;
+  if (
+    currentOpening?.profile &&
+    (!requirementsAvailable || !profiles.some((profile) => profile.id === currentOpening.profile))
+  ) {
+    setOpening({ generation, profile: "", invalidated: true });
+  }
+  const invalidated = currentOpening?.invalidated === true;
+  useLayoutEffect(() => {
+    if (!invalidated) return;
+    const next = searchButton.current;
+    if (next && !next.disabled) next.focus();
+    else fallbackFocus?.current?.focus();
+  }, [fallbackFocus, invalidated]);
   return (
     <>
       <Button
         data-focusable
         data-settings-control="discover-sources"
+        ref={searchButton}
         variant="outline"
         disabled={disabled || profiles.length === 0}
-        onClick={() => setOpenGeneration(generation)}
+        onClick={() => setOpening({ generation, profile: "" })}
       >
         Find required files
       </Button>
-      {openGeneration === generation && (
+      {previous && (
+        <div className="mt-3 grid justify-items-start gap-2">
+          <p className="text-sm text-pc-muted-foreground">
+            {previousProfileAvailable || !requirementsAvailable
+              ? sourceDiscoveryResultSummary(
+                  previous.report.candidates.length,
+                  previous.report.entries_examined,
+                  previous.report.hash_bytes,
+                )
+              : "The required files from the last search are no longer listed."}
+          </p>
+          {previousProfileAvailable && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={disabled}
+              onClick={() => setOpening({ generation, profile: previous.profile, previous })}
+            >
+              Review last search
+            </Button>
+          )}
+        </div>
+      )}
+      {currentOpening && !invalidated && (
         <SourceDiscoveryDialog
           generation={generation}
           profiles={profiles}
+          profile={currentOpening.profile}
+          setProfile={(profile) => setOpening({ ...currentOpening, profile })}
           onAdded={onAdded}
-          close={() => setOpenGeneration(undefined)}
+          previous={currentOpening.previous}
+          beginSearch={searches?.begin}
+          close={() => setOpening(undefined)}
         />
       )}
     </>
@@ -182,10 +246,18 @@ export function sourceImportRefreshNotice(result: SourceImportResult) {
   return `${sourceImportNotice(result)} The view couldn't refresh. Use Retry refresh to check the current state; the files were already added.`;
 }
 
-function useSourceDiscoveryWorkflow(generation: number, onAdded?: () => Promise<unknown>) {
-  const [root, setRoot] = useState("");
-  const [profile, setProfile] = useState("");
-  const [report, setReport] = useState<SourceDiscoveryReport>();
+function useSourceDiscoveryWorkflow(
+  generation: number,
+  profiles: SourceProfile[],
+  profile: string,
+  setProfile: (profile: string) => void,
+  onAdded: (() => Promise<unknown>) | undefined,
+  previous: OneOffFileSearch | undefined,
+  beginSearch: (() => (result: OneOffFileSearch) => void) | undefined,
+) {
+  const perform = useOperationPresentation()?.perform;
+  const [root, setRoot] = useState(previous?.root ?? "");
+  const [report, setReport] = useState(previous?.report);
   const [inbox, setInbox] = useState<SourceInboxResolution>();
   const [plan, setPlan] = useState<SourceImportPlan>();
   const [busy, setBusy] = useState("");
@@ -245,21 +317,38 @@ function useSourceDiscoveryWorkflow(generation: number, onAdded?: () => Promise<
   };
   const search = () => {
     clearResults();
-    return run("Searching your selected folder…", async () =>
-      setReport(
-        await desktopApi.discoverSources(
-          { roots: [root], profile_ids: [profile], limits: scanLimits },
-          trackStart,
-        ),
-      ),
-    );
+    const retain = beginSearch?.();
+    return run("Searching your selected folder…", async () => {
+      const completed = await desktopApi.discoverSources(
+        { roots: [root], profile_ids: [profile], limits: scanLimits },
+        trackStart,
+      );
+      setReport(completed);
+      retain?.({ root, profile, report: completed });
+    });
   };
-  const reviewImport = (
-    candidate: Pick<SourceRecord, "profile_id" | "path">,
-    mode: SourceImportMode,
-  ) =>
+  const reviewImport = (candidate: SourceRecord, mode: SourceImportMode) =>
     run("Checking the selected file and destination…", async () => {
-      setPlan(await desktopApi.planSourceImport(candidate.profile_id, candidate.path, mode));
+      setPlan(undefined);
+      const reviewed = await desktopApi.planSourceImport(
+        candidate.profile_id,
+        candidate.path,
+        mode,
+      );
+      const earlier = previous && report === previous.report ? candidate : undefined;
+      if (
+        earlier &&
+        (earlier.profile_id !== reviewed.profile_id ||
+          earlier.path !== reviewed.source.path ||
+          earlier.sha256 !== reviewed.source.sha256 ||
+          earlier.size !== reviewed.source.size ||
+          earlier.storage_sha256 !== reviewed.source.storage_sha256 ||
+          earlier.storage_size !== reviewed.source.storage_size)
+      ) {
+        setError("This file changed since the last search. Search the folder again.");
+        return;
+      }
+      setPlan(reviewed);
       setNotice(undefined);
     });
   const applyImport = () => {
@@ -270,31 +359,31 @@ function useSourceDiscoveryWorkflow(generation: number, onAdded?: () => Promise<
       return Promise.resolve();
     }
     return run(`${presentation.label}…`, async () => {
-      const result = await desktopApi.importSource(
-        plan.profile_id,
-        plan.source.path,
-        plan.mode,
-        plan.plan_sha256,
+      const { result, refreshFailed } = await applyReviewedSourceImport({
+        perform,
+        plan,
         generation,
-        trackStart,
-      );
-      if (!result) {
+        label: profiles.find((profile) => profile.id === plan.profile_id)?.label ?? plan.profile_id,
+        action: "Save file location",
+        refresh: onAdded,
+        onEvent: trackStart,
+      }).catch((value: unknown) => {
+        if (sourceImportCancelledWithoutChanges(value)) throw value;
+        setPlan(undefined);
+        throw new Error(sourceImportApplyError(value));
+      });
+      if (result === undefined) return;
+      if (result === null) {
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
         return;
       }
       setRegistered(result.registered.path);
       setPlan(undefined);
-      setNotice(sourceImportNotice(result));
-      try {
-        await onAdded?.();
-      } catch {
-        setNotice(sourceImportRefreshNotice(result));
-      }
+      setNotice(refreshFailed ? sourceImportRefreshNotice(result) : sourceImportNotice(result));
     });
   };
   return {
     root,
-    profile,
     report,
     inbox,
     plan,
@@ -335,10 +424,14 @@ function DiscoveryResults({
     ...new Set([...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])]),
   ];
   const issues = [...(report?.issues ?? []), ...(inbox?.stats.issues ?? [])];
+  const issuesOmitted = (report?.issues_omitted ?? 0) + (inbox?.stats.issues_omitted ?? 0);
   const limitSource = report ? "folder" : "inbox";
   if (!report && !inbox) return null;
   return (
-    <section className="source-discovery-results" aria-label="File search results">
+    <section
+      className="source-discovery-results grid min-w-0 gap-3"
+      aria-label="File search results"
+    >
       {limits.length > 0 && (
         <>
           <p>Some files weren't checked because this scan reached a limit.</p>
@@ -361,7 +454,7 @@ function DiscoveryResults({
           key={`${candidate.profile_id}:${candidate.path}`}
         >
           <div className="min-w-0">
-            <code className="mt-1 block overflow-hidden bg-transparent p-0 [overflow-wrap:anywhere] text-ellipsis whitespace-normal text-pc-muted-foreground">
+            <code dir="ltr" className="saved-file-path">
               {candidate.path}
             </code>
             <span>{formatBytes(candidate.size)}</span>
@@ -414,23 +507,34 @@ function DiscoveryResults({
           {issue.path && (
             <>
               {" "}
-              <code className="[overflow-wrap:anywhere] whitespace-normal">{issue.path}</code>
+              <code dir="ltr" className="path-value whitespace-normal">
+                {issue.path}
+              </code>
             </>
           )}
         </p>
       ))}
+      {issuesOmitted > 0 && (
+        <p>
+          {issuesOmitted === 1
+            ? "1 more scan issue was omitted."
+            : `${issuesOmitted} more scan issues were omitted.`}
+        </p>
+      )}
     </section>
   );
 }
 
 export function SourceImportReview({
   plan,
+  headingRef,
   profiles = [],
   busy,
   onCancel,
   onApply,
 }: {
   plan?: SourceImportPlan | undefined;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
   profiles?: Pick<SourceProfile, "id" | "label">[];
   busy: boolean;
   onCancel: () => void;
@@ -441,8 +545,13 @@ export function SourceImportReview({
   const admission = sourceAdmissionPresentation(plan.admission_mode);
   const profile = profiles.find((candidate) => candidate.id === plan.profile_id);
   return (
-    <section className="source-discovery-results mt-6 grid gap-3" aria-label="Source import review">
-      <h3>{presentation.label}</h3>
+    <section
+      className="source-discovery-results mt-6 grid gap-3 border-t border-pc-border pt-4"
+      aria-label="Source import review"
+    >
+      <h3 ref={headingRef} tabIndex={headingRef ? -1 : undefined}>
+        {presentation.label}
+      </h3>
       <p>{presentation.explanation}</p>
       <p>
         File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
@@ -450,14 +559,28 @@ export function SourceImportReview({
       <p role={admission.known ? undefined : "alert"}>
         <strong>File check: {admission.label}.</strong> {admission.explanation}
       </p>
-      <p>
-        Selected location:{" "}
-        <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.source.path}</code>
-      </p>
-      <p>
-        {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
-        : <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.destination}</code>
-      </p>
+      <dl className="m-0 grid gap-3">
+        <div>
+          <dt className="font-medium">Selected location</dt>
+          <dd className="m-0">
+            <code dir="ltr" className="saved-file-path">
+              {plan.source.path}
+            </code>
+          </dd>
+        </div>
+        <div>
+          <dt className="font-medium">
+            {plan.mode === "use_current_location"
+              ? "Saved file location"
+              : "Portcove game-file folder"}
+          </dt>
+          <dd className="m-0">
+            <code dir="ltr" className="saved-file-path">
+              {plan.destination}
+            </code>
+          </dd>
+        </div>
+      </dl>
       {presentation.known && (
         <>
           {plan.mode !== "use_current_location" && plan.reuse_existing && (
@@ -472,7 +595,7 @@ export function SourceImportReview({
         <>
           <p>
             Currently saved location:{" "}
-            <code className="[overflow-wrap:anywhere] whitespace-normal">
+            <code dir="ltr" className="path-value whitespace-normal">
               {plan.existing_registration.path}
             </code>
           </p>
@@ -503,28 +626,43 @@ export function SourceImportReview({
 function SourceDiscoveryDialog({
   generation,
   profiles,
+  profile,
+  setProfile,
   onAdded,
+  previous,
+  beginSearch,
   close,
 }: {
   generation: number;
   profiles: SourceProfile[];
+  profile: string;
+  setProfile: (profile: string) => void;
   onAdded?: (() => Promise<unknown>) | undefined;
+  previous: OneOffFileSearch | undefined;
+  beginSearch: (() => (result: OneOffFileSearch) => void) | undefined;
   close: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const workflow = useSourceDiscoveryWorkflow(generation, onAdded);
+  const workflow = useSourceDiscoveryWorkflow(
+    generation,
+    profiles,
+    profile,
+    setProfile,
+    onAdded,
+    previous,
+    beginSearch,
+  );
   const [profileSelectOpen, setProfileSelectOpen] = useState(false);
   const profileSelectOpenRef = useRef(false);
   const profileSelectDismissal = useRef(false);
-  const { root, profile, report, inbox, plan, busy, error, registered, operationId, notice } =
-    workflow;
+  const { root, report, inbox, plan, busy, error, registered, operationId, notice } = workflow;
   const dismiss = () => {
     if (!busy) close();
   };
   const choices = [
     { value: "", label: "Choose the required files" },
-    ...[...profiles]
-      .sort((left, right) => left.label.localeCompare(right.label))
+    ...profiles
+      .toSorted((left, right) => left.label.localeCompare(right.label))
       .map((item) => ({ value: item.id, label: item.label })),
   ];
   return (
@@ -555,9 +693,6 @@ function SourceDiscoveryDialog({
         reviewSize="wide"
         aria-describedby="source-discovery-description"
       >
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          REQUIRED FILES
-        </p>
         <DialogTitle
           ref={heading}
           tabIndex={-1}
@@ -574,114 +709,127 @@ function SourceDiscoveryDialog({
           Portcove's game-file folder can hold files you choose to copy or move into your library.
         </p>
         <NavigationHints />
-        <ChoiceSelect
-          triggerId="source-profile-select"
-          label="Required files"
-          value={profile}
-          options={choices}
-          disabled={Boolean(busy)}
-          onChange={workflow.selectProfile}
-          open={profileSelectOpen}
-          onOpenChange={(nextOpen, reason) => {
-            if (nextOpen) profileSelectOpenRef.current = true;
-            if (!nextOpen && reason === "escape-key") profileSelectDismissal.current = true;
-            setProfileSelectOpen(nextOpen);
-          }}
-          onOpenChangeComplete={(nextOpen) => {
-            if (!nextOpen) {
-              // Base UI may finish the Select dismissal before the parent Dialog
-              // observes the same native Escape event. Keep the ownership marker
-              // through that event turn so the Dialog can cancel its dismissal.
-              setTimeout(() => {
-                profileSelectOpenRef.current = false;
-                profileSelectDismissal.current = false;
-              }, 0);
-            }
-          }}
-        />
-        <div className="actions source-inbox-actions flex flex-wrap gap-2">
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || !profile}
-            onClick={() => {
-              void workflow.openInbox();
-            }}
-          >
-            Open game-file folder
-          </Button>
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || !profile}
-            onClick={() => {
-              void workflow.scanInbox();
-            }}
-          >
-            Search game-file folder
-          </Button>
-        </div>
-        <Field label="Search folder">
-          <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
-            <Input
-              data-focusable
-              id="source-search-root"
-              value={root}
+        <div className="grid min-w-0 gap-5">
+          <div className="grid min-w-0 gap-3">
+            <ChoiceSelect
+              triggerId="source-profile-select"
+              label="Required files"
+              value={profile}
+              options={choices}
               disabled={Boolean(busy)}
-              onChange={(event) => workflow.updateRoot(event.target.value)}
-              placeholder="Folder containing the required files"
-            />
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={Boolean(busy)}
-              onClick={() => {
-                void workflow.chooseRoot();
+              onChange={workflow.selectProfile}
+              open={profileSelectOpen}
+              onOpenChange={(nextOpen, reason) => {
+                if (nextOpen) profileSelectOpenRef.current = true;
+                if (!nextOpen && reason === "escape-key") profileSelectDismissal.current = true;
+                setProfileSelectOpen(nextOpen);
               }}
-            >
-              Choose folder
-            </Button>
+              onOpenChangeComplete={(nextOpen) => {
+                if (!nextOpen) {
+                  // Base UI may finish the Select dismissal before the parent Dialog
+                  // observes the same native Escape event. Keep the ownership marker
+                  // through that event turn so the Dialog can cancel its dismissal.
+                  setTimeout(() => {
+                    profileSelectOpenRef.current = false;
+                    profileSelectDismissal.current = false;
+                  }, 0);
+                }
+              }}
+            />
+            <div className="actions source-inbox-actions flex flex-wrap gap-2">
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy) || !profile}
+                onClick={() => {
+                  void workflow.openInbox();
+                }}
+              >
+                Open game-file folder
+              </Button>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy) || !profile}
+                onClick={() => {
+                  void workflow.scanInbox();
+                }}
+              >
+                Search game-file folder
+              </Button>
+            </div>
           </div>
-        </Field>
-        <StoreInstallChoices
-          generation={generation}
-          disabled={Boolean(busy)}
-          onChoose={workflow.updateRoot}
-        />
-        {busy && <p role="status">{busy}</p>}
-        {notice && <p role="status">{notice}</p>}
-        {operationId && (
-          <OperationCancellation
-            key={operationId}
-            operationId={operationId}
-            label="Cancel operation"
-          />
-        )}
-        {report && (
-          <p>
-            {sourceDiscoveryResultSummary(
-              report.candidates.length,
-              report.entries_examined,
-              report.hash_bytes,
+          <div className="grid min-w-0 gap-3">
+            <Field label="Search folder">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+                <Input
+                  data-focusable
+                  id="source-search-root"
+                  value={root}
+                  disabled={Boolean(busy)}
+                  onChange={(event) => workflow.updateRoot(event.target.value)}
+                  placeholder="Folder containing the required files"
+                />
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    void workflow.chooseRoot();
+                  }}
+                >
+                  Choose folder
+                </Button>
+              </div>
+            </Field>
+            <StoreInstallChoices
+              generation={generation}
+              disabled={Boolean(busy)}
+              onChoose={workflow.updateRoot}
+            />
+          </div>
+          {busy && <p role="status">{busy}</p>}
+          {notice && <p role="status">{notice}</p>}
+          {operationId && (
+            <OperationCancellation
+              key={operationId}
+              operationId={operationId}
+              label="Cancel operation"
+            />
+          )}
+          <div className={report ? undefined : "sr-only"}>
+            {report && report === previous?.report && (
+              <p>Results from the last search. Portcove checks a file again when you review it.</p>
             )}
-          </p>
-        )}
-        {inbox && (
-          <section aria-label="Game-file folder search result">
-            <p>
-              {inboxStateMessage(inbox.state)}{" "}
-              {countMessage(inbox.stats.entries_examined, "examinedEntries", {
-                bytes: formatBytes(inbox.stats.hash_bytes),
-              })}
+            <p role="status">
+              {report &&
+                sourceDiscoveryResultSummary(
+                  report.candidates.length,
+                  report.entries_examined,
+                  report.hash_bytes,
+                )}
             </p>
-            {inbox.selected && (
+          </div>
+          {inbox && (
+            <section aria-label="Game-file folder search result">
               <p>
-                Saved file location: <code>{inbox.selected.path}</code>
+                {inboxStateMessage(inbox.state)}{" "}
+                {countMessage(inbox.stats.entries_examined, "examinedEntries", {
+                  bytes: formatBytes(inbox.stats.hash_bytes),
+                })}
               </p>
-            )}
-          </section>
-        )}
-        <DiscoveryResults workflow={workflow} profiles={profiles} />
+              {inbox.selected && (
+                <p>
+                  Saved file location:{" "}
+                  <code dir="ltr" className="path-value">
+                    {inbox.selected.path}
+                  </code>
+                </p>
+              )}
+            </section>
+          )}
+          <DiscoveryResults workflow={workflow} profiles={profiles} />
+        </div>
         <SourceImportReview
           plan={plan}
           profiles={profiles}
@@ -690,11 +838,18 @@ function SourceDiscoveryDialog({
           onApply={workflow.applyImport}
         />
         {registered && (
-          <p role="status">
-            File location saved: <code>{registered}</code>
+          <p role="status" className="mt-4">
+            File location saved:{" "}
+            <code dir="ltr" className="path-value">
+              {registered}
+            </code>
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4">
+            {error}
+          </p>
+        )}
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close

@@ -3,7 +3,7 @@
   "listing": {
     "id": "spicywonda-castlevania-chronicles-recomp",
     "name": "Castlevania Chronicles (Castlevania Chronicles Recomp)",
-    "summary": "A Castlevania Chronicles player with a self-updating 0.3.10 launcher. Its ZIP/tar.gz packages bundle .NET; player setup needs no separate .NET SDK. Select your own USA SLUS01384 PlayStation CUE/BIN or CHD and Play; first start prepares game code locally. Keep each CUE and every referenced BIN together. Windows x64, Linux x64 and Apple Silicon macOS packages are documented, with other host routes unconfirmed. The launcher checks versions, downloads in the background, defers updates and can roll back a failed start; those tests do not establish complete gameplay. A boss/orb sound issue remains open. Exact mastering/hashes and separate BIOS requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
+    "summary": "The Castlevania Chronicles launcher prepares your own USA PlayStation CUE/BIN or CHD locally. Packages are available for Windows x64, Linux x64 and Apple silicon Mac. The launcher manages its own updates. Keep a CUE file with every BIN it references.",
     "original_game_title": "Castlevania Chronicles",
     "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
     "platforms": ["windows-x86-64"],
@@ -45,7 +45,22 @@
       ],
       "warnings": [
         "Select top-level Play.exe and retain runtime/. Its supported waiting launch preserves the data-directory context; keep active and legacy card copies, and finish upstream updates separately."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The 0.3.10 packages bundle .NET. The launcher can defer an update or roll back a failed start. The project reports a boss or orb sound issue. Exact disc mastering, separate BIOS requirements and a full playthrough are unconfirmed."
+        }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-chronicles",
+      "evidence_urls": [
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp/blob/0b578b91c14eeb25c06185d660954b86ff092fff/README.md",
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

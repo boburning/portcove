@@ -1,9 +1,27 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 1773,
+    "slug": "ratchet-clank-up-your-arsenal",
+    "name": "Ratchet & Clank: Up Your Arsenal",
+    "platform_id": 8,
+    "localization_id": 22089,
+    "region_id": 4,
+    "cover_id": 375900,
+    "image_id": "co821o"
+  },
   "listing": {
     "id": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
     "name": "Ratchet & Clank: Up Your Arsenal — ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile (MASELKO-95)",
     "original_game_title": "Ratchet & Clank: Up Your Arsenal",
+    "artwork": {
+      "game_id": 1773,
+      "cover_id": 375900,
+      "image_id": "co821o",
+      "image_sha256": "8814dd68d6c7040e6f5f7b39fa99d7ddecab92eaadb723da1118c11be5ab92f6",
+      "game_slug": "ratchet-clank-up-your-arsenal",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reaches the intro, title screen and an incomplete menu. New Game is unfinished, and gameplay is unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
     "listed_at": "2026-10-25",
@@ -28,7 +46,15 @@
       ],
       "help_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"
     },
-    "issue_number": 3078
+    "issue_number": 3078,
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-up-your-arsenal",
+      "evidence_urls": [
+        "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

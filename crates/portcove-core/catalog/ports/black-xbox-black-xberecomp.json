@@ -2,9 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "black-xbox-black-xberecomp",
+    "artwork": {
+      "game_id": 5749,
+      "cover_id": 388910,
+      "image_id": "co8c32",
+      "image_sha256": "22a6b13aabf70f235c98cf1b33941a273b4eed5910197212b17d22a366cbd1f4",
+      "game_slug": "black",
+      "match_kind": "underlying-game"
+    },
     "name": "BLACK (Xbox) (BLACK-XBERecomp)",
     "summary": "An original-Xbox BLACK implementation separate from Spark198rus’s black-pc. Its Windows 10+ x86-64 Direct3D 12 package compiles game code locally on first start. Use your own USA or Europe ISO or complete extracted data in assets/. The separate manual source build specifically needs the USA default.xbe and matching data; this guide does not specify exact per-region executable hashes. Linux and macOS player routes are unconfirmed. Portcove has not confirmed setup or gameplay. Choose BLACK.exe after setup finishes.",
-    "original_game_title": "BLACK (Xbox)",
+    "original_game_title": "BLACK",
     "project_url": "https://github.com/TGP482/BLACK-XBERecomp",
     "listed_at": "2026-10-25",
     "funding_urls": [
@@ -12,10 +20,25 @@
       "https://www.patreon.com/TGP482",
       "https://ko-fi.com/tgp482"
     ],
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/BLACK-XBERecomp",
-    "issue_number": 2636
+    "issue_number": 2636,
+    "original_game": {
+      "format_version": 1,
+      "id": "black",
+      "evidence_urls": ["https://github.com/TGP482/BLACK-XBERecomp"],
+      "source_editions": [
+        {
+          "id": "black-xbox",
+          "title": "BLACK (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/TGP482/BLACK-XBERecomp/blob/10b8464fa06ebd6e54e814b250e9e3554a48ef1c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

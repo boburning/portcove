@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+    "artwork": {
+      "game_id": 2143,
+      "cover_id": 515651,
+      "image_id": "cob1vn",
+      "image_sha256": "e58e9bf9bc151bd06b83e8ef20c7152da2a9ad11ba433b389f26b9faaeb8739a",
+      "game_slug": "timesplitters-2",
+      "match_kind": "underlying-game"
+    },
     "name": "TimeSplitters 2 — Destinity13 native recompilation",
     "original_game_title": "TimeSplitters 2",
     "summary": "Prepare a native Windows or Linux player from your own USA PlayStation 2 disc image.",
@@ -12,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v1.1.0",
     "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
-    "download_block_reason": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+        "tracking_issue": 4759
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
@@ -43,6 +60,26 @@
         }
       ],
       "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters-2",
+      "evidence_urls": [
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+        "https://api.github.com/repositories/1449120748",
+        "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "timesplitters-2-playstation-2",
+          "title": "TimeSplitters 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/736af9d3b30fa8db64e3cf68402fe6393e7fa9f1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

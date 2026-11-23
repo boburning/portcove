@@ -3,11 +3,11 @@
   "listing": {
     "id": "awakenchan-lanternengine",
     "name": "Bloodborne (Bloodborne PC)",
-    "summary": "Bloodborne PC uses LanternEngine, derived from bbport/shadPS4 with a launcher and a documented direct PS4 CPU path. It is a performance-focused fork maintained more slowly by one author; full-game and GPU coverage are unconfirmed. The launcher name or version alone does not establish a separate implementation from its parent. Windows and Linux use Vulkan; other hosts are unconfirmed. Use your own PS4 Bloodborne CUSA03173 dump with update 1.09. Exact accepted revision, hashes and BIOS/firmware requirements are unconfirmed. You and the project manage installation and version changes; published files have not been qualified for Portcove. Portcove has not confirmed setup or gameplay.",
+    "summary": "LanternEngine is a performance-focused Bloodborne PC fork based on bbport and shadPS4. Use your own PS4 CUSA03173 game with update 1.09 on Windows or Linux with Vulkan. The project’s GPU coverage and a full playthrough remain unconfirmed.",
     "original_game_title": "Bloodborne",
     "project_url": "https://github.com/Awakenchan/LanternEngine",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Awakenchan/LanternEngine",
     "artwork": {
@@ -18,7 +18,33 @@
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2829
+    "issue_number": 2829,
+    "manual_setup": {
+      "help_url": "https://github.com/Awakenchan/LanternEngine",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Check that your own PS4 game is CUSA03173 with update 1.09. The project has not established exact accepted file hashes or separate BIOS and firmware requirements."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the project’s Windows or Linux Vulkan setup and use its launcher. You manage the installation and later version changes. Portcove has not qualified the published files."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The fork documents direct PS4 CPU execution. It is maintained by one author, and the launcher’s name alone does not establish a separate implementation from its parent."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/Awakenchan/LanternEngine"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "bakugan-ps3-recomp-mauryln-mauryln-bakugan-battle-brawlers",
+    "artwork": {
+      "game_id": 4703,
+      "cover_id": 198036,
+      "image_id": "co48t0",
+      "image_sha256": "176ffcb2838fd3fcdb7a1b8054093b4a0a1273e463bc36ad31fa2cf133c2e575",
+      "game_slug": "bakugan-battle-brawlers",
+      "match_kind": "underlying-game"
+    },
     "name": "Bakugan: Battle Brawlers — Bakugan PS3 recomp (Mauryln) (Mauryln)",
     "original_game_title": "Bakugan: Battle Brawlers",
     "summary": "The project reports startup, videos, menus and the start of a duel. 3D graphics are deformed, and tutorial/story gameplay and sound effects fail. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp"
     },
-    "issue_number": 3365
+    "issue_number": 3365,
+    "original_game": {
+      "format_version": 1,
+      "id": "bakugan-battle-brawlers",
+      "evidence_urls": ["https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp"],
+      "source_editions": [
+        {
+          "id": "bakugan-battle-brawlers-playstation-3",
+          "title": "Bakugan: Battle Brawlers (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp/blob/5f490443ecc4e4a55b8beaa534ba464dc6e0867b/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

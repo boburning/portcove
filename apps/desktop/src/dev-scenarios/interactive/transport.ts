@@ -215,6 +215,18 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_root_setup_consents", args, { generation });
       return [];
     },
+    run_standing_setup: (args) => {
+      if (!(args?.onEvent instanceof Channel))
+        return unsupported("run_standing_setup (unexpected channel)");
+      requireArgs("run_standing_setup", args, { generation, onEvent: args.onEvent });
+      return {
+        already_running: false,
+        assessments: [],
+        not_assessed: 0,
+        batches: [],
+        failures: [],
+      } satisfies Awaited<ReturnType<typeof desktopApi.runStandingSetup>>;
+    },
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
       return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
@@ -452,6 +464,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     // Fixture games have no reviewed mod contract, as most real games do not;
     // the setups view then renders nothing.
+    jakmods_setup_url: (args) => {
+      requirePort("jakmods_setup_url", args);
+      return null;
+    },
     get_mod_setups: (args) => {
       const portId = requirePort("get_mod_setups", args);
       return {
@@ -521,6 +537,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         journey !== "recovery" || ["original", "moved"].includes(recoveryChoice ?? ""),
         recoveryChoice === "original" ? "fixture/original" : "fixture/library",
       );
+    },
+    get_default_library_root: (args) => {
+      requireArgs("get_default_library_root", args, {});
+      return "fixture/library";
     },
     reset_default_library: (args) => {
       requireArgs("reset_default_library", args, {});
@@ -603,6 +623,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           limitations: [],
         })),
       } satisfies GameComparison;
+    },
+    can_review_exact_release: (args) => {
+      requirePort("can_review_exact_release", args);
+      return false;
     },
     get_workspace_snapshot: (args) => {
       requireArgs("get_workspace_snapshot", args, { generation, knownCatalogDigest: null });
@@ -707,6 +731,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         ReturnType<typeof desktopApi.steamGridDbKeyStatus>
       >;
     },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
+    },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});
       return applicationUpdatePreferences;
@@ -771,7 +799,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       return [];
     },
     get_store_game_installs: (args) => {
-      requireArgs("get_store_game_installs", args, { generation });
+      const profileId = args?.profileId;
+      requireArgs("get_store_game_installs", args, {
+        generation,
+        ...(profileId !== undefined ? { profileId } : {}),
+      });
+      if (
+        profileId !== undefined &&
+        !workspace(journey).catalog.source_profiles?.some((profile) => profile.id === profileId)
+      )
+        return unsupported("get_store_game_installs (unknown profile)");
       return { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
     },
     get_backups: (args) => {
@@ -822,7 +859,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
             (listing) => listing.id === args?.portId,
           )
         ) ||
-        !["cover", "detail", "landscape"].includes(String(args?.slot))
+        !["cover", "detail", "landscape", "logo"].includes(String(args?.slot))
       )
         return unsupported("get_artwork");
       requireArgs("get_artwork", args, { portId: args?.portId, slot: args?.slot, generation });
@@ -831,9 +868,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         id,
         args?.slot as ArtworkSlot,
         0,
-        (journey.startsWith("collection") && id !== "collection-4") ||
-          (journey === "comparison" &&
-            comparisonEntries.find((entry) => entry.id === id)?.artwork !== null),
+        args?.slot !== "logo" &&
+          ((journey.startsWith("collection") && id !== "collection-4") ||
+            (journey === "comparison" &&
+              comparisonEntries.find((entry) => entry.id === id)?.artwork !== null)),
       );
       if (journey.startsWith("collection") || journey === "comparison") {
         const port = workspace(journey).catalog.ports.find((port) => port.id === id)!;

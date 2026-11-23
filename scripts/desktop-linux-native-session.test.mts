@@ -1,6 +1,10 @@
 // Keep the dependency-free PID1 packet controls in the maintained broad Node suite.
 import "../apps/desktop/scripts/desktop-linux-native-session.native.test.mts";
-import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mts";
+import {
+  readLinuxX11Configuration,
+  assertQualificationUidMap,
+  linuxX11ExecutionBudgets,
+} from "./desktop-linux-x11.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -23,7 +27,253 @@ import { fileIdentity } from "./development-evidence.mts";
 import type { ConsumedInput } from "./retained-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import type { acquireNativeSessionLock } from "./native-session-lock.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+void test(
+  "private-X11 waits contain the selected harness deadline and retain finite cleanup margins",
+  { skip: process.platform !== "linux" },
+  () => {
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "native-design-system-compatibility"],
+      }),
+      {
+        harness: 240_000,
+        outer: 510_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_050_000,
+      },
+    );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "keyboard-layout"],
+      }),
+      {
+        harness: 420_000,
+        outer: 690_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_230_000,
+      },
+    );
+    // The selected-setup completion scenario carries the 900 s harness deadline
+    // calibrated in scripts/desktop-scenarios.mts; its outer and command budgets
+    // must contain that deadline with the same cleanup margins.
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "native-selected-setup-completion"],
+      }),
+      {
+        harness: 960_000,
+        outer: 1_230_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_770_000,
+      },
+    );
+    for (const scenario of [
+      "native-saved-folder-selected-setup",
+      "native-large-discovery-setup-review",
+    ])
+      assert.deepEqual(
+        linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),
+        {
+          harness: 660_000,
+          outer: 930_000,
+          inputCapture: 300_000,
+          inputVerification: 120_000,
+          namespaceCapture: 60_000,
+          command: 1_470_000,
+        },
+      );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({ stage: "gtk", harness_args: ["not-a-harness-option"] }),
+      {
+        harness: 240_000,
+        outer: 390_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 930_000,
+      },
+    );
+    assert.throws(
+      () =>
+        linuxX11ExecutionBudgets({
+          stage: "harness",
+          harness_args: [
+            "--scenario",
+            "native-selected-setup-completion",
+            "--scenario",
+            "appearance-restart",
+          ],
+        }),
+      /requires one exact standalone scenario/u,
+    );
+  },
+);
+
+void test("private-X11 input checks outlive the former minute and still refuse finite expiry", async () => {
+  const source = await readFile(new URL("./desktop-linux-x11.mts", import.meta.url), "utf8");
+  const start = source.indexOf("export async function runLinuxX11(");
+  const end = source.indexOf("export async function runWindowsLinuxX11(", start);
+  assert.ok(start >= 0 && end > start);
+  const implementation = stripTypeScriptTypes(source.slice(start, end).replace("export ", ""));
+  for (const mode of ["delayed", "capture-expired", "verification-expired"] as const) {
+    let now = 0;
+    const events: string[] = [];
+    const deadlines: number[] = [];
+    const config = {
+      stage: "gtk" as const,
+      harness_args: [],
+      output_root: "/owned/output",
+      xvfb: "/xvfb",
+      xkbcomp: "/xkbcomp",
+    };
+    const lease: {
+      owner: Pick<Awaited<ReturnType<typeof acquireNativeSessionLock>>["owner"], "token">;
+      release: () => Promise<void>;
+    } = {
+      owner: { token: "owned" },
+      release: async () => {
+        events.push("lease-released");
+      },
+    };
+    const context = {
+      assert,
+      path: path.posix,
+      root: "/owned/workspace",
+      scope: "Controlled actual-source input-budget contract",
+      source: "/owned/workspace/scripts/desktop-linux-x11.mts",
+      process: {
+        platform: "linux",
+        execPath: "/owned/node",
+        env: {},
+        stdout: {},
+        stderr: {},
+        exitCode: undefined,
+      },
+      uid: () => 1000,
+      assertQualificationUidMap,
+      readLinuxX11Configuration: async () => ({ config, identities: [] }),
+      mkdtemp: async () => "/owned/output/runtime",
+      chmod: async () => {},
+      acquireNativeSessionLock: async () => lease,
+      linuxX11ExecutionBudgets,
+      retainedEvidenceRoot: () => "/retained",
+      AbortSignal: {
+        timeout: (milliseconds: number) => {
+          deadlines.push(milliseconds);
+          const deadline = now + milliseconds;
+          return {
+            throwIfAborted: () => {
+              if (now >= deadline) throw new Error("Controlled finite input deadline");
+            },
+          };
+        },
+      },
+      retainEvidenceInput: async ({ file, signal }: { file: string; signal: AbortSignal }) => {
+        events.push("capture");
+        if (events.filter((event) => event === "capture").length === 1)
+          now += mode === "capture-expired" ? 300_001 : 70_000;
+        signal.throwIfAborted();
+        return { path: file, bytes: 1, sha256: "a".repeat(64) };
+      },
+      writeFile: async () => {},
+      verifyConsumedInputs: async (_inputs: unknown, { signal }: { signal: AbortSignal }) => {
+        events.push("verify");
+        if (events.includes("joined")) now += mode === "verification-expired" ? 120_001 : 70_000;
+        signal.throwIfAborted();
+      },
+      linuxNamespaceEnvironment: () => ({}),
+      launchLinuxNativeSession: async () => {
+        events.push("launched");
+        return {
+          child: { stdout: { pipe() {} }, stderr: { pipe() {} } },
+          ready: async () => {},
+          stop: async () => {
+            events.push("joined");
+            return { quiesced: true };
+          },
+        };
+      },
+      waitExit: async (_launch: unknown, milliseconds: number) => {
+        assert.equal(milliseconds, 390_000);
+        return { code: 0 };
+      },
+    };
+    const value: unknown = runInNewContext(`(${implementation})`, context);
+    assert.equal(typeof value, "function");
+    const run = value as (file: string) => Promise<void>;
+    if (mode === "delayed") {
+      await run("/owned/config.json");
+      assert.equal(context.process.exitCode, 0);
+      assert.equal(events.filter((event) => event === "capture").length, 8);
+      assert.deepEqual(events.slice(-3), ["joined", "verify", "lease-released"]);
+      assert.deepEqual(deadlines, [300_000, 120_000]);
+    } else {
+      await assert.rejects(run("/owned/config.json"), /Controlled finite input deadline/u);
+      assert.equal(events.at(-1), "lease-released");
+      assert.equal(events.includes("launched"), mode === "verification-expired");
+      assert.equal(events.includes("joined"), mode === "verification-expired");
+    }
+  }
+});
+
+void test("private-X11 direct Linux admission includes input checks and preserves Windows admission", async () => {
+  const source = await readFile(new URL("./desktop-linux-x11.mts", import.meta.url), "utf8");
+  const marker = '} else if (mode === "--config" && value && !runtime) {';
+  const start = source.indexOf(marker);
+  const end = source.indexOf("\n    } else\n      throw new Error(", start);
+  assert.ok(start >= 0 && end > start);
+  const implementation = stripTypeScriptTypes(source.slice(start + marker.length, end));
+  for (const platform of ["linux", "win32"]) {
+    let reads = 0;
+    const admissions: { profile: string; options: { executionTimeoutMilliseconds?: number } }[] =
+      [];
+    const context = {
+      process: { platform, exitCode: undefined },
+      value: "/owned/config.json",
+      root: "/owned/workspace",
+      readFile: async () => {
+        reads += 1;
+        return JSON.stringify({ stage: "gtk", harness_args: [] });
+      },
+      configuration: (value: unknown) => value,
+      linuxX11ExecutionBudgets,
+      frontendOutputResource: () => "owned-output",
+      resourceEntrypoint: async (
+        profile: string,
+        _action: unknown,
+        options: { executionTimeoutMilliseconds?: number },
+      ) => {
+        admissions.push({ profile, options });
+        return 0;
+      },
+    };
+    const value: unknown = runInNewContext(`(async () => { ${implementation} })`, context);
+    assert.equal(typeof value, "function");
+    await (value as () => Promise<void>)();
+    assert.equal(admissions.length, 1);
+    const admitted = admissions[0]!;
+    assert.equal(admitted.profile, platform === "linux" ? "browser" : "rust");
+    assert.equal(
+      admitted.options.executionTimeoutMilliseconds,
+      platform === "linux" ? 930_000 : undefined,
+    );
+    assert.equal(reads, platform === "linux" ? 1 : 0);
+  }
+});
 
 void test("media video observations retain verbose UTF-8 bytes outside the bounded control message", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-video-"));
@@ -503,9 +753,9 @@ void test(
 import ast, sys
 from pathlib import Path
 tree = ast.parse(Path(sys.argv[1]).read_text())
-names = {'controls','bound_control','invoke','show_location'}
+names = {'controls','bound_control','invoke','show_location','editable','location_entry'}
 functions = [node for node in ast.walk(tree) if isinstance(node,ast.FunctionDef) and node.name in names]
-assert len(functions) == 4
+assert len(functions) == len(names)
 class Role:
     TABLE='table'; TREE='tree'; TREE_TABLE='tree-table'; LIST='list'
     PUSH_BUTTON='button'; TOGGLE_BUTTON='toggle'; TEXT='text'; ENTRY='entry'; FILE_CHOOSER='file-chooser'
@@ -515,6 +765,10 @@ class Atspi: pass
 Atspi.Role, Atspi.StateType = Role, StateType
 class State:
     def contains(self,state): return True
+class Clock:
+    def __init__(self): self.now=0
+    def monotonic(self): return self.now
+    def sleep(self,seconds): self.now+=seconds
 class Peer:
     def __init__(self,bus): self.bus_name=bus
 class Node:
@@ -537,12 +791,16 @@ class Node:
     def set_text_contents(self,text): self.writes+=1; return True
 root=Node(count=2); large=Node('/large',parent=root,count=510)
 root.children=[Node('/pending',parent=root),large]
-scope={'Atspi':Atspi,'chooser':lambda:root,'window_path':'/chooser','bus_name':'owned'}
+scope={'Atspi':Atspi,'chooser':lambda:root,'window_path':'/chooser','bus_name':'owned','time':Clock(),'deadline':10}
 exec(compile(ast.Module(body=functions,type_ignores=[]),sys.argv[1],'exec'),scope)
 try: scope['controls']()
 except RuntimeError: pass
 else: raise AssertionError('Queued inventory bound missing')
 assert root.reads == 2 and large.reads == 0, 'Children read before queue budget'
+root.count=1; root.children=[None]
+try: scope['controls']()
+except RuntimeError as error: assert 'inventory changed' in str(error)
+else: raise AssertionError('Vanished child admitted')
 root.count=0
 foreign=Node('/button','foreign',root,role=Role.PUSH_BUTTON)
 try: scope['invoke'](foreign)
@@ -592,20 +850,109 @@ scope['controls']=production_controls
 entry=Node('/entry','foreign',root,role=Role.ENTRY)
 input_block=[node for node in ast.walk(tree) if isinstance(node,ast.If) and isinstance(node.test,ast.Name) and node.test.id=='directory']
 assert len(input_block)==1
-scope.update(directory=Path('/owned/input'),controls=lambda:[entry],button=lambda names:owned)
-try: exec(compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec'),scope)
+input_code=compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec')
+scope.update(directory=Path('/owned/input'),controls=lambda until=None:[entry],button=lambda names:owned)
+try: exec(input_code,scope)
 except RuntimeError: pass
 else: raise AssertionError('Foreign same-path text admitted')
 assert entry.writes == 0 and owned.actions == 1
 entry.app=Peer('owned')
-exec(compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec'),scope)
+exec(input_code,scope)
 assert entry.writes == 1 and owned.actions == 2
+
+def observe(frames, deadline=10, repeat=None):
+    clock=Clock()
+    remaining=iter(frames)
+    reads=[]
+    def inventory(until=None):
+        item=next(remaining,repeat)
+        reads.append(clock.now)
+        assert item is not None, 'Unexpected extra scan'
+        if isinstance(item,RuntimeError): raise item
+        if until is not None: assert clock.now < until <= deadline
+        return item
+    scope.update(time=clock,deadline=deadline,controls=inventory)
+    return clock, reads
+
+def refused(message):
+    previous_writes=entry.writes
+    previous_confirms=owned.actions
+    try: exec(input_code,scope)
+    except RuntimeError as error: assert message in str(error), str(error)
+    else: raise AssertionError('Unsafe location entry admitted')
+    assert entry.writes==previous_writes and owned.actions==previous_confirms
+
+before=widget.actions
+# The exact action may disappear once GTK has opened its location field.
+clock,reads=observe([[widget],[widget],[widget],[entry],[entry]])
+exec(input_code,scope)
+assert len(reads)==5 and clock.now==0.05 and widget.actions==before+1
+assert entry.writes==2 and owned.actions==3
+
+other=Node('/other',parent=root,role=Role.TEXT)
+before=widget.actions
+clock,reads=observe([[entry,other]])
+refused('phase=initial count=2')
+assert len(reads)==1 and clock.now==0 and widget.actions==before
+clock,reads=observe([[widget],[widget],[entry,other]])
+refused('phase=after-show-location count=2')
+assert len(reads)==3 and clock.now==0 and widget.actions==before+1
+assert other.writes==0
+
+for deadline in [10,0.12]:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget]],deadline=deadline,repeat=[widget])
+    refused('phase=after-show-location count=0')
+    assert widget.actions==before+1 and clock.now==min(1,deadline)
+    assert max(reads)<min(1,deadline)
+
+before=widget.actions
+clock,reads=observe([[widget],[widget],[entry]])
+inventory=scope['controls']
+def delayed_inventory(until=None):
+    result=inventory(until)
+    if until is not None: clock.now=until
+    return result
+scope['controls']=delayed_inventory
+refused('phase=after-show-location count=1')
+assert len(reads)==3 and widget.actions==before+1
+
+foreign_entry=Node('/entry','foreign',root,role=Role.ENTRY)
+for changed,message in [
+    ([other],'phase=before-input count=1'),
+    ([entry,other],'phase=before-input count=2'),
+    ([],'phase=before-input count=0'),
+    ([foreign_entry],'accessibility peer changed'),
+]:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget],[entry],changed])
+    refused(message)
+    assert len(reads)==4 and widget.actions==before+1
+assert other.writes==0 and foreign_entry.writes==0
+
+clock,reads=observe([[entry],[entry]])
+editable_interface=entry.get_editable_text_iface
+def lost_entry():
+    entry.role=Role.PUSH_BUTTON
+    return entry
+entry.get_editable_text_iface=lost_entry
+refused('location field unavailable')
+assert len(reads)==2
+entry.role=Role.ENTRY
+entry.get_editable_text_iface=editable_interface
+
+for message in ['Owned GTK chooser identity changed','Owned GTK application exited or changed','Owned GTK chooser control inventory changed']:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget],RuntimeError(message)])
+    refused(message)
+    assert len(reads)==3 and clock.now==0 and widget.actions==before+1
 print('GTK production input and inventory guards passed')
 `;
     const result = spawnSync("/usr/bin/python3", ["-c", control, helper], {
       encoding: "utf8",
-      timeout: 5000,
+      timeout: 15_000,
     });
+    assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /GTK production input and inventory guards passed/u);
   },

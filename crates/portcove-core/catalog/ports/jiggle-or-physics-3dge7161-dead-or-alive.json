@@ -8,7 +8,16 @@
     "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+        "tracking_issue": 3507
+      }
+    ],
     "issue_number": 3507,
     "listed_at": "2026-10-25",
     "artwork": {
@@ -18,6 +27,21 @@
       "image_sha256": "258e0674396f7625568bac13c39fd2496618320dcd93e2d6c89cab4766827b92",
       "game_slug": "dead-or-alive--2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive",
+      "evidence_urls": ["https://github.com/3dge7161/Jiggle-or-Physics"],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-playstation",
+          "title": "Dead or Alive (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/3dge7161/Jiggle-or-Physics/blob/9e42e3ba122249d14ec2acbcc22f9fca34330f68/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

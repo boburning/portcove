@@ -7,7 +7,7 @@
     "project_url": "https://github.com/MaxDeadBear/KameoRePowered",
     "issue_number": 129,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/MaxDeadBear/KameoRePowered",
     "artwork": {
@@ -48,7 +48,39 @@
         "Portcove has not run a new game package or original files, or tested save/load, gameplay or installed behavior. Earlier Windows title-update v0.2.1 file-integrity results apply only to that exact package, and do not cover vanilla or other builds."
       ]
     },
-    "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-prohibition",
+        "explanation": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question.",
+        "tracking_issue": 129
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": [
+        "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+        "https://github.com/MaxDeadBear/KameoRePowered",
+        "https://api.github.com/repos/MaxDeadBear/KameoRePowered/contributors",
+        "https://github.com/MaxDeadBear/KameoRePowered/commit/29ebaeb0e630b061e880953aa41ab70be386eb3e",
+        "https://api.github.com/repos/birabittoh/KameoRePowered"
+      ],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kameo-repowered.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Kameo: Elements of Power"
   },
   "upstream_lineage": {
     "format_version": 1,

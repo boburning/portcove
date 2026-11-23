@@ -399,9 +399,18 @@ fn retained_build_schemas_help_and_required_reviews_are_library_free() {
     ] {
         assert!(schemas[name].is_object(), "missing schema {name}");
     }
+    // Desktop's explicit metadata preview shares this availability type. Its
+    // advertised schema includes present; profile.setups execution stays strict.
     assert_eq!(
         schemas["retained_build_resolution"]["$defs"]["RetainedBuildAvailability"]["enum"],
-        serde_json::json!(["verified", "missing", "changed", "held", "unavailable"])
+        serde_json::json!([
+            "verified",
+            "present",
+            "missing",
+            "changed",
+            "held",
+            "unavailable"
+        ])
     );
     for (command, positional, source) in [
         (

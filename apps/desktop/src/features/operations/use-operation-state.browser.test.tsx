@@ -1,12 +1,20 @@
-import { act } from "react";
+import { act, memo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { useOperationState } from "./use-operation-state";
-import { targetInvocationContext } from "./invocation-state";
-import { failureReport } from "../../test-fixtures";
+import { desktopApi } from "../../api";
+import { applyReviewedSourceImport } from "../source-intake/source-registration-receipt";
+import { matchingSavedSource, targetInvocationContext } from "./invocation-state";
+import { failureReport, portStatus } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
 import { InvocationOwnerProvider } from "./invocation-owner";
-import type { ActivityRecord, OperationEvent } from "../../types";
+import { installRecord, sourceImportFixtures } from "../../components/rendered-test-fixtures";
+import {
+  OperationPresentationProvider,
+  presentPortAction,
+  useOperationPresentation,
+} from "./operation-presentation";
+import type { ActivityRecord, OperationEvent, SourceRecord } from "../../types";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -18,20 +26,29 @@ let state!: ReturnType<typeof useOperationState>;
 const refresh = vi.fn<() => Promise<unknown>>();
 const invalidate = vi.fn();
 const openActivity = vi.fn();
+const openSavedSource = vi.fn<(source: SourceRecord) => void>();
+let startedReadRevision = 1;
+const startedWorkspaceReadRevision = () => startedReadRevision;
 function Fixture({
   generation = 7,
   activities = [],
   onActivity = false,
+  workspaceReadRevision = 1,
+  sources = [],
 }: {
   generation?: number;
   activities?: ActivityRecord[];
   onActivity?: boolean;
+  workspaceReadRevision?: number;
+  sources?: SourceRecord[];
 }) {
   state = useOperationState({
     refresh,
     invalidateDiagnostics: invalidate,
     libraryGeneration: generation,
     activities,
+    workspaceReadRevision,
+    startedWorkspaceReadRevision,
   });
   return (
     <StatusLayer
@@ -40,6 +57,10 @@ function Fixture({
       clearError={() => state.setError(undefined)}
       openActivity={openActivity}
       onActivity={onActivity}
+      openSavedSource={(record) => {
+        const source = matchingSavedSource(record, sources, generation, workspaceReadRevision);
+        return source ? () => openSavedSource(source) : undefined;
+      }}
     />
   );
 }
@@ -56,14 +77,67 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 beforeEach(async () => {
+  startedReadRevision = 1;
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   refresh.mockReset().mockResolvedValue(undefined);
   invalidate.mockReset();
   openActivity.mockReset();
+  openSavedSource.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
   await act(async () => root.render(<Fixture />));
+});
+
+it("retains unread installs through dismissal and pre-commit reads, retiring only by full receipt or generation", async () => {
+  refresh.mockRejectedValue(new Error("workspace unavailable"));
+  startedReadRevision = 2; // This read began before A's commit and has not finished.
+  await act(async () => {
+    await state.perform(
+      "install",
+      async () => {
+        const installed = installRecord({ port_id: "A" });
+        state.noteInstallCommitted(installed);
+        return installed;
+      },
+      { context: context("A", "Install game") },
+    );
+  });
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+  const invocation = [...state.invocations.values()][0]!;
+  expect(invocation.outcome).toBe("succeeded");
+  await act(async () => state.dismissInvocation(invocation.id));
+  expect(state.invocations.size).toBe(0);
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+
+  startedReadRevision = 3;
+  await act(async () => {
+    await state.perform(
+      "install",
+      async () => {
+        const installed = installRecord({ port_id: "B" });
+        state.noteInstallCommitted(installed);
+        return installed;
+      },
+      { context: context("B", "Install game") },
+    );
+  });
+  expect([...state.unreadInstallPorts]).toEqual(["A", "B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={2} />));
+  expect([...state.unreadInstallPorts]).toEqual(["A", "B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={3} />));
+  expect([...state.unreadInstallPorts]).toEqual(["B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={4} />));
+  expect(state.unreadInstallPorts.size).toBe(0);
+  startedReadRevision = 4;
+  await act(async () => state.noteInstallCommitted(installRecord({ port_id: "A" })));
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+  const outgoingCommit = state.noteInstallCommitted;
+  await act(async () => root.render(<Fixture generation={8} workspaceReadRevision={4} />));
+  await act(async () => outgoingCommit(installRecord({ port_id: "outgoing" })));
+  expect(state.unreadInstallPorts.size).toBe(0);
+  await act(async () => root.render(<Fixture workspaceReadRevision={4} />));
+  expect(state.unreadInstallPorts.size).toBe(0);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -215,6 +289,85 @@ it("offers an exact Activity link only for an explicitly supplied identity", asy
   )!;
   await act(async () => exact.click());
   expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
+});
+
+it("retains a confirmed install result and its History link through another operation", async () => {
+  const installed = { id: "install-A", port_id: "A", version: "1.5" };
+  await act(async () => {
+    await state.perform("install", async () => installed, {
+      context: { ...context("A", "Install"), activityId: "owned-install" },
+      installedResult: (result) => result,
+    });
+    await state.perform("check", async () => undefined, { context: context("B", "Check") });
+  });
+  const records = [...state.invocations.values()];
+  expect(records[0]?.installed).toEqual(installed);
+  const result = host.querySelector<HTMLElement>(`[data-invocation-id="${records[0]!.id}"]`)!;
+  expect(result.classList.contains("sr-only")).toBe(false);
+  expect(result.textContent).toContain("Installed Game A · 1.5");
+  const history = [...result.querySelectorAll("button")].find(
+    (button) => button.textContent === "View in Activity",
+  )!;
+  await act(async () => history.click());
+  expect(openActivity).toHaveBeenLastCalledWith("owned-install", "history");
+  await act(async () => state.dismissInvocation(records[0]!.id));
+  expect(result.isConnected).toBe(false);
+});
+
+it("retains the exact source or BIOS receipt after a failed readback without opening a replacement", async () => {
+  const { source, plan, result } = sourceImportFixtures();
+  const imported = result("copied");
+  const apply = vi.spyOn(desktopApi, "importSource").mockResolvedValue(imported);
+  try {
+    startedReadRevision = 2;
+    refresh.mockRejectedValueOnce(new Error("Library read interrupted"));
+    await act(async () => {
+      const outcome = await applyReviewedSourceImport({
+        perform: state.perform,
+        plan: plan("copy"),
+        action: "Save BIOS file location",
+        label: "Required BIOS",
+        generation: 7,
+        refresh,
+      });
+      expect(outcome).toEqual({ result: imported, refreshFailed: true });
+      await state.perform("later task", async () => undefined);
+    });
+    const record = [...state.invocations.values()][0]!;
+    expect(record.sourceRegistration).toEqual({ source, afterRead: 2 });
+    const notice = () =>
+      host.querySelector<HTMLElement>('[data-invocation-id="' + record.id + '"]');
+    const openButton = () =>
+      [...(notice()?.querySelectorAll("button") ?? [])].find(
+        (button) => button.textContent === "View saved location",
+      );
+    expect(notice()?.textContent).toContain("Saved file location for Required BIOS");
+    expect(notice()?.textContent).toContain(source.path);
+    expect(openButton()).toBeUndefined();
+
+    await act(async () => root.render(<Fixture sources={[source]} workspaceReadRevision={2} />));
+    expect(openButton()).toBeUndefined();
+    const replacement = { ...source, storage_sha256: "b".repeat(64) };
+    await act(async () =>
+      root.render(<Fixture sources={[replacement]} workspaceReadRevision={3} />),
+    );
+    expect(openButton()).toBeUndefined();
+    await act(async () => root.render(<Fixture sources={[source]} workspaceReadRevision={4} />));
+    await act(async () => openButton()?.click());
+    expect(openSavedSource).toHaveBeenCalledExactlyOnceWith(source);
+    await act(async () => root.render(<Fixture sources={[]} workspaceReadRevision={5} />));
+    expect(openButton()).toBeUndefined();
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      source.profile_id,
+      source.path,
+      "copy",
+      plan("copy").plan_sha256,
+      7,
+      expect.any(Function),
+    );
+  } finally {
+    apply.mockRestore();
+  }
 });
 
 it("reveals a known task instead of re-opening Activity while Activity is open", async () => {
@@ -598,4 +751,81 @@ it("retains application exclusion across the keyed workspace remount and retires
       "current library result",
     );
   });
+});
+
+it("keeps memoized action consumers stable while input changes and updates them for operations", async () => {
+  const rendered = vi.fn();
+  const Action = memo(function Action() {
+    const owner = useOperationPresentation();
+    rendered();
+    return (
+      <button
+        disabled={presentPortAction(owner, "A", portStatus(), "launch").assessment.blocked}
+        data-generation={owner?.generation}
+      >
+        Play game A
+      </button>
+    );
+  });
+  function SearchFixture({ query, generation = 7 }: { query: string; generation?: number }) {
+    state = useOperationState({ refresh, libraryGeneration: generation });
+    return (
+      <OperationPresentationProvider generation={generation} pending={state.pendingOperations}>
+        <input aria-label="Search games" value={query} readOnly />
+        <Action />
+      </OperationPresentationProvider>
+    );
+  }
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  const button = host.querySelector<HTMLButtonElement>("button")!;
+  expect(button.disabled).toBe(false);
+  const idleRenders = rendered.mock.calls.length;
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(host.querySelector<HTMLInputElement>("input")?.value).toBe("Zelda");
+  expect(rendered).toHaveBeenCalledTimes(idleRenders);
+
+  const done = deferred<string>();
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state.perform("prepare", () => done.promise, { context: context("A") });
+  });
+  expect(button.disabled).toBe(true);
+  expect(rendered.mock.calls.length).toBeGreaterThan(idleRenders);
+  const pendingRenders = rendered.mock.calls.length;
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(rendered).toHaveBeenCalledTimes(pendingRenders);
+  expect(button.disabled).toBe(true);
+
+  await act(async () => {
+    done.resolve("prepared");
+    await running;
+  });
+  expect(button.disabled).toBe(false);
+  expect(rendered.mock.calls.length).toBeGreaterThan(pendingRenders);
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" generation={8} />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(button.dataset.generation).toBe("8");
 });

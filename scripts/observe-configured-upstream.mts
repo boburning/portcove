@@ -1,4 +1,13 @@
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  projectionAssetReleaseIds,
+  requireCompleteCoreCoverage,
+  statedSourceCoverage,
+  continuationCursor,
+  retainedCoreProjection,
+  validStatedSourceCoverage,
+  type StatedSourceCoverage,
+} from "./catalog-observer-continuation.mts";
 import type {
   ObserverConfig,
   ObserveOptions,
@@ -26,6 +35,7 @@ import {
   compactObserverCache,
   validateObserverCache,
   checksumSourcesFromProjections,
+  boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -48,6 +58,8 @@ interface CheckpointException {
   first_seen: string;
   last_seen: string;
   retry_at: string | null;
+  /** Stated coverage of the failed attempt; absent in checkpoints written before #8569. */
+  coverage?: StatedSourceCoverage;
 }
 interface Checkpoint {
   format: number;
@@ -161,6 +173,7 @@ function validateCheckpoint(
       (exception.retry_at !== null &&
         (typeof exception.retry_at !== "string" ||
           !Number.isFinite(Date.parse(exception.retry_at)))) ||
+      (exception.coverage !== undefined && !validStatedSourceCoverage(exception.coverage)) ||
       exception.key !==
         observationHash({
           port_id: config.port_id,
@@ -233,6 +246,7 @@ function exceptionFor(
   prior: CheckpointException | null,
   config: ObserverConfig,
   clock: string,
+  nextCursor: string | null,
 ) {
   const rule = error instanceof ObservationFailure ? error.rule : "core-or-observer-failure";
   const key = observationHash({
@@ -256,6 +270,7 @@ function exceptionFor(
         ? error.message
         : `Observation or core policy inspection failed (${unexpectedErrorClass(error)}); inspect this run's retained evidence.`,
     retry_at: error instanceof ObservationFailure ? error.retryAt : null,
+    coverage: statedSourceCoverage(error, nextCursor),
     resume_condition:
       rule === "rate-limit"
         ? "Provider retry clock has elapsed; the next scheduled bounded observation must complete."
@@ -284,10 +299,13 @@ export async function advanceObservation(
       exception: null,
     },
   );
+  const priorContinuation = structuredClone(next.continuation);
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
-  const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
+  // A retained provider clock never defers beyond the provider retry horizon.
+  const retainedRetry = boundedRetainedRetryClock(now(), next.exception?.retry_at ?? null);
+  const retryClock = retainedRetry ? Date.parse(retainedRetry) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
       let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
@@ -358,6 +376,7 @@ export async function advanceObservation(
           "core-binding",
           "core policy output is not bound to the exact observed facts",
         );
+      requireCompleteCoreCoverage(projection);
       transition = !next.last_complete
         ? "initial-baseline"
         : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
@@ -366,7 +385,7 @@ export async function advanceObservation(
       next.last_complete = {
         ...result,
         projection: {
-          ...projection,
+          ...retainedCoreProjection(projection),
           port_id: config.port_id,
           repository_id: config.repository_id,
           facts_sha256: result.observation.facts_sha256,
@@ -380,7 +399,18 @@ export async function advanceObservation(
     } catch (error) {
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
-      const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
+      // Stated incomplete coverage keeps the accepted cursor where it was.
+      if (error instanceof ObservationFailure && error.rule === "incomplete-coverage") {
+        if (priorContinuation === undefined) delete next.continuation;
+        else next.continuation = structuredClone(priorContinuation);
+      }
+      const exception = exceptionFor(
+        error,
+        next.exception,
+        config,
+        new Date(now()).toISOString(),
+        continuationCursor(next.continuation),
+      );
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
       transition = "failed";
@@ -529,16 +559,20 @@ async function inspectCoreJson(
   argumentsFor: (input: string) => string[],
   bounds?: InspectionBounds,
 ): Promise<unknown> {
-  if (bytes.length > 4 * 1024 * 1024)
+  const inputLimit = command === "catalog.inspect-proposal" ? 16 * 1024 * 1024 : 4 * 1024 * 1024;
+  if (bytes.length > inputLimit)
     throw new ObservationFailure(
       "core-input-size",
       "Core inspection input exceeds its existing byte boundary",
     );
   const input = path.join(directory, `core-inspection-${randomUUID()}.json`);
   await mkdir(path.dirname(input), { recursive: true });
+  let batchTimeout = false;
   try {
     await writeFile(input, bytes, { flag: "wx" });
-    const timeout = bounds ? Math.min(30000, Math.floor(bounds.deadline - bounds.now())) : 30000;
+    const remaining = bounds ? Math.floor(bounds.deadline - bounds.now()) : Infinity;
+    batchTimeout = remaining < 30000;
+    const timeout = Math.min(30000, remaining);
     if (!Number.isFinite(timeout) || timeout < 1)
       throw new ObservationFailure("budget", "Core inspection admission exhausted");
     const output = execFileSync(cli, argumentsFor(input), {
@@ -555,6 +589,13 @@ async function inspectCoreJson(
         "Core did not return the expected successful inspection",
       );
     return envelope.data;
+  } catch (error) {
+    if (batchTimeout && errorCode(error) === "ETIMEDOUT")
+      throw new ObservationFailure(
+        "budget",
+        "Observation opportunity exhausted during Core inspection",
+      );
+    throw error;
   } finally {
     await rm(input, { force: true });
   }
@@ -721,7 +762,7 @@ async function main(args: string[]) {
       throw new Error("existing report belongs to another operation or configuration");
     const catalog = await boundedJson(
       path.join(repositoryRoot, "crates/portcove-core/catalog/catalog.json"),
-      4 * 1024 * 1024,
+      16 * 1024 * 1024,
     );
     if (!isRecord(catalog) || !Array.isArray(catalog.ports))
       throw new Error("Invalid catalog ports");
@@ -772,10 +813,8 @@ async function main(args: string[]) {
                   projection.projections.flatMap((item: unknown) =>
                     isRecord(item) &&
                     Array.isArray(item.hold_reasons) &&
-                    !item.hold_reasons.includes("channel-not-offered") &&
-                    isRecord(item.channel_candidate) &&
-                    Number.isSafeInteger(item.channel_candidate.id)
-                      ? [Number(item.channel_candidate.id)]
+                    !item.hold_reasons.includes("channel-not-offered")
+                      ? projectionAssetReleaseIds(item)
                       : [],
                   ),
                 ),

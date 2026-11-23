@@ -35,6 +35,12 @@
       "image_sha256": "8eac08af983a66318e78c49bdd24cb80f4f19763ffa5cc5fe3f6404a4c15564a",
       "game_slug": "littlebigplanet-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "littlebigplanet-3",
+      "evidence_urls": ["https://github.com/btsouth/lbp3-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

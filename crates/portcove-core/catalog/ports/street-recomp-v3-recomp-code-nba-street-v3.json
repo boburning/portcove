@@ -4,6 +4,14 @@
     "id": "street-recomp-v3-recomp-code-nba-street-v3",
     "name": "NBA Street V3 — street-recomp-v3 (recomp-code)",
     "original_game_title": "NBA Street V3",
+    "artwork": {
+      "game_id": 4037,
+      "cover_id": 157302,
+      "image_id": "co3ddi",
+      "image_sha256": "40a6d92fc9e20f7f73e44ed4088fb13b92ca73954fa350353ceedc7b9899fd77",
+      "game_slug": "nba-street-v3",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes a native game with an optional renderer helper process and online-play claims. The helper’s communication protocol has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/recomp-code/street-recomp-v3",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/recomp-code/street-recomp-v3"
     },
-    "issue_number": 3052
+    "issue_number": 3052,
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-street-v3",
+      "evidence_urls": ["https://github.com/recomp-code/street-recomp-v3"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

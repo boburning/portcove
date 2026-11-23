@@ -1,0 +1,79 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sauerbraten",
+    "artwork": {
+      "game_id": 21615,
+      "cover_id": 116297,
+      "image_id": "co2hqh",
+      "image_sha256": "440b9f85fb11eec76bff5a5eb710b23033a9bd28fb4056919da5f6e36e0ceed3",
+      "game_slug": "cube-2-sauerbraten",
+      "match_kind": "underlying-game"
+    },
+    "name": "Cube 2: Sauerbraten",
+    "original_game_title": "Cube 2: Sauerbraten",
+    "summary": "Play arena matches or edit maps in the standalone Cube 2 game.",
+    "project_url": "https://sourceforge.net/projects/sauerbraten/",
+    "issue_number": 6417,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
+    "setup_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the upstream desktop package or your Linux package manager. The game assets come with the full packages.",
+        "tracking_issue": 6417
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the Windows game",
+          "instruction": "Run the official 2020_12_21 Windows installer and use its game shortcut or open sauerbraten.bat from the installed game folder. Keep the game data and player files together. The batch launcher selects the native x64 player on x64 Windows."
+        },
+        {
+          "title": "Install the Ubuntu game",
+          "instruction": "Install sauerbraten from Ubuntu Multiverse when available. The package manager supplies the separate Cube 2 engine and the game data. Launch Sauerbraten from your application menu or run sauerbraten."
+        },
+        {
+          "title": "Open the Intel Mac bundle",
+          "instruction": "Use the official 2020_12_21 Mac disk image. Keep the Sauerbraten app and its game files together and open the complete app. Its player and SDL libraries contain Intel x64 code. A separate Apple Silicon build or translated execution requires its own compatibility check."
+        },
+        {
+          "title": "Keep the actual profile",
+          "instruction": "With Sauerbraten closed, preserve the folder that contains config.cfg and your local maps or add-ons. The supplied Windows launcher uses My Games/Sauerbraten inside your Windows Documents folder, the Mac app uses ~/Library/Application Support/Sauerbraten, and the Ubuntu launcher uses ~/.sauerbraten. Save any profile override and custom game files you added to the installation."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Use the community Flatpak",
+          "instruction": "Flathub offers org.sauerbraten.Sauerbraten for Linux x64 and ARM64. With that package, preserve ~/.var/app/org.sauerbraten.Sauerbraten/.sauerbraten. Your package manager owns replacements and updates."
+        }
+      ],
+      "help_url": "https://flathub.org/apps/org.sauerbraten.Sauerbraten"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cube-2-sauerbraten",
+      "evidence_urls": [
+        "https://flathub.org/apps/org.sauerbraten.Sauerbraten",
+        "https://sourceforge.net/projects/sauerbraten/"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sauerbraten",
+    "origin": {
+      "project_url": "https://sourceforge.net/projects/sauerbraten/"
+    },
+    "decisions": []
+  }
+}

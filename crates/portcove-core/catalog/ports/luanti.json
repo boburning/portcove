@@ -1,0 +1,78 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "luanti",
+    "artwork": {
+      "game_id": 19437,
+      "cover_id": 435117,
+      "image_id": "co9bql",
+      "image_sha256": "40881a0c0f9bdacc6030f2fd94870cc1a8f6a7be3ee44949f6bf5261936e5b25",
+      "game_slug": "luanti",
+      "match_kind": "underlying-game"
+    },
+    "name": "Luanti (formerly Minetest)",
+    "original_game_title": "Luanti",
+    "summary": "Create and explore voxel worlds with games and mods you choose.",
+    "project_url": "https://github.com/luanti-org/luanti",
+    "issue_number": 6433,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/luanti-org/luanti/releases",
+    "setup_url": "https://www.luanti.org/en/downloads/",
+    "download_asset_hints": {
+      "windows-x86-64": ["luanti-", "-win64.zip"],
+      "macos-x86-64": ["luanti_", "_macos", "_x86_64.zip"],
+      "macos-aarch64": ["luanti_", "_macos", "_arm64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the complete desktop package",
+          "instruction": "On Windows, extract the complete portable ZIP into a writable folder and start bin/luanti.exe. On Mac, choose the Intel or Apple Silicon ZIP that matches your computer and open the complete luanti.app. Check the publisher’s releases for future ZIPs."
+        },
+        {
+          "title": "Install Luanti on Linux",
+          "instruction": "Install org.luanti.luanti from Flathub on x86-64 or ARM64, or use your distribution’s Luanti package. Run the installed launcher and update it with the same package manager."
+        },
+        {
+          "title": "Choose a game and create a world",
+          "instruction": "Luanti supplies the engine. Install a game such as Minetest Game from ContentDB, or put a compatible game you already have in the user games folder. Select it in Start Game, choose New to create a world, then choose Play Game."
+        },
+        {
+          "title": "Preserve the user folder you play from",
+          "instruction": "In About, choose Open User Data Directory and keep that entire folder, including worlds, games, mods, textures, mod data and minetest.conf. The Windows portable ZIP uses its top-level folder. Installed Windows typically uses %APPDATA%/Minetest. On Mac retain the application’s Contents/User folder or ~/Library/Application Support/minetest, whichever it uses. Native Linux normally uses ~/.minetest and the current Flatpak uses ~/.var/app/org.luanti.luanti/.minetest. If switching from the older Minetest Flatpak, back up ~/.var/app/net.minetest.Minetest/.minetest first. Keep any separate directory you chose through LUANTI_USER_PATH or the older MINETEST_USER_PATH."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Use the Android build for your device",
+          "instruction": "Follow the official Android downloads or choose the APK for your device. Upstream provides ARM64, ARMv7, x86 and x86-64 builds. Android and your package source own installation and updates. Before replacing or uninstalling the app, preserve the worlds and other data under Android/data/net.minetest.minetest/files/Minetest."
+        }
+      ],
+      "help_url": "https://docs.luanti.org/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "luanti",
+    "origin": {
+      "project_url": "https://github.com/luanti-org/luanti",
+      "repository": {
+        "host": "github.com",
+        "id": "2168780"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "framework",
+    "reason": "The retained guide states that Luanti supplies the engine and the player must install/select a separate ContentDB game, such as Minetest Game. Worlds/mods are not one identified original game.",
+    "evidence_urls": [
+      "https://www.luanti.org/en/downloads/",
+      "https://docs.luanti.org/",
+      "https://github.com/luanti-org/luanti"
+    ]
+  }
+}

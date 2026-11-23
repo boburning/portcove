@@ -6,6 +6,14 @@
     "original_game_title": "Mushihimesama Futari Ver 1.5",
     "summary": "Upstream explicitly describes this as an unfinished development project. Its beta reportedly runs attract mode, menus, Normal Play, Training, saves and native audio, with known defects. Startup on an M3 Max Mac does not establish a complete campaign. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/springah/futari_realcomp",
+    "artwork": {
+      "game_id": 413697,
+      "cover_id": 592354,
+      "image_id": "cocp2a",
+      "image_sha256": "8211be2af2cfa4dcb7854d8f72b8d22de55f20c38e43e165488a3146eeaea31e",
+      "game_slug": "mushihime-sama-futari-ver-1-dot-5",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/springah/futari_realcomp"
     },
-    "issue_number": 3163
+    "issue_number": 3163,
+    "original_game": {
+      "format_version": 1,
+      "id": "mushihimesama-futari-ver-1-5",
+      "evidence_urls": ["https://github.com/springah/futari_realcomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -35,6 +35,21 @@
       "image_sha256": "888cf0e287d705f4688fc1a4e203efc7e8046965c260500f0412aa4f9d659451",
       "game_slug": "midtown-madness-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-3",
+      "evidence_urls": ["https://github.com/xbox-games-recomp/mm3recomp"],
+      "source_editions": [
+        {
+          "id": "midtown-madness-3-xbox",
+          "title": "Midtown Madness 3 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/xbox-games-recomp/mm3recomp/blob/199bfc1045db39bfc0ccc9845c97c7177e8f740b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -19,6 +19,7 @@ runs:
           .vitest/attachments/**/*.json
           apps/desktop/.vitest/attachments/**/*.json
           outputs/slice5-cards/**/*.png
+          outputs/mod-workspace-fixture/**/*.png
           outputs/detail-composition/**/*.png
           outputs/observation-clarity/**/*.png
           outputs/uiux-game-titles/**/*.png

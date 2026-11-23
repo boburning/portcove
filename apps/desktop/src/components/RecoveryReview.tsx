@@ -201,14 +201,51 @@ function RecoveryItem({
   const { t } = useAppTranslation("operations");
   return (
     <div className="recovery-review-item" data-recovery-operation={item.operation_id ?? undefined}>
+      <h3 className="m-0 text-sm font-semibold">
+        <Trans
+          t={t}
+          i18nKey="recovery.item.summary"
+          values={{ label: itemLabel(t, item.kind) }}
+          components={{ game: <bdi>{gameName}</bdi> }}
+        />
+      </h3>
+      <p className="m-0 text-sm text-pc-secondary-foreground">{recoveryConsequence(t, item)}</p>
+      <div className="recovery-review-actions">
+        {item.kind === "retained_preparation" && item.operation_id && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            onClick={() => reviewCleanup(item.operation_id ?? undefined)}
+          >
+            {t("recovery.item.reviewFiles")}
+          </Button>
+        )}
+        {action && (
+          <Button
+            data-focusable
+            data-detail-origin={origin}
+            variant={action.target === "task" ? "link" : "outline"}
+            size="sm"
+            onClick={action.open}
+          >
+            {action.target === "task"
+              ? t("recovery.navigation.task")
+              : action.target === "setup"
+                ? t("recovery.navigation.setup")
+                : action.target === "details"
+                  ? t("recovery.navigation.details")
+                  : action.target === "installation"
+                    ? t("recovery.navigation.installation")
+                    : action.target === "saves"
+                      ? t("recovery.navigation.saves")
+                      : t("recovery.navigation.storage")}
+          </Button>
+        )}
+      </div>
       <details>
         <summary className="cursor-pointer" data-focusable>
-          <Trans
-            t={t}
-            i18nKey="recovery.item.summary"
-            values={{ label: itemLabel(t, item.kind) }}
-            components={{ game: <bdi>{gameName}</bdi> }}
-          />
+          {t("recovery.item.recordDetails")}
         </summary>
         <dl className="text-xs">
           {item.kind === "malformed_journal" && (
@@ -240,41 +277,32 @@ function RecoveryItem({
             </>
           )}
         </dl>
-        {item.kind === "retained_preparation" && item.operation_id && (
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => reviewCleanup(item.operation_id ?? undefined)}
-          >
-            {t("recovery.item.reviewFiles")}
-          </Button>
-        )}
       </details>
-      {action && (
-        <Button
-          data-focusable
-          data-detail-origin={origin}
-          variant={action.target === "task" ? "link" : "outline"}
-          size="sm"
-          onClick={action.open}
-        >
-          {action.target === "task"
-            ? t("recovery.navigation.task")
-            : action.target === "setup"
-              ? t("recovery.navigation.setup")
-              : action.target === "details"
-                ? t("recovery.navigation.details")
-                : action.target === "installation"
-                  ? t("recovery.navigation.installation")
-                  : action.target === "saves"
-                    ? t("recovery.navigation.saves")
-                    : t("recovery.navigation.storage")}
-        </Button>
-      )}
     </div>
   );
+}
+
+function recoveryConsequence(t: TFunction<"operations">, item: Item) {
+  switch (item.kind) {
+    case "retained_preparation":
+      return item.operation_id
+        ? t("recovery.consequence.retained")
+        : t("recovery.consequence.unreviewable");
+    case "partial_operation":
+    case "cleanup_pending":
+      return t("recovery.consequence.unfinished");
+    case "missing_registered_path":
+      return t("recovery.consequence.missing");
+    case "orphaned_final_directory":
+      return t("recovery.consequence.orphaned");
+    case "degraded_backup":
+    case "backup_recovery_required":
+      return t("recovery.consequence.backup");
+    case "malformed_journal":
+      return t("recovery.consequence.malformed");
+    default:
+      return t("recovery.consequence.unknown");
+  }
 }
 
 function recoveryNavigation(
@@ -307,7 +335,7 @@ function recoveryNavigation(
           ? { target: "details", open: () => game() }
           : storage;
     case "missing_registered_path":
-      return game ? { target: "installation", open: () => game("saves") } : storage;
+      return game ? { target: "installation", open: () => game("manage") } : storage;
     case "degraded_backup":
     case "backup_recovery_required":
       return game ? { target: "saves", open: () => game("saves") } : storage;
@@ -530,7 +558,7 @@ function PreparationCleanupDetails({
       </dl>
       {readOnly && (
         <details>
-          <summary className="cursor-pointer py-2 font-semibold" data-focusable>
+          <summary className="disclosure-pad-2 cursor-pointer font-semibold" data-focusable>
             {t("recovery.details.locations")}
           </summary>
           <p className="text-xs wrap-anywhere">

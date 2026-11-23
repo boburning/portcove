@@ -113,6 +113,32 @@ void test("desktop verify parser accepts a repeated exact series", () => {
   assert.equal(parsed.json, true);
 });
 
+void test("focused cover IDs stay bound to an explicit artwork scenario", () => {
+  const selection = ["--scenario", "native-default-cover-cache-conditions"];
+  assert.deepEqual(
+    parseDesktopVerifyArgs([
+      ...selection,
+      "--cover-port-id",
+      "dkr-r",
+      "--cover-port-id",
+      "shipwright",
+    ]).coverPortIds,
+    ["dkr-r", "shipwright"],
+  );
+  assert.throws(() => parseDesktopVerifyArgs(["--cover-port-id", "dkr-r"]), /explicit/);
+  assert.throws(
+    () =>
+      parseDesktopVerifyArgs([
+        ...selection,
+        "--cover-port-id",
+        "dkr-r",
+        "--cover-port-id",
+        "dkr-r",
+      ]),
+    /unique/,
+  );
+});
+
 void test("desktop verify parser rejects invalid cycles and JSON execution", () => {
   assert.throws(() => parseDesktopVerifyArgs(["--restart-cycles", "0"]), /1\.\.10/);
   assert.throws(() => parseDesktopVerifyArgs(["--reload-cycles", "26"]), /0\.\.25/);
@@ -152,7 +178,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(focused.paths.cli, null);
   assert.ok(!focused.phases.includes("owned-probe-build"));
   assert.ok(!focused.phases.includes("scenario-context-preflight"));
-  assert.equal(focused.harness_deadline_ms, 180_000);
+  assert.equal(focused.harness_deadline_ms, 360_000);
   assert.deepEqual(focused.qualification_features, []);
 
   const install = buildDesktopVerifyPlan({
@@ -173,7 +199,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(external.paths.cli, null);
   assert.ok(!external.phases.includes("owned-probe-build"));
   assert.ok(!external.phases.includes("scenario-context-preflight"));
-  assert.equal(external.harness_deadline_ms, 180_000);
+  assert.equal(external.harness_deadline_ms, 420_000);
 
   const installRefresh = buildDesktopVerifyPlan({
     ...common,
@@ -199,7 +225,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
     ...common,
     selection: resolveDesktopSelection({ profile: "full" }),
   });
-  assert.equal(full.harness_deadline_ms, 1_200_000);
+  assert.equal(full.harness_deadline_ms, 2_400_000);
 });
 
 void test("the native build script preserves identical generated inputs for Cargo reuse", async () => {
@@ -231,7 +257,10 @@ void test("standalone selected setup routes build catalog-aware CLIs", async () 
     assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
     assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
     assert.deepEqual(selected.setup_scenarios, []);
-    assert.equal(selected.harness_deadline_ms, 600_000);
+    assert.equal(
+      selected.harness_deadline_ms,
+      scenario === "native-selected-setup-completion" ? 900_000 : 600_000,
+    );
     assert.ok(selected.paths.cli);
   }
   const ordinary = buildDesktopVerifyPlan({

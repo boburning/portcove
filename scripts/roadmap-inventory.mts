@@ -33,15 +33,15 @@ export interface RoadmapInventory extends InventoryCache {
   archivedItems: RoadmapIssueItem[];
   body_reads: number;
 }
-export async function collectRoadmapInventoryWithRecollection(
-  client: RoadmapInventoryClient,
-  collect: () => Promise<RoadmapInventory>,
+export async function collectRoadmapInventoryWithRecollection<T>(
+  client: Pick<RoadmapInventoryClient, "_completeProjectContext" | "_projectContext">,
+  collect: () => Promise<T>,
   state: { inventoryRecollections: number },
   hooks: {
     before: (error: GitHubApiError) => void | Promise<void>;
     after: (status: "complete" | "failed", error: unknown) => void | Promise<void>;
   },
-): Promise<RoadmapInventory> {
+): Promise<T> {
   try {
     return await collect();
   } catch (error) {
@@ -209,7 +209,9 @@ async function confirmIntakeIssueSemantics(
 export async function collectRoadmapInventory(
   client: RoadmapInventoryClient,
   cache?: InventoryCache,
-  options?: { scope: "intake"; planningIssues: readonly number[] },
+  options?:
+    | { scope: "intake"; planningIssues: readonly number[] }
+    | { scope: "port-stage-migration" },
 ): Promise<RoadmapInventory> {
   const intake = options?.scope === "intake";
   const repository = client.config.repository;
@@ -337,7 +339,8 @@ export async function collectRoadmapInventory(
               ).includes(String(node.state))) ||
             (kind === "PullRequest" && typeof node.merged !== "boolean")
           )
-            throw new Error(
+            throw new GitHubApiError(
+              "repository_changed",
               `Issue #${row.number} changed during body hydration: ${String(row.updatedAt)} -> ${String(node.updatedAt)}`,
             );
           // Adopt the whole atomic issue observation, then verify its membership/revision below.
@@ -395,6 +398,7 @@ export async function collectRoadmapInventory(
       details: context.details,
       includeArchived: true,
       pageSize: 100,
+      ...(options?.scope === "port-stage-migration" ? { includeIssueStateReason: true } : {}),
     });
     if (items.length !== object(before.items).totalCount)
       throw new Error("Project inventory count mismatch with independent revision observation");

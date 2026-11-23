@@ -1,6 +1,6 @@
 import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import type { TestContext } from "node:test";
-import type { ResourceCapacityOptions } from "./resource-capacity.mts";
+import type { ResourceCapacityOptions, ResourceLease } from "./resource-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 function record(value: unknown): Record<string, unknown> {
   assert.ok(isRecord(value));
@@ -19,6 +19,9 @@ interface WorkerEvent {
 }
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
+import fileSystem from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -31,6 +34,7 @@ import {
   probeLinuxCustody,
   proveUnboundLinuxRecovery,
   verifyBridgedCapacity,
+  observeBridgedCapacity,
   verifyHostReference,
   acquireBridgedCapacity,
   bridgeLaunchArguments,
@@ -365,6 +369,338 @@ void test("host bridge retains external reservations on lost connection and fail
   }
 });
 
+void test("host bridge aborts queued acquisition on input EOF or error", async (t) => {
+  for (const failure of ["EOF", "error", "buffered EOF"]) {
+    await t.test(failure, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<AbortSignal>();
+      const acquisition = Promise.withResolvers<never>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const messages = bridgeMessages(output);
+      const result = serveHostBridge(input, output, {
+        acquire: async (_profile, _metadata, options) => {
+          assert.ok(options?.signal);
+          options.signal.addEventListener(
+            "abort",
+            () => acquisition.reject(options.signal?.reason),
+            {
+              once: true,
+            },
+          );
+          entered.resolve(options.signal);
+          return acquisition.promise;
+        },
+        probe: () => assert.fail("A queued request must not probe custody"),
+      }).catch((error: unknown) => error);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        bridgeWrite(input, {
+          action: "acquire",
+          bridge: bridgeConfig,
+          invocation: randomUUID(),
+          custodyFile: "/owned/custody.json",
+          profile: "analysis",
+          waitMs: 5000,
+        });
+        const signal = await entered.promise;
+        if (failure === "error") input.destroy(new Error("Injected input failure"));
+        else {
+          if (failure === "buffered EOF") bridgeWrite(input, { action: "register" });
+          input.end();
+        }
+        const error = await Promise.race([
+          result,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("Queued acquisition did not abort")), 1000);
+          }),
+        ]);
+        assert.ok(error instanceof Error);
+        assert.equal(signal.aborted, true);
+        assert.equal(error, signal.reason);
+        assert.match(error.message, /WSL bridge connection closed/u);
+        assert.deepEqual((await messages.next()).value, {
+          version: 1,
+          action: "error",
+          code: "PORTCOVE_HOST_BRIDGE_FAILED",
+          message: error.message,
+        });
+      } finally {
+        clearTimeout(timer);
+        acquisition.reject(new Error("Injected test cleanup"));
+        await result;
+        input.destroy();
+        output.end();
+      }
+    });
+  }
+});
+
+void test("host bridge preserves pipelined registration and release while acquisition is pending", async (t) => {
+  for (const delivery of ["one chunk", "buffered stream", "split UTF-8"]) {
+    await t.test(delivery, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<void>();
+      const acquisition = Promise.withResolvers<ResourceLease>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const invocation = randomUUID();
+      const calls: string[] = [];
+      const result = serveHostBridge(input, output, {
+        root: await fixture(t),
+        acquire: async (_profile, metadata) => {
+          assert.equal(metadata?.command, "WSL FixtureLinux: Fixture 🎮 setup");
+          calls.push("acquire");
+          entered.resolve();
+          return acquisition.promise;
+        },
+        probe: (_external, phase) => {
+          calls.push(phase + "-probe");
+          return { invocation, owner: { pid: 1, identity: "linux:original" }, child: null };
+        },
+      }).catch((error: unknown) => error);
+      const acquire = {
+        action: "acquire",
+        bridge: bridgeConfig,
+        invocation,
+        custodyFile: "/owned/custody.json",
+        profile: "analysis",
+        waitMs: 5000,
+        command: "Fixture 🎮 setup",
+      };
+      try {
+        if (delivery !== "buffered stream") {
+          const bytes = Buffer.from(
+            [acquire, { action: "register" }, { action: "release" }]
+              .map((message) => JSON.stringify({ version: 1, ...message }) + "\n")
+              .join(""),
+          );
+          if (delivery === "split UTF-8") {
+            const split = bytes.indexOf(Buffer.from("🎮")) + 1;
+            assert.ok(split > 0);
+            input.write(bytes.subarray(0, split));
+            input.write(bytes.subarray(split));
+          } else input.write(bytes);
+        } else bridgeWrite(input, acquire);
+        await entered.promise;
+        if (delivery === "buffered stream") {
+          bridgeWrite(input, { action: "register" });
+          bridgeWrite(input, { action: "release" });
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        assert.deepEqual(calls, ["acquire"]);
+        assert.equal(output.readableLength, 0, "No lifecycle ACK may precede acquisition");
+        acquisition.resolve({
+          inherited: false,
+          queueMs: 0,
+          childEnvironment: {},
+          reference: { root: "fixture", slots: [{ name: "slot-0", token: invocation }] },
+          registerChild: async () => assert.fail("Host registration must use its custody probe"),
+          registerExternal: async () => {
+            calls.push("external");
+          },
+          release: async () => {
+            calls.push("release");
+          },
+        });
+        assert.equal(await result, undefined);
+        assert.equal(input.destroyed, true);
+        assert.equal(input.listenerCount("data"), 0);
+        assert.equal(input.listenerCount("end"), 0);
+        assert.equal(input.listenerCount("error"), 0);
+        const messages = bridgeMessages(output);
+        assert.equal((await messages.next()).value?.action, "admitted");
+        assert.equal((await messages.next()).value?.action, "registered");
+        assert.equal((await messages.next()).value?.action, "released");
+        assert.deepEqual(calls, [
+          "acquire",
+          "external",
+          "register-probe",
+          "release-probe",
+          "release",
+        ]);
+      } finally {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        await result;
+        output.end();
+      }
+    });
+  }
+});
+
+void test(
+  "host bridge retains a lease that resolves after queued EOF",
+  { timeout: 5000 },
+  async (t) => {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    const entered = Promise.withResolvers<AbortSignal>();
+    const acquisition = Promise.withResolvers<ResourceLease>();
+    t.after(() => {
+      acquisition.reject(new Error("Injected test cleanup"));
+      input.destroy();
+      output.end();
+    });
+    const invocation = randomUUID();
+    let external: unknown;
+    let releases = 0;
+    const result = serveHostBridge(input, output, {
+      acquire: async (_profile, _metadata, options) => {
+        assert.ok(options?.signal);
+        entered.resolve(options.signal);
+        return acquisition.promise;
+      },
+      probe: () => assert.fail("EOF does not authorize a release probe"),
+    }).catch((error: unknown) => error);
+    try {
+      bridgeWrite(input, {
+        action: "acquire",
+        bridge: bridgeConfig,
+        invocation,
+        custodyFile: "/owned/custody.json",
+        profile: "analysis",
+        waitMs: 5000,
+      });
+      const signal = await entered.promise;
+      const aborted = new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      input.end();
+      await aborted;
+      acquisition.resolve({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        reference: { root: "fixture", slots: [{ name: "slot-0", token: invocation }] },
+        registerChild: async () => assert.fail("No child may register after EOF"),
+        registerExternal: async (value) => {
+          external = value;
+        },
+        release: async () => {
+          releases++;
+        },
+      });
+      const error = await result;
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /external reservation retained/u);
+      assert.ok(isRecord(external));
+      assert.equal(external.invocation, invocation);
+      assert.equal(releases, 0);
+      const messages = bridgeMessages(output);
+      assert.equal((await messages.next()).value?.action, "admitted");
+      assert.equal((await messages.next()).value?.action, "error");
+    } finally {
+      acquisition.reject(new Error("Injected test cleanup"));
+      input.destroy();
+      await result;
+      output.end();
+    }
+  },
+);
+
+void test("host bridge refuses malformed input and bounded-backlog overflow", async (t) => {
+  await t.test("malformed first message", { timeout: 5000 }, async (context) => {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    const result = serveHostBridge(input, output, {
+      acquire: async () => assert.fail("Malformed input must never reach acquisition"),
+    }).catch((error: unknown) => error);
+    context.after(() => {
+      input.destroy();
+      output.end();
+    });
+    input.write("{invalid-json}\n");
+    const error = await result;
+    assert.ok(error instanceof SyntaxError);
+    assert.equal(input.destroyed, true);
+    const messages = bridgeMessages(output);
+    const failure = (await messages.next()).value;
+    assert.equal(failure?.action, "error");
+    assert.equal(failure?.message, error.message);
+    output.end();
+  });
+  for (const { name, chunks } of [
+    { name: "ASCII", chunks: ["x".repeat(16384), "y".repeat(16384), "z"] },
+    { name: "multibyte", chunks: Array.from({ length: 3 }, () => "€".repeat(4000)) },
+  ])
+    await t.test(`${name} fragmented backlog while queued`, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<AbortSignal>();
+      const acquisition = Promise.withResolvers<never>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const result = serveHostBridge(input, output, {
+        acquire: async (_profile, _metadata, options) => {
+          assert.ok(options?.signal);
+          options.signal.addEventListener(
+            "abort",
+            () => acquisition.reject(options.signal?.reason),
+            {
+              once: true,
+            },
+          );
+          entered.resolve(options.signal);
+          return acquisition.promise;
+        },
+        probe: () => assert.fail("Overflow cannot authorize custody probing"),
+      }).catch((error: unknown) => error);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        bridgeWrite(input, {
+          action: "acquire",
+          bridge: bridgeConfig,
+          invocation: randomUUID(),
+          custodyFile: "/owned/custody.json",
+          profile: "analysis",
+          waitMs: 5000,
+        });
+        const signal = await entered.promise;
+        for (const [index, chunk] of chunks.entries()) {
+          input.write(chunk);
+          if (index < chunks.length - 1)
+            assert.equal(signal.aborted, false, "A backlog within 32KiB must remain eligible");
+        }
+        const error = await Promise.race([
+          result,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("Byte overflow did not abort acquisition")),
+              1000,
+            );
+          }),
+        ]);
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Host bridge message exceeds bound/u);
+        assert.equal(error, signal.reason);
+        assert.equal(signal.aborted, true);
+        assert.equal(input.destroyed, true);
+        const messages = bridgeMessages(output);
+        const failure = (await messages.next()).value;
+        assert.equal(failure?.action, "error");
+        assert.equal(failure?.message, error.message);
+      } finally {
+        clearTimeout(timer);
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        await result;
+        output.end();
+      }
+    });
+});
+
 void test("host bridge bounds wire input and refuses missing or foreign nested delegation", async () => {
   const input = new PassThrough();
   const result = bridgeMessages(input).next();
@@ -376,6 +712,121 @@ void test("host bridge bounds wire input and refuses missing or foreign nested d
     /Invalid host resource delegation/u,
   );
 });
+
+void test("host bridge preserves UTF-8 decoding, EOF and exact byte boundaries", async (t) => {
+  await t.test("codepoints split across consumed bytes", { timeout: 5000 }, async (context) => {
+    const input = new PassThrough();
+    context.after(() => input.destroy());
+    const messages = bridgeMessages(input);
+    const expected = { version: 1, value: "港€🎮" };
+    const next = messages.next();
+    for (const byte of Buffer.from(JSON.stringify(expected) + "\n")) {
+      input.write(Buffer.from([byte]));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    assert.deepEqual((await next).value, expected);
+    input.end();
+    assert.equal((await messages.next()).done, true);
+  });
+  await t.test(
+    "partial codepoint buffered while parser is paused",
+    { timeout: 5000 },
+    async (context) => {
+      const input = new PassThrough();
+      context.after(() => input.destroy());
+      const messages = bridgeMessages(input);
+      const first = messages.next();
+      bridgeWrite(input, { action: "first" });
+      assert.equal((await first).value?.action, "first");
+      const expected = { version: 1, value: "港€🎮" };
+      const bytes = Buffer.from(JSON.stringify(expected) + "\n");
+      const split = bytes.indexOf(Buffer.from("€")) + 1;
+      input.write(bytes.subarray(0, split));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      input.write(bytes.subarray(split));
+      input.end();
+      assert.deepEqual((await messages.next()).value, expected);
+      assert.equal((await messages.next()).done, true);
+    },
+  );
+  await t.test("incomplete UTF-8 at EOF remains truncated input", async () => {
+    const input = new PassThrough();
+    const next = bridgeMessages(input).next();
+    input.end(Buffer.from([0xe2, 0x82]));
+    await assert.rejects(next, /Truncated host bridge message/u);
+  });
+  await t.test("already decoded string input remains supported", async () => {
+    const input = new PassThrough();
+    input.setEncoding("utf8");
+    const expected = { version: 1, value: "港€🎮" };
+    const messages = bridgeMessages(input);
+    const next = messages.next();
+    input.end(Buffer.from(JSON.stringify(expected) + "\n"));
+    assert.deepEqual((await next).value, expected);
+    assert.equal((await messages.next()).done, true);
+  });
+  await t.test("invalid UTF-8 retains replacement decoding", async () => {
+    const input = new PassThrough();
+    const messages = bridgeMessages(input);
+    const next = messages.next();
+    input.end(
+      Buffer.concat([
+        Buffer.from('{"version":1,"value":"'),
+        Buffer.from([0xe2]),
+        Buffer.from('"}\n'),
+      ]),
+    );
+    assert.deepEqual((await next).value, { version: 1, value: "�" });
+    assert.equal((await messages.next()).done, true);
+  });
+  for (const character of ["x", "€"]) {
+    await t.test(`${character} exact 32KiB frame`, async () => {
+      const input = new PassThrough();
+      const available = 32768 - Buffer.byteLength(JSON.stringify({ version: 1, value: "" }) + "\n");
+      const count = Math.floor(available / Buffer.byteLength(character));
+      const expected = {
+        version: 1,
+        value: character.repeat(count) + "x".repeat(available % Buffer.byteLength(character)),
+      };
+      const bytes = Buffer.from(JSON.stringify(expected) + "\n");
+      assert.equal(bytes.length, 32768);
+      const messages = bridgeMessages(input);
+      const next = messages.next();
+      input.end(bytes);
+      assert.deepEqual((await next).value, expected);
+      assert.equal((await messages.next()).done, true);
+    });
+  }
+});
+
+void test(
+  "host bridge refuses a public Linux custody directory before requesting either lease",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await fixture(t);
+    const directory = fileSystem.mkdtempSync(path.join(root, "public-custody-"));
+    fileSystem.chmodSync(directory, 0o777);
+    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => directory);
+    const spawnHost = t.mock.method(childProcess, "spawn", () =>
+      assert.fail("the Windows bridge must not start with public custody"),
+    );
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        acquireBridgedCapacity(bridgeConfig, "browser", {}, {}, async () =>
+          assert.fail("the Linux lease must not start with public custody"),
+        ),
+        /private Linux-backed temporary directory/u,
+      );
+      assert.equal(temporary.mock.callCount(), 1);
+      assert.equal(spawnHost.mock.callCount(), 0);
+      assert.deepEqual(await readdir(directory), []);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  },
+);
 
 void test(
   "host bridge Linux probe refuses changed custody, live children and missing cleanup",
@@ -461,13 +912,18 @@ void test(
   },
 );
 
-async function mockHost(t: TestContext, failure: string) {
+async function mockHost(t: TestContext, failure: string, queuedRows = 0) {
   const root = await fixture(t);
   await mkdir(path.join(root, "scripts"));
   const entry = path.join(root, "scripts/mock.mjs"),
     closed = path.join(root, "closed.json");
   const source = [
     'import {writeFileSync} from "node:fs";',
+    'if(process.argv[2]==="--status"){' +
+      "const queued=Array.from({length:" +
+      queuedRows +
+      '},(_,id)=>({id,command:"x".repeat(650)}));' +
+      "console.log(JSON.stringify({capacity:{running:[],queued}}));}else{",
     'const messages=[];let pending="";',
     "const timer=setTimeout(()=>process.exit(97),5000);",
     'process.stdin.setEncoding("utf8");',
@@ -481,7 +937,9 @@ async function mockHost(t: TestContext, failure: string) {
       ";",
     'else if(m.action==="release")action="released";',
     'process.stdout.write(JSON.stringify({version:1,action,code:"PORTCOVE_RESOURCE_QUEUE_TIMEOUT",message:"fixture refusal",reference:{root:"fixture",slots:[{name:"slot-0",token:"fixture"}]}})+"\\n");',
-    "}}clearTimeout(timer);writeFileSync(" + JSON.stringify(closed) + ",JSON.stringify(messages));",
+    "}}clearTimeout(timer);writeFileSync(" +
+      JSON.stringify(closed) +
+      ",JSON.stringify(messages));}",
   ].join("\n");
   await writeFile(entry, source);
   const manifest = JSON.stringify({
@@ -530,18 +988,39 @@ async function mockHost(t: TestContext, failure: string) {
   };
 }
 
-void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
+void test("Windows bridge status receives a full queue within its response limit", async (t) => {
+  const host = await mockHost(t, "queue", 131);
+  const result = await observeBridgedCapacity(host.config);
+  assert.deepEqual(result, {
+    capacity: {
+      running: [],
+      queued: Array.from({ length: 131 }, (_, id) => ({ id, command: "x".repeat(650) })),
+    },
+  });
+  const oversized = await mockHost(t, "queue", 512);
+  await assert.rejects(observeBridgedCapacity(oversized.config), { code: "ENOBUFS" });
+});
+
+void test(
+  "Linux bridge client preserves host queue refusal before local admission",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "queue");
+    let localAcquisitions = 0;
+    await assert.rejects(
+      acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
+        localAcquisitions++;
+        throw new Error("must not acquire locally");
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal(localAcquisitions, 0);
+    await host.close();
+  },
+);
+
+void test("Windows host bridge launcher rejects changed verifier bytes", async (t) => {
   const host = await mockHost(t, "queue");
-  let localAcquisitions = 0;
-  await assert.rejects(
-    acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
-      localAcquisitions++;
-      throw new Error("must not acquire locally");
-    }),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal(localAcquisitions, 0);
-  await host.close();
   await writeFile(host.entry, "throw Error('unbound replacement executed');");
   assert.throws(
     () =>
@@ -592,6 +1071,51 @@ void test(
       await host.close();
       assert.equal(released, 0);
     }
+  },
+);
+
+void test(
+  "retained bridge custody closes the real helper without releasing either reservation",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "none");
+    let released = 0;
+    const cleanup = path.join(host.root, "containment-cleanup.json");
+    const lease = await acquireBridgedCapacity(
+      host.config,
+      "analysis",
+      {},
+      { waitMs: 1000 },
+      async () => ({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        registerChild: async () => ({
+          pid: process.pid,
+          identity: readProcessIdentity(process.pid)!,
+          containment: "unix-watchdog",
+          cleanup_receipt: cleanup,
+        }),
+        release: async () => {
+          released++;
+        },
+      }),
+    );
+    await lease.registerChild({ pid: process.pid });
+    assert.ok(lease.disconnectRetained);
+    lease.disconnectRetained();
+    const messages = await host.close();
+    assert.deepEqual(
+      messages.map((message) => (isRecord(message) ? message.action : undefined)),
+      ["acquire", "register"],
+    );
+    const [acquire] = messages;
+    assert.ok(isRecord(acquire) && typeof acquire.custodyFile === "string");
+    const { custodyFile } = acquire;
+    const custody = record(JSON.parse(await readFile(custodyFile, "utf8")));
+    assert.equal(record(custody.owner).pid, process.pid);
+    assert.equal(record(custody.child).cleanup_receipt, cleanup);
+    assert.equal(released, 0);
   },
 );
 
@@ -824,6 +1348,79 @@ void test("queue timeout is admission failure and external work is never reclaim
   assert.deepEqual(await readdir(path.join(root, "queue")), []);
 });
 
+void test("a local command can extend both checkout scans within a finite bound", async (t) => {
+  const root = await fixture(t);
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "checkout-scan-test-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  execFileSync("git", ["init", "-q", workspace]);
+  execFileSync("git", [
+    "-C",
+    workspace,
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--allow-empty",
+    "-qm",
+    "Fixture",
+  ]);
+  const logs: string[] = [];
+  const options = isolated(root, { report: (message) => logs.push(message) });
+  const key = "PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS";
+  for (const [override, budget] of [
+    [undefined, 30_000],
+    ["120", 120_000],
+    ["480", 480_000],
+  ] as const) {
+    logs.length = 0;
+    const lease = await acquireSourceBoundCapacity(
+      "analysis",
+      { workspace },
+      { ...options, environment: { ...options.environment, [key]: override } },
+    );
+    await lease.release();
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      [
+        `Resource checkout scan started (before admission); budget ${budget} ms`,
+        `Resource checkout scan started (after admission); budget ${budget} ms`,
+      ],
+    );
+  }
+  logs.length = 0;
+  for (const invalid of ["", "29", "481", "600", "1e2", "480.0"]) {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, environment: { ...options.environment, [key]: invalid } },
+      ),
+      /must be an integer from 30 to 480/u,
+    );
+  }
+  assert.equal(logs.length, 0);
+
+  const occupied = await acquireResourceCapacity("maintenance", {}, options);
+  try {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, waitMs: 0, environment: { ...options.environment, [key]: "480" } },
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      ["Resource checkout scan started (before admission); budget 480000 ms"],
+    );
+  } finally {
+    await occupied.release();
+  }
+  assert.equal((await observeCapacity({ root })).running.length, 0);
+});
+
 void test("output ownership rolls back partial capacity and source changes after queue refuse execution", async (t) => {
   const root = await fixture(t);
   const output = frontendOutputResource(root);
@@ -974,6 +1571,90 @@ void test("pending handover queues new payloads without acquiring retirement gua
     assert.deepEqual(await readdir(path.join(root, "queue")), []);
     assert.equal((await observeCapacity({ root })).running.length, 0);
   }
+});
+
+for (const failure of ["query", "creation", "query-recovery"] as const)
+  void test(`waiting diagnostics retain finite admission after Windows ${failure} failure`, async (t) => {
+    const root = await fixture(t);
+    await writeFile(
+      path.join(root, "config.json"),
+      JSON.stringify({ slots: 1, legacyMode: "coordinated" }),
+    );
+    const slot = path.join(root, "slot-0");
+    const original = JSON.stringify({
+      format_version: 1,
+      token: "held-external-fixture",
+      process: { pid: 123, identity: "win32:123:456" },
+      child: null,
+      external: { kind: "owned-fixture" },
+      created_at: new Date().toISOString(),
+    });
+    await writeFile(slot, original);
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    const messages: string[] = [];
+    let queries = 0;
+    let releaseBlocker: Promise<void> | undefined;
+    t.mock.method(childProcess, "spawnSync", () => ({ status: 0, stdout: "789\n" }));
+    t.mock.method(childProcess, "execFileSync", () => {
+      queries++;
+      if (failure !== "creation")
+        throw Object.assign(new Error("owned diagnostic timeout"), { code: "ETIMEDOUT" });
+      return `${process.pid}:?\n`;
+    });
+    syncBuiltinESMExports();
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    try {
+      const admission = acquireResourceCapacity(
+        "browser",
+        {},
+        isolated(root, {
+          waitMs: 1_000,
+          pollMs: 5,
+          report: (value) => {
+            messages.push(value);
+            if (
+              failure === "query-recovery" &&
+              value.includes("Waiting for verified process identity")
+            )
+              releaseBlocker = rm(slot);
+          },
+        }),
+      );
+      if (failure === "query-recovery") {
+        const lease = await admission;
+        await releaseBlocker;
+        await lease.release();
+      } else {
+        await assert.rejects(admission, { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" });
+        assert.equal(await readFile(slot, "utf8"), original, "Retain the external reservation");
+      }
+      assert.equal(queries, 1, "The failed diagnostic must use the finite queue retry path");
+      assert.match(
+        messages.join("\n"),
+        /Waiting for verified process identity.*No payload started/u,
+      );
+      assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  });
+
+void test("malformed queue records remain hard failures without acquiring capacity", async (t) => {
+  const root = await fixture(t);
+  await mkdir(path.join(root, "queue"));
+  const historical = path.join(root, "queue", `0000000000000-${randomUUID()}`);
+  await writeFile(historical, "malformed owner");
+  await assert.rejects(
+    acquireResourceCapacity("browser", {}, isolated(root)),
+    /owner is unreadable/u,
+  );
+  assert.equal(await readFile(historical, "utf8"), "malformed owner");
+  assert.deepEqual(
+    (await readdir(root)).filter((name) => /^slot-/u.test(name)),
+    [],
+  );
 });
 
 void test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {

@@ -148,7 +148,7 @@ execute_desktop_prerequisites`;
     }
   }
 });
-void test("APT archive preference rewrites only the selected Azure Ubuntu routes", async () => {
+void test("APT archive preference rewrites only the selected hosted Ubuntu mirrors", async () => {
   const git = await command("git", ["--exec-path"]);
   const bash =
     process.platform === "win32"
@@ -168,12 +168,17 @@ void test("APT archive preference rewrites only the selected Azure Ubuntu routes
       "https://azure.archive.ubuntu.com.evil/ubuntu",
       "https://notazure.archive.ubuntu.com/ubuntu",
       "https://azure.archive.ubuntu.com/ubuntu-extra",
+      "https://us-east-2.ec2.archive.ubuntu.com.evil/ubuntu",
+      "https://us-east-2.ec2.archive.ubuntu.com/ubuntu-extra",
     ].join("\n");
     writeFileSync(
       selected,
       `Types: deb\nURIs: http://azure.archive.ubuntu.com/ubuntu https://azure.archive.ubuntu.com/ubuntu/\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\n${unchanged}\n`,
     );
-    writeFileSync(mirrors, `http://azure.archive.ubuntu.com/ubuntu\n${unchanged}\n`);
+    writeFileSync(
+      mirrors,
+      `http://azure.archive.ubuntu.com/ubuntu\nhttp://us-east-2.ec2.archive.ubuntu.com/ubuntu\n${unchanged}\n`,
+    );
     const result = await command(bash, [
       "-c",
       `set -euo pipefail
@@ -194,7 +199,7 @@ use_archive_mirror "$2" "$3"`,
     );
     assert.equal(
       readFileSync(mirrors, "utf8"),
-      `https://archive.ubuntu.com/ubuntu\n${unchanged}\n`,
+      `https://archive.ubuntu.com/ubuntu\nhttps://archive.ubuntu.com/ubuntu\n${unchanged}\n`,
     );
     for (const enabled of [false, true]) {
       const selectedRoute = await command(bash, [
@@ -339,7 +344,7 @@ void test("sourceable prerequisite planning preserves packages, budgets and call
       "ubuntu",
       "24.04",
       ["--include-rpm", "--include-dialog-tests", "--include-webdriver"],
-      ["rpm", "xvfb", "xauth", "webkit2gtk-driver", "xvfb", "dbus-x11"],
+      ["rpm", "xvfb", "xauth", "webkit2gtk-driver", "xvfb", "dbus-x11", "at-spi2-core"],
     ],
   ] as const) {
     const result = prerequisiteOperations(

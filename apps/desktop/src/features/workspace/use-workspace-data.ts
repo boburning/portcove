@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
+import { requestStandingSetup } from "../game-file-discovery/use-standing-setup";
 import type {
   ActivityFeed,
   PortListingStatus,
@@ -53,6 +54,7 @@ interface WorkspaceRead {
   activityRequest: number | null;
   activities: ActivityFeed;
   fullReadAt: number;
+  fullReadRevision: number;
   needsRecovery: boolean;
 }
 
@@ -260,6 +262,8 @@ export function usePortcoveData(libraryGeneration = 0) {
   const [readyGeneration, setReadyGeneration] = useState<number>();
   const queryKey = useMemo(() => ["workspace-snapshot", libraryGeneration], [libraryGeneration]);
   const fullReadRequested = useRef(false);
+  const fullReadRequest = useRef(0);
+  const startedWorkspaceReadRevision = useCallback(() => fullReadRequest.current, []);
   // This window's own operation lifecycle (start, pushed events, settled mutations).
   // Its commits also advance the observer's data_version, so a change probe that
   // coincides with them is re-read without a separate orphan-recovery pass.
@@ -319,6 +323,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       const held = previous?.snapshot;
       const readSnapshot = () =>
         desktopApi.workspaceSnapshot(libraryGeneration, held?.catalog_digest ?? null);
+      const fullReadRevision = ++fullReadRequest.current;
       let transport: WorkspaceSnapshotTransport;
       try {
         transport = await readSnapshot();
@@ -338,6 +343,7 @@ export function usePortcoveData(libraryGeneration = 0) {
         activityRequest,
         activities: snapshot.activities,
         fullReadAt: Date.now(),
+        fullReadRevision,
         needsRecovery: queryClient.getQueryData<WorkspaceRead>(queryKey)?.needsRecovery ?? false,
       };
     },
@@ -560,6 +566,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     >({
       register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
+        requestStandingSetup();
         invalidateDiagnostics();
         void retryRecovery().catch(() => {
           /* The refresh failure remains visible; this event has no awaiting caller. */
@@ -596,6 +603,8 @@ export function usePortcoveData(libraryGeneration = 0) {
     ...workspaceSnapshotView(workspace.data?.snapshot),
     refreshFailure,
     refreshing,
+    workspaceReadRevision: workspace.data?.fullReadRevision,
+    startedWorkspaceReadRevision,
     activities,
     activityFeed,
     doctor,

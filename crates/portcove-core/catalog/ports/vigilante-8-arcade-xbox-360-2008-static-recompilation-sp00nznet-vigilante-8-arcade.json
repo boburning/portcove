@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "vigilante-8-arcade-xbox-360-2008-static-recompilation-sp00nznet-vigilante-8-arcade",
+    "artwork": {
+      "game_id": 23035,
+      "cover_id": 430249,
+      "image_id": "co97zd",
+      "image_sha256": "7a8551df8070c27503169103b86f3270f336821bb8848e76b6ba2d5b802e2800",
+      "game_slug": "vigilante-8-arcade",
+      "match_kind": "underlying-game"
+    },
     "name": "Vigilante 8 Arcade — Vigilante 8 Arcade (Xbox 360, 2008) — Static Recompilation (sp00nznet)",
     "original_game_title": "Vigilante 8 Arcade",
     "summary": "The project reports boot, audio and input in 0.10. Modes, split-screen and relay behaviour have not been rechecked against the older build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/sp00nznet/vig8"
     },
-    "issue_number": 3252
+    "issue_number": 3252,
+    "original_game": {
+      "format_version": 1,
+      "id": "vigilante-8-arcade",
+      "evidence_urls": ["https://github.com/sp00nznet/vig8"],
+      "source_editions": [
+        {
+          "id": "vigilante-8-arcade-xbox-360",
+          "title": "Vigilante 8 Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/vig8/blob/4a6860a6e6c6a819506a6b7651920ce7a2a49b9a/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

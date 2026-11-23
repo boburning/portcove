@@ -1,4 +1,5 @@
-import { captureParityState } from "../../test/parity-capture";
+import { mountLibraryPort } from "./discover-test-helpers";
+import { captureParityState, settleDocumentImages } from "../../test/parity-capture";
 import { openAdvancedFilters } from "../../test/filter-fields";
 import { navigateTo } from "../../test/primary-navigation";
 import { settingsCategories } from "../features/app-shell/settings-categories";
@@ -9,6 +10,7 @@ import {
   stopInteractiveScenarios,
 } from "../dev-scenarios/interactive/entry";
 import { recoveryKey } from "../dev-scenarios/interactive/transport";
+import { desktopApi } from "../api";
 import "../styles/index.css";
 import "../dev-scenarios/scenarios.css";
 import scenarioShell from "../../scenarios.html?raw";
@@ -49,7 +51,7 @@ async function settleCapture(animationTimeout = 10_000) {
   phase("fonts");
   await document.fonts.ready;
   phase("images");
-  await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  await settleDocumentImages();
   phase("paint");
   // Let the resized workspace and the theme owner's deferred invalidation paint.
   await new Promise<void>((resolve) =>
@@ -237,15 +239,15 @@ it("keeps one named readiness choice across narrow, desktop and enlarged widths"
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
-  await page.getByRole("option", { name: "Ready (2)", exact: true }).click();
-  await expect.poll(() => readiness.element().textContent).toContain("Ready (2)");
+  await page.getByRole("option", { name: "Ready to play (2)", exact: true }).click();
+  await expect.poll(() => readiness.element().textContent).toContain("Ready to play (2)");
   await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
-  await expect.poll(() => readiness.element().textContent).toContain("Ready (1)");
+  await expect.poll(() => readiness.element().textContent).toContain("Ready to play (1)");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
   expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
   await page.viewport(1280, 800);
   await expect.element(readiness).toBeVisible();
-  await expect.element(readiness).toHaveAccessibleName("Readiness Ready (1)");
+  await expect.element(readiness).toHaveAccessibleName("Readiness Ready to play (1)");
   await page.viewport(1366, 768);
   document.documentElement.style.fontSize = "200%";
   await expect.element(readiness).toBeVisible();
@@ -287,10 +289,10 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     .not.toBeInTheDocument();
   await openAdvancedFilters();
   await page.getByRole("combobox", { name: /^Readiness / }).click();
-  await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
+  await page.getByRole("option", { name: "Ready to play (1)", exact: true }).click();
   await expect
     .element(page.getByRole("combobox", { name: /^Readiness / }))
-    .toHaveAccessibleName("Readiness Ready (1)");
+    .toHaveAccessibleName("Readiness Ready to play (1)");
   await expect
     .element(
       page.getByRole("button", {
@@ -337,7 +339,8 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
 });
 
 it("reviews preparation through desktopApi, waits for progress, cancels, fails and completes a fresh review", async () => {
-  mount("setup");
+  await page.viewport(960, 640);
+  mount("setup", true);
   await userEvent.click(
     page.getByRole("button", {
       name: "View details for Harbor Adventure",
@@ -356,6 +359,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     )
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
+  await userEvent.click(page.getByRole("tab", { name: "Game files", exact: true }));
   await userEvent.click(setupReview());
   await expect.element(page.getByRole("dialog").getByText("Uses", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
@@ -394,7 +398,17 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
-  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(play).toHaveFocus();
+  // Leading feedback also moves during completion. Measure after its reflow
+  // so focus on an offscreen button cannot pass this handoff check.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  const { left, top, width, height } = play.element().getBoundingClientRect();
+  expect(
+    play.element().contains(document.elementFromPoint(left + width / 2, top + height / 2)),
+  ).toBe(true);
   await captureParityState("preparation-completed-fixture");
 }, 45_000);
 
@@ -418,7 +432,8 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();
   await captureParityState("startup-location-recovery-fixture");
-  await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
+  await page.getByRole("button", { name: "Use platform default", exact: true }).click();
+  await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
@@ -431,6 +446,10 @@ it("keeps actual App update entries and their independent Play actions reachable
   await page.viewport(960, 640);
   document.documentElement.style.fontSize = "200%";
   mount("collection");
+  await expect
+    .poll(() => document.querySelector('[data-virtual-collection="library"]'))
+    .not.toBeNull();
+  await mountLibraryPort("collection-0");
   await expect
     .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
     .toBeVisible();
@@ -481,6 +500,58 @@ async function startParityScene(scene: string, { theme, width, height }: ParityC
   localStorage.setItem(THEME_STORAGE_KEY, theme);
   mount(scene, true);
   await expect.element(page.getByRole("main")).toBeVisible();
+}
+
+async function expectCompactCollectionNavigation(
+  label: "Library quick views" | "Discover collections",
+) {
+  const navigation = page.getByRole(label === "Library quick views" ? "radiogroup" : "group", {
+    name: label,
+    exact: true,
+  });
+  await expect.element(navigation).toBeVisible();
+  await document.fonts.ready;
+  const controls = [...navigation.element().querySelectorAll("button")].filter((control) =>
+    control.checkVisibility(),
+  );
+  expect(controls.length).toBeGreaterThanOrEqual(3);
+  const boxes = controls.map((control) => control.getBoundingClientRect());
+  const rows: { top: number; bottom: number }[] = [];
+  const bounds = navigation.element().getBoundingClientRect();
+  for (const [index, box] of boxes.entries()) {
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.left).toBeGreaterThanOrEqual(bounds.left - 1);
+    expect(box.right).toBeLessThanOrEqual(bounds.right + 1);
+    for (const previous of boxes.slice(0, index)) {
+      const horizontalOverlap =
+        Math.min(box.right, previous.right) - Math.max(box.left, previous.left);
+      const verticalOverlap =
+        Math.min(box.bottom, previous.bottom) - Math.max(box.top, previous.top);
+      expect(
+        Math.min(horizontalOverlap, verticalOverlap),
+        `${label} controls must not overlap`,
+      ).toBeLessThanOrEqual(0);
+    }
+    // Vertically centered controls can have different heights within one flex/grid row.
+    const row = rows.find((row) => box.top < row.bottom && box.bottom > row.top);
+    if (row) {
+      row.top = Math.min(row.top, box.top);
+      row.bottom = Math.max(row.bottom, box.bottom);
+    } else rows.push({ top: box.top, bottom: box.bottom });
+  }
+  rows.sort((left, right) => left.top - right.top);
+  for (let index = 1; index < rows.length; index++) {
+    const previous = rows[index - 1]!;
+    const current = rows[index]!;
+    const clearance = current.top - previous.bottom;
+    expect(clearance).toBeGreaterThanOrEqual(0);
+    // Wrapped choices remain one navigation group, without a control-height gap.
+    expect(clearance).toBeLessThanOrEqual(12);
+  }
+  expect(rows.length).toBeGreaterThanOrEqual(
+    innerWidth === 320 && label === "Discover collections" ? 2 : 1,
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
 }
 
 async function captureParity(surface: string, { theme, width, height }: ParityCase) {
@@ -535,14 +606,30 @@ it.each(parityCases)(
     await expect
       .element(page.getByRole("heading", { name: "Your library", exact: true }))
       .toBeVisible();
+    await expectCompactCollectionNavigation("Library quick views");
     await captureParity("library-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("library-rows", configuration);
     await navigateTo("Discover");
     await page.getByRole("button", { name: "Covers", exact: true }).click();
+    await expectCompactCollectionNavigation("Discover collections");
     await captureParity("discover-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("discover-rows", configuration);
+    if (configuration.width === 320 || configuration.width === 1024) {
+      const previousFontSize = document.documentElement.style.fontSize;
+      try {
+        // Browser text enlargement checks reflow; native WebView zoom has its own owner.
+        document.documentElement.style.fontSize = "20px";
+        await expectCompactCollectionNavigation("Discover collections");
+        await captureParity("discover-collection-navigation-enlarged", configuration);
+        await navigateTo("Library");
+        await expectCompactCollectionNavigation("Library quick views");
+        await captureParity("library-quick-views-enlarged", configuration);
+      } finally {
+        document.documentElement.style.fontSize = previousFontSize;
+      }
+    }
     await navigateTo("Library");
     await page.getByRole("button", { name: "Add games", exact: true }).click();
     await expect
@@ -553,8 +640,120 @@ it.each(parityCases)(
   90_000,
 );
 
+it("exposes the visible Add games titles as names and the supporting copy as descriptions", async () => {
+  await startParityScene("collection", { theme: "light", width: 430, height: 780 });
+  await page.getByRole("button", { name: "Add games", exact: true }).click();
+  const choices = page.getByRole("group", { name: "Ways to add games", exact: true });
+  for (const [title, description] of [
+    ["Browse games", "Pick a game in Discover, then see what you need to play it."],
+    ["Scan a folder", "Choose a folder of your game files; Portcove finds the supported ones."],
+    [
+      "Use an existing installation",
+      "Copy a supported installation or keep using its current folder.",
+    ],
+  ] as const) {
+    const button = choices.getByRole("button", { name: title, exact: true });
+    await expect.element(button).toHaveAccessibleDescription(description);
+  }
+  const result = await axe.run(choices.element(), {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(result.violations).toEqual([]);
+});
+
+it("launches only the open ready detail's Play action when chosen explicitly", async () => {
+  const launch = vi.spyOn(desktopApi, "launch");
+  await startParityScene("collection", { theme: "light", width: 960, height: 640 });
+  const search = page.getByRole("button", { name: /Search games and pages/i });
+  const playCommand = page.getByRole("option", { name: /^Play this game/ });
+  const showPlayCommand = async () => {
+    await search.click();
+    await page.getByRole("combobox", { name: "Search commands" }).fill("Play this game");
+  };
+
+  await showPlayCommand();
+  await expect.element(playCommand).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  expect(launch).not.toHaveBeenCalled();
+
+  const blocked = await mountLibraryPort("collection-4");
+  await userEvent.click(
+    blocked.querySelector<HTMLButtonElement>('button[aria-label^="View details for"]')!,
+  );
+  await expect.element(page.getByRole("button", { name: "Back to Library" })).toBeVisible();
+  await showPlayCommand();
+  await expect.element(playCommand).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Back to Library" }).click();
+
+  await mountLibraryPort("collection-0");
+  await page
+    .getByRole("button", { name: /^View details for Super Mario 64/ })
+    .first()
+    .click();
+  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await showPlayCommand();
+  await expect.element(playCommand).toBeVisible();
+  expect(launch).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Enter}");
+  await expect.poll(() => launch.mock.calls.map(([portId]) => portId)).toEqual(["collection-0"]);
+});
+
+it("keeps focus inside the command palette at both Tab boundaries", async () => {
+  await startParityScene("collection", { theme: "light", width: 430, height: 780 });
+  const trigger = page.getByRole("button", { name: /Search games and pages/i });
+  await trigger.click();
+  const dialog = page.getByRole("dialog");
+  const search = dialog.getByRole("combobox", { name: "Search commands" });
+  const last = dialog.getByRole("button", { name: "Close", exact: true });
+  const help = dialog.getByText("Navigation help", { exact: true });
+  await expect.element(search).toHaveFocus();
+  const popup = dialog.element();
+  const escaped: EventTarget[] = [];
+  const watchFocus = ({ target }: FocusEvent) => {
+    if (target instanceof Node && !popup.contains(target)) escaped.push(target);
+  };
+  document.addEventListener("focusin", watchFocus);
+  try {
+    for (const query of ["", "unmatched palette input"]) {
+      await search.fill(query);
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(help).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
+      await expect.element(search).toHaveFocus();
+    }
+    expect(escaped).toEqual([]);
+  } finally {
+    document.removeEventListener("focusin", watchFocus);
+  }
+  await userEvent.keyboard("{Escape}");
+  await expect.element(trigger).toHaveFocus();
+});
+
+it("keeps enlarged command palette help inside a scrollable viewport", async () => {
+  await startParityScene("collection", { theme: "light", width: 960, height: 640 });
+  const root = document.documentElement;
+  const previousFontSize = root.style.fontSize;
+  root.style.fontSize = "32px";
+  try {
+    await page.getByRole("button", { name: /Search games and pages/i }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByText("Navigation help", { exact: true }).click();
+    const popup = dialog.element();
+    expect(popup.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
+    expect(getComputedStyle(popup).overflowY).toBe("auto");
+    expect(popup.scrollHeight).toBeGreaterThan(popup.clientHeight);
+  } finally {
+    root.style.fontSize = previousFontSize;
+  }
+});
+
 it.each(parityCases)(
-  "captures all five detail tabs in $theme at $width × $height",
+  "captures all five detail sections in $theme at $width × $height",
   async (configuration) => {
     await startParityScene("library", configuration);
     await page
@@ -571,9 +770,14 @@ it.each(parityCases)(
       ["Versions & updates", "versions-updates"],
       ["Manage", "manage"],
     ] as const) {
-      const tab = page.getByRole("tab", { name: label, exact: true });
-      await tab.click();
-      await expect.element(tab).toHaveAttribute("aria-selected", "true");
+      if (configuration.width === 320) {
+        const sections = page.getByRole("combobox", { name: /^Game detail sections/ });
+        await sections.click();
+        await page.getByRole("option", { name: label, exact: true }).click();
+      } else {
+        const tab = page.getByRole("tab", { name: label, exact: true });
+        await tab.click();
+      }
       const panel = page.getByRole("tabpanel", { name: label, exact: true });
       await expect.element(panel).toBeVisible();
       panel.element().scrollIntoView({ block: "start" });

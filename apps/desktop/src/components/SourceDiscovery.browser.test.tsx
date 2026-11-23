@@ -1,16 +1,24 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
+import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vite-plus/test/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
+import { GameFileScanProvider } from "../features/game-file-discovery/use-game-file-scan";
+import type {
+  SourceDiscoveryLimits,
+  SourceDiscoveryReport,
+  SourceImportPlan,
+  SourceProfile,
+} from "../types";
 import {
   SourceDiscoveryButton,
   SourceImportReview,
   sourceImportModePresentation,
 } from "./SourceDiscovery";
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { sourceImportFixtures } from "./rendered-test-fixtures";
 beforeEach(() => {
@@ -47,7 +55,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     symlinks_skipped: 0,
     limits_reached: ["entries", "depth", "file_size", "hash_bytes", "candidates"],
     issues: [],
-    issues_omitted: 0,
+    issues_omitted: 3,
   };
   const plan: SourceImportPlan = {
     schema_version: 1,
@@ -126,7 +134,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
           symlinks_skipped: 0,
           limits_reached: ["candidates", "file_size", "depth"],
           issues: [],
-          issues_omitted: 0,
+          issues_omitted: 1,
         },
       };
     });
@@ -134,6 +142,10 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const review = vi
     .spyOn(desktopApi, "planSourceImport")
     .mockRejectedValueOnce({ message: "Source changed after discovery" })
+    .mockResolvedValueOnce({
+      ...plan,
+      source: { ...candidate, storage_sha256: "a".repeat(64) },
+    })
     .mockResolvedValue(plan);
   const importSource = vi
     .spyOn(desktopApi, "importSource")
@@ -175,15 +187,26 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const click = async (label: string) => {
     await userEvent.click(control(label));
   };
-  try {
-    await root.rerender(
-      <SourceDiscoveryButton
-        generation={7}
-        profiles={[profile]}
-        disabled={false}
-        onAdded={refresh}
-      />,
+  const fallback = createRef<HTMLHeadingElement>();
+  const renderSettings = (generation: number, visible = true, profiles = [profile]) =>
+    root.rerender(
+      <GameFileScanProvider key={generation} generation={generation}>
+        <h2 ref={fallback} tabIndex={-1}>
+          Game files and BIOS
+        </h2>
+        {visible && (
+          <SourceDiscoveryButton
+            generation={generation}
+            profiles={profiles}
+            disabled={false}
+            fallbackFocus={fallback}
+            onAdded={refresh}
+          />
+        )}
+      </GameFileScanProvider>,
     );
+  try {
+    await renderSettings(7);
     await click("Find required files");
     const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
     const searchLabel = document.body.querySelector<HTMLLabelElement>(
@@ -241,7 +264,11 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("temporarily move some files outside it");
     expect(document.body.textContent).not.toContain("Result count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
+    expect(document.body.textContent).toContain("1 more scan issue was omitted.");
     await captureParityState("source-discovery-incomplete-scan-fixture");
+    await expect
+      .element(page.getByRole("button", { name: "Review last search" }))
+      .not.toBeInTheDocument();
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       {
@@ -273,10 +300,35 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).not.toContain("Possible matches checked");
     expect(document.body.textContent).not.toContain("file_size");
     expect(document.body.textContent).not.toContain("hash_bytes");
+    expect(document.body.textContent).toContain("3 more scan issues were omitted.");
+    expect(document.body.textContent).not.toContain("1 more scan issue was omitted.");
+    await click("Close");
+    await renderSettings(7, false);
+    await renderSettings(7);
+    const previous = page.getByRole("button", { name: "Review last search" });
+    await previous.click();
+    const dialog = page.getByRole("dialog", { name: "Find required files" });
+    await expect
+      .element(dialog.getByText("Results from the last search.", { exact: false }))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByRole("textbox", { name: "Search folder" }))
+      .toHaveValue("D:/Selected");
+    await expect.element(dialog.getByText(candidate.path, { exact: true })).toBeVisible();
+    expect(search).toHaveBeenCalledOnce();
+    expect(scanInbox).toHaveBeenCalledOnce();
+    expect(review).not.toHaveBeenCalled();
+    expect(importSource).not.toHaveBeenCalled();
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(document.body.textContent).toContain("Source changed after discovery");
     await captureParityState("source-discovery-changed-source-fixture");
+    await click("Review copy");
+    await expect
+      .element(dialog.getByRole("alert"))
+      .toHaveTextContent("This file changed since the last search. Search the folder again.");
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(importSource).not.toHaveBeenCalled();
     await click("Review copy");
     expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");
@@ -301,7 +353,34 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       document.body.querySelector('[aria-labelledby="source-discovery-title"] [role="alert"]'),
     ).toBeNull();
     expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    await click("Close");
+    await expect.element(previous).toHaveFocus();
+    let finishReview!: (result: SourceImportPlan) => void;
+    review.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishReview = resolve;
+        }),
+    );
+    await previous.click();
+    await click("Review copy");
+    await expect
+      .element(dialog.getByText("Checking the selected file and destination…"))
+      .toBeVisible();
+    await renderSettings(7, true, []);
+    await act(async () => finishReview(plan));
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect.element(page.getByRole("heading", { name: "Game files and BIOS" })).toHaveFocus();
+    await expect
+      .element(page.getByText("The required files from the last search are no longer listed."))
+      .toBeVisible();
+    await expect.element(previous).not.toBeInTheDocument();
+    expect(importSource).toHaveBeenCalledOnce();
+    await renderSettings(8);
+    await expect.element(previous).not.toBeInTheDocument();
+    expect(search).toHaveBeenCalledOnce();
   } finally {
+    await root.rerender(null);
     await cleanup();
     host.remove();
     vi.restoreAllMocks();
@@ -412,6 +491,211 @@ it.each(["copy", "move", "use_current_location"] as const)(
       expect(apply).toHaveBeenCalledOnce();
     } finally {
       await act(async () => root.unmount());
+    }
+  },
+);
+
+it.each([
+  { theme: "dark", width: 960, height: 640 },
+  { theme: "light", width: 960, height: 640 },
+  { theme: "dark", width: 430, height: 780 },
+  { theme: "light", width: 430, height: 780 },
+] as const)(
+  "separates discovery controls and preliminary results in $theme at $width",
+  async ({ theme, width, height }) => {
+    const incoming = {
+      theme: document.documentElement.dataset.theme,
+      width: innerWidth,
+      height: innerHeight,
+    };
+    const profile: SourceProfile = {
+      id: "owned",
+      label: "Owned disc files checked by the upstream game-data extractor",
+      kind: "upstream-validated-disc",
+      accepted_extensions: ["iso"],
+      accepted_sha1: [],
+      accepted_sha256: [],
+      disc: null,
+      members: [],
+    };
+    const { source, plan } = sourceImportFixtures();
+    const reviewed = plan("use_current_location");
+    const rootPath = "D:/Synthetic discovery presentation/Original game files";
+    const report: SourceDiscoveryReport = {
+      searched_roots: [rootPath],
+      searched_profiles: [profile.id],
+      candidates: [],
+      preliminary_selections: [
+        {
+          profile_id: profile.id,
+          path: source.path,
+          observed_digests: [],
+          components: [],
+          validator: {
+            contract_id: "owned-disc-v1",
+            tool_id: "owned-validator",
+            protocol_version: "1",
+            result: "not_run",
+          },
+          assessment: {
+            health: "not_baselined",
+            classification: { state: "not_evaluated" },
+            contract: { state: "not_evaluated" },
+            admission: { state: "admitted", mode: "structural_checks" },
+            evidence: [],
+          },
+          record: source,
+          message: "Synthetic preliminary selection; validation has not run",
+        },
+      ],
+      entries_examined: 1,
+      files_hashed: 0,
+      hash_bytes: 0,
+      symlinks_skipped: 0,
+      limits_reached: [],
+      issues: [],
+      issues_omitted: 0,
+    };
+    vi.mocked(picker.pickInstallFolder).mockResolvedValue(rootPath);
+    const discover = vi.spyOn(desktopApi, "discoverSources").mockResolvedValue(report);
+    const planImport = vi
+      .spyOn(desktopApi, "planSourceImport")
+      .mockResolvedValueOnce({ ...reviewed, source: { ...source, sha256: "e".repeat(64) } })
+      .mockResolvedValue(reviewed);
+    const imported = vi
+      .spyOn(desktopApi, "importSource")
+      .mockRejectedValue(new Error("Import must require a reviewed choice"));
+    const host = document.createElement("div");
+    document.body.append(host);
+    const rendered = await renderComponent(null, { container: host });
+    try {
+      await page.viewport(width, height);
+      document.documentElement.dataset.theme = theme;
+      await rendered.rerender(
+        <GameFileScanProvider key={7} generation={7}>
+          <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />
+        </GameFileScanProvider>,
+      );
+      await page.getByRole("button", { name: "Find required files", exact: true }).click();
+      const dialog = page
+        .getByRole("dialog", { name: "Find required files", exact: true })
+        .element();
+      await document.fonts.ready;
+      expect(dialog.textContent).not.toContain("REQUIRED FILES");
+      expect(dialog.getAttribute("aria-describedby")).toBe("source-discovery-description");
+      const select = dialog.querySelector<HTMLElement>("#source-profile-select")!;
+      const inboxActions = dialog.querySelector<HTMLElement>(".source-inbox-actions")!;
+      const folderLabel = [...dialog.querySelectorAll("label")].find(
+        (item) => item.textContent === "Search folder",
+      )!;
+      const folderInput = dialog.querySelector<HTMLInputElement>("#source-search-root")!;
+      const stores = dialog.querySelector<HTMLElement>(
+        '[aria-label="Games installed by Steam, GOG or Epic"]',
+      )!;
+      expect(
+        inboxActions.getBoundingClientRect().top - select.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(
+        folderLabel.getBoundingClientRect().top - inboxActions.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(16);
+      expect(
+        stores.getBoundingClientRect().top -
+          folderInput.parentElement!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState("source-discovery-rhythm-controls");
+      await page.getByRole("combobox", { name: /^Required files/ }).click();
+      await page.getByRole("option", { name: profile.label, exact: true }).click();
+      await page.getByRole("button", { name: "Choose folder", exact: true }).click();
+      await page.getByRole("button", { name: "Search this folder", exact: true }).click();
+      const preliminary = page
+        .getByRole("heading", { name: "Preliminary selections", exact: true })
+        .element();
+      const summary = [...dialog.querySelectorAll("p")].find((item) =>
+        item.textContent?.startsWith("Found no exact matches."),
+      )!;
+      expect(
+        preliminary.getBoundingClientRect().top - summary.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(16);
+      expect(
+        preliminary.nextElementSibling!.getBoundingClientRect().top -
+          preliminary.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(preliminary.parentElement?.textContent).toContain("Validation has not run");
+      expect(discover).toHaveBeenCalledWith(
+        {
+          roots: [rootPath],
+          profile_ids: [profile.id],
+          limits: {
+            max_entries: 10_000,
+            max_depth: 6,
+            max_file_bytes: 2 * 1024 * 1024 * 1024,
+            max_hash_bytes: 16 * 1024 * 1024 * 1024,
+            max_candidates: 64,
+          } satisfies SourceDiscoveryLimits,
+        },
+        expect.any(Function),
+      );
+      expect(imported).not.toHaveBeenCalled();
+      preliminary.scrollIntoView({ block: "center" });
+      expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
+      await captureParityState("source-discovery-rhythm-preliminary");
+      const footer = dialog.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+      footer.scrollIntoView({ block: "center", behavior: "instant" });
+      const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+      expect(actions.map((action) => action.textContent)).toEqual(["Close", "Search this folder"]);
+      const dialogBounds = dialog.getBoundingClientRect();
+      for (const action of actions) {
+        const bounds = action.getBoundingClientRect();
+        requireCompleteCaptureTarget(
+          {
+            target: action.textContent,
+            target_count: 1,
+            visible: action.checkVisibility(),
+            rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            viewport: { width: innerWidth, height: innerHeight },
+          },
+          action.textContent,
+        );
+        expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+        expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+        expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+        expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
+      }
+      if (width === 430) await captureParityState("source-discovery-rhythm-preliminary-footer");
+      await page.getByRole("button", { name: "Close", exact: true }).click();
+      await expect.poll(() => document.activeElement?.textContent).toBe("Find required files");
+      await page.getByRole("button", { name: "Review last search" }).click();
+      const retained = page.getByRole("dialog", { name: "Find required files" });
+      const check = retained.getByRole("button", { name: "Check these files" });
+      await check.click();
+      await expect
+        .element(retained.getByRole("alert"))
+        .toHaveTextContent("This file changed since the last search. Search the folder again.");
+      await expect
+        .element(retained.getByRole("region", { name: "Source import review" }))
+        .not.toBeInTheDocument();
+      await check.click();
+      await expect
+        .element(retained.getByRole("region", { name: "Source import review" }))
+        .toBeVisible();
+      expect(planImport).toHaveBeenNthCalledWith(
+        2,
+        profile.id,
+        source.path,
+        "use_current_location",
+      );
+      expect(discover).toHaveBeenCalledOnce();
+      expect(imported).not.toHaveBeenCalled();
+    } finally {
+      await rendered.rerender(null);
+      await cleanup();
+      host.remove();
+      vi.restoreAllMocks();
+      if (incoming.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = incoming.theme;
+      await page.viewport(incoming.width, incoming.height);
     }
   },
 );

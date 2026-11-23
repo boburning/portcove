@@ -3,7 +3,7 @@
   "listing": {
     "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
     "name": "Doraemon Story of Seasons: Friends of the Great Kingdom (MacNativePorts)",
-    "summary": "An experimental Apple ARM64 Doraemon compatibility project with a shared Horizon/NVN-to-Metal host and game-specific code. The project reports the title, terms, saves, opening and Nobita leaving the house; terrain, shadows, transparency and postprocessing are unconfirmed. There is no complete player release. Follow the Apple Silicon macOS source route with Xcode Command Line Tools, Python and make prepare/runtime/boot GAME=dora. Hash manifests check modules and resources. Use your own title 0100F5E0177AC000 game, keys, rewritten modules, extracted ExeFS/RomFS, fonts and per-game expected-hash manifest; the exact version is unconfirmed. You and the project manage builds and updates. Windows, Linux and iOS players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build Friends of the Great Kingdom on an Apple silicon Mac from your own Switch game files. The project reports reaching the opening and leaving Nobita’s house. It has no complete player release, and later rendering remains unconfirmed.",
     "original_game_title": "Doraemon Story of Seasons: Friends of the Great Kingdom",
     "project_url": "https://github.com/colonnellotong/MacNativePorts",
     "listed_at": "2026-10-25",
@@ -18,7 +18,33 @@
       "game_slug": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2980
+    "issue_number": 2980,
+    "manual_setup": {
+      "help_url": "https://github.com/colonnellotong/MacNativePorts",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Prepare title 0100F5E0177AC000, your keys, rewritten modules, extracted ExeFS and RomFS, fonts and the project’s per-game hash manifest. The exact accepted version is unconfirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use Xcode Command Line Tools, Python and the project’s make prepare, runtime and boot targets with GAME=dora. You manage the local build and later updates."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports the title screen, terms and save functions. Terrain, shadows, transparency and postprocessing still need testing. Windows, Linux and iOS players are unconfirmed."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
+      "evidence_urls": ["https://github.com/colonnellotong/MacNativePorts"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

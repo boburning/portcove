@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { desktopApi } from "../../api";
 
 const events = new EventTarget();
@@ -32,15 +32,11 @@ export function sourcesKey(sources: readonly { profile_id: string; sha256: strin
 
 const settleMilliseconds = 1500;
 const busyRetryMilliseconds = 30_000;
+const recheckMilliseconds = 15 * 60_000;
 
 /**
- * Catch-up for the player's standing set-up-when-ready choices and folders
- * with automatic setup turned on: once a
- * library has loaded, whenever the catalog or registered files change, and
- * whenever a choice is saved. Core decides which games are ready, re-plans and
- * authorizes each one, allows one pass at a time and never launches a game;
- * this hook only asks for passes. Progress appears through the ordinary
- * activity events.
+ * Request the shared Core pass while Desktop is open. Core reads the standing
+ * choices for game setup and provider updates from the library.
  */
 export function useStandingSetupCatchUp(
   generation: number,
@@ -50,64 +46,70 @@ export function useStandingSetupCatchUp(
   onChanged: () => Promise<unknown>,
 ) {
   const changed = useRef(onChanged);
-  const running = useRef(false);
-  const again = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const current = useRef(generation);
+  const schedule = useRef<() => void>(undefined);
   useEffect(() => {
     changed.current = onChanged;
-    current.current = generation;
-  }, [onChanged, generation]);
-
-  const run = useCallback(async () => {
-    if (running.current) {
-      again.current = true;
-      return;
-    }
-    running.current = true;
-    const expected = generation;
-    try {
-      const [intents, folders] = await Promise.all([
-        desktopApi.portIntents(expected),
-        desktopApi.rootSetupConsents(expected),
-      ]);
-      if (folders.length || intents.some((intent) => intent.mode === "set_up_when_ready")) {
-        const result = await desktopApi.runStandingSetup(expected, () => undefined);
-        const updated = (result.mod_updates ?? []).some((update) => update.outcome === "applied");
-        if ((result.batches.length || updated) && current.current === expected)
-          await changed.current();
-        // Another window or the CLI is running a pass; check again after it.
-        if (result.already_running) again.current = true;
-      }
-    } catch {
-      // Each game's outcome is recorded by Core and shown in Activity and on
-      // the game's details; the next change or start tries again.
-    } finally {
-      running.current = false;
-      events.dispatchEvent(new Event("pass"));
-      if (again.current) {
-        again.current = false;
-        setTimeout(requestStandingSetup, busyRetryMilliseconds);
-      }
-    }
-  }, [generation]);
-
-  const schedule = useCallback(() => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => void run(), settleMilliseconds);
-  }, [run]);
-
-  useEffect(() => {
-    if (ready) schedule();
-  }, [ready, catalog, sources, schedule]);
+  }, [onChanged]);
 
   useEffect(() => {
     if (!ready) return;
-    const listener = () => schedule();
-    events.addEventListener("request", listener);
-    return () => {
-      events.removeEventListener("request", listener);
-      clearTimeout(timer.current);
+    const pass = {
+      active: true,
+      running: false,
+      requested: false,
+      retried: false,
+      timer: undefined as ReturnType<typeof setTimeout> | undefined,
     };
-  }, [ready, schedule]);
+    const queue = (delay: number) => {
+      clearTimeout(pass.timer);
+      pass.timer = setTimeout(() => void run(), delay);
+    };
+    const run = async () => {
+      pass.running = true;
+      let deferred = false;
+      try {
+        const result = await desktopApi.runStandingSetup(generation, () => undefined);
+        if (!pass.active) return;
+        deferred =
+          result.already_running ||
+          (result.mod_updates ?? []).some((update) => update.outcome === "deferred");
+        const updated = (result.mod_updates ?? []).some((update) => update.outcome === "applied");
+        if (result.batches.length || updated) await changed.current();
+      } catch {
+        // A later pass can try again after a transient library or host failure.
+      } finally {
+        pass.running = false;
+        if (pass.active) {
+          if (pass.requested) {
+            pass.requested = false;
+            queue(settleMilliseconds);
+          } else if (deferred && !pass.retried) {
+            pass.retried = true;
+            queue(busyRetryMilliseconds);
+          } else {
+            pass.retried = false;
+            queue(recheckMilliseconds);
+          }
+          events.dispatchEvent(new Event("pass"));
+        }
+      }
+    };
+    const request = () => {
+      pass.retried = false;
+      if (pass.running) pass.requested = true;
+      else queue(settleMilliseconds);
+    };
+    schedule.current = request;
+    events.addEventListener("request", request);
+    return () => {
+      pass.active = false;
+      events.removeEventListener("request", request);
+      clearTimeout(pass.timer);
+      schedule.current = undefined;
+    };
+  }, [generation, ready]);
+
+  useEffect(() => {
+    schedule.current?.();
+  }, [generation, ready, catalog, sources]);
 }

@@ -1,5 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import { PassThrough } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import type { WindowsHostBridge } from "./resource-paths.mts";
 import type {
   ResourceCapacityOptions,
@@ -27,6 +29,8 @@ import {
 
 const delegationName = "PORTCOVE_HOST_RESOURCE";
 const wireLimit = 32 * 1024;
+// Passive status carries a queue inventory and counters in one response.
+const statusResponseLimit = 256 * 1024;
 // This small launcher validates every staged module before evaluating any of it.
 // Host and appointed Linux recovery use the same content-bound module closure.
 const verifiedLauncher = [
@@ -59,9 +63,12 @@ export async function* bridgeMessages(
   input: Readable,
 ): AsyncGenerator<Record<string, unknown>, void, unknown> {
   let buffered = "";
-  input.setEncoding("utf8");
+  // Decode locally so the transport's readableLength continues to count bytes.
+  const decoder = new StringDecoder("utf8");
   for await (const chunk of input) {
-    buffered += String(chunk);
+    if (typeof chunk !== "string" && !Buffer.isBuffer(chunk))
+      throw new Error("Invalid host bridge input bytes");
+    buffered += decoder.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     if (Buffer.byteLength(buffered) > wireLimit)
       throw new Error("Host bridge message exceeds bound");
     let end: number;
@@ -73,6 +80,7 @@ export async function* bridgeMessages(
       yield value;
     }
   }
+  buffered += decoder.end();
   if (buffered) throw new Error("Truncated host bridge message");
 }
 
@@ -121,6 +129,16 @@ function regularJson(file: string) {
   return JSON.parse(readFileSync(file, "utf8")) as unknown;
 }
 
+function requirePrivateLinuxCustodyDirectory(pathname: string) {
+  const directory = lstatSync(pathname);
+  if (
+    !directory.isDirectory() ||
+    directory.uid !== process.getuid?.() ||
+    (directory.mode & 0o077) !== 0
+  )
+    throw new Error("Linux custody directory ownership differs");
+}
+
 /** The host invokes this in the appointed distro/user; no host PID is interpreted here. */
 export function probeLinuxCustody(
   file: string,
@@ -128,13 +146,7 @@ export function probeLinuxCustody(
   phase: string,
   expected?: unknown,
 ) {
-  const directory = lstatSync(path.dirname(file));
-  if (
-    !directory.isDirectory() ||
-    directory.uid !== process.getuid?.() ||
-    (directory.mode & 0o077) !== 0
-  )
-    throw new Error("Linux custody directory ownership differs");
+  requirePrivateLinuxCustodyDirectory(path.dirname(file));
   const custody = parseCustody(regularJson(file));
   if (custody.invocation !== invocation) throw new Error("Linux invocation differs");
   if (expected !== undefined && JSON.stringify(custody) !== JSON.stringify(parseCustody(expected)))
@@ -310,15 +322,38 @@ export async function serveHostBridge(
   dependencies: HostDependencies = {},
 ) {
   const cancellation = new AbortController();
+  // Keep consuming this connection while its message handler awaits admission.
+  // Otherwise buffered bytes can hide EOF and prevent acquisition cancellation.
+  const incoming = new PassThrough({ highWaterMark: wireLimit });
   const lost = () => cancellation.abort(new Error("WSL bridge connection closed"));
-  input.once("end", lost);
-  input.once("error", lost);
+  const ended = () => {
+    lost();
+    incoming.end();
+  };
+  const failed = (error: Error) => {
+    lost();
+    incoming.destroy(error);
+  };
+  const forward = (chunk: Buffer | string) => {
+    if (incoming.destroyed) return;
+    if (incoming.readableLength + incoming.writableLength + Buffer.byteLength(chunk) > wireLimit) {
+      const error = new Error("Host bridge message exceeds bound");
+      cancellation.abort(error);
+      incoming.destroy(error);
+      input.pause();
+    } else incoming.write(chunk);
+  };
+  const bufferFailed = (error: Error) => cancellation.abort(error);
+  incoming.once("error", bufferFailed);
+  input.once("end", ended);
+  input.once("error", failed);
+  input.on("data", forward);
   let lease: ResourceLease | undefined;
   let external: ExternalCustody | undefined;
   let binding: Custody | undefined;
   let released = false;
   try {
-    for await (const message of bridgeMessages(input)) {
+    for await (const message of bridgeMessages(incoming)) {
       if (message.action === "acquire" && !lease) {
         if (
           !validWindowsHostBridge(message.bridge) ||
@@ -393,8 +428,11 @@ export async function serveHostBridge(
     });
     throw error;
   } finally {
-    input.off("end", lost);
-    input.off("error", lost);
+    input.off("end", ended);
+    input.off("error", failed);
+    input.off("data", forward);
+    incoming.destroy();
+    input.destroy();
     // Never release on EOF/error: the original token and external record retain custody.
   }
 }
@@ -444,7 +482,7 @@ async function oneShot(config: WindowsHostBridge, action: string, value: unknown
     {
       encoding: "utf8",
       timeout: 30_000,
-      maxBuffer: wireLimit,
+      maxBuffer: action === "--status" ? statusResponseLimit : wireLimit,
       windowsHide: true,
     },
   );
@@ -475,6 +513,17 @@ export async function acquireBridgedCapacity(
   const waitMs = options.waitMs ?? 900_000;
   const invocation = randomUUID();
   const directory = mkdtempSync(path.join(tmpdir(), "pc-host-"));
+  // Refuse before requesting host capacity if the temporary filesystem did
+  // not honor mkdtemp's private Linux mode. The host uses the same rule.
+  try {
+    requirePrivateLinuxCustodyDirectory(directory);
+  } catch (cause) {
+    // Leave the path alone when this process could not establish custody.
+    throw new Error(
+      "Windows host bridge custody needs a private Linux-backed temporary directory.",
+      { cause },
+    );
+  }
   const custodyFile = path.join(directory, "custody.json");
   const identity = readProcessIdentity(process.pid);
   if (!identity) throw new Error("Cannot identify Linux bridge owner");
@@ -533,6 +582,12 @@ export async function acquireBridgedCapacity(
           input.end();
           throw error;
         }
+      },
+      disconnectRetained: () => {
+        // EOF leaves both reservations and the original custody evidence intact.
+        input.end();
+        child.stdout?.destroy();
+        child.unref();
       },
       release: () =>
         (releasePromise ??= (async () => {

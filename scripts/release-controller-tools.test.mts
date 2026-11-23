@@ -7,7 +7,11 @@ import {
   controllerFixtureBuildAllowanceMilliseconds,
   controllerFixtureFailureAnnotation,
 } from "./qualify-controller-tool-build.mts";
-import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
+import {
+  controllerWorkflowAtCurrentNode,
+  controllerWorkflowAtRetainedNode,
+  retainedCatalogReviewWorkflow,
+} from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
@@ -94,6 +98,28 @@ void test("reviewed workflow runtime projection refuses every other byte change"
     assert.notEqual(changed, historical);
     assert.throws(() => controllerWorkflowAtCurrentNode(changed));
   }
+});
+
+void test("retained recovery reconstruction refuses every non-runtime change and grants no current appointment", async () => {
+  const current = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const retained = retainedCatalogReviewWorkflow(current);
+  assert.equal(
+    createHash("sha256").update(retained).digest("hex"),
+    retainedCatalogReviewRecoveryResources.workflow_sha256,
+  );
+  assert.notDeepEqual(current, retained);
+  for (const changed of [
+    Buffer.concat([current, Buffer.from("\n")]),
+    Buffer.from(
+      current.toString().replace("package-manager-cache: false", "package-manager-cache: true"),
+    ),
+    Buffer.from(
+      current.toString().replace(`node-version: ${controllerNodeVersion}`, "node-version: 99.0.0"),
+    ),
+  ])
+    assert.throws(() => retainedCatalogReviewWorkflow(changed));
 });
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -1466,7 +1492,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
         (total, file) => total + file.bytes,
         0,
       ),
-      352_321_536,
+      360_710_144,
     );
     files[2]!.bytes++;
     assert.throws(
@@ -1686,7 +1712,7 @@ void test("tool acquisition retains the phase deadline before outputs and after 
 void test("stored controller tool ZIP metadata admits the fixed archive ceiling before transfer", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-zip-bound-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  assert.equal(controllerToolZipMaximumBytes, 352_403_456);
+  assert.equal(controllerToolZipMaximumBytes, 360_792_064);
   const f = fixture();
   const admitted: number[] = [];
   for (const bytes of [controllerToolZipMaximumBytes, controllerToolZipMaximumBytes + 1]) {
@@ -1956,7 +1982,11 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "${{ inputs.publication_purpose == 'application' && 12 || 8 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
-  assert.equal(retainedCatalogReviewRecoveryResources.workflow_sha256, workflowSha);
+  assert.equal(
+    retainedCatalogReviewRecoveryResources.workflow_sha256,
+    hash(retainedCatalogReviewWorkflow(Buffer.from(text))),
+  );
+  assert.notEqual(workflowSha, retainedCatalogReviewRecoveryResources.workflow_sha256);
   const historicalText = await readFile(
     new URL(
       "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -1965,7 +1995,9 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "utf8",
   );
   const appointed = controllerWorkflowAtCurrentNode(historicalText);
-  const appointedSha = createHash("sha256").update(appointed).digest("hex");
+  const appointedSha = createHash("sha256")
+    .update(controllerWorkflowAtRetainedNode(historicalText))
+    .digest("hex");
   assert.equal(appointedSha, "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4");
   const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
   assert.deepEqual(historicalDocument.errors, []);
@@ -2366,11 +2398,11 @@ async function windowsRuntimeInputFixture(t: test.TestContext) {
     await import("./qualify-controller-tools-windows.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+  const floor = path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
     filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
   await mkdir(path.dirname(floor), { recursive: true });
   await mkdir(path.dirname(filename), { recursive: true });
-  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/tauri.conf.json"), floor);
   const git = (args: string[]) =>
     execFileSync(
       "git",

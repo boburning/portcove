@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-oratorio-tangram",
+    "artwork": {
+      "game_id": 9190,
+      "cover_id": 194111,
+      "image_id": "co45rz",
+      "image_sha256": "5d1b21e7c53691cd7d2bce5f67eca4bd6d40c90d097821a58b4d9eeba7110f52",
+      "game_slug": "cyber-troopers-virtual-on-oratorio-tangram",
+      "match_kind": "underlying-game"
+    },
     "name": "Cyber Troopers Virtual-On Oratorio Tangram — virtualon_pc (drakenabarion)",
     "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
     "summary": "Experimental project. The project reports ot boot, menus, matches and audio. Online play is unavailable. Completion has not been established, and Portcove has not confirmed this component. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/drakenabarion/virtualon_pc"
     },
-    "issue_number": 3471
+    "issue_number": 3471,
+    "original_game": {
+      "format_version": 1,
+      "id": "cyber-troopers-virtual-on-oratorio-tangram",
+      "evidence_urls": ["https://github.com/drakenabarion/virtualon_pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

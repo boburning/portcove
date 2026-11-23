@@ -35,6 +35,21 @@
       "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown",
+      "evidence_urls": ["https://github.com/RetroRecompilations/MANXBurnout3"],
+      "source_editions": [
+        {
+          "id": "burnout-3-takedown-xbox",
+          "title": "Burnout 3: Takedown (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

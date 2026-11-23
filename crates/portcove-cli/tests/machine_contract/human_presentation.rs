@@ -366,3 +366,204 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
             .any(|step| step.instruction.contains("historical observation"))
     );
 }
+
+#[test]
+fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
+    let temporary = tempfile::tempdir().unwrap();
+    let home = temporary.path().join("isolated-home");
+    std::fs::create_dir_all(&home).unwrap();
+    let read = |arguments: &[&str]| {
+        // The helper supplies explicit preferences and library paths. Keep
+        // platform directory discovery intact while isolating the runtime lease.
+        let output = command(temporary.path())
+            .env(
+                "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+                home.join("application-runtime.lock"),
+            )
+            .current_dir(temporary.path())
+            .args(arguments)
+            .output()
+            .expect("compiled CLI should start in the isolated fixture");
+        assert!(output.status.success(), "{output:?}");
+        super::json_stdout(&output)["data"].clone()
+    };
+    let current = read(&["--json", "catalog", "listings"]);
+    let implementation = read(&["--json", "catalog", "listings", "--format-version", "12"]);
+    let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
+    assert_eq!(current["format_version"], 15);
+    assert_eq!(implementation["format_version"], 12);
+    assert_eq!(legacy["format_version"], 11);
+    // Consume the compiled producer's documents through the actual Core reader,
+    // rather than accepting only a new format number or a hand-authored fixture.
+    for document in [&current, &implementation, &legacy] {
+        portcove_core::CatalogListingDocument::from_json(&document.to_string()).unwrap();
+    }
+    let current_listings = current["listings"].as_array().unwrap();
+    let implementation_listings = implementation["listings"].as_array().unwrap();
+    let legacy_listings = legacy["listings"].as_array().unwrap();
+    assert_eq!(current_listings.len(), implementation_listings.len());
+    assert_eq!(current_listings.len(), legacy_listings.len());
+    let zelda = current_listings
+        .iter()
+        .find(|listing| listing["id"] == "zelda64-recomp")
+        .unwrap();
+    assert_eq!(
+        zelda["implementation"]["methods"][0]["kind"],
+        "static-recompilation"
+    );
+    assert!(zelda["original_game"]["source_editions"].is_array());
+    assert!(current_listings.iter().any(|listing| {
+        listing["download_block_reason"]
+            .as_str()
+            .is_some_and(|reason| !reason.is_empty())
+    }));
+    let mut removed_scenes = 0;
+    let mut removed_restrictions = 0;
+    for (original, exported) in current_listings.iter().zip(implementation_listings) {
+        let mut expected = original.clone();
+        let row = expected.as_object_mut().unwrap();
+        // Readers below listing format 15 keep only the legacy download string.
+        if row.remove("restrictions").is_some() {
+            removed_restrictions += 1;
+            assert!(
+                row["download_block_reason"]
+                    .as_str()
+                    .is_some_and(|reason| !reason.is_empty()),
+                "listing {} keeps its legacy download string",
+                original["id"]
+            );
+        }
+        if let Some(media) = row.get_mut("media").and_then(Value::as_array_mut) {
+            let count = media.len();
+            media.retain(|asset| {
+                asset["igdb"].is_null()
+                    || !matches!(asset["role"].as_str(), Some("header" | "screenshot"))
+            });
+            removed_scenes += count - media.len();
+            if media.is_empty() {
+                row.remove("media");
+            }
+        }
+        assert_eq!(&expected, exported, "listing {}", original["id"]);
+    }
+    assert!(
+        removed_scenes > 0,
+        "the bundled catalog has reviewed IGDB scenes"
+    );
+    assert!(
+        removed_restrictions > 0,
+        "the bundled catalog has typed acquisition restrictions"
+    );
+    for (original, exported) in implementation_listings.iter().zip(legacy_listings) {
+        assert!(exported.get("implementation").is_none());
+        // Every original-file guide, edition identity, availability and download
+        // restriction survives; only inert explanations are omitted for strict
+        // readers that understand at most listing format 11.
+        let mut expected = original.clone();
+        expected.as_object_mut().unwrap().remove("implementation");
+        assert_eq!(&expected, exported, "listing {}", original["id"]);
+    }
+}
+
+#[test]
+fn inert_supplied_listing_export_preserves_the_upstream_guide_instead_of_merging_managed_setup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let home = temporary.path().join("home");
+    std::fs::create_dir(&home).unwrap();
+    let authored: Value = serde_json::from_str(include_str!(
+        "../../../portcove-core/catalog/ports/alexbeav-diablo-recomp.json"
+    ))
+    .unwrap();
+    let mut supplied = authored["listing"].clone();
+    supplied["implementation"] =
+        serde_json::json!({"format_version":999,"future":"inert explanation"});
+    let document = serde_json::json!({"format_version":12,"listings":[supplied]});
+    let parsed = portcove_core::CatalogListingDocument::from_json(&document.to_string()).unwrap();
+    let expected_guide = serde_json::to_value(&parsed.listings[0].manual_setup).unwrap();
+    let embedded = portcove_core::Catalog::embedded().unwrap();
+    let managed_guide = serde_json::to_value(
+        &embedded
+            .port("alexbeav-diablo-recomp")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup,
+    )
+    .unwrap();
+    assert_ne!(
+        expected_guide, managed_guide,
+        "the representative must distinguish the upstream guide from managed setup"
+    );
+    assert!(
+        expected_guide
+            .to_string()
+            .contains("Choose the official Mac ZIP")
+    );
+    let input = temporary.path().join("supplied-listings.json");
+    std::fs::write(&input, document.to_string()).unwrap();
+    let invoke = |arguments: &[&str]| {
+        command(temporary.path())
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("APPDATA", &home)
+            .env("LOCALAPPDATA", &home)
+            .env("XDG_CONFIG_HOME", &home)
+            .env("XDG_DATA_HOME", &home)
+            .env("XDG_CACHE_HOME", &home)
+            .env("XDG_STATE_HOME", &home)
+            .current_dir(temporary.path())
+            .args(arguments)
+            .output()
+            .unwrap()
+    };
+    let ordinary = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+    ]);
+    assert!(ordinary.status.success(), "{ordinary:?}");
+    assert_eq!(super::json_stdout(&ordinary)["data"]["format_version"], 12);
+    assert!(
+        super::json_stdout(&ordinary)["data"]["listings"][0]
+            .get("implementation")
+            .is_some()
+    );
+    let legacy = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+        "--format-version",
+        "11",
+    ]);
+    assert!(legacy.status.success(), "{legacy:?}");
+    let legacy = super::json_stdout(&legacy);
+    assert_eq!(legacy["data"]["format_version"], 11);
+    assert!(
+        legacy["data"]["listings"][0]
+            .get("implementation")
+            .is_none()
+    );
+    assert_eq!(
+        legacy["data"]["listings"][0]["manual_setup"],
+        expected_guide
+    );
+    let unsupported = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+        "--format-version",
+        "999",
+    ]);
+    assert!(!unsupported.status.success());
+    assert!(
+        !temporary.path().join("library").exists(),
+        "every supplied-file projection stays before library opening"
+    );
+}

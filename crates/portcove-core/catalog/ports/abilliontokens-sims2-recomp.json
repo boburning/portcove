@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "abilliontokens-sims2-recomp",
+    "artwork": {
+      "game_id": 225246,
+      "cover_id": 398030,
+      "image_id": "co8j4e",
+      "image_sha256": "d5b2ad513fb11755d2d63f43ffd9b5822083ae5a8a73f9b33aa92564f477ab89",
+      "game_slug": "the-sims-2--6",
+      "match_kind": "underlying-game"
+    },
     "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims 2 original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
-    "original_game_title": "The Sims 2",
+    "original_game_title": "The Sims 2 (console)",
     "project_url": "https://github.com/abilliontokens/sims2-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/abilliontokens/sims2-recomp",
     "issue_number": 2752,
@@ -41,6 +49,24 @@
         {
           "title": "Keep the complete profile with its game version",
           "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sims-2-console",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/sims2-recomp",
+        "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-sims-2-console-xbox",
+          "title": "The Sims 2 (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+          ]
         }
       ]
     }

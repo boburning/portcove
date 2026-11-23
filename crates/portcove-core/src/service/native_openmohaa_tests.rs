@@ -98,6 +98,14 @@ async fn openmohaa_unix_lifecycle_preserves_originals_and_leaves_profile_externa
         .await
         .unwrap();
     first_server.join().unwrap();
+    let recorded = service.installed_package_shapes(id).unwrap();
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(recorded[0].install_id, first.id);
+    let observed = recorded[0].record.as_ref().unwrap().shape.as_ref().unwrap();
+    assert_eq!(
+        observed.programs.as_deref().unwrap(),
+        ["launch_openmohaa_breakthrough", "openmohaa"]
+    );
     for directory in ["main", "maintt"] {
         fs::create_dir(first.path.join(directory)).unwrap();
         fs::write(first.path.join(directory).join("original.pk3"), directory).unwrap();

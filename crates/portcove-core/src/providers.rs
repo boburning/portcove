@@ -3,8 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    GithubReleaseProvider, GitlabReleaseProvider, Library, Platform, PortDefinition, PortcoveError,
-    ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    ExactReleaseSelection, GithubReleaseProvider, GitlabReleaseProvider, Library, Platform,
+    PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource,
+    ResolvedRelease, Result,
 };
 
 #[derive(Clone)]
@@ -32,6 +33,80 @@ impl CompositeReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for CompositeReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                let query = crate::release::ExactReleaseQuery::Review(version);
+                query.require_route(
+                    port,
+                    channel,
+                    platform,
+                    ReleaseSource::DirectManifest,
+                    scope,
+                )?;
+                let release = resolve_direct(port, channel, platform)?;
+                query.bind(
+                    port,
+                    platform,
+                    &release,
+                    crate::ExactReleaseIdentity::DirectManifest,
+                )
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                pin.require_context(port, channel, platform, scope)?;
+                let selected = resolve_direct(port, channel, platform)?;
+                pin.require_artifact(&selected)?;
+                crate::ScopedResolvedRelease::legacy(selected)
+                    .for_selection(port, platform, channel)
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
     async fn resolve_scoped(
         &self,
         port: &PortDefinition,
@@ -59,6 +134,61 @@ impl ReleaseProvider for CompositeReleaseProvider {
                         .for_selection(port, platform, channel)
                 }),
         }
+    }
+
+    async fn resolve_saved_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        variant: &crate::ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_saved_variant(port, channel, platform, scope, variant)
+            .await
+    }
+
+    async fn resolve_explicit_first_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        variant: &crate::ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.provider != ReleaseSource::Github {
+            return Err(PortcoveError::unsupported(
+                "the release provider cannot resolve an explicit native package",
+            ));
+        }
+        self.github
+            .resolve_explicit_first_variant(port, channel, platform, variant)
+            .await
+    }
+
+    async fn resolve_shape_fallback(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        withheld: &ResolvedRelease,
+    ) -> Result<Option<crate::ScopedResolvedRelease>> {
+        if port.release.provider != ReleaseSource::Github {
+            return Ok(None);
+        }
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_shape_fallback(port, platform, scope, withheld)
+            .await
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
+        self.github.forecast_explicit_variant_request_cost()
     }
 
     fn cached_release_notes(
@@ -179,7 +309,9 @@ mod tests {
                 provider: ReleaseSource::DirectManifest,
                 repository: String::new(),
                 rolling_tag: None,
+                github_other_stream_tag_prefixes: BTreeMap::new(),
                 asset_hints: BTreeMap::new(),
+                reviewed_package_choices_v2: None,
                 linux_tar_xz: false,
                 tar_xz_platforms: Vec::new(),
                 archive_file_links: false,
@@ -212,6 +344,7 @@ mod tests {
             game_settings: None,
             windows_shipwright_persistence: false,
             windows_tracked_handoff: false,
+            linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,
@@ -235,8 +368,13 @@ mod tests {
             setup_marker: None,
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
+            upstream_active_reviewed: false,
+            mod_provider_bindings: None,
+            legacy_mod_provider_held: false,
+            mod_loader: None,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
+            reviewed_predecessor_package_layouts_v1: BTreeMap::new(),
             presentation: None,
         };
         let release =
@@ -245,3 +383,6 @@ mod tests {
         assert_eq!(release.asset.sha256, "a".repeat(64));
     }
 }
+
+#[cfg(test)]
+mod exact_tests;

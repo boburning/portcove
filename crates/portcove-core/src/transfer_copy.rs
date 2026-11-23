@@ -7,8 +7,8 @@ use std::{
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AdoptionCopyPlan, Library, LibraryMetadata, LibraryMovePlan, LibraryTreePlan, PortcoveError,
-    Result,
+    AdoptionCopyPlan, Library, LibraryMetadata, LibraryMovePlan, LibraryRecoveryProgress,
+    LibraryTreePlan, PortcoveError, Result,
 };
 
 /// Recheck names at an authority/publication boundary without rereading payloads.
@@ -30,11 +30,60 @@ pub(crate) fn copy_content(
     content: &[LibraryTreePlan],
 ) -> Result<()> {
     let work = destination_root.join(".portcove-transfer-work");
-    ensure_directory(&work)?;
+    copy_content_with_work(source_root, destination_root, content, &work)
+}
+
+pub(crate) fn copy_content_with_work(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+    work: &Path,
+) -> Result<()> {
+    copy_content_with_progress(
+        source_root,
+        destination_root,
+        content,
+        work,
+        &mut |_| Ok(()),
+    )
+}
+
+pub(crate) fn copy_library_payload(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+    work: &Path,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
+) -> Result<()> {
+    let total_bytes = content
+        .iter()
+        .try_fold(0_u64, |sum, tree| sum.checked_add(tree.copy.total_bytes))
+        .ok_or_else(|| PortcoveError::state("library copy size overflowed"))?;
+    let mut copied_bytes = 0;
+    copy_content_with_progress(source_root, destination_root, content, work, &mut |bytes| {
+        copied_bytes += bytes;
+        observe(LibraryRecoveryProgress::Copying {
+            copied_bytes,
+            total_bytes,
+        })
+    })
+}
+
+/// The observer may stop the worker at staging checkpoints. Published targets
+/// and the reviewed preimages remain under the same copy rules as ordinary transfers.
+fn copy_content_with_progress(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+    work: &Path,
+    copied: &mut dyn FnMut(u64) -> Result<()>,
+) -> Result<()> {
+    ensure_directory(work)?;
+    copied(0)?;
     for tree in content {
         let source = source_root.join(&tree.relative_path);
         let destination = destination_root.join(&tree.relative_path);
-        copy_reviewed_tree(&source, &destination, &tree.copy, &work)?;
+        copy_reviewed_tree_with_progress(&source, &destination, &tree.copy, work, copied)?;
     }
     Ok(())
 }
@@ -45,16 +94,28 @@ pub(crate) fn copy_reviewed_tree(
     plan: &AdoptionCopyPlan,
     work: &Path,
 ) -> Result<()> {
+    copy_reviewed_tree_with_progress(source, destination, plan, work, &mut |_| Ok(()))
+}
+
+fn copy_reviewed_tree_with_progress(
+    source: &Path,
+    destination: &Path,
+    plan: &AdoptionCopyPlan,
+    work: &Path,
+    copied: &mut dyn FnMut(u64) -> Result<()>,
+) -> Result<()> {
     crate::runtime_data_policy::refuse_sensitive_tree(source)?;
     crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
     ensure_directory(work)?;
     ensure_directory(destination)?;
     for relative in &plan.directories {
+        copied(0)?;
         crate::runtime_data_policy::refuse_sensitive_entry(&source.join(relative))?;
         crate::runtime_data_policy::refuse_sensitive_entry(&destination.join(relative))?;
         ensure_directory(&destination.join(relative))?;
     }
     for file in &plan.files {
+        copied(0)?;
         let target = destination.join(&file.relative_path);
         let origin = source.join(&file.relative_path);
         crate::runtime_data_policy::refuse_sensitive_entry(&origin)?;
@@ -74,6 +135,7 @@ pub(crate) fn copy_reviewed_tree(
                     "an existing destination file has different modification time; both copies have been retained",
                 ).detail("path", target.display().to_string()));
             }
+            copied(file.size)?;
             continue;
         }
         let mut output = tempfile::NamedTempFile::new_in(work)?;
@@ -93,6 +155,7 @@ pub(crate) fn copy_reviewed_tree(
             }
             digest.update(&buffer[..read]);
             output.write_all(&buffer[..read])?;
+            copied(read as u64)?;
         }
         if size != file.size || hex::encode(digest.finalize()) != file.sha256 {
             return Err(PortcoveError::verification(
@@ -104,6 +167,7 @@ pub(crate) fn copy_reviewed_tree(
         output.as_file().set_permissions(before.permissions())?;
         output.as_file().sync_all()?;
         recheck_copy_file(&origin, &input, &before)?;
+        copied(0)?;
         output
             .persist_noclobber(&target)
             .map_err(|error| PortcoveError::from(error.error))?;
@@ -178,6 +242,13 @@ pub(crate) fn copy_database(library: &Library, plan: &LibraryMovePlan) -> Result
                 ));
             }
         }
+        if plan.metadata.schema_version >= 12 {
+            crate::portability::restore_saved_originals(
+                &transaction,
+                &plan.metadata,
+                &plan.destination_root,
+            )?;
+        }
         transaction.commit()?;
     }
     temporary.as_file().sync_all()?;
@@ -238,6 +309,26 @@ pub(crate) fn verify_destination(
             "destination database integrity check failed",
         ));
     }
+    verify_installations(library, expected_metadata, &catalogs)?;
+    for relative in &expected_metadata.application_versions {
+        if crate::runtime_path_policy::has_bundled_manifest_path_limit(
+            &relative.port_id,
+            &relative.artifact.sha256,
+        ) {
+            let mut installed = relative.clone();
+            installed.path = destination_root.join(&relative.path);
+            crate::install::check_retained_launch_destination(&installed, &installed.path)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_installations(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+    catalogs: &crate::library_import::PortabilityCatalogs,
+) -> Result<()> {
+    let destination_root = library.root();
     let installer = crate::install::Installer::new(library.clone())?;
     let platform = crate::Platform::current()?;
     for relative in &expected_metadata.application_versions {
@@ -271,6 +362,13 @@ pub(crate) fn verify_metadata(
 ) -> Result<()> {
     let mut metadata = library.metadata_for_root(&fs::canonicalize(library.root())?)?;
     let mut expected = expected_metadata.clone();
+    for source in expected
+        .source_references
+        .iter_mut()
+        .chain(&mut expected.source_instances)
+    {
+        *source = crate::portability::source_for_import(expected_metadata, source, library.root())?;
+    }
     metadata.original_root = expected.original_root.clone();
     metadata.exported_at = 0;
     expected.exported_at = 0;

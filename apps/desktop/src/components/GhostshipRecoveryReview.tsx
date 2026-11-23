@@ -62,7 +62,7 @@ export function GhostshipRecoveryReview({
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
   const { t } = useAppTranslation("backups");
-  const cancel = useRef<HTMLButtonElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
   const {
     preview: plan,
     pending,
@@ -75,15 +75,15 @@ export function GhostshipRecoveryReview({
     load: async () => {
       const result = await desktopApi.planGhostshipLegacyRecovery(backup.id, generation);
       if (
-        backup.port_id !== "ghostship" ||
-        result.backup.port_id !== "ghostship" ||
+        backup.recovery_review !== "legacy_install_and_data_v1" ||
+        result.backup.port_id !== backup.port_id ||
         result.backup.id !== backup.id
       )
         // Thrown text is read by the shared failure presentation, so it is already translated.
         throw new Error(t("ghostship.planMismatch"));
       return result;
     },
-    apply: (reviewed) => apply(reviewed.backup, reviewed.plan_sha256),
+    apply: (reviewed) => apply(backup, reviewed.plan_sha256),
     close,
     failureMessage: t("ghostship.failure"),
   });
@@ -95,13 +95,15 @@ export function GhostshipRecoveryReview({
       }}
     >
       <DialogContent
-        initialFocus={cancel}
+        initialFocus={title}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="ghostship-recovery-description"
         finalFocus={finalFocus}
       >
-        <DialogTitle>{t("ghostship.title")}</DialogTitle>
+        <DialogTitle ref={title} tabIndex={-1}>
+          {t("ghostship.title")}
+        </DialogTitle>
         <DialogDescription id="ghostship-recovery-description">
           {t("ghostship.description")}
         </DialogDescription>
@@ -134,13 +136,7 @@ export function GhostshipRecoveryReview({
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter>
-          <Button
-            ref={cancel}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("ghostship.cancel")}
           </Button>
           {!plan && (

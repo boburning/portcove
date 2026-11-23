@@ -16,7 +16,7 @@ use std::{
 const INDEX: &str = "definitions/index.json";
 const MAX_FILES: usize = 16385;
 const MAX_TOTAL: usize = 32 * 1024 * 1024;
-const MAX_LEAF: usize = 4 * 1024 * 1024;
+const MAX_LEAF: usize = crate::definition_index::MAX_CONTENT_BYTES as usize;
 const MAX_POLICY: usize = 64 * 1024;
 fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -68,15 +68,36 @@ pub struct ListingPublicationIdentity {
     pub withdrawn_count: usize,
 }
 
-pub(crate) fn inspect_listing_publication(bytes: &[u8]) -> Result<ListingPublicationIdentity> {
-    let document = crate::definition_repository::publisher_policy::listing_delivery::ListingDeliveryDocument::parse(bytes)?;
-    Ok(ListingPublicationIdentity {
-        target: crate::definition_repository::publisher_policy::listing_delivery::TARGET.into(),
-        revision: document.revision,
-        sha256: hash(bytes),
-        listing_count: document.directory.listings.len(),
-        withdrawn_count: document.withdrawn_ids.len(),
-    })
+fn inspect_listing_publication(
+    target: &str,
+    bytes: &[u8],
+) -> Result<(ListingPublicationIdentity, String)> {
+    use crate::definition_repository::publisher_policy::listing_delivery::ListingDeliveryDocument;
+    let raw_sha256 = hash(bytes);
+    let decoded;
+    let (payload, decoded_sha256) = if target == portcove_listing_carrier::COMPACT_TARGET {
+        let (value, digest) = portcove_listing_carrier::decode(bytes)
+            .map_err(|error| PortcoveError::verification(error.to_string()))?;
+        decoded = value;
+        (decoded.as_slice(), digest)
+    } else {
+        (bytes, raw_sha256.clone())
+    };
+    let document = if target == portcove_listing_carrier::COMPACT_TARGET {
+        ListingDeliveryDocument::parse_compact(payload)?
+    } else {
+        ListingDeliveryDocument::parse(payload)?
+    };
+    Ok((
+        ListingPublicationIdentity {
+            target: target.into(),
+            revision: document.revision,
+            sha256: raw_sha256,
+            listing_count: document.directory.listings.len(),
+            withdrawn_count: document.withdrawn_ids.len(),
+        },
+        decoded_sha256,
+    ))
 }
 
 /// Reuse existing parsers and the complete semantic projection. Unsupported
@@ -89,14 +110,15 @@ pub fn inspect_definition_publication_bytes(
     }
     let mut total = 0usize;
     for (name, bytes) in files {
-        let bound =
-            if name == crate::definition_repository::publisher_policy::listing_delivery::TARGET {
-                crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
-            } else if name.starts_with("policy/") {
-                MAX_POLICY
-            } else {
-                MAX_LEAF
-            };
+        let bound = if portcove_listing_carrier::is_listing_target(name) {
+            portcove_listing_carrier::MAX_BYTES
+        } else if name == INDEX {
+            crate::definition_index::MAX_INDEX_BYTES
+        } else if name.starts_with("policy/") {
+            MAX_POLICY
+        } else {
+            MAX_LEAF
+        };
         total = total.checked_add(bytes.len()).ok_or_else(invalid)?;
         if bytes.is_empty() || bytes.len() > bound || total > MAX_TOTAL {
             return Err(invalid());
@@ -112,14 +134,26 @@ pub fn inspect_definition_publication_bytes(
         index.verify_content(target, bytes)?;
         expected.insert(target.to_owned());
     }
-    let listing_target = crate::definition_repository::publisher_policy::listing_delivery::TARGET;
-    let listings = files
-        .get(listing_target)
-        .map(|bytes| inspect_listing_publication(bytes))
-        .transpose()?;
-    if listings.is_some() {
-        expected.insert(listing_target.into());
+    let mut inspect_listing = |target: &str| -> Result<_> {
+        let inspection = files
+            .get(target)
+            .map(|bytes| inspect_listing_publication(target, bytes))
+            .transpose()?;
+        if inspection.is_some() {
+            expected.insert(target.into());
+        }
+        Ok(inspection)
+    };
+    let legacy = inspect_listing(portcove_listing_carrier::LEGACY_TARGET)?;
+    let compact = inspect_listing(portcove_listing_carrier::COMPACT_TARGET)?;
+    if let Some((new, new_digest)) = &compact {
+        let (old, old_digest) = legacy.as_ref().ok_or_else(invalid)?;
+        if new.revision < old.revision || (new.revision == old.revision && new_digest != old_digest)
+        {
+            return Err(invalid());
+        }
     }
+    let listings = compact.or(legacy).map(|(record, _)| record);
     let mut definitions = Vec::new();
     for definition in index.definitions() {
         if definition.namespace() != "official" {
@@ -137,6 +171,7 @@ pub fn inspect_definition_publication_bytes(
             entry_bytes,
             contract,
         )?;
+        crate::definition_candidate::selection::publishable_snapshot_size(projection.snapshot())?;
         referenced.insert(definition.target().to_owned());
         referenced.extend(entry.referenced_targets().map(str::to_owned));
         let policy_target = format!("policy/official/{}.json", definition.stable_id());
@@ -305,10 +340,10 @@ fn read_bundle(root: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
                 if !metadata.is_file() || files.len() >= MAX_FILES {
                     return Err(invalid());
                 }
-                let cap = if target
-                    == crate::definition_repository::publisher_policy::listing_delivery::TARGET
-                {
-                    crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
+                let cap = if portcove_listing_carrier::is_listing_target(&target) {
+                    portcove_listing_carrier::MAX_BYTES
+                } else if target == INDEX {
+                    crate::definition_index::MAX_INDEX_BYTES
                 } else if target.starts_with("policy/") {
                     MAX_POLICY
                 } else {

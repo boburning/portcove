@@ -1,13 +1,26 @@
+import { SetupLaunchDraftsProvider } from "./features/browsing/setup-launch-drafts";
+import {
+  LibraryRecoveryBundleContinuation,
+  LibraryRecoveryBundleProvider,
+} from "./components/LibraryRecoveryBundle";
+import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+} from "./features/organization/OrganizationControls";
+import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
 import {
   addRequiredSource,
   replaceRegisteredSource,
 } from "./features/source-health/source-actions";
 import desktopPackage from "../package.json";
+import { detailSections } from "./features/game-details/detail-sections";
 import { AddGames } from "./components/AddGames";
+import { SavedScanFeedback, savedScanSummary } from "./components/SavedScanFeedback";
+import { useAppTranslation } from "./localization";
 import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
@@ -21,12 +34,14 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { SettingsExportResultsProvider } from "./features/workspace/settings-export-results";
 import {
   sourcesKey,
   useStandingSetupCatchUp,
@@ -38,7 +53,12 @@ import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
-import { targetInvocationContext } from "./features/operations/invocation-state";
+import {
+  canOpenExternalRegistration,
+  canOpenInstalledResult,
+  matchingSavedSource,
+  targetInvocationContext,
+} from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
   useInstallPlanning,
@@ -50,13 +70,19 @@ import {
   type LibraryBrowsingContext,
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import { CurrentGamePlayControl, currentGamePlayKey } from "./features/app-shell/current-game-play";
 import type { DetailOpening } from "./features/game-details/detail-sections";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
   focusSettingsTarget,
+  revealSettingsHeading,
   settingsCategoryForTarget,
 } from "./features/app-shell/focus-settings-target";
-import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
+import {
+  GameFileScanProvider,
+  useGameFileScanObserver,
+  type ScanResultRequest,
+} from "./features/game-file-discovery/use-game-file-scan";
 import {
   SetupReviewSelectionProvider,
   useSetupReviewSelection,
@@ -90,18 +116,29 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { GameAlternatives } from "./features/browsing/GameAlternatives";
-import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
+import {
+  type GameSourceDropReview,
+  PortBrowser,
+  SteamBatchLibraryAction,
+  visibleRecentPort,
+} from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
 import { catalogEntries, usesSelfServiceDetail } from "./features/browsing/catalog-entry";
-import { setupRoutePresentation } from "./features/port-actions/setup-route-presentation";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./features/browsing/catalog-query";
 import {
   useGameFileFilterContext,
   type GameFileFilterState,
 } from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
-import { SourceIntakeDialog } from "./components/SourceIntake";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "./components/ui/dialog";
+import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { OfficialDefinitionUpdates } from "./components/OfficialDefinitionUpdates";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
@@ -138,15 +175,20 @@ import {
   indexStatuses,
   mostRecentPort,
   preparationRecoveryPort,
+  searchCatalogPorts,
   requiredSourceNeeds,
   summarizeLibrary,
   type DetailDestination,
+  type View,
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
+import { AutomaticSnapshotsProvider } from "./components/AutomaticSnapshotsSetting";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { referenceIdentity } from "./shared/reference-identity";
+import { activeSourceHeroMediaContext, canCheckEditionArtwork } from "./hero-media";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
+import { withoutVerbatimPrefix } from "./path-presentation";
 
 export const missingBootstrapError = {
   code: "state",
@@ -159,7 +201,9 @@ export default function App() {
     <TooltipProvider>
       <InterfaceSizeProvider>
         <InvocationOwnerProvider>
-          <PortcoveApp />
+          <LibraryRecoveryBundleProvider>
+            <PortcoveApp />
+          </LibraryRecoveryBundleProvider>
         </InvocationOwnerProvider>
       </InterfaceSizeProvider>
     </TooltipProvider>
@@ -180,7 +224,7 @@ function PortcoveApp() {
       return next;
     });
   }, []);
-  const { bootstrap, bootstrapError, recoveryPending, switchLibrary, chooseLibrary, resetLibrary } =
+  const { bootstrap, bootstrapError, recoveryPending, switchLibrary, resetLibrary } =
     useBootstrapState();
   const {
     switchFromSettings,
@@ -193,7 +237,7 @@ function PortcoveApp() {
       <BootstrapRecovery
         error={bootstrapError}
         recoveryPending={recoveryPending}
-        chooseLibrary={chooseLibrary}
+        switchLibrary={switchLibrary}
         resetLibrary={resetLibrary}
       />
     );
@@ -204,26 +248,28 @@ function PortcoveApp() {
         key={bootstrap.generation}
         error={bootstrap.error ?? missingBootstrapError}
         recoveryPending={recoveryPending}
-        chooseLibrary={chooseLibrary}
+        switchLibrary={switchLibrary}
         resetLibrary={resetLibrary}
       />
     );
   return (
     <GameFileScanProvider key={bootstrap.generation} generation={bootstrap.generation}>
       <SetupReviewSelectionProvider>
-        <Workspace
-          bootstrap={bootstrap}
-          initialBrowsingContext={
-            bootstrap.library_root
-              ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
-              : undefined
-          }
-          rememberBrowsingContext={rememberBrowsingContext}
-          switchLibrary={switchFromSettings}
-          resetLibrary={resetFromSettings}
-          returnToSelection={returnToSelection}
-          consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
-        />
+        <SetupLaunchDraftsProvider>
+          <Workspace
+            bootstrap={bootstrap}
+            initialBrowsingContext={
+              bootstrap.library_root
+                ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+                : undefined
+            }
+            rememberBrowsingContext={rememberBrowsingContext}
+            switchLibrary={switchFromSettings}
+            resetLibrary={resetFromSettings}
+            returnToSelection={returnToSelection}
+            consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
+          />
+        </SetupLaunchDraftsProvider>
       </SetupReviewSelectionProvider>
     </GameFileScanProvider>
   );
@@ -249,28 +295,63 @@ function BootstrapLoading() {
 export function BootstrapRecovery({
   error,
   recoveryPending = false,
-  chooseLibrary,
+  switchLibrary,
+  chooseFolder = pickLibraryFolder,
   resetLibrary,
 }: {
   error: StartupFailure;
   recoveryPending?: boolean;
-  chooseLibrary?: () => Promise<void>;
+  switchLibrary?: (path: string) => Promise<void>;
+  chooseFolder?: (current: string) => Promise<string | null>;
   resetLibrary?: () => Promise<void>;
 }) {
+  const { t } = useAppTranslation("common");
   const [actionError, setActionError] = useState<string>();
   const [transferPending, setTransferPending] = useState(false);
+  const [readingDestination, setReadingDestination] = useState(false);
+  const [selectionReview, setSelectionReview] = useState<{
+    kind: "switch" | "reset";
+    path: string;
+  }>();
+  const invalidPreferences = error.details.invalid_host_preference_document === "true";
+  const reviewSelection = async (kind: "switch" | "reset") => {
+    setActionError(undefined);
+    setReadingDestination(true);
+    try {
+      const path = await (kind === "switch" ? chooseFolder("") : desktopApi.defaultLibraryRoot());
+      if (path?.trim()) setSelectionReview({ kind, path });
+      else if (kind === "reset") throw new Error("The default library location is unavailable.");
+    } catch (value) {
+      setActionError(errorText(value));
+    } finally {
+      setReadingDestination(false);
+    }
+  };
+  const applySelection = async () => {
+    if (!selectionReview) return;
+    try {
+      if (selectionReview.kind === "switch") await switchLibrary?.(selectionReview.path);
+      else await resetLibrary?.();
+    } catch (value) {
+      setActionError(errorText(value));
+    } finally {
+      setSelectionReview(undefined);
+    }
+  };
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
-  const pending = recoveryPending || transferPending;
+  const pending = recoveryPending || transferPending || readingDestination;
+  const hasGenericUncertainty =
+    error.presentation?.presentation_key === "state_unavailable" &&
+    error.presentation.mutation_state === "unknown";
   return (
     <main className="bootstrap-state bootstrap-error startup-recovery">
       <header className="startup-recovery-heading">
-        <p className="eyebrow">Startup recovery</p>
         <h1>Portcove couldn’t start</h1>
         <p className="text-pc-muted-foreground" role="alert">
-          {errorText(error)}
+          {hasGenericUncertainty ? t("failure.outcome.unknown") : errorText(error)}
         </p>
       </header>
       {error.presentation ? (
@@ -278,6 +359,8 @@ export function BootstrapRecovery({
           presentation={error.presentation}
           code={error.code}
           contextLabel={startupDetailLabel}
+          contextValue={startupDetailValue}
+          showMutationSummary={!hasGenericUncertainty}
         />
       ) : (
         <StartupTechnicalDetails error={error} />
@@ -295,13 +378,19 @@ export function BootstrapRecovery({
           {importRoot && (
             <LibraryImportRecovery
               destination={importRoot}
+              bundle={error.details.recovery_action === "resume_library_recovery_restore"}
+              onOpenRestored={
+                switchLibrary && !invalidPreferences
+                  ? () => setSelectionReview({ kind: "switch", path: importRoot })
+                  : undefined
+              }
               disabled={pending}
               onBusyChange={setTransferPending}
             />
           )}
         </section>
       )}
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+      <p className="text-pc-muted-foreground">
         {recoveryRoot || importRoot
           ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
           : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
@@ -320,9 +409,9 @@ export function BootstrapRecovery({
           className="[align-self:flex-start]"
           type="button"
           variant="outline"
-          disabled={pending || !chooseLibrary}
+          disabled={pending || !switchLibrary || invalidPreferences}
           onClick={() => {
-            void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
+            void reviewSelection("switch");
           }}
         >
           Choose library
@@ -333,16 +422,56 @@ export function BootstrapRecovery({
           variant="outline"
           disabled={pending || !resetLibrary}
           onClick={() => {
-            void resetLibrary?.().catch((value) => setActionError(errorText(value)));
+            void reviewSelection("reset");
           }}
         >
           Use platform default
         </Button>
       </ActionRow>
-      {actionError && (
-        <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-          {actionError}
+      {invalidPreferences && (
+        <p>
+          Use the platform default to replace the invalid preferences before choosing another
+          library.
         </p>
+      )}
+      {actionError && <p role="alert">{actionError}</p>}
+      {selectionReview && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !pending) setSelectionReview(undefined);
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogTitle>Open this library at startup?</DialogTitle>
+            <DialogDescription>
+              Portcove will open this location now and on future launches. Existing files stay in
+              place.
+            </DialogDescription>
+            <code className="block wrap-anywhere" dir="ltr">
+              {selectionReview.path}
+            </code>
+            {selectionReview.kind === "reset" && (
+              <p>
+                {invalidPreferences
+                  ? "This replaces the invalid preferences and resets saved language and tool paths."
+                  : "Valid language and tool preferences are kept. If Portcove finds an invalid preference document, it resets language and tool paths."}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => setSelectionReview(undefined)}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" disabled={pending} onClick={() => void applySelection()}>
+                Open reviewed library
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       <section
         aria-label="Support report"
@@ -376,7 +505,7 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
             <div key={key}>
               <dt className="text-xs text-pc-muted-foreground">{label ?? <code>{key}</code>}</dt>
               <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
-                {value}
+                {startupDetailValue(key, value)}
               </dd>
             </div>
           );
@@ -384,6 +513,19 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
       </dl>
     </details>
   );
+}
+
+const startupPathDetails = new Set([
+  "path",
+  "library_root",
+  "lock_path",
+  "import_destination",
+  "retained_source",
+]);
+
+/** Shows recorded paths as the player knows them; recovery actions keep Core's raw value. */
+function startupDetailValue(key: string, value: string) {
+  return startupPathDetails.has(key) ? withoutVerbatimPrefix(value) : value;
 }
 
 function startupDetailLabel(key: string) {
@@ -410,16 +552,26 @@ type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 };
 
-function workspaceDetailBackLabel(addGamesOpen: boolean, origin: string | undefined) {
-  if (addGamesOpen && origin?.startsWith("add-games:")) return "Back to Add games";
-  if (origin?.startsWith("library:")) return "Back to Library";
-  if (origin?.startsWith("catalog:")) return "Back to Discover";
+function workspaceDetailBackLabel(view: View, addGamesOpen: boolean, origin: string | undefined) {
+  const fromInstallResult = origin?.startsWith("install-result:") ?? false;
+  if (
+    addGamesOpen &&
+    (origin?.startsWith("add-games:") ||
+      origin?.startsWith("add-games-folders") ||
+      (fromInstallResult && view === "library"))
+  )
+    return "Back to Add games";
+  const destination = fromInstallResult ? view : origin?.split(":", 1)[0];
+  if (destination === "library") return "Back to Library";
+  if (destination === "catalog") return "Back to Discover";
+  if (destination === "updates") return "Back to Activity";
+  if (fromInstallResult && destination === "settings") return "Back to Settings";
   return undefined;
 }
 
@@ -455,35 +607,24 @@ function useWorkspace(props: WorkspaceProps) {
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
   const applicationUpdate = useApplicationUpdate();
+  const setupOriginalRequests = useRef(new LatestRequestGeneration());
   const {
     request: sourceIntake,
-    open: openSourceIntake,
+    open: openIntake,
     close: closeSourceIntake,
   } = useSourceIntakeState(data.catalog, bootstrap.generation);
-  const nativeSourceDrag = useNativeSourceDrop((drop) =>
-    openSourceIntake(drop.portId, drop.profileId, drop.paths),
+  const openSourceIntake = useCallback(
+    (...args: Parameters<typeof openIntake>) => {
+      setupOriginalRequests.current.begin();
+      openIntake(...args);
+    },
+    [openIntake],
   );
   const selectedPort = data.statuses.some(
     (status) => status.port_id === ui.selectedId && status.external_runtime?.user_selected,
   )
     ? undefined
     : data.catalog?.ports.find((port) => port.id === ui.selectedId);
-  const inspectionProfiles = useMemo(
-    () =>
-      ui.view === "settings"
-        ? data.sources.map((source) => source.profile_id)
-        : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter(
-            (profile): profile is string => Boolean(profile),
-          ),
-    [data.sources, selectedPort?.bios_source_profile, selectedPort?.source_profile, ui.view],
-  );
-  const sourceHealth = useSourceHealth(
-    operations.perform,
-    data.sources,
-    inspectionProfiles,
-    `${bootstrap.generation}|${referenceIdentity(data.catalog?.source_catalog ?? null)}`,
-    data.queryClient,
-  );
   const appearance = useThemePreference();
   const gameFileQuery = useGameFileFilterContext({
     catalog: data.catalog,
@@ -494,6 +635,108 @@ function useWorkspace(props: WorkspaceProps) {
     libraryKey: bootstrap.library_root,
   });
   const model = useAppModel(data, ui, bootstrap.library_root, gameFileQuery);
+  const recentArtworkPort =
+    ui.view === "library" && !ui.selectedId && !favorites.only
+      ? visibleRecentPort(model.recent, organization, model.entries, model.statusMap)?.port
+      : undefined;
+  const artworkPort = selectedPort && model.entry ? model.entry : recentArtworkPort;
+  const artworkStatus = artworkPort && model.statusMap.get(artworkPort.id);
+  const artworkProfile = artworkPort?.source_profile;
+  const artworkSource = data.sources.find(({ profile_id }) => profile_id === artworkProfile);
+  const artworkRead =
+    artworkPort &&
+    artworkProfile &&
+    artworkSource &&
+    !data.refreshFailure &&
+    (artworkStatus?.active
+      ? artworkStatus.readiness?.active_game_source_profile === artworkProfile &&
+        (artworkStatus.readiness.source === "current" ||
+          artworkStatus.readiness.source === "not_checked")
+      : !artworkStatus?.external_runtime) &&
+    (!ui.selectedId || !ui.sourcePath.trim() || ui.sourcePath === artworkSource.path) &&
+    canCheckEditionArtwork(artworkPort, artworkPort.listing?.original_game)
+      ? { profileId: artworkProfile, generation: bootstrap.generation }
+      : undefined;
+  const inspectionProfiles =
+    ui.view === "settings"
+      ? data.sources.map((source) => source.profile_id)
+      : [
+          selectedPort?.source_profile,
+          selectedPort?.bios_source_profile,
+          artworkRead?.profileId,
+        ].filter((profile): profile is string => Boolean(profile));
+  const inspectionScope = [
+    bootstrap.generation,
+    referenceIdentity(data.catalog?.source_catalog ?? null),
+    referenceIdentity(data.listingCatalog ?? null),
+    Boolean(data.refreshFailure),
+    artworkPort?.id,
+    artworkStatus?.active?.id,
+    artworkStatus?.readiness?.source,
+  ].join("|");
+  const sourceHealth = useSourceHealth(
+    operations.perform,
+    data.sources,
+    inspectionProfiles,
+    inspectionScope,
+    data.queryClient,
+    artworkRead,
+  );
+  const [groupDrop, setGroupDrop] = useState<{
+    request: { gameId: string; paths: string[] };
+    generation: number;
+    catalog: typeof data.catalog;
+    query: string;
+    filter: typeof ui.filter;
+    listings: typeof data.listingCatalog;
+  }>();
+  const canReviewGroupedDrop = (gameId: string) =>
+    ui.view === "catalog" &&
+    !model.queryPending &&
+    model.visible.some((entry) => gameGroupId(entry) === gameId);
+  const pendingGroupDrop =
+    groupDrop?.generation === bootstrap.generation &&
+    groupDrop.catalog === data.catalog &&
+    groupDrop.listings === data.listingCatalog &&
+    groupDrop.query === ui.query &&
+    groupDrop.filter === ui.filter &&
+    canReviewGroupedDrop(groupDrop.request.gameId)
+      ? groupDrop.request
+      : undefined;
+  if (groupDrop && !pendingGroupDrop) setGroupDrop(undefined);
+  const gameSourceDropReview: GameSourceDropReview = {
+    pending: pendingGroupDrop,
+    dismiss: () => setGroupDrop((current) => (current === groupDrop ? undefined : current)),
+    select: (drop) => {
+      const port = data.catalog?.ports.find((candidate) => candidate.id === drop.portId);
+      if (
+        !pendingGroupDrop ||
+        !port ||
+        gameGroupId(model.entries.find((entry) => entry.id === port.id) ?? port) !==
+          pendingGroupDrop.gameId ||
+        port.source_profile !== drop.profileId
+      )
+        return;
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, pendingGroupDrop.paths);
+    },
+  };
+  const nativeSourceDrag = useNativeSourceDrop((drop) => {
+    if ("gameId" in drop) {
+      if (!canReviewGroupedDrop(drop.gameId)) return;
+      setGroupDrop({
+        request: drop,
+        generation: bootstrap.generation,
+        catalog: data.catalog,
+        listings: data.listingCatalog,
+        query: ui.query,
+        filter: ui.filter,
+      });
+    } else {
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, drop.paths);
+    }
+  });
   const installPlanning = useInstallPlanning(
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
@@ -508,17 +751,26 @@ function useWorkspace(props: WorkspaceProps) {
       : undefined,
     model.source,
     ui.sourcePath,
+    model.bios,
+    ui.biosPath,
   );
   const setupReviews = useSetupReviewSelection();
+  const setupInputs = {
+    generation: bootstrap.generation,
+    game: model.source,
+    bios: model.bios,
+  };
   usePendingSetupReview(
     setupReviews,
     ui.selectedId,
     model.port?.id,
     model.status,
-    data.refreshFailure,
+    Boolean(data.refreshFailure) ||
+      (model.port !== undefined && operations.unreadInstallPorts.has(model.port.id)),
     installPlanning.reviewSource,
     ui.sourcePath,
     ui.setSourcePath,
+    setupInputs,
   );
   const backupRefreshIdentity = useMemo(
     () => [data.catalog, model.status, data.activityFeed],
@@ -537,6 +789,7 @@ function useWorkspace(props: WorkspaceProps) {
     open: openPortDetails,
     replace: switchPortDetails,
     opening: detailOpening,
+    captureReturn: captureDetailReturn,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   useStartupPlayRequest({
     ready: Boolean(data.catalog),
@@ -547,6 +800,14 @@ function useWorkspace(props: WorkspaceProps) {
   });
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
+  const [scanRequest, setScanRequest] = useState<ScanResultRequest>();
+  const [scanOrigin, setScanOrigin] = useState<{
+    view: View;
+    game?: string | undefined;
+    resumeDetail?: (() => void) | undefined;
+    history: boolean;
+    identity: string;
+  }>();
   const [addGamesStarted, setAddGamesStarted] = useState(false);
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
   const organizationKey = ui.view === "catalog" ? "catalog" : "library";
@@ -557,13 +818,14 @@ function useWorkspace(props: WorkspaceProps) {
     setAddGamesOpen(false);
     setPrimaryView("library");
   };
-  const detailBackLabel = workspaceDetailBackLabel(addGamesOpen, detailOpening?.originKey);
+  const detailBackLabel = workspaceDetailBackLabel(ui.view, addGamesOpen, detailOpening?.originKey);
   const addGamesReturn = useRef(0);
+  const [addGamesFromSettings, setAddGamesFromSettings] = useState(false);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
-    (...args: Parameters<typeof setView>) => {
-      const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
-      if (nextView === "updates") setActivitySection("tasks");
+    (next: Parameters<typeof setView>[0], activitySection?: "history") => {
+      const nextView = typeof next === "function" ? next(ui.view) : next;
+      if (nextView === "updates") setActivitySection(activitySection ?? "tasks");
       if (nextView !== "settings") setPendingToolId(undefined);
       const detailReturn = invalidatePortDetails();
       switchView(
@@ -575,7 +837,14 @@ function useWorkspace(props: WorkspaceProps) {
         detailReturn && {
           scrollTop: detailReturn.scrollTop,
           focusOrigin: detailReturn.originKey,
+          collection: {
+            originKey: detailReturn.originKey,
+            portId: detailReturn.returnPortId,
+            groupKey: detailReturn.groupKey,
+            viewportTop: detailReturn.viewportTop,
+          },
         },
+        activitySection === undefined,
       );
     },
     [invalidatePortDetails, setSelectedId, setView, switchView, ui.view, setActivitySection],
@@ -586,23 +855,65 @@ function useWorkspace(props: WorkspaceProps) {
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
-  const openAddGames = () => {
+  const openAddGamesFrom = (fromSettings: boolean, focusHeading = true) => {
+    setAddGamesFromSettings(fromSettings);
     addGamesReturn.current = workspaceScrollTop(workspace.current);
     setAddGamesStarted(true);
     setAddGamesOpen(true);
     setPrimaryView("library");
+    if (!focusHeading) return;
     requestAnimationFrame(() => {
       scrollWorkspaceTo(workspace.current, 0);
       workspace.current?.querySelector<HTMLElement>("h1")?.focus();
     });
   };
+  const openAddGames = () => {
+    setScanOrigin(undefined);
+    setScanRequest((request) => request && { sequence: request.sequence });
+    openAddGamesFrom(false);
+  };
+  const openGameFileScan = () => {
+    setScanOrigin(undefined);
+    setScanRequest((request) => ({ sequence: (request?.sequence ?? 0) + 1 }));
+    openAddGamesFrom(true);
+  };
+  const openSavedScanResult = (identity: string) => {
+    const section =
+      workspace.current?.querySelector<HTMLElement>("[data-detail-section]")?.dataset.detailSection;
+    setScanOrigin({
+      view: ui.view,
+      game: model.entry?.id,
+      resumeDetail: captureDetailReturn(detailSections.find((candidate) => candidate === section)),
+      history: ui.activitySection === "history",
+      identity,
+    });
+    setScanRequest((request) => ({ sequence: (request?.sequence ?? 0) + 1, expected: identity }));
+    openAddGamesFrom(false, false);
+  };
   const closeAddGames = () => {
     setAddGamesOpen(false);
+    setScanRequest((request) => request && { sequence: request.sequence });
+    setScanOrigin(undefined);
+    if (scanOrigin) {
+      setPrimaryView(scanOrigin.view, scanOrigin.history ? "history" : undefined);
+      if (scanOrigin.game && availablePortIds?.has(scanOrigin.game)) scanOrigin.resumeDetail?.();
+    } else if (addGamesFromSettings) {
+      ui.setSettingsCategory("game-files");
+      setPrimaryView("settings");
+    }
     requestAnimationFrame(() => {
       scrollWorkspaceTo(workspace.current, addGamesReturn.current);
-      workspace.current
-        ?.querySelector<HTMLElement>("[data-add-games-trigger]")
-        ?.focus({ preventScroll: true });
+      const target = scanOrigin
+        ? [
+            ...(workspace.current?.querySelectorAll<HTMLElement>("[data-scan-result-trigger]") ??
+              []),
+          ].find((item) => item.dataset.scanResultTrigger === scanOrigin.identity)
+        : workspace.current?.querySelector<HTMLElement>(
+            addGamesFromSettings ? "[data-open-game-file-scan]" : "[data-add-games-trigger]",
+          );
+      (target ?? workspace.current?.querySelector<HTMLElement>("h1"))?.focus({
+        preventScroll: true,
+      });
     });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
@@ -611,10 +922,21 @@ function useWorkspace(props: WorkspaceProps) {
     () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
     [model.searchableGames, hiddenPortIds],
   );
+  const currentGame = model.entry;
+  const playKey = currentGame
+    ? currentGamePlayKey(currentGame.id, bootstrap.generation, model.status)
+    : undefined;
+  const [playControl, setPlayControl] = useState<HTMLButtonElement | null>(null);
+  const canActivatePlay = () =>
+    playControl?.isConnected &&
+    playControl.dataset.currentGamePlay === playKey &&
+    !playControl.disabled &&
+    playControl.getAttribute("aria-disabled") !== "true";
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
     games: paletteGames,
+    preferredPortByGame: organization.snapshot?.preferred_port_by_game,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
     setView: setPrimaryView,
@@ -630,6 +952,28 @@ function useWorkspace(props: WorkspaceProps) {
     openUpdates: () => {
       setPrimaryView("updates");
       ui.setActivitySection("updates");
+    },
+    currentGame: currentGame
+      ? {
+          port: currentGame,
+          destinations: model.status?.active
+            ? ["files", "updates", "saves", "manage"]
+            : model.status?.external_runtime
+              ? ["files", "saves", "manage"]
+              : ["files"],
+          open: (destination) => switchPortDetails(currentGame.id, destination),
+          play:
+            playControl && canActivatePlay()
+              ? () => {
+                  if (canActivatePlay()) playControl.click();
+                }
+              : undefined,
+        }
+      : undefined,
+    openSettingsCategory: (category) => {
+      setPrimaryView("settings");
+      ui.setSettingsCategory(category);
+      revealSettingsHeading("settings-" + category + "-heading");
     },
   });
   const adopting = [...operations.pendingOperations.values()].some(
@@ -692,8 +1036,19 @@ function useWorkspace(props: WorkspaceProps) {
     (addGamesOpen && ui.view === "library" ? (
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Back to Library
+          <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
+          {scanOrigin
+            ? scanOrigin.game
+              ? "Back to game"
+              : {
+                  library: "Back to Library",
+                  catalog: "Back to Discover",
+                  updates: "Back to Activity",
+                  settings: "Back to Settings",
+                }[scanOrigin.view]
+            : addGamesFromSettings
+              ? "Back to Game files settings"
+              : "Back to Library"}
         </Button>
         <h1 tabIndex={-1}>Add games</h1>
       </div>
@@ -703,10 +1058,8 @@ function useWorkspace(props: WorkspaceProps) {
         query={ui.query}
         setQuery={ui.setQuery}
         portCount={model.entries.length}
-        libraryCount={data.catalog ? model.overview.installed : undefined}
-        onAddGames={
-          ui.view === "library" && model.overview.installed > 0 ? openAddGames : undefined
-        }
+        libraryCount={data.catalog ? model.libraryCount : undefined}
+        onAddGames={ui.view === "library" && model.libraryCount > 0 ? openAddGames : undefined}
       />
     ));
   const renderPreferenceFailure = () =>
@@ -762,7 +1115,12 @@ function useWorkspace(props: WorkspaceProps) {
       />
     </>
   );
-  const renderWorkspaceView = () =>
+  const renderWorkspaceView = () => (
+    <CurrentGamePlayControl.Provider value={setPlayControl}>
+      {renderWorkspaceContent()}
+    </CurrentGamePlayControl.Provider>
+  );
+  const renderWorkspaceContent = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
         backLabel={detailBackLabel}
@@ -780,21 +1138,11 @@ function useWorkspace(props: WorkspaceProps) {
         )}
         implementationControl={implementationControl}
         managementSupplement={setupAvailabilityControl}
-        favoriteControl={
-          model.status?.external_runtime
-            ? renderSelectedPortFavoriteControl({
-                favorites,
-                favoritePortId: model.entry.id,
-                displayPort: model.entry,
-              })
-            : undefined
-        }
+        favorites={favorites}
         status={model.status}
         generation={bootstrap.generation}
         perform={operations.perform}
-        onChanged={() => {
-          void data.refreshAfterMutation();
-        }}
+        onChanged={data.refreshAfterMutation}
         close={closePortDetails}
       />
     ) : model.port ? (
@@ -809,27 +1157,18 @@ function useWorkspace(props: WorkspaceProps) {
             !model.status?.active &&
             !model.status?.staged &&
             !model.status?.external_runtime && (
-              <details
-                open={setupRoutePresentation(model.entry, model.status).promoteAlternative}
-                className="mt-6 border-t border-pc-border pt-4"
-              >
-                <summary data-focusable className="cursor-pointer font-medium">
-                  Use an existing installation · Installation options
-                </summary>
-                <div className="mt-4">
-                  <SelfServiceSetup
-                    libraryRoot={bootstrap.library_root ?? undefined}
-                    key={`${model.entry.id}:${bootstrap.generation}`}
-                    entry={model.entry}
-                    status={model.status}
-                    generation={bootstrap.generation}
-                    perform={operations.perform}
-                    onChanged={() => {
-                      void data.refreshAfterMutation();
-                    }}
-                  />
-                </div>
-              </details>
+              <div className="mt-6 border-t border-pc-border pt-4">
+                <SelfServiceSetup
+                  devicePlatform={model.queryContext.devicePlatform}
+                  libraryRoot={bootstrap.library_root ?? undefined}
+                  key={`${model.entry.id}:${bootstrap.generation}`}
+                  entry={model.entry}
+                  status={model.status}
+                  generation={bootstrap.generation}
+                  perform={operations.perform}
+                  onChanged={data.refreshAfterMutation}
+                />
+              </div>
             )
           }
           organization={organization}
@@ -847,11 +1186,11 @@ function useWorkspace(props: WorkspaceProps) {
           backups={backups}
           activities={data.activities}
           libraryGeneration={bootstrap.generation}
-          refreshAfterMutation={() => {
-            void data.refreshAfterMutation();
-          }}
+          libraryRoot={bootstrap.library_root ?? undefined}
+          refreshAfterMutation={data.refreshAfterMutation}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
+          setupOriginalRequests={setupOriginalRequests}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
             ui.setSettingsCategory("library-storage");
@@ -864,6 +1203,7 @@ function useWorkspace(props: WorkspaceProps) {
     ) : addGamesOpen && ui.view === "library" ? null : (
       <CurrentView
         onAddGames={openAddGames}
+        onOpenGameFileScan={openGameFileScan}
         collection={collection}
         organization={organization}
         organizationSelection={{
@@ -883,6 +1223,7 @@ function useWorkspace(props: WorkspaceProps) {
         switchLibrary={switchLibraryWithContext}
         resetLibrary={resetLibraryWithContext}
         nativeSourceDrag={nativeSourceDrag}
+        gameSourceDropReview={gameSourceDropReview}
         hostToolActions={hostToolActions}
         applicationUpdates={
           <ApplicationUpdateSettings
@@ -897,12 +1238,72 @@ function useWorkspace(props: WorkspaceProps) {
         setSetupSource={setSetupSource}
       />
     );
+  const continueSourceSetup = (request: SourceIntakeRequest, registered: SourceRecord) => {
+    const { setup, portId, generation, purpose, profile } = request;
+    const status = model.status;
+    if (
+      !setup ||
+      ui.selectedId !== portId ||
+      model.port?.id !== portId ||
+      generation !== bootstrap.generation ||
+      status?.channel !== setup.channel ||
+      status.active ||
+      status.external_runtime ||
+      data.refreshFailure
+    )
+      return "This setup has changed. Close this check and review setup on the game page.";
+
+    const current = purpose === "bios" ? model.bios : model.source;
+    const other = purpose === "bios" ? model.source : model.bios;
+    if (
+      registered.profile_id !== profile.id ||
+      JSON.stringify(registered) !== JSON.stringify(current) ||
+      JSON.stringify(setup.other) !== JSON.stringify(other)
+    )
+      return "The saved files have changed. Close this check and check the current files before continuing.";
+
+    const install = status.port_actions?.find((action) => action.action === "install");
+    const next =
+      install?.availability === "waiting"
+        ? install.reason === "missing_bios" && purpose === "game"
+          ? model.biosProfile
+          : install.reason === "missing_source" && purpose === "bios"
+            ? model.sourceProfile
+            : undefined
+        : undefined;
+    if (next) {
+      const draft = purpose === "bios" ? ui.sourcePath : ui.biosPath;
+      if (purpose === "bios") ui.setBiosPath("");
+      else ui.setSourcePath("");
+      openSourceIntake(portId, next.id, draft.trim() ? [draft] : [], {
+        channel: setup.channel,
+        other: registered,
+      });
+      return;
+    }
+    if (
+      install?.availability !== "allowed" ||
+      (purpose === "game" && ui.biosPath && ui.biosPath !== model.bios?.path) ||
+      (purpose === "bios" && ui.sourcePath && ui.sourcePath !== model.source?.path)
+    )
+      return "Review the remaining setup requirements on the game page.";
+
+    ui.setSourcePath("");
+    ui.setBiosPath("");
+    closeSourceIntake();
+    setupReviews.requestReview(portId, setup.channel, undefined, setupInputs);
+  };
   const renderSourceIntake = () =>
     sourceIntake && (
       <SourceIntakeDialog
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
+        onContinueSetup={
+          sourceIntake.setup
+            ? (registered) => continueSourceSetup(sourceIntake, registered)
+            : undefined
+        }
         returnFocus={() => workspaceSourceIntakeReturnFocus(sourceIntake.portId)}
         openEvidence={(evidenceId) => {
           void operations.perform(
@@ -934,6 +1335,8 @@ function useWorkspace(props: WorkspaceProps) {
     addGamesStarted,
     setPrimaryView,
     closeAddGames,
+    scanRequest,
+    openSavedScanResult,
     commandSurface,
     controller,
     reviewApplicationUpdate,
@@ -946,7 +1349,14 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <AutomaticSnapshotsProvider generation={model.bootstrap.generation}>
+      <SettingsExportResultsProvider key={props.bootstrap.generation}>
+        <WorkspaceView {...model} />
+      </SettingsExportResultsProvider>
+    </AutomaticSnapshotsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
@@ -958,7 +1368,7 @@ function WorkspaceSidebar({ model }: { model: Omit<WorkspaceModel, "workspace"> 
       view={model.ui.view}
       setView={model.setPrimaryView}
       controller={model.controller}
-      installedCount={model.model.overview.installed}
+      libraryCount={model.data.catalog ? model.model.libraryCount : undefined}
       updateCount={
         model.data.statuses.filter((status) => {
           const check = currentUpdateSnapshot(status)?.check;
@@ -996,6 +1406,11 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
     <OperationPresentationProvider
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
+      unreadInstallPorts={model.operations.unreadInstallPorts}
+      unreadExternalPorts={model.operations.unreadExternalPorts}
+      unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
+      sourceWriteOnHold={model.operations.sourceWriteOnHold}
+      perform={model.operations.perform}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -1042,6 +1457,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
               {model.addGamesStarted && (
                 <AddGames
                   key={model.bootstrap.generation}
+                  scanRequest={model.scanRequest}
                   active={model.addGamesOpen && model.ui.view === "library" && !model.model.entry}
                   generation={model.bootstrap.generation}
                   ports={model.data.catalog?.ports ?? []}
@@ -1083,29 +1499,35 @@ type WorkspaceFeedbackModel = Pick<
   | "operations"
   | "data"
   | "openPortDetails"
+  | "openSavedScanResult"
+  | "addGamesOpen"
   | "setPrimaryView"
   | "applicationUpdate"
   | "reviewApplicationUpdate"
   | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
-  ui: Pick<WorkspaceModel["ui"], "view" | "revealActivity">;
-  model: Pick<WorkspaceModel["model"], "statusMap">;
+  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity" | "setSettingsCategory">;
+  model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
 
 function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
+  const { t } = useAppTranslation("gameFiles");
+  const scan = useGameFileScanObserver(model.bootstrap.generation);
+  const savedScan = scan.scanning ? undefined : scan.receipt?.snapshot;
   return (
     <div className="flow-root min-w-0" data-workspace-feedback>
+      <LibraryRecoveryBundleContinuation />
       <StatusLayer
+        scanResultAnnouncement={savedScan ? savedScanSummary(t, savedScan) : undefined}
         invocations={model.operations.invocations}
         operationEvents={model.operations.operationEvents}
         dismissInvocation={model.operations.dismissInvocation}
         onActivity={model.ui.view === "updates"}
-        openActivity={(id) => {
+        openActivity={(id, section) => {
           model.ui.revealActivity(id);
-          // Also selects the Tasks section, even when Activity is already open.
-          model.setPrimaryView("updates");
+          model.setPrimaryView("updates", section);
         }}
         error={model.operations.error}
         clearError={() => model.operations.setError(undefined)}
@@ -1118,6 +1540,59 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           );
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
+        openInstalledGame={(record) => {
+          const { target } = record.context;
+          if (
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenInstalledResult(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadInstallPorts,
+            )
+          )
+            return undefined;
+          return () => model.openPortDetails(target.id, `install-result:${record.id}`);
+        }}
+        openExternalGame={(record) => {
+          const { target } = record.context;
+          if (
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenExternalRegistration(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadExternalPorts,
+            )
+          )
+            return undefined;
+          return () => model.openPortDetails(target.id, "external-result:" + record.id);
+        }}
+        openSavedSource={(record) => {
+          if (model.data.refreshFailure) return undefined;
+          const source = matchingSavedSource(
+            record,
+            model.data.sources,
+            model.bootstrap.generation,
+            model.data.workspaceReadRevision,
+          );
+          if (!source) return undefined;
+          const identity = referenceIdentity(source);
+          return () => {
+            model.ui.setSettingsCategory("game-files");
+            model.setPrimaryView("settings");
+            window.requestAnimationFrame(() =>
+              focusSettingsTarget("saved-source-result", source.profile_id, identity),
+            );
+          };
+        }}
+        completedActivityAvailable={(id) =>
+          model.data.activities.some(
+            (activity) => activity.id === id && activity.status === "succeeded",
+          )
+        }
         readyToPlay={(record) => {
           const { target } = record.context;
           const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
@@ -1135,6 +1610,11 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
             dismiss={model.dismissApplicationUpdateNotice}
           />
         }
+      />
+      <SavedScanFeedback
+        snapshot={savedScan}
+        show={!model.addGamesOpen || model.ui.view !== "library" || Boolean(model.ui.selectedId)}
+        open={model.openSavedScanResult}
       />
       <WorkspaceRefreshNotice
         failure={model.data.refreshFailure}
@@ -1177,6 +1657,41 @@ function useAppModel(
     () => catalogEntries(catalog, listingCatalog, listingStatuses, pendingSetups),
     [catalog, listingCatalog, listingStatuses, pendingSetups],
   );
+  const [listingAvailabilityTime, setListingAvailabilityTime] = useState(() => Date.now());
+  useEffect(() => {
+    const transitions = entries
+      .filter((entry) => !entry.listing?.availability_override_reason)
+      .flatMap((entry) => {
+        const observation = entry.listing?.upstream_observation;
+        return [
+          Date.parse(observation?.observed_at ?? ""),
+          Date.parse(observation?.fresh_until ?? ""),
+        ];
+      })
+      .filter(Number.isFinite)
+      .sort((left, right) => left - right);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      const now = Date.now();
+      const next = transitions.find((time) => time > now);
+      if (next !== undefined) {
+        timer = setTimeout(refresh, Math.min(next - now, 2_147_483_647));
+      }
+    };
+    const refresh = () => {
+      setListingAvailabilityTime(Date.now());
+      schedule();
+    };
+    if (transitions.length) {
+      timer = setTimeout(refresh, 0);
+      document.addEventListener("visibilitychange", refresh);
+    }
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [entries]);
   const statusMap = useMemo(
     () => indexStatuses([...listingStatuses.map(({ status }) => status), ...statuses]),
     [statuses, listingStatuses],
@@ -1206,7 +1721,7 @@ function useAppModel(
         : {},
     [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing, entries],
   );
-  const visible = useMemo(
+  const filteredPorts = useMemo(
     () =>
       filterPorts(
         ui.view === "library"
@@ -1223,22 +1738,24 @@ function useAppModel(
         statusMap,
         ui.view,
         ui.filter,
-        query,
+        "",
         ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
+        listingAvailabilityTime,
       ),
     [
       entries,
       statusMap,
+      listingAvailabilityTime,
       ui.view,
       ui.filter,
       ui.libraryReadiness,
-      query,
       ui.catalogSort,
       ui.librarySort,
       queryContext,
     ],
   );
+  const visible = useMemo(() => searchCatalogPorts(filteredPorts, query), [filteredPorts, query]);
   const catalogFilterCandidates = useMemo(
     () => (ui.view === "catalog" && data.catalog ? entries : undefined),
     [data.catalog, entries, ui.view],
@@ -1252,12 +1769,16 @@ function useAppModel(
   );
   const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
   const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);
-  const searchableGames = useMemo(() => {
-    const library = new Set(
-      filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id),
-    );
-    return entries.map((port) => ({ port, inLibrary: library.has(port.id) }));
-  }, [entries, statusMap]);
+  // Library membership includes Core's add-only entries. Keep this unfiltered
+  // total separate from installation/readiness counts and organization choices.
+  const libraryPortIds = useMemo(
+    () => new Set(filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id)),
+    [entries, statusMap],
+  );
+  const searchableGames = useMemo(
+    () => entries.map((port) => ({ port, inLibrary: libraryPortIds.has(port.id) })),
+    [entries, libraryPortIds],
+  );
   const sourceNeeds = useMemo(
     () =>
       requiredSourceNeeds(
@@ -1292,6 +1813,7 @@ function useAppModel(
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
   return {
+    queryPending: query !== ui.query,
     entries,
     statusMap,
     queryContext,
@@ -1300,6 +1822,7 @@ function useAppModel(
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
+    libraryCount: libraryPortIds.size,
     overview,
     recent,
     searchableGames,
@@ -1359,6 +1882,7 @@ function launchKnownPort(
 
 function CurrentView({
   onAddGames,
+  onOpenGameFileScan,
   collection,
   favorites,
   organization,
@@ -1375,6 +1899,7 @@ function CurrentView({
   switchLibrary,
   resetLibrary,
   nativeSourceDrag,
+  gameSourceDropReview,
   hostToolActions,
   applicationUpdates,
   openPortDetails,
@@ -1382,6 +1907,7 @@ function CurrentView({
   setSetupSource,
 }: {
   onAddGames: () => void;
+  onOpenGameFileScan: () => void;
   collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
@@ -1395,15 +1921,27 @@ function CurrentView({
   sourceHealth: SourceHealthState;
   appearance: AppearanceState;
   bootstrap: BootstrapStatus;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
+  gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
   applicationUpdates: ReactNode;
   openPortDetails: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
+  const [returnFromGithub, setReturnFromGithub] = useState<UpdateState["signInOffer"]>();
+  const { setReviewedActivityId, setView, setActivitySection } = ui;
+  const openTask = useCallback(
+    (activityId?: string) => {
+      setReviewedActivityId(activityId);
+      setView("updates");
+      setActivitySection("tasks");
+      window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+    },
+    [setReviewedActivityId, setView, setActivitySection],
+  );
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -1419,6 +1957,7 @@ function CurrentView({
         activityFeed={data.activityFeed}
         reviewedActivityId={ui.reviewedActivityId}
         reviewedActivityRequest={ui.reviewedActivityRequest}
+        claimActivityReveal={ui.claimActivityReveal}
         onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}
@@ -1433,8 +1972,17 @@ function CurrentView({
         }
         checkAll={updates.checkAll}
         signInOffer={updates.signInOffer}
+        githubStatus={github.status}
         onCheckAnyway={updates.checkAnyway}
         onDismissSignInOffer={updates.dismissSignInOffer}
+        onReviewGithub={() => {
+          setReturnFromGithub(updates.signInOffer);
+          ui.setSettingsCategory("integrations");
+          ui.setView("settings");
+          requestAnimationFrame(() =>
+            document.getElementById("settings-github-connection")?.focus(),
+          );
+        }}
         perform={operations.perform}
         onLaunch={(portId) =>
           launchKnownPort(
@@ -1455,6 +2003,19 @@ function CurrentView({
   if (ui.view === "settings")
     return (
       <CurrentSettingsView
+        onReturnToUpdateDecision={
+          returnFromGithub && returnFromGithub === updates.signInOffer
+            ? () => {
+                setReturnFromGithub(undefined);
+                ui.setView("updates");
+                ui.setActivitySection("updates");
+                requestAnimationFrame(() =>
+                  document.querySelector<HTMLElement>("[data-github-check-decision]")?.focus(),
+                );
+              }
+            : undefined
+        }
+        onOpenGameFileScan={onOpenGameFileScan}
         data={data}
         ui={ui}
         model={model}
@@ -1475,6 +2036,7 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      resultsReady={!model.queryPending}
       collectionLayout={collection.value}
       setCollectionLayout={collection.set}
       collectionLayoutFailure={collection.failure}
@@ -1492,7 +2054,20 @@ function CurrentView({
       setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
       overview={model.overview}
+      libraryCount={model.libraryCount}
       recent={model.recent}
+      recentArtwork={({ port, status }) => {
+        const profile = port.source_profile;
+        const read = profile && sourceHealth.inspectionReads.get(profile)?.status;
+        if (!profile || (read && read !== "idle" && read !== "current")) return {};
+        return activeSourceHeroMediaContext(
+          port,
+          status,
+          data.sources.find((source) => source.profile_id === profile),
+          sourceHealth.inspections.get(profile),
+          port.listing?.original_game,
+        );
+      }}
       filter={ui.filter}
       query={ui.query}
       setQuery={ui.setQuery}
@@ -1508,12 +2083,7 @@ function CurrentView({
           bootstrap.generation,
         )
       }
-      onTask={(activityId) => {
-        ui.setReviewedActivityId(activityId);
-        ui.setView("updates");
-        ui.setActivitySection("tasks");
-        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
-      }}
+      onTask={openTask}
       onBrowseCatalog={onAddGames}
       onDiscover={() => {
         ui.setView("catalog");
@@ -1535,11 +2105,14 @@ function CurrentView({
       }}
       loading={!data.catalog}
       nativeSourceDrag={nativeSourceDrag}
+      gameSourceDropReview={gameSourceDropReview}
     />
   );
 }
 
 function CurrentSettingsView({
+  onOpenGameFileScan,
+  onReturnToUpdateDecision,
   data,
   ui,
   model,
@@ -1557,6 +2130,7 @@ function CurrentSettingsView({
   setSetupSource,
 }: Pick<
   Parameters<typeof CurrentView>[0],
+  | "onOpenGameFileScan"
   | "data"
   | "ui"
   | "model"
@@ -1572,16 +2146,19 @@ function CurrentSettingsView({
   | "openPortDetails"
   | "setupSource"
   | "setSetupSource"
->) {
+> & { onReturnToUpdateDecision?: (() => void) | undefined }) {
   return (
     <SettingsView
       steamPorts={installedSteamBatchPorts(data, model)}
       category={ui.settingsCategory}
       onCategoryChange={ui.setSettingsCategory}
       generation={bootstrap.generation}
+      onOpenGameFileScan={onOpenGameFileScan}
+      onReturnToUpdateDecision={onReturnToUpdateDecision}
       ports={data.catalog?.ports ?? []}
       statuses={model.statusMap}
       doctor={data.doctor}
+      libraryRoot={bootstrap.library_root ?? ""}
       storage={data.storage}
       github={github}
       busy={operations.busy}
@@ -1620,21 +2197,27 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support report", desktopApi.createSupportBundle, {
-          refresh: "none",
-          invalidateDiagnostics: false,
-        })
+        operations.perform(
+          "support report",
+          () => desktopApi.createSupportBundle(bootstrap.generation),
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            propagateFailure: true,
+          },
+        )
       }
       exportMetadata={() =>
         operations.perform(
           "export library metadata",
           async () => {
             const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            return path ? desktopApi.exportLibraryMetadata(path, bootstrap.generation) : undefined;
           },
           {
             refresh: "none",
             invalidateDiagnostics: false,
+            propagateFailure: true,
             cancelledResult: (result) => result === undefined,
           },
         )
@@ -1666,6 +2249,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
       sourceNeeds={model.sourceNeeds}
@@ -1681,6 +2265,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
     />
@@ -1691,50 +2276,23 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
   return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
-function renderSelectedPortFavoriteControl({
-  favorites,
-  favoritePortId,
-  displayPort,
-}: {
-  favorites: ReturnType<typeof useFavorites>;
-  favoritePortId: string;
-  displayPort: Parameters<typeof gameIdentityLabel>[0];
-}) {
-  return (
-    <>
-      <Button
-        data-focusable
-        variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
-        size="icon-lg"
-        aria-label={`Favorite ${gameIdentityLabel(displayPort)}`}
-        aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
-        disabled={!favorites.ids || favorites.busy}
-        focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
-        aria-busy={favorites.busy}
-        onClick={() => void favorites.toggle(favoritePortId)}
-      >
-        <Heart
-          aria-hidden="true"
-          fill={favorites.ids?.has(favoritePortId) ? "currentColor" : "none"}
-        />
-      </Button>
-      {favorites.failure && (
-        <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
-          {favorites.failure === "write"
-            ? "The favorite change could not be confirmed. Refresh to reconcile."
-            : "Favorites could not be loaded."}{" "}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={favorites.busy}
-            onClick={() => void favorites.refresh()}
-          >
-            Refresh favorites
-          </Button>
-        </span>
-      )}
-    </>
+async function savedSetupOriginals(profileId: string, generation: number) {
+  const snapshot = await desktopApi.gameFileScanSnapshot(generation);
+  if (!snapshot || snapshot.freshness !== "inputs_match") return undefined;
+  const limit = 32;
+  const scanId = snapshot.matches?.scan_id;
+  if (!scanId) {
+    const paths = snapshot.report.candidates
+      .filter((candidate) => candidate.profile_id === profileId)
+      .map((candidate) => candidate.path);
+    return { paths: paths.slice(0, limit), limited: paths.length > limit };
+  }
+  const matches = await desktopApi.gameFileScanMatches(
+    { scan_id: scanId, kind: "exact", offset: 0, limit, profile_id: profileId },
+    generation,
   );
+  const paths = matches.candidates.map((candidate) => candidate.path);
+  return { paths, limited: matches.next_offset !== null };
 }
 
 function SelectedPortPanel({
@@ -1755,9 +2313,11 @@ function SelectedPortPanel({
   backups,
   activities,
   libraryGeneration,
+  libraryRoot,
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
+  setupOriginalRequests,
   openHostTool,
   openLibraryStorage,
   close,
@@ -1779,21 +2339,48 @@ function SelectedPortPanel({
   backups: BackupState;
   activities: ActivityRecord[];
   libraryGeneration: number;
-  refreshAfterMutation: () => void;
+  libraryRoot?: string | undefined;
+  refreshAfterMutation: () => void | Promise<unknown>;
   checkAgain: () => Promise<unknown>;
-  openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
+  openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
+  setupOriginalRequests: { current: LatestRequestGeneration };
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
 }) {
+  const selectedRoute = model.port?.id;
+  const selectedChannel = model.status?.channel;
+  const installReadbackPending =
+    selectedRoute !== undefined && operations.unreadInstallPorts.has(selectedRoute);
+  const installAction = model.status?.port_actions?.find((action) => action.action === "install");
+  useLayoutEffect(() => {
+    const requests = setupOriginalRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, [
+    libraryGeneration,
+    selectedRoute,
+    selectedChannel,
+    model.sourceProfile?.id,
+    model.biosProfile?.id,
+    installAction?.availability,
+    installAction?.reason,
+    model.status?.active?.id,
+    model.status?.external_runtime?.id,
+    installReadbackPending,
+    setupOriginalRequests,
+    ui.sourcePath,
+    ui.biosPath,
+  ]);
   if (!model.port) return null;
-  const favoritePortId = model.port.id;
   const setSourcePath = (path: string) => {
     ui.setSourcePath(path);
     installPlanning.invalidate();
   };
   const pickSource = model.sourceProfile
     ? () => {
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           setSourcePath,
@@ -1801,9 +2388,78 @@ function SelectedPortPanel({
         );
       }
     : undefined;
+  const port = model.port;
+  const status = model.status;
+  const inspectionProfile = port.source_profile ?? undefined;
+  const inspectionRead = inspectionProfile
+    ? sourceHealth.inspectionReads.get(inspectionProfile)
+    : undefined;
+  const inspection = inspectionProfile
+    ? sourceHealth.inspections.get(inspectionProfile)
+    : undefined;
+  const displayPort = model.entry ?? port;
+  const reviewedGame = model.entry?.listing?.original_game;
+  const savedSource =
+    !ui.sourcePath.trim() || ui.sourcePath === model.source?.path ? model.source : undefined;
+
+  const managedSetup =
+    status &&
+    !installReadbackPending &&
+    !status.active &&
+    !status.external_runtime &&
+    (installAction?.availability === "allowed" || installAction?.availability === "waiting");
+  const inspectSource = (
+    profile: NonNullable<typeof model.sourceProfile>,
+    suggestions?: Pick<
+      NonNullable<Parameters<typeof openSourceIntake>[3]>,
+      "storeOriginals" | "savedOriginals"
+    >,
+  ) => {
+    const isBios = profile.id === port.bios_source_profile;
+    const path = isBios ? ui.biosPath : ui.sourcePath;
+    openSourceIntake(
+      port.id,
+      profile.id,
+      path.trim() ? [path] : [],
+      managedSetup
+        ? { channel: status.channel, other: isBios ? model.source : model.bios, ...suggestions }
+        : undefined,
+    );
+  };
+  const originalProfile = model.sourceProfile;
+  const chooseSetupSource =
+    managedSetup && originalProfile && !ui.sourcePath.trim()
+      ? async () => {
+          const requests = setupOriginalRequests.current;
+          const request = requests.begin();
+          const savedOriginals = await savedSetupOriginals(
+            originalProfile.id,
+            libraryGeneration,
+          ).catch(() => undefined);
+          if (!requests.isCurrent(request)) return;
+          if (savedOriginals?.paths.length) {
+            inspectSource(originalProfile, { savedOriginals });
+            return;
+          }
+          if (originalProfile.kind !== "file-set" && originalProfile.kind !== "relative-file-set") {
+            await pickSource?.();
+            return;
+          }
+          const report = await desktopApi
+            .storeGameInstalls(libraryGeneration, originalProfile.id)
+            .catch(() => null);
+          if (!requests.isCurrent(request)) return;
+          const matches = report?.installs.filter(
+            (install) => install.original_folder?.profile_id === originalProfile.id,
+          );
+          if (matches?.length) inspectSource(originalProfile, { storeOriginals: matches });
+          else await pickSource?.();
+        }
+      : undefined;
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
+          setupOriginalRequests.current.begin();
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
             setSourcePath,
@@ -1813,6 +2469,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
@@ -1827,11 +2484,15 @@ function SelectedPortPanel({
       favoriteControl={
         <>
           {implementationControl}
-          {renderSelectedPortFavoriteControl({
-            favorites,
-            favoritePortId,
-            displayPort: model.entry ?? model.port,
-          })}
+          <FavoriteGameButton
+            favorites={favorites}
+            organization={organization}
+            port={model.entry ?? model.port}
+            groupPorts={model.entries.filter(
+              (candidate) => gameGroupId(candidate) === gameGroupId(model.entry ?? model.port),
+            )}
+          />
+          <FavoritePreferenceFailure favorites={favorites} organization={organization} />
         </>
       }
       organization={organization}
@@ -1871,9 +2532,18 @@ function SelectedPortPanel({
       backupReadState={backups.readState}
       retryBackupRead={backups.refresh}
       source={model.source}
-      sourceInspection={
-        model.port.source_profile
-          ? sourceHealth.inspections.get(model.port.source_profile)
+      mediaContext={
+        !inspectionRead || inspectionRead.status === "idle" || inspectionRead.status === "current"
+          ? activeSourceHeroMediaContext(displayPort, status, savedSource, inspection, reviewedGame)
+          : {}
+      }
+      sourceInspection={inspection}
+      savedSourceCheck={
+        inspectionProfile && savedSource && canCheckEditionArtwork(displayPort, reviewedGame)
+          ? {
+              status: inspectionRead?.status ?? "idle",
+              run: () => sourceHealth.inspectSource(inspectionProfile),
+            }
           : undefined
       }
       sourceProfile={model.sourceProfile}
@@ -1891,6 +2561,7 @@ function SelectedPortPanel({
         )?.id
       }
       libraryGeneration={libraryGeneration}
+      libraryRoot={libraryRoot}
       gameFileQueryContext={model.gameFileQueryContext}
       gameFileFilterContext={model.gameFileQuery?.context}
       gameFileObservation={model.gameFileQuery?.observation}
@@ -1899,7 +2570,7 @@ function SelectedPortPanel({
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();
-        refreshAfterMutation();
+        return refreshAfterMutation();
       }}
       checkAgain={checkAgain}
       pickSource={pickSource}
@@ -1922,10 +2593,8 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => {
-        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
-        openSourceIntake(model.port.id, profile.id, path.trim() ? [path] : []);
-      }}
+      inspectSource={inspectSource}
+      chooseSetupSource={chooseSetupSource}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({
@@ -1938,8 +2607,10 @@ function SelectedPortPanel({
         close: close,
         reviewInstall: installPlanning.review,
         backupsChanged: backups.refresh,
+        refreshRestoredBackups: backups.refreshAfterCommit,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
+        onInstallCommitted: operations.noteInstallCommitted,
       })}
     />
   );
@@ -1988,6 +2659,7 @@ function AdoptionOverlay({
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}
+      refreshing={planning.refreshing}
       busy={operations.busy}
       close={() => {
         planning.invalidate();
@@ -2157,6 +2829,9 @@ function useWorkspaceLibrary({
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
+    workspaceReadRevision: data.workspaceReadRevision,
+    workspaceStatuses: data.statuses,
+    startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
     bootstrap.generation,

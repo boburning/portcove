@@ -33,6 +33,25 @@
       "help_url": "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md"
     },
     "release_url": "https://github.com/igawa6/dualsouls/releases",
-    "download_block_reason": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership.",
+        "tracking_issue": 1829
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "hollow-knight",
+      "evidence_urls": [
+        "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md",
+        "https://github.com/igawa6/dualsouls"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hollow Knight"
   }
 }

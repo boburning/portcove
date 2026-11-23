@@ -1,3 +1,8 @@
+import {
+  prepareCollectionMove,
+  prepareCollectionEntry,
+  collectionMovementCandidates,
+} from "./collection-navigation";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   activateFocusedControl,
@@ -18,7 +23,8 @@ export interface FocusRect {
   height: number;
 }
 
-export function recordKeyboardInput() {
+export function recordKeyboardInput(event?: Event) {
+  if (event instanceof KeyboardEvent && !event.repeat) pendingCollectionMove = undefined;
   document.documentElement.dataset.inputMode = "keyboard";
 }
 
@@ -178,6 +184,23 @@ function controllerComboboxKey(input: HTMLInputElement, key: string) {
   document.documentElement.dataset.inputMode = "controller";
 }
 
+function moveControllerRange(direction: NavigationDirection) {
+  if (direction !== "left" && direction !== "right") return false;
+  const input = document.activeElement;
+  if (
+    !(input instanceof HTMLInputElement) ||
+    !input.matches('input[type="range"][data-controller-range]') ||
+    input.disabled
+  )
+    return false;
+  const before = input.value;
+  // Move one percentage point while preserving the finer native keyboard step.
+  if (direction === "right") input.stepUp(100);
+  else input.stepDown(100);
+  if (input.value !== before) input.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
 function controllerButton(
   buttons: Set<number>,
   back: () => void,
@@ -221,7 +244,7 @@ export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: n
             state.move
           ];
           controllerComboboxKey(input, key);
-        } else moveFocus(state.move);
+        } else if (!moveControllerRange(state.move)) moveFocus(state.move);
       }
       controllerButton(state.buttons, back, navigate);
     };
@@ -243,6 +266,7 @@ export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: n
       if (moveFocus(direction)) event.preventDefault();
     };
     const pointerdown = () => {
+      pendingCollectionMove = undefined;
       document.documentElement.dataset.inputMode = "pointer";
     };
     window.addEventListener("keydown", recordKeyboardInput, true);
@@ -259,16 +283,44 @@ export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: n
   return controller;
 }
 
-function moveFocus(direction: NavigationDirection) {
-  const scope = navigationScope();
+let pendingCollectionMove:
+  | { origin: HTMLElement | undefined; direction: NavigationDirection }
+  | undefined;
+function moveFocus(direction: NavigationDirection, prepared = false) {
   const origin = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  if (!prepared) {
+    if (
+      pendingCollectionMove &&
+      pendingCollectionMove.origin === origin &&
+      pendingCollectionMove.direction === direction
+    )
+      return true;
+    const move = { origin, direction };
+    pendingCollectionMove = move;
+    const pending = prepareCollectionMove(
+      origin,
+      direction,
+      () => pendingCollectionMove === move && document.activeElement === origin,
+    );
+    if (pending) {
+      void pending.then((valid) => {
+        if (valid && pendingCollectionMove === move && document.activeElement === origin)
+          moveFocus(direction, true);
+        if (pendingCollectionMove === move) pendingCollectionMove = undefined;
+      });
+      return true;
+    }
+    pendingCollectionMove = undefined;
+  }
+  const scope = navigationScope();
   const containingRegion = origin?.closest<HTMLElement>("[data-focus-region]");
   const region =
     containingRegion && scope.contains(containingRegion) ? containingRegion : undefined;
   const horizontal = direction === "left" || direction === "right";
-  const candidates = focusableControls(region ?? scope).filter(
-    (item) => !region || item.closest("[data-focus-region]") === region,
-  );
+  const candidates = collectionMovementCandidates(
+    focusableControls(region ?? scope),
+    origin,
+  ).filter((item) => !region || item.closest("[data-focus-region]") === region);
   if (enterFocusedHeading(origin, region ?? scope, candidates, direction)) return true;
   const target = spatialTargetIndex(
     candidates.map((item) => item.getBoundingClientRect()),
@@ -283,7 +335,27 @@ function moveFocus(direction: NavigationDirection) {
       return focusRegion("workspace");
   }
   if (target < 0) return false;
-  focusAndReveal(candidates[target]);
+  const destination = candidates[target]!;
+  if (!prepared) {
+    const move = { origin, direction };
+    pendingCollectionMove = move;
+    const pending = prepareCollectionEntry(
+      destination,
+      origin,
+      direction,
+      () => pendingCollectionMove === move && document.activeElement === origin,
+    );
+    if (pending) {
+      void pending.then((valid) => {
+        if (valid && pendingCollectionMove === move && document.activeElement === origin)
+          moveFocus(direction, true);
+        if (pendingCollectionMove === move) pendingCollectionMove = undefined;
+      });
+      return true;
+    }
+    pendingCollectionMove = undefined;
+  }
+  focusAndReveal(destination);
   return true;
 }
 

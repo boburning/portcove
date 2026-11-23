@@ -1,10 +1,52 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use portcove_core::{ReleaseChannel, SourceImportMode, UpdatePolicy};
 use uuid::Uuid;
 
 use crate::{catalog::CatalogCommand, schema::SchemaContract};
+
+/// Derive public identifiers from the parser. The named compatibility markers
+/// describe existing reviewed command pairs that older clients negotiate.
+pub(crate) fn registered_command_capabilities() -> Vec<String> {
+    fn visit(parent: &str, command: &clap::Command, commands: &mut Vec<String>) {
+        for child in command
+            .get_subcommands()
+            .filter(|child| !child.is_hide_set())
+        {
+            let name = child.get_name();
+            let id = if parent.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{parent}.{name}")
+            };
+            commands.push(if id == "remove-preview" {
+                "remove.preview".into()
+            } else {
+                id.clone()
+            });
+            visit(&id, child, commands);
+        }
+    }
+
+    let mut commands = Vec::new();
+    visit("", &Cli::command(), &mut commands);
+    for (marker, required) in [
+        ("external.review", ["external.preview", "external.register"]),
+        (
+            "installation.review",
+            ["installation.plan", "installation.run"],
+        ),
+    ] {
+        if required
+            .iter()
+            .all(|id| commands.iter().any(|command| command == id))
+        {
+            commands.push(marker.into());
+        }
+    }
+    commands
+}
 
 // Derive the descriptions from the same commands used by the parser. The groups
 // are a task index, not a second command or option definition.
@@ -392,11 +434,17 @@ pub(crate) enum InstallationCommand {
     Plan {
         /// Catalog port ID whose managed install should be reviewed.
         port_id: String,
+        /// Reviewed native package choice ID for this first installation.
+        #[arg(long)]
+        package: Option<String>,
     },
     /// Install only when the reviewed inputs still match under the port lock.
     Run {
         /// Catalog port ID used for the preceding installation plan.
         port_id: String,
+        /// Exact reviewed package choice ID used when planning this install.
+        #[arg(long)]
+        package: Option<String>,
         /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
         #[arg(long)]
         expected_plan: String,
@@ -525,6 +573,7 @@ pub(crate) enum ArtworkSlotArg {
     Cover,
     Detail,
     Landscape,
+    Logo,
 }
 
 impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
@@ -533,6 +582,26 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
             ArtworkSlotArg::Cover => Self::Cover,
             ArtworkSlotArg::Detail => Self::Detail,
             ArtworkSlotArg::Landscape => Self::Landscape,
+            ArtworkSlotArg::Logo => Self::Logo,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub(crate) enum SteamGridDbArtworkRoleArg {
+    PortraitCover,
+    LandscapeCover,
+    HeroBanner,
+    Logo,
+}
+
+impl From<SteamGridDbArtworkRoleArg> for portcove_core::SteamGridDbArtworkRole {
+    fn from(role: SteamGridDbArtworkRoleArg) -> Self {
+        match role {
+            SteamGridDbArtworkRoleArg::PortraitCover => Self::PortraitCover,
+            SteamGridDbArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
+            SteamGridDbArtworkRoleArg::HeroBanner => Self::HeroBanner,
+            SteamGridDbArtworkRoleArg::Logo => Self::Logo,
         }
     }
 }
@@ -601,13 +670,16 @@ pub(crate) enum SteamGridDbCommand {
         after_help = "Uses your own API key. Portcove records what it finds beside each image's credit. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. When SteamGridDB's image server also says the file is gone, or a check at least a day later still finds it missing, Portcove removes its copy of an image you didn't import yourself; your choice and the credit are kept, choosing the image again restores it, and nothing changes in Steam. Each run starts with the images checked longest ago and stops after three minutes."
     )]
     CheckListings,
-    /// List proposed static images for one SteamGridDB game and destination role.
+    /// List proposed static images for a SteamGridDB game and artwork role.
     Candidates {
         /// SteamGridDB game ID from `artwork steamgriddb search`.
         game_id: u64,
-        /// Destination image role to propose images for.
+        /// Artwork role to propose images for.
         #[arg(long, value_enum)]
-        role: DestinationArtworkRoleArg,
+        role: SteamGridDbArtworkRoleArg,
+        /// Provider page of 50 images, starting at 0. An empty page ends the listing.
+        #[arg(long, default_value_t = 0)]
+        page: u32,
     },
 }
 
@@ -684,6 +756,28 @@ pub(crate) enum ArtworkCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Hide selected and automatic artwork for one port and slot.
+    Suppress {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to hide.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Show hidden artwork again with the selection it kept while hidden.
+    Unhide {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to show again.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Remove only regenerable artwork cache files.
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
@@ -714,6 +808,8 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Suppress { .. } => "artwork.suppress",
+            Self::Unhide { .. } => "artwork.unhide",
             Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
@@ -1463,7 +1559,11 @@ pub(crate) enum GameFileRootCommand {
     #[command(
         after_help = "Search one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Listing never saves a folder, registers files or changes anything in a store's folder."
     )]
-    Stores,
+    Stores {
+        /// Select a known original-file profile for a store bundle's candidate folder.
+        #[arg(long = "profile")]
+        profile_id: Option<String>,
+    },
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.
@@ -1503,6 +1603,9 @@ pub(crate) struct GameFileRootMatchesArgs {
     /// Only matches inside this saved folder ID from `source roots list`.
     #[arg(long = "root")]
     pub(crate) root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[arg(long = "profile")]
+    pub(crate) profile_id: Option<String>,
     /// Scan ID from an earlier page; a scan replaced since then is refused.
     #[arg(long)]
     pub(crate) scan_id: Option<String>,
@@ -1521,6 +1624,7 @@ impl GameFileRootMatchesArgs {
             offset: self.offset,
             limit: self.limit,
             root_id: self.root_id,
+            profile_id: self.profile_id,
         }
     }
 }
@@ -1955,6 +2059,28 @@ pub(crate) enum ChannelCommand {
         /// Game release channel: stable, preview or rolling; beta remains a compatibility alias for preview.
         #[arg(value_enum)]
         channel: ChannelArg,
+    },
+    /// Review an exact release tag or direct-manifest version for the saved channel.
+    ReviewExact {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
+        /// Exact upstream release tag or manifest version to review on the saved channel.
+        version: String,
+    },
+    /// Save the exact package identified by a current release review.
+    Pin {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
+        /// Exact version used in the matching `portcove channel review-exact` review.
+        version: String,
+        /// Review SHA-256 from channel review-exact.
+        #[arg(long)]
+        review_sha256: String,
+    },
+    /// Clear the saved release pin and follow the current channel.
+    Follow {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
     },
 }
 

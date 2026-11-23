@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { gameIdentityLabel } from "./port-identity";
+import { gameIdentityLabel, gameTitle } from "./port-identity";
 import {
   Boxes,
   Download,
@@ -12,12 +12,39 @@ import {
 } from "lucide-react";
 import type { PaletteCommand } from "./components/CommandPalette";
 import { commandShortcut, useGlobalShortcuts } from "./keyboard-shortcuts";
+import {
+  groupCatalog,
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  originalGame,
+} from "./features/browsing/original-game";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
-import type { RecentPort, View } from "./view-model";
+import type { DetailDestination, RecentPort, View } from "./view-model";
+import {
+  settingsCategories,
+  type SettingsCategory,
+} from "./features/app-shell/settings-categories";
+
+const detailCommandLabels = {
+  files: "Game files",
+  saves: "Saves and backups",
+  updates: "Versions",
+  manage: "Manage",
+} satisfies Partial<Record<DetailDestination, string>>;
+
+type CurrentGameDestination = keyof typeof detailCommandLabels;
+
+type CurrentGameCommands = {
+  port: CatalogEntry;
+  destinations: readonly CurrentGameDestination[];
+  open: (destination: CurrentGameDestination) => void;
+  play?: (() => void) | undefined;
+};
 
 interface CommandSurfaceOptions {
   recent?: RecentPort | undefined;
   games?: readonly SearchableGame[];
+  preferredPortByGame?: Readonly<Record<string, string>> | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -27,6 +54,8 @@ interface CommandSurfaceOptions {
   focusSearch: () => void;
   focusLibrarySearch: () => void;
   openUpdates?: () => void;
+  currentGame?: CurrentGameCommands | undefined;
+  openSettingsCategory?: ((category: SettingsCategory) => void) | undefined;
 }
 
 export interface SearchableGame {
@@ -49,6 +78,7 @@ export function withLibraryVisibility(
 export function commandSurfaceCommands({
   recent,
   games = [],
+  preferredPortByGame,
   installedCount,
   busy,
   setView,
@@ -58,6 +88,8 @@ export function commandSurfaceCommands({
   focusSearch,
   focusLibrarySearch,
   openUpdates,
+  currentGame,
+  openSettingsCategory,
 }: CommandSurfaceOptions): PaletteCommand[] {
   return [
     {
@@ -151,6 +183,38 @@ export function commandSurfaceCommands({
       keywords: "navigate preferences",
       action: () => setView("settings"),
     },
+    ...(openSettingsCategory
+      ? settingsCategories.map(({ id, label }) => ({
+          id: "settings-" + id,
+          group: "Preferences",
+          label: "Open " + label + " settings",
+          description: "Go to " + label + " in Settings",
+          icon: Settings,
+          action: () => openSettingsCategory(id),
+        }))
+      : []),
+    ...(currentGame?.play
+      ? [
+          {
+            id: "current-game-play",
+            group: "Current game",
+            label: "Play this game",
+            description: gameIdentityLabel(currentGame.port),
+            icon: Gamepad2,
+            action: currentGame.play,
+          },
+        ]
+      : []),
+    ...(currentGame
+      ? currentGame.destinations.map((destination) => ({
+          id: "current-game-" + destination,
+          group: "Current game",
+          label: "Open " + detailCommandLabels[destination] + " for this game",
+          description: gameIdentityLabel(currentGame.port),
+          icon: Gamepad2,
+          action: () => currentGame.open(destination),
+        }))
+      : []),
     {
       id: "continue",
       group: "Recent game",
@@ -162,27 +226,94 @@ export function commandSurfaceCommands({
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
     },
-    // Library games first so each group renders under one contiguous heading.
-    ...[...games.filter((game) => game.inLibrary), ...games.filter((game) => !game.inLibrary)].map(
-      ({ port, inLibrary }): PaletteCommand => ({
-        id: `game:${port.id}`,
-        group: inLibrary ? "Games in your library" : "Games in Discover",
-        label: gameIdentityLabel(port),
-        description: "Open game details",
+    ...gameSearchCommands(games, setSelectedId, preferredPortByGame),
+  ];
+}
+
+/** A title query shows one game; a project query retains its exact detail target. */
+function gameSearchCommands(
+  games: readonly SearchableGame[],
+  setSelectedId: (portId: string) => void,
+  preferences: Readonly<Record<string, string>> | undefined,
+): PaletteCommand[] {
+  const library = new Set(games.filter((game) => game.inLibrary).map(({ port }) => port.id));
+  return groupCatalog(games.map(({ port }) => port))
+    .map((group): PaletteCommand => {
+      const identified = group.id.startsWith("game:");
+      const installed = group.ports.filter((port) => library.has(port.id));
+      // Opening details grants no choice or action; all alternatives stay visible there.
+      const gameId = originalGame(group.ports[0]!)?.id;
+      const preferred =
+        gameId && preferences && Object.hasOwn(preferences, gameId)
+          ? group.ports.find((port) => port.id === preferences[gameId])
+          : undefined;
+      const representative =
+        preferred ?? (installed.length === 1 ? installed[0]! : gameGroupPresentationPort(group));
+      const inLibrary = installed.length > 0;
+      return {
+        id: group.id,
+        ...(identified ? {} : { exactQueries: [representative.id] }),
+        group: identified
+          ? inLibrary
+            ? "Games in your library"
+            : "Games in Discover"
+          : inLibrary
+            ? "Projects in your library"
+            : "Projects in Discover",
+        label: identified ? gameGroupTitle(group) : gameIdentityLabel(representative),
+        description:
+          group.ports.length > 1
+            ? `${group.ports.length} options · Open game details and options`
+            : "Open details",
         icon: Gamepad2,
-        keywords: `${port.id} ${port.name}`,
+        keywords: identified
+          ? group.ports
+              .flatMap((port) => [
+                gameTitle(port),
+                ...(originalGame(port)?.source_editions.map((edition) => edition.title) ?? []),
+              ])
+              .join(" ")
+          : `${representative.id} ${representative.name}`,
         searchOnly: true,
         matchDescription: false,
-        action: () => setSelectedId(port.id),
-      }),
-    ),
-  ];
+        action: () => setSelectedId(representative.id),
+        ...(identified
+          ? {
+              searchAlternatives: group.ports.map((port): PaletteCommand => ({
+                id: `option:${port.id}`,
+                exactQueries: [port.id],
+                group: library.has(port.id)
+                  ? "Port options in your library"
+                  : "Port options in Discover",
+                label: gameIdentityLabel(port),
+                description: "Open this port’s details and setup options",
+                icon: Gamepad2,
+                keywords: `${port.id} ${port.name}`,
+                searchOnly: true,
+                matchDescription: false,
+                action: () => setSelectedId(port.id),
+              })),
+            }
+          : {}),
+      };
+    })
+    .sort(
+      (left, right) =>
+        Number(!left.group?.includes("your library")) -
+          Number(!right.group?.includes("your library")) ||
+        (left.group ?? "").localeCompare(right.group ?? ""),
+    );
+}
+
+function activeModSearch() {
+  return document.querySelector<HTMLInputElement>("[data-active-mod-search] input[type=search]");
 }
 
 export function useCommandSurface({
   view,
   recent,
   games,
+  preferredPortByGame,
   installedCount,
   busy,
   setView,
@@ -190,10 +321,13 @@ export function useCommandSurface({
   setSelectedId,
   checkAll,
   openUpdates,
+  currentGame,
+  openSettingsCategory,
 }: {
   view: View;
   recent?: RecentPort | undefined;
   games?: readonly SearchableGame[];
+  preferredPortByGame?: Readonly<Record<string, string>> | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -201,6 +335,8 @@ export function useCommandSurface({
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
   openUpdates?: () => void;
+  currentGame?: CurrentGameCommands | undefined;
+  openSettingsCategory?: ((category: SettingsCategory) => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const openSearch = useCallback(
@@ -215,13 +351,18 @@ export function useCommandSurface({
   const focusSearch = useCallback(() => openSearch("catalog"), [openSearch]);
   const focusLibrarySearch = useCallback(() => openSearch("library"), [openSearch]);
   const focusCurrentSearch = useCallback(() => {
-    document.querySelector<HTMLInputElement>("#port-search")?.focus();
+    (activeModSearch() ?? document.querySelector<HTMLInputElement>("#port-search"))?.focus();
   }, []);
+  const searchAvailable = useCallback(
+    () => view === "library" || view === "catalog" || activeModSearch() !== null,
+    [view],
+  );
   const commands = useMemo<PaletteCommand[]>(
     () =>
       commandSurfaceCommands({
         recent,
         ...(games ? { games } : {}),
+        preferredPortByGame,
         installedCount,
         busy,
         setView,
@@ -231,6 +372,8 @@ export function useCommandSurface({
         focusSearch,
         focusLibrarySearch,
         ...(openUpdates ? { openUpdates } : {}),
+        currentGame,
+        openSettingsCategory,
       }),
     [
       busy,
@@ -238,8 +381,11 @@ export function useCommandSurface({
       focusLibrarySearch,
       focusSearch,
       games,
+      preferredPortByGame,
       installedCount,
       openUpdates,
+      currentGame,
+      openSettingsCategory,
       recent,
       setAdoptOpen,
       setSelectedId,
@@ -251,7 +397,7 @@ export function useCommandSurface({
     setPaletteOpen: setOpen,
     setView,
     focusSearch: focusCurrentSearch,
-    searchAvailable: view === "library" || view === "catalog",
+    searchAvailable,
   });
   return { open, setOpen, commands };
 }

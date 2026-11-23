@@ -241,4 +241,4 @@ async fn read_candidate(source: &CatalogUpdateSource) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 #[path = "signed_catalog_tests.rs"]
-mod tests;
+pub(crate) mod tests;

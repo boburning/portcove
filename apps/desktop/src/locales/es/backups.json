@@ -1,11 +1,16 @@
 {
   "automaticSnapshots": {
+    "checking": "Comprobando las copias automáticas de esta biblioteca…",
     "control": "Crear una instantánea de los datos guardados antes de cada cambio de versión",
+    "coverage": "Antes de cambiar de versión, Portcove puede copiar las partidas y los ajustes existentes que administra. Consulta las copias completadas en Copias de seguridad.",
     "description": "Antes de que se instale una actualización, se active una actualización guardada o restaures una versión anterior, Portcove copia las partidas y los ajustes administrados de un juego para que puedas restaurarlos si la nueva versión los interpreta mal. Omite los juegos cuyas partidas se guardan fuera de Portcove y los juegos que aún no tienen datos guardados, y si no se puede crear una instantánea, el cambio de versión se detiene. Portcove conserva las cinco instantáneas automáticas más recientes de cada juego y nunca elimina las que creas tú. Esto se aplica a todos los juegos de esta biblioteca a partir del próximo cambio de versión.",
+    "disabled": "Las copias automáticas antes de cambiar de versión están desactivadas en esta biblioteca.",
+    "enabled": "Las copias automáticas antes de cambiar de versión están activadas en esta biblioteca.",
     "heading": "Crear una instantánea de los datos guardados antes de cambiar de versión",
     "readFailed": "No se pudo leer el ajuste.",
     "retry": "Reintentar",
-    "saveFailed": "No se pudo guardar el ajuste."
+    "saveFailed": "Portcove no pudo confirmar el resultado al guardar este ajuste.",
+    "unavailable": "Portcove no pudo comprobar el ajuste de copias automáticas de esta biblioteca."
   },
   "details": {
     "catalogId": "ID del catálogo: {{id}}",
@@ -104,6 +109,7 @@
   },
   "protection": {
     "backupCheckDetails": "Detalles de la comprobación de la copia de seguridad",
+    "backupDateUnavailable": "Fecha registrada no disponible",
     "backupIdentifier": "Identificador de la copia de seguridad",
     "candidate": "<code/> · {{state}}",
     "checking": "Comprobando la información de las copias de seguridad. La información cargada anteriormente puede estar desactualizada.",
@@ -168,14 +174,20 @@
   "review": {
     "applyDelete": "Eliminar esta copia de seguridad de forma permanente",
     "applyRestore": "Restaurar esta copia de seguridad",
+    "backupUnavailable": "La copia de seguridad seleccionada falta o ha cambiado. Cierra esta revisión para ver la lista actual.",
     "cancel": "Cancelar",
     "checking": "Comprobando la copia de seguridad y los datos guardados actuales…",
     "deleting": "Eliminando la copia de seguridad…",
     "descriptionDelete": "Elimina de forma permanente solo la copia de seguridad seleccionada.",
     "descriptionRestore": "Reemplaza los datos guardados actuales de este juego con esta copia de seguridad.",
     "failure": "La operación no se completó. Revisa la copia de seguridad y los datos actuales antes de volver a intentarlo.",
+    "inventoryUnavailable": "Portcove no pudo confirmar que se pueda restaurar esta copia. Actualiza el historial de copias de seguridad para comprobarlo.",
+    "reconcileRestore": "Comprueba el resultado en Actividad antes de iniciar otra restauración.",
+    "reopenRestore": "Portcove no pudo verificar el destino de la restauración. Cierra esta revisión y vuelve a elegir la copia.",
     "restoring": "Restaurando la copia de seguridad…",
     "reviewAgain": "Revisar de nuevo",
+    "selectionChanged": "Portcove no pudo confirmar que esta revisión coincida con la copia de seguridad seleccionada.",
+    "targetChanged": "La instalación o la configuración de este juego ha cambiado. Cierra esta revisión y comprueba el historial actual.",
     "titleDelete": "Revisar la eliminación de la copia de seguridad",
     "titleRestore": "Revisar la restauración de la copia de seguridad"
   },

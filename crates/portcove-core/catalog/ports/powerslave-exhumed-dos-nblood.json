@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "powerslave-exhumed-dos-nblood",
+    "name": "PowerSlave / Exhumed (DOS) (PCExhumed)",
+    "original_game_title": "PowerSlave / Exhumed (DOS)",
+    "summary": "Play PowerSlave / Exhumed (DOS) through PCExhumed using your own matching game files.",
+    "project_url": "https://github.com/NBlood/NBlood",
+    "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+    "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+    "issue_number": 7403,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["pcexhumed_win64_", ".7z"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Extract the matching Windows player",
+          "instruction": "Choose the pcexhumed_win64 archive. Extract the complete archive to a folder for this game and keep pcexhumed.exe with its packaged files."
+        },
+        {
+          "title": "Add your game files to this copy",
+          "instruction": "Use STUFF.DAT, DEMO.VCR and BOOK.MOV from a supported DOS PowerSlave or Exhumed retail copy or the PowerSlave demo linked by upstream. Other demo versions may differ. Keep the original copy separately."
+        },
+        {
+          "title": "Run setup and play again",
+          "instruction": "Use the extracted folder as the working directory and start pcexhumed.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+        }
+      ],
+      "warnings": [
+        "The upstream guide reports that demo playback is unfinished. That refers to recorded gameplay, separate from using files from the supported demo edition."
+      ],
+      "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+      "references": [
+        {
+          "title": "Keep the game folder and its saves",
+          "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+        },
+        {
+          "title": "Adjust PCExhumed settings",
+          "instruction": "After the first run, the upstream guide describes editing settings.cfg for mouse inversion and field of view."
+        },
+        {
+          "title": "Reuse an existing Steam or GOG copy",
+          "instruction": "The upstream player can find a supported Steam or GOG installation. To try this, start the player without -usecwd before copying originals. Keep the existing installation, and check where the player writes settings and saves on that route."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "powerslave-exhumed-dos",
+      "evidence_urls": [
+        "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "powerslave-exhumed-dos-nblood",
+    "origin": {
+      "project_url": "https://github.com/NBlood/NBlood",
+      "repository": {
+        "host": "github.com",
+        "id": "170327194"
+      }
+    },
+    "decisions": []
+  }
+}

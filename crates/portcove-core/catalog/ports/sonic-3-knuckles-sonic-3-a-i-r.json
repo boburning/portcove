@@ -69,8 +69,28 @@
       "linux-x86-64": ["sonic3air_game.tar.gz"],
       "macos-x86-64": ["sonic3air_mac_", ".dmg"],
       "macos-aarch64": ["sonic3air_mac_", ".dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-3-and-knuckles",
+      "evidence_urls": [
+        "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+        "https://github.com/Eukaryot/sonic3air"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-3-and-knuckles-mega-drive-genesis",
+          "title": "Sonic 3 & Knuckles (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-3-knuckles-sonic-3-a-i-r.json"
+          ]
+        }
+      ]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -80,19 +100,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "Eukaryot/sonic3air",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "Eukaryot/sonic3air"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

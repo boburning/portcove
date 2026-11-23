@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "populous-the-beginning-openpoptb",
+    "artwork": {
+      "game_id": 5525,
+      "cover_id": 100323,
+      "image_id": "co25er",
+      "image_sha256": "e41e163b6dc71ebbb75dedaa74cf7d8bfe14b66989166513cead45dd86863149",
+      "game_slug": "populous-the-beginning",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
     "name": "Populous: The Beginning / OpenPopTB",
     "original_game_title": "Populous: The Beginning",
@@ -12,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/releases/tag/v0.2.1",
     "setup_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
-    "download_block_reason": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+        "tracking_issue": 6100
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
       "steps": [
@@ -37,6 +54,24 @@
         {
           "title": "Check the Direct3D original",
           "instruction": "The D3DPopTB.exe hash is listed at https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/e888d11ddb4810758c33d55bd6e0a7144e804409/runtime/prepare.c#L350."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "populous-the-beginning",
+      "evidence_urls": [
+        "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+        "https://github.com/iagodemacedo/OpenPopTB-MacOS"
+      ],
+      "source_editions": [
+        {
+          "id": "populous-the-beginning-pc",
+          "title": "Populous: The Beginning (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+          ]
         }
       ]
     }

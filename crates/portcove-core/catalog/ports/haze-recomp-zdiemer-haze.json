@@ -4,6 +4,14 @@
     "id": "haze-recomp-zdiemer-haze",
     "name": "Haze — Haze Recomp (zdiemer)",
     "original_game_title": "Haze",
+    "artwork": {
+      "game_id": 7317,
+      "cover_id": 104558,
+      "image_id": "co28oe",
+      "image_sha256": "5c02db1ec1f3b6e7ba561c1c3185b812520d684fa9d526ae85e49c3fc07dc75d",
+      "game_slug": "haze",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream demonstrates menus, opening gameplay, audio and checkpoints. A full campaign is unconfirmed; co-op uses two local instances only. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/zdiemer/haze-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/zdiemer/haze-recomp"
     },
-    "issue_number": 3317
+    "issue_number": 3317,
+    "original_game": {
+      "format_version": 1,
+      "id": "haze",
+      "evidence_urls": ["https://github.com/zdiemer/haze-recomp"],
+      "source_editions": [
+        {
+          "id": "haze-playstation-3",
+          "title": "Haze (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/zdiemer/haze-recomp/blob/b87190a85980024037e4346d48f43ba00d2fcce9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

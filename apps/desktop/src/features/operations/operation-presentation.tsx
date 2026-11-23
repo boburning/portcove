@@ -1,16 +1,50 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { PortStatus } from "../../types";
+import type { Perform } from "./use-operation-state";
 import { portActionPresentation } from "../port-actions/port-action-presentation";
 import { pendingInvocationConflict, type InvocationRecord } from "./invocation-state";
 
-type PresentationOwner = { generation: number; pending: ReadonlyMap<number, InvocationRecord> };
+type PresentationOwner = {
+  generation: number;
+  pending: ReadonlyMap<number, InvocationRecord>;
+  unreadInstallPorts?: ReadonlySet<string> | undefined;
+  unreadExternalPorts?: ReadonlySet<string> | undefined;
+  unreadManagedRoutePorts?: ReadonlySet<string> | undefined;
+  perform?: Perform | undefined;
+  sourceWriteOnHold?: ((profileId: string) => boolean) | undefined;
+};
 const OperationPresentation = createContext<PresentationOwner | null>(null);
 export function OperationPresentationProvider({
   generation,
   pending,
+  unreadInstallPorts,
+  unreadExternalPorts,
+  unreadManagedRoutePorts,
+  perform,
+  sourceWriteOnHold,
   children,
 }: PresentationOwner & { children: ReactNode }) {
-  return <OperationPresentation value={{ generation, pending }}>{children}</OperationPresentation>;
+  const owner = useMemo(
+    () => ({
+      generation,
+      pending,
+      unreadInstallPorts,
+      unreadExternalPorts,
+      unreadManagedRoutePorts,
+      perform,
+      sourceWriteOnHold,
+    }),
+    [
+      generation,
+      pending,
+      unreadInstallPorts,
+      unreadExternalPorts,
+      unreadManagedRoutePorts,
+      perform,
+      sourceWriteOnHold,
+    ],
+  );
+  return <OperationPresentation value={owner}>{children}</OperationPresentation>;
 }
 export const useOperationPresentation = () => useContext(OperationPresentation);
 
@@ -31,13 +65,29 @@ export function presentPortAction(
         operation: action === "launch" ? "launch" : undefined,
       })
     : undefined;
+  const awaitingExternalReadback = action === "launch" && owner?.unreadExternalPorts?.has(portId);
+  const awaitingManagedReadback = owner?.unreadInstallPorts?.has(portId);
+  const managedRouteReadbackRequired = Boolean(owner?.unreadManagedRoutePorts?.has(portId));
   const reason = pending
     ? `${pending.context.action} for ${pending.context.target.label} is still in progress.`
-    : undefined;
+    : awaitingExternalReadback
+      ? "Refresh the library to confirm the current external launch details."
+      : action === "launch" && awaitingManagedReadback
+        ? "Refresh the library to confirm the current installation."
+        : undefined;
   return {
     readiness: portActionPresentation(status, action),
     assessment: portActionPresentation(status, action, reason),
-    busy: owner ? pending?.name : fallbackBusy,
+    busy: owner ? (pending?.name ?? reason) : fallbackBusy,
     pending,
+    managedRouteReadbackRequired,
+    installReadbackRequired:
+      managedRouteReadbackRequired ||
+      Boolean(
+        action === "install" &&
+        awaitingManagedReadback &&
+        !status?.active &&
+        !status?.external_runtime,
+      ),
   };
 }

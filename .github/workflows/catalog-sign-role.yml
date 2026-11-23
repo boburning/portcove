@@ -22,10 +22,12 @@ jobs:
   sign:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: >-
-      ${{ inputs.role == 'official-definitions' && 'production-catalog-definitions' ||
-      inputs.role == 'official-policy' && 'production-catalog-policy' ||
-      inputs.role == 'snapshot' && 'production-catalog-snapshot' || 'production-catalog-timestamp' }}
+    environment:
+      name: >-
+        ${{ inputs.role == 'official-definitions' && 'production-catalog-definitions' ||
+        inputs.role == 'official-policy' && 'production-catalog-policy' ||
+        inputs.role == 'snapshot' && 'production-catalog-snapshot' || 'production-catalog-timestamp' }}
+      deployment: false
     permissions:
       contents: read
     env:

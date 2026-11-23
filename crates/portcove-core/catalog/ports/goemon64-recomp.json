@@ -16,8 +16,24 @@
       "game_slug": "goemon-64-recompiled--1",
       "match_kind": "port"
     },
-    "issue_number": 105
+    "issue_number": 105,
+    "original_game": {
+      "format_version": 1,
+      "id": "mystical-ninja-starring-goemon",
+      "evidence_urls": ["https://github.com/klorfmorf/Goemon64Recomp"],
+      "source_editions": [
+        {
+          "id": "mystical-ninja-starring-goemon-nintendo-64",
+          "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -41,22 +57,6 @@
       "macos-x86-64": ["Goemon64Recompiled"],
       "macos-aarch64": ["Goemon64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "mnsg.us.z64"
-    ],
     "runtime_source_filename": "mnsg.us.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

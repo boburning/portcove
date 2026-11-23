@@ -3,9 +3,17 @@
   "listing": {
     "id": "one-must-fall-2097-omf-remastered",
     "name": "One Must Fall 2097 Remastered",
-    "original_game_title": "One Must Fall 2097",
+    "original_game_title": "One Must Fall: 2097",
     "summary": "Play the One Must Fall 2097 fan remaster with classic or updated graphics in the upstream desktop app or browser.",
     "project_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered",
+    "artwork": {
+      "game_id": 14429,
+      "cover_id": 128159,
+      "image_id": "co2qvz",
+      "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+      "game_slug": "one-must-fall-2097",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5721,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
@@ -41,7 +49,31 @@
         }
       ]
     },
-    "download_block_reason": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+        "tracking_issue": 5721
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "one-must-fall-2097",
+      "evidence_urls": ["https://github.com/Jared-woodruff/OMF-2097-Remastered"],
+      "source_editions": [
+        {
+          "id": "one-must-fall-2097-pc",
+          "title": "One Must Fall: 2097 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Jared-woodruff/OMF-2097-Remastered/blob/f99df7bd98d6bee2a842d3bea1514ba60395b995/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

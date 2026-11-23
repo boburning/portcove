@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "red-alert-2-and-yuri-s-revenge-red-alert-2-recomp",
+    "name": "Red Alert 2 and Yuri's Revenge Recomp",
+    "original_game_title": "Command & Conquer: Red Alert 2 and Yuri's Revenge",
+    "artwork": {
+      "game_id": 290140,
+      "cover_id": 381514,
+      "image_id": "co86dm",
+      "image_sha256": "e24c4c6456e1c17b0cb312895b6c2cbc09d61494c10afd3aee9ecae9176d1514",
+      "game_slug": "command-and-conquer-red-alert-2-and-yuris-revenge",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Build native Red Alert 2 and Yuri’s Revenge players from your own PC release.",
+    "project_url": "https://github.com/sp00nznet/redalert2-recomp",
+    "issue_number": 5744,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/sp00nznet/redalert2-recomp/releases/latest",
+    "setup_url": "https://github.com/sp00nznet/redalert2-recomp#getting-started",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "The publisher’s installer builds both players from your own game files.",
+        "tracking_issue": 5744
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the installer for your system",
+          "instruction": "Use the publisher’s Windows x64 installer, Linux x86-64 archive, or Apple Silicon Mac ZIP. Extract the Linux or Mac archive before opening the installer."
+        },
+        {
+          "title": "Select your original game folder",
+          "instruction": "Use your installed Steam or EA App copy. If the installer does not find it, choose the folder containing Red Alert 2 game.exe version 1.006 and Yuri’s Revenge gamemd.exe version 1.001. On Linux, the folder picker needs Zenity or KDialog."
+        },
+        {
+          "title": "Build and start either game",
+          "instruction": "Choose a separate build folder and select Build my recomp. When the build finishes, use the installer’s Play actions or the matching Red Alert 2 or Yuri’s Revenge launcher it creates."
+        }
+      ],
+      "warnings": [
+        "The first build can take 30 to 60 minutes and needs about 6 GB. The installer may request permission to install build tools. The publisher documents unsigned installers, so your operating system may block them."
+      ],
+      "references": [
+        {
+          "title": "Keep the original and build folders",
+          "instruction": "The generated launchers use the build folder, and Linux and Mac setup links to your installed original. Keep both folders available. Back up existing saves and settings before rebuilding or moving either folder."
+        },
+        {
+          "title": "Check the Linux and Mac prerequisites",
+          "instruction": "Linux needs a 32-bit GCC toolchain plus the matching SDL2 and FFmpeg development libraries. The Apple Silicon route needs Homebrew and the Xcode command-line tools. See the publisher’s build guide for dependency details."
+        }
+      ],
+      "help_url": "https://github.com/sp00nznet/redalert2-recomp/blob/main/docs/building.md"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "red-alert-2-and-yuri-s-revenge-red-alert-2-recomp",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/redalert2-recomp"
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The exact build procedure creates separate RedAlert2 game.exe1.006 and Yuri’sRevenge gamemd.exe1.001 players with separate Play choices. Preserve combined base/expansion player scope.",
+    "evidence_urls": [
+      "https://github.com/sp00nznet/redalert2-recomp/blob/main/docs/building.md",
+      "https://github.com/sp00nznet/redalert2-recomp"
+    ]
+  }
+}

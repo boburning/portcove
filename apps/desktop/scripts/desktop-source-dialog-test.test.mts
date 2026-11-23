@@ -25,9 +25,23 @@ import type { GameFileScanSnapshot } from "../src/transport-types.generated.d.ts
 import { clickVisible, selectGameFilesSettings } from "./desktop-review-controls.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occluded") {
-  const state = { scrolled: false, clicks: 0, visibilityChecks: 0, enabledChecks: 0, hits: 0 };
+function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occluded", gtk = false) {
+  const state = {
+    scrolled: false,
+    clicks: 0,
+    visibilityChecks: 0,
+    enabledChecks: 0,
+    hits: 0,
+    actions: [] as unknown[],
+    deliverySamples: 0,
+    moved: false,
+  };
   const control = {
+    tagName: "BUTTON",
+    id: "review-tab",
+    textContent: "Tasks",
+    getAttribute: () => null,
+    matches: (selector: string) => selector === ":hover" && state.moved,
     outerHTML: '<button role="tab">Tasks</button>',
     parentElement: null,
     closest: () => null,
@@ -57,12 +71,25 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
         case "executeScript": {
           const parameters: unknown = command.getParameters();
           assert.ok(isRecord(parameters) && typeof parameters.script === "string");
-          assert.ok(Array.isArray(parameters.args) && parameters.args.length === 1);
+          assert.ok(Array.isArray(parameters.args) && isRecord(parameters.args[0]));
+          const options: unknown[] = parameters.args.slice(1);
+          if (options.length > 0) {
+            assert.ok(gtk, "Only GTK delivery checks receive pointer and viewport arguments");
+            assert.deepEqual(options, [{ x: 644, y: 160 }, 4, { width: 240, height: 160 }]);
+            state.deliverySamples++;
+          }
           // Execute the helper's actual serialized callbacks against the recorded
           // offscreen shape; do not replace scrolling/hit testing with a stub true.
           const result: unknown = runInNewContext(
             `(function(){${parameters.script}}).apply(null, args)`,
-            { args: [control], document, window: { innerWidth: 960, innerHeight: 640 } },
+            {
+              args: [control, ...options],
+              document,
+              window: { innerWidth: 960, innerHeight: 640 },
+              innerWidth: gtk ? 240 : 960,
+              innerHeight: gtk ? 160 : 640,
+              localStorage: { getItem: () => "400" },
+            },
           );
           return result;
         }
@@ -80,6 +107,10 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
         case "clickElement":
           state.clicks++;
           return;
+        case "actions":
+          state.actions.push(command.getParameter("actions"));
+          state.moved = true;
+          return;
         default:
           assert.fail(`Unexpected review interaction command: ${command.getName()}`);
       }
@@ -93,6 +124,54 @@ it("scrolls an offscreen native review target before asking the driver for visib
   await clickVisible(browser, element);
   assert.equal(state.clicks, 1);
   assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
+});
+
+it("serializes one viewport pointer action sequence at the verified center", async () => {
+  const platform = Object.getOwnPropertyDescriptor(process, "platform");
+  assert.ok(platform);
+  Object.defineProperty(process, "platform", { value: "linux" });
+  try {
+    const { browser, element, state } = offscreenReviewControl("normal", true);
+    await clickVisible(browser, element, {
+      dispatch: "webkit-window-pointer",
+      pageZoom: 4,
+      baselineViewport: { width: 960, height: 640 },
+      observe: () => {},
+    });
+    assert.equal(state.clicks, 0);
+    assert.equal(state.deliverySamples, 1);
+    assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
+    assert.equal(state.actions.length, 2);
+    for (const [index, devices] of state.actions.entries()) {
+      assert.ok(Array.isArray(devices) && devices.length === 1);
+      const mouse: unknown = devices[0];
+      assert.ok(isRecord(mouse) && Array.isArray(mouse.actions));
+      assert.equal(mouse.actions.length, index === 0 ? 1 : 2);
+    }
+    assert.partialDeepStrictEqual(state.actions, [
+      [
+        {
+          type: "pointer",
+          id: "default mouse",
+          parameters: { pointerType: "mouse" },
+          actions: [{ type: "pointerMove", origin: "viewport", x: 644, y: 160, duration: 0 }],
+        },
+      ],
+      [
+        {
+          type: "pointer",
+          id: "default mouse",
+          parameters: { pointerType: "mouse" },
+          actions: [
+            { type: "pointerDown", button: 0 },
+            { type: "pointerUp", button: 0 },
+          ],
+        },
+      ],
+    ]);
+  } finally {
+    Object.defineProperty(process, "platform", platform);
+  }
 });
 
 for (const mode of ["hidden", "disabled", "occluded"] as const)

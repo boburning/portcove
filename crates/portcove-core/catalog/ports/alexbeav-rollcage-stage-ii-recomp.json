@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["rollcagestageii-", "-linux-x64.zip"],
       "macos-aarch64": ["rollcagestageii-", "-macos-arm64.zip"],
-      "macos-x86-64": ["rollcagestageii-", "-macos-x64.zip"],
-      "windows-x86-64": ["rollcagestageii-", "-windows-x64.zip"]
+      "macos-x86-64": ["rollcagestageii-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rollcage-stage-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rollcage-stage-ii-playstation",
+          "title": "Rollcage Stage II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/5f9c56577b2e4b739a964593dcf03d479f31cb6f/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Rollcage Stage II (USA) complete CHD (SLUS-00867, 13 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Rollcage Stage II (USA) complete CHD (SLUS-00867, 13 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Rollcage Stage II (USA) disc (SLUS-00867) with all 13 tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

@@ -16,6 +16,7 @@ import type {
   ObservedSourceComponent,
   ObservedSourceDigest,
   SourceInspectionReport,
+  SourceRecord,
   SourceRepresentation,
 } from "../types";
 import { platformLabel } from "../view-model";
@@ -39,8 +40,12 @@ export function SourceIdentityPanel({
   report,
   openEvidence,
   openHostTool,
+  recordedSource,
+  evidenceLabel = "File details and test results",
 }: {
   report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+  evidenceLabel?: string;
   openEvidence?: ((evidenceId: string) => void) | undefined;
   openHostTool?: ((toolId: string) => void) | undefined;
 }) {
@@ -116,32 +121,26 @@ export function SourceIdentityPanel({
       {report.dump_identification && (
         <DumpIdentificationNote identification={report.dump_identification} />
       )}
-      <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Selected
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            <code className="inline [overflow-wrap:anywhere] whitespace-normal">
+      <MetadataGrid className="source-identity-summary border-t border-pc-border pt-3 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="min-w-0 sm:col-span-full">
+          <dt className="m-0 text-xs">Selected</dt>
+          <dd className="m-0 mt-0.5">
+            <code dir="ltr" className="saved-file-path">
               {inspection?.path ?? report.registered?.path ?? "No file location saved"}
             </code>
           </dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Format
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            {identityKindLabel(report.expected_identity?.kind)}
-          </dd>
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">Format</dt>
+          <dd className="m-0 mt-0.5">{identityKindLabel(report.expected_identity?.kind)}</dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">
             {report.inspection?.assessment.classification.state === "ambiguous"
               ? "Matches"
               : "Edition"}
           </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+          <dd className="m-0 mt-0.5">
             {variant ? variantLabel(variant) : classificationLabel(report)}
           </dd>
         </div>
@@ -157,9 +156,9 @@ export function SourceIdentityPanel({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          {evidenceLabel}
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
@@ -170,7 +169,10 @@ export function SourceIdentityPanel({
               <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>
             </div>
           </MetadataGrid>
-          <IdentityDigests report={report} />
+          <IdentityDigests
+            report={report}
+            recordedSource={recordedSource ?? report.registered ?? undefined}
+          />
           <Qualification report={report} />
           {report.evidence.length > 0 && (
             <section>
@@ -310,9 +312,9 @@ function ApplicationResult({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          Test results for this port
         </summary>
         <small className="text-[var(--color-text-muted)]">
           {application.contract.authority_ref}
@@ -332,7 +334,13 @@ function ApplicationResult({
   );
 }
 
-function IdentityDigests({ report }: { report: SourceInspectionReport }) {
+function IdentityDigests({
+  report,
+  recordedSource,
+}: {
+  report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+}) {
   const inspection = report.inspection;
   const recognized =
     inspection?.assessment.classification.state === "recognized"
@@ -345,6 +353,17 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
     : (report.expected_identity?.variants ?? []);
   return (
     <section>
+      {recordedSource && (
+        <>
+          <h4>Recorded identity</h4>
+          <dl>
+            <dt>Saved SHA-256</dt>
+            <dd>
+              <code className="break-all">{recordedSource.sha256 || "Not recorded"}</code>
+            </dd>
+          </dl>
+        </>
+      )}
       <h4>Calculated identity</h4>
       {inspection ? (
         <>

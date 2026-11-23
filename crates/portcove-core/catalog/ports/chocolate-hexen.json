@@ -1,0 +1,119 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chocolate-hexen",
+    "name": "Chocolate Hexen",
+    "original_game_title": "Hexen",
+    "summary": "Play Hexen with its original v1.1 game files or the four-level demo.",
+    "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+    "artwork": {
+      "game_id": 3512,
+      "cover_id": 76354,
+      "image_id": "co1mwy",
+      "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+      "game_slug": "hexen-beyond-heretic",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 8101,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+    "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up Hexen on Windows",
+          "instruction": "Choose the matching original Hexen IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+        }
+      ],
+      "references": [
+        {
+          "title": "Linux and Mac installations you maintain",
+          "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-hexen player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+        }
+      ],
+      "warnings": [
+        "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+        "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+      ]
+    },
+    "variant_label": "PC",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen",
+      "evidence_urls": [
+        "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c"
+      ],
+      "source_editions": [
+        {
+          "id": "hexen-pc",
+          "title": "Hexen (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/hexen/h2_main.c"
+          ]
+        }
+      ]
+    }
+  },
+  "chocolate_family_windows_persistence_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "github",
+      "repository": "chocolate-doom/chocolate-doom",
+      "asset_hints": {
+        "windows-x86-64": ["chocolate-hexen", "win64.zip"]
+      }
+    },
+    "source_profile": "chocolate-hexen-pc-iwad",
+    "executable_hints": {
+      "windows-x86-64": ["chocolate-hexen.exe"]
+    },
+    "managed_initialization": "chocolate-family-portable-v1",
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "runtime_source_filename": "game.wad",
+    "runtime_source_materialization": "copy",
+    "launch_from_install_root": true,
+    "launch_arguments": [
+      "-iwad",
+      "game.wad",
+      "-config",
+      "hexen.cfg",
+      "-extraconfig",
+      "chocolate-hexen.cfg",
+      "-savedir",
+      "savegames"
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "chocolate-hexen-pc-iwad",
+          "label": "Hexen PC IWAD (selected original or demo editions)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chocolate-hexen",
+    "origin": {
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "repository": {
+        "host": "github.com",
+        "id": "230912"
+      }
+    },
+    "decisions": []
+  }
+}

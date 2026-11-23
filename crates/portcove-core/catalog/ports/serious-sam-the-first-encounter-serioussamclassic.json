@@ -38,8 +38,8 @@
           "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
         },
         {
-          "title": "Prepare the upstream Linux player",
-          "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
+          "title": "Prepare and register the Linux player",
+          "instruction": "Use the official Linux x86-64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together. Place your own matching classic First Encounter .gro files and its Help and Levels folders in that encounter folder. Use glibc 2.34 or newer with system SDL2, zlib and Vorbis (libvorbisfile.so.3). Select x64/SamTFE/Bin/SeriousSam and choose that Bin folder as its working directory. Keep the supplied engine libraries beside the executable and keep the complete encounter and its effective player profile."
         }
       ],
       "warnings": [
@@ -54,7 +54,15 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64"]
+    "original_game": {
+      "format_version": 1,
+      "id": "serious-sam-the-first-encounter",
+      "evidence_urls": [
+        "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
+        "https://github.com/tx00100xt/SeriousSamClassic"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -68,34 +76,23 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "tx00100xt/SeriousSamClassic",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "tx00100xt/SeriousSamClassic"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+      "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. On Linux x86-64, follow the Linux step on this page. Register that encounter’s native Bin/SeriousSam with its Bin working directory. Preserve your separate Linux profile and the complete matching original game copy."
     }
   }
 }

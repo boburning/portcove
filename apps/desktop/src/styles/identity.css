@@ -139,9 +139,6 @@
   .catalog-filter-panel[data-view="library"] .catalog-filter-heading details[open] {
     flex-basis: 100%;
   }
-  .catalog-filter-panel[data-view="library"] .catalog-filter-heading summary {
-    padding-block: 2px;
-  }
   .catalog-filter-panel[data-view="library"] > p,
   .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
     grid-column: 1 / -1;
@@ -161,7 +158,6 @@
     color: var(--color-text);
   }
   .catalog-filter-panel[data-view="library"] .catalog-filter-advanced > summary {
-    padding-block: 6px;
     font-size: var(--text-xs);
     font-weight: 400;
   }

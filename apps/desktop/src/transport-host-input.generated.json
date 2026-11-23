@@ -55,6 +55,82 @@
     "title": "ApplicationUpdatePreferences",
     "type": "object"
   },
+  "artwork_selection_framing": {
+    "$defs": {
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "The full identity of a reviewed image and optional background framing.",
+    "properties": {
+      "framing": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArtworkFraming"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "preview_sha256": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "preview_sha256"
+    ],
+    "title": "ArtworkSelectionFraming",
+    "type": "object"
+  },
   "bug_report_field": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -419,6 +495,13 @@
         "format": "uint32",
         "minimum": 0,
         "type": "integer"
+      },
+      "profile_id": {
+        "description": "Only matches for this source profile.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "root_id": {
         "description": "Only matches inside this saved folder.",

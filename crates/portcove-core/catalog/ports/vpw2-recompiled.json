@@ -16,8 +16,24 @@
       "game_slug": "virtual-pro-wrestling-2-oudou-keishou",
       "match_kind": "underlying-game"
     },
-    "issue_number": 94
+    "issue_number": 94,
+    "original_game": {
+      "format_version": 1,
+      "id": "virtual-pro-wrestling-2",
+      "evidence_urls": ["https://github.com/jessetbh/VPW2Recomp"],
+      "source_editions": [
+        {
+          "id": "virtual-pro-wrestling-2-nintendo-64",
+          "title": "Virtual Pro Wrestling 2 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -33,22 +49,6 @@
     "executable_hints": {
       "windows-x86-64": ["Vpw2Recompiled.exe"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "vpw.vpw2.jp.z64"
-    ],
     "runtime_source_filename": "vpw.vpw2.jp.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

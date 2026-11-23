@@ -1,18 +1,9 @@
 //! Suitability only: acquisition still refreshes immutable IDs and integrity policy.
 use super::*;
 
-const ARCHIVE_FORMS: &[&str] = &[".zip", ".7z", ".tar.gz", ".tar.xz", ".tgz", ".rar"];
-const OTHER_PACKAGE_FORMS: &[&str] = &[
-    ".exe",
-    ".msi",
-    ".appimage",
-    ".dmg",
-    ".pkg",
-    ".deb",
-    ".rpm",
-    ".7z",
-    ".tar.xz",
-];
+use crate::route_facts::{
+    ArtifactRole, OTHER_PACKAGE_FORMS, named_processors, named_systems, suggest_from_filename,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum PackagePlatformMatch {
@@ -22,49 +13,22 @@ pub(crate) enum PackagePlatformMatch {
     Ambiguous,
 }
 
-pub(crate) fn is_package_filename(name: &str) -> bool {
-    ARCHIVE_FORMS
-        .iter()
-        .chain(OTHER_PACKAGE_FORMS)
-        .any(|extension| name.ends_with(extension))
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
 }
 
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
-    let name = name.to_ascii_lowercase();
-    let tokens = name
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .collect::<Vec<_>>();
-    let has = |values: &[&str]| values.iter().any(|value| tokens.contains(value));
-    let windows = has(&["windows", "win", "win32", "win64", "winx64"])
-        || name.ends_with(".exe")
-        || name.ends_with(".msi");
-    let linux = has(&["linux", "appimage", "flatpak"])
-        || [".appimage", ".deb", ".rpm"]
-            .iter()
-            .any(|ext| name.ends_with(ext));
-    let versioned_macos = tokens.iter().any(|token| {
-        token
-            .strip_prefix("macos")
-            .is_some_and(|major| major.len() == 2 && major.parse::<u8>().is_ok_and(|v| v >= 10))
-    });
-    let mac = has(&["mac", "macos", "osx", "darwin"])
-        || versioned_macos
-        || name.ends_with(".dmg")
-        || name.ends_with(".pkg");
-    // PortMaster packages target handheld Linux firmware, not desktop systems.
-    let foreign =
-        has(&["android", "switch", "vita", "wii", "ios", "portmaster"]) || name.ends_with(".apk");
-    match [windows, linux, mac, foreign]
-        .into_iter()
-        .filter(|named| *named)
-        .count()
-    {
+    let systems = named_systems(name);
+    match systems.count() {
         0 => PackagePlatformMatch::Unspecified,
         1 => {
             let matches = match platform {
-                Platform::WindowsX86_64 => windows,
-                Platform::LinuxX86_64 => linux,
-                Platform::MacosX86_64 | Platform::MacosAarch64 => mac,
+                Platform::WindowsX86_64 => systems.windows,
+                Platform::LinuxX86_64 => systems.linux,
+                Platform::MacosX86_64 | Platform::MacosAarch64 => systems.mac,
             };
             if matches {
                 PackagePlatformMatch::Matching
@@ -73,6 +37,29 @@ pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackageP
             }
         }
         _ => PackagePlatformMatch::Ambiguous,
+    }
+}
+
+/// How one package fits one host. The serialized `suitability` string is a
+/// projection of this value and the asset's typed filename role.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PackageSuitability {
+    Auxiliary,
+    Incompatible,
+    Emulation,
+    Uncertain,
+    Suitable,
+}
+
+impl PackageSuitability {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Auxiliary => "auxiliary",
+            Self::Incompatible => "incompatible",
+            Self::Emulation => "emulation",
+            Self::Uncertain => "uncertain",
+            Self::Suitable => "suitable",
+        }
     }
 }
 
@@ -101,7 +88,7 @@ pub(super) fn assess_package(
     (
         CatalogPackageAssessment {
             asset_id: asset.asset_id.clone(),
-            suitability: suitability.into(),
+            suitability: suitability.as_str().into(),
             reason: reason.into(),
         },
         score,
@@ -113,7 +100,8 @@ pub(crate) fn assess_package_name(
     can_extract: bool,
     platform: Platform,
     hints: &[String],
-) -> (&'static str, &'static str, Option<u32>) {
+) -> (PackageSuitability, &'static str, Option<u32>) {
+    use PackageSuitability::*;
     let name = name.to_ascii_lowercase();
     let tokens = name
         .split(|c: char| !c.is_ascii_alphanumeric())
@@ -123,47 +111,21 @@ pub(crate) fn assess_package_name(
         && hints
             .iter()
             .all(|hint| name.contains(&hint.to_ascii_lowercase()));
+    let exact_hint = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
+    let finish = |suitability, reason, score| (suitability, reason, score);
+    let suggestion = suggest_from_filename(&name);
+    if suggestion.role == ArtifactRole::DedicatedServer {
+        return finish(
+            Auxiliary,
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     // Generic managed/platform hints must not turn a debug build into the
     // recommended release. A reviewed debug player needs its whole filename.
-    let reviewed_debug_player = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
-    let finish = |suitability, reason, score| (suitability, reason, score);
-    let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
-    if has(&[
-        "checksums",
-        "checksum",
-        "sha256sums",
-        "sha512sums",
-        "symbols",
-        "pdb",
-        "dsym",
-    ]) || (!reviewed_debug_player && has(&["debug"]))
-        || [
-            ".sha256",
-            ".sha512",
-            ".sha1",
-            ".md5",
-            ".sig",
-            ".asc",
-            ".minisig",
-            ".json",
-            ".yml",
-            ".yaml",
-            ".blockmap",
-            ".zsync",
-            ".txt",
-            ".dsc",
-            ".orig.tar.gz",
-            ".orig.tar.xz",
-            ".debian.tar.xz",
-            ".diff.gz",
-        ]
-        .iter()
-        .any(|ext| name.ends_with(ext))
-        || (archive && has(&["source", "sources", "src", "notices"]))
-        || is_license_compliance_archive(&name)
-    {
+    if suggestion.role.is_supporting() || (!exact_hint && suggestion.debug_build) {
         return finish(
-            "auxiliary",
+            Auxiliary,
             "Checksums, signatures, source code or supporting metadata; not an installable game package.",
             None,
         );
@@ -175,27 +137,23 @@ pub(crate) fn assess_package_name(
         PackagePlatformMatch::Other | PackagePlatformMatch::Ambiguous
     ) {
         return finish(
-            "incompatible",
+            Incompatible,
             "Named for another platform. Portcove does not offer a compatibility-layer launch route.",
             None,
         );
     }
     // Native macOS packages may use "arm" for Apple Silicon. On other
     // platforms the same token still describes an unspecified older ARM ABI.
-    let macos_arm = platform_match
-        && matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64)
-        && has(&["arm"]);
-    let arm = has(&["arm64", "aarch64"]) || macos_arm;
-    let intel = has(&["x64", "amd64", "win64", "winx64", "intel"])
-        || name.contains("x86_64")
-        || name.contains("x86-64");
-    let legacy = has(&[
-        "i386", "i686", "win32", "x32", "32bit", "armv6", "armv7", "armv8",
-    ]) || name.contains("32-bit")
-        || name.contains("32_bit")
-        || (has(&["arm"]) && !macos_arm)
-        || (has(&["x86"]) && !intel);
-    let universal = has(&["universal", "universal2"]) || (arm && intel);
+    let processors = named_processors(
+        &name,
+        platform_match && matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64),
+    );
+    let (arm, intel, legacy, universal) = (
+        processors.arm,
+        processors.intel,
+        processors.legacy,
+        processors.universal,
+    );
     let wants_arm = platform == Platform::MacosAarch64;
     let reviewed_windows_x86 = hinted
         && platform == Platform::WindowsX86_64
@@ -211,7 +169,7 @@ pub(crate) fn assess_package_name(
         && !has(&["arm", "armv6", "armv7", "armv8", "arm64", "aarch64"]);
     if legacy && !universal && !reviewed_windows_x86 {
         return finish(
-            "emulation",
+            Emulation,
             "This build targets a different or older processor. Compatibility has not been established; prefer a native build or consult upstream.",
             None,
         );
@@ -219,25 +177,35 @@ pub(crate) fn assess_package_name(
     if !universal && ((wants_arm && intel) || (!wants_arm && arm)) {
         return finish(
             if wants_arm && intel {
-                "emulation"
+                Emulation
             } else {
-                "incompatible"
+                Incompatible
             },
             "Processor differs from this host. Emulation availability has not been established; choose a native build or consult upstream.",
             None,
         );
     }
-    let supported_form = can_extract || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
+    // Periods in a versioned filename do not imply a file extension. Accept
+    // the Linux platform suffix when the final period belongs to its version.
+    let bare_name = name.rsplit_once('.').is_none_or(|(_, suffix)| {
+        suffix.as_bytes().first().is_some_and(u8::is_ascii_digit)
+            && (suffix.ends_with("-linux-x64") || suffix.ends_with("-linux-x86_64"))
+    });
+    let reviewed_bare_linux_player =
+        exact_hint && platform_match && platform == Platform::LinuxX86_64 && bare_name;
+    let supported_form = can_extract
+        || reviewed_bare_linux_player
+        || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
     if !supported_form || (!platform_match && !hinted) {
         return finish(
-            "uncertain",
+            Uncertain,
             "The package's native platform or format is not established. Check upstream instructions before choosing it.",
             None,
         );
     }
     if !universal && !intel && !arm && !hinted {
         return finish(
-            "uncertain",
+            Uncertain,
             "The processor for this package is unspecified. Choose a native build or check upstream requirements.",
             None,
         );
@@ -246,7 +214,7 @@ pub(crate) fn assess_package_name(
         + u32::from(can_extract) * 10
         + u32::from(universal || intel || arm) * 2;
     finish(
-        "suitable",
+        Suitable,
         if hinted {
             "Matches the catalog's package hints for this host. Confirm upstream requirements."
         } else if can_extract {
@@ -272,6 +240,8 @@ pub(crate) fn is_license_compliance_archive(name: &str) -> bool {
             .any(|token| tokens.contains(token))
 }
 
+/// Assessments, the unique recommendation, and whether any package is a
+/// suitable native choice for this host (decided from the typed suitability).
 pub(super) fn recommend_packages(
     assets: &[CatalogDownloadCandidate],
     platform: Platform,
@@ -280,6 +250,7 @@ pub(super) fn recommend_packages(
 ) -> (
     Vec<CatalogPackageAssessment>,
     Option<CatalogDownloadAssetId>,
+    bool,
 ) {
     let assessed = assets
         .iter()
@@ -305,12 +276,34 @@ pub(super) fn recommend_packages(
             .map(|(assessment, _)| assessment)
             .collect(),
         recommended,
+        !ranked.is_empty(),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn recommend_packages(
+        assets: &[CatalogDownloadCandidate],
+        platform: Platform,
+        hints: &[String],
+        complete: bool,
+    ) -> (
+        Vec<CatalogPackageAssessment>,
+        Option<CatalogDownloadAssetId>,
+    ) {
+        let (assessments, recommended, any_suitable) =
+            super::recommend_packages(assets, platform, hints, complete);
+        assert_eq!(
+            any_suitable,
+            assessments
+                .iter()
+                .any(|assessment| assessment.suitability == "suitable"),
+            "the typed suitable decision matches its serialized projection"
+        );
+        (assessments, recommended)
+    }
     fn asset(id: u64, name: &str) -> CatalogDownloadCandidate {
         CatalogDownloadCandidate {
             release_id: 1.into(),
@@ -355,6 +348,40 @@ mod tests {
             recommend_packages(&assets, Platform::WindowsX86_64, &[], false).1,
             None
         );
+    }
+
+    #[test]
+    fn crusader_desktop_listing_recognizes_versioned_player_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
+        let listing = catalog.listing(id).unwrap();
+        assert!(catalog.port(id).is_err(), "display only");
+        for version in ["1.41.2", "1.47.0", "1.49.0"] {
+            let mut assets = [
+                asset(1, &format!("crusader-{version}-windows-x64.zip")),
+                asset(2, &format!("crusader-{version}-linux-x64.tar.gz")),
+                asset(3, &format!("crusader-{version}-portmaster-aarch64.zip")),
+                asset(4, &format!("crusader-{version}-source-windows-x64.zip")),
+                asset(5, "SHA256SUMS"),
+            ];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                let (options, recommendation) = recommend_packages(&assets, platform, hints, true);
+                assert_eq!(recommendation, Some(expected.into()));
+                assert!(
+                    assess_package(&assets[expected as usize - 1], platform, hints)
+                        .1
+                        .unwrap()
+                        >= 100
+                );
+                assert_eq!(options[2].suitability, "incompatible");
+                assert_eq!(options[3].suitability, "auxiliary");
+                assert_eq!(options[4].suitability, "auxiliary");
+            }
+        }
     }
 
     #[test]
@@ -574,7 +601,7 @@ mod tests {
         for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
             let listing = catalog.listing(id).unwrap();
             for (platform, expected) in [
-                (Platform::LinuxX86_64, 1u64),
+                (Platform::LinuxX86_64, 5u64),
                 (Platform::MacosX86_64, 2),
                 (Platform::MacosAarch64, 2),
             ] {
@@ -655,7 +682,7 @@ mod tests {
             (Platform::LinuxX86_64, "game-linux-arm.tar.gz"),
         ] {
             assert_eq!(
-                assess_package_name(name, true, platform, &[]).0,
+                assess_package_name(name, true, platform, &[]).0.as_str(),
                 "emulation"
             );
         }
@@ -743,7 +770,9 @@ mod tests {
                 "{name}"
             );
             assert_eq!(
-                assess_package_name(name, true, Platform::MacosX86_64, hints).0,
+                assess_package_name(name, true, Platform::MacosX86_64, hints)
+                    .0
+                    .as_str(),
                 "incompatible"
             );
             assert_eq!(
@@ -908,6 +937,86 @@ mod tests {
             .1,
             None
         );
+    }
+
+    #[test]
+    fn crash_bandicoot_recommends_reviewed_bare_linux_binary_for_matching_host() {
+        let windows = asset(1, "CrashBandicoot.exe");
+        let linux = asset(2, "CrashBandicoot-Linux");
+        let linux_arm = asset(3, "CrashBandicoot-Linux-arm64");
+        let android = asset(4, "CrashBandicoot-2.6.apk");
+        let windows_arm = asset(5, "CrashBandicoot-arm64.exe");
+        let assets = [windows, linux, linux_arm, android, windows_arm];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("crash-bandicoot-crashbandicoot-launcher")
+            .unwrap();
+        for (platform, id) in [(Platform::WindowsX86_64, 1_u64), (Platform::LinuxX86_64, 2)] {
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    platform,
+                    &listing.download_asset_hints[&platform],
+                    true
+                )
+                .1,
+                Some(id.into())
+            );
+        }
+        assert_eq!(
+            recommend_packages(&assets, Platform::LinuxX86_64, &["linux".into()], true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(
+                &assets,
+                Platform::LinuxX86_64,
+                &["CrashBandicoot-Linux-arm64".into()],
+                true,
+            )
+            .1,
+            None
+        );
+    }
+
+    #[test]
+    fn openigi_recommends_versioned_linux_player_over_the_server() {
+        let player = "openigi-game-0.6.9-beta.4-linux-x64";
+        let assets = [
+            asset(1, player),
+            CatalogDownloadCandidate {
+                can_extract: true,
+                ..asset(2, "openigi-server-0.6.9-beta.4-linux-x64.tar.gz")
+            },
+            asset(3, "openigi-game-0.6.9-beta.4-linux-x64-dotnet"),
+            asset(4, "openigi-game-0.6.9-beta.4-win-x64.exe"),
+        ];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("project-i-g-i-i-m-going-in-openigi")
+            .unwrap();
+        let platform = Platform::LinuxX86_64;
+        let hints = &listing.download_asset_hints[&platform];
+        let (assessments, recommended) = recommend_packages(&assets, platform, hints, true);
+        assert_eq!(recommended, Some(1_u64.into()));
+        assert_eq!(assessments[1].suitability, "auxiliary");
+        assert_eq!(
+            recommend_packages(&assets[1..], platform, hints, true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(&assets[1..2], platform, &[], true).1,
+            None
+        );
+        let windows = Platform::WindowsX86_64;
+        let (assessments, recommended) = recommend_packages(
+            &assets,
+            windows,
+            &listing.download_asset_hints[&windows],
+            true,
+        );
+        assert_eq!(assessments[0].suitability, "incompatible");
+        assert_eq!(recommended, Some(4_u64.into()));
     }
 
     #[test]

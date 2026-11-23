@@ -3,8 +3,16 @@
   "listing": {
     "id": "portingpete-the-darkness-recomp",
     "name": "The Darkness (The Darkness Recomp)",
-    "summary": "A Windows 10/11 x64 Direct3D 11 port of The Darkness with project-reported gameplay, audio, saves and controls. Use the player ZIP rather than the optional diagnostic-launcher ZIP. Release play needs no source toolchain; development/update builds separately use VS2022 Clang, CMake, Python, MSYS2 and LLVM, including XMA preparation. Supply your own complete extracted Xbox 360 game, including default.xex, Content, System and all companions; an ISO alone is insufficient. The player checks the supported executable and documented Russian localization internally, but this guide does not specify their exact hashes. XexTool preparation is unnecessary and no separate console BIOS input is specified. You and the project manage setup and replacement; Portcove has not qualified the package or confirmed gameplay.",
+    "summary": "Use the project’s Windows player ZIP with a complete extracted Xbox 360 copy of The Darkness. Setup needs default.xex and its companion folders. An ISO alone is insufficient. The project reports working gameplay, audio, saves and controls and manages its own updates.",
     "original_game_title": "The Darkness",
+    "artwork": {
+      "game_id": 1347,
+      "cover_id": 205434,
+      "image_id": "co4eii",
+      "image_sha256": "3eeac79492c259e9a56687a90787170addd43c228dee6b3acc0736e9bba9b8b1",
+      "game_slug": "the-darkness",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/portingpete/The-Darkness-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -37,6 +45,30 @@
       ],
       "warnings": [
         "Select the actual DarkRecomp.exe with the complete release root as CWD. Preserve the original-disc revision and actual user-data root; diagnostic launchers and independent localizations are separate."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The Windows 10 or 11 x64 player uses Direct3D 11. The optional diagnostic launcher is a separate download. Release play needs no development toolchain or XexTool preparation. Keep the supported original-disc and Russian-localization revisions distinct."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-darkness",
+      "evidence_urls": [
+        "https://github.com/portingpete/The-Darkness-Recomp/blob/8e4016c8b5a442b312d3a009a9047d0f541adbf8/README.md",
+        "https://github.com/portingpete/The-Darkness-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-darkness-xbox-360",
+          "title": "The Darkness (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/portingpete/The-Darkness-Recomp/blob/b282ee558273a7d366c5d1360c27497c319bb169/README.md"
+          ]
+        }
       ]
     }
   },

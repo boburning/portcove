@@ -1,6 +1,11 @@
+import { readablePendingRecord } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
-import { useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
@@ -10,28 +15,31 @@ import {
 } from "../features/operations/operation-presentation";
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
-import type { PortStatus } from "../types";
+import type { PortDefinition, PortStatus } from "../types";
 import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
+import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { ActionRow, Notice } from "./ui/patterns";
 
 export interface SelfServiceSetupProps {
   entry: CatalogEntry;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
-  onChanged: () => void;
+  onChanged: () => void | Promise<unknown>;
   render?: ((slots: { play: ReactNode; setup: ReactNode }) => ReactNode) | undefined;
 }
 
-/** Non-owning setup only. Managed installation remains in the strict detail pane. */
+/** Non-owning setup and the explicit review of a separate managed copy. */
 export function SelfServiceSetup({
   entry,
+  devicePlatform,
   libraryRoot,
   status,
   generation,
@@ -40,9 +48,24 @@ export function SelfServiceSetup({
   render,
 }: SelfServiceSetupProps) {
   const { t } = useAppTranslation("installation");
+  const registerPlay = useContext(CurrentGamePlayControl);
   const updates =
     entry.listing &&
     upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
+  const pending = entry.pendingSetup;
+  const pendingId = pending?.id;
+  const openGuide = useCallback(
+    (url: string) =>
+      pendingId
+        ? desktopApi.openPendingSetupResource(entry.id, pendingId, url, generation)
+        : desktopApi.openExternalUrl(url),
+    [entry.id, generation, pendingId],
+  );
+  const setupListing = pending
+    ? readablePendingRecord(pending)
+      ? pending.listing
+      : undefined
+    : entry.listing;
   const [editorOpen, setEditorOpen] = useState(false);
   // Only this explicitly selected non-owning surface uses listing guidance.
   // Keep the strict definition and the managed detail's retained guide intact.
@@ -51,21 +74,26 @@ export function SelfServiceSetup({
       ...entry,
       presentation: {
         ...entry.presentation,
-        manual_setup: entry.listing?.manual_setup ?? null,
+        manual_setup: setupListing?.manual_setup ?? null,
         manual_preparation: null,
       },
     }),
-    [entry],
+    [entry, setupListing],
   );
   const editorId = useId();
   const editorHeading = useRef<HTMLHeadingElement>(null);
-  const pending = entry.pendingSetup;
   const needsRecovery = pending?.state === "attention-required";
   const registered = status?.external_runtime;
+  const managedPort =
+    entry.definition?.adapter === "native-portable" ? entry.definition : undefined;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
   const attach = listingActionAssessment(entry.listingStatus, "attach-existing");
   const operation = presentPortAction(useOperationPresentation(), entry.id, status, "launch");
   const busy = Boolean(operation.busy);
+  const paletteTarget =
+    render && launch.allowed && !busy
+      ? currentGamePlayKey(entry.id, generation, status)
+      : undefined;
   const showEditor = () => {
     setEditorOpen(true);
     window.requestAnimationFrame(() => editorHeading.current?.focus());
@@ -89,6 +117,8 @@ export function SelfServiceSetup({
         data-focusable
         variant="primary"
         size="lg"
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         disabled={!launch.allowed || busy}
         focusableWhenDisabled={launch.allowed && busy}
         aria-busy={launch.allowed && busy}
@@ -105,15 +135,16 @@ export function SelfServiceSetup({
       className="self-service-setup grid gap-4"
       aria-label={t("selfService.label")}
     >
-      {!registered && entry.listing?.manual_setup && (
-        <div className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
+      {!registered && setupListing?.manual_setup && (
+        <section className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
           <h3>{t("selfService.upstreamHeading")}</h3>
           {/* External ownership is the guidance default for this non-owning route. */}
           <AuthoredPreparationGuidance
             port={entry}
-            setup={{ manual_setup: entry.listing.manual_setup }}
+            setup={{ manual_setup: setupListing.manual_setup }}
+            openGuide={openGuide}
           />
-        </div>
+        </section>
       )}
       {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
@@ -160,8 +191,10 @@ export function SelfServiceSetup({
             {t("selfService.useExisting")}
           </Button>
         ) : null}
-        {!registered && entry.listing?.setup_url && (
-          <ExternalLink href={entry.listing.setup_url}>{t("selfService.setupGuide")}</ExternalLink>
+        {!registered && setupListing?.setup_url && (
+          <ExternalLink href={setupListing.setup_url} openUrl={openGuide}>
+            {t("selfService.setupGuide")}
+          </ExternalLink>
         )}
       </ActionRow>
       {pending && (
@@ -173,9 +206,24 @@ export function SelfServiceSetup({
           perform={perform}
         />
       )}
+      {managedPort &&
+        registered?.user_selected &&
+        !pending &&
+        !status?.active &&
+        !operation.managedRouteReadbackRequired && (
+          <ActionRow>
+            <ManagedRouteChangeControl
+              key={JSON.stringify([managedPort.id, generation, registered])}
+              port={managedPort}
+              generation={generation}
+              busy={busy}
+              onChanged={onChanged}
+            />
+          </ActionRow>
+        )}
       {registered?.user_selected && !pending && (
         <details>
-          <summary data-focusable className="cursor-pointer py-2 font-medium">
+          <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
             {t("selfService.another.summary")}
           </summary>
           <div className="grid gap-3 pt-2">
@@ -214,6 +262,7 @@ export function SelfServiceSetup({
             {t("selfService.launchDetails")}
           </h2>
           <UserSelectedRuntimeControl
+            devicePlatform={devicePlatform}
             libraryRoot={libraryRoot}
             port={routeEntry}
             status={status}
@@ -222,6 +271,7 @@ export function SelfServiceSetup({
             initialDirectory={pending?.state === "downloaded" ? pending.path : undefined}
             busy={busy}
             onChanged={onChanged}
+            openGuide={openGuide}
           />
         </div>
       )}

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "scottjco-wetrix-n64-usa-rev0-recomp",
+    "artwork": {
+      "game_id": 3637,
+      "cover_id": 107662,
+      "image_id": "co2b2m",
+      "image_sha256": "20aea507d7fd38f5cc0b2d0e516ebeb994dfb6334bbca841799b5eb555829ed8",
+      "game_slug": "wetrix",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/scottjco/Wetrix_Recomp",
     "name": "Wetrix (Wetrix Recompiled)",
     "summary": "A Windows port of Wetrix. Set it up with your original US Nintendo 64 game file.",
@@ -9,7 +17,7 @@
     "listed_at": "2026-11-05",
     "original_game_title": "Wetrix",
     "availability": "unknown",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
     "manual_setup": {
       "help_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
@@ -29,7 +37,34 @@
         }
       ]
     },
-    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+        "tracking_issue": 4262
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "wetrix",
+      "evidence_urls": [
+        "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
+        "https://github.com/scottjco/Wetrix_Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wetrix-nintendo-64",
+          "title": "Wetrix (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

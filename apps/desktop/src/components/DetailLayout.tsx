@@ -17,17 +17,19 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { GameHero } from "./GameHero";
+import type { HeroMediaContext } from "../hero-media";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
-import { releaseChannelPresentation } from "../view-model";
+import { platformLabel, releaseChannelPresentation } from "../view-model";
 import type { PortDefinition, ReleaseChannel } from "../types";
-import { availablePlatforms, type CatalogEntry } from "../features/browsing/catalog-entry";
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { FundingLinks } from "./FundingLinks";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { controlFocus } from "./ui/control-style";
 
 function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
@@ -36,10 +38,14 @@ function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
       return t("section.overview");
     case "files":
       return t("section.files");
+    case "mods":
+      return t("section.mods");
     case "saves":
       return t("section.saves");
     case "versions":
       return t("section.versions");
+    case "configuration":
+      return t("section.configuration");
     case "manage":
       return t("section.manage");
   }
@@ -50,19 +56,43 @@ type Identity = PortIdentity & {
   channels?: PortDefinition["channels"] | undefined;
   listing?: CatalogEntry["listing"];
 };
+type DetailRevealControl = string | { focus: string };
+
 export type RevealDetailSection = (
   section: DetailSection,
   targetId?: string,
-  control?: string,
+  control?: DetailRevealControl,
 ) => void;
 
+function platformIdentities(
+  platforms: readonly PortDefinition["platforms"][number][],
+  otherPlatforms: readonly PortDefinition["platforms"][number][],
+) {
+  const systemOf = (platform: string) => platform.split("-")[0]!;
+  const otherSystems = new Set(otherPlatforms.map(systemOf));
+  return new Map(
+    platforms.map((platform) => {
+      const system = systemOf(platform);
+      return [otherSystems.has(system) ? platformLabel(platform) : identityLabel(system), system];
+    }),
+  );
+}
+
 /** Presentation only: all eligibility and stateful workflow owners stay with the caller. */
+const artworkTarget = {
+  targetId: "detail-artwork",
+  control: "[data-artwork-editor-trigger]",
+};
+
 export function DetailLayout({
   backLabel,
   favoriteControl,
   managementSupplement,
   supplementSection,
   port,
+  mediaContext,
+  platforms = port.platforms ?? [],
+  upstreamPlatforms = [],
   projectUrl,
   openSupport,
   overviewRequirements,
@@ -86,6 +116,10 @@ export function DetailLayout({
   /** Where the supplement opens; defaults to the management section. */
   supplementSection?: DetailSection | undefined;
   port: Identity;
+  mediaContext?: HeroMediaContext | undefined;
+  /** Targets of the setup or retained installation shown in this detail. */
+  platforms?: readonly PortDefinition["platforms"][number][];
+  upstreamPlatforms?: readonly PortDefinition["platforms"][number][];
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
   overviewRequirements?: ReactNode;
@@ -100,9 +134,14 @@ export function DetailLayout({
   attention?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   close: () => void;
   steam?: boolean | undefined;
-  children: (reveal: RevealDetailSection) => Partial<Record<DetailSection, ReactNode>>;
+  children: (
+    reveal: RevealDetailSection,
+    selected: DetailSection,
+  ) => Partial<Record<DetailSection, ReactNode>>;
 }) {
   const { t } = useAppTranslation("detail");
+  const setupIdentities = platformIdentities(platforms, upstreamPlatforms);
+  const upstreamIdentities = platformIdentities(upstreamPlatforms, platforms);
   const identity = `${port.id}:${opening?.token ?? "standalone"}`;
   const [selection, setSelection] = useState({ identity, section: initialSection });
   // Generation/refresh changes must not reset a manual selection within an opening.
@@ -112,7 +151,7 @@ export function DetailLayout({
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
-    control?: string | undefined;
+    control?: DetailRevealControl | undefined;
     identity: string;
   }>();
   const focusedOpening = useRef<string | undefined>(undefined);
@@ -126,8 +165,9 @@ export function DetailLayout({
     const newOpening = focusedOpening.current !== identity;
     if (!request && !newOpening) return;
     if (!opening && !request) return;
+    const destination = request ?? (opening?.destination === "artwork" ? artworkTarget : undefined);
     const targetId =
-      request?.targetId ??
+      destination?.targetId ??
       (request || opening?.destination ? `detail-section-${selected}` : "port-detail-title");
     const element = root.current;
     const frame = requestAnimationFrame(() => {
@@ -143,9 +183,10 @@ export function DetailLayout({
       focusAndReveal(target);
       focusedOpening.current = identity;
       const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const control = request?.control
-        ? controlScope?.querySelector<HTMLElement>(request.control)
-        : undefined;
+      const action = destination?.control;
+      const activate = typeof action === "string";
+      const selector = activate ? action : action?.focus;
+      const control = selector ? controlScope?.querySelector<HTMLElement>(selector) : undefined;
       if (
         control?.isConnected &&
         !control.matches(":disabled, [aria-disabled=true]") &&
@@ -153,25 +194,35 @@ export function DetailLayout({
         control.getClientRects().length
       ) {
         focusAndReveal(control);
-        if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
-          control.parentElement.open = true;
-        else control.click();
+        if (activate) {
+          if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
+            control.parentElement.open = true;
+          else control.click();
+        }
       }
       if (request) setPending(undefined);
     });
     return () => cancelAnimationFrame(frame);
   }, [identity, opening, selected, pending]);
-  const panels = children(reveal);
+  const panels = children(reveal, selected);
   const sections = detailSections.filter((section) => panels[section] !== undefined);
   const managementSection = panels.manage !== undefined ? "manage" : "files";
+  const overview = selected === "overview";
+  const channels = selectedChannel ? [selectedChannel] : port.channels;
   const sourceSystems = [
     ...new Set(
       port.presentation?.original_game?.source_editions.map(
         (edition) => edition.system ?? "not-specified",
       ) ?? [],
     ),
-  ];
-  if (!sourceSystems.length) sourceSystems.push("not-specified");
+  ].filter((system) => overview || system !== "not-specified");
+  if (overview && !sourceSystems.length) sourceSystems.push("not-specified");
+  const selectSection = (value: unknown) => {
+    if (detailSections.includes(value as DetailSection)) {
+      setPending(undefined);
+      setSelection({ identity, section: value as DetailSection });
+    }
+  };
   return (
     <section
       ref={root}
@@ -184,16 +235,22 @@ export function DetailLayout({
     >
       <Button
         data-focusable
-        className="detail-back mb-5"
+        className="detail-back mb-3"
         variant="ghost"
         size="sm"
         data-detail-back
         aria-label={backLabel ?? "Back to previous workspace"}
         onClick={close}
       >
-        <Icon glyph={ArrowLeft} /> {backLabel ?? "Back"}
+        <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero">
+      <GameHero
+        port={port}
+        variant="detail"
+        className="detail-hero"
+        compact={!overview}
+        mediaContext={mediaContext}
+      >
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -210,55 +267,57 @@ export function DetailLayout({
               )}
             </p>
           )}
-          <div
-            className="detail-identity-chips mt-3 flex flex-wrap gap-2"
-            role="group"
-            aria-label={t("identity.label")}
-          >
-            {sourceSystems.map((system) => (
-              <Chip
-                key={`system:${system}`}
-                style={identityStyle(system)}
-                title={t("identity.originalSystem")}
-              >
-                <IdentityIcon name={system} />
-                {system === "not-specified"
-                  ? t("identity.originalSystemUnspecified")
-                  : identityLabel(system)}
-              </Chip>
-            ))}
-            {[
-              ...new Set(
-                (port.platforms
-                  ? availablePlatforms({ platforms: port.platforms, listing: port.listing })
-                  : []
-                ).map((platform) => platform.split("-")[0]!),
-              ),
-            ].map((system) => {
-              return (
+          {(sourceSystems.length > 0 ||
+            setupIdentities.size > 0 ||
+            upstreamIdentities.size > 0 ||
+            Boolean(channels?.length)) && (
+            <div
+              className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
+              role="group"
+              aria-label={t("identity.label")}
+            >
+              {sourceSystems.map((system) => (
                 <Chip
-                  key={`platform:${system}`}
+                  key={`system:${system}`}
+                  style={identityStyle(system)}
+                  title={t("identity.originalSystem")}
+                >
+                  <IdentityIcon name={system} />
+                  {system === "not-specified"
+                    ? t("identity.originalSystemUnspecified")
+                    : identityLabel(system)}
+                </Chip>
+              ))}
+              {[...setupIdentities].map(([label, system]) => (
+                <Chip
+                  key={`platform:${label}`}
                   style={identityStyle(system)}
                   title={t("identity.runsOn")}
                 >
                   <IdentityIcon name={system} />
-                  {identityLabel(system)}
+                  {label}
                 </Chip>
-              );
-            })}
-            {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
-              <Chip
-                key={`channel:${channel}`}
-                style={identityStyle(channel, true)}
-                title={
-                  selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
-                }
-              >
-                <IdentityIcon name={channel} channel />
-                {releaseChannelPresentation(channel).label}
-              </Chip>
-            ))}
-          </div>
+              ))}
+              {[...upstreamIdentities].map(([label, system]) => (
+                <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+                  <IdentityIcon name={system} />
+                  {t("identity.upstreamPlatform", { platform: label })}
+                </Chip>
+              ))}
+              {channels?.map((channel) => (
+                <Chip
+                  key={`channel:${channel}`}
+                  style={identityStyle(channel, true)}
+                  title={
+                    selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
+                  }
+                >
+                  <IdentityIcon name={channel} channel />
+                  {releaseChannelPresentation(channel).label}
+                </Chip>
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">
               {readiness}
@@ -267,7 +326,7 @@ export function DetailLayout({
               {installation}
             </span>
           </div>
-          <div className="detail-header-actions mt-6 flex flex-wrap items-center gap-2">
+          <div className="detail-header-actions mt-4 flex flex-wrap items-center gap-2">
             {action(reveal)}
             {favoriteControl}
             <Menu.Root>
@@ -297,7 +356,7 @@ export function DetailLayout({
                     <Menu.Item
                       className={`${controlFocus} cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
                       onClick={() =>
-                        reveal(managementSection, "detail-artwork", ".artwork-controls > summary")
+                        reveal(managementSection, artworkTarget.targetId, artworkTarget.control)
                       }
                     >
                       {t("actions.artwork")}
@@ -328,27 +387,29 @@ export function DetailLayout({
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
-      <Tabs.Root
-        value={selected}
-        onValueChange={(value: unknown) => {
-          if (detailSections.includes(value as DetailSection)) {
-            setPending(undefined);
-            setSelection({ identity, section: value as DetailSection });
-          }
-        }}
-        className="detail-tabs"
-      >
+      <Tabs.Root value={selected} onValueChange={selectSection} className="detail-tabs">
+        <div className="detail-section-picker">
+          <ChoiceSelect
+            label={t("section.label")}
+            value={selected}
+            options={sections.map((section) => ({
+              value: section,
+              label: sectionLabel(t, section),
+            }))}
+            onChange={selectSection}
+          />
+        </div>
         <Tabs.List
           activateOnFocus={false}
           aria-label={t("section.label")}
-          className="detail-tab-list flex flex-wrap gap-x-7 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
             <Tabs.Tab
               key={section}
               value={section}
               data-focusable
-              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-pc-muted-foreground data-active:border-current data-active:bg-pc-selection data-active:text-pc-selection-foreground`}
+              className={`${controlFocus} detail-tab cursor-pointer border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-pc-muted-foreground hover:bg-pc-surface data-active:border-current data-active:text-pc-selection-foreground`}
             >
               {sectionLabel(t, section)}
             </Tabs.Tab>
@@ -366,7 +427,11 @@ export function DetailLayout({
             <h2
               id={`detail-section-${section}`}
               tabIndex={-1}
-              className={section === "overview" ? "sr-only" : "mb-5 text-xl"}
+              className={
+                section === "overview" || section === "mods" || section === "configuration"
+                  ? "sr-only"
+                  : "mb-5 text-xl"
+              }
             >
               {sectionLabel(t, section)}
             </h2>
@@ -374,7 +439,13 @@ export function DetailLayout({
               <div className="detail-overview">
                 <div className="detail-overview-main min-w-0">
                   {panels.overview}
-                  <CatalogMediaGallery port={port} />
+                  <CatalogMediaGallery
+                    port={port}
+                    context={mediaContext}
+                    fallbackFocus={() =>
+                      root.current?.querySelector<HTMLElement>("[data-detail-back]")
+                    }
+                  />
                   {overviewActions?.(reveal)}
                   {overviewDetails}
                 </div>

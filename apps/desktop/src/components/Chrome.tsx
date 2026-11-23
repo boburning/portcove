@@ -1,3 +1,5 @@
+import { referenceIdentity } from "../shared/reference-identity";
+import { focusAndReveal } from "../focus";
 import { countMessage, useAppTranslation } from "../localization";
 import {
   SidebarCollections,
@@ -72,6 +74,7 @@ import type {
   HostToolStatus,
   LibraryMetadataFile,
   LibrarySelection,
+  LibrarySelectionReview,
   OperationEvent,
   SourceInspectionReport,
   SourceProfile,
@@ -85,6 +88,7 @@ import {
   formatBytes,
   navigationActivityState,
   progressPresentation,
+  type DetailDestination,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -94,10 +98,15 @@ import type { SourceInspectionReadState } from "../features/source-health/use-so
 import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
-import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
-import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
+import {
+  invocationFailure,
+  managedRouteReadbackGuidance,
+  sourceImportRecoveryGuidance,
+  type InvocationRecord,
+} from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -106,7 +115,7 @@ import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
-import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { revealSettingsHeading } from "../features/app-shell/focus-settings-target";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
@@ -117,7 +126,7 @@ import {
 export function Sidebar({
   view,
   setView,
-  installedCount,
+  libraryCount,
   updateCount,
   activities,
   controller,
@@ -129,7 +138,7 @@ export function Sidebar({
 }: {
   view: View;
   setView: Dispatch<SetStateAction<View>>;
-  installedCount: number;
+  libraryCount: number | undefined;
   updateCount: number;
   activities: ActivityRecord[];
   controller?: string | undefined;
@@ -186,15 +195,15 @@ export function Sidebar({
       >
         <Icon glyph={item.icon} />
         <span className="nav-label min-w-0 flex-1">{item.label}</span>
-        {item.view === "library" && (
+        {item.view === "library" && libraryCount !== undefined && (
           <b
             className={cn(
               "rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal",
               view === "library" ? "text-pc-selection-foreground" : "text-pc-muted-foreground",
             )}
-            aria-label={`${installedCount} in library`}
+            aria-label={`${libraryCount} in library`}
           >
-            {installedCount}
+            {libraryCount}
           </b>
         )}
         {item.view === "updates" && (updateCount > 0 || activityState) && (
@@ -282,7 +291,7 @@ export function Sidebar({
             <span className="sr-only">Portcove</span>
             <strong
               aria-hidden="true"
-              className="block text-[length:var(--text-lg)] tracking-[-0.05em]"
+              className="block text-[length:var(--text-lg)] tracking-[-0.035em]"
             >
               portcove<span className="text-[var(--color-primary)]">.</span>
             </strong>
@@ -379,7 +388,7 @@ export function PageHeader({
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
-            {libraryCount} in your library
+            {libraryCount} {libraryCount === 1 ? "port" : "ports"} in your library
           </p>
         )}
         {copy.description && (
@@ -444,15 +453,13 @@ export function WorkspaceToolbar({
   return (
     <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
-        <span className="max-[42rem]:hidden">Portcove</span>
-        <span className="max-[42rem]:hidden" aria-hidden="true">
-          /
-        </span>
         <span>{label}</span>
         {detailTitle && (
           <>
             <span aria-hidden="true">/</span>
-            <span className="truncate">{detailTitle}</span>
+            <span className="min-w-0 truncate text-pc-foreground" title={detailTitle}>
+              {detailTitle}
+            </span>
           </>
         )}
       </div>
@@ -466,7 +473,7 @@ export function WorkspaceToolbar({
         aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
       >
         <Icon glyph={Search} />
-        <span className="max-[65rem]:hidden">Search games and pages</span>{" "}
+        <span className="max-[56rem]:hidden">Search games and pages</span>{" "}
         <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
       </Button>
     </div>
@@ -501,12 +508,17 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  scanResultAnnouncement,
   invocations,
   operationEvents,
   dismissInvocation,
   openActivity,
   preparationRecovery,
   readyToPlay,
+  openInstalledGame,
+  openExternalGame,
+  openSavedSource,
+  completedActivityAvailable,
   onActivity = false,
 }: {
   /** Activity is open: a link may reveal a known task there but never re-open Activity. */
@@ -518,13 +530,18 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  scanResultAnnouncement?: string | undefined;
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
-  openActivity?: ((id?: string) => void) | undefined;
+  openActivity?: ((id?: string, section?: "history") => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
+  openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openExternalGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openSavedSource?: (record: InvocationRecord) => (() => void) | undefined;
+  completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
   const acknowledgedSuccess = useRef(new Set<number>());
@@ -535,6 +552,9 @@ export function StatusLayer({
       if (
         record.phase !== "settled" ||
         record.outcome !== "succeeded" ||
+        record.installed ||
+        record.externalRegistration ||
+        record.sourceRegistration ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -548,6 +568,7 @@ export function StatusLayer({
     <>
       {invocations && (
         <InvocationAnnouncements
+          scanResult={scanResultAnnouncement}
           messages={[...invocations.values()].flatMap((record) => {
             const text = invocationAnnouncement(record, operationEvents, (game) =>
               t("launchRequestAccepted", { game }),
@@ -566,6 +587,9 @@ export function StatusLayer({
               className={
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
+                !record.installed &&
+                !record.externalRegistration &&
+                !record.sourceRegistration &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -597,6 +621,10 @@ export function StatusLayer({
                   record={record}
                   latestSuccess={latestSuccess}
                   readyToPlay={readyToPlay}
+                  openInstalledGame={openInstalledGame}
+                  openExternalGame={openExternalGame}
+                  openSavedSource={openSavedSource}
+                  completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
                   onActivity={onActivity}
@@ -711,6 +739,12 @@ function ErrorNotice({
           showMutationSummary={!readbackOnly && !committed}
         />
       )}
+      {invocation?.reviewCurrentState && invocation.context.operation === "import_source" && (
+        <p className="mt-1 text-sm">{sourceImportRecoveryGuidance}</p>
+      )}
+      {invocation?.reviewCurrentState &&
+        invocation.context.operation === "change_managed_route" &&
+        !committed && <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
         <p>
           Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
@@ -743,16 +777,19 @@ function ErrorNotice({
             {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
-        {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            onClick={() => void reviewCurrentState()}
-          >
-            Refresh library
-          </Button>
-        )}
+        {reviewCurrentState &&
+          (readbackOnly ||
+            invocation?.reviewCurrentState ||
+            presentation?.recovery_actions.includes("review_current_state")) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              onClick={() => void reviewCurrentState()}
+            >
+              Refresh library
+            </Button>
+          )}
         {reviewPreparation && (
           <Button
             data-focusable
@@ -805,9 +842,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   };
   const connected = Boolean(status?.authenticated);
   const source =
-    status && Object.hasOwn(labels, status.source)
-      ? labels[status.source]
-      : "Sign-in source unavailable";
+    status && Object.hasOwn(labels, status.source) ? labels[status.source] : "Unavailable";
   const connectionStatus = !status
     ? "Connection status unavailable"
     : connected
@@ -815,7 +850,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
         ? `Connected as ${status.login}`
         : "Connected to GitHub"
       : "Not signed in";
-  const stateClass = `inline-flex items-center gap-1 rounded-full border px-[9px] py-[5px] text-xs ${
+  const stateClass = `inline-flex max-w-full min-w-0 items-center gap-1 rounded-full wrap-anywhere border px-[9px] py-[5px] text-xs ${
     connected
       ? "border-[var(--color-success-border)] bg-pc-success-subtle text-pc-success-foreground"
       : "border-[var(--color-border-strong)] text-pc-muted-foreground"
@@ -824,7 +859,9 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   return (
     <>
       <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
-        <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
+        <h2 id="settings-github-connection" tabIndex={-1} className="m-0 flex items-center gap-2">
+          GitHub connection
+        </h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
           {connectionStatus}
@@ -833,7 +870,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
       {!status ? (
         <p>Refresh status to check the GitHub connection.</p>
       ) : (
-        !connected && <p>Not signed in. Signing in increases the limit for release checks.</p>
+        !connected && <p>Signing in increases the limit for release checks.</p>
       )}
       <details className="mt-3 text-sm text-pc-muted-foreground">
         <summary className="cursor-pointer font-semibold">Connection details</summary>
@@ -891,11 +928,11 @@ function TokenEntry({
       <label className="block font-semibold" htmlFor="github-personal-access-token">
         Personal access token
       </label>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex max-w-lg flex-wrap items-center gap-2">
         <Input
           id="github-personal-access-token"
           data-focusable
-          className="flex-1"
+          className="min-w-0 flex-[1_1_12rem]"
           type="password"
           autoComplete="off"
           value={github?.token ?? ""}
@@ -926,7 +963,7 @@ function GithubActions({
 }) {
   const status = github?.status;
   return (
-    <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+    <ActionRow className="mt-2">
       {!status?.authenticated &&
         status?.source !== "environment" &&
         status?.device_login_available && (
@@ -966,7 +1003,7 @@ function GithubActions({
       >
         Refresh status
       </Button>
-    </div>
+    </ActionRow>
   );
 }
 
@@ -1229,6 +1266,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
@@ -1302,6 +1341,7 @@ function SourceHealthRow({
     <div
       className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 last:border-b-0"
       data-source-profile={source.profile_id}
+      data-saved-source-identity={referenceIdentity(source)}
       tabIndex={-1}
     >
       <div className="min-w-0">
@@ -1434,7 +1474,11 @@ function SourceInspectionPresentation({
     <div className="col-span-full min-w-0">
       <div>
         {currentReport ? (
-          <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
+          <SourceIdentityPanel
+            report={currentReport}
+            evidenceLabel="File details and test results"
+            openEvidence={openEvidence}
+          />
         ) : (
           <p
             className={
@@ -1568,23 +1612,42 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   );
 }
 
-function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
+function AboutCard({
+  generation,
+  onOpenDiagnostics,
+}: {
+  generation: number;
+  onOpenDiagnostics: () => void;
+}) {
   return (
     <div className="about-card" data-focus-group>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Portcove {desktopPackage.version}</h3>
-          <p>Tauri 2 · Rust · React</p>
           <p>Licensed under MIT or Apache-2.0.</p>
         </div>
         <ExternalLink
-          className="settings-field-control inline-flex min-h-10 items-center rounded-pc-md border border-pc-border px-3 py-2 text-sm no-underline hover:bg-pc-secondary"
+          className="settings-field-control min-h-10 text-sm"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
       </SettingsRow>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
+        <div className="settings-field-copy">
+          <h3>Feedback</h3>
+          <p>
+            Tell us when something broke, or when something was hard, confusing or missing. You
+            review the pre-filled text, and nothing is sent until you choose how: from your GitHub
+            account when signed in, on GitHub, or as copied text. Folder paths and your user name
+            are replaced. Don't include original game files or saves.
+          </p>
+        </div>
+        <div className="settings-field-control justify-self-start">
+          <ReportProblem key={generation} generation={generation} />
+        </div>
+      </SettingsRow>
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Support</h3>
           <p>Save logs and system details to help troubleshoot a problem.</p>
@@ -1621,7 +1684,11 @@ function DiagnosticsCard({
 }) {
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
-      <h2 className="flex items-center gap-2">
+      <h2
+        id="settings-diagnostics-heading"
+        tabIndex={-1}
+        className="settings-target-heading flex items-center gap-2"
+      >
         <Icon glyph={ShieldCheck} />
         Create a support report
       </h2>
@@ -1657,7 +1724,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
     <Radio.Root
       data-focusable
       value={option}
-      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
+      className={`theme-option grid min-w-0 cursor-pointer content-start justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground hover:bg-pc-surface-muted data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
     >
       <span className="theme-preview" data-preview={option} aria-hidden="true">
         <i />
@@ -1667,9 +1734,9 @@ function ThemeOption({ option }: { option: ThemePreference }) {
           <b />
         </span>
       </span>
-      <span className="flex w-full min-w-0 items-center gap-2 text-start">
+      <span className="flex w-full min-w-0 items-center gap-1.5 text-start">
         <Icon glyph={option === "dark" ? Moon : option === "light" ? Sun : Monitor} size="sm" />
-        <span className="min-w-0">
+        <span className="min-w-0 wrap-anywhere">
           {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
         </span>
         <Radio.Indicator className="ms-auto shrink-0">
@@ -1696,8 +1763,8 @@ type SettingsViewProps = {
   workspaceRefreshFailed?: boolean;
   librarySelection?: LibrarySelection | undefined;
   chooseLibrary?: (currentPath: string) => Promise<string | null>;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  resetLibrary?: () => Promise<void>;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  resetLibrary?: (review?: string) => Promise<void>;
   sourceNeeds?: SourceRequirement[];
   sourceRequirementsState?: SourceRequirementsState;
   installedCount?: number;
@@ -1712,11 +1779,15 @@ type SettingsViewProps = {
   exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
-  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  onOpenPort?:
+    | ((portId: string, originKey: string, destination?: DetailDestination) => void)
+    | undefined;
   setupSource?: SourceRecord | undefined;
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
+  onOpenGameFileScan?: () => void;
+  onReturnToUpdateDecision?: (() => void) | undefined;
   onOpenActivity?: () => void;
   onReviewSaves?: (portId: string, origin: string) => void;
   hostToolActions?: HostToolActions | undefined;
@@ -1764,6 +1835,8 @@ export function SettingsView(props: SettingsViewProps) {
     setSetupSource,
     onCatalogChanged,
     onOpenGameUpdates,
+    onOpenGameFileScan,
+    onReturnToUpdateDecision,
     onOpenActivity,
     onReviewSaves,
     hostToolActions,
@@ -1778,13 +1851,10 @@ export function SettingsView(props: SettingsViewProps) {
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
   const [steamOpen, setSteamOpen] = useState(false);
+  const [catalogManagerOpen, setCatalogManagerOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
-    <nav
-      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[56.3125rem]:flex-col min-[56.3125rem]:overflow-visible"
-      aria-label="Settings categories"
-      data-focus-group
-    >
+    <nav className="settings-section-index" aria-label="Settings categories" data-focus-group>
       {settingsCategories.map(({ id, label }) => (
         <Button
           key={id}
@@ -1792,7 +1862,7 @@ export function SettingsView(props: SettingsViewProps) {
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
           className={cn(
-            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[56.3125rem]:w-full min-[56.3125rem]:whitespace-normal",
+            "settings-category justify-start gap-2.5 border-transparent text-start font-normal",
             selectedCategory !== id && "text-pc-muted-foreground",
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
@@ -1803,7 +1873,7 @@ export function SettingsView(props: SettingsViewProps) {
           }}
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)(id);
-            jumpToSettingsSection(id);
+            revealSettingsHeading(`settings-${id}-heading`);
           }}
         >
           <Icon
@@ -1834,6 +1904,11 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <LibrarySelectionCard
         selection={librarySelection}
+        inspect={
+          generation <= 0
+            ? undefined
+            : (path) => desktopApi.reviewLibrarySelection(path, generation)
+        }
         busy={busy}
         choose={chooseLibrary}
         switchLibrary={switchLibrary}
@@ -1849,7 +1924,8 @@ export function SettingsView(props: SettingsViewProps) {
       />
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
-        key={generation}
+        key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
@@ -1869,6 +1945,8 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <GameFileLibraries
         key={generation}
+        active={selectedCategory === "game-files"}
+        onOpenScan={onOpenGameFileScan}
         generation={generation}
         ports={ports}
         statuses={statuses}
@@ -1931,16 +2009,6 @@ export function SettingsView(props: SettingsViewProps) {
         refresh={refreshDiagnostics}
         hasSnapshot={Boolean(doctor)}
       />
-      <SettingsRow data-focus-group>
-        <h2>Report a problem or send feedback</h2>
-        <p>
-          Tell us when something broke, or when something was hard, confusing or missing. You review
-          the pre-filled text, and nothing is sent until you choose how: from your GitHub account
-          when signed in, on GitHub, or as copied text. Folder paths and your user name are
-          replaced.
-        </p>
-        <ReportProblem key={generation} generation={generation} />
-      </SettingsRow>
       <SettingsRow className="privacy-card">
         <h2>Original game files stay local</h2>
         <p>
@@ -1983,18 +2051,22 @@ export function SettingsView(props: SettingsViewProps) {
         <Button
           data-focusable
           variant="link"
-          onClick={() => {
-            (onCategoryChange ?? setLocalCategory)("advanced");
-            jumpToSettingsSection("advanced");
-          }}
+          disabled={Boolean(busy)}
+          onClick={() => setCatalogManagerOpen(true)}
         >
           Manage custom catalog sources
         </Button>
+        {catalogManagerOpen && (
+          <CatalogUpdatesDialog
+            close={() => setCatalogManagerOpen(false)}
+            onChanged={onCatalogChanged}
+          />
+        )}
       </SettingsRow>
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[56.3125rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
+    <section className="settings-grid">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -2039,12 +2111,18 @@ export function SettingsView(props: SettingsViewProps) {
               />
             ) : steamOpen ? (
               <SteamBatchEntryDialog
+                allowSingle
                 ports={steamPorts}
                 generation={generation}
                 close={() => setSteamOpen(false)}
               />
             ) : null}
           </SettingsRow>
+          {onReturnToUpdateDecision && (
+            <Button data-focusable variant="outline" onClick={onReturnToUpdateDecision}>
+              Return to update check
+            </Button>
+          )}
           <GithubSettings github={github} busy={busy} />
           <SteamGridDbSettings generation={generation} />
         </SettingsSection>
@@ -2091,15 +2169,15 @@ export function SettingsView(props: SettingsViewProps) {
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          title="Portcove"
-          headingLabel="About Portcove"
-          identity={<BrandMascot className="mb-5 size-14" decorative transparent />}
+          title="About Portcove"
+          identity={<BrandMascot className="size-14 shrink-0" decorative transparent />}
           description="Install, update, and play native game ports."
         >
           <AboutCard
+            generation={generation}
             onOpenDiagnostics={() => {
               (onCategoryChange ?? setLocalCategory)("advanced");
-              jumpToSettingsSection("advanced");
+              revealSettingsHeading("settings-diagnostics-heading");
             }}
           />
         </SettingsSection>
@@ -2113,7 +2191,6 @@ function SettingsSection({
   id,
   title,
   description,
-  headingLabel,
   identity,
   action,
   children,
@@ -2122,7 +2199,6 @@ function SettingsSection({
   id: string;
   title: string;
   description: string;
-  headingLabel?: string;
   identity?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -2132,36 +2208,19 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn(
-        "settings-section @container/section",
-        identity ? "gap-0" : "gap-6",
-        active ? "grid" : "hidden",
-      )}
+      className="settings-section @container/section"
       data-settings-group={id}
       aria-labelledby={headingId}
     >
-      <div className={cn("settings-section-heading", identity ? "about-identity" : "py-2")}>
+      <div className="settings-section-heading">
         {identity}
-        <h2
-          id={headingId}
-          tabIndex={-1}
-          aria-label={headingLabel}
-          className={cn(
-            "scroll-mt-3 focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid",
-            identity ? "m-0 text-[2.2rem] tracking-[-0.035em]" : "mb-1 text-[1.25rem]",
-          )}
-        >
-          {title}
-        </h2>
-        <p
-          className={cn(
-            "settings-section-description leading-[var(--leading-relaxed)] text-pc-muted-foreground",
-            identity ? "mt-4 max-w-[24.375rem] text-xs" : "m-0 max-w-[52rem]",
-          )}
-        >
-          {description}
-        </p>
-        {action}
+        <div className="min-w-0">
+          <h2 id={headingId} tabIndex={-1} className="settings-target-heading">
+            {title}
+          </h2>
+          <p className="settings-section-description text-pc-muted-foreground">{description}</p>
+          {action}
+        </div>
       </div>
       <div className="settings-section-content min-w-0">{children}</div>
     </section>
@@ -2170,20 +2229,27 @@ function SettingsSection({
 
 export function LibrarySelectionCard({
   selection,
+  inspect,
   busy,
   choose,
   switchLibrary,
   reset,
 }: {
   selection?: LibrarySelection | undefined;
+  inspect?: ((path: string | null) => Promise<LibrarySelectionReview>) | undefined;
   busy?: string | undefined;
   choose?: ((currentPath: string) => Promise<string | null>) | undefined;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  reset?: (() => Promise<void>) | undefined;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  reset?: ((review?: string) => Promise<void>) | undefined;
 }) {
   const [error, setError] = useState<unknown>();
   const presentation = failurePresentation(error);
-  const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
+  const movedDestination = presentation?.technical_context.current_library_root;
+  const [review, setReview] = useState<{
+    kind: "switch" | "reset";
+    path: string;
+    inspection?: LibrarySelectionReview;
+  }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -2194,9 +2260,14 @@ export function LibrarySelectionCard({
     setPending(true);
     try {
       const path = await choose?.(selection?.root ?? "");
-      if (path && path !== selection?.root) {
+      if (path) {
         focusReturn.current = "switch";
-        setReview({ kind: "switch", path });
+        const inspection = await inspect?.(path);
+        setReview({
+          kind: "switch",
+          path: inspection?.path ?? path,
+          ...(inspection && { inspection }),
+        });
       }
     } catch (value) {
       setError(value);
@@ -2211,10 +2282,11 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      const path = await desktopApi.defaultLibraryRoot();
+      const inspection = await inspect?.(null);
+      const path = inspection?.path ?? (await desktopApi.defaultLibraryRoot());
       if (!path.trim()) throw new Error("The default library location is unavailable.");
       focusReturn.current = "reset";
-      setReview({ kind: "reset", path });
+      setReview({ kind: "reset", path, ...(inspection && { inspection }) });
     } catch (value) {
       setError(value);
     } finally {
@@ -2226,8 +2298,12 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      if (review.kind === "switch") await switchLibrary?.(review.path);
-      else await reset?.();
+      const digest = review.inspection?.review_sha256;
+      if (review.kind === "switch") {
+        await (digest ? switchLibrary?.(review.path, digest) : switchLibrary?.(review.path));
+      } else {
+        await (digest ? reset?.(digest) : reset?.());
+      }
     } catch (value) {
       setError(value);
     } finally {
@@ -2235,6 +2311,19 @@ export function LibrarySelectionCard({
       setReview(undefined);
     }
   };
+  const keepCurrent = review?.inspection?.effect === "keep";
+  const saveCurrent =
+    review?.kind === "switch" &&
+    (review.inspection
+      ? review.inspection.effect === "change_startup"
+      : review.path === selection?.root);
+  const contents = review?.inspection?.contents;
+  const changeDefault = review?.kind === "reset" && review.inspection?.effect === "change_startup";
+  const resetScope = review?.inspection?.resets_preferences
+    ? " This also resets all host preferences, including language, favorites, and tool paths."
+    : review?.inspection
+      ? ""
+      : " If host preferences are damaged or from a newer format, this also resets saved language and tool paths.";
   const source =
     selection?.source === "saved"
       ? "Saved library"
@@ -2300,32 +2389,67 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {review.kind === "switch" ? "Switch libraries?" : "Open the default library?"}
+              {keepCurrent
+                ? "This library is already selected"
+                : saveCurrent
+                  ? "Save this library for startup?"
+                  : review.kind === "switch"
+                    ? "Switch libraries?"
+                    : changeDefault
+                      ? "Use this library as the default?"
+                      : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
-                : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
+              {keepCurrent
+                ? "This library is open and is already the startup library."
+                : saveCurrent
+                  ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
+                  : review.kind === "switch"
+                    ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
+                    : changeDefault
+                      ? `Portcove will keep this library open and use it as the default for future launches.${resetScope}`
+                      : `Portcove will open the default library shown below and clear the saved library choice.${resetScope} Files in the current library will stay where they are. The default library uses its own game install folder settings.`}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
+            {contents && (
+              <p className="mt-3 text-sm text-pc-muted-foreground">
+                {
+                  {
+                    empty_directory:
+                      "This folder is empty. Portcove will start a new library here.",
+                    new_default_directory: "Portcove will create the default library folder.",
+                    existing_database:
+                      "This folder contains a library database. Portcove checks it when opening.",
+                    recovery_records:
+                      "This folder contains recovery records. Portcove checks them when opening.",
+                  }[contents]
+                }
+              </p>
+            )}
             <DialogFooter className="mt-4">
-              <Button
-                data-focusable
-                variant="primary"
-                disabled={pending}
-                onClick={() => {
-                  void applyReview();
-                }}
-              >
-                {pending
-                  ? "Switching…"
-                  : review.kind === "switch"
-                    ? "Switch library"
-                    : "Open default library"}
-              </Button>
+              {!keepCurrent && (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={pending}
+                  onClick={() => {
+                    void applyReview();
+                  }}
+                >
+                  {saveCurrent
+                    ? pending
+                      ? "Saving…"
+                      : "Save startup choice"
+                    : pending
+                      ? "Switching…"
+                      : review.kind === "switch"
+                        ? "Switch library"
+                        : "Open default library"}
+                </Button>
+              )}
               <Button
                 data-focusable
                 ref={keepLibraryButton}
@@ -2333,7 +2457,7 @@ export function LibrarySelectionCard({
                 disabled={pending}
                 onClick={cancelReview}
               >
-                Keep current library
+                {keepCurrent ? "Done" : "Keep current library"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2341,7 +2465,14 @@ export function LibrarySelectionCard({
       )}
       {error !== undefined && (
         <div role="alert">
-          <p>{errorText(error)}</p>
+          {movedDestination ? (
+            <>
+              <p>This library was moved. Choose its current folder before switching.</p>
+              <code className="block break-all">{movedDestination}</code>
+            </>
+          ) : (
+            <p>{errorText(error)}</p>
+          )}
           {presentation && <FailureDetails presentation={presentation} />}
         </div>
       )}
@@ -2379,7 +2510,7 @@ function HostReadiness({
           {(stale || Boolean(failure)) && (
             <p role="status">Showing the last successful host check.</p>
           )}
-          <p className="host-summary mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p className="host-summary mb-3 flex max-w-none flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {doctor.platform}
             </code>
@@ -2388,11 +2519,15 @@ function HostReadiness({
               {doctor.registered_source_count} sources
             </span>
           </p>
-          <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
-            {doctor.host_tools.map((tool) => (
-              <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
-            ))}
-          </div>
+          {doctor.host_tools.length > 0 ? (
+            <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
+              {doctor.host_tools.map((tool) => (
+                <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
+              ))}
+            </div>
+          ) : (
+            <p>No disc tools were listed in the host check.</p>
+          )}
         </>
       ) : failure ? (
         <p>Disc-tool status is unavailable until the check succeeds.</p>
@@ -2529,8 +2664,8 @@ export function HostToolRow({
       <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
         <p>
-          Portcove couldn’t find {tool.display_name}. If it’s installed, choose its program file.
-          Otherwise, install it from its official site first.
+          Portcove couldn’t find {tool.display_name}. If you already have it, choose its program
+          file. Otherwise, open Official downloads for installation options.
         </p>
       )}
       {tool.state === "misconfigured" &&
@@ -2573,7 +2708,7 @@ export function HostToolRow({
             void run("site", () => actions?.openOfficial(tool.id));
           }}
         >
-          Official site
+          Official downloads
         </Button>
         {configured && (
           <Button
@@ -2593,10 +2728,7 @@ export function HostToolRow({
         <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
           Tool details
         </summary>
-        <code
-          className="mt-2 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground"
-          title={location}
-        >
+        <code dir="ltr" className="mt-2 block min-w-0 wrap-anywhere text-pc-muted-foreground">
           {location}
         </code>
         <small className="mt-2 block text-[var(--color-text-secondary)]">
@@ -2680,32 +2812,6 @@ function StorageCard({
   );
 }
 
-function jumpToSettingsSection(id: string) {
-  window.requestAnimationFrame(() => {
-    const heading = document.getElementById(`settings-${id}-heading`);
-    if (!heading || heading.closest("[hidden]")) return;
-    heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const navigation = heading
-      .closest(".settings-grid")
-      ?.querySelector<HTMLElement>(".settings-section-index");
-    const workspace = heading.closest<HTMLElement>('[data-focus-region="workspace"]');
-    if (!navigation || !workspace || getComputedStyle(navigation).position !== "sticky") return;
-    const target = heading.getBoundingClientRect();
-    const strip = navigation.getBoundingClientRect();
-    // Wide category navigation sits beside the heading. Only a sticky strip
-    // above the same reading column can cover its focus outline.
-    if (target.left >= strip.right || target.right <= strip.left) return;
-    const focusStyle = getComputedStyle(heading);
-    const outlineRoom =
-      Math.max(0, Number.parseFloat(focusStyle.outlineWidth)) +
-      Math.max(0, Number.parseFloat(focusStyle.outlineOffset));
-    const covered = strip.bottom + outlineRoom - target.top;
-    if (covered > 0 && strip.top < target.bottom)
-      scrollWorkspaceTo(workspace, workspaceScrollTop(workspace) - covered);
-  });
-}
-
 function sourceInspectionMessage(read: SourceInspectionReadState | undefined) {
   return read?.status === "idle"
     ? "Check this file to see its current identity and compatibility."
@@ -2768,6 +2874,10 @@ function SettledInvocation({
   record,
   latestSuccess,
   readyToPlay,
+  openInstalledGame,
+  openExternalGame,
+  openSavedSource,
+  completedActivityAvailable,
   dismissInvocation,
   openActivity,
   onActivity,
@@ -2775,10 +2885,87 @@ function SettledInvocation({
   record: InvocationRecord;
   latestSuccess: number | undefined;
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openExternalGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openSavedSource: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
-  openActivity: ((id?: string) => void) | undefined;
+  openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
+  const savedSource = record.sourceRegistration?.source;
+  if (
+    record.outcome === "succeeded" &&
+    (record.installed || record.externalRegistration || savedSource)
+  ) {
+    const registration = record.externalRegistration;
+    const openResult = savedSource
+      ? openSavedSource?.(record)
+      : registration
+        ? openExternalGame?.(record)
+        : openInstalledGame?.(record);
+    const origin = (registration ? "external-result:" : "install-result:") + record.id;
+    const activityId = record.context.activityId;
+    return (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">
+          {savedSource ? (
+            <>
+              Saved file location for {record.context.target.label} · <bdi>{savedSource.path}</bdi>
+            </>
+          ) : registration ? (
+            "Saved external launch details for " + record.context.target.label
+          ) : (
+            (record.context.operation === "change_managed_route"
+              ? "Created a managed copy of "
+              : "Installed ") +
+            record.context.target.label +
+            " · " +
+            record.installed?.version
+          )}
+        </p>
+        <div data-slot="notice-actions">
+          {openResult && (
+            <Button
+              data-focusable
+              data-detail-origin={savedSource ? undefined : origin}
+              variant="primary"
+              size="sm"
+              onClick={openResult}
+            >
+              {savedSource ? "View saved location" : "Open game"}
+            </Button>
+          )}
+          {activityId && openActivity && (completedActivityAvailable?.(activityId) ?? true) && (
+            <Button
+              data-focusable
+              variant="ghost"
+              size="sm"
+              onClick={() => openActivity(activityId, "history")}
+            >
+              View in Activity
+            </Button>
+          )}
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={(event) => {
+                const trigger = event.currentTarget;
+                const workspace = trigger.closest<HTMLElement>("main");
+                const fallback = workspace?.querySelector<HTMLElement>("h1[tabindex]") ?? workspace;
+                if (document.activeElement === trigger && fallback) focusAndReveal(fallback);
+                dismissInvocation(record.id);
+              }}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    );
+  }
   return (
     invocationFailure(record) === undefined &&
     (record.id === latestSuccess && readyToPlay?.(record) ? (

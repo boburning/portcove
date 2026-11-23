@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tom-clancy-s-rainbow-six-3-xbox-static-recompilation-phobos665-tom-clancy-s-rainbow-six-3-xbox",
+    "artwork": {
+      "game_id": 9891,
+      "cover_id": 79174,
+      "image_id": "co1p3a",
+      "image_sha256": "b8e870b592390d3fe00b18a101ad66f760fc289e84c934358eaa1d80ecb02a07",
+      "game_slug": "tom-clancys-rainbow-six-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Tom Clancy's Rainbow Six 3 (Xbox) — Tom Clancy's Rainbow Six 3 (Xbox) — static recompilation (phobos665)",
     "original_game_title": "Tom Clancy's Rainbow Six 3 (Xbox)",
     "summary": "macOS boot through movies/menus and online play are reported; widescreen is unchecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -28,7 +36,13 @@
       ],
       "help_url": "https://github.com/phobos665/Rainbow-six-three-recomp"
     },
-    "issue_number": 3185
+    "issue_number": 3185,
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-rainbow-six-3-xbox",
+      "evidence_urls": ["https://github.com/phobos665/Rainbow-six-three-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

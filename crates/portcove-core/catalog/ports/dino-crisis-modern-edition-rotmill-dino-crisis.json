@@ -35,6 +35,21 @@
       "image_sha256": "6d28f411058c9f890839bb7d62319b9c1ccd8223cc2bea2fe012cfdac46a01c6",
       "game_slug": "dino-crisis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis",
+      "evidence_urls": ["https://github.com/Rotmill/Dino-Crisis-Modern-Edition"],
+      "source_editions": [
+        {
+          "id": "dino-crisis-playstation",
+          "title": "Dino Crisis (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Rotmill/Dino-Crisis-Modern-Edition/blob/d25f91b9b475733077be89d775cc54c8767cd186/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

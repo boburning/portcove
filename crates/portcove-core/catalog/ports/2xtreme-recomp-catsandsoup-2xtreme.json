@@ -41,6 +41,21 @@
       "image_sha256": "d29de48d7dae223ef1c6798d3c0ab5dec5cfc3285f3aa5c95438231ae7fd6ebb",
       "game_slug": "2xtreme",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "2xtreme",
+      "evidence_urls": ["https://github.com/catsandsoup/2Xtreme-recomp"],
+      "source_editions": [
+        {
+          "id": "2xtreme-playstation",
+          "title": "2Xtreme (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/catsandsoup/2Xtreme-recomp/blob/b14565f968ed053ed09554cc4a8cb4e8c0025d6a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

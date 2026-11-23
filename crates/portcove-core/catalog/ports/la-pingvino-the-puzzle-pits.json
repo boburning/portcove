@@ -3,6 +3,14 @@
   "listing": {
     "id": "la-pingvino-the-puzzle-pits",
     "project_url": "https://github.com/LaPingvino/The-Puzzle-Pits",
+    "artwork": {
+      "game_id": 62400,
+      "cover_id": 42395,
+      "image_id": "db70locrelhbrat6cmyo",
+      "image_sha256": "0123b46b3856eb26430b974218e1432ad092d3ac99454afbb74ac5784bdf6a24",
+      "game_slug": "puzzle-pits",
+      "match_kind": "port"
+    },
     "name": "The Puzzle Pits",
     "original_game_title": "The Puzzle Pits",
     "summary": "Move barrels, cross traps and resume puzzles with level passwords.",
@@ -12,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/LaPingvino/The-Puzzle-Pits/releases/tag/v0.1.0",
     "setup_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
-    "download_block_reason": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+        "tracking_issue": 6079
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
       "steps": [
@@ -32,6 +49,15 @@
       "warnings": [
         "This is the first upstream preview. The publisher describes the Mac binary as unsigned. Review the publisher’s instructions before opening it."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-puzzle-pits",
+      "evidence_urls": [
+        "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
+        "https://github.com/LaPingvino/The-Puzzle-Pits"
+      ],
+      "source_editions": []
     }
   }
 }

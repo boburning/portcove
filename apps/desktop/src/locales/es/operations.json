@@ -21,9 +21,9 @@
     "manualCopy": "Registro conservado para copiar manualmente",
     "none": "No hay ninguna captura de diagnóstico conservada. Es posible que haya detalles de actividad más antiguos en un informe de soporte con datos ocultos en Ajustes.",
     "phase": {
-      "extract": "Preparando los archivos del juego",
+      "extract": "Preparación de archivos del juego",
       "other": "Registro de preparación",
-      "setup": "Ejecutando la configuración del juego"
+      "setup": "Configuración del juego"
     },
     "reading": "Leyendo el registro conservado…",
     "readingWithPrevious": "Leyendo el registro conservado… Se muestra la última captura cargada mientras se comprueba el registro actual.",
@@ -63,6 +63,16 @@
         "inspect": "Archivos que dejó una configuración sin terminar"
       }
     },
+    "consequence": {
+      "backup": "La comprobación detectó un problema con una copia de seguridad. Revisa las partidas y copias de seguridad antes de depender de ella.",
+      "malformed": "Portcove no pudo leer el registro de esta operación. Aquí no hay una acción de recuperación disponible. Conserva los archivos y contacta con soporte.",
+      "missing": "Portcove no puede usar la copia registrada en su ubicación guardada. Revisa la instalación para decidir cómo recuperarla.",
+      "orphaned": "Portcove encontró una carpeta en el almacenamiento administrado sin un registro que coincida. Revisa el almacenamiento de la biblioteca antes de mover archivos.",
+      "retained": "La configuración dejó un registro o archivos de trabajo. Revisa lo que queda antes de decidir si quieres limpiar.",
+      "unfinished": "Portcove encontró una operación sin terminar. Revisa su estado antes de cambiar el juego o la biblioteca.",
+      "unknown": "Portcove no pudo reconocer este registro de recuperación. Aquí no hay una acción de recuperación disponible.",
+      "unreviewable": "Portcove no puede identificar qué configuración revisar. Conserva los archivos y contacta con soporte."
+    },
     "details": {
       "cleanupLabel": "Cambios de la limpieza y datos conservados",
       "clearScope": "No se encontraron archivos de trabajo de la configuración. La limpieza borra la ruta de configuración registrada, si existe, y su registro de recuperación obsoleto.",
@@ -93,13 +103,14 @@
     "failedRetained": "No se pudo actualizar la información de recuperación: <error /> La última comprobación completada sigue visible.",
     "heading": "Trabajo sin terminar y recuperación",
     "incomplete": "El registro de recuperación o las evaluaciones relacionadas están incompletos. El estado conservado necesita revisión; no se intentó ninguna reparación.",
-    "intro": "Despliega un elemento para ver su ubicación registrada y las indicaciones. Los enlaces de revisión no cambian archivos.",
+    "intro": "Revisa el paso siguiente de cada elemento. Abre los detalles del registro para consultar la ubicación guardada y la información de diagnóstico.",
     "item": {
       "location": "Ubicación registrada",
       "nextStep": "Siguiente paso sugerido",
       "noGuidance": "No se registraron indicaciones de recuperación.",
       "noLocation": "No se registró ninguna ubicación.",
       "observation": "Observación de diagnóstico",
+      "recordDetails": "Detalles del registro",
       "reference": "Referencia de la operación",
       "reviewFiles": "Revisar los archivos de configuración sin terminar",
       "summary": "<game /> · {{label}}"

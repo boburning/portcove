@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "openport-labs-galaxy-android",
+    "artwork": {
+      "game_id": 1077,
+      "cover_id": 95604,
+      "image_id": "co21ro",
+      "image_sha256": "5b90832f5b3a7d5f419f7ab22dfca5557c780e5ee7f9d081c62fe6758dae6074",
+      "game_slug": "super-mario-galaxy",
+      "match_kind": "underlying-game"
+    },
     "name": "Super Mario Galaxy (Galaxy Android)",
     "summary": "An Android ARM64 Super Mario Galaxy port derived from decompilation work. Vulkan 1.0 and AAudio are required. The project’s features and planned higher frame rates/camera improvements remain its own claims or plans; complete campaign and device coverage are unconfirmed. Petari ancestry does not establish desktop support. Use your own Wii disc with the project’s extraction/conversion instructions. Exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Super Mario Galaxy",
@@ -10,7 +18,13 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenPort-Labs/Galaxy-Android",
-    "issue_number": 2803
+    "issue_number": 2803,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-galaxy",
+      "evidence_urls": ["https://github.com/OpenPort-Labs/Galaxy-Android"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

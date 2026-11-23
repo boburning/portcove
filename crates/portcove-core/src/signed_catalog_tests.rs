@@ -10,6 +10,16 @@ fn signing_key() -> SigningKey {
 fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
     for port in &mut catalog.ports {
+        if port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+        {
+            port.game_settings = None;
+        }
+        port.release.reviewed_package_choices_v2 = None;
+        port.mod_provider_bindings = None;
+        port.mod_loader = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
         for pattern in &mut port.persistent_file_patterns {
@@ -134,6 +144,27 @@ async fn publish(service: &PortcoveService, source: &CatalogUpdateSource) -> Cat
         .apply_catalog_update(source, &plan.plan_sha256, |_| {})
         .await
         .unwrap()
+}
+
+pub(crate) async fn publish_source_qualification(
+    library: &Library,
+    root: &std::path::Path,
+) -> crate::SourceEvidence {
+    let baseline = Catalog::embedded().unwrap();
+    let mut payload = fixture(1, Library::now());
+    payload.catalog.ports[0]
+        .summary
+        .clone_from(&baseline.ports()[0].summary);
+    let qualification = append_exact_qualification(&mut payload);
+    let path = root.join("additional-source-qualification.json");
+    std::fs::write(&path, sign(&payload)).unwrap();
+    trusted(library);
+    publish(
+        &PortcoveService::new(library.clone()).unwrap(),
+        &CatalogUpdateSource::File(path),
+    )
+    .await;
+    qualification
 }
 
 #[tokio::test]
@@ -712,12 +743,15 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let service = PortcoveService::new(library.clone()).unwrap();
     publish(&service, &write_candidate(root.path(), 1)).await;
     publish(&service, &write_candidate(root.path(), 2)).await;
+    let mut corrupt: SignedCatalogEnvelope =
+        serde_json::from_slice(&sign(&fixture(2, Library::now()))).unwrap();
+    corrupt.signature = "00".repeat(64);
     library
         .connection()
         .unwrap()
         .execute(
             "UPDATE catalog_state SET active=?1",
-            [b"bad signature".as_slice()],
+            [serde_json::to_vec(&corrupt).unwrap()],
         )
         .unwrap();
     signed_catalog::reset_verify_invocations();
@@ -725,7 +759,10 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(fallback.provenance.origin, CatalogOrigin::SignedPrevious);
     assert_eq!(fallback.provenance.sequence, Some(1));
-    assert!(!fallback.provenance.fallback_reasons.is_empty());
+    assert_eq!(
+        fallback.provenance.fallback_codes,
+        vec![crate::CatalogFallbackCode::SignatureInvalid]
+    );
     let repeated = library.catalog_status().unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 4);
     assert_eq!(repeated, fallback);
@@ -735,6 +772,13 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let expired = state.status(now + 7200).unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(expired.provenance.origin, CatalogOrigin::Embedded);
+    assert_eq!(
+        expired.provenance.fallback_codes,
+        vec![
+            crate::CatalogFallbackCode::SignatureInvalid,
+            crate::CatalogFallbackCode::InvalidValidity,
+        ]
+    );
     assert!(!expired.can_use_cached);
     assert!(!expired.can_rollback);
 }
@@ -980,10 +1024,22 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
     let larger = root.path().join("larger.json");
-    let bytes = padded_envelope(
-        &fixture(1, Library::now()),
-        LEGACY_MAX_CATALOG_BYTES + 1024 * 1024,
-    );
+    let mut payload = fixture(1, Library::now());
+    append_exact_qualification(&mut payload);
+    let evidence = payload
+        .catalog
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .evidence
+        .last_mut()
+        .unwrap();
+    evidence
+        .claim
+        .push_str(&" Synthetic reviewed qualification evidence.".repeat(50_000));
+    let bytes = sign(&payload);
+    assert!(serde_json::to_vec(&payload.catalog).unwrap().len() > LEGACY_MAX_CATALOG_BYTES);
+    assert!(bytes.len() > 5 * 1024 * 1024);
     std::fs::write(&larger, &bytes).unwrap();
     let status = publish(&service, &CatalogUpdateSource::File(larger)).await;
     assert_eq!(status.highest_sequence, 1);
@@ -995,10 +1051,28 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
         .unwrap();
     assert_eq!(stored, bytes);
 
+    payload.sequence = 2;
+    let latest_path = root.path().join("latest.json");
+    std::fs::write(&latest_path, sign(&payload)).unwrap();
+    let latest = publish(&service, &CatalogUpdateSource::File(latest_path)).await;
+    assert!(latest.can_rollback);
+    let previous: Vec<u8> = library
+        .connection()
+        .unwrap()
+        .query_row("SELECT previous FROM catalog_state", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(previous, bytes);
+    library.rollback_catalog(&latest.state_sha256).unwrap();
+    let reopened = Library::open(root.path().join("library")).unwrap();
+    assert_eq!(
+        reopened.catalog_status().unwrap().provenance.sequence,
+        Some(1)
+    );
+
     // Past the new bound the candidate is refused whole, before any parse or
     // selection change; nothing is truncated to fit.
     let oversized = root.path().join("oversized.json");
-    let overflow = padded_envelope(&fixture(2, Library::now()), MAX_CATALOG_BYTES + 1);
+    let overflow = padded_envelope(&fixture(3, Library::now()), MAX_CATALOG_BYTES + 1);
     std::fs::write(&oversized, &overflow).unwrap();
     assert!(
         service
@@ -1011,8 +1085,121 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
     };
     assert_eq!(error.message, signed_catalog::MAX_CATALOG_LIMIT_MESSAGE);
     let status = library.catalog_status().unwrap();
-    assert_eq!(status.highest_sequence, 1);
+    assert_eq!(status.highest_sequence, 2);
     assert_eq!(status.provenance.sequence, Some(1));
+}
+
+#[test]
+fn legacy_signed_catalog_cannot_supply_reviewed_package_choices() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let trust = std::slice::from_ref(&trust);
+    let embedded = Catalog::embedded().unwrap();
+    let accepted = signed_catalog::verify(&sign(&payload), trust, now).unwrap();
+    for port in accepted.catalog.ports() {
+        assert_eq!(
+            port.release.reviewed_package_choices_v2,
+            embedded
+                .port(&port.id)
+                .unwrap()
+                .release
+                .reviewed_package_choices_v2,
+        );
+    }
+    let choices = crate::ReviewedPackageChoicesV2 {
+        repository_id: 51_711_866,
+        prefix: "ja2-stracciatella_".into(),
+        choices: [
+            ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+        ]
+        .into(),
+    };
+    let port = payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    port.release.reviewed_package_choices_v2 = Some(choices);
+    crate::ManagedPackageVariant::validate_explicit_choices(port).unwrap();
+    assert!(matches!(
+        signed_catalog::verify(&sign(&payload), trust, now),
+        Err(error) if error.code == ErrorCode::Verification
+            && error.message.contains("cannot deliver reviewed package choices")
+    ));
+}
+
+#[test]
+fn legacy_signed_catalog_keeps_compiled_provider_scopes() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let trust = std::slice::from_ref(&key);
+    let embedded = Catalog::embedded().unwrap();
+    let verified = signed_catalog::verify(&sign(&payload), trust, now).unwrap();
+    for id in ["shipwright", "zelda64-recomp"] {
+        let compiled = embedded.port(id).unwrap();
+        assert!(compiled.mod_provider_bindings.is_some());
+        assert_eq!(
+            verified.catalog.port(id).unwrap().mod_provider_bindings,
+            compiled.mod_provider_bindings,
+        );
+    }
+
+    // The compiled bindings are available to old readers via the fallback. The
+    // legacy envelope still cannot appoint an explicit scope, even if it echoes
+    // a compiled value.
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap()
+        .mod_provider_bindings
+        .clone_from(&embedded.port("shipwright").unwrap().mod_provider_bindings);
+    assert!(matches!(
+        signed_catalog::verify(&sign(&payload), trust, now),
+        Err(error) if error.message.contains("cannot deliver mod provider bindings")
+    ));
+}
+
+#[test]
+fn legacy_signed_catalog_keeps_compiled_package_only_settings() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    let compiled = verified
+        .catalog
+        .port("super-mario-world-recomp")
+        .unwrap()
+        .game_settings
+        .clone();
+    assert!(compiled.as_ref().unwrap().package_only());
+
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "super-mario-world-recomp")
+        .unwrap()
+        .game_settings = compiled;
+    let rejected = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(
+        matches!(rejected, Err(error) if error.message.contains("cannot deliver package-only settings"))
+    );
 }
 
 #[test]

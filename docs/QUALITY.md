@@ -2,13 +2,13 @@
 
 ## Required hosted baseline
 
-An ordinary change finishes when its owning acceptance is met, applicable review
-is complete, the five required exact-head contexts pass, and guarded merge and
-remote readback succeed. The contexts remain `catalog`, `dependency-review`,
-`frontend`, `rust`, and `rust-quality`; GitHub protections remain enforced.
-[Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge) owns
-the delivery operations. Supplementary runs, diagnostics and personal preferences
-do not become merge prerequisites merely because somebody invoked them.
+Meet the acceptance criteria in the issue. Complete the applicable review.
+Make sure that all five required checks pass on the exact pull request commit.
+GitHub requires `catalog`, `dependency-review`, `frontend`, `rust`, and
+`rust-quality`. Follow the guarded merge procedure and read back the result
+from GitHub. See [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Supplementary tests and diagnostics remain optional unless an existing rule
+requires them.
 
 Local commands are optional feedback. Bare `just`, `just local-check`, focused
 tests and analyzers may help development; omitted local checks need no explanation.
@@ -411,6 +411,12 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+The ready transition has a finite 25-minute API budget inside a 30-minute job,
+polling once per minute while classification or cancelled-run gate jobs wait
+for runners. The 64-request cap and terminal-state check remain enforced;
+ordinary supersede events retain their four-minute API and five-minute job
+budgets. Expiry preserves the run and the same all-jobs recovery instruction.
+
 A superseded pull request run stops taking runners before its cancellation arrives.
 The supersede workflow needs a runner of its own to cancel older runs, and under
 queue pressure that can take as long as any other job. The classifier and the fast
@@ -453,6 +459,243 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
+the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
+Neither run reported an assertion failure before its cutoff. The MStan case
+has a 240-second Windows limit with the same assertions, cleanup and retry
+policy. The Sonic case still reached only its final restore when run
+`44960117848` cut it at 240 seconds. These timeouts occurred only on #8478 and
+#8503 heads that added the `portcove-listing-carrier` crate without a test
+`opt-level`, so Core tests ran its shared code unoptimized. On those heads the
+populated Mega Man X2 transition took 143 to 240 seconds, against 38.4 seconds
+on pre-#8478 `main` (`63c5b009`, run `45054336807`), where the additive Sonic
+case passed in 71 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case passed under the 120-second default.
+#8478 set the carrier's test `opt-level` to 1 and also limited the fixture
+catalog to the port under test; no run separates the two effects. Windows run
+`45042553290`, attempt 1, then passed both families in 3.7 to 13.7 seconds, so
+they use the 120-second default again. The
+`[profile.test.package.portcove-listing-carrier]` `opt-level = 1` entry in
+`Cargo.toml` is load-bearing for these budgets; re-measure them on Windows
+before removing it.
+
+On November 21, two guarded WSL commands hit the 30-second checkout scan
+deadline before starting their payloads. One read-only scan of the #8115
+checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
+probe supervisor with a 120-second budget. WSL full I/O pressure averaged
+88.34% over the preceding ten seconds. The local override allows 30 to 120
+seconds per scan and leaves the default at 30 seconds. Both scans still cover
+all Git-visible inputs and a mismatch still prevents execution.
+
+The macOS contributor frontend check in run `44772676894`, attempt 1, reached
+the final **Back to Library** click in the combined mod setup, version, backup,
+and settings-draft journey with about one second left in its 15-second test
+budget. The trace resolved the button and the screenshot showed it. This case
+has a 30-second budget. Its assertions, fixture cleanup, and automatic retry
+policy remain in place.
+
+In the macOS contributor run `44794727970`, attempt 1, two existing browser
+cases observed no progress animation or dialog opacity transition. Both cases
+now explicitly set the normal-motion media preference they exercise and restore
+the browser default after each case. Their rendering and transition assertions
+remain in place.
+
+Linux `main` job 135397217271 failed the narrow portrait-cards capture while it
+waited for document images under the default one-second poll. The two pending
+images were the App shell's sidebar avatar, a protected 949 KB PNG served by
+the test server, not the fixture covers. Local network throttling to 600 KB/s
+reproduced the same assertion in 30 of 30 runs. The shared
+`settleDocumentImages` helper now waits for each incomplete image's load, error
+or abort event within a six-second harness budget, matching the finite-animation
+and virtual-row mount waits. The same throttled case then passed 30 of 30 runs
+and still passed at 300 KB/s. Interactive-app captures use the same helper.
+Screenshot, layout and containment assertions are unchanged.
+
+Windows owned-backups job 136906004836 reached the 600-second harness deadline
+after verifying restore, deletion and the first degraded-history capture. The
+backup chain has a 1,200-second allowance to finish the remaining checks and
+join its owned processes. The degraded-history action check waits up to 60
+seconds for the exact usable row and both enabled actions on the same current
+inventory. The app still disables Restore while history refreshes.
+
+The November 18 Native27 Windows run at `eaae775d` (output
+`2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
+15-second timeout waiting for the backup review's “Review again” control after
+the harness deliberately changed saved data. The host refused the stale review;
+the failure capture still showed the apply awaiting settlement. Its trace records
+consecutive workspace readbacks of 11,032 and 11,063 milliseconds. The same run's
+discovery Activity row lookup expired while updated history was pending: its
+workspace reads took 20,687 and 9,169 milliseconds. The existing-install copy entry
+also expired on “Add games” while the refreshed Library still loaded; its reload
+reads took 14,075 and 14,212 milliseconds. Exact attribution of these reads to the
+frontend promises is unproven. Those two specific row/settlement lookups now have
+60 seconds, matching the existing confirmed-restore wait; copy entry separately
+waits up to 60 seconds for the exact visible enabled “Add games” control before its
+ordinary click. Activity identity, accessible name and focus assertions, consent,
+stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
+application/IPC/safety deadlines remain unchanged. The original failures remain
+evidence; these calibrations alone do not establish successful native workflows.
+
+On November 21, hosted Windows artwork job 136791041646 recorded the exact
+Cover import at revision 1. The editor remained busy with thumbnail and artwork
+reads in flight, and an earlier read took 16.35 seconds. The native test now
+allows up to 60 seconds for the exact committed digest and for the editor to
+settle. Its 10-minute scenario watchdog includes both role confirmations,
+reload and owned cleanup. The test still requires the original digest, revision
+and focus assertions. The observed import and picker results remain partial
+evidence until the renderer and recovery checks pass.
+
+The November 18 hosted Windows review-continuation run at `6c01ccf6`
+(`44395050884/1`, job `135122626956`) positively recorded the owned native
+**Cancel** response in `backup-native-restore-cancelled.json`. The subsequent
+DOM-dialog-disappearance wait expired after 15.163 seconds, and its failure image
+still showed **Restoring backup…**. Only that cancel-settlement lookup increases
+from 15 to 60 seconds, matching the existing confirmed-restore and refused-apply
+settlement waits. The raw logs do not establish backend latency or which read
+kept the review busy. Native confirmation ownership, the unchanged-saved-data
+assertion after settlement, ordinary 15-second clicks, focus, cleanup and product
+deadlines remain unchanged. The original failure and positive cleanup remain
+retained; a later native run must establish completion under the revised budget.
+
+The same source's saved-folder job `135122626905` passed its first library
+handoff, stale-generation refusal and source-inventory checks, then captured
+**Loading your port library** after waiting only for navigation. Its single
+restoration call received `target_busy` for the outgoing alternate library.
+Before that one restoration call, the harness now reads the current owned
+bootstrap and generation-bound workspace, waits up to the existing 60-second
+presentation budget for navigation, the matching renderer generation and no
+loading state, then confirms the same bootstrap root and generation. A lost
+handoff response can leave either owned root current; one ordinary reload makes
+an old renderer follow that current generation. IPC reads retain their existing
+budgets. Readiness failure remains a restoration failure with its stage recorded;
+there is no mutation retry. The exact lock holder is unproven. Core's two-second
+outgoing-library drain, `target_busy` protection and all data assertions remain
+unchanged. A refusal after this precondition still fails the scenario and needs
+bounded read-only timing evidence, not a longer product deadline.
+
+Two semantic review assertions also follow the actual structural-check result:
+**Basic file checks passed** explicitly does not identify an edition. Their
+typed NotRun, structural admission and not-evaluated edition assertions remain
+unchanged. The install-refresh job `135122626818` recorded one `install_port`
+overall but rejected the legitimate generation-bound `get_artwork` read after
+refresh. Its exact read-only allowlist gains only that command; the one-install
+and other mutation exclusions remain. The existing failure PNG now uses the
+shared owned-target scroll and settled-capture contract for the complete
+workspace feedback region, retaining its filename and focus. These are harness
+repairs; original failures remain retained and require later native verification.
+
+The same campaign's library-switch-recovery job `135122626538` retained its
+future-schema refusal and original bootstrap/library identity, then a workspace
+read received Core's explicit `conflict` with string details
+`workspace_snapshot_stale: "true"` and `retryable: "true"`. Native metadata
+observation may repeat only that read, at most three times, with the original
+root and generation checked before and after each read. One 60-second acceptance
+budget covers the attempts; it is not reset per retry. Already-started IPC is
+awaited under its existing timeout even if that crosses the acceptance budget,
+then fails without a detached read or late continuation. Every returned refusal
+is retained in readbacks and the job log. Other conflicts, nonretryable results,
+changed scope and mutations are never retried. Library recovery and the intake
+restoration precondition share this policy; Core's consistency checks and
+two-second outgoing-library drain are unchanged. The concurrent writer is unknown.
+
+The minimized-preparation job `135122626750` completed the owned preparation and
+native restore, then its positive Play-only lookup rejected the fixture's enabled
+**Try launch** control. That restored-ready lookup now accepts either exact
+caption in the detail's primary actions, still requiring launchable typed state,
+no pending setup, visibility and enabled state with the existing 15-second waits.
+Strict confirmed and negative launch checks elsewhere remain unchanged.
+
+The closed-preparation job `135122626664` reported a scenario pass, but its
+33,060,552-byte preservation report exceeded the unchanged 12 MiB evidence bound;
+the codec retained no recoverable captures. Recovery still decodes and validates
+the full workspace and checks the exact port status and operation activity before
+reporting. Windows ordinary-close and Linux recovery reports now label
+`recovered_workspace` as an asserted preparation projection: bootstrap/root and
+generation, the asserted status/activity and a SHA-256 plus UTF-8 byte count of
+the full validated snapshot's JSON serialization. This digest is not raw-wire
+evidence. Unrelated catalog payloads are omitted only after the assertions;
+codec bounds and all data/save/operation checks remain unchanged. The earlier
+scenario summary does not establish retained-artifact or rendered acceptance.
+
+The secondary-panel job `135122626691` completed owned DAT cancellation and focus
+return, then the helper refused the implemented **Choose a DAT file** Open dialog
+before input. The finite same-scenario audit also identified its existing recipe
+and saves Open titles and metadata/saves Save titles missing from that guard.
+Only these exact title/action pairs are added. Save defaults to denied unless
+the trusted scenario explicitly supplies its owned output root; the wrapper binds
+it to the existing fixture scope, and PowerShell requires an absent literal JSON
+leaf directly under that existing non-reparse parent. Missing/unowned parents,
+traversal, existing targets, device/wildcard names, unrelated titles and wrong
+actions fail before field input. The path is rechecked before Save; the helper
+never confirms overwrite or invokes Yes as part of Save. Process/creation/window
+identity, exact owned fields/buttons, single-action readback/dismissal and existing
+timeouts remain in force. Linux contracts verify fixture validation and producer
+titles; the existing Windows-only AST/input witness covers the actual guarded
+PowerShell blocks. Those Windows checks and native flows require later execution.
+
+CI `44422479100/1` exposed an owned Save refusal in that Windows witness. The
+exact witness reproduces it with an 8.3 spelling of the same owned directory:
+the resolved parent and full target had different path spellings. Both now use
+the existing full-path normalizer before comparison. Explicit short-root and
+mixed-spelling cases retain existing-target and foreign-parent refusals before
+input. The witness preserves unexpected refusal details; traversal, non-reparse
+parent, absent direct JSON leaf and single-action checks remain unchanged.
+
+The same run's install/Steam/artwork row `135122626818` took 749.558 seconds
+across five executed cases while staged-update composition remained unrun; its
+600-second aggregate watchdog expired before the final artwork result. Only that
+exact six-case combination now receives a finite 1,800-second harness allowance,
+shared by planning and execution. Standalone cases, smaller and unrelated larger
+combinations, product deadlines and cleanup guards retain their existing limits.
+The temporary follow-up controller gives this row 150 minutes rather than 90:
+the observed cold setup/build envelope, 20-minute exact-driver wait, 30-minute
+harness and cleanup must fit inside the job. This calibration is not a claim
+that the original late result passed within its deadline or that latency is fixed.
+The same source's local ordinary scenario suite passed 265 cases and failed its
+existing catalog-backed history import child at its 10-second safeguard. That
+inert child receives 30 seconds inside an explicit 60-second limit for this case
+(the maintained suite default remains 30 seconds for other cases);
+assertions, optional-package refusal and child completion remain required. The
+original local failure is retained separately from subsequent focused feedback.
+
+The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
+exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
+payload status 0 and eventually published a positive quiescence receipt, but its
+wrapper retained the lock after the former five-second wait expired. The receipt's
+write and final inode-change timestamps were 5.784 seconds apart, consistent with
+delayed durable publication. The finite 30-second parent wait leaves room for the
+reaper's unchanged five-second descendant drain, receipt flush/publication and
+scheduling. Explicit wait overrides, non-Linux five-second waits, receipt checks,
+successful reaper exit and lock retention on unproved cleanup remain unchanged.
+Controlled-clock runner tests cover delayed success, failure and the finite
+deadline; they do not turn the retained original wrapper failure into a pass or
+establish a new native build observation.
+
+The private virtual-X11 wrapper derives its harness wait from the existing
+selected-scenario deadline plus its 60-second startup/retention margin, then
+allows the existing 30-second outer cleanup margin. Its former fixed 240/270-second
+waits could preempt the selected-setup journey's maintained 600-second deadline;
+that selection now receives finite 660/690-second wrapper waits. Ordinary
+180-second selections and GTK-only readiness keep their 240/270-second waits.
+Selection validation, scenario assertions, namespace joins, failure evidence and
+native/resource lock retention remain unchanged. Contract checks establish budget
+coordination, not a completed native selected-setup observation.
+
+The November 18 private-X11 input calibration separates input custody from those
+operation waits. An ordinary `98f988ed` application with `6c2d3ab4` tooling failed
+before namespace launch: the shared 60-second capture limit expired after copying
+the 150,319,296-byte pinned Node executable, during its remaining verification or
+publication. The eight inputs totalled 152,779,458 bytes; capture copies, hashes
+and durably verifies them repeatedly. Prelaunch capture and verification now have
+300 seconds; the independent postjoin live-input scan has 120 seconds. The Linux
+command guard includes both phases, the unchanged namespace outer wait and a
+60-second command margin: 750 seconds for ordinary/GTK selections and 1,170 for
+the standalone 600-second selected-setup journeys. Callers supplying an outer
+execution guard must use that derived command budget. Content and identity checks,
+partial failure evidence, namespace joins and native/resource lock retention remain
+unchanged. Controlled-clock tests exercise completion beyond the former minute
+and finite capture/postjoin failure; they are not a native application observation.
+
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),
 the ordinary hosted Windows partition profile `hosted-windows` allows one
@@ -492,6 +735,8 @@ Run 43244946189 attempt 1 then terminated
 budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
 6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
 stays at 420. Every phase and assertion is unchanged.
+These transition budgets were removed when the shared fixture catalog shrank
+to the port under test (see the additive Sonic record above).
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to
@@ -571,8 +816,15 @@ Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
 (run 43352622836) and a root-manifest edit forces one until `main` saves the cache. Windows helpers have
 15 minutes: run 43296962076 attempt 1 reached the earlier 10-minute limit in its last
 step on a slow runner and passed its one re-run in 8 minutes. The macOS no-global frontend route allows
-25 minutes for cold provider setup, its full browser stages and evidence retention;
-other portability probes retain 15 minutes. These generous outer
+35 minutes for its full verification command inside a 45-minute job, leaving room
+for cold provider setup and diagnostic retention. Run `44490420055/2` reached its
+previous 25-minute job limit while cases were still completing. Two earlier
+adaptive-shell bounds failures remain separate from that timeout; additional time
+alone does not repair them. The route keeps every assertion and per-case deadline,
+and requests diagnostics after failure or cancellation. Adaptive-shell fixture
+changes select this existing macOS route. Whole-job termination still
+does not establish successful cleanup or guaranteed evidence retention. Other
+portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled
 ordinary jobs and failed qualification producers. They are hang
 limits, not latency targets or evidence that cleanup can survive a whole-job kill.

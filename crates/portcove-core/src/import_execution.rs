@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ActivityStatus, InstallQualification, Installer, Library, LibraryImportPlan, LibraryMetadata,
-    Platform, PortcoveError, PortcoveService, Result,
-    import_journal::ImportJournal,
+    LibraryRecoveryProgress, MutationState, Platform, PortcoveError, PortcoveService, Result,
+    import_journal::{BundleImportAdmission, ImportJournal},
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
 };
@@ -44,13 +44,58 @@ impl PortcoveService {
         })
     }
 
+    /// Read the published result of this reviewed bundle restore without resuming it.
+    /// This read-only command leaves every file unchanged, including when it fails.
+    pub fn read_library_recovery_restore(
+        destination: &Path,
+        expected_plan: &str,
+    ) -> Result<LibraryImportResult> {
+        (|| {
+            let journal = ImportJournal::read_recovery(destination)?.ok_or_else(|| {
+                PortcoveError::conflict(
+                    "no restore receipt is available at the reviewed destination",
+                )
+            })?;
+            // The journal records the canonical root (`\\?\`-prefixed on Windows);
+            // compare the same identity, never a second spelling of the path.
+            crate::path::refuse_symlink_ancestors(&std::path::absolute(destination)?)?;
+            if fs::canonicalize(destination)? != journal.plan.destination_root {
+                return Err(PortcoveError::conflict(
+                    "the reviewed restore destination changed",
+                ));
+            }
+            journal.require_published_bundle_review(expected_plan)?;
+            Ok(result(&journal, true))
+        })()
+        .map_err(|error| error.with_mutation_state(MutationState::NoChanges))
+    }
+
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, false)
+        recover_import(destination, false, false, None, &mut |_| Ok(()))
+    }
+
+    pub fn resume_library_recovery_restore(
+        destination: &Path,
+        expected_transfer_id: Option<&str>,
+    ) -> Result<LibraryImportResult> {
+        Self::resume_library_recovery_restore_with_progress(
+            destination,
+            expected_transfer_id,
+            |_| Ok(()),
+        )
+    }
+
+    pub fn resume_library_recovery_restore_with_progress(
+        destination: &Path,
+        expected_transfer_id: Option<&str>,
+        mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
+    ) -> Result<LibraryImportResult> {
+        recover_import(destination, false, true, expected_transfer_id, &mut observe)
     }
 
     /// Retain and gate incomplete copies. This never deletes input or destination data.
     pub fn abort_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, true)
+        recover_import(destination, true, false, None, &mut |_| Ok(()))
     }
 }
 
@@ -67,45 +112,84 @@ fn start_import(
             "library import plan changed; review it again",
         ));
     }
-    if !plan.destination_exists {
-        // create_dir is exclusive; never claim a directory that appeared after review.
-        fs::create_dir(&plan.destination_root)?;
-    }
-    let metadata = fs::symlink_metadata(&plan.destination_root)?;
-    if !metadata.is_dir()
-        || metadata.file_type().is_symlink()
-        || fs::canonicalize(&plan.destination_root)? != plan.destination_root
-    {
-        return Err(PortcoveError::verification(
-            "import destination was replaced or redirected",
-        ));
-    }
-    let lease = Arc::new(LibraryLease::with_access(
-        &plan.destination_root,
-        LibraryAccess::Exclusive,
-    )?);
-    crate::import_journal::ensure_empty_destination(&plan.destination_root)?;
-    let mut journal = ImportJournal {
-        schema_version: 1,
-        transfer_id: uuid::Uuid::new_v4().to_string(),
-        plan,
-        phase: TransferPhase::Copying,
-    };
-    verify_input(&journal.plan)?;
-    // Intent and open gate are one durable file, written before database initialization or copying.
-    journal.write(false)?;
-    crate::durability::sync_publication(
-        journal
-            .plan
-            .destination_root
-            .parent()
-            .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
-    )?;
-    let target = Library::initialize(journal.plan.destination_root.clone(), lease)?;
-    continue_import(&target, &mut journal, checkpoint).map_err(|error| journal.error(error))
+    start_reviewed_import(plan, None, checkpoint)
 }
 
-fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult> {
+pub(crate) fn start_reviewed_import(
+    plan: LibraryImportPlan,
+    bundle: Option<&crate::LibraryRecoveryBundle>,
+    checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+) -> Result<LibraryImportResult> {
+    start_reviewed_import_with_progress(plan, bundle, checkpoint, &mut |_| Ok(()))
+}
+
+pub(crate) fn start_reviewed_import_with_progress(
+    plan: LibraryImportPlan,
+    bundle: Option<&crate::LibraryRecoveryBundle>,
+    checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
+) -> Result<LibraryImportResult> {
+    let transfer_id = uuid::Uuid::new_v4().to_string();
+    // Until the journal is written, nothing is copied and the destination holds at
+    // most an empty folder with its lease file, which a new review accepts.
+    let not_started = |error: PortcoveError| error.with_mutation_state(MutationState::NotStarted);
+    let (lease, mut journal) = (|| {
+        let bundle = bundle
+            .map(|bundle| BundleImportAdmission::admit(bundle, &plan.plan_sha256, &transfer_id))
+            .transpose()?;
+        if !plan.destination_exists {
+            // create_dir is exclusive; never claim a directory that appeared after review.
+            fs::create_dir(&plan.destination_root)?;
+        }
+        let metadata = fs::symlink_metadata(&plan.destination_root)?;
+        if !metadata.is_dir()
+            || metadata.file_type().is_symlink()
+            || fs::canonicalize(&plan.destination_root)? != plan.destination_root
+        {
+            return Err(PortcoveError::verification(
+                "import destination was replaced or redirected",
+            ));
+        }
+        let lease = Arc::new(LibraryLease::with_access(
+            &plan.destination_root,
+            LibraryAccess::Exclusive,
+        )?);
+        crate::import_journal::ensure_empty_destination(&plan.destination_root)?;
+        let journal = ImportJournal {
+            schema_version: u32::from(bundle.is_some()) + 1,
+            transfer_id: transfer_id.clone(),
+            plan,
+            phase: TransferPhase::Copying,
+            bundle,
+        };
+        verify_input(&journal)?;
+        Ok((lease, journal))
+    })()
+    .map_err(not_started)?;
+    // Intent and open gate are one durable file, written before database initialization or copying.
+    // A failed write may or may not have published it, so its outcome stays unknown.
+    journal.write(false)?;
+    (|| {
+        crate::durability::sync_publication(
+            journal
+                .plan
+                .destination_root
+                .parent()
+                .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
+        )?;
+        let target = Library::initialize(journal.plan.destination_root.clone(), lease)?;
+        continue_import(&target, &mut journal, checkpoint, observe)
+    })()
+    .map_err(|error| journal.error(error))
+}
+
+fn recover_import(
+    destination: &Path,
+    abort: bool,
+    bundle: bool,
+    expected_transfer_id: Option<&str>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
+) -> Result<LibraryImportResult> {
     let destination = fs::canonicalize(destination)?;
     if crate::library_authority::authority(&destination)?.is_some() {
         return Err(PortcoveError::conflict(
@@ -113,11 +197,11 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
         ));
     }
     // Verify that this root belongs to an import before creating any control files.
-    if ImportJournal::read_recovery(&destination)?.is_none() {
-        return Err(PortcoveError::state(
-            "no library import journal exists at this destination",
-        ));
-    }
+    ImportJournal::read_recovery(&destination)?
+        .ok_or_else(|| {
+            PortcoveError::state("no library import journal exists at this destination")
+        })?
+        .require_recovery_kind(bundle, expected_transfer_id)?;
     let lease = Arc::new(LibraryLease::with_access(
         &destination,
         LibraryAccess::Exclusive,
@@ -125,6 +209,7 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
     let mut journal = ImportJournal::read_recovery(&destination)?.ok_or_else(|| {
         PortcoveError::state("no library import journal exists at this destination")
     })?;
+    journal.require_recovery_kind(bundle, expected_transfer_id)?;
     if journal.phase == TransferPhase::Aborted {
         return if abort {
             Ok(result(&journal, false))
@@ -154,7 +239,8 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
         journal.write(true)?;
         Ok(result(&journal, false))
     } else {
-        continue_import(&target, &mut journal, &|_| Ok(())).map_err(|error| journal.error(error))
+        continue_import(&target, &mut journal, &|_| Ok(()), observe)
+            .map_err(|error| journal.error(error))
     }
 }
 
@@ -162,8 +248,10 @@ fn continue_import(
     target: &Library,
     journal: &mut ImportJournal,
     checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
 ) -> Result<LibraryImportResult> {
     if journal.phase == TransferPhase::Complete {
+        observe(LibraryRecoveryProgress::Verifying)?;
         if ImportJournal::read(target.root())?.is_some() {
             journal.archive()?;
         }
@@ -185,15 +273,19 @@ fn continue_import(
     if journal.phase == TransferPhase::Published {
         // The matching successful activity was checked while reading the journal. The restored
         // library may already contain new saves, so never replay or compare old payloads.
+        observe(LibraryRecoveryProgress::Verifying)?;
         return finish_import(journal);
     }
     checkpoint(TransferPhase::Copying)?;
-    verify_input(&journal.plan)?;
-    crate::transfer_copy::copy_content(
+    verify_input(journal)?;
+    crate::transfer_copy::copy_library_payload(
         &journal.plan.content_root,
         target.root(),
         &journal.plan.content,
+        &target.root().join(".portcove-transfer-work"),
+        observe,
     )?;
+    observe(LibraryRecoveryProgress::Verifying)?;
     let portability = crate::library_import::PortabilityCatalogs::from_root(
         &journal.plan.metadata,
         target.root(),
@@ -201,7 +293,7 @@ fn continue_import(
     portability.restore_admissions(target)?;
     restore_metadata(target, &journal.plan.metadata)?;
     verify_completed_destination(target, journal)?;
-    verify_input(&journal.plan)?;
+    verify_input(journal)?;
     journal.phase = TransferPhase::Verified;
     journal.write(true)?;
     checkpoint(TransferPhase::Verified)?;
@@ -275,7 +367,7 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
         if operation != "import_library"
             || kind != "library"
             || target_id.is_some()
-            || receipt.as_deref() != Some(journal.plan.plan_sha256.as_str())
+            || receipt.as_deref() != Some(journal.publication_binding())
         {
             return Err(PortcoveError::verification(
                 "import activity identity belongs to another operation",
@@ -291,7 +383,7 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
         target.begin_identified_import_activity(
             uuid::Uuid::parse_str(&journal.transfer_id)
                 .map_err(|_| PortcoveError::state("invalid import ID"))?,
-            &journal.plan.plan_sha256,
+            journal.publication_binding(),
         )?;
         Ok(ActivityStatus::Running)
     }
@@ -304,9 +396,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
         drop(transaction);
         return crate::transfer_copy::verify_metadata(target, metadata);
     }
-    for source in &metadata.source_references {
-        Library::write_source(&transaction, source)?;
-    }
+    crate::portability::restore_saved_originals(&transaction, metadata, target.root())?;
     for original in &metadata.application_versions {
         let mut install = original.clone();
         install.path = target.root().join(&install.path);
@@ -316,7 +406,27 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
     crate::profile::restore(&transaction, &metadata.profiles)?;
     crate::library_membership::restore(&transaction, &metadata.library_memberships)?;
     for settings in &metadata.port_settings {
-        transaction.execute("INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id, output_directory) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", rusqlite::params![settings.port_id, settings.channel.to_string(), settings.update_policy.to_string(), settings.active_install_id, settings.previous_install_id, settings.output_directory.as_deref().map(|path| crate::path::unicode(path, "port output directory")).transpose()?])?;
+        transaction.execute(
+            "INSERT INTO port_settings(port_id, channel, update_policy, active_install_id,
+                 previous_install_id, output_directory, exact_release_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                settings.port_id,
+                settings.channel.to_string(),
+                settings.update_policy.to_string(),
+                settings.active_install_id,
+                settings.previous_install_id,
+                settings
+                    .output_directory
+                    .as_deref()
+                    .map(|path| crate::path::unicode(path, "port output directory"))
+                    .transpose()?,
+                match (&settings.exact_release, &settings.held_exact_release) {
+                    (Some(pin), _) => Some(serde_json::to_string(pin)?),
+                    (None, held) => held.clone(),
+                },
+            ],
+        )?;
     }
     for launch in &metadata.launch_history {
         transaction.execute("INSERT INTO launch_history(port_id, last_launched_at, successful_launches) VALUES (?1, ?2, ?3)", rusqlite::params![launch.port_id, launch.last_launched_at, launch.successful_launches])?;
@@ -328,7 +438,9 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
     Ok(())
 }
 
-fn verify_input(plan: &LibraryImportPlan) -> Result<()> {
+fn verify_input(journal: &ImportJournal) -> Result<()> {
+    journal.verify_bundle_input()?;
+    let plan = &journal.plan;
     let (file, _) = crate::library_import::read_metadata(&plan.metadata_file.path)?;
     if file.sha256 != plan.metadata_file.sha256 || file.size != plan.metadata_file.size {
         return Err(PortcoveError::verification(

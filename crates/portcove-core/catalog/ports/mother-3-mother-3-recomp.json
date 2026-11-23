@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mother-3-mother-3-recomp",
+    "artwork": {
+      "game_id": 3683,
+      "cover_id": 471402,
+      "image_id": "coa3qi",
+      "image_sha256": "0dd11eedd8cf9138786379089826f0dac7a8177b1ea7dfefea1ccb6058f816ba",
+      "game_slug": "mother-3",
+      "match_kind": "underlying-game"
+    },
     "name": "MOTHER 3 (MOTHER 3 Recomp)",
     "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
     "original_game_title": "MOTHER 3",
@@ -36,6 +44,24 @@
       ],
       "warnings": [
         "Desktop needs its own GBA BIOS as well as the exact ROM/patch inputs. Keep battery saves and derivatives; accepting an unknown patch through interpreter fallback does not qualify it."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mother-3",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/Mother3Recomp",
+        "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mother-3-game-boy-advance",
+          "title": "MOTHER 3 (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
+          ]
+        }
       ]
     }
   },

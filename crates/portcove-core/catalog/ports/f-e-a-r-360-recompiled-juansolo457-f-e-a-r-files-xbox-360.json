@@ -48,5 +48,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained F.E.A.R. Files summary/warnings explicitly scope two expansion campaigns, distinct from base F.E.A.R. title 565507D9; Files has title 565507E8 and its own preparation. A shared repository does not collapse either campaign or base-game identity.",
+    "evidence_urls": ["https://github.com/Juansolo457/fear360-recomp"]
   }
 }

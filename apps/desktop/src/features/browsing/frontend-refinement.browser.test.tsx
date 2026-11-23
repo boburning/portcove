@@ -66,6 +66,7 @@ it.each(
         catalogUniverse={entries}
         ports={[entries[0]!, entries[2]!]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -243,6 +244,7 @@ it("routes active work to its owned Activity identity instead of launching", asy
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}

@@ -417,7 +417,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+        format!(
+            "Upstream state: {}",
+            port.declared_upstream_status()
+                .map_or("unrecorded", upstream_status)
+        ),
     ];
     if let Some(profile_id) = port.source_profile.as_deref() {
         lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
@@ -1027,6 +1031,24 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
     text
 }
 
+pub(crate) fn mod_update_outcome(outcome: &portcove_core::ProviderAutoUpdateOutcome) -> String {
+    match outcome {
+        portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+            "updated to provider file {}; the earlier version stays recoverable",
+            clean(file_id)
+        ),
+        portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+            format!("a mod update waits for your review - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+            format!("a mod update will be tried again later - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+            format!("couldn't check for mod updates - {}", clean(reason))
+        }
+    }
+}
+
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
@@ -1129,8 +1151,13 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         .iter()
         .map(port_readiness_line)
         .collect::<Vec<_>>();
-    if value.batches.is_empty() {
-        lines.push("No game was ready for automatic setup, so nothing was installed.".to_owned());
+    if let Some(reason) = &value.game_setup_unavailable {
+        lines.push(format!(
+            "Couldn't read the automatic game setup queue - {}",
+            clean(reason)
+        ));
+    } else if value.batches.is_empty() {
+        lines.push("No game was ready for automatic setup, so no games were installed.".to_owned());
     }
     for batch in &value.batches {
         lines.push(install_batch(batch));
@@ -1171,30 +1198,10 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                     .join(", ")
             )
         };
-        lines.push(match &update.outcome {
-            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
-                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
-                clean(file_id)
-            ),
-            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
-                format!(
-                    "{subject}: a mod update waits for your review - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
-                format!(
-                    "{subject}: a mod update will be tried again later - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
-                format!(
-                    "{subject}: couldn't check for mod updates - {}",
-                    clean(reason)
-                )
-            }
-        });
+        lines.push(format!(
+            "{subject}: {}",
+            mod_update_outcome(&update.outcome)
+        ));
     }
     if value.not_assessed > 0 {
         lines.push(format!(
@@ -1818,6 +1825,21 @@ fn platform_list(platforms: &[Platform]) -> String {
     }
 }
 
+pub(crate) fn exact_release_review(review: &portcove_core::ExactReleaseReview) -> String {
+    let selection = &review.selection;
+    format!(
+        "Review exact release {} for {} ({}, {})\nPackage  {}\nBytes    {}\nSHA-256  {}\nReview   {}",
+        clean(&selection.version),
+        clean(&selection.port_id),
+        release_channel(selection.channel),
+        platform_name(selection.platform),
+        clean(&selection.filename),
+        selection.size,
+        selection.sha256,
+        review.review_sha256,
+    )
+}
+
 pub(crate) fn status(status: &PortStatus, catalog: &portcove_core::Catalog) -> String {
     statuses(std::slice::from_ref(status), catalog)
 }
@@ -1888,6 +1910,63 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(hold) = &status.exact_release_hold {
+            let cause = match hold.reason {
+                portcove_core::ExactReleaseHoldReason::Unreadable => {
+                    "Portcove can't read its saved release pin"
+                }
+                portcove_core::ExactReleaseHoldReason::ChannelMismatch => {
+                    "its saved release pin belongs to a different channel"
+                }
+            };
+            output.push_str(&format!(
+                "\n{}: updates are paused because {cause}. To follow the channel again: portcove channel follow {}",
+                port_name(catalog, &status.port_id),
+                clean(&status.port_id),
+            ));
+        }
+        if let Some(pin) = &status.exact_release {
+            output.push_str(&format!(
+                "\n{} follows exact release {} on {}.",
+                port_name(catalog, &status.port_id),
+                clean(&pin.version),
+                platform_name(pin.platform),
+            ));
+            if let Some(latest) = status
+                .last_update_check
+                .as_ref()
+                .and_then(|reported| reported.check.channel_latest_version.as_deref())
+            {
+                output.push_str(&format!(" The channel currently offers {}.", clean(latest)));
+            }
+        }
+        for assessment in &status.definition_operations {
+            if assessment.operation != portcove_core::DefinitionOperation::Install
+                || assessment.eligibility.reason
+                    != portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                continue;
+            }
+            let target = if assessment.retained {
+                let Some(active) = &status.active else {
+                    continue;
+                };
+                format!("Installed release {}", clean(&active.version))
+            } else {
+                "Recommended release".into()
+            };
+            output.push_str(&format!(
+                "\n{}: {target} withdrawn by the catalog maintainer.",
+                port_name(catalog, &status.port_id)
+            ));
+        }
+        if let Some(carried) = &status.carried_files {
+            output.push_str(&format!(
+                "\nFiles kept during the version switch for {}:\n{}",
+                port_name(catalog, &status.port_id),
+                carried_files(carried),
+            ));
+        }
         if let Some(readiness) = &status.readiness {
             if readiness.blockers.contains(&LaunchBlocker::MissingRuntime) {
                 output.push_str(&format!("\nNext step for {}: Using the same library, run portcove update {} to acquire the required catalog runtime. Core checks current eligibility before applying it.", port_name(catalog, &status.port_id), clean(&status.port_id)));
@@ -1901,6 +1980,101 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         }
     }
     output
+}
+
+fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
+    let outcome = &status.outcome;
+    let mut lines = vec![format!("  Active version: {}", clean(&status.to_version))];
+    if let Some(version) = &status.from_version {
+        lines.push(format!("  Version before the switch: {}", clean(version)));
+    }
+    if outcome.source_modified {
+        lines.push(
+            "  Files were left with the earlier version because its installation had changed."
+                .into(),
+        );
+    }
+    if outcome.insufficient_space {
+        lines.push(
+            "  Files were left with the earlier version because there was not enough free space."
+                .into(),
+        );
+        if let Some(count) = outcome.not_carried_count {
+            lines.push(format!("  Files left because of low space: {count}"));
+        }
+    }
+    for (label, examples, count) in [
+        (
+            "Copied",
+            &outcome.carried,
+            outcome.counts.as_ref().map(|counts| counts.carried),
+        ),
+        (
+            "Unchanged copies removed",
+            &outcome.removed,
+            outcome.counts.as_ref().map(|counts| counts.removed),
+        ),
+        (
+            "Different copies kept separately",
+            &outcome.kept_separately,
+            outcome.counts.as_ref().map(|counts| counts.kept_separately),
+        ),
+        (
+            "Could not be read",
+            &outcome.source_unreadable,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.source_unreadable),
+        ),
+        (
+            "Supplied by the new version",
+            &outcome.new_version_ships_file,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.new_version_ships_file),
+        ),
+    ] {
+        if count == Some(0) && examples.is_empty() {
+            continue;
+        }
+        lines.push(format!(
+            "  {label}: {}",
+            count.map_or_else(
+                || "complete count not recorded".into(),
+                |count| count.to_string()
+            )
+        ));
+        lines.extend(examples.iter().map(|path| format!("    {}", clean(path))));
+        if count.is_none_or(|count| count > examples.len() as u64) {
+            lines.push("    Only recorded path examples are listed.".into());
+        }
+    }
+    for (label, bytes) in [
+        ("Bytes copied", outcome.carried_bytes),
+        ("Space required at the switch", outcome.required_bytes),
+        ("Space available at the switch", outcome.available_bytes),
+    ] {
+        if let Some(bytes) = bytes {
+            lines.push(format!("  {label}: {}", format_bytes(bytes)));
+        }
+    }
+    if let Some(path) = &status.from_path {
+        lines.push(format!(
+            "  Earlier version folder: {}",
+            clean(&path.display().to_string())
+        ));
+    } else {
+        lines.push(
+            "  The earlier version is no longer recorded; its files were not rechecked.".into(),
+        );
+    }
+    lines.push(format!(
+        "  Active version folder: {}",
+        clean(&status.to_path.display().to_string())
+    ));
+    lines.join("\n")
 }
 
 pub(crate) fn definition_reason(
@@ -2378,6 +2552,9 @@ pub(crate) fn game_install_plan(
     catalog: &portcove_core::Catalog,
 ) -> String {
     let mut text = plan(&review.plan, catalog);
+    if let Some(choice) = &review.package_choice {
+        text.push_str(&format!("\nReviewed package choice: {}\n", clean(choice)));
+    }
     if let Some(selected) = &review.selected_install {
         text.push_str(&format!(
             "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
@@ -2582,9 +2759,13 @@ pub(crate) fn preparation_cleanup(
     )
 }
 
-pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
-    format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
+pub(crate) fn paths(
+    paths: &PortPaths,
+    collection_root: Option<&std::path::Path>,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let mut output = format!(
+        "Paths for {}\nLibrary: {}\nSaves and settings: {} (Portcove data folder)\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2599,6 +2780,49 @@ pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> Stri
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
+    );
+    if let Some(root) = collection_root {
+        output.push_str(&format!(
+            "\nBackup collection folder for the active installation: {}",
+            clean(&root.display().to_string())
+        ));
+    } else if paths.active_install_root.is_some() {
+        output.push_str("\nBackup collection folder for the active installation: Unknown");
+    }
+    if paths.active_install_root.is_some() {
+        output.push_str(&format!(
+            "\nUse portcove --json backup list {} to see the backup rules and files eligible for collection. Saves in other profiles may need a separate backup.\nPortcove manages updates for the active installation. Use remove-preview to see what removal keeps.",
+            paths.port_id
+        ));
+    }
+    output
+}
+
+pub(crate) fn external_paths(
+    runtime: &portcove_core::ExternalRuntimeRecord,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let registered_folder = if runtime.user_selected.is_some() {
+        "Registered working folder"
+    } else {
+        "Registered installation folder"
+    };
+    let setup = runtime
+        .setup_download
+        .as_ref()
+        .map(|selection| {
+            format!(
+                "\nLast recorded setup download was {} from release {}.",
+                clean(&selection.filename),
+                clean(&selection.release_tag)
+            )
+        })
+        .unwrap_or_default();
+    format!(
+        "Paths for {}\n{registered_folder}: {}\nSelected program: {}{setup}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
+        port_name(catalog, &runtime.port_id),
+        clean(&runtime.path.display().to_string()),
+        clean(&runtime.executable.display().to_string()),
     )
 }
 
@@ -3434,6 +3658,7 @@ mod tests {
         report.issues = vec![SourceDiscoveryIssue {
             path: None,
             profile_id: Some("future\nprofile".into()),
+            direct_check_profiles: Vec::new(),
             message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
         }];
         report.issues_omitted = 7;
@@ -3539,6 +3764,7 @@ mod tests {
                 issues: vec![portcove_core::SourceDiscoveryIssue {
                     path: Some(PathBuf::from("/private/fixture-path")),
                     profile_id: None,
+                    direct_check_profiles: Vec::new(),
                     message: "token=fixture-secret\u{1b}[2J\rprivate diagnostic".into(),
                 }],
                 issues_omitted: 7,
@@ -3930,7 +4156,11 @@ mod tests {
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
-        let output = catalog_show(catalog.port("shipwright").unwrap());
+        let embedded = catalog.port("shipwright").unwrap();
+        assert!(catalog_show(embedded).contains("Upstream state: unrecorded"));
+        let mut reviewed = embedded.clone();
+        reviewed.upstream_active_reviewed = true;
+        let output = catalog_show(&reviewed);
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
         assert!(output.contains("Check method: Required files and format checks"));
@@ -3961,6 +4191,7 @@ mod tests {
                 key_id: Some("publisher-id".into()),
                 expires_at: Some(42),
                 fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+                fallback_codes: Vec::new(),
             },
             trusted_keys: vec![CatalogTrustKey {
                 key_id: "trusted-id".into(),
@@ -4003,6 +4234,7 @@ mod tests {
                 key_id: None,
                 expires_at: None,
                 fallback_reasons: Vec::new(),
+                fallback_codes: Vec::new(),
             },
             trusted_keys: Vec::new(),
             highest_sequence: 0,
@@ -4230,6 +4462,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                recovery_review: None,
                 automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
@@ -4244,6 +4477,7 @@ mod tests {
             safety_backup_will_be_created: true,
             retained_runtime_copy_will_be_deleted: false,
             preview_sha256: "b".repeat(64),
+            restore_target_sha256: None,
         }
     }
 
@@ -4313,6 +4547,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingData,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4322,6 +4557,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingBackup,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4337,6 +4573,7 @@ mod tests {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             })
         };
         assert!(
@@ -4379,6 +4616,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        recovery_review: None,
                         automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),
@@ -4462,6 +4700,36 @@ mod tests {
     }
 
     #[test]
+    fn carried_file_disclosure_preserves_unknown_counts_and_missing_source_coordinates() {
+        let recorded = portcove_core::CarriedFilesStatus {
+            from_install_id: "removed-source".into(),
+            to_install_id: "target".into(),
+            from_version: None,
+            from_path: None,
+            to_version: "2.0".into(),
+            to_path: PathBuf::from("target-folder"),
+            outcome: portcove_core::CarriedFileOutcome {
+                kept_separately: vec!["notes\nwith-control.txt".into()],
+                insufficient_space: true,
+                required_bytes: Some(2_048),
+                available_bytes: Some(1_024),
+                ..Default::default()
+            },
+        };
+        let text = super::carried_files(&recorded);
+        assert!(text.contains("complete count not recorded"));
+        assert!(!text.contains("kept separately: 1"));
+        assert!(text.contains("Space required at the switch: 2.0 KiB"));
+        assert!(text.contains("Space available at the switch: 1.0 KiB"));
+        assert!(text.contains("earlier version is no longer recorded"));
+        assert!(!text.contains("notes\nwith-control.txt"));
+        assert_eq!(
+            recorded.outcome.kept_separately[0],
+            "notes\nwith-control.txt"
+        );
+    }
+
+    #[test]
     fn readiness_keeps_setup_during_launch_distinct_from_blocked_preparation() {
         let mut status = status_disclosure_fixture();
         for (launchable, pending_setup, blockers, expected) in [
@@ -4512,6 +4780,7 @@ mod tests {
         let mut external = status_disclosure_fixture();
         external.port_id = "external\tport\n\u{1b}".into();
         external.external_runtime = Some(portcove_core::ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "fixture-registration".into(),
             port_id: external.port_id.clone(),
@@ -4594,6 +4863,7 @@ mod tests {
                     availability: state,
                     reason,
                     definition: None,
+                    restriction: None,
                 };
                 let before = serde_json::to_value(assessment).unwrap();
                 let rendered = super::status_action(&assessment);
@@ -4656,6 +4926,7 @@ mod tests {
                     outcome: DefinitionEligibilityOutcome::Hold,
                     reason,
                 }),
+                restriction: None,
             };
             let value = serde_json::to_value(assessment).unwrap();
             let rendered = super::status_action(&assessment);
@@ -4667,6 +4938,33 @@ mod tests {
             assert!(!rendered.contains("(definition_ineligible)"));
             assert!(!rendered.contains("No current blocker"));
         }
+    }
+
+    #[test]
+    fn status_discloses_both_installed_and_recommended_release_withdrawals() {
+        let mut status = status_disclosure_fixture();
+        status.active = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "fixture-install", "port_id": status.port_id,
+                "version": "v1", "path": "installed", "channel": "stable",
+                "installed_at": 1, "verified": true, "staged": false
+            }))
+            .unwrap(),
+        );
+        for retained in [true, false] {
+            status.definition_operations.push(portcove_core::DefinitionOperationAssessment {
+                operation: portcove_core::DefinitionOperation::Install,
+                eligibility: portcove_core::DefinitionEligibility {
+                    outcome: portcove_core::DefinitionEligibilityOutcome::Hold,
+                    reason: portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn,
+                },
+                retained,
+            });
+        }
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let output = super::status(&status, &catalog);
+        assert!(output.contains("Installed release v1 withdrawn by the catalog maintainer."));
+        assert!(output.contains("Recommended release withdrawn by the catalog maintainer."));
     }
 
     #[test]
@@ -4696,6 +4994,7 @@ mod tests {
                 availability: portcove_core::PortActionAvailability::Waiting,
                 reason: portcove_core::PortActionReason::ReviewRequired,
                 definition: None,
+                restriction: None,
             });
         let output = super::statuses(
             &[empty, assessed.clone()],

@@ -3,8 +3,14 @@
 use super::*;
 use crate::{CatalogDownloadCandidate, CatalogDownloadCoverage};
 
+/// Releases the chooser lists by default; a caller can ask for a larger
+/// window, in steps, up to `MAX_RELEASE_WINDOW`.
 const RELEASE_LIMIT: usize = 10;
-const ASSET_LIMIT: usize = 200;
+/// The largest release window one request lists (ten pages of 100).
+pub(crate) const MAX_RELEASE_WINDOW: usize = 1_000;
+/// GitHub allows at most 1,000 assets per release, so this inventory bound is
+/// the provider's own completeness limit, not a Portcove cap.
+const ASSET_LIMIT: usize = 1_000;
 
 pub(crate) fn repository_from_url(value: &str) -> Result<String> {
     let url = reqwest::Url::parse(value).map_err(|_| {
@@ -65,37 +71,81 @@ fn valid_download_origin(url: &reqwest::Url) -> bool {
 }
 
 impl GithubReleaseProvider {
+    /// The default ten-release window, as fixtures read it.
+    #[cfg(test)]
     pub(crate) async fn catalog_download_options(
         &self,
         repository: &str,
         selected_id: Option<u64>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
+        other_stream_prefixes: &[String],
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
         CatalogDownloadCoverage,
         Vec<crate::CatalogDownloadRelease>,
         Option<u64>,
     )> {
-        let url = paginated_url(
-            &format!("{}/repos/{repository}", self.api_root),
-            "releases",
-            1,
+        self.catalog_download_options_window(
+            repository,
+            selected_id,
+            channel,
+            rolling_tag,
+            other_stream_prefixes,
             RELEASE_LIMIT,
-        )?;
-        let mut releases: Vec<GithubRelease> = self.get_json(&url).await?;
-        if releases.len() > RELEASE_LIMIT {
-            return Err(PortcoveError::verification(
-                "upstream release listing exceeds its bound",
-            ));
+        )
+        .await
+    }
+
+    /// Lists the newest `window` releases (clamped to 10..=1,000), so a chooser
+    /// can reach older releases by asking for a larger window.
+    pub(crate) async fn catalog_download_options_window(
+        &self,
+        repository: &str,
+        selected_id: Option<u64>,
+        channel: ReleaseChannel,
+        rolling_tag: Option<&str>,
+        other_stream_prefixes: &[String],
+        window: usize,
+    ) -> Result<(
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Vec<crate::CatalogDownloadRelease>,
+        Option<u64>,
+    )> {
+        let window = window.clamp(RELEASE_LIMIT, MAX_RELEASE_WINDOW);
+        let per_page = window.min(PROVIDER_PAGE_SIZE);
+        let mut releases: Vec<GithubRelease> = Vec::new();
+        let mut history_complete = false;
+        for page in 1..=window.div_ceil(per_page) {
+            let url = paginated_url(
+                &format!("{}/repos/{repository}", self.api_root),
+                "releases",
+                page,
+                per_page,
+            )?;
+            let current: Vec<GithubRelease> = self.get_json(&url).await?;
+            if current.len() > per_page {
+                return Err(PortcoveError::verification(
+                    "upstream release listing exceeds its bound",
+                ));
+            }
+            let short = current.len() < per_page;
+            releases.extend(current);
+            if short {
+                // Whole pages can read past a window that is not a multiple of
+                // the page size; history is complete only if nothing beyond the
+                // window was hidden.
+                history_complete = releases.len() <= window;
+                break;
+            }
         }
-        let history_complete = releases.len() < RELEASE_LIMIT;
         if selected_id.is_none() && !history_complete {
             let preferred = select_channel_candidate(
                 &releases,
                 channel,
                 rolling_tag,
-                |release| !release.draft,
+                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
                 is_beta_release,
                 |release| release.tag_name.as_str(),
             );
@@ -150,7 +200,7 @@ impl GithubReleaseProvider {
                 &releases,
                 channel,
                 rolling_tag,
-                |release| !release.draft,
+                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
                 is_beta_release,
                 |release| release.tag_name.as_str(),
             )
@@ -174,7 +224,7 @@ impl GithubReleaseProvider {
             .iter()
             .enumerate()
             .filter(|(index, release)| {
-                !release.draft && (*index < RELEASE_LIMIT || release.id == selected_id)
+                !release.draft && (*index < window || release.id == selected_id)
             })
             .map(|(_, release)| crate::CatalogDownloadRelease {
                 id: release.id.unwrap().into(),
@@ -186,7 +236,7 @@ impl GithubReleaseProvider {
         Ok((
             candidates,
             CatalogDownloadCoverage {
-                release_limit: RELEASE_LIMIT,
+                release_limit: window,
                 candidate_limit: ASSET_LIMIT,
                 releases_checked: usize::from(selected_id.is_some()),
                 release_history_complete: history_complete,
@@ -247,7 +297,7 @@ impl GithubReleaseProvider {
         Ok(())
     }
 
-    fn catalog_candidate(
+    pub(super) fn catalog_candidate(
         &self,
         repository: &str,
         release: &GithubRelease,
@@ -281,14 +331,6 @@ impl GithubReleaseProvider {
                 )
             })?),
         };
-        let mut release_url =
-            reqwest::Url::parse(&format!("https://github.com/{repository}/releases/tag/"))
-                .map_err(|_| PortcoveError::verification("invalid GitHub repository"))?;
-        release_url
-            .path_segments_mut()
-            .map_err(|_| PortcoveError::verification("invalid GitHub release URL"))?
-            .pop_if_empty()
-            .push(&release.tag_name);
         Ok(CatalogDownloadCandidate {
             release_id: release
                 .id
@@ -301,7 +343,7 @@ impl GithubReleaseProvider {
                 .ok_or_else(|| PortcoveError::verification("release asset has no stable ID"))?
                 .into(),
             release_tag: release.tag_name.clone(),
-            release_url: release_url.into(),
+            release_url: catalog_release_page(repository, &release.tag_name)?,
             name: asset.name.clone(),
             size: asset.size,
             download_url: asset.browser_download_url.clone(),
@@ -315,14 +357,29 @@ impl GithubReleaseProvider {
         repository: &str,
         release_id: u64,
     ) -> Result<Vec<GithubAsset>> {
+        self.release_assets_scoped(repository, release_id, None)
+            .await
+    }
+
+    pub(super) async fn release_assets_scoped(
+        &self,
+        repository: &str,
+        release_id: u64,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Vec<GithubAsset>> {
         let root = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
         let mut assets = Vec::new();
-        for page in 1..=3 {
+        // One page past GitHub's 1,000-asset maximum confirms the end of a full
+        // inventory; anything on it exceeds the provider's own bound.
+        for page in 1..=GITHUB_ASSET_INVENTORY_PAGE_LIMIT + 1 {
             let url = paginated_url(&root, "assets", page, 100)?;
-            let current: Vec<GithubAsset> = self.get_json(&url).await?;
+            let current: Vec<GithubAsset> = match scope {
+                Some(scope) => self.scoped_json(&url, scope).await?,
+                None => self.get_json(&url).await?,
+            };
             if current.len() > 100 || assets.len() + current.len() > ASSET_LIMIT {
                 return Err(PortcoveError::verification(
-                    "selected release exceeds the complete 200-asset inventory bound",
+                    "selected release exceeds GitHub's 1,000-asset release inventory",
                 ));
             }
             let complete = current.len() < 100;
@@ -336,19 +393,18 @@ impl GithubReleaseProvider {
         ))
     }
 
-    pub(crate) async fn catalog_release_candidate(
+    async fn catalog_release_asset(
         &self,
         repository: &str,
         release_id: u64,
         asset_id: u64,
-    ) -> Result<CatalogDownloadCandidate> {
+    ) -> Result<(GithubRelease, usize)> {
         if release_id == 0 || asset_id == 0 {
             return Err(PortcoveError::usage(
                 "release and asset IDs must be nonzero",
             ));
         }
-        // Refresh the exact immutable IDs for every preview and execution. Never
-        // accept a URL, size or checksum supplied by the caller.
+        // Verify the exact immutable IDs against the configured repository.
         let url = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
         let mut release: GithubRelease = self.get_json(&url).await?;
         if release.id != Some(release_id) || release.draft || release.assets.len() > ASSET_LIMIT {
@@ -363,8 +419,9 @@ impl GithubReleaseProvider {
         let mut matching = release
             .assets
             .iter()
-            .filter(|asset| asset.id == Some(asset_id));
-        let asset = matching.next().ok_or_else(|| {
+            .enumerate()
+            .filter(|(_, asset)| asset.id == Some(asset_id));
+        let (asset_index, _) = matching.next().ok_or_else(|| {
             PortcoveError::not_found("selected release asset is no longer available")
         })?;
         if matching.next().is_some() {
@@ -372,6 +429,35 @@ impl GithubReleaseProvider {
                 "release repeats the selected asset ID",
             ));
         }
+        Ok((release, asset_index))
+    }
+
+    pub(crate) async fn catalog_release_notes_url(
+        &self,
+        repository: &str,
+        release_id: u64,
+        asset_id: u64,
+    ) -> Result<String> {
+        let (release, asset_index) = self
+            .catalog_release_asset(repository, release_id, asset_id)
+            .await?;
+        self.require_catalog_asset_url(
+            repository,
+            &release.assets[asset_index].browser_download_url,
+        )?;
+        catalog_release_page(repository, &release.tag_name)
+    }
+
+    pub(crate) async fn catalog_release_candidate(
+        &self,
+        repository: &str,
+        release_id: u64,
+        asset_id: u64,
+    ) -> Result<CatalogDownloadCandidate> {
+        let (release, asset_index) = self
+            .catalog_release_asset(repository, release_id, asset_id)
+            .await?;
+        let asset = &release.assets[asset_index];
         let mut candidate = self.catalog_candidate(repository, &release, asset)?;
         // Existing bounded sidecar parsing remains the checksum authority. Its
         // requests use the same restricted, unauthenticated release transport.
@@ -409,6 +495,17 @@ impl GithubReleaseProvider {
     }
 }
 
+fn catalog_release_page(repository: &str, tag: &str) -> Result<String> {
+    if tag.is_empty() || tag.len() > 512 || tag.chars().any(char::is_control) {
+        return Err(PortcoveError::verification(
+            "release tag is empty or exceeds its bound",
+        ));
+    }
+    let url = format!("https://github.com/{repository}/releases/tag/");
+    crate::release_notes::web_url(&url, &[tag])
+        .ok_or_else(|| PortcoveError::verification("invalid GitHub release URL"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,20 +531,21 @@ mod tests {
             match failure {
                 "rate" => responses.push("HTTP/1.1 403 Forbidden\r\nx-ratelimit-limit: 60\r\nx-ratelimit-remaining: 0\r\nx-ratelimit-reset: 2000000000\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
                 "network" => responses.push("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
-                _ => for page in 0..GITHUB_MAX_RELEASE_PAGES { responses.push(response(&history((page * PROVIDER_PAGE_SIZE + 1) as u64, PROVIDER_PAGE_SIZE as u64))); },
+                // A long stable history keeps being read; a failure after the
+                // former 1,000-release bound is still never a preview fallback.
+                _ => {
+                    for page in 0..GITHUB_MAX_RELEASE_PAGES { responses.push(response(&history((page * PROVIDER_PAGE_SIZE + 1) as u64, PROVIDER_PAGE_SIZE as u64))); }
+                    responses.push("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into());
+                }
             }
             let count = responses.len();
             let (root, requests, server) = serve_http(responses);
             let provider = GithubReleaseProvider::with_api_root(root).unwrap();
             let error = provider
-                .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+                .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None, &[])
                 .await
                 .unwrap_err();
-            if failure == "bound" {
-                assert!(error.message.contains("1000-release bound"), "{error}");
-            } else {
-                assert_eq!(error.code, crate::ErrorCode::Network);
-            }
+            assert_eq!(error.code, crate::ErrorCode::Network, "{failure}: {error}");
             if failure == "rate" {
                 assert_eq!(
                     error.details.get("rate_remaining").map(String::as_str),
@@ -464,6 +562,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn default_download_follows_the_reviewed_desktop_stream() {
+        let headers = serde_json::json!([
+            {"id":446416764,"tag_name":"baked-pbr-v1","draft":false,"prerelease":false,"assets":[]},
+            {"id":443250877,"tag_name":"v0.9.9","draft":false,"prerelease":false,"assets":[]},
+            {"id":435773723,"tag_name":"baked-ao-v1","draft":false,"prerelease":false,"assets":[]}
+        ]);
+        let exclusions = ["baked-ao-".into(), "baked-pbr-".into()];
+        for (requested, expected) in [(None, 443250877), (Some(446416764), 446416764)] {
+            let (root, requests, server) =
+                serve_http(vec![response(&headers.to_string()), response("[]")]);
+            let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+            let (_, _, summaries, selected) = provider
+                .catalog_download_options(
+                    "Inkub0/dude",
+                    requested,
+                    ReleaseChannel::Stable,
+                    None,
+                    &exclusions,
+                )
+                .await
+                .unwrap();
+            assert_eq!(selected, Some(expected));
+            assert_eq!(summaries.len(), 3);
+            server.join().unwrap();
+            let paths = requests.try_iter().collect::<Vec<_>>();
+            assert_eq!(paths.len(), 2);
+            assert!(paths[1].contains(&format!("/releases/{expected}/assets?")));
+        }
+    }
+
+    #[tokio::test]
     async fn explicit_historical_selection_never_becomes_channel_latest() {
         let exact = serde_json::json!({"id":500,"tag_name":"chosen-old-build","draft":false,"prerelease":false,"published_at":null,"assets":[]});
         let (root, requests, server) = serve_http(vec![
@@ -473,7 +602,7 @@ mod tests {
         ]);
         let provider = GithubReleaseProvider::with_api_root(root).unwrap();
         let (_, coverage, summaries, selected) = provider
-            .catalog_download_options("owner/game", Some(500), ReleaseChannel::Beta, None)
+            .catalog_download_options("owner/game", Some(500), ReleaseChannel::Beta, None, &[])
             .await
             .unwrap();
         assert_eq!(selected, Some(500));
@@ -485,6 +614,92 @@ mod tests {
         assert!(paths[1].contains("/releases/500 "));
         assert!(paths[2].contains("/releases/500/assets?"));
     }
+    #[tokio::test]
+    async fn a_larger_window_lists_releases_beyond_the_first_ten() {
+        // Twenty-five published releases: the default window shows ten, a
+        // 35-release window reads them all and reaches the end of history.
+        let (root, requests, server) = serve_http(vec![response(&history(1, 25)), response("[]")]);
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        let (_, coverage, summaries, _) = provider
+            .catalog_download_options_window(
+                "owner/game",
+                None,
+                ReleaseChannel::Stable,
+                None,
+                &[],
+                35,
+            )
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(summaries.len(), 25);
+        assert_eq!(summaries.last().unwrap().tag, "v25");
+        assert!(coverage.release_history_complete);
+        assert_eq!(coverage.release_limit, 35);
+        let paths = requests.try_iter().collect::<Vec<_>>();
+        assert!(paths[0].contains("per_page=35"), "{}", paths[0]);
+    }
+
+    #[tokio::test]
+    async fn a_window_between_page_sizes_never_hides_releases_as_complete() {
+        // 150 releases read with a 110-release window: two full-size pages
+        // return 150, so 40 lie beyond the window and history is not complete.
+        let (root, _requests, server) = serve_http(vec![
+            response(&history(1, 100)),
+            response(&history(101, 50)),
+            response("[]"),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        let (_, coverage, summaries, _) = provider
+            .catalog_download_options_window(
+                "owner/game",
+                None,
+                ReleaseChannel::Stable,
+                None,
+                &[],
+                110,
+            )
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(summaries.len(), 110);
+        assert!(!coverage.release_history_complete);
+    }
+
+    #[tokio::test]
+    async fn a_selected_release_with_more_than_two_hundred_assets_is_listed_whole() {
+        let page = |first: u64, count: u64| {
+            let assets = (first..first + count)
+                .map(|id| serde_json::json!({
+                    "id": id,
+                    "name": format!("game-{id}.zip"),
+                    "browser_download_url": format!("https://github.com/owner/game/releases/download/v1/game-{id}.zip"),
+                    "size": 1
+                }))
+                .collect::<Vec<_>>();
+            response(&serde_json::to_string(&assets).unwrap())
+        };
+        let (root, _requests, server) = serve_http(vec![
+            response(&history(1, 1)),
+            page(1, 100),
+            page(101, 100),
+            page(201, 50),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        let (candidates, coverage, _, _) = provider
+            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(candidates.len(), 250);
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.name == "game-250.zip")
+        );
+        assert_eq!(coverage.candidate_limit, 1_000);
+    }
+
     #[test]
     fn repository_boundary_does_not_become_a_universal_fetcher() {
         assert_eq!(

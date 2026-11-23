@@ -47,6 +47,24 @@
       "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
       "game_slug": "super-metroid",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-metroid",
+      "evidence_urls": [
+        "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/BUILDING.md",
+        "https://github.com/snesrev/sm"
+      ],
+      "source_editions": [
+        {
+          "id": "super-metroid-super-nintendo",
+          "title": "Super Metroid (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/README.md"
+          ]
+        }
+      ]
     }
   }
 }

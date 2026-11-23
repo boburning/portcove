@@ -312,8 +312,12 @@ export function summarizeReport(kind: string, report: unknown, reference: string
   }
   if (kind === "doctor" && report.context) {
     const context = fields(report.context);
+    const title =
+      report.kind === "roadmap-port-stage-migration"
+        ? "Port-stage migration dry run"
+        : "Roadmap doctor";
     return renderBoundedSummary(
-      `Roadmap doctor: ${diagnosticString(report.status)}`,
+      `${title}: ${diagnosticString(report.status)}`,
       [
         `Scope: ${diagnosticString(optionalFields(report.scope).kind ?? "global")}; coverage: ${diagnosticString(report.coverage ?? "unknown")}; global health: ${diagnosticString(report.global_health ?? "unknown")}`,
         `Checkout: ${diagnosticString(context.root)}; HEAD: ${diagnosticString(context.head)}; branch: ${diagnosticString(context.branch)}`,

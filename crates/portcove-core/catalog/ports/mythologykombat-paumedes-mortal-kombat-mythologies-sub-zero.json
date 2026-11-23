@@ -8,7 +8,16 @@
     "project_url": "https://github.com/PAumedes/MythologyKombat",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable while the release’s translated game executable, package provenance, applicable rights and checksum/own-disc setup route remain unresolved. PC movie slowdowns remain. Information about the manual route is retained; this does not establish permission to redistribute the package or confirm gameplay.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "New downloads are unavailable while the release’s translated game executable, package provenance, applicable rights and checksum/own-disc setup route remain unresolved. PC movie slowdowns remain. Information about the manual route is retained; this does not establish permission to redistribute the package or confirm gameplay.",
+        "tracking_issue": 3402
+      }
+    ],
     "issue_number": 3402,
     "listed_at": "2026-10-25",
     "artwork": {
@@ -18,6 +27,21 @@
       "image_sha256": "cc6f0fd2f6cbdeefb948edfcf9c83fbf7983276e77bbe1687ccdac8f8048c9fd",
       "game_slug": "mortal-kombat-mythologies-sub-zero",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-mythologies-sub-zero",
+      "evidence_urls": ["https://github.com/PAumedes/MythologyKombat"],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-mythologies-sub-zero-playstation",
+          "title": "Mortal Kombat Mythologies: Sub-Zero (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PAumedes/MythologyKombat/blob/a7bda2c663ef870153a14c389b6d0b03aa59ae26/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

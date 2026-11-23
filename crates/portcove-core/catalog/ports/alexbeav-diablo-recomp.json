@@ -20,8 +20,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["diablo-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["diablo-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["diablo-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["diablo-recomp-", "-macos-arm64.zip"]
     },
@@ -55,8 +53,27 @@
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "diablo-playstation",
+          "title": "Diablo (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1e71257166f6a2c0e087f7a36e0e3bde984132d4/game.toml"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -77,42 +94,6 @@
       "windows-x86-64": ["Diablo_Recompiled.exe"],
       "linux-x86-64": ["Diablo_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -138,11 +119,13 @@
           }
         ],
         "warnings": [
+          "On Windows, a long library path can stop Diablo v0.1.6 from starting. Before building this version, use Change library location in Library and storage to review a shorter folder if needed.",
           "Save states may stop working after an update. Make a normal in-game save before updating."
         ]
       },
       "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested."
     },
     "bios_source_profile": "psx-scph-5552-bios"
-  }
+  },
+  "psx_managed_windows_v1": "split-mods-overlay-directory"
 }

@@ -46,7 +46,36 @@
           "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DNZHRecompiled on Linux, the DNZHRecompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dnzhrecomp.dnzhrecomp. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-zero-hour",
+      "evidence_urls": [
+        "https://github.com/sonicdcer/DNZHRecomp#readme",
+        "https://gitlab.com/sonicdcer/DNZHRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-zero-hour-nintendo-64",
+          "title": "Duke Nukem: Zero Hour (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/73702601fa3f24c5b47f7aff43e228c75c4370ba/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md"
+          ]
+        }
+      ]
     }
+  },
+  "managed_setup_platform_warnings": {
+    "linux-x86-64": [
+      "Native Play and populated saves are still unverified for the managed Linux x64 package."
+    ],
+    "macos-x86-64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+    ],
+    "macos-aarch64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+    ]
   },
   "integration": {
     "support_tier": "beta",
@@ -102,7 +131,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Duke Nukem: Zero Hour USA cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sonicdcer/DNZHRecomp#readme"
+      }
     }
   }
 }

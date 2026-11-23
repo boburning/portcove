@@ -54,6 +54,36 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct.",
+        "tracking_issue": 1836
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-liberty-city-stories",
+      "evidence_urls": [
+        "https://github.com/elmasas/lcs-recomp",
+        "https://github.com/elmasas/lcs-recomp/blob/ab91e87fe38f3efc5e4443069e7ce6b5a43e615b/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/elmasas-lcs-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-liberty-city-stories-playstation-2",
+          "title": "Grand Theft Auto: Liberty City Stories (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/elmasas/lcs-recomp/blob/ab91e87fe38f3efc5e4443069e7ce6b5a43e615b/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/elmasas-lcs-recomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Grand Theft Auto: Liberty City Stories"
   }
 }

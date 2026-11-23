@@ -25,6 +25,70 @@ fn release(tag: &str, assets: Vec<serde_json::Value>) -> serde_json::Value {
     })
 }
 
+#[tokio::test]
+async fn same_release_linux_asset_and_integrity_arrive_without_disturbing_windows() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("diablo-devilutionx").unwrap();
+    let channel = ReleaseChannel::Stable;
+    let windows = Platform::WindowsX86_64;
+    let linux = Platform::LinuxX86_64;
+    let tag = "v1.8.0";
+    let mut windows_asset = asset("devilutionx-windows-x86_64.zip", Some('a'));
+    windows_asset["id"] = 301.into();
+    let mut linux_asset = asset("devilutionx-linux-x86_64.tar.xz", None);
+    linux_asset["id"] = 302.into();
+    let snapshot = |assets| {
+        let mut release = release(tag, assets);
+        release["id"] = 300.into();
+        releases(&[release])
+    };
+    let repository = ok_json(r#"{"id":7,"archived":false}"#, "");
+    let partial = snapshot(vec![windows_asset.clone()]);
+    let missing_integrity = snapshot(vec![windows_asset.clone(), linux_asset.clone()]);
+    linux_asset["digest"] = format!("sha256:{}", "b".repeat(64)).into();
+    let complete = snapshot(vec![windows_asset, linux_asset]);
+    let (root, requests, server) = serve_http(vec![
+        repository.clone(),
+        partial.clone(),
+        repository.clone(),
+        partial,
+        repository.clone(),
+        missing_integrity,
+        repository.clone(),
+        complete,
+        repository,
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+    let initial = provider
+        .resolve_scoped(port, channel, windows, None)
+        .await
+        .unwrap();
+    assert_eq!(initial.github_identity.as_ref().unwrap().asset_id, 301);
+    for expected in [crate::ErrorCode::NotFound, crate::ErrorCode::Verification] {
+        let error = provider
+            .resolve_scoped(port, channel, linux, None)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, expected);
+    }
+    let eligible = provider
+        .resolve_scoped(port, channel, linux, None)
+        .await
+        .unwrap();
+    let identity = eligible.github_identity.unwrap();
+    assert_eq!((identity.release_id, identity.asset_id), (300, 302));
+    assert_eq!(identity.tag, tag);
+    assert_eq!(eligible.release.asset.sha256, "b".repeat(64));
+    let retained = provider
+        .resolve_scoped(port, channel, windows, None)
+        .await
+        .unwrap();
+    assert_eq!(retained.github_identity, initial.github_identity);
+    assert_eq!(retained.release.asset, initial.release.asset);
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 9);
+}
+
 fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
     let corpus: serde_json::Value = serde_json::from_str(include_str!(
         "../../testdata/rollout-release-selection-2026-10-26.json"
@@ -612,7 +676,7 @@ async fn native10_original_sibling_assets_follow_stable_successors() {
         (
             include_str!("../../testdata/devilution-release-selection-2026-10-29.json"),
             ["diablo-devilutionx", "diablo-hellfire-devilutionx"],
-            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.appimage")][..],
+            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.tar.xz")][..],
             "1.5.6",
         ),
     ] {
@@ -672,7 +736,7 @@ async fn native10_original_sibling_assets_follow_stable_successors() {
 
 #[test]
 fn native10_appimage_selector_refuses_archive_fallback_and_legacy_routes() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
     let mut port = catalog.port("diablo-devilutionx").unwrap().clone();
     let platform = Platform::LinuxX86_64;
     let assets = serde_json::from_value::<Vec<GithubAsset>>(serde_json::json!([
@@ -1172,7 +1236,7 @@ async fn observed_openciv3_preview_uses_shared_classification_despite_the_provid
         let (candidates, coverage, summaries, selected) =
             GithubReleaseProvider::with_api_root(root)
                 .unwrap()
-                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None)
+                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None, &[])
                 .await
                 .unwrap();
         assert_eq!(selected, expected["id"].as_u64());
@@ -1463,6 +1527,1036 @@ fn variant_port() -> PortDefinition {
         vec!["Game-hd-".into(), "-windows-x64.zip".into()],
     );
     port
+}
+
+#[tokio::test]
+async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_family() {
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::WindowsX86_64;
+    let repository = || {
+        ok_json(
+            r#"{"id":51711866,"archived":false,"owner":{"id":7,"login":"owner"}}"#,
+            "",
+        )
+    };
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("jagged-alliance-2-ja2-stracciatella")
+        .unwrap()
+        .clone();
+    port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+        repository_id: 51_711_866,
+        prefix: "ja2-stracciatella_".into(),
+        choices: [
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+            ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+        ]
+        .into(),
+    });
+    let variant =
+        ManagedPackageVariant::explicit(&port, platform, channel, "mingw64-cross").unwrap();
+    let old_name = "ja2-stracciatella_0.22.0-git+b195e15_win-mingw64-cross.zip";
+    let new_name = "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross.zip";
+    let new_default = "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142.zip";
+    let old_commit = "b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb3";
+    let new_commit = "11e9430b67d788b73f7a57d22166e8b500c23dab";
+    let reviewed_asset = |name: &str, id: u64, digest: Option<char>| {
+        let mut value = asset(name, digest);
+        value["id"] = id.into();
+        value["uploader"] = serde_json::json!({"id":7,"login":"owner"});
+        value
+    };
+    let inventory = |assets: Vec<serde_json::Value>| releases(&assets);
+    let tag = |tag: &str, sha: &str| {
+        ok_json(
+            &serde_json::json!({
+                "ref": format!("refs/tags/{tag}"), "object": {"type":"commit","sha":sha}
+            })
+            .to_string(),
+            "",
+        )
+    };
+    let rows = |new_assets: Vec<serde_json::Value>| {
+        releases(&[
+            serde_json::json!({"id": 22, "tag_name":"v0.22.1", "draft":false, "prerelease":false, "assets":new_assets}),
+            serde_json::json!({"id": 21, "tag_name":"v0.22.0", "draft":false, "prerelease":false, "assets":[]}),
+        ])
+    };
+    let good_old = || reviewed_asset(old_name, 30, Some('b'));
+    let good_new = || reviewed_asset(new_name, 31, Some('c'));
+    // The fixture transport uses its own API origin. The asset host remains the
+    // provider's ordinary GitHub web origin and no package bytes are requested.
+    let asset_at = |mut value: serde_json::Value, version| {
+        let name = value["name"].as_str().unwrap().replace('+', "%2B");
+        value["browser_download_url"] = format!(
+            "https://github.com/{}/releases/download/{version}/{name}",
+            port.release.repository,
+        )
+        .into();
+        value
+    };
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        rows(vec![]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
+        inventory(vec![asset_at(good_old(), "v0.22.0")]),
+        tag("v0.22.0", old_commit),
+        repository(),
+        rows(vec![]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_name, 31, None),
+            "v0.22.1",
+        )]),
+        tag("v0.22.1", new_commit),
+        repository(),
+        rows(vec![]),
+        inventory(vec![
+            asset_at(good_new(), "v0.22.1"),
+            asset_at(reviewed_asset(new_name, 39, None), "v0.22.1"),
+        ]),
+        repository(),
+        rows(vec![asset_at(good_new(), "v0.22.1")]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
+    ]);
+    let mut provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    provider.web_root = "https://github.com".into();
+    let first = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap();
+    assert_eq!(first.release.version, "v0.22.0");
+    assert_eq!(first.saved_variant.as_ref(), Some(&variant));
+    assert_eq!(first.explicit_tag_commit.as_deref(), Some(old_commit));
+    let mut retargeted = first.clone();
+    retargeted.explicit_tag_commit = Some("b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb4".into());
+    assert_eq!(first.release, retargeted.release);
+    assert_ne!(
+        first.explicit_package_proof_sha256().unwrap(),
+        retargeted.explicit_package_proof_sha256().unwrap(),
+    );
+    let missing_digest = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(missing_digest.code, crate::ErrorCode::Verification);
+    let duplicate = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        duplicate
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("ambiguous")
+    );
+    let conflicting_inventory = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        conflicting_inventory
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("inconsistent-inventory"),
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 15);
+}
+
+#[cfg(all(windows, target_arch = "x86_64"))]
+#[tokio::test]
+async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof() {
+    use crate::{
+        Catalog, ErrorCode, Library, PortcoveService,
+        test_http::serve_routed_http_bytes,
+        windows_runtime::tests::{X64, X86, pe},
+    };
+    use std::{
+        io::{Cursor, Write},
+        sync::{
+            Arc, OnceLock,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+
+    const PORT: &str = "fragglet-sdl-sopwith";
+    const CHOICE: &str = "mingw64-cross";
+    const REPOSITORY: &str = "fragglet/sdl-sopwith";
+    const INITIAL_COMMIT: &str = "a1234560aabbccddee1122334455667788990001";
+    const SUCCESSOR_COMMIT: &str = "b1234560aabbccddee1122334455667788990002";
+    const RETARGETED_COMMIT: &str = "b1234560aabbccddee1122334455667788990003";
+
+    let archive = |machine, marker| {
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        zip.start_file("sopwith.exe", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(&pe(machine, &[])).unwrap();
+        zip.write_all(&[marker]).unwrap();
+        zip.finish().unwrap().into_inner()
+    };
+    let first_archive = archive(X64, 2);
+    let successor_archive = archive(X64, 3);
+    let archives = [archive(X86, 1), first_archive, successor_archive];
+    let phase = Arc::new(AtomicUsize::new(0));
+    let fixture_origin = Arc::new(OnceLock::<String>::new());
+    let (origin, requests, server) = serve_routed_http_bytes(64, {
+        let phase = phase.clone();
+        let origin = fixture_origin.clone();
+        move |request| {
+            let phase = phase.load(Ordering::SeqCst);
+            let (tag, commit, release_id) = match phase {
+                0 | 1 => ("v1.0.0", INITIAL_COMMIT, 10),
+                2 => ("v1.1.0", SUCCESSOR_COMMIT, 11),
+                _ => ("v1.1.0", RETARGETED_COMMIT, 11),
+            };
+            let archive = &archives[phase.min(2)];
+            let prefix = format!("sopwith_{}-git+{}", &tag[1..], &commit[..7]);
+            let asset_row = |family, id| {
+                let name = format!("{prefix}_win-{family}.zip");
+                let url = format!(
+                    "{}/{REPOSITORY}/releases/download/{tag}/{name}",
+                    origin.get().unwrap()
+                );
+                serde_json::json!({
+                    "name": name, "id": id, "browser_download_url": url,
+                    "size": archive.len(),
+                    "digest": format!("sha256:{}", crate::signed_catalog::digest(archive)),
+                    "uploader": {"id": 7, "login": "fixture-owner"},
+                })
+            };
+            let path = request.split_ascii_whitespace().nth(1).unwrap();
+            let repository_path = format!("/repos/{REPOSITORY}");
+            if path == repository_path {
+                return ok_json(
+                    r#"{"id":42,"archived":false,"owner":{"id":7,"login":"fixture-owner"}}"#,
+                    "",
+                )
+                .into_bytes();
+            }
+            if path.starts_with(&format!("{repository_path}/releases?")) {
+                let mut row = release(tag, vec![]);
+                row["id"] = release_id.into();
+                return releases(&[row]).into_bytes();
+            }
+            if path.starts_with(&format!("{repository_path}/releases/{release_id}/assets?")) {
+                return releases(&[
+                    asset_row(CHOICE, release_id * 100),
+                    asset_row("msvc64-142", release_id * 100 + 1),
+                ])
+                .into_bytes();
+            }
+            if path == format!("{repository_path}/git/ref/tags/{tag}") {
+                return ok_json(&serde_json::json!({"ref":format!("refs/tags/{tag}"),"object":{"type":"commit","sha":commit}}).to_string(), "").into_bytes();
+            }
+            assert_eq!(
+                path,
+                format!("/{REPOSITORY}/releases/download/{tag}/{prefix}_win-{CHOICE}.zip")
+            );
+            let mut response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                archive.len()
+            )
+            .into_bytes();
+            response.extend_from_slice(archive);
+            response
+        }
+    });
+    fixture_origin.set(origin.clone()).unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap();
+    port.release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec!["_win-msvc64-142.zip".into()]);
+    port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+        repository_id: 42,
+        prefix: "sopwith_".into(),
+        choices: [
+            (CHOICE.into(), "_win-mingw64-cross.zip".into()),
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+        ]
+        .into(),
+    });
+    let catalog = Catalog::from_document(document).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let open = || {
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let provider = Arc::new(GithubReleaseProvider::with_api_root(origin.clone()).unwrap());
+        let mut service = PortcoveService::with_provider(library, provider).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        service
+    };
+    let service = open();
+    let review_first = || async {
+        let plan = service
+            .plan_game_install_with_package(PORT, Some(CHOICE))
+            .await
+            .unwrap();
+        assert_eq!(plan.package_choice.as_deref(), Some(CHOICE));
+        assert!(
+            plan.plan
+                .release
+                .asset
+                .name
+                .ends_with("_win-mingw64-cross.zip")
+        );
+        service
+            .authorize_game_install_with_package(PORT, &plan.plan_sha256, None, Some(CHOICE))
+            .await
+            .unwrap()
+    };
+    let wrong_machine = review_first().await;
+    let error = service
+        .apply_game_install_with_package(PORT, &wrong_machine.token, Some(CHOICE), |_| {})
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert!(error.message.contains("no matching x64 executable"));
+    assert!(service.library().all_installs().unwrap().is_empty());
+
+    phase.store(1, Ordering::SeqCst);
+    let first = review_first().await;
+    let installed = service
+        .apply_game_install_with_package(PORT, &first.token, Some(CHOICE), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(installed.version, "v1.0.0");
+    drop(service);
+
+    let service = open();
+    let reopened = service.status(PORT).unwrap().active.unwrap();
+    assert_eq!(installed.id, reopened.id);
+    let retained = crate::install::recorded_package_variant(&reopened)
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.explicit_id(), Some(CHOICE));
+
+    phase.store(2, Ordering::SeqCst);
+    let reviewed = service.plan_game_update(PORT, true).await.unwrap();
+    assert!(
+        reviewed
+            .plan
+            .release
+            .asset
+            .name
+            .ends_with("_win-mingw64-cross.zip")
+    );
+    let stale = service
+        .authorize_game_update(PORT, true, &reviewed.plan_sha256)
+        .await
+        .unwrap();
+    phase.store(3, Ordering::SeqCst);
+    let retargeted = service.plan_game_update(PORT, true).await.unwrap();
+    assert_eq!(reviewed.plan.release, retargeted.plan.release);
+    assert_ne!(reviewed.plan_sha256, retargeted.plan_sha256);
+    assert_eq!(
+        service
+            .apply_game_update(PORT, true, &stale.token, |_| {})
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        service.status(PORT).unwrap().active.unwrap().id,
+        installed.id
+    );
+
+    phase.store(2, Ordering::SeqCst);
+    let accepted = service
+        .authorize_game_update(PORT, true, &reviewed.plan_sha256)
+        .await
+        .unwrap();
+    let successor = service
+        .apply_game_update(PORT, true, &accepted.token, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(successor.version, "v1.1.0");
+    assert_eq!(
+        crate::install::recorded_package_variant(&successor).unwrap(),
+        Some(retained.clone())
+    );
+    assert_eq!(
+        service.status(PORT).unwrap().previous.unwrap().id,
+        installed.id
+    );
+    server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|request| request.contains("/releases/download/"))
+            .count(),
+        3
+    );
+
+    let check_retained = |copy: &PortcoveService| {
+        let status = copy.status(PORT).unwrap();
+        for (actual, expected) in [
+            (status.active.unwrap(), &successor),
+            (status.previous.unwrap(), &installed),
+        ] {
+            assert_eq!(actual.id, expected.id);
+            assert_eq!(actual.manifest_sha256, expected.manifest_sha256);
+            assert_eq!(
+                crate::install::recorded_package_variant(&actual).unwrap(),
+                Some(retained.clone()),
+            );
+        }
+    };
+    let source = service.library().root().to_path_buf();
+    let settings_bytes = b"owned fixture settings";
+    std::fs::write(successor.path.join("sopwith.cfg"), settings_bytes).unwrap();
+    let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(backup.file_count, 1);
+    assert_eq!(
+        std::fs::read(backup.path.join("data/sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
+    check_retained(&service);
+
+    let metadata_path = temporary.path().join("package-choice-export.json");
+    let import_root = temporary.path().join("package-choice-import");
+    service.write_library_metadata(&metadata_path).unwrap();
+    let metadata = service.export_library_metadata().unwrap();
+    assert!(metadata.portability_authority.is_some());
+    let unsigned_path = temporary.path().join("package-choice-unsigned.json");
+    let mut unsealed = metadata.clone();
+    unsealed.portability_authority = None;
+    unsealed.schema_version = 3;
+    std::fs::write(&unsigned_path, serde_json::to_vec(&unsealed).unwrap()).unwrap();
+    let missing =
+        PortcoveService::plan_library_import(&unsigned_path, &source, &import_root).unwrap_err();
+    assert_eq!(missing.code, ErrorCode::Verification);
+    assert!(
+        missing
+            .message
+            .contains("no matching portability authority")
+    );
+    assert!(!import_root.exists());
+
+    let invalid_path = temporary
+        .path()
+        .join("package-choice-invalid-authority.json");
+    let mut invalid = serde_json::to_value(&metadata).unwrap();
+    invalid["portability_authority"]["mac_sha256"] = "0".repeat(64).into();
+    std::fs::write(&invalid_path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    let altered =
+        PortcoveService::plan_library_import(&invalid_path, &source, &import_root).unwrap_err();
+    assert_eq!(altered.code, ErrorCode::Verification);
+    assert!(altered.message.contains("not valid on this host"));
+    assert!(!import_root.exists());
+
+    let plan = PortcoveService::plan_library_import(&metadata_path, &source, &import_root).unwrap();
+    let imported =
+        PortcoveService::import_library(&metadata_path, &source, &import_root, &plan.plan_sha256)
+            .unwrap();
+    assert!(imported.completed && imported.input_retained);
+    let imported_service = PortcoveService::new(Library::open(&import_root).unwrap()).unwrap();
+    check_retained(&imported_service);
+
+    let move_root = temporary.path().join("package-choice-move");
+    let plan = imported_service.plan_library_move(&move_root).unwrap();
+    drop(imported_service);
+    let moved = PortcoveService::move_library(&import_root, &move_root, &plan.plan_sha256).unwrap();
+    assert!(moved.completed && moved.source_retained);
+    let moved_service = PortcoveService::new(Library::open(&move_root).unwrap()).unwrap();
+    check_retained(&moved_service);
+    let moved_backups = moved_service.list_backups(PORT).unwrap();
+    assert!(
+        moved_backups
+            .backups
+            .iter()
+            .any(|saved| saved.id == backup.id && saved.sha256 == backup.sha256)
+    );
+    assert_eq!(
+        std::fs::read(moved_service.library().user_dir(PORT).join("sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
+}
+
+#[tokio::test]
+async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("snowboard-kids").unwrap();
+    let channel = ReleaseChannel::Beta;
+    let platform = Platform::LinuxX86_64;
+    let repository = || ok_json(r#"{"id":1383482900,"archived":false}"#, "");
+    let beta_release = |tag, id: u64, assets| {
+        let mut value = release(tag, assets);
+        value["id"] = id.into();
+        value["prerelease"] = true.into();
+        value
+    };
+    let archive = |tag: &str, id, size, digest: &str| {
+        let name = format!("SnowboardKidsRecompiled-{tag}-Linux-x86_64.zip");
+        serde_json::json!({
+            "id": id, "name": name, "size": size, "digest": format!("sha256:{digest}"),
+            "browser_download_url": format!("https://github.com/HikariLucy/SnowboardKids-Recomp/releases/download/v{tag}/{name}"),
+        })
+    };
+    let first = archive(
+        "0.9.0-beta",
+        596_227_934_u64,
+        8_365_825_u64,
+        "04e3415ea4cb5d40d082d0eb50459665f85ad3d2c15d77b696daa287a50249f8",
+    );
+    let second_digest = "5f325afc55c597c7108567ccfc2007eac06c664c7e7d979f6b39d38bd76bef3c";
+    let second = archive("0.9.0-beta.1", 599_134_547, 8_372_842, second_digest);
+    let inventories =
+        |assets: Vec<serde_json::Value>| ok_json(&serde_json::to_string(&assets).unwrap(), "");
+    let lookalikes = ["0.9.0", "0.9.0-beta", "0.9.0-beta.1-deluxe", "0.9.0-rc"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, tag)| archive(tag, index as u64 + 201, 8, &"c".repeat(64)))
+        .collect::<Vec<_>>();
+    let old = beta_release("v0.9.0-beta", 398_558_638, vec![first]);
+    let new = || beta_release("v0.9.0-beta.1", 399_498_102, vec![second.clone()]);
+    let options = |actual, reverse: bool| {
+        let mut all = lookalikes.clone();
+        all.push(actual);
+        if reverse {
+            all.reverse();
+        }
+        all
+    };
+    let mut pending = second.clone();
+    pending["digest"] = serde_json::Value::Null;
+
+    let mut duplicate = second.clone();
+    duplicate["id"] = 299.into();
+    duplicate["name"] = "SnowboardKidsRecompiled-v0.9.0-beta.1-Linux-x86_64.zip".into();
+    let mut competing = options(second.clone(), true);
+    competing.push(duplicate);
+    let next_maturity = archive("0.9.0-rc", 298, 8, &"b".repeat(64));
+    let numeric = archive("0.9.0", 300, 8, &"b".repeat(64));
+    let stable = archive("0.9.1", 303, 8, &"b".repeat(64));
+    let mut stable_release = release("v0.9.1", vec![stable.clone()]);
+    stable_release["id"] = 302.into();
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        releases(&[old]),
+        repository(),
+        releases(&[new()]),
+        inventories(options(pending, false)),
+        repository(),
+        releases(&[new()]),
+        inventories(options(second.clone(), true)),
+        repository(),
+        releases(&[new()]),
+        inventories(competing),
+        repository(),
+        releases(&[beta_release("v0.9.0-rc", 297, vec![next_maturity.clone()])]),
+        inventories(vec![next_maturity]),
+        repository(),
+        releases(&[beta_release("v0.9.0", 301, vec![numeric.clone()])]),
+        inventories(vec![numeric]),
+        repository(),
+        releases(&[stable_release]),
+        inventories(vec![stable]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let accepted = provider
+        .resolve_scoped(port, channel, platform, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        accepted.github_identity.as_ref().unwrap().asset_id,
+        596_227_934
+    );
+    let choice = ManagedPackageVariant::from_review(port, platform, &accepted).unwrap();
+    assert!(choice.matches(
+        "v0.9.0-beta.1",
+        "SnowboardKidsRecompiled-0.9.0-beta.1-Linux-x86_64.zip"
+    ));
+    for tag in ["v0.9.0-beta.01", "v0.9.0-beta.1-debug"] {
+        let name = format!(
+            "SnowboardKidsRecompiled-{}-Linux-x86_64.zip",
+            tag.trim_start_matches('v')
+        );
+        assert!(!choice.matches(tag, &name), "{tag}");
+    }
+
+    let held = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Verification);
+    let offered = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap();
+    assert_eq!(
+        offered.github_identity.as_ref().unwrap().asset_id,
+        599_134_547
+    );
+    assert_eq!(offered.release.asset.sha256, second_digest);
+    assert_eq!(offered.saved_variant.as_ref(), Some(&choice));
+    let ambiguous = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap_err();
+    assert_eq!(ambiguous.details["saved_package_variant"], "ambiguous");
+    for (version, asset_id) in [("v0.9.0-rc", 298), ("v0.9.0", 300), ("v0.9.1", 303)] {
+        let successor = provider
+            .resolve_saved_variant(port, channel, platform, None, &choice)
+            .await
+            .unwrap();
+        assert_eq!(successor.release.version, version);
+        assert_eq!(successor.release.channel, channel);
+        assert_eq!(
+            successor.github_identity.as_ref().unwrap().asset_id,
+            asset_id
+        );
+        assert_eq!(
+            ManagedPackageVariant::from_review(port, platform, &successor),
+            Some(choice.clone())
+        );
+    }
+    server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|path| path.contains("/assets?"))
+            .count(),
+        6
+    );
+}
+
+#[tokio::test]
+async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor() {
+    let port = variant_port();
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::WindowsX86_64;
+    let repository = || ok_json(r#"{"id":7,"archived":false}"#, "");
+    let identified = |name, digest, id: u64| {
+        let mut asset = asset(name, digest);
+        asset["id"] = id.into();
+        asset
+    };
+    let snapshot = |tag, id: u64, candidates| {
+        let mut release = release(tag, candidates);
+        release["id"] = id.into();
+        releases(&[release])
+    };
+    let old = snapshot(
+        "v1.0.0",
+        10,
+        vec![identified("Game-hd-v1.0.0-windows-x64.zip", Some('a'), 101)],
+    );
+    let exact = identified("Game-hd-2.0.0-windows-x64.zip", Some('b'), 201);
+    let different = identified("Game-hd-standard-2.0.0-windows-x64.zip", Some('c'), 202);
+    let next = || snapshot("v2.0.0", 20, vec![different.clone(), exact.clone()]);
+    let assets = |values| ok_json(&serde_json::to_string(&values).unwrap(), "");
+    let replacement = identified("Game-hd-2.0.0-windows-x64.zip", Some('e'), 206);
+    let second_match = identified("Game-hd-v2.0.0-windows-x64.zip", Some('d'), 203);
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        old,
+        repository(),
+        next(),
+        assets(vec![different.clone(), exact.clone()]),
+        repository(),
+        next(),
+        assets(vec![different.clone(), replacement.clone()]),
+        repository(),
+        next(),
+        assets(vec![second_match.clone(), replacement]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let accepted = provider
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap();
+    let receipt = ManagedPackageVariant::from_review(&port, platform, &accepted).unwrap();
+    assert!(accepted.saved_variant.is_none());
+    let offered = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    assert_eq!(offered.release.asset.name, exact["name"].as_str().unwrap());
+    assert_eq!(offered.release.asset.sha256, "b".repeat(64));
+    assert_eq!(offered.github_identity.as_ref().unwrap().asset_id, 201);
+    assert_eq!(offered.saved_variant.as_ref(), Some(&receipt));
+    // All calls use the same provider inside its ordinary cache TTL. The
+    // inline inventory, release ID and count stay unchanged. The complete
+    // asset listing first replaces the same filename, then adds an ambiguity.
+    let replaced = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    assert_eq!(replaced.release.asset.name, offered.release.asset.name);
+    assert_eq!(replaced.release.asset.sha256, "e".repeat(64));
+    assert_eq!(replaced.github_identity.as_ref().unwrap().asset_id, 206);
+    let ambiguous = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(ambiguous.details["saved_package_variant"], "ambiguous");
+    server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|path| path.contains("/releases/20/assets?"))
+            .count(),
+        3
+    );
+
+    // The same provider inventory keeps the normal ambiguity for a fresh
+    // install without a saved, reviewed choice.
+    let (origin, _, server) = serve_http(vec![repository(), next()]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let fresh = provider
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap_err();
+    assert_eq!(fresh.code, crate::ErrorCode::Conflict);
+    assert!(!fresh.details.contains_key("saved_package_variant"));
+    server.join().unwrap();
+
+    for (candidates, expected_code, expected_detail) in [
+        (
+            vec![different],
+            crate::ErrorCode::Conflict,
+            Some("no-matching-package"),
+        ),
+        (
+            vec![exact.clone(), second_match],
+            crate::ErrorCode::Conflict,
+            Some("ambiguous"),
+        ),
+        (
+            vec![identified("Game-hd-2.0.0-windows-x64.zip", None, 204)],
+            crate::ErrorCode::Verification,
+            None,
+        ),
+        (
+            vec![identified(
+                "Game-hd-2.0.0-windows-arm64.zip",
+                Some('d'),
+                205,
+            )],
+            crate::ErrorCode::Conflict,
+            Some("no-matching-package"),
+        ),
+    ] {
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            snapshot("v2.0.0", 20, candidates.clone()),
+            assets(candidates),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let refused = provider
+            .resolve_saved_variant(&port, channel, platform, None, &receipt)
+            .await
+            .unwrap_err();
+        assert_eq!(refused.code, expected_code);
+        assert_eq!(
+            refused
+                .details
+                .get("saved_package_variant")
+                .map(String::as_str),
+            expected_detail
+        );
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn saved_linux_variant_checks_newer_release_before_skipping_other_platforms() {
+    let mut port = variant_port();
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::LinuxX86_64;
+    // This controlled route uses the Windows-only catalog port as a template.
+    port.platforms.push(platform);
+    port.executable_hints.insert(platform, vec!["game".into()]);
+    port.release
+        .asset_hints
+        .insert(platform, vec!["Game-hd-".into(), "-linux-x64.zip".into()]);
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["addon-".into()]);
+    port.release
+        .validate_github_streams(&port.platforms)
+        .unwrap();
+    let repository = || ok_json(r#"{"id":7,"archived":false}"#, "");
+    let identified = |name: &str, digest, id: u64| {
+        let mut asset = asset(name, digest);
+        asset["id"] = id.into();
+        asset
+    };
+    let identified_release = |tag: &str, id: u64, candidates| {
+        let mut release = release(tag, candidates);
+        release["id"] = id.into();
+        release
+    };
+    let assets =
+        |values: &[serde_json::Value]| ok_json(&serde_json::to_string(values).unwrap(), "");
+    let older_linux = identified("Game-hd-v2.0.0-linux-x64.zip", Some('a'), 201);
+    let older = identified_release("v2.0.0", 20, vec![older_linux.clone()]);
+    let newer_windows = identified("Game-hd-v3.0.0-windows-x64.zip", Some('b'), 301);
+    let newer = identified_release("v3.0.0", 30, vec![newer_windows.clone()]);
+    let foreign = identified_release("addon-v4", 4000, Vec::new());
+    let inventory = || releases(&[foreign.clone(), newer.clone(), older.clone()]);
+    let first_page = std::iter::once(newer_windows.clone())
+        .chain((302..401).map(|id| {
+            identified(
+                &format!("Game-hd-v3.0.0-windows-x64-{id}.zip"),
+                Some('b'),
+                id,
+            )
+        }))
+        .collect::<Vec<_>>();
+    let newer_linux = "Game-hd-3.0.0-linux-x64.zip";
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        releases(&[older.clone()]),
+        repository(),
+        inventory(),
+        assets(&[newer_windows]),
+        assets(&[older_linux]),
+        repository(),
+        inventory(),
+        assets(&[]),
+        repository(),
+        inventory(),
+        assets(&first_page),
+        assets(&[identified(newer_linux, None, 401)]),
+        repository(),
+        inventory(),
+        assets(&first_page),
+        assets(&[identified(newer_linux, Some('c'), 401)]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let accepted = provider
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap();
+    let receipt = ManagedPackageVariant::from_review(&port, platform, &accepted).unwrap();
+
+    let inapplicable = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    assert_eq!(inapplicable.github_identity, accepted.github_identity);
+    let empty = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        empty.details["saved_package_variant"],
+        "no-matching-package"
+    );
+    let pending = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(pending.code, crate::ErrorCode::Verification);
+    assert!(pending.message.contains(newer_linux));
+
+    let eligible = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    let identity = eligible.github_identity.unwrap();
+    assert_eq!((identity.release_id, identity.asset_id), (30, 401));
+    assert_eq!(identity.tag, "v3.0.0");
+    assert_eq!(eligible.release.asset.name, newer_linux);
+    assert_eq!(eligible.release.asset.sha256, "c".repeat(64));
+    server.join().unwrap();
+    let refreshed = requests
+        .try_iter()
+        .filter(|path| path.contains("/assets?"))
+        .collect::<Vec<_>>();
+    assert_eq!(refreshed.len(), 7);
+    assert!(refreshed[0].contains("/releases/30/assets?"));
+    assert!(refreshed[1].contains("/releases/20/assets?"));
+    assert!(refreshed[4].contains("page=2"));
+    assert_eq!(refreshed[4], refreshed[6]);
+    assert!(
+        !refreshed
+            .iter()
+            .any(|path| path.contains("/releases/4000/"))
+    );
+
+    let recent = std::iter::once(foreign)
+        .chain(
+            (3..3 + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT as u64)
+                .rev()
+                .map(|number| {
+                    identified_release(
+                        &format!("v{number}.0.0"),
+                        10 * number,
+                        first_page[..1].to_vec(),
+                    )
+                }),
+        )
+        .chain([older])
+        .collect::<Vec<_>>();
+    let mut replies = vec![repository(), releases(&recent)];
+    replies.extend((0..GITHUB_SAVED_RELEASE_INVENTORY_LIMIT).map(|_| assets(&first_page[..1])));
+    let (origin, requests, server) = serve_http(replies);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let held = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Verification);
+    assert_eq!(
+        held.details["saved_package_variant"],
+        "release-inventory-limit"
+    );
+    server.join().unwrap();
+    let refreshed = requests
+        .try_iter()
+        .filter(|path| path.contains("/assets?"))
+        .collect::<Vec<_>>();
+    assert_eq!(refreshed.len(), GITHUB_SAVED_RELEASE_INVENTORY_LIMIT);
+    assert!(!refreshed.iter().any(|path| path.contains("/releases/20/")));
+    assert!(
+        !refreshed
+            .iter()
+            .any(|path| path.contains("/releases/4000/"))
+    );
+}
+
+#[tokio::test]
+async fn saved_package_reads_reviewed_fallback_only_after_latest_exact_exclusion() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("super-metroid-recomp").unwrap().clone();
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::LinuxX86_64;
+    let repository = || ok_json(r#"{"id":1263295135,"archived":false}"#, "");
+    let linux = |tag: &str, asset_id: u64, size: u64, sha256: &str| {
+        let name = format!("supermetroid-{}-linux-x64.zip", tag.trim_start_matches('v'));
+        serde_json::json!({
+            "id": asset_id, "name": name, "size": size, "digest": format!("sha256:{sha256}"),
+            "browser_download_url": format!("https://github.com/mstan/SuperMetroidRecomp/releases/download/{tag}/{name}"),
+        })
+    };
+    let identified_release = |tag: &str, id: u64, assets| {
+        let mut release = release(tag, assets);
+        release["id"] = id.into();
+        release
+    };
+    // Exact Linux identities from the repository's release asset endpoints.
+    let reviewed_digest = "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe";
+    let reviewed = linux("v0.4.5", 728_387_215, 15_246_207, reviewed_digest);
+    let excluded = linux(
+        "v0.4.6",
+        745_593_476,
+        15_253_787,
+        "026848df0ec061cea67ac18114aa873163edcb13247f162474197363b29db0f5",
+    );
+    let (origin, _, server) = serve_http(vec![
+        repository(),
+        releases(&[identified_release(
+            "v0.4.5",
+            439_450_376,
+            vec![reviewed.clone()],
+        )]),
+    ]);
+    let acquired = GithubReleaseProvider::with_api_root(origin)
+        .unwrap()
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap();
+    let receipt = ManagedPackageVariant::from_review(&port, platform, &acquired).unwrap();
+    server.join().unwrap();
+
+    // v0.4.7 and the reviewed opposite-channel/stream tags are controlled fixture metadata.
+    let mut beta = identified_release("v0.4.8", 48, Vec::new());
+    beta["prerelease"] = true.into();
+    let foreign = identified_release("addon-v9", 4900, Vec::new());
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["addon-".into()]);
+    port.release
+        .validate_github_streams(&port.platforms)
+        .unwrap();
+    let hold = port.managed_acquisition_hold.as_mut().unwrap();
+    hold.reviewed_artifacts
+        .extend(
+            ["v0.4.8", "addon-v9"].map(|version| crate::ReviewedHoldArtifact {
+                version: version.into(),
+                sha256: "e".repeat(64),
+            }),
+        );
+    let unavailable_old = identified_release("v0.4.2", 433_412_381, Vec::new());
+    let inline_reviewed = identified_release("v0.4.5", 439_450_376, Vec::new());
+    for (tag, release_id, latest, expected_id, expected_digest, should_fallback) in [
+        (
+            "v0.4.7",
+            47,
+            linux("v0.4.7", 470, 42, &"e".repeat(64)),
+            470,
+            "e".repeat(64),
+            false,
+        ),
+        (
+            "v0.4.6",
+            444_848_673,
+            excluded,
+            728_387_215,
+            reviewed_digest.into(),
+            true,
+        ),
+    ] {
+        let latest_route = format!("/releases/{release_id}/assets?");
+        let release_page = [
+            beta.clone(),
+            foreign.clone(),
+            identified_release(tag, release_id, vec![latest.clone()]),
+            inline_reviewed.clone(),
+            unavailable_old.clone(),
+        ];
+        let latest_assets = releases(&[latest]);
+        let reviewed_assets = releases(&[reviewed.clone()]);
+        let (origin, requests, server) =
+            serve_routed_http(3 + usize::from(should_fallback), move |request| {
+                let path = request.lines().next().unwrap();
+                if path.contains("/releases?") {
+                    releases(&release_page)
+                } else if path.contains(&latest_route) {
+                    latest_assets.clone()
+                } else if should_fallback && path.contains("/releases/439450376/assets?") {
+                    reviewed_assets.clone()
+                } else if path.starts_with("GET /repos/mstan/SuperMetroidRecomp HTTP/") {
+                    repository()
+                } else {
+                    "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        .into()
+                }
+            });
+        let observed = GithubReleaseProvider::with_api_root(origin)
+            .unwrap()
+            .resolve_saved_variant(&port, channel, platform, None, &receipt)
+            .await
+            .unwrap();
+        assert_eq!(observed.github_identity.unwrap().asset_id, expected_id);
+        assert_eq!(observed.release.asset.sha256, expected_digest);
+        assert_eq!(observed.fallback_reason.is_some(), should_fallback);
+        server.join().unwrap();
+        let assets = requests
+            .try_iter()
+            .filter(|path| path.contains("/assets?"))
+            .collect::<Vec<_>>();
+        assert_eq!(assets.len(), 1 + usize::from(should_fallback));
+        assert!(assets[0].contains(&format!("/releases/{release_id}/assets?")));
+        if should_fallback {
+            assert!(assets[1].contains("/releases/439450376/assets?"));
+        }
+    }
 }
 
 #[tokio::test]
@@ -3298,3 +4392,6 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         "unmatched other ZIPs: {other_zips:?}"
     );
 }
+
+#[path = "historical_selector_replay.rs"]
+mod historical_selector_replay;

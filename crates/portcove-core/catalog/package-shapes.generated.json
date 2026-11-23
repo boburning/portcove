@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/package-shape-baselines.mts",
-  "shape_version": 1,
+  "shape_version": 2,
   "entries": [
     {
       "port_id": "ape-escape-recompiled",
@@ -12,6 +12,7 @@
       "size": 46713030,
       "asset_name": "ApeEscapeRecomp-v0.5.7-windows-x64.zip",
       "reviewed_by": "applicability:ape-escape-recompiled-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "apeescaperecomp.exe",
@@ -75,7 +76,14 @@
           "release_manifest.json"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "apeescaperecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "b242fee84eb6d981c7715dbb50fa7434e86effa6d4c4165e33d8d21dfc010ce3"
+        }
+      ]
     },
     {
       "port_id": "blake-stone-aliens-of-gold-bstone",
@@ -86,6 +94,7 @@
       "size": 2081399,
       "asset_name": "bstone-1.3.4+e65a6b40-win64.zip",
       "reviewed_by": "applicability:blake-stone-aliens-of-gold-bstone-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "bstone.exe"
@@ -95,7 +104,14 @@
         "persistent_overlap": [],
         "config_files": [],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "bstone.exe",
+          "machine": "pe-x86-64",
+          "sha256": "ffd7ace7c5565d44d91b8c206589f298e2b340647e82a9a84993f83f10d4745e"
+        }
+      ]
     },
     {
       "port_id": "blake-stone-planet-strike-bstone",
@@ -106,6 +122,7 @@
       "size": 2081399,
       "asset_name": "bstone-1.3.4+e65a6b40-win64.zip",
       "reviewed_by": "applicability:blake-stone-planet-strike-bstone-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "bstone.exe"
@@ -115,7 +132,101 @@
         "persistent_overlap": [],
         "config_files": [],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "bstone.exe",
+          "machine": "pe-x86-64",
+          "sha256": "ffd7ace7c5565d44d91b8c206589f298e2b340647e82a9a84993f83f10d4745e"
+        }
+      ]
+    },
+    {
+      "port_id": "chocolate-doom-family",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "58c34c61ae954493fce5ff01fd553898240a0de25658aa97b43ac9510c49581f",
+      "derivation_inputs_sha256": "ec99380ae747503558d3228b113593b018e9ff84ac3653e9acbb887190c9802f",
+      "size": 9798661,
+      "asset_name": "chocolate-doom-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-doom-family-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "chocolate-doom-setup.exe",
+          "chocolate-doom.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "chocolate-doom.exe",
+          "machine": "pe-x86-64",
+          "sha256": "15e81c194df270fbd71450222e71846247926fabfb889e72e7d855903454d752"
+        }
+      ]
+    },
+    {
+      "port_id": "chocolate-heretic",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63",
+      "derivation_inputs_sha256": "f61abf118e28b01378c6421748171536d8df0133d323b2778c788c8e0beeb910",
+      "size": 9791782,
+      "asset_name": "chocolate-heretic-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-heretic-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "chocolate-heretic-setup.exe",
+          "chocolate-heretic.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "chocolate-heretic.exe",
+          "machine": "pe-x86-64",
+          "sha256": "d1735976082b6b4db2cf78dddf9303d3cec7cde28b7dcb76ddd7fa4ba9b02cac"
+        }
+      ]
+    },
+    {
+      "port_id": "chocolate-hexen",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23",
+      "derivation_inputs_sha256": "1933d4a6c78fb4969d1a0ceee06808749c0a74a317ded593b4cc9b0435858f80",
+      "size": 9850766,
+      "asset_name": "chocolate-hexen-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-hexen-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "chocolate-hexen-setup.exe",
+          "chocolate-hexen.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "chocolate-hexen.exe",
+          "machine": "pe-x86-64",
+          "sha256": "2d74ad9508bdf90a7e18b7216064a6ed30e8f2b150c26017e82472541c6e854e"
+        }
+      ]
     },
     {
       "port_id": "diablo-devilutionx",
@@ -126,6 +237,7 @@
       "size": 10482049,
       "asset_name": "devilutionx-windows-x86_64.zip",
       "reviewed_by": "applicability:diablo-devilutionx-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "devilutionx.exe"
@@ -137,7 +249,14 @@
         "persistent_overlap": [],
         "config_files": [],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "devilutionx.exe",
+          "machine": "pe-x86-64",
+          "sha256": "3c28f5a362a1bbdcbeb5c44dad607a00571962b9998bd035fdf70254ee5f0922"
+        }
+      ]
     },
     {
       "port_id": "diablo-hellfire-devilutionx",
@@ -148,6 +267,7 @@
       "size": 10482049,
       "asset_name": "devilutionx-windows-x86_64.zip",
       "reviewed_by": "applicability:diablo-hellfire-devilutionx-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "devilutionx.exe"
@@ -159,7 +279,162 @@
         "persistent_overlap": [],
         "config_files": [],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "devilutionx.exe",
+          "machine": "pe-x86-64",
+          "sha256": "3c28f5a362a1bbdcbeb5c44dad607a00571962b9998bd035fdf70254ee5f0922"
+        }
+      ]
+    },
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "platform": "linux-x86-64",
+      "version": "1.5.5",
+      "sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290",
+      "derivation_inputs_sha256": "1e32ef8eeefdbc17a95c04fed8ed93480faf1282afe821e9f85d699cb29dac6b",
+      "size": 7534656,
+      "asset_name": "dhewm3-1.5.5_Linux_amd64.tar.gz",
+      "reviewed_by": "applicability:doom-3-classic-dhewm3-pk4-originals",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "base.so",
+          "d3xp.so",
+          "dhewm3",
+          "dhewm3ded"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp",
+          "libs"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "dhewm3",
+          "machine": "elf64-x86-64",
+          "sha256": "3c3bcc467e33a8c8d4508464208ddd5ffd74d006baf4674e582388d233a4785c"
+        }
+      ]
+    },
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "derivation_inputs_sha256": "fd011225b1f3ad894c6fed83f7ce95566974276bad2d5f3e7f79fe6e1be1d6ff",
+      "size": 11382039,
+      "asset_name": "dhewm3-1.5.5_win32.zip",
+      "reviewed_by": "applicability:doom-3-classic-dhewm3-pk4-originals",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "dhewm3.exe",
+          "dhewm3_notools.exe",
+          "dhewm3ded.exe"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "dhewm3.exe",
+          "machine": "pe-x86",
+          "sha256": "2b57a9b61c2693914760d409999665afd82884d085ccf8d7f081c84ce2eed1ee"
+        }
+      ]
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "platform": "linux-x86-64",
+      "version": "1.5.5",
+      "sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290",
+      "derivation_inputs_sha256": "1e32ef8eeefdbc17a95c04fed8ed93480faf1282afe821e9f85d699cb29dac6b",
+      "size": 7534656,
+      "asset_name": "dhewm3-1.5.5_Linux_amd64.tar.gz",
+      "reviewed_by": "applicability:doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "base.so",
+          "d3xp.so",
+          "dhewm3",
+          "dhewm3ded"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp",
+          "libs"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "dhewm3",
+          "machine": "elf64-x86-64",
+          "sha256": "3c3bcc467e33a8c8d4508464208ddd5ffd74d006baf4674e582388d233a4785c"
+        }
+      ]
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "derivation_inputs_sha256": "fd011225b1f3ad894c6fed83f7ce95566974276bad2d5f3e7f79fe6e1be1d6ff",
+      "size": 11382039,
+      "asset_name": "dhewm3-1.5.5_win32.zip",
+      "reviewed_by": "applicability:doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "dhewm3.exe",
+          "dhewm3_notools.exe",
+          "dhewm3ded.exe"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "dhewm3.exe",
+          "machine": "pe-x86",
+          "sha256": "2b57a9b61c2693914760d409999665afd82884d085ccf8d7f081c84ce2eed1ee"
+        }
+      ]
     },
     {
       "port_id": "sonic-the-hedgehog-2-recomp",
@@ -170,6 +445,7 @@
       "size": 7204657,
       "asset_name": "SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
       "reviewed_by": "applicability:sonic-the-hedgehog-2-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "sonicthehedgehog2recomp.exe"
@@ -184,7 +460,46 @@
           "build-info.json"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "sonicthehedgehog2recomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "6ca4655174534f656bdae413303dc2fef26b835d264cc8c4e7962ff23a7b7910"
+        }
+      ]
+    },
+    {
+      "port_id": "sonic-the-hedgehog-2-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.9.23",
+      "sha256": "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc",
+      "derivation_inputs_sha256": "67b6573af06584d14c1c493f3da41375e45946020e039fff4b4a79d62a3b2bfc",
+      "size": 8126526,
+      "asset_name": "SonicTheHedgehog2Recomp-windows-x64-v0.9.23.zip",
+      "reviewed_by": "applicability:sonic-the-hedgehog-2-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "sonicthehedgehog2recomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "tools"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "sonicthehedgehog2recomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "254372907529a9d25f7e4ca8d4e8449222164afe0e1e74ea01642b73496860be"
+        }
+      ]
     },
     {
       "port_id": "sonic-the-hedgehog-recomp",
@@ -195,6 +510,7 @@
       "size": 5562704,
       "asset_name": "SonicTheHedgehogRecomp-windows-x64-v1.2.0.zip",
       "reviewed_by": "applicability:sonic-the-hedgehog-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "sonicthehedgehogrecomp.exe"
@@ -210,7 +526,14 @@
           "build-info.json"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "sonicthehedgehogrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "1049f629e8c45fa126158712df77065f9bf01c0fdf4a02c27e57e517be68eacd"
+        }
+      ]
     },
     {
       "port_id": "super-mario-world-recomp",
@@ -221,6 +544,7 @@
       "size": 9490376,
       "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
       "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "supermarioworldsnesrecomp.exe"
@@ -243,7 +567,14 @@
           "mods/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "supermarioworldsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "76535f169a4e44ad0139c9ab6344265d6921bac1c6d378458b37e90c1409071f"
+        }
+      ]
     },
     {
       "port_id": "super-mario-world-recomp",
@@ -254,6 +585,7 @@
       "size": 26746609,
       "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.15.9.zip",
       "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "collect-controller-diagnostics.cmd",
@@ -283,7 +615,345 @@
           "mods/preloaded/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "supermarioworldsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "f07498a38d78d70ace42890d352e668b8cb9563f7b63c44a164f045f462914d1"
+        }
+      ]
+    },
+    {
+      "port_id": "super-mario-world-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.15.10",
+      "sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+      "derivation_inputs_sha256": "0235e195a34b892dad2c54e4f6efbbcdac5f6ec0c3c8ac9228bf668f5ef4e120",
+      "size": 26825013,
+      "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.15.10.zip",
+      "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "collect-controller-diagnostics.cmd",
+          "collect-controller-diagnostics.ps1",
+          "smw-controller-report.exe",
+          "smw-falcon-cache.exe",
+          "supermarioworldsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "falcon-cache-licenses",
+          "lua",
+          "mods",
+          "notices"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-mario-world.developer.diagnostics/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.msu1/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.gameplay.native-coop/0.1.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermarioworldsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "265a1f710164e2d9cac01ad224610695cc70f10d6a7ecbc8504fe4ecb3d688e0"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "linux-x86-64",
+      "version": "v0.4.2",
+      "sha256": "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 14567176,
+      "asset_name": "supermetroid-0.4.2-linux-x64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "launch.sh",
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "elf64-x86-64",
+          "sha256": "4d02ea9a579c1dcc666a7540df03277f8c529c3169921f02029876bc5e2f00c4"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "linux-x86-64",
+      "version": "v0.4.5",
+      "sha256": "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 15246207,
+      "asset_name": "supermetroid-0.4.5-linux-x64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "launch.sh",
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.run-by-default/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.single-missile-doors/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "elf64-x86-64",
+          "sha256": "93bcdf080a342d128fbc7e75f1405cf894dc07ff5616ca6b5679a8c187fa8dee"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "macos-aarch64",
+      "version": "v0.4.2",
+      "sha256": "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 15725031,
+      "asset_name": "supermetroid-0.4.2-macos-arm64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "libs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "macho-arm64",
+          "sha256": "669631a7540c81e1e8e5490358ca981ae21712f66917fcb48868443cfe607112"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "macos-aarch64",
+      "version": "v0.4.5",
+      "sha256": "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 16345640,
+      "asset_name": "supermetroid-0.4.5-macos-arm64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "libs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.run-by-default/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.single-missile-doors/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "macho-arm64",
+          "sha256": "312dfe3dbac346cd0d35f1777927fcd17452709fdad81c02a91947db505fec7e"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "macos-x86-64",
+      "version": "v0.4.2",
+      "sha256": "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 16260320,
+      "asset_name": "supermetroid-0.4.2-macos-x64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "libs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "macho-x86-64",
+          "sha256": "5d2d767b33498161138f802db420fce9c678f4e94a7a538f90fca2acb52843da"
+        }
+      ]
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "macos-x86-64",
+      "version": "v0.4.5",
+      "sha256": "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946",
+      "derivation_inputs_sha256": "ec52ee5ae8c9bae6b4cb03a87f8ba3880bcd76409fe67bcb425e6d821c4334db",
+      "size": 16904968,
+      "asset_name": "supermetroid-0.4.5-macos-x64.zip",
+      "reviewed_by": "hold",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "supermetroidsnesrecomp"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "libs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.run-by-default/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.single-missile-doors/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp",
+          "machine": "macho-x86-64",
+          "sha256": "c5f7d9de00ceb6935fe59ac8bd2ff1bc4bd6b6c23ae14680dedf42279bc42b28"
+        }
+      ]
     },
     {
       "port_id": "super-metroid-recomp",
@@ -294,6 +964,7 @@
       "size": 14907383,
       "asset_name": "supermetroid-0.4.2-windows-x64.zip",
       "reviewed_by": "applicability:super-metroid-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "supermetroidsnesrecomp.exe"
@@ -320,7 +991,14 @@
           "release-profile.json"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "supermetroidsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "a911ccac284566ce41186d73059bd2077ac25509dee5e8b1821f4d48221cedbe"
+        }
+      ]
     },
     {
       "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -331,6 +1009,7 @@
       "size": 11388312,
       "asset_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
       "reviewed_by": "applicability:the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "zeldaalttpsnesrecomp.exe"
@@ -350,7 +1029,14 @@
           "mods/packages/zelda-alttp.enhancement.widescreen/1.0.0/manifest.toml"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "zeldaalttpsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "ec69cc8b051b563254198a66b33ab81eba14b90bf58e39354d9751ec8b3c4832"
+        }
+      ]
     },
     {
       "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -361,6 +1047,7 @@
       "size": 12990200,
       "asset_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.6.zip",
       "reviewed_by": "applicability:the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+      "shape_version": 2,
       "shape": {
         "programs": [
           "zeldaalttpsnesrecomp.exe"
@@ -379,8 +1066,157 @@
           "mods/preloaded/packages/zelda-alttp.enhancement.widescreen/1.0.0/manifest.toml"
         ],
         "missing_persistent_parents": []
-      }
+      },
+      "player_candidates": [
+        {
+          "path": "zeldaalttpsnesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "bb0da0210f31ab9ccfa9969471b6c370968ed1e3a0a9f7f1bae18fe94d774392"
+        }
+      ]
+    },
+    {
+      "port_id": "zelda64-recomp",
+      "platform": "linux-x86-64",
+      "version": "v1.2.2",
+      "sha256": "de8b19cdb4e3ad0c10fd6d8127f7a6cc2a9eba106d89c753439178b718887c42",
+      "derivation_inputs_sha256": "b6908895969d21610366b07da6fed565d85a776d1d6422130fe64e00e4d52429",
+      "size": 18638525,
+      "asset_name": "Zelda64Recompiled-v1.2.2-Linux-X64.zip",
+      "reviewed_by": "applicability:zelda64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "zelda64recompiled"
+        ],
+        "top_directories": [
+          "assets"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "zelda64recompiled",
+          "machine": "elf64-x86-64",
+          "sha256": "90bcae6ec6e6ba1f8c24e513700f67f0bdad8852d8d1c9d9766c78fc4788f327"
+        }
+      ]
+    },
+    {
+      "port_id": "zelda64-recomp",
+      "platform": "macos-aarch64",
+      "version": "v1.2.2",
+      "sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689",
+      "derivation_inputs_sha256": "86b7f4533960a9a1a3746aad0053d9bcba8c5d126df291d98a9c6afeefa76998",
+      "size": 32315959,
+      "asset_name": "Zelda64Recompiled-v1.2.2-macOS.zip",
+      "reviewed_by": "applicability:zelda64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "contents/frameworks/libbrotlicommon.1.1.0.dylib",
+          "contents/frameworks/libbrotlicommon.1.dylib",
+          "contents/frameworks/libbrotlidec.1.1.0.dylib",
+          "contents/frameworks/libbrotlidec.1.dylib",
+          "contents/frameworks/libbz2.1.0.8.dylib",
+          "contents/frameworks/libbz2.1.0.dylib",
+          "contents/frameworks/libfreetype.6.dylib",
+          "contents/frameworks/libpng16.16.dylib",
+          "contents/frameworks/libsdl2-2.0.0.dylib",
+          "contents/frameworks/libz.1.3.1.dylib",
+          "contents/frameworks/libz.1.dylib",
+          "contents/macos/zelda64recompiled"
+        ],
+        "top_directories": [
+          "contents"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "contents/macos/zelda64recompiled",
+          "machine": "macho-universal-arm64+x86-64",
+          "sha256": "603c86bbbb5b53d2a9c8d6d7b9053c1254ee91170739288e91e189d6a4a01db7"
+        }
+      ]
+    },
+    {
+      "port_id": "zelda64-recomp",
+      "platform": "macos-x86-64",
+      "version": "v1.2.2",
+      "sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689",
+      "derivation_inputs_sha256": "86b7f4533960a9a1a3746aad0053d9bcba8c5d126df291d98a9c6afeefa76998",
+      "size": 32315959,
+      "asset_name": "Zelda64Recompiled-v1.2.2-macOS.zip",
+      "reviewed_by": "applicability:zelda64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "contents/frameworks/libbrotlicommon.1.1.0.dylib",
+          "contents/frameworks/libbrotlicommon.1.dylib",
+          "contents/frameworks/libbrotlidec.1.1.0.dylib",
+          "contents/frameworks/libbrotlidec.1.dylib",
+          "contents/frameworks/libbz2.1.0.8.dylib",
+          "contents/frameworks/libbz2.1.0.dylib",
+          "contents/frameworks/libfreetype.6.dylib",
+          "contents/frameworks/libpng16.16.dylib",
+          "contents/frameworks/libsdl2-2.0.0.dylib",
+          "contents/frameworks/libz.1.3.1.dylib",
+          "contents/frameworks/libz.1.dylib",
+          "contents/macos/zelda64recompiled"
+        ],
+        "top_directories": [
+          "contents"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "contents/macos/zelda64recompiled",
+          "machine": "macho-universal-arm64+x86-64",
+          "sha256": "603c86bbbb5b53d2a9c8d6d7b9053c1254ee91170739288e91e189d6a4a01db7"
+        }
+      ]
+    },
+    {
+      "port_id": "zelda64-recomp",
+      "platform": "windows-x86-64",
+      "version": "v1.2.2",
+      "sha256": "d02b95f1cf5e4d44d6587fa6136c6db521f61aa41ba8700c05f91bea8b0a26d0",
+      "derivation_inputs_sha256": "40b13111ecf5ceb5073ddad0bd6fdb8a88dfc75a1032bb4d51dba048bbfdd05c",
+      "size": 28940501,
+      "asset_name": "Zelda64Recompiled-v1.2.2-Windows.zip",
+      "reviewed_by": "applicability:zelda64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "zelda64recompiled.exe"
+        ],
+        "top_directories": [
+          "assets"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "zelda64recompiled.exe",
+          "machine": "pe-x86-64",
+          "sha256": "ae6792f224e312c9d225e45e75317fe4db0122dbceea4250b39292398070922d"
+        }
+      ]
     }
   ],
-  "entries_sha256": "aceec3e5643570a04b98790756f467514c5fae20fc5030d29a7bcd73d9192bb3"
+  "entries_sha256": "8b1166370f0cc2ce8dcebe97110702aee040b465517695032a346c729496ccb9"
 }

@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-woof",
+    "name": "Doom / Woof!",
+    "original_game_title": "Doom",
+    "summary": "Play Doom and Freedoom with the Woof! source port and keep each game's settings and saves with its player.",
+    "project_url": "https://github.com/fabiangreffrath/woof",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5718,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/fabiangreffrath/woof#usage",
+    "release_url": "https://github.com/fabiangreffrath/woof/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the IWAD from your own Doom installation or the freely available Freedoom IWAD. Pass -iwad followed by the path to that file. Keep the supplied woof.pk3 beside the extracted player or in its packaged location. It contains engine resources and does not replace the IWAD."
+        },
+        {
+          "title": "Start Woof! on Windows",
+          "instruction": "Extract the complete x64 ZIP and start woof.exe from its directory. Use woof-setup.exe there to configure controls or video. The publisher also provides a separate 32-bit Windows ZIP."
+        },
+        {
+          "title": "Start Woof! on Linux",
+          "instruction": "Make the x86-64 AppImage executable and run it with your IWAD. The inspected 16.0.0 player needs glibc 2.38 or later. If FUSE is unavailable, extract the AppImage with --appimage-extract and run AppRun from the complete extracted folder. Homebrew also offers the woof-doom formula for Linux, including ARM64."
+        },
+        {
+          "title": "Start Woof! on a Mac",
+          "instruction": "Extract the publisher's universal ZIP, keep woof, woof-setup, woof.pk3 and soundfonts together and run ./woof with your IWAD from Terminal. Both the Intel and Apple Silicon slices in 16.0.0 require macOS 26 or later."
+        }
+      ],
+      "warnings": [
+        "The publisher player can register a Discord link handler when launched. The game, its profile and updates stay under your control or the package manager's.",
+        "The packaged notices omit credits for some bundled engine assets. See the publisher's Legalese section for those credits."
+      ],
+      "help_url": "https://github.com/fabiangreffrath/woof/blob/woof_16.0.0/README.md#legalese",
+      "references": [
+        {
+          "title": "Keep saves with the game that created them",
+          "instruction": "On Linux, preserve $XDG_DATA_HOME/woof, normally ~/.local/share/woof. This holds woof.cfg and savegames grouped by IWAD filename. Keep your actual profile and matching runtime before changing ports or versions."
+        }
+      ]
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["Woof-", "-win64.zip"],
+      "linux-x86-64": ["Woof-", "-Linux.AppImage"],
+      "macos-x86-64": ["Woof-", "-uni.zip"],
+      "macos-aarch64": ["Woof-", "-uni.zip"]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-woof",
+    "origin": {
+      "project_url": "https://github.com/fabiangreffrath/woof",
+      "repository": {
+        "host": "github.com",
+        "id": "66107014"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://github.com/fabiangreffrath/woof/blob/woof_16.0.0/README.md#legalese",
+      "https://github.com/fabiangreffrath/woof"
+    ]
+  }
+}

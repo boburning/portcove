@@ -3,8 +3,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
+import { useSupportReportExport } from "../features/workspace/settings-export-results";
 import type { DesktopSupportBundleExport } from "../types";
-import { failurePresentation, type FailureDisplay } from "../view-model";
+import { failurePresentation } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
 
@@ -75,46 +76,40 @@ export function SupportBundleExport({
   disabled?: boolean;
 }) {
   const { t } = useAppTranslation("settings");
-  const [exported, setExported] = useState<DesktopSupportBundleExport>();
-  const [pending, setPending] = useState(false);
-  const [folderFailed, setFolderFailed] = useState(false);
-  const [failure, setFailure] = useState<{ presentation: FailureDisplay | undefined }>();
+  const { result, run } = useSupportReportExport();
+  const exported = result.receipt;
+  const pending = result.phase === "exporting";
+  const failed = result.phase === "failed" || result.phase === "unconfirmed";
+  const presentation = failurePresentation(result.error);
+  const [folderStatus, setFolderStatus] = useState<"opening" | "failed">();
   const request = useRef(0);
-  const exporting = useRef(false);
+  const openingFolder = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
-      exporting.current = false;
     };
   }, []);
 
-  const create = async () => {
-    if (disabled || exporting.current || !createSupportBundle) return;
-    exporting.current = true;
-    const current = ++request.current;
-    setPending(true);
-    setExported(undefined);
-    setFailure(undefined);
-    setFolderFailed(false);
-    try {
-      const result = await createSupportBundle();
-      if (request.current === current) {
-        if (result) setExported(result);
-        else setFailure({ presentation: undefined });
-      }
-    } catch (value) {
-      if (request.current === current) setFailure({ presentation: failurePresentation(value) });
-    } finally {
-      if (request.current === current) {
-        exporting.current = false;
-        setPending(false);
-      }
-    }
+  const create = () => {
+    if (disabled || pending || !createSupportBundle) return;
+    request.current += 1;
+    setFolderStatus(undefined);
+    void run(createSupportBundle);
   };
 
-  const openFolder = () => {
-    setFolderFailed(false);
-    desktopApi.openSupportReportFolder().catch(() => setFolderFailed(true));
+  const openFolder = async () => {
+    const current = request.current;
+    if (openingFolder.current === current) return;
+    openingFolder.current = current;
+    setFolderStatus("opening");
+    try {
+      await desktopApi.openSupportReportFolder();
+      if (request.current === current) setFolderStatus(undefined);
+    } catch {
+      if (request.current === current) setFolderStatus("failed");
+    } finally {
+      if (openingFolder.current === current) openingFolder.current = undefined;
+    }
   };
 
   const incomplete = exported?.manifest.sections.some((section) => section.status !== "included");
@@ -125,27 +120,29 @@ export function SupportBundleExport({
         <summary data-focusable className="[scroll-margin-block:var(--space-2)]">
           {t("supportReport.examplesSummary")}
         </summary>
-        <p>{t("supportReport.examples")}</p>
+        <p className="mt-2 text-pc-muted-foreground">{t("supportReport.examples")}</p>
       </details>
       <Button
         data-settings-control="diagnostics"
         data-focusable
         variant="outline"
         size="sm"
-        disabled={disabled || pending || !createSupportBundle}
+        disabled={disabled || !createSupportBundle}
+        aria-busy={pending || undefined}
+        focusableWhenDisabled={pending}
         className="justify-self-start"
-        onClick={() => void create()}
+        onClick={create}
       >
         {pending ? t("supportReport.creating") : t("supportReport.create")}
       </Button>
       {pending && <p role="status">{t("supportReport.collecting")}</p>}
-      {failure && (
-        <div role="alert">
-          <p>{t("supportReport.failed")}</p>
-          {failure.presentation && (
+      {failed && (
+        <div role="alert" className="grid gap-2">
+          <p className="text-pc-danger-foreground">{t("supportReport.failed")}</p>
+          {presentation && (
             <>
-              <p>{failure.presentation.summary}</p>
-              <FailureDetails presentation={failure.presentation} showMutationSummary={false} />
+              <p>{presentation.summary}</p>
+              <FailureDetails presentation={presentation} showMutationSummary={false} />
             </>
           )}
         </div>
@@ -170,18 +167,24 @@ export function SupportBundleExport({
             variant="outline"
             size="sm"
             className="justify-self-start"
-            onClick={openFolder}
+            aria-busy={folderStatus === "opening" || undefined}
+            focusableWhenDisabled
+            onClick={() => void openFolder()}
           >
             {t("supportReport.openFolder")}
           </Button>
-          {folderFailed && <p role="alert">{t("supportReport.openFolderFailed")}</p>}
+          {folderStatus === "failed" && (
+            <p role="alert" className="text-pc-danger-foreground">
+              {t("supportReport.openFolderFailed")}
+            </p>
+          )}
           {!exported.manifest.library_available && <p>{t("supportReport.libraryUnavailable")}</p>}
           <details>
             <summary data-focusable className="[scroll-margin-block:var(--space-2)]">
               {t("supportReport.contentsSummary")}
             </summary>
-            <p>{t("supportReport.contentsLimits")}</p>
-            <ul aria-label={t("supportReport.sectionsLabel")} className="grid gap-3 ps-5">
+            <p className="mt-2 text-pc-muted-foreground">{t("supportReport.contentsLimits")}</p>
+            <ul aria-label={t("supportReport.sectionsLabel")} className="mt-2 grid gap-3 ps-5">
               {exported.manifest.sections.map((section, index) => (
                 <li key={`${section.kind}:${section.entry ?? index}`}>
                   <strong>

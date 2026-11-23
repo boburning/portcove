@@ -1,5 +1,15 @@
 {
   "format_version": 1,
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ],
+    "macos-x86-64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ]
+  },
   "order": 23,
   "listing": {
     "id": "legend-of-mana-recompiled",
@@ -16,8 +26,24 @@
       "game_slug": "legend-of-mana",
       "match_kind": "underlying-game"
     },
-    "issue_number": 78
+    "issue_number": 78,
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-mana",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp"],
+      "source_editions": [
+        {
+          "id": "legend-of-mana-playstation",
+          "title": "Legend of Mana (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
+  "psx_managed_windows_v1": "technically-computers",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -39,17 +65,6 @@
       "macos-x86-64": ["Legend_of_Mana__Recompiled"],
       "macos-aarch64": ["Legend_of_Mana__Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "config",
-      "mods",
-      "settings.toml",
-      "game_options.json",
-      "graphics.json",
-      "input.json",
-      "sound.json"
-    ],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -60,7 +75,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

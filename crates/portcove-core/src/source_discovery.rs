@@ -23,8 +23,10 @@ use std::{
 pub(crate) const CURRENT_SCAN_FORMAT_VERSION: u32 = 13;
 const CONTINUATION_FORMAT_VERSION: u32 = 3;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
+const ROOTS_PER_DISCOVERY_BATCH: usize = 8;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
+const OVERSIZED_FILE_ISSUE: &str = "This file exceeds the scan’s per-file size limit.";
 /// Safety ceiling for matches (exact and preliminary combined) one
 /// saved-folder scan retains across batches, in library rows.
 /// `max_candidates` bounds each batch; reaching this ceiling ends the scan as
@@ -468,6 +470,9 @@ pub struct SourceDiscoveryRequest {
 pub struct SourceDiscoveryIssue {
     pub path: Option<PathBuf>,
     pub profile_id: Option<String>,
+    /// Profiles whose bounded direct inspection can check this skipped file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_check_profiles: Vec<String>,
     pub message: String,
 }
 
@@ -520,7 +525,7 @@ impl PortcoveService {
         request: &SourceDiscoveryRequest,
         mut emit: impl FnMut(crate::OperationEvent),
     ) -> Result<SourceDiscoveryReport> {
-        validate_request(request)?;
+        validate_request(request, false)?;
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
             ActivityTargetKind::Library,
@@ -554,6 +559,30 @@ impl PortcoveService {
         limits: &SourceDiscoveryLimits,
         mut emit: impl FnMut(crate::OperationEvent),
     ) -> Result<GameFileScanSnapshot> {
+        self.run_saved_folder_scan(limits, None, &mut emit)
+    }
+
+    /// Finish the existing saved-folder search, persisting each bounded batch.
+    /// Only the matching retained scan may advance, even after another caller
+    /// publishes results while this operation is running.
+    pub fn finish_game_file_scan_with_progress(
+        &self,
+        scan_id: &str,
+        limits: &SourceDiscoveryLimits,
+        mut emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<GameFileScanSnapshot> {
+        if uuid::Uuid::parse_str(scan_id).is_err() {
+            return Err(PortcoveError::usage("scan identity is invalid"));
+        }
+        self.run_saved_folder_scan(limits, Some(scan_id), &mut emit)
+    }
+
+    fn run_saved_folder_scan(
+        &self,
+        limits: &SourceDiscoveryLimits,
+        finish_scan_id: Option<&str>,
+        emit: &mut impl FnMut(crate::OperationEvent),
+    ) -> Result<GameFileScanSnapshot> {
         validate_limits(limits)?;
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
@@ -561,29 +590,50 @@ impl PortcoveService {
             None,
         )?;
         emit(operation.started());
-        let result = self.finish_activity(
-            activity,
-            build_game_file_scan_with_registry_events(
-                self.catalog(),
-                self.library(),
-                limits,
-                &operation,
-                &mut emit,
-            )
-            .and_then(|(snapshot, expected_outputs, expected_payload, matches)| {
-                publish_game_file_scan(
-                    self.library(),
-                    &operation,
+        let result = (|| {
+            let mut previous_checkpoint = None::<String>;
+            loop {
+                operation.checkpoint()?;
+                let (snapshot, outputs, expected_payload, matches) =
+                    prepare_saved_folder_scan_batch(
+                        self.catalog(),
+                        self.library(),
+                        limits,
+                        &operation,
+                        emit,
+                        finish_scan_id.map(|id| (id, previous_checkpoint.as_deref())),
+                    )?;
+                let keep_scanning = finish_scan_id.is_some()
+                    && snapshot
+                        .coverage
+                        .as_ref()
+                        .is_some_and(|coverage| coverage.can_resume);
+                if !keep_scanning {
+                    publish_game_file_scan(
+                        self.library(),
+                        &operation,
+                        &snapshot,
+                        &outputs,
+                        expected_payload.as_deref(),
+                        &matches,
+                    )?;
+                    emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+                    // Report the snapshot committed by this invocation. The latest
+                    // pointer can already belong to another scan.
+                    return Ok(snapshot);
+                }
+                previous_checkpoint = Some(self.library().publish_game_file_scan_checkpoint(
                     &snapshot,
-                    &expected_outputs,
+                    &outputs,
+                    &snapshot.roots,
                     expected_payload.as_deref(),
                     &matches,
-                )?;
-                current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
-                    PortcoveError::state("game-file scan snapshot disappeared after publication")
-                })
-            }),
-        );
+                    Some(operation.operation_id()),
+                )?);
+                emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+            }
+        })();
+        let result = self.finish_activity(activity, result);
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
@@ -611,7 +661,20 @@ impl PortcoveService {
         {
             return Err(PortcoveError::usage("scan identity is invalid"));
         }
+        if let Some(profile) = &query.profile_id {
+            self.catalog().source_profile(profile)?;
+        }
         self.library().game_file_scan_match_page(query)
+    }
+
+    /// Match current registrations against the full retained scan for setup
+    /// review. This reads evidence only and grants no setup authorization.
+    pub fn game_file_scan_registered_matches(
+        &self,
+        expected: &crate::GameFileScanMatchSummary,
+    ) -> Result<crate::GameFileScanRegisteredMatches> {
+        self.library()
+            .game_file_scan_registered_matches(expected, &catalog_sha256(self.catalog())?)
     }
 
     /// The source profiles matched inside one saved folder by the current
@@ -640,6 +703,21 @@ fn discovery_exclusions(
         kind: DiscoveryExclusionKind::ManagedOutput,
     }));
     Ok((exclusions, expected_outputs))
+}
+
+fn emit_saved_scan_checkpoint(
+    operation: &crate::OperationCoordinator,
+    snapshot: &GameFileScanSnapshot,
+    emit: &mut dyn FnMut(crate::OperationEvent),
+) {
+    if let Some(coverage) = &snapshot.coverage {
+        emit(operation.progress_with_unit(
+            "saved_folder_scan_checkpoints",
+            crate::ProgressUnit::Items,
+            u64::from(coverage.batches),
+            None,
+        ));
+    }
 }
 
 fn publish_game_file_scan(
@@ -689,12 +767,24 @@ type PreparedGameFileScan = (
     GameFileScanMatchWrite,
 );
 
+#[cfg(test)]
 fn build_game_file_scan_with_registry_events(
     catalog: &Catalog,
     library: &crate::Library,
     limits: &SourceDiscoveryLimits,
     operation: &crate::OperationCoordinator,
     emit: &mut dyn FnMut(crate::OperationEvent),
+) -> Result<PreparedGameFileScan> {
+    prepare_saved_folder_scan_batch(catalog, library, limits, operation, emit, None)
+}
+
+fn prepare_saved_folder_scan_batch(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+    operation: &crate::OperationCoordinator,
+    emit: &mut dyn FnMut(crate::OperationEvent),
+    expected_continuation: Option<(&str, Option<&str>)>,
 ) -> Result<PreparedGameFileScan> {
     let roots = library.game_file_roots()?;
     let expected_payload = library.stored_game_file_scan_payload()?;
@@ -706,6 +796,17 @@ fn build_game_file_scan_with_registry_events(
         .map(prior_scan_for_reuse)
         .transpose()?
         .flatten();
+    if let Some((scan_id, payload)) = expected_continuation
+        && (payload.is_some_and(|value| expected_payload.as_deref() != Some(value))
+            || previous.as_ref().is_none_or(|snapshot| {
+                snapshot.continuation.is_none()
+                    || scan_match_summary(snapshot).is_none_or(|summary| summary.scan_id != scan_id)
+            }))
+    {
+        return Err(PortcoveError::conflict(
+            "saved scan changed; reload its latest results",
+        ));
+    }
     let (exclusions, expected_outputs) = discovery_exclusions(library)?;
     let catalog_identity = catalog_sha256(catalog)?;
     let outputs_identity = output_registry_sha256(&expected_outputs)?;
@@ -767,11 +868,6 @@ fn build_game_file_scan_with_registry_events(
         .filter(|root| root.availability == GameFileRootAvailability::Available)
         .map(|root| root.path.clone())
         .collect::<Vec<_>>();
-    if available.len() > 8 {
-        return Err(PortcoveError::usage(
-            "game-file discovery currently supports at most eight available saved roots per scan",
-        ));
-    }
     if available.is_empty() {
         return Err(PortcoveError::source(
             "no saved game-file root is currently available",
@@ -821,14 +917,14 @@ fn build_game_file_scan_with_registry_events(
         prior_matches,
     )?;
     let report = &mut batch.report;
-    for root in roots
-        .iter()
-        .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
-    {
+    for root in roots.iter().filter(|root| {
+        resumed.is_none() && root.availability == GameFileRootAvailability::Unavailable
+    }) {
         if report.issues.len() < 64 {
             report.issues.push(SourceDiscoveryIssue {
                 path: Some(root.path.clone()),
                 profile_id: None,
+                direct_check_profiles: Vec::new(),
                 message: "Saved game-file root is currently unavailable; prior scan evidence is not treated as deleted.".into(),
             });
         } else {
@@ -938,6 +1034,17 @@ fn build_game_file_scan_with_registry_events(
     } else {
         None
     };
+    if expected_continuation.is_some()
+        && let Some(next) = continuation.as_ref()
+        && resumed
+            .and_then(|snapshot| snapshot.continuation.as_ref())
+            .and_then(|cursor| cursor.get("pending"))
+            == next.get("pending")
+    {
+        return Err(PortcoveError::conflict(
+            "saved scan made no progress; use narrower folders before trying again",
+        ));
+    }
     let matches = if prior_preview.is_some() {
         GameFileScanMatchWrite::Append {
             scan_id,
@@ -1183,13 +1290,21 @@ fn validate_continuation(
     let available = roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Available)
-        .map(|root| &root.path)
-        .collect::<Vec<_>>();
+        .map(|root| root.path.as_path())
+        .collect::<BTreeSet<_>>();
+    let searched = snapshot
+        .report
+        .searched_roots
+        .iter()
+        .map(PathBuf::as_path)
+        .collect::<BTreeSet<_>>();
     for (path, expected) in &cursor.observed {
         operation.checkpoint()?;
         *checks += 1;
         if *checks > MAX_RESUME_CHECKS
-            || !available.iter().any(|root| path.starts_with(root))
+            || !path
+                .ancestors()
+                .any(|ancestor| available.contains(ancestor))
             || path.components().any(|part| {
                 matches!(
                     part,
@@ -1206,16 +1321,17 @@ fn validate_continuation(
             ));
         }
     }
-    let mut pending_paths = BTreeSet::new();
+    let mut pending_paths = BTreeMap::new();
     for directory in &cursor.pending {
-        if !pending_paths.insert(&directory.path)
+        if pending_paths
+            .insert(directory.path.as_path(), directory)
+            .is_some()
             || directory.depth > limits.max_depth
-            || !snapshot.report.searched_roots.iter().any(|root| {
-                directory
-                    .path
-                    .strip_prefix(root)
-                    .is_ok_and(|relative| relative.components().count() == directory.depth as usize)
-            })
+            || !directory
+                .path
+                .ancestors()
+                .nth(directory.depth as usize)
+                .is_some_and(|ancestor| searched.contains(ancestor))
             || directory.seen.len() > MAX_CONTINUATION_RECORDS
             || directory.deferred_file.as_ref().is_some_and(|name| {
                 !directory.seen.contains(name)
@@ -1244,28 +1360,17 @@ fn validate_continuation(
         }
     }
     for path in cursor.observed.keys() {
-        if !snapshot
-            .report
-            .searched_roots
-            .iter()
-            .any(|root| path.starts_with(root))
-        {
+        if !path.ancestors().any(|ancestor| searched.contains(ancestor)) {
             return Err(PortcoveError::state(
                 "scan continuation path is outside its recorded scope",
             ));
         }
-        if let Some(parent) = path.parent() {
-            for directory in cursor
-                .pending
-                .iter()
-                .filter(|directory| directory.path == parent)
-            {
-                let name = path.file_name().and_then(|name| name.to_str());
-                if name.is_none_or(|name| !directory.seen.contains(name)) {
-                    return Err(PortcoveError::state(
-                        "scan continuation lost an examined directory entry",
-                    ));
-                }
+        if let Some(directory) = path.parent().and_then(|parent| pending_paths.get(parent)) {
+            let name = path.file_name().and_then(|name| name.to_str());
+            if name.is_none_or(|name| !directory.seen.contains(name)) {
+                return Err(PortcoveError::state(
+                    "scan continuation lost an examined directory entry",
+                ));
             }
         }
     }
@@ -1419,20 +1524,28 @@ fn current_game_file_scan(
         snapshot.continuation = None;
         snapshot.matches = None;
     }
-    snapshot.freshness = if snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
-        && !snapshot
-            .coverage
-            .as_ref()
-            .is_some_and(|coverage| coverage.restart_required)
-        && snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
-        && snapshot.catalog_sha256 == catalog_sha256(catalog)?
-        && snapshot.roots == current_roots
+    snapshot.freshness = if snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
+        && scan_snapshot_inputs_match(&snapshot, &catalog_sha256(catalog)?, &current_roots)
     {
         GameFileScanFreshness::InputsMatch
     } else {
         GameFileScanFreshness::InputsChanged
     };
     Ok(Some(snapshot))
+}
+
+pub(crate) fn scan_snapshot_inputs_match(
+    snapshot: &GameFileScanSnapshot,
+    catalog_sha256: &str,
+    roots: &[crate::GameFileRoot],
+) -> bool {
+    snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
+        && !snapshot
+            .coverage
+            .as_ref()
+            .is_some_and(|coverage| coverage.restart_required)
+        && snapshot.catalog_sha256 == catalog_sha256
+        && snapshot.roots == roots
 }
 
 /// A complete current scan snapshot holding exactly `candidates`, for tests
@@ -1522,12 +1635,17 @@ fn catalog_sha256(catalog: &Catalog) -> Result<String> {
     )?)))
 }
 
-fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
+fn validate_request(request: &SourceDiscoveryRequest, saved: bool) -> Result<()> {
     let limits = &request.limits;
+    if saved && request.roots.len() > MAX_CONTINUATION_RECORDS {
+        return Err(PortcoveError::usage(
+            "saved game-file roots exceed the scan checkpoint’s safety limit",
+        ));
+    }
     if request.roots.is_empty()
-        || request.roots.len() > 8
+        || (!saved && request.roots.len() > ROOTS_PER_DISCOVERY_BATCH)
         || request.profile_ids.is_empty()
-        || request.profile_ids.len() > 256
+        || (!saved && request.profile_ids.len() > 256)
     {
         return Err(PortcoveError::usage(
             "source discovery needs 1-8 explicit roots and 1-256 profiles",
@@ -1723,7 +1841,7 @@ fn scan_with_continuation<'a>(
     initial_checks: u32,
     prior_matches: Option<PriorMatches>,
 ) -> Result<ScanBatch> {
-    validate_request(request)?;
+    validate_request(request, continuation.is_some())?;
     let mut roots = Vec::new();
     for root in &request.roots {
         operation.checkpoint()?;
@@ -1746,7 +1864,11 @@ fn scan_with_continuation<'a>(
     roots.dedup();
     let mut selected = Vec::<PathBuf>::new();
     for root in roots {
-        if !selected.iter().any(|parent| root.starts_with(parent)) {
+        if !root.ancestors().skip(1).any(|ancestor| {
+            selected
+                .binary_search_by(|parent| parent.as_path().cmp(ancestor))
+                .is_ok()
+        }) {
             selected.push(root);
         }
     }
@@ -1879,7 +2001,10 @@ fn scan_with_continuation<'a>(
     for (path, message) in omitted_owned_paths {
         discovery.owned_path_issue(path, message)?;
     }
+    // Build one set of relevant profile indexes for the file walk. A saved scan
+    // derives its selection from the catalog; explicit requests remain bounded.
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
+        operation.checkpoint()?;
         let profile = catalog.source_profile(id)?;
         if profile.kind == crate::SourceKind::FileSet && catalog.source_catalog().is_some() {
             discovery.directory_profiles.push(profile);
@@ -2294,11 +2419,31 @@ impl Discovery<'_> {
                 return Ok(());
             }
         }
+        // The existing frontier contains the complete, deduplicated saved
+        // scope. A batch visits at most eight distinct root trees. Remaining
+        // roots and directories stay in the same scan and match inventory.
+        let mut batch_roots = BTreeSet::new();
         while let Some(mut state) = pending.pop_front() {
             let directory = state.path.clone();
             let depth = state.depth;
             if self.is_excluded(&directory) {
                 continue;
+            }
+            if self.continuation.is_some()
+                && let Some(root) = directory.ancestors().find(|ancestor| {
+                    self.report
+                        .searched_roots
+                        .binary_search_by(|root| root.as_path().cmp(ancestor))
+                        .is_ok()
+                })
+                && !batch_roots.contains(root)
+            {
+                if batch_roots.len() == ROOTS_PER_DISCOVERY_BATCH {
+                    pending.push_front(state);
+                    self.save_frontier(pending);
+                    return Ok(());
+                }
+                batch_roots.insert(root.to_path_buf());
             }
             self.refresh_output_exclusions(&directory, true)?;
             if self.is_excluded(&directory) {
@@ -2768,6 +2913,26 @@ impl Discovery<'_> {
         }
         if size > self.limits.max_file_bytes {
             self.reached.insert(SourceDiscoveryLimit::FileSize);
+            let profiles = if extension.eq_ignore_ascii_case("iso")
+                && size <= crate::adapter::MAX_RUNTIME_SOURCE_BYTES
+            {
+                groups
+                    .iter()
+                    .flat_map(|(_, profiles)| profiles.iter().copied())
+                    .filter(|profile| {
+                        crate::source_inspection::is_direct_ps2_iso_profile(self.catalog, profile)
+                    })
+                    .map(|profile| profile.id.clone())
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            self.issue_with_direct_check(
+                Some(path.into()),
+                None,
+                OVERSIZED_FILE_ISSUE.into(),
+                profiles,
+            );
             return Ok(());
         }
         let before = self.budget.hashed;
@@ -3389,15 +3554,36 @@ impl Discovery<'_> {
             return Ok(());
         }
         if self.report.issues.len() >= 64 {
-            return Err(PortcoveError::usage(
-                "too many owned paths to report in one game-file scan; select a narrower root",
-            ));
+            // Required exclusions take priority over these new optional
+            // diagnostics, including when a prior batch already recorded them.
+            let Some(advisory) = self
+                .report
+                .issues
+                .iter()
+                .rposition(|issue| issue.message == OVERSIZED_FILE_ISSUE)
+            else {
+                return Err(PortcoveError::usage(
+                    "too many owned paths to report in one game-file scan; select a narrower root",
+                ));
+            };
+            self.report.issues.remove(advisory);
+            self.report.issues_omitted += 1;
         }
         self.issue(Some(path), None, message.into());
         Ok(())
     }
 
     fn issue(&mut self, path: Option<PathBuf>, profile_id: Option<String>, message: String) {
+        self.issue_with_direct_check(path, profile_id, message, Vec::new());
+    }
+
+    fn issue_with_direct_check(
+        &mut self,
+        path: Option<PathBuf>,
+        profile_id: Option<String>,
+        message: String,
+        direct_check_profiles: Vec<String>,
+    ) {
         // OS paths can contain opaque names. Errors must still serialize through
         // the shared JSON transport without hiding independent readable results.
         let path = path.filter(|path| path.to_str().is_some());
@@ -3412,6 +3598,7 @@ impl Discovery<'_> {
             self.report.issues.push(SourceDiscoveryIssue {
                 path,
                 profile_id,
+                direct_check_profiles,
                 message,
             });
         } else {

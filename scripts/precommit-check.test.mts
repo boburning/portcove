@@ -42,7 +42,11 @@ void test("staged checks preserve declared exact-byte inputs while retaining lin
     "scripts/fixtures/release-resource-baseline-20261103-other/file.json",
   ])
     assert.deepEqual(stagedVitePlusChecks([nearMiss], root), [["check", "--fix", "--", nearMiss]]);
-  for (const file of ["vendor/rfd/source.rs", "release/bootstrap-public-inputs/input.json"])
+  for (const file of [
+    "vendor/rfd/source.rs",
+    "release/bootstrap-public-inputs/input.json",
+    "release/catalog-publication/bundle/sha256/definition.json",
+  ])
     assert.deepEqual(stagedVitePlusChecks([file], root), [
       ["check", "--fix", "--no-fmt", "--", file],
     ]);
@@ -220,15 +224,32 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
     [
       "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
+      "scripts/catalog-acquisition-restrictions.mts",
       "scripts/catalog-advisories.mts",
+      "scripts/catalog-alephone-pinned-windows.mts",
       "scripts/catalog-authoring.mts",
+      "scripts/catalog-chocolate-family-windows-persistence.mts",
+      "scripts/catalog-cover-mapping.mts",
+      "scripts/catalog-crispy-doom-windows-persistence.mts",
+      "scripts/catalog-game-review.mts",
+      "scripts/catalog-gen2recomp-windows-persistence.mts",
+      "scripts/catalog-n64-recomp-persistence.mts",
+      "scripts/catalog-native-managed-profile.mts",
+      "scripts/catalog-opengoal-setup.mts",
+      "scripts/catalog-openmohaa-portable.mts",
+      "scripts/catalog-openx-portable.mts",
+      "scripts/catalog-portable-reflectionhle.mts",
       "scripts/catalog-psx-managed-windows.mts",
+      "scripts/catalog-raze-windows-profile.mts",
+      "scripts/catalog-reviewed-flat-package-layout.mts",
       "scripts/catalog-route-facts.mts",
+      "scripts/catalog-rsdkv4-portable-data.mts",
       "scripts/catalog-staged-check.mts",
       "scripts/development-evidence.mts",
       "scripts/fallow-summary.mts",
       "scripts/github-client.mts",
       "scripts/github-operation.mts",
+      "scripts/implementation-metadata.mts",
       "scripts/json-values.mts",
       "scripts/native-helper-dependencies.mts",
       "scripts/nextest-outcomes.mts",

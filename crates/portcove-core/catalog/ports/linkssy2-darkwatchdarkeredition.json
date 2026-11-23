@@ -6,6 +6,14 @@
     "summary": "Attach an independently permitted, already prepared Darkwatch: Darker Edition native Windows runtime. Resolve its actual active version and keep the complete upstream installation; Play Darkwatch.exe only checks startup and does not wait for the game.",
     "original_game_title": "Darkwatch",
     "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+    "artwork": {
+      "game_id": 5808,
+      "cover_id": 218257,
+      "image_id": "co4oep",
+      "image_sha256": "b9e783902a647705e25fe671a96c5c7aa30dcf33f0c5753426034a81e9b6647a",
+      "game_slug": "darkwatch",
+      "match_kind": "underlying-game"
+    },
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
@@ -37,6 +45,26 @@
       ],
       "warnings": [
         "Attach only the actual active prepared darkwatch_xbe.exe and its version directory. Keep the full upstream installation; its Play wrapper returns before gameplay ends."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "darkwatch",
+      "evidence_urls": [
+        "https://github.com/linkssy2/DarkwatchDarkerEdition/blob/57f1e32364db6294bcd04e366f01b5a119f8bb74/README.md",
+        "https://github.com/linkssy2/DarkwatchDarkerEdition",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/linkssy2-darkwatchdarkeredition.json"
+      ],
+      "source_editions": [
+        {
+          "id": "darkwatch-xbox",
+          "title": "Darkwatch (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/linkssy2/DarkwatchDarkerEdition/blob/57f1e32364db6294bcd04e366f01b5a119f8bb74/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/linkssy2-darkwatchdarkeredition.json"
+          ]
+        }
       ]
     }
   },

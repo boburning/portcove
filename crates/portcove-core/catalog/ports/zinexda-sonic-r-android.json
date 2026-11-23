@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md"
     },
-    "release_url": "https://github.com/ZinexDa/sonic-r-android/releases"
+    "release_url": "https://github.com/ZinexDa/sonic-r-android/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-r",
+      "evidence_urls": [
+        "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md",
+        "https://github.com/ZinexDa/sonic-r-android"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic R"
   }
 }

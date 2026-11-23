@@ -5,6 +5,14 @@
     "name": "Heart of Darkness (hode)",
     "summary": "Build the hode desktop engine upstream with your own supported Windows Heart of Darkness data. The listed release binaries are for Switch and Vita, not desktop. Use hod.paf, setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files; demo files hod_demo.paf or hod_demo2.paf provide only demo content. Check the exact edition and language before setup. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Heart of Darkness",
+    "artwork": {
+      "game_id": 6433,
+      "cover_id": 98049,
+      "image_id": "co23nl",
+      "image_sha256": "db722965ae2a79a245c9fb3a6809f26ce05dc1d1b6bdc7a69cd3749cf77d524a",
+      "game_slug": "heart-of-darkness",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/usineur/hode",
     "platforms": [],
     "availability": "unknown",
@@ -39,6 +47,15 @@
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heart-of-darkness",
+      "evidence_urls": [
+        "https://github.com/usineur/hode",
+        "https://github.com/usineur/hode/tree/912594e84cee8bcb4075e19520fed7c61dc9a078"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

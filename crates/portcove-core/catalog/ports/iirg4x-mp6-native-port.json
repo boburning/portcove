@@ -50,6 +50,25 @@
       "warnings": [
         "Preserve working-directory saves and exact USA content. Partial minigame coverage and this release’s limited launcher/font permission record do not grant broader support or reuse rights."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-party-6",
+      "evidence_urls": [
+        "https://github.com/iirg4x/mp6-native-port",
+        "https://github.com/iirg4x/mp6-native-port/blob/99e4630d142142c5d745007481fd2b9d1562fb7e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-party-6-nintendo-gamecube",
+          "title": "Mario Party 6 (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/iirg4x/mp6-native-port/blob/99e4630d142142c5d745007481fd2b9d1562fb7e/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/iirg4x-mp6-native-port.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

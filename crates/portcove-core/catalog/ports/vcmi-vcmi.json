@@ -65,12 +65,18 @@
       "match_kind": "underlying-game"
     },
     "download_asset_hints": {
-      "windows-x86-64": ["VCMI-Windows.zip"],
       "linux-x86-64": ["VCMI-Linux-x64.AppImage"],
       "macos-x86-64": ["VCMI-macOS-intel.dmg"],
       "macos-aarch64": ["VCMI-macOS-arm.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-iii",
+      "evidence_urls": ["https://vcmi.eu/download/", "https://github.com/vcmi/vcmi"],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -113,7 +119,20 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use a separate official VCMI launcher to import your own Heroes III Complete or Shadow of Death data into the default Windows profile under Documents/My Games/vcmi. Close the launcher before choosing Play. Portcove manages the official x64 engine and starts VCMI_client.exe. Your imported data, saves, settings and mods remain in the shared Windows profile. Back up that profile yourself before changing versions. Custom profile paths require a separate upstream copy. Keep a compatible runtime for unfinished games, since saves can differ across major versions."
+      "manual_preparation": "Use a separate official VCMI launcher to import your own Heroes III Complete or Shadow of Death data into the default Windows profile under Documents/My Games/vcmi. Close the launcher before choosing Play. Portcove manages the official x64 engine and starts VCMI_client.exe. Your imported data, saves, settings and mods remain in the shared Windows profile. Back up that profile yourself before changing versions. Custom profile paths require a separate upstream copy. Keep a compatible runtime for unfinished games, since saves can differ across major versions.",
+      "manual_setup": {
+        "warnings": [
+          "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
+          "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions.",
+          "Windows game data, saves and settings normally live in Documents/My Games/vcmi; back up that profile before changing VCMI versions."
+        ],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Use a separate official VCMI Launcher to import your own Heroes III game data into the default Windows profile. Close the launcher before choosing Play in Portcove."
+          }
+        ]
+      }
     }
   }
 }

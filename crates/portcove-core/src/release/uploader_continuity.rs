@@ -116,6 +116,13 @@ fn is_project_automation(account: &GithubAccount) -> bool {
         && account.kind.as_deref() == Some("Bot")
 }
 
+/// Whether older release history could still establish this asset's uploader.
+/// Only an attributed live account can match an earlier pre-baseline upload.
+pub(super) fn history_can_establish(asset: &GithubAsset) -> bool {
+    !predates_baseline(asset)
+        && matches!(&asset.uploader, AssetUploader::Account(account) if account.id != GHOST_ACCOUNT_ID)
+}
+
 /// A deleted account's placeholder identifies no continuing publisher.
 fn identifies(account: &GithubAccount, id: u64) -> bool {
     account.id == id && account.id != GHOST_ACCOUNT_ID
@@ -245,6 +252,7 @@ fn recorded_hold(install: &crate::InstallRecord, cause: &str, reason: &str) -> P
     .detail("reason", reason)
     .detail("port_id", install.port_id.clone())
     .detail("version", install.version.clone())
+    .with_known_cause(crate::failure::KnownFailureCause::RecordedUploaderHold)
 }
 
 /// Applies uploader continuity to a build that is about to become active from

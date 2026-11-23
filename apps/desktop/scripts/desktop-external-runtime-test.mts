@@ -37,6 +37,7 @@ interface ExternalReport {
   rejected_preview?: Pick<FailureReport, "code"> &
     Pick<FailureReport["presentation"], "mutation_state" | "phase">;
   registered?: PortStatus;
+  relinked?: PortStatus;
   protected_files?: FileIdentity[];
   removed?: PortStatus;
   error?: string;
@@ -52,7 +53,7 @@ function success(value: unknown) {
 }
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
@@ -117,13 +118,38 @@ export async function createExternalRuntimeFixture(output: string) {
     executable_hints: { "windows-x86-64": ["game.exe"] },
     persistent_paths: [],
   };
+  const selectedPort = {
+    id: "portcove-external-launch-draft-fixture",
+    name: "Portcove External Launch Draft Fixture",
+    summary: "Private inert user-selected runtime for native launch review.",
+    project_url: port.project_url,
+    support_tier: port.support_tier,
+    channels: port.channels,
+    platforms: port.platforms,
+    adapter: "staged-source-portable",
+    release: {
+      provider: "user-prepared",
+      user_prepared: {
+        "windows-x86-64": {
+          trust: "user-selected",
+          version: "user-managed",
+          archive_name: "",
+          archive_size: 0,
+          archive_sha256: "",
+          executable: "",
+          immutable_tree_sha256: "",
+          mutable_paths: [],
+        },
+      },
+    },
+  };
   const catalogPath = path.join(output, "external-runtime-qualification-catalog.json");
   await writeFile(
     catalogPath,
     JSON.stringify({
       schema_version: 2,
       source_catalog: { evidence: [], identities: [], contracts: [], validators: [] },
-      ports: [port],
+      ports: [port, selectedPort],
     }),
     { flag: "wx" },
   );
@@ -132,7 +158,7 @@ export async function createExternalRuntimeFixture(output: string) {
       fileIdentity(path.join(directory, name)),
     ),
   );
-  return { directory, port, catalogPath, identities };
+  return { directory, port, selectedPort, catalogPath, identities };
 }
 
 export async function externalRuntimePickerObservation({
@@ -162,6 +188,174 @@ export async function externalRuntimePickerObservation({
   return observation;
 }
 
+async function verifyExternalLaunchDraft({
+  browser,
+  fixture,
+  confirmNative,
+  invoke,
+  output,
+  artifacts,
+  By,
+  until,
+}: ReviewContext) {
+  const { clickVisible, selectCatalogPort, replaceKeyboardText, revealDetailSection } =
+    await import("./desktop-review-controls.mts");
+  const { transportValues } = await import("./transport-values.mts");
+  const port = fixture.selectedPort;
+  const executable = path.join(fixture.directory, "game.exe");
+  const missingFolder = path.join(output, "missing-owned-start-folder");
+  const argumentsText = "--fullscreen\n\nOwned level with spaces";
+  const review = By.css('[role="dialog"][aria-describedby="selected-runtime-description"]');
+  const directory = By.css('input[aria-label="Start in folder"]');
+  const argumentsField = By.xpath('//label[contains(., "Launch options (advanced)")]/textarea');
+  const chooseExecutable = By.xpath('//button[normalize-space(.)="Choose game executable…"]');
+  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const inReview = (label: string) => By.xpath(`.//button[normalize-space(.)="${label}"]`);
+  // A missing attribute is never the expected path.
+  const samePath = (observed: string | null, expected: string) =>
+    observed !== null && path.relative(observed.replace(/^\\\\\?\\/u, ""), expected) === "";
+  const click = async (locator: import("selenium-webdriver").Locator) =>
+    clickVisible(browser, await browser.wait(until.elementLocated(locator), 30_000));
+  const assertUnregistered = async () => {
+    const statuses = transportValues("status", success(await invoke("get_statuses")));
+    const status = statuses.find((entry) => entry.port_id === port.id);
+    assert.ok(status);
+    assert.equal(status.active, null);
+    assert.ok(!status.external_runtime);
+  };
+  const findEditor = async () => {
+    await revealDetailSection(browser, "Game files");
+    await browser.wait(until.elementLocated(chooseExecutable), 30_000);
+  };
+  const showArguments = async () => {
+    const disclosure = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="Advanced launch options"]'),
+    );
+    if (!(await browser.findElement(argumentsField).isDisplayed()))
+      await clickVisible(browser, disclosure);
+    return browser.findElement(argumentsField);
+  };
+  const closeReview = async () => {
+    const dialog = await browser.findElement(review);
+    await clickVisible(browser, await dialog.findElement(inReview("Cancel")));
+    await browser.wait(async () => (await browser.findElements(review)).length === 0, 15_000);
+  };
+  const openReview = async () => {
+    await click(button("Review launch details"));
+    return browser.wait(until.elementLocated(review), 30_000);
+  };
+  const selectTarget = async () => {
+    const search = await browser.findElement(By.id("port-search"));
+    await replaceKeyboardText(browser, search, port.name);
+    await selectCatalogPort(browser, port.id);
+    await findEditor();
+  };
+
+  await click(By.xpath('//nav//button[contains(., "Discover")]'));
+  await selectTarget();
+  await assertUnregistered();
+  await click(chooseExecutable);
+  await confirmNative(
+    "Locate game executable",
+    "Open",
+    "File name:",
+    "external-launch-draft-picker",
+    executable,
+  );
+  await browser.wait(
+    async () =>
+      samePath(
+        await (await browser.findElement(directory)).getAttribute("value"),
+        fixture.directory,
+      ),
+    30_000,
+    "The exact selected program must set its own start folder",
+  );
+  await replaceKeyboardText(browser, await browser.findElement(directory), missingFolder);
+  await replaceKeyboardText(browser, await showArguments(), argumentsText);
+  const refused = await openReview();
+  await browser.wait(
+    async () => {
+      const retry = await refused.findElement(inReview("Check again"));
+      return (
+        (await retry.isEnabled()) &&
+        (await refused.findElements(By.css(".failure-details"))).length === 1 &&
+        (await refused.findElements(inReview("Use this installation"))).length === 0
+      );
+    },
+    45_000,
+    "A nonexistent start folder must settle as a refused review",
+  );
+  assert.ok((await refused.getText()).includes("Empty argument"));
+  await assertUnregistered();
+  await closeReview();
+
+  await click(By.css("[data-detail-back]"));
+  await selectTarget();
+  const retainedDirectory = await browser.findElement(directory);
+  assert.equal(await retainedDirectory.getAttribute("value"), missingFolder);
+  const retainedArguments = await showArguments();
+  assert.equal(await retainedArguments.getAttribute("value"), argumentsText);
+  const retainedProgram = await browser.findElement(
+    By.xpath('//p[contains(normalize-space(.),"Game program:")]/code'),
+  );
+  assert.ok(samePath(await retainedProgram.getText(), executable));
+  assert.equal((await browser.findElements(review)).length, 0);
+
+  await replaceKeyboardText(browser, retainedDirectory, fixture.directory);
+  const checked = await openReview();
+  const use = await browser.wait(
+    until.elementLocated(
+      By.xpath(
+        '//*[@role="dialog" and @aria-describedby="selected-runtime-description"]//button[normalize-space(.)="Use this installation"]',
+      ),
+    ),
+    45_000,
+    "The corrected launch target must receive fresh Core review",
+  );
+  assert.equal(await use.isEnabled(), true);
+  const fact = (label: string) =>
+    checked.findElement(By.xpath(`.//dt[normalize-space(.)="${label}"]/following-sibling::dd[1]`));
+  const reviewedProgram = await fact("Game program");
+  const reviewedFolder = await fact("Start in folder");
+  assert.equal(await reviewedProgram.isDisplayed(), true);
+  assert.equal(await reviewedFolder.isDisplayed(), true);
+  assert.ok(samePath(await reviewedProgram.getAttribute("textContent"), executable));
+  assert.ok(samePath(await reviewedFolder.getAttribute("textContent"), fixture.directory));
+  const reviewedArgs = await (
+    await fact("Launch options (advanced)")
+  ).findElements(By.xpath("./div"));
+  assert.deepEqual(
+    await Promise.all(
+      reviewedArgs.map((argument) =>
+        argument.findElement(By.xpath("./*[last()]")).then((value) => value.getText()),
+      ),
+    ),
+    ["--fullscreen", "Empty argument", "Owned level with spaces"],
+  );
+  assert.ok(
+    (await checked.getText()).includes("Portcove has not authenticated it as an official package."),
+  );
+  await assertUnregistered();
+  await closeReview();
+
+  const receipt = path.join(output, "external-launch-draft-result.json");
+  await writeFile(
+    receipt,
+    JSON.stringify({
+      port_id: port.id,
+      executable,
+      refused_working_directory: missingFolder,
+      reviewed_working_directory: fixture.directory,
+      retained_arguments: argumentsText.split("\n"),
+      fresh_review_required: true,
+      registration_created: false,
+    }),
+    { flag: "wx" },
+  );
+  artifacts.push(receipt);
+}
+
 export async function externalRuntimeReviewScenario(context: ReviewContext) {
   const {
     browser,
@@ -180,6 +374,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     steps: [],
   };
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
+  const changeFolder = By.xpath('//button[normalize-space(.)="Change game folder…"]');
   const stop = By.xpath('//button[normalize-space(.)="Stop using this installation"]');
   const dialogFor = (kind: string) =>
     By.css(`[role="dialog"][aria-describedby="external-${kind}-description"]`);
@@ -224,12 +419,15 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       assert.equal(after.sha256, before.sha256);
     }
   }
-  async function selectFolder(name: string) {
-    await browser.findElement(choose).click();
-    const selection = object(await selectPicker(name, fixture.directory));
+  async function pickFolder(name: string, directory: string) {
+    const selection = object(await selectPicker(name, directory));
     assert.equal(selection.selected, true);
     assert.equal(selection.supplied_directory, true);
     assert.equal(selection.cancelled, false);
+  }
+  async function selectFolder(name: string) {
+    await browser.findElement(choose).click();
+    await pickFolder(name, fixture.directory);
     const review = await reviewed("register", "Use this installation");
     const text = await review.dialog.getText();
     assert.ok(text.includes(fixture.port.release.user_prepared["windows-x86-64"].version));
@@ -241,9 +439,9 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     await writeFile(file, Buffer.from(await browser.takeScreenshot(), "base64"), { flag: "wx" });
     artifacts.push(file);
   }
-  const sameDirectory = (value: string) =>
+  const sameDirectory = (value: string, expected = fixture.directory) =>
     path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase() ===
-    path.resolve(fixture.directory).toLowerCase();
+    path.resolve(expected).toLowerCase();
   try {
     report.picker_cancel = await pickerObservation;
     assert.equal(object(report.picker_cancel).cancelled, true);
@@ -320,12 +518,16 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       const alert = By.css('[aria-describedby="external-register-description"] [role="alert"]');
       await browser.wait(until.elementLocated(alert), 15_000);
       const rendered = await browser.findElement(alert);
-      assert.ok((await rendered.getText()).includes(error.presentation.summary));
+      const feedback = await rendered.getText();
+      assert.match(feedback, /The files in this folder don’t match the required release/u);
+      assert.doesNotMatch(feedback, /couldn't confirm whether anything changed/u);
       await rendered.findElement(By.css("summary")).click();
       const technical = object(JSON.parse(await rendered.findElement(By.css("pre")).getText()));
       assert.equal(technical.code, error.code);
       assert.equal(technical.mutation_state, error.presentation.mutation_state);
       assert.equal(technical.phase, error.presentation.phase);
+      assert.equal(technical.message, error.presentation.technical_message);
+      assert.deepEqual(technical.context, error.presentation.technical_context);
       report.rejected_preview = {
         code: error.code,
         mutation_state: error.presentation.mutation_state,
@@ -365,17 +567,117 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       fixture.port.release.user_prepared["windows-x86-64"].immutable_tree_sha256,
     );
     await retainFiles();
+    const replacement = path.join(output, "replacement-player-owned-runtime");
+    await mkdir(replacement);
+    const replacementFiles = await Promise.all(
+      fixture.identities.map(async (original) => {
+        const target = path.join(replacement, path.basename(original.path));
+        await copyFile(original.path, target);
+        return fileIdentity(target);
+      }),
+    );
+    await browser.findElement(changeFolder).click();
+    await pickFolder("external-runtime-relink-picker", replacement);
+    async function reviewedReplacement() {
+      const result = await reviewed("register", "Change folder");
+      const paths = await Promise.all(
+        (await result.dialog.findElements(By.css("code.path-value"))).map((entry) =>
+          entry.getText(),
+        ),
+      );
+      assert.equal(paths.length, 3);
+      const [previous, proposed, executable] = paths;
+      assert.ok(previous && proposed && executable);
+      assert.equal(sameDirectory(previous), true);
+      assert.equal(sameDirectory(proposed, replacement), true);
+      assert.equal(sameDirectory(path.dirname(executable), replacement), true);
+      assert.equal(path.basename(executable), "game.exe");
+      return result;
+    }
+    review = await reviewedReplacement();
+    await screenshot("external-runtime-relink-review");
+    await review.action.click();
+    await confirmNative(
+      "Change game folder",
+      "Cancel",
+      fixture.port.id,
+      "external-runtime-relink-cancel",
+    );
+    review = await reviewedReplacement();
+    assert.deepEqual((await status()).external_runtime, record);
+    await retainFiles([...fixture.identities, ...replacementFiles]);
+    report.steps.push("native-relink-cancellation-retains-the-checked-candidate-and-registration");
+
+    const changedFile = path.join(replacement, "unknown-save.bin");
+    const checkedBytes = await readFile(changedFile);
+    try {
+      await writeFile(changedFile, "Replacement bytes changed after review.\n");
+      const changedIdentity = await fileIdentity(changedFile);
+      await review.action.click();
+      review = await reviewed("register", "Check again");
+      assert.equal((await review.dialog.findElements(buttonFor("Change folder"))).length, 0);
+      assert.deepEqual((await status()).external_runtime, record);
+      await retainFiles([
+        ...fixture.identities,
+        ...replacementFiles.map((item) => (item.path === changedFile ? changedIdentity : item)),
+      ]);
+    } finally {
+      await writeFile(changedFile, checkedBytes);
+    }
+    report.steps.push("changed-replacement-requires-a-new-core-check-before-it-can-be-used");
+    await review.action.click();
+    review = await reviewedReplacement();
+    assert.deepEqual((await status()).external_runtime, record);
+    await review.action.click();
+    await confirmNative(
+      "Change game folder",
+      "Change folder",
+      fixture.port.id,
+      "external-runtime-relink-accept",
+    );
+    await closed("register");
+    report.relinked = await status();
+    const relinked = report.relinked.external_runtime;
+    assert.ok(relinked);
+    assert.equal(sameDirectory(relinked.path, replacement), true);
+    assert.equal(sameDirectory(path.dirname(relinked.executable), replacement), true);
+    assert.equal(path.basename(relinked.executable), "game.exe");
+    assert.deepEqual(relinked, {
+      ...record,
+      path: relinked.path,
+      executable: relinked.executable,
+    });
+    await retainFiles([...fixture.identities, ...replacementFiles]);
+    report.steps.push("freshly-checked-replacement-requires-explicit-use-and-exact-core-readback");
+
     const unknown = path.join(fixture.directory, "new-user-save.dat");
     await writeFile(unknown, "New external save written after registration.\n", { flag: "wx" });
-    const protectedFiles = [...fixture.identities, await fileIdentity(unknown)];
+    const protectedFiles = [
+      ...fixture.identities,
+      ...replacementFiles,
+      await fileIdentity(unknown),
+    ];
     artifacts.push(unknown);
     report.protected_files = protectedFiles;
-    await browser.findElement(stop).click();
+    // Independent Core readback above does not settle the renderer after relink.
+    const hydratedStop = await browser.wait(
+      async () => {
+        const [button, duplicate] = await browser.findElements(stop);
+        assert.equal(duplicate, undefined, "External removal opener must be unique");
+        return button && (await button.isDisplayed()) && (await button.isEnabled())
+          ? button
+          : false;
+      },
+      60_000,
+      "The relinked installation must expose the visible enabled removal action after readback",
+    );
+    assert.ok(hydratedStop);
+    await hydratedStop.click();
     review = await reviewed("remove", "Stop using this installation");
     await screenshot("external-runtime-remove-review");
     await review.dialog.findElement(buttonFor("Cancel")).click();
     await closed("remove");
-    assert.deepEqual((await status()).external_runtime, record);
+    assert.deepEqual((await status()).external_runtime, relinked);
     await retainFiles(protectedFiles);
     await browser.findElement(stop).click();
     review = await reviewed("remove", "Stop using this installation");
@@ -387,7 +689,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       "external-runtime-removal-cancel",
     );
     await closed("remove");
-    assert.deepEqual((await status()).external_runtime, record);
+    assert.deepEqual((await status()).external_runtime, relinked);
     await retainFiles(protectedFiles);
     report.steps.push("renderer-and-native-removal-cancellation-retain-registration-and-files");
     await browser.findElement(stop).click();
@@ -406,6 +708,9 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     await retainFiles(protectedFiles);
     report.steps.push("non-owning-removal-retains-all-original-and-new-unknown-save-files");
     await screenshot("external-runtime-after-removal");
+    await verifyExternalLaunchDraft(context);
+    await retainFiles(protectedFiles);
+    report.steps.push("selected-launch-draft-survived-validation-and-return-without-registration");
   } catch (error) {
     report.error = String(error);
     throw error;

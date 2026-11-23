@@ -1,3 +1,5 @@
+import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
+import { listingDownloadBlockReason } from "./catalog-acquisition-restrictions.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -19,15 +21,44 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
+  compactGbaArchive,
+  listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
   reviewCompatibilityFixture,
   parseCatalogSource,
+  projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
+import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactOpenXPortable } from "./catalog-openx-portable.mts";
+import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import {
+  compactRazeWindowsProfile,
+  projectRazeWindowsProfile,
+} from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
+import {
+  compactOpenMohaaPortable,
+  projectOpenMohaaPortable,
+} from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactNativeManagedProfile } from "./catalog-native-managed-profile.mts";
+import { compactAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
+import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
+import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import { compactRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
+import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
+import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
+import {
+  compactReflectionHlePortablePaths,
+  projectReflectionHlePortablePaths,
+} from "./catalog-portable-reflectionhle.mts";
 import {
   createIgdbInspector,
   createCoreImageValidator,
@@ -43,12 +74,17 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  compactCrispyDoomWindowsPersistence,
+  projectCrispyDoomWindowsPersistence,
+} from "./catalog-crispy-doom-windows-persistence.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
 import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
   assessUpstreamLineage,
   checkLineageChange,
   checkObservedRepository,
+  identityUrl,
 } from "./upstream-lineage.mts";
 
 interface PrepareOptions {
@@ -61,6 +97,7 @@ interface PrepareOptions {
   issue?: string | undefined;
   id?: string | undefined;
   name?: string | undefined;
+  originalGame?: unknown;
   summary?: string | undefined;
   route?: "listing" | "download";
   releaseTag?: string | undefined;
@@ -78,7 +115,10 @@ type PackageFacts = Pick<
   Partial<Pick<Awaited<ReturnType<typeof collectPortFacts>>, "release">>;
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
-export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
+export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
+  const record = projectOpenMohaaPortable(
+    projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input)),
+  );
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -105,6 +145,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       next: "Review the exact declared archive pin, native headers, working directory, process lifetime and data ownership. GitHub hint uniqueness does not apply to this Direct selection.",
     }));
   }
+  const persistentPaths = projectReflectionHlePortablePaths(record).integration?.persistent_paths;
   return {
     ...selection,
     pinned_releases: direct
@@ -115,9 +156,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
             "Declared pin only; Core validation, independent authentication and native/lifecycle evidence remain required.",
         }))
       : [],
-    persistence: Array.isArray(record.integration.persistent_paths)
-      ? record.integration.persistent_paths
-      : [],
+    persistence: Array.isArray(persistentPaths) ? persistentPaths : [],
     manual_setup: {
       completion_record: record.integration.setup_marker ?? null,
       next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
@@ -142,6 +181,21 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
+  if (record.alephone_pinned_windows_v1) {
+    projections.push({
+      field: "alephone_pinned_windows_v1",
+      scope: "Reviewed Windows launch of the bundled Aleph One scenario with upstream profiles.",
+      next: "Keep each exact Direct archive pin, scenario executable, platform and setup instructions explicit. A different launch layout or profile owner uses an explicit integration.",
+    });
+  }
+  if (record.reviewed_flat_package_layout_v1) {
+    projections.push({
+      field: "reviewed_flat_package_layout_v1",
+      scope:
+        "Independently reviewed archive layout with one executable in the root on the declared platforms.",
+      next: "Review each exact package and keep the platform order, archive selector and executable explicit. Additional executable or directory facts need an explicit package layout.",
+    });
+  }
   if (record.route_facts_v1) {
     projections.push({
       field: "route_facts_v1",
@@ -158,16 +212,132 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
     });
   }
-  if (record.psx_managed_windows_v1) {
+  if (record.reflectionhle_portable_paths_v1) {
+    projections.push({
+      field: "reflectionhle_portable_paths_v1",
+      scope: "Shared reviewed ReflectionHLE file and configuration paths in the portable root.",
+      next: "Keep each game's original editions, package selection, lifecycle qualification and launch facts explicit. Keep a different writer layout explicit.",
+    });
+  }
+  if (record.psx_managed_windows_v1 === "technically-computers") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
+      next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
+    });
+  } else if (record.psx_managed_windows_v1 === "technically-computers-input-files") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
+    });
+  } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope: "Reviewed MediEvil and Mortal Kombat 4 split-mods and diagnostic location paths.",
+      next: "Keep each exact kit selector, generated executable, disc, retail BIOS and managed platform explicit. Keep the separate Mac setup for MediEvil and the existing qualification limits for Mortal Kombat 4.",
+    });
+  } else if (record.psx_managed_windows_v1) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
       next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001, SCPH-5552 or SCPH-5500 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
     });
   }
+  if (record.n64_recomp_persistence_v1) {
+    projections.push({
+      field: "n64_recomp_persistence_v1",
+      scope: "Managed N64Recomp player data and original-file paths in the installation root.",
+      next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
+    });
+  }
+  if (record.native_managed_profile_v1) {
+    projections.push({
+      field: "native_managed_profile_v1",
+      scope: "Reviewed Portcove-managed BStone or DevilutionX profile and Windows path policy.",
+      next: "Keep the original files, selector and launch arguments explicit. Use an explicit integration for a different profile.",
+    });
+  }
+  if (record.external_registration_v1) {
+    projections.push({
+      field: "external_registration_v1",
+      scope: "Register a player-selected external runtime on the declared platforms.",
+      next: "Keep original-file instructions and upstream or player ownership explicit. An exact prepared package or per-platform exception needs an explicit integration.",
+    });
+  }
+  if (record.opengoal_setup_v1) {
+    projections.push({
+      field: "opengoal_setup_v1",
+      scope: "Reviewed OpenGOAL extractor, launcher and per-game portable data paths.",
+      next: "Keep the official release selector, reviewed disc profile and support evidence explicit. A different setup command or writer path needs an explicit integration.",
+    });
+  }
+  if (record.openmohaa_portable_v1) {
+    projections.push({
+      field: "openmohaa_portable_v1",
+      scope: "Official stable OpenMoHAA archives and the reviewed edition launcher and data paths.",
+      next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
+    });
+  }
+  if (record.openx_portable_v1) {
+    projections.push({
+      field: "openx_portable_v1",
+      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
+      next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
+    });
+  }
+  if (record.raze_windows_profile_v1) {
+    projections.push({
+      field: "raze_windows_profile_v1",
+      scope: "Shared stable Raze Windows archive, executable and portable data layout.",
+      next: "Keep the original edition, support, qualification and external routes explicit. A different runtime layout needs its own reviewed declaration.",
+    });
+  }
+  if (record.crispy_doom_windows_persistence_v1) {
+    projections.push({
+      field: "crispy_doom_windows_persistence_v1",
+      scope: "Shared reviewed Crispy Doom Windows persistent paths and filename patterns.",
+      next: "Keep each package selector, executable, game arguments, originals and temporary directory explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  if (record.chocolate_family_windows_persistence_v1) {
+    projections.push({
+      field: "chocolate_family_windows_persistence_v1",
+      scope: "Reviewed Chocolate Windows persistent paths, screenshots and runtime logs.",
+      next: "Keep each original IWAD profile, package selector, executable and local game arguments explicit. A different runtime layout needs explicit paths.",
+    });
+  }
+  if (record.gen2recomp_windows_persistence_v1) {
+    projections.push({
+      field: "gen2recomp_windows_persistence_v1",
+      scope: "Reviewed Gen2Recomped Windows player data and local generated import paths.",
+      next: "Keep each original edition, source selector, executable and selected game explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  if (record.rsdkv4_portable_data_v1) {
+    projections.push({
+      field: "rsdkv4_portable_data_v1",
+      scope: "Reviewed RSDKv4 originals, settings, saves and mods in each portable game root.",
+      next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  const releaseAdvice = managedSetupReleaseAdvice(
+    projectAuthoredPort(record),
+    record.listing.release_url,
+  );
   return {
     status: projections.length > 0 ? "declared" : "undeclared",
     projections,
+    ...(releaseAdvice.length > 0
+      ? {
+          managed_setup_release_literals: {
+            steps: releaseAdvice,
+            next: managedSetupReleaseAdviceText,
+          },
+        }
+      : {}),
     next:
       projections.length > 0
         ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
@@ -206,7 +376,7 @@ export function canonicalPreparationFeedback(
           : createHash("sha256").update(specification, "utf8").digest("hex"),
       location: "files.upstream -> observations[facts_endpoint].body.body",
     },
-    authored_acquisition_condition: record.listing.download_block_reason ?? null,
+    authored_acquisition_condition: listingDownloadBlockReason(record.listing) ?? null,
     next:
       specification === undefined
         ? "The canonical specification was not observed in this preparation. Read the owning Roadmap context or prepare with --issue before deciding route, lineage, acquisition conditions or deferrals."
@@ -217,7 +387,7 @@ export function canonicalPreparationFeedback(
 }
 
 export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
-  const hints = record.listing.download_asset_hints;
+  const hints = listingDownloadAssetHints(record);
   if (!hints || !Object.keys(hints).length) return undefined;
   return {
     ...packageHintFeedback(hints, Object.keys(hints), facts),
@@ -339,22 +509,33 @@ function immutableJson(directory: string, name: string, value: unknown) {
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration }) => ({
-      id: listing.id,
-      name: listing.name,
-      project_url: listing.project_url,
-      ...(listing.original_game_title
-        ? {
-            underlying_game: {
-              names: [listing.original_game_title],
-              project_url: listing.project_url,
-              evidence_url: listing.project_url,
-            },
-          }
-        : {}),
-      ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
-      presentation: { ...(listing.artwork ? { artwork: listing.artwork } : {}) },
-    })),
+    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
+      const presentation = integration?.presentation;
+      const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      return {
+        id: listing.id,
+        name: listing.name,
+        project_url: listing.project_url,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
+        ...(listing.original_game_title
+          ? {
+              underlying_game: {
+                names: [listing.original_game_title],
+                project_url: listing.project_url,
+                evidence_url: listing.project_url,
+              },
+            }
+          : {}),
+        ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
+        presentation: {
+          ...(listing.artwork ? { artwork: listing.artwork } : {}),
+          ...(listing.collection_covers !== undefined
+            ? { collection_covers: listing.collection_covers }
+            : {}),
+          ...(companion !== undefined ? { companion_cover: companion } : {}),
+        },
+      };
+    }),
   };
 }
 function cachedValue(directory: string, key: string, input: string): unknown {
@@ -449,6 +630,15 @@ function preparedRecordOutputs(
     if (isRecord(presentation) && presentation.artwork !== undefined)
       copy.listing.artwork = presentation.artwork;
     else delete copy.listing.artwork;
+    if (isRecord(presentation) && presentation.collection_covers !== undefined)
+      copy.listing.collection_covers = presentation.collection_covers;
+    else delete copy.listing.collection_covers;
+    const integrationPresentation = copy.integration?.presentation;
+    if (isRecord(integrationPresentation)) {
+      if (isRecord(presentation) && presentation.companion_cover !== undefined)
+        integrationPresentation.companion_cover = presentation.companion_cover;
+      else delete integrationPresentation.companion_cover;
+    }
     return checkedAuthoredPort(copy);
   });
   const shared: Record<string, unknown> = structuredClone(authored.catalog);
@@ -554,12 +744,73 @@ function preparedRecordOutputs(
   };
 }
 
+function reviewedGameSelector(game: unknown) {
+  if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
+    throw new Error("An original-game input requires a stable game ID and reviewed evidence.");
+  const editions = game.source_editions.map((edition: unknown) => {
+    if (!isRecord(edition) || typeof edition.id !== "string")
+      throw new Error("An original-game input requires stable source edition IDs.");
+    return edition.id;
+  });
+  return { id: game.id, editions: editions.sort() };
+}
+
+function matchReviewedGame(
+  matching: readonly AuthoredPort[],
+  selector: ReturnType<typeof reviewedGameSelector>,
+) {
+  const sameGame = matching.flatMap((record) => {
+    const game = record.listing.original_game;
+    return game?.id === selector.id
+      ? [{ record, editions: game.source_editions.map(({ id }) => id) }]
+      : [];
+  });
+  const exact = sameGame.filter(
+    ({ editions }) =>
+      editions.length === selector.editions.length &&
+      editions.every((id) => selector.editions.includes(id)),
+  );
+  if (exact.length === 1) return exact[0]?.record;
+  if (exact.length > 1)
+    throw new Error(
+      "Several implementations share this reviewed game and editions; select the stable ID.",
+    );
+  if (matching.some(({ listing }) => listing.original_game === undefined))
+    throw new Error(
+      "Supply the existing stable --id to resolve unbound game identity at this project.",
+    );
+  if (
+    sameGame.some(
+      ({ editions }) =>
+        editions.length === 0 ||
+        selector.editions.length === 0 ||
+        editions.some((id) => selector.editions.includes(id)),
+    )
+  )
+    throw new Error("Review overlapping or unspecified source editions and select the stable ID.");
+  return undefined;
+}
+
 /** Unsigned local proposal preparation. Authored records and accepted outputs are never edited. */
 export async function preparePort(options: PrepareOptions) {
   const started = process.hrtime.bigint();
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const explicit = options.record === undefined ? undefined : checkedAuthoredPort(options.record);
+  const originalGame = options.originalGame;
+  if (originalGame !== undefined && (!options.projectUrl || options.issue))
+    throw new Error("An original-game input starts preparation with an official project URL.");
+  const gameSelector = originalGame === undefined ? undefined : reviewedGameSelector(originalGame);
+  if (originalGame !== undefined && explicit) {
+    if (identityUrl(explicit.listing.project_url) !== identityUrl(options.projectUrl!))
+      throw new Error("The reviewed record belongs to another project URL.");
+    if (
+      explicit.listing.original_game &&
+      observationHash(explicit.listing.original_game) !== observationHash(originalGame)
+    )
+      throw new Error("The reviewed record and supplied game or edition identity differ.");
+  }
+  const route = options.route ?? (originalGame === undefined ? "listing" : "download");
   const validatorIdentity = options.validatorCli
     ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
     : null;
@@ -567,24 +818,100 @@ export async function preparePort(options: PrepareOptions) {
     throw new Error("Record and selected stable ID differ.");
   const selected = authored.records.find((record) => record.listing.id === options.id);
   const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
-    const matching = authored.records.filter((record) => record.listing.project_url === projectUrl);
-    if (!explicit && !options.id && !issuePortId && matching.length > 1)
-      throw new Error("Several implementations share this upstream; select the stable ID.");
-    const suggested = githubRepository(projectUrl)
+    const sourceKey = originalGame === undefined ? projectUrl : identityUrl(projectUrl);
+    const sameProject = (url: string) =>
+      sourceKey === (originalGame === undefined ? url : identityUrl(url));
+    const matching = authored.records.filter((record) => sameProject(record.listing.project_url));
+    const suppliedId = explicit?.listing.id ?? options.id ?? issuePortId;
+    let matched: AuthoredPort | undefined;
+    if (suppliedId === undefined) {
+      if (gameSelector) matched = matchReviewedGame(matching, gameSelector);
+      else {
+        if (matching.length > 1)
+          throw new Error("Several implementations share this upstream; select the stable ID.");
+        matched = matching[0];
+      }
+    }
+    const repository = githubRepository(projectUrl);
+    const suggested = repository
       ?.split("/")[1]
       ?.toLowerCase()
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-|-$/gu, "");
-    const id =
-      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? suggested;
+    let defaultId = suggested;
+    if (gameSelector && suppliedId === undefined && !matched) {
+      defaultId ??= gameSelector.id;
+      const occupied = (id: string) => authored.records.some(({ listing }) => listing.id === id);
+      if (matching.length > 0 || occupied(defaultId)) {
+        const suffix = observationHash(
+          matching.length > 0
+            ? [sourceKey, gameSelector.id, gameSelector.editions]
+            : [sourceKey, gameSelector.id],
+        ).slice(0, 12);
+        const stem = `${defaultId.slice(0, 115).replace(/-+$/u, "")}-${suffix}`;
+        defaultId = stem;
+        for (let ordinal = 2; occupied(defaultId); ordinal += 1) {
+          const ordinalSuffix = `-${ordinal}`;
+          defaultId = `${stem.slice(0, 128 - ordinalSuffix.length)}${ordinalSuffix}`;
+        }
+      }
+    }
+    const id = suppliedId ?? matched?.listing.id ?? defaultId;
     if (!id) throw new Error("Supply a stable --id for this project.");
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    if (originalGame !== undefined && explicit) {
+      if (!previous && explicit.listing.issue_number !== undefined)
+        throw new Error("A new issue-free record cannot supply an unverified issue association.");
+      const release = projectAuthoredPort(explicit)?.release;
+      const retainedRelease = previous && projectAuthoredPort(previous)?.release;
+      const provider = isRecord(release) ? (release.provider ?? "github") : null;
+      const retainedProvider = isRecord(retainedRelease)
+        ? (retainedRelease.provider ?? "github")
+        : null;
+      if (retainedProvider !== null && provider !== retainedProvider)
+        throw new Error("Review changes to an existing release provider as a record edit.");
+      const retainedRepository =
+        isRecord(retainedRelease) &&
+        retainedProvider === "github" &&
+        typeof retainedRelease.repository === "string"
+          ? retainedRelease.repository.toLowerCase()
+          : undefined;
+      if (
+        isRecord(release) &&
+        provider === "github" &&
+        (typeof release.repository !== "string" ||
+          release.repository.toLowerCase() !== (retainedRepository ?? repository?.toLowerCase()))
+      )
+        throw new Error("The reviewed GitHub route must use the official or retained repository.");
+    }
+    if (originalGame !== undefined && previous) {
+      if (!sameProject(previous.listing.project_url))
+        throw new Error("The stable implementation ID already belongs to another project.");
+      if (
+        explicit &&
+        (explicit.listing.issue_number !== previous.listing.issue_number ||
+          observationHash(explicit.upstream_lineage ?? null) !==
+            observationHash(previous.upstream_lineage ?? null))
+      )
+        throw new Error(
+          "Review changes to an existing issue association or lineage as a record edit.",
+        );
+      if (!options.id && !previous.listing.original_game)
+        throw new Error("Supply the existing stable --id to bind its reviewed game identity.");
+      if (
+        previous.listing.original_game &&
+        observationHash(previous.listing.original_game) !== observationHash(originalGame)
+      )
+        throw new Error(
+          "Review a change to an existing game or edition identity as a record edit.",
+        );
+    }
     const base = explicit ?? previous;
     if (
-      previous?.listing.download_block_reason !== undefined &&
-      base?.listing.download_block_reason !== previous.listing.download_block_reason
+      previous?.listing.restrictions !== undefined &&
+      JSON.stringify(base?.listing.restrictions) !== JSON.stringify(previous.listing.restrictions)
     )
       throw new Error(
         "Preparation cannot remove or change an authored download restriction; resolve its canonical condition in a reviewed source edit.",
@@ -601,12 +928,12 @@ export async function preparePort(options: PrepareOptions) {
       route:
         options.settingsNativeScope !== undefined && options.releaseTag !== undefined
           ? "download"
-          : (options.route ?? "listing"),
+          : route,
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
         if (!base?.integration) return base?.listing.release_url;
-        const release = base.integration.release;
+        const release = projectAuthoredPort(base)?.release;
         return isRecord(release) &&
           (release.provider === undefined || release.provider === "github") &&
           typeof release.repository === "string"
@@ -617,19 +944,88 @@ export async function preparePort(options: PrepareOptions) {
     });
     const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
+    if (
+      originalGame !== undefined &&
+      facts.repository &&
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.toLowerCase() !== facts.repository.toLowerCase()
+    )
+      throw new Error("The provider returned a different project name. Review its lineage move.");
+    const upstreamDescription =
+      typeof metadata.description === "string"
+        ? metadata.description.replace(/\p{Cc}+/gu, " ").trim()
+        : "";
+    const recordedRepositoryId =
+      facts.repository &&
+      Number.isSafeInteger(metadata.id) &&
+      Number(metadata.id) > 0 &&
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.toLowerCase() === facts.repository.toLowerCase()
+        ? String(metadata.id)
+        : undefined;
+    const reviewedRecord = explicit ?? (options.id === undefined ? previous : undefined);
+    if (gameSelector && reviewedRecord?.upstream_lineage && recordedRepositoryId) {
+      const { current } = assessUpstreamLineage(reviewedRecord);
+      if (
+        current.repository?.host === "github.com" &&
+        current.repository.id !== recordedRepositoryId
+      )
+        throw new Error("The reviewed record and provider repository identities differ.");
+    }
+    if (
+      originalGame !== undefined &&
+      !previous &&
+      recordedRepositoryId &&
+      authored.records.some((entry) => {
+        const { current } = assessUpstreamLineage(entry);
+        if (current.repository?.host !== "github.com") return false;
+        const sameSource = identityUrl(current.project_url) === identityUrl(facts.project_url);
+        return (
+          (current.repository.id === recordedRepositoryId && !sameSource) ||
+          (!explicit && !options.id && sameSource && current.repository.id !== recordedRepositoryId)
+        );
+      })
+    )
+      throw new Error("This repository already has a retained origin. Review its lineage move.");
     const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
+      ...(originalGame !== undefined && !previous && !base?.upstream_lineage && recordedRepositoryId
+        ? {
+            upstream_lineage: {
+              format_version: 1,
+              target_key: id,
+              origin: {
+                project_url: facts.project_url,
+                repository: { host: "github.com", id: recordedRepositoryId },
+              },
+              decisions: [],
+            },
+          }
+        : {}),
       listing: {
         ...base?.listing,
         id,
-        project_url: facts.project_url,
-        name: options.name ?? base?.listing.name ?? facts.issue?.name ?? metadata.name,
+        project_url:
+          (originalGame === undefined ? undefined : previous?.listing.project_url) ??
+          facts.project_url,
+        name:
+          options.name ??
+          base?.listing.name ??
+          facts.issue?.name ??
+          metadata.name ??
+          (isRecord(originalGame) &&
+          Array.isArray(originalGame.source_editions) &&
+          originalGame.source_editions.length === 1 &&
+          isRecord(originalGame.source_editions[0])
+            ? originalGame.source_editions[0].title
+            : undefined),
+        ...(originalGame === undefined ? {} : { original_game: originalGame }),
         summary:
           options.summary ??
           base?.listing.summary ??
-          (typeof metadata.description === "string" && metadata.description.trim()
-            ? metadata.description
+          (upstreamDescription && Buffer.byteLength(upstreamDescription) <= 4096
+            ? upstreamDescription
             : "Upstream project; setup requirements have not been reviewed."),
         ...(facts.issue ? { issue_number: facts.issue.number } : {}),
         // An existing date is always kept, even when the caller passes a record without it.
@@ -815,6 +1211,32 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
+    const compact = compactReviewedFlatPackageLayout(
+      compactRazeWindowsProfile(
+        compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+      ),
+    );
+    if (compact !== record) record = checkedAuthoredPort(compact);
+    const compactNativeProfile = compactNativeManagedProfile(record);
+    if (compactNativeProfile !== record) record = checkedAuthoredPort(compactNativeProfile);
+    const compactAlephOne = compactAlephOnePinnedWindows(record);
+    if (compactAlephOne !== record) record = checkedAuthoredPort(compactAlephOne);
+    const compactReflection = compactReflectionHlePortablePaths(record);
+    if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
+    const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
+    if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
+    const compactChocolate = compactChocolateFamilyWindowsPersistence(record);
+    if (compactChocolate !== record) record = checkedAuthoredPort(compactChocolate);
+    const compactGen2 = compactGen2RecompWindowsPersistence(record);
+    if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
+    const compactOpenMohaa = compactOpenMohaaPortable(record);
+    if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenX = compactOpenXPortable(record);
+    if (compactOpenX !== record) record = checkedAuthoredPort(compactOpenX);
+    const compactOpenGoal = compactOpenGoalSetup(record);
+    if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
+    const compactRsdkv4 = compactRsdkv4PortableData(record);
+    if (compactRsdkv4 !== record) record = checkedAuthoredPort(compactRsdkv4);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
@@ -840,8 +1262,9 @@ export async function preparePort(options: PrepareOptions) {
     const report = {
       format_version: 1,
       port_id: id,
-      route: record.integration ? "existing-integration" : (options.route ?? "listing"),
+      route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
+      original_game_grouping: originalGamePreparationFeedback(record, authored.records),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
         ? {}
@@ -861,7 +1284,7 @@ export async function preparePort(options: PrepareOptions) {
         isRecord(record.integration.release) &&
         record.integration.release.provider === "direct-manifest"
           ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
-          : options.route === "download" && !facts.assets_complete
+          : route === "download" && !facts.assets_complete
             ? "Select an exact release or resolve the incomplete asset observation before package selection."
             : prepared.files.records.length === 0
               ? "No authored record changes were proposed. Review the observed evidence and any limits for the intended operation."
@@ -979,6 +1402,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -1010,10 +1434,11 @@ export async function prepareArtworkBatch(
   const identities = options.identities ?? {};
   openCheckpoint(root);
   try {
-    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    // Old batch receipts have no per-ID live clock and cannot satisfy a refresh.
     let artworkResult;
     if (
       !options.maintenance &&
+      refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
     ) {
@@ -1049,6 +1474,9 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.retainedCoverLimit === undefined
+          ? {}
+          : { retainedCoverLimit: options.retainedCoverLimit }),
         ...(options.now ? { now: options.now } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -1074,7 +1502,11 @@ export async function prepareArtworkBatch(
     for (const record of artworkResult.records) {
       if (!isRecord(record) || typeof record.port_id !== "string" || !known.has(record.port_id))
         throw new Error("Malformed artwork batch record identity.");
-      if (record.mapping === null) pendingPortIds.push(record.port_id);
+      if (
+        record.mapping === null &&
+        (!Array.isArray(record.collection) || record.collection.length === 0)
+      )
+        pendingPortIds.push(record.port_id);
     }
     if (
       isRecord(artworkResult.continuation) &&
@@ -1116,6 +1548,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--issue",
     "--id",
     "--name",
+    "--original-game",
     "--summary",
     "--record",
     "--route",
@@ -1126,6 +1559,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--output-dir",
     "--artwork-ids",
     "--refresh-artwork",
+    "--artwork-retained-limit",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1148,6 +1582,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
   const refreshIds = values.get("--refresh-artwork");
+  const retainedLimit = values.get("--artwork-retained-limit");
+  if (
+    retainedLimit !== undefined &&
+    (artworkIds !== "@due" ||
+      !/^[1-9][0-9]{0,2}$/u.test(retainedLimit) ||
+      Number(retainedLimit) > 400)
+  )
+    throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
   if (
     observationHandoff &&
@@ -1165,6 +1607,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--artwork-ids",
           "--refresh-artwork",
+          "--artwork-retained-limit",
           "--identities",
           "--validator-cli",
           "--credentials-file",
@@ -1174,12 +1617,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   )
     throw new Error("Artwork-only batches cannot mix project, issue, record or release options.");
   if (refreshIds && !artworkIds) throw new Error("--refresh-artwork requires --artwork-ids.");
-  const route = values.get("--route") ?? "listing";
-  if (route !== "listing" && route !== "download")
+  const route = values.get("--route");
+  if (route !== undefined && route !== "listing" && route !== "download")
     throw new Error("--route must be listing or download.");
   if (values.has("--package-observation") !== values.has("--package-observation-reference"))
     throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
+  const originalGame = values.get("--original-game");
   const identities = values.get("--identities");
   const common = {
     catalogRoot: join(
@@ -1207,6 +1651,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             ? { maintenance: true }
             : { selectedPortIds: artworkIds.split(",") }),
           ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+          ...(retainedLimit ? { retainedCoverLimit: Number(retainedLimit) } : {}),
         })
       : await preparePort({
           ...common,
@@ -1214,6 +1659,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           issue: values.get("--issue"),
           id: values.get("--id"),
           name: values.get("--name"),
+          ...(originalGame ? { originalGame: readArtworkJson(originalGame, 64 * 1024) } : {}),
           summary: values.get("--summary"),
           ...(input
             ? {
@@ -1244,7 +1690,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
                 ),
               }
             : {}),
-          route,
+          ...(route === undefined ? {} : { route }),
           releaseTag: values.get("--release-tag"),
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
         });

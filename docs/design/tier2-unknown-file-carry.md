@@ -1,12 +1,11 @@
 # Tier 2: carrying files Portcove didn't install (design, November 15, 2026)
 
-Status: **proposal, revision 2 after critical review** (BLOCK on `fc2f7fb2a`;
-findings B1–B3, M1–M6 and L1–L6 are addressed below). Implemented: T2-1
-planner (#6185), T2-1b deduplication and the free-space backups (#6213), and
-T2-2 carry (this PR); T2-3 visibility remains. Owning issue: [#5359](https://github.com/boburning/portcove/issues/5359)
-phase 5. Once the phases ship, the stable contract moves into
-[ARCHITECTURE](../ARCHITECTURE.md#unknown-player-side-files) and this note
-becomes dated design history. Line references are to `origin/main` `2488ebb5d`.
+Historical design, revision 2. The planner (#6185), backup deduplication and
+free-space checks (#6213), carry, and T2-3 visibility were implemented. The
+[current contract](../ARCHITECTURE.md#unknown-player-side-files) explains which
+files can be copied and how CLI and Desktop report the result for the active
+target. The proposal below records the original decisions for
+[#5359](https://github.com/boburning/portcove/issues/5359) at `2488ebb5d`.
 
 ## Summary
 
@@ -206,7 +205,7 @@ taking 60.
    check (section 7) against what is still needed. The copy then runs in two
    phases (N1), so T never ends up with only part of A's files:
    1. **Stage.** For each planned copy, write a `.portcove-carry-*` temporary
-      file beside the destination and hash it against the plan. Nothing at a
+      file in the nearest existing destination ancestor and hash it against the plan. Nothing at a
       destination path changes in this phase.
    2. **Verify.** Re-hash every source and every destination (M4) and compare
       with the plan (absent, or the digest the plan approved replacing).
@@ -218,7 +217,13 @@ taking 60.
    A failure in stage or verify deletes every temporary file and changes
    nothing in T:
    - out of space (the check is a snapshot; another writer can fill the disk):
-     record `insufficient_space`, carry nothing, and the switch goes ahead;
+     destination creation, write, timestamp, sync or private retention failures
+     with a storage-full error discard all private temporary copies before
+     recording `insufficient_space` and allowing the switch to continue. The
+     required-byte estimate is retained; an unknown current free-space reading
+     is omitted. A cleanup failure holds. Source IO and publication errors do
+     not use this nonblocking outcome, and an earlier partial publication still
+     holds until the carry can finish;
    - a source changed during the copy: `carried_file_changed`, which holds;
    - a source locked by another program (a Windows sharing violation):
      `carried_file_unreadable`, which holds and is retryable; it is the only
@@ -284,6 +289,13 @@ for a stage-only reuse and for recovery's `register_install(&install, false)`.
 Placing the step after it puts declared data and additive adoption
 (`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
 final `verify_critical` after the carry.
+
+Staging uses the nearest existing destination ancestor on the destination
+volume and creates no missing destination folders. Publication creates them
+only after all copies verify, then rechecks the destination before its atomic
+rename. Planning, staging and verification holds therefore leave no new empty
+destination folders. A partial publication or prior process crash may still
+leave folders; this does not authorize deleting them or player-created folders.
 
 **Time under the port lock (N4).** Planning hashes the eligible files in A and
 T, and staging hashes each copy again, so a large tree adds time to every
@@ -468,8 +480,8 @@ backup doesn't put them back."
   removals and unchanged paths don't count). Each file is rounded up to the
   volume's cluster size, or 4 KiB when that can't be read, plus a per-file
   allowance for directory and file-table overhead. The check requires that
-  estimate **plus** a reserve left free afterwards of max(1 GiB, 2% of the
-  volume), measured with `fs4::available_space` on the target version's
+  estimate **plus** a reserve left free afterwards of min(8 GiB, max(1 GiB, 2% of the
+  volume)), measured with `fs4::available_space` on the target version's
   volume. The reserve keeps room for the next session's saves, collection and
   Portcove's own backups, so an automatic copy never leaves the drive nearly
   full.

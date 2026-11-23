@@ -2,7 +2,12 @@ import { defaultReleaseChannel } from "../../view-model";
 import { gameIdentityLabel } from "../../port-identity";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
-import type { PortDefinition, PortStatus, SourceRegistrationReference } from "../../types";
+import type {
+  InstallRecord,
+  PortDefinition,
+  PortStatus,
+  SourceRegistrationReference,
+} from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
@@ -21,6 +26,8 @@ const actionLabels: Readonly<Record<string, string>> = {
   "recover legacy installation and data": "Recover legacy installation and data",
   "refresh backup history": "Refresh backup history",
   channel: "Change release channel",
+  "pin release": "Pin exact release",
+  "follow channel": "Follow release channel",
   policy: "Save update preferences",
   verify: "Check installed files",
 };
@@ -36,9 +43,11 @@ export interface DetailActionContext {
   perform: Perform;
   close: () => void;
   reviewInstall?: DetailActions["reviewInstall"];
-  backupsChanged?: () => Promise<void>;
+  backupsChanged?: () => Promise<unknown>;
+  refreshRestoredBackups?: () => Promise<unknown>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
+  onInstallCommitted?: (install: InstallRecord) => void;
 }
 
 export function detailActions({
@@ -51,8 +60,10 @@ export function detailActions({
   close,
   reviewInstall = () => undefined,
   backupsChanged = () => Promise.resolve(),
+  refreshRestoredBackups = backupsChanged,
   libraryGeneration,
   dismissInstallReview = () => undefined,
+  onInstallCommitted,
 }: DetailActionContext): DetailActions {
   if (!Number.isSafeInteger(libraryGeneration) || libraryGeneration < 0) {
     throw new Error("Game details require an explicit library generation");
@@ -94,17 +105,23 @@ export function detailActions({
     dismissInstallReview,
     install: async () => {
       try {
-        return await perform("install", (reportEvent) =>
-          desktopApi.install(
-            port.id,
-            status?.channel ?? defaultReleaseChannel(port),
-            sourcePath,
-            biosPath,
-            false,
-            libraryGeneration,
-            reportEvent,
-            ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
-          ),
+        return await perform(
+          "install",
+          async (reportEvent) => {
+            const installed = await desktopApi.install(
+              port.id,
+              status?.channel ?? defaultReleaseChannel(port),
+              sourcePath,
+              biosPath,
+              false,
+              libraryGeneration,
+              reportEvent,
+              ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
+            );
+            onInstallCommitted?.(installed);
+            return installed;
+          },
+          { installedResult: (install) => install },
         );
       } finally {
         // The status layer owns the settled result, including failures and cancellation.
@@ -158,35 +175,53 @@ export function detailActions({
       const result = await perform(
         "restore backup",
         () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
-        nullableNativeConsent,
+        {
+          ...nullableNativeConsent,
+          propagateFailure: true,
+          readbackAfterSuccess: refreshRestoredBackups,
+        },
       );
       if (result === null) return "cancelled";
-      const completed = Boolean(result);
-      if (completed) await backupsChanged();
-      return completed;
+      return Boolean(result);
     },
-    recoverGhostshipLegacy:
-      port.id === "ghostship"
-        ? async (backup, expectedPlan) => {
-            if (backup.port_id !== port.id)
-              throw new Error("Recovery backup belongs to another game.");
-            const result = await perform(
-              "recover legacy installation and data",
-              () =>
-                desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
-              { cancelledResult: (value) => value === null },
-            );
-            if (result === null) return "cancelled";
-            // Readback failure is separately attributable; it cannot undo committed recovery.
-            await perform("refresh backup history", backupsChanged, {
-              refresh: "none",
-              invalidateDiagnostics: false,
-            });
-            return Boolean(result);
-          }
-        : undefined,
+    recoverGhostshipLegacy: async (backup, expectedPlan) => {
+      if (backup.port_id !== port.id) throw new Error("Recovery backup belongs to another game.");
+      if (backup.recovery_review !== "legacy_install_and_data_v1") return false;
+      const result = await perform(
+        "recover legacy installation and data",
+        () => desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
+        { cancelledResult: (value) => value === null },
+      );
+      if (result === null) return "cancelled";
+      // Readback failure is separately attributable; it cannot undo committed recovery.
+      await perform("refresh backup history", backupsChanged, {
+        refresh: "none",
+        invalidateDiagnostics: false,
+      });
+      return Boolean(result);
+    },
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
+    exactRelease: {
+      available: () => desktopApi.canReviewExactRelease(port.id, libraryGeneration),
+      review: (version) => desktopApi.reviewExactRelease(port.id, version, libraryGeneration),
+      pin: (review) =>
+        perform(
+          "pin release",
+          () =>
+            desktopApi.pinExactRelease(
+              port.id,
+              review.selection.version,
+              review.review_sha256,
+              libraryGeneration,
+            ),
+          { propagateFailure: true },
+        ),
+      follow: () =>
+        perform("follow channel", () => desktopApi.clearExactRelease(port.id, libraryGeneration), {
+          propagateFailure: true,
+        }),
+    },
     setPolicy: (policy) =>
       perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id, libraryGeneration)),

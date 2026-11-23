@@ -68,7 +68,18 @@ for (const id of ids)
       false,
       "authoring facts do not become operational authority",
     );
-    if (raw.integration) {
+    if (raw.integration?.source_profile) {
+      assert.deepEqual(output.integration, raw.integration);
+      const managed = projectAuthoredPort(raw)!.presentation;
+      assert.ok(isRecord(managed) && isRecord(managed.manual_setup));
+      assert.match(JSON.stringify(managed.manual_setup), /Choose your original game folder/u);
+      assert.ok(
+        guide(output).steps.every(
+          (step) =>
+            isRecord(step) && !String(step.instruction).includes("Portcove checks and prepares"),
+        ),
+      );
+    } else if (raw.integration) {
       assert.ok(
         String(
           (projectAuthoredPort(raw)!.presentation as Record<string, unknown>).manual_preparation,
@@ -101,6 +112,31 @@ void test("staged archive keeps its managed presentation and the independent pre
     ),
   );
   assert.equal(routeEnrollment([raw]).cases[0]?.managed_native, false);
+});
+void test("Wario keeps Windows guidance distinct from the Linux registration", () => {
+  const raw = input("warioland4");
+  const projected = projectRouteFacts(raw);
+  const { steps, references, warnings } = guide(projected);
+  assert.ok(steps.length + references.length <= 8 && warnings.length <= 8);
+  assert.deepEqual(projected.integration, raw.integration);
+  const selected = steps.find(
+    (step) => isRecord(step) && step.title === "Select the prepared Windows player",
+  );
+  assert.ok(isRecord(selected));
+  assert.match(String(selected.instruction), /Select wl4-launcher\.exe/u);
+  assert.equal(
+    steps.some((step) => isRecord(step) && step.title === "Select the prepared player"),
+    false,
+  );
+  const linux = steps.find((step) => isRecord(step) && step.title === "Select the Linux AppImage");
+  assert.ok(isRecord(linux));
+  assert.match(String(linux.instruction), /select the AppImage/u);
+  assert.match(String(linux.instruction), /--appimage-extract-and-run as one argument/u);
+  const managed = projectAuthoredPort(raw);
+  assert.ok(managed && isRecord(managed.release));
+  assert.deepEqual(managed.platforms, ["linux-x86-64"]);
+  assert.equal(managed.release.provider, "user-prepared");
+  assert.deepEqual(managed.presentation?.manual_setup, projected.listing.manual_setup);
 });
 void test("unknown, conflicting and unbounded route facts refuse before projection", () => {
   const object = (value: unknown) => {

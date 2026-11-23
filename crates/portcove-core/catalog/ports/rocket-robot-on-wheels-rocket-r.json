@@ -50,7 +50,25 @@
         }
       ]
     },
-    "original_game_title": "Rocket: Robot on Wheels"
+    "original_game_title": "Rocket: Robot on Wheels",
+    "original_game": {
+      "format_version": 1,
+      "id": "rocket-robot-on-wheels",
+      "evidence_urls": [
+        "https://github.com/ThatGuyMcd/Rocket-R/blob/main/README.md",
+        "https://github.com/ThatGuyMcd/Rocket-R"
+      ],
+      "source_editions": [
+        {
+          "id": "rocket-robot-on-wheels-nintendo-64",
+          "title": "Rocket: Robot on Wheels (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/ThatGuyMcd/Rocket-R/blob/d94fa58229e37156090ac9a6263cea2361279043/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

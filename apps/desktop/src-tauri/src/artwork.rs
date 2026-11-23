@@ -1,7 +1,14 @@
 //! Native adapter for core-owned local artwork; no image or selection policy.
-use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation};
+use crate::{
+    DesktopResult, DesktopState, blocking_worker, desktop_contract::DesktopArtworkSelectionPreview,
+    initialization_snapshot, library_at_generation, service_at_generation, state_generation,
+};
 use base64::Engine as _;
-use portcove_core::{ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail};
+use portcove_core::{
+    ARTWORK_CACHE_MISS, ARTWORK_RETRY, ArtworkFraming, ArtworkResolvedSource,
+    ArtworkSelectionFraming, ArtworkSelectionPreview, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    PortcoveService,
+};
 use serde::Serialize;
 use std::{
     path::PathBuf,
@@ -27,6 +34,7 @@ where
 {
     // Await remote admission before occupying the shared blocking pool. Local
     // thumbnails and choice mutations do not wait behind slow CDN requests.
+    let queued = std::time::Instant::now();
     let permit =
         if remote {
             Some(workers.acquire_owned().await.map_err(|_| {
@@ -39,6 +47,11 @@ where
         // Cancellation of an IPC waiter must not release capacity while its
         // already-dispatched blocking operation is still running.
         let _permit = permit;
+        tracing::debug!(
+            elapsed_us = queued.elapsed().as_micros() as u64,
+            remote,
+            message = "Artwork thumbnail worker admission"
+        );
         operation()
     })
     .await
@@ -52,10 +65,19 @@ pub(crate) struct DesktopArtworkThumbnail {
 }
 
 fn display_thumbnail(thumbnail: ArtworkThumbnail) -> DesktopArtworkThumbnail {
+    let started = std::time::Instant::now();
+    let input_bytes = thumbnail.png.len() as u64;
+    let png_base64 = base64::engine::general_purpose::STANDARD.encode(thumbnail.png);
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes,
+        output_bytes = png_base64.len() as u64,
+        message = "Artwork thumbnail encoding"
+    );
     DesktopArtworkThumbnail {
         asset_sha256: thumbnail.asset_sha256,
         choice_revision: thumbnail.choice_revision,
-        png_base64: base64::engine::general_purpose::STANDARD.encode(thumbnail.png),
+        png_base64,
     }
 }
 
@@ -222,6 +244,18 @@ mod tests {
     }
 }
 
+fn artwork_service_at_generation(
+    state: &DesktopState,
+    generation: u64,
+) -> DesktopResult<PortcoveService> {
+    let (ready, actual) = initialization_snapshot(state);
+    crate::require_library_generation(actual, generation)?;
+    let ready = ready?;
+    let service = PortcoveService::with_provider_for_artwork(ready.library, ready.releases)?;
+    crate::require_library_generation(state_generation(state), generation)?;
+    Ok(service)
+}
+
 #[tauri::command]
 pub(crate) async fn get_artwork(
     state: tauri::State<'_, DesktopState>,
@@ -230,12 +264,80 @@ pub(crate) async fn get_artwork(
     generation: u64,
 ) -> DesktopResult<ArtworkState> {
     let state = state.inner().clone();
-    blocking_worker(move || {
-        service_at_generation(&state, generation)?
-            .artwork(&port_id, slot)
+    let generation_state = state.clone();
+    let result = blocking_worker(move || {
+        let started = std::time::Instant::now();
+        let artwork = artwork_service_at_generation(&state, generation)?.artwork(&port_id, slot);
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            success = artwork.is_ok(),
+            message = "Artwork state read"
+        );
+        artwork.map_err(Into::into)
+    })
+    .await?;
+    crate::require_library_generation(state_generation(&generation_state), generation)?;
+    Ok(result)
+}
+
+async fn artwork_thumbnail_at_generation<F>(
+    state: DesktopState,
+    generation: u64,
+    cache_only: bool,
+    cache_epoch: Option<String>,
+    operation: F,
+) -> DesktopResult<DesktopArtworkThumbnail>
+where
+    F: Fn(&PortcoveService) -> portcove_core::Result<ArtworkThumbnail> + Send + Sync + 'static,
+{
+    static CACHE_WORKERS: OnceLock<Arc<Semaphore>> = OnceLock::new();
+    let workers = CACHE_WORKERS
+        .get_or_init(|| Arc::new(Semaphore::new(portcove_core::IGDB_ARTWORK_WORK_LIMIT)));
+    let library = library_at_generation(&state, generation)?;
+    let epoch = blocking_worker(move || library.artwork_cache_epoch().map_err(Into::into)).await?;
+    if cache_epoch.is_some_and(|expected| expected != epoch.token()) {
+        return Err(portcove_core::PortcoveError::conflict(
+            "the artwork cache was cleared during retrieval",
+        )
+        .into());
+    }
+    let operation = Arc::new(operation);
+    let cache_state = state.clone();
+    let cached_operation = operation.clone();
+    let cached = thumbnail_worker(workers.clone(), true, move || {
+        let service = artwork_service_at_generation(&cache_state, generation)?
+            .with_artwork_cache_epoch(epoch, false);
+        cached_operation(&service)
+            .map(display_thumbnail)
             .map_err(Into::into)
     })
-    .await
+    .await;
+    let result = match cached {
+        Err(error) if !cache_only && error.details.contains_key(ARTWORK_CACHE_MISS) => {
+            let download_state = state.clone();
+            thumbnail_worker(remote_thumbnail_workers(), true, move || {
+                let service = artwork_service_at_generation(&download_state, generation)?
+                    .with_artwork_cache_epoch(epoch, true);
+                operation(&service)
+                    .map(display_thumbnail)
+                    .map_err(Into::into)
+            })
+            .await
+        }
+        result => result,
+    };
+    let thumbnail = result.map_err(|mut error| {
+        if error.details.contains_key(ARTWORK_CACHE_MISS)
+            || error.details.contains_key(ARTWORK_RETRY)
+        {
+            error
+                .details
+                .insert("artwork_cache_epoch".into(), epoch.token());
+        }
+        error
+    })?;
+    crate::require_library_generation(state_generation(&state), generation)?;
+    Ok(thumbnail)
 }
 
 #[tauri::command]
@@ -245,27 +347,66 @@ pub(crate) async fn get_artwork_thumbnail(
     slot: ArtworkSlot,
     expected_revision: u64,
     generation: u64,
+    cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
-    let state = state.inner().clone();
-    let resolution_state = state.clone();
-    let resolution_port = port_id.clone();
-    let remote = blocking_worker(move || {
-        let resolved = service_at_generation(&resolution_state, generation)?
-            .artwork(&resolution_port, slot)?;
-        Ok(matches!(
-            resolved.resolved_source,
-            ArtworkResolvedSource::IgdbCover { .. }
-        ))
-    })
-    .await?;
-    thumbnail_worker(remote_thumbnail_workers(), remote, move || {
-        // Admission may wait across a library switch or a changed selection.
-        // Resolve the current generation again; Core checks the slot revision.
-        service_at_generation(&state, generation)?
-            .artwork_thumbnail(&port_id, slot, expected_revision)
-            .map(display_thumbnail)
-            .map_err(Into::into)
-    })
+    artwork_thumbnail_at_generation(
+        state.inner().clone(),
+        generation,
+        cache_only.unwrap_or(false),
+        cache_epoch,
+        move |service| service.artwork_thumbnail(&port_id, slot, expected_revision),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_collection_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+    cache_only: Option<bool>,
+    cache_epoch: Option<String>,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    artwork_thumbnail_at_generation(
+        state.inner().clone(),
+        generation,
+        cache_only.unwrap_or(false),
+        cache_epoch,
+        move |service| {
+            service.collection_cover_thumbnail(&port_id, &expected_sha256, expected_revision)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_companion_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_primary_cache_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+    cache_only: Option<bool>,
+    cache_epoch: Option<String>,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    artwork_thumbnail_at_generation(
+        state.inner().clone(),
+        generation,
+        cache_only.unwrap_or(false),
+        cache_epoch,
+        move |service| {
+            service.companion_cover_thumbnail(
+                &port_id,
+                &expected_primary_cache_id,
+                &expected_sha256,
+                expected_revision,
+            )
+        },
+    )
     .await
 }
 
@@ -276,12 +417,57 @@ pub(crate) async fn get_catalog_media_thumbnail(
     media_id: String,
     expected_sha256: String,
     generation: u64,
+    cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
+    artwork_thumbnail_at_generation(
+        state.inner().clone(),
+        generation,
+        cache_only.unwrap_or(false),
+        cache_epoch,
+        move |service| service.catalog_media_thumbnail(&port_id, &media_id, &expected_sha256),
+    )
+    .await
+}
+
+impl From<ArtworkSelectionPreview> for DesktopArtworkSelectionPreview {
+    fn from(preview: ArtworkSelectionPreview) -> Self {
+        Self {
+            original_sha256: preview.original_sha256,
+            png_base64: base64::engine::general_purpose::STANDARD.encode(preview.png),
+        }
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn preview_local_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    path: PathBuf,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkSelectionPreview> {
     let state = state.inner().clone();
-    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+    blocking_worker(move || {
+        let preview =
+            service_at_generation(&state, generation)?.preview_local_artwork(&port_id, &path)?;
+        crate::require_library_generation(crate::state_generation(&state), generation)?;
+        Ok(preview.into())
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_background_artwork_framing(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_revision: u64,
+    generation: u64,
+    framing: Option<ArtworkFraming>,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
         service_at_generation(&state, generation)?
-            .catalog_media_thumbnail(&port_id, &media_id, &expected_sha256)
-            .map(display_thumbnail)
+            .set_background_artwork_framing(&port_id, expected_revision, framing)
             .map_err(Into::into)
     })
     .await
@@ -295,11 +481,46 @@ pub(crate) async fn import_artwork(
     path: PathBuf,
     expected_revision: u64,
     generation: u64,
+    framing: Option<ArtworkSelectionFraming>,
 ) -> DesktopResult<ArtworkState> {
     let state = state.inner().clone();
     blocking_worker(move || {
         service_at_generation(&state, generation)?
-            .import_artwork(&port_id, slot, &path, expected_revision)
+            .import_artwork_with_framing(&port_id, slot, &path, expected_revision, framing)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn suppress_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    slot: ArtworkSlot,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .suppress_artwork(&port_id, slot, expected_revision)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn unhide_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    slot: ArtworkSlot,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .unhide_artwork(&port_id, slot, expected_revision)
             .map_err(Into::into)
     })
     .await

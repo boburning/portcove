@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tgp482-scda-xberecomp",
+    "artwork": {
+      "game_id": 182225,
+      "cover_id": 427358,
+      "image_id": "co95r2",
+      "image_sha256": "a83ee6fbb755065098680d01078edd13bc0155376470761e4235dceb0f9a9c41",
+      "game_slug": "tom-clancys-splinter-cell-double-agent",
+      "match_kind": "underlying-game"
+    },
     "name": "Tom Clancy's Splinter Cell: Double Agent (SCDA-XBERecomp)",
     "summary": "An original-Xbox Splinter Cell: Double Agent port, separate from the PC and Xbox 360 editions. The Windows 64-bit Direct3D 12/XAudio2 ZIP includes SCDA.exe, which compiles game code locally from your own Xbox files on first start and reuses that build later. The build.bat/Visual Studio source route is separate. Native Linux/macOS, exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Gameplay and networking are project claims; multiplayer hosting requires port forwarding, with controller/save coverage unconfirmed here. The project manages setup, replacement and networking; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Tom Clancy's Splinter Cell: Double Agent",
@@ -43,6 +51,26 @@
       ],
       "warnings": [
         "Use the complete original-Xbox Windows SCDA player and preserve scda.toml plus all hdd/profile roots. Portcove tracks the selected program only; a mission handoff can continue after its activity ends. Close actual games/helpers before upstream maintenance."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-splinter-cell-double-agent",
+      "evidence_urls": [
+        "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
+        "https://github.com/TGP482/SCDA-XBERecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tgp482-scda-xberecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "tom-clancys-splinter-cell-double-agent-xbox",
+          "title": "Tom Clancy's Splinter Cell: Double Agent (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tgp482-scda-xberecomp.json"
+          ]
+        }
       ]
     }
   },

@@ -3,14 +3,23 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { canonicalJson, sha256 } from "./maintenance-inventory.mts";
 import {
+  encodeManagedInterventionEvidence,
+  readManagedInterventionEvidence,
+  scopedManagedInterventions,
+} from "./maintenance-interventions.mts";
+import {
+  managedReleaseEligibilityWindow,
+  readObserverOperatingUsage,
   readUpstreamObservations,
   upstreamAttention,
   upstreamFacts,
   upstreamObservation,
+  upstreamSummary,
   type UpstreamTransport,
 } from "./maintenance-upstream.mts";
 import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
-import { snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStreamingObserverSnapshot, snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   catalog,
@@ -23,6 +32,395 @@ import {
 } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const now = Date.parse("2026-11-11T00:00:00.000Z");
+
+const witnessStart = "2026-11-02T00:00:00.000Z";
+const witnessEnd = "2026-11-03T00:00:00.000Z";
+const action = {
+  id: "f".repeat(64),
+  evidence_sha256: "e".repeat(64),
+  witnessed_at: "2026-11-02T20:00:00.000Z",
+};
+const witness = (id: string, coverage = "complete", actions: (typeof action)[] = []) => ({
+  candidate_key: id.repeat(64),
+  port_key: `port:${id}`,
+  platform: "windows-x86-64",
+  channel: "stable",
+  observer_revision: `upstream-observer-run:42-1@${"1".repeat(40)}#sha256:${"2".repeat(64)}`,
+  definition_sha256: "3".repeat(64),
+  client_sha256: "4".repeat(64),
+  review_ref: "https://github.com/boburning/portcove/issues/246#issuecomment-8",
+  start: witnessStart,
+  end: witnessEnd,
+  coverage,
+  actions,
+});
+const witnessObservation = (sequence: ReturnType<typeof witness>) => ({
+  ...sequence,
+  state: "pending",
+  recorded_at: "2026-11-02 19:00:00+00",
+});
+
+function reportWitnesses(sequences: ReturnType<typeof witness>[], rows: readonly unknown[]) {
+  const { bytes, sha256 } = encodeManagedInterventionEvidence(sequences);
+  const evidence = readManagedInterventionEvidence(bytes, sha256);
+  return scopedManagedInterventions(evidence, rows, witnessStart, witnessEnd);
+}
+
+void test("reviewed intervention evidence deduplicates witnessed actions and candidate sequences", () => {
+  const alias = { ...action, id: "8".repeat(64) };
+  const positive = witness("a", "complete", [action, action, alias]);
+  const shared = witness("b", "partial", [alias]);
+  const zero = witness("c");
+  const partial = witness("d", "partial");
+  const unbound = witness("e");
+  const report = reportWitnesses(
+    [positive, { ...positive, actions: [alias] }, shared, zero, partial, unbound],
+    [
+      witnessObservation(positive),
+      witnessObservation(positive),
+      witnessObservation(shared),
+      witnessObservation(zero),
+      witnessObservation(partial),
+      { ...witnessObservation(unbound), definition_sha256: "a".repeat(64) },
+    ],
+  );
+  assert.equal(report.distinct_reported_actions, 1);
+  assert.equal(report.reported_zero_sequences, 1);
+  assert.deepEqual(
+    report.sequences.map(({ state }) => state),
+    ["action-reported", "action-reported", "zero-reported", "partial", "scope-unverified"],
+  );
+  const zeroOnly = reportWitnesses([zero], [witnessObservation(zero)]);
+  assert.equal(zeroOnly.distinct_reported_actions, 0);
+  assert.equal(zeroOnly.provenance, "operator-supplied-unverified");
+  assert.equal(zeroOnly.verified_human_interventions, null);
+  const [zeroSequence] = zeroOnly.sequences;
+  assert.ok(zeroSequence && "matched_observation_states" in zeroSequence);
+  assert.deepEqual(zeroSequence.matched_observation_states, ["pending"]);
+  const incomplete = reportWitnesses([partial], [witnessObservation(partial)]);
+  assert.equal(incomplete.distinct_reported_actions, null);
+  assert.equal(incomplete.reported_zero_sequences, 0);
+  assert.equal(managedReleaseEligibilityWindow([], new Date(witnessEnd)).human_interventions, null);
+});
+
+void test("intervention assertions preserve distinct client and disjoint time scopes for one candidate", () => {
+  const first = witness("a");
+  const otherClient = { ...first, client_sha256: "5".repeat(64), coverage: "partial" };
+  const later = {
+    ...first,
+    start: "2026-11-04T00:00:00.000Z",
+    end: "2026-11-05T00:00:00.000Z",
+    observer_revision: first.observer_revision.replace(":42-1@", ":43-1@"),
+  };
+  const { bytes, sha256 } = encodeManagedInterventionEvidence([first, otherClient, later]);
+  const report = scopedManagedInterventions(
+    readManagedInterventionEvidence(bytes, sha256),
+    [
+      witnessObservation(first),
+      { ...witnessObservation(later), state: "eligible", recorded_at: "2026-11-04 19:00:00+00" },
+    ],
+    first.start,
+    later.end,
+  );
+  assert.equal(report.submitted_distinct_candidates, 1);
+  assert.deepEqual(
+    report.sequences.map((sequence) => [
+      sequence.client_sha256,
+      sequence.start,
+      sequence.state,
+      "matched_observation_states" in sequence ? sequence.matched_observation_states : null,
+    ]),
+    [
+      [first.client_sha256, first.start, "zero-reported", ["pending"]],
+      [later.client_sha256, later.start, "zero-reported", ["eligible"]],
+      [otherClient.client_sha256, otherClient.start, "partial", ["pending"]],
+    ],
+  );
+  assert.equal(report.verified_human_interventions, null);
+});
+
+void test("a complete zero contradicts actions inside its interval for the same client and definition", () => {
+  const zero = witness("a");
+  const claimed = {
+    ...zero,
+    start: "2026-11-02T12:00:00.000Z",
+    end: "2026-11-03T12:00:00.000Z",
+    observer_revision: zero.observer_revision.replace(":42-1@", ":43-1@"),
+    coverage: "partial",
+    actions: [action],
+  };
+  const zeroObservation = witnessObservation(zero);
+  const actionObservation = witnessObservation(claimed);
+  const summarize = (sequence: typeof claimed, observations: readonly unknown[]) => {
+    const { bytes, sha256 } = encodeManagedInterventionEvidence([zero, sequence]);
+    const result = scopedManagedInterventions(
+      readManagedInterventionEvidence(bytes, sha256),
+      observations,
+      zero.start,
+      claimed.end,
+    );
+    return {
+      states: result.sequences.map(({ state }) => state),
+      actions: result.distinct_reported_actions,
+      zeroes: result.reported_zero_sequences,
+    };
+  };
+  assert.deepEqual(summarize(claimed, [zeroObservation, actionObservation]), {
+    states: ["conflicting-evidence", "conflicting-evidence"],
+    actions: null,
+    zeroes: 0,
+  });
+  assert.deepEqual(summarize(claimed, [zeroObservation]), {
+    states: ["zero-reported", "scope-unverified"],
+    actions: null,
+    zeroes: 1,
+  });
+  for (const independent of [
+    { ...claimed, client_sha256: "5".repeat(64) },
+    { ...claimed, definition_sha256: "6".repeat(64) },
+    { ...claimed, actions: [{ ...action, witnessed_at: "2026-11-03T06:00:00.000Z" }] },
+  ]) {
+    const result = summarize(independent, [zeroObservation, witnessObservation(independent)]);
+    assert.deepEqual(result, {
+      states: ["zero-reported", "action-reported"],
+      actions: 1,
+      zeroes: 1,
+    });
+  }
+});
+
+void test("conflicting reviewed intervention facts cannot supply a count", () => {
+  const zero = witness("a");
+  const positive = witness("a", "complete", [action]);
+  const shared = witness("b", "complete", [action]);
+  const substituted = witness("c", "complete", [{ ...action, evidence_sha256: "9".repeat(64) }]);
+  const valid = witness("d");
+  const report = reportWitnesses(
+    [zero, positive, shared, substituted, valid],
+    [zero, shared, substituted, valid].map(witnessObservation),
+  );
+  assert.deepEqual(
+    report.sequences.map(({ state }) => state),
+    ["conflicting-evidence", "conflicting-evidence", "conflicting-evidence", "zero-reported"],
+  );
+  assert.equal(report.distinct_reported_actions, null);
+  assert.equal(report.reported_zero_sequences, 1);
+});
+
+void test("reviewed intervention evidence refuses bytes, malformed clocks and false observer binding", () => {
+  const zero = witness("a");
+  const { bytes, sha256 } = encodeManagedInterventionEvidence([zero]);
+  assert.throws(() => readManagedInterventionEvidence(bytes, "0".repeat(64)), /reviewed input/u);
+  assert.throws(
+    () => encodeManagedInterventionEvidence([{ ...zero, end: "2026-11-35" }]),
+    /binding or scope/u,
+  );
+  assert.throws(
+    () =>
+      encodeManagedInterventionEvidence([
+        { ...zero, actions: [{ ...action, witnessed_at: "2026-11-04T00:00:00.000Z" }] },
+      ]),
+    /witnessed intervention action/u,
+  );
+  const recorded = witnessObservation(zero);
+  for (const incompatible of [
+    { ...recorded, recorded_at: "2026-11-04 00:00:00+00" },
+    { ...recorded, platform: "linux-x86-64" },
+    { ...recorded, channel: "rolling" },
+    { ...recorded, port_key: "port:wrong" },
+    { ...recorded, state: "unknown" },
+    { ...recorded, observer_revision: recorded.observer_revision.replace(":42-1@", ":42-2@") },
+  ]) {
+    const parsed = scopedManagedInterventions(
+      readManagedInterventionEvidence(bytes, sha256),
+      [incompatible],
+      witnessStart,
+      witnessEnd,
+    );
+    assert.equal(parsed.sequences[0]?.state, "scope-unverified");
+    assert.equal(parsed.distinct_reported_actions, null);
+  }
+});
+
+void test("operating usage binds the imported attempt and measures only executed jobs", async () => {
+  const source = "a".repeat(40);
+  const digest = `sha256:${"b".repeat(64)}`;
+  const prefix = "actions/runs/123";
+  const attempt = `${prefix}/attempts/2`;
+  const report = {
+    format: "portcove-maintenance-inventory",
+    runs: [
+      {
+        source: "upstream-observations",
+        source_revision: `upstream-observer-run:123-2@${source}#${digest}`,
+        coverage: "partial",
+      },
+    ],
+  };
+  const job = {
+    run_id: 123,
+    run_attempt: 2,
+    head_sha: source,
+    status: "completed",
+    started_at: "2026-11-11T00:00:00Z",
+    completed_at: "2026-11-11T00:01:17.000Z",
+  };
+  const observation = { ...job, id: 1, name: "observe", conclusion: "failure" };
+  const jobs = [
+    observation,
+    { ...job, id: 2, name: "report", conclusion: "skipped" },
+    { ...job, id: 3, name: "admit", conclusion: "success", started_at: "2026-11-11" },
+  ];
+  const checkpoint = {
+    id: 789,
+    name: `upstream-observer-checkpoint-${"c".repeat(64)}-123-2`,
+    digest,
+    size_in_bytes: 12345,
+    workflow_run: { id: 123, head_sha: source },
+  };
+  const jobInventory = { total_count: 3, jobs };
+  const responses: Record<string, Record<string, unknown>> = {
+    [attempt]: {
+      id: 123,
+      run_attempt: 2,
+      head_sha: source,
+      head_branch: "main",
+      head_repository: { full_name: "boburning/portcove" },
+      path: ".github/workflows/configured-upstream-observer.yml",
+      event: "schedule",
+      status: "completed",
+      conclusion: "failure",
+    },
+    [`${attempt}/jobs?per_page=100`]: jobInventory,
+    [`${prefix}/artifacts?per_page=100`]: { total_count: 1, artifacts: [checkpoint] },
+  };
+  const transport = {
+    read: async (path: string) => {
+      const response = responses[path];
+      assert.ok(response, path);
+      return response;
+    },
+  };
+  const usage = await readObserverOperatingUsage(report, transport);
+  assert.equal(usage.producer.event, "schedule");
+  assert.equal(usage.observation_finished_at, "2026-11-11T00:01:17.000Z");
+  assert.equal(usage.observed_runner_seconds, 77);
+  assert.equal(usage.unmeasured_jobs, 1);
+  assert.equal(usage.billed_cost_usd, null);
+  assert.deepEqual(usage.checkpoint, { id: 789, digest, bytes: 12345 });
+  assert.deepEqual(
+    usage.executed_jobs.map(({ id, seconds }) => [id, seconds]),
+    [
+      [1, 77],
+      [3, null],
+    ],
+  );
+
+  observation.started_at = "2026-02-30T00:00:00Z";
+  const malformed = await readObserverOperatingUsage(report, transport);
+  assert.equal(malformed.observed_runner_seconds, null);
+  assert.equal(malformed.unmeasured_jobs, 2);
+  assert.equal(malformed.observation_finished_at, null);
+
+  jobInventory.total_count = 4;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /inventory is incomplete/u);
+  jobInventory.total_count = 3;
+  observation.run_attempt = 1;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /job identity differs/u);
+  observation.run_attempt = 2;
+  checkpoint.digest = `sha256:${"d".repeat(64)}`;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /checkpoint differs/u);
+});
+
+void test("rolling eligibility counts one candidate per target separately from client availability", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const row = (
+    key: string,
+    recorded_at: string,
+    eligible = false,
+    published_at: string | null = published,
+  ) => ({
+    candidate_key: key.repeat(64),
+    recorded_at,
+    published_at,
+    state: eligible ? "eligible" : "pending",
+    hold_reasons: eligible ? [] : ["missing-digest", "missing-digest"],
+  });
+  const result = managedReleaseEligibilityWindow(
+    [
+      row("a", "2026-11-10T12:00:00.000Z", true),
+      row("a", "2026-11-09T12:00:00.000Z"),
+      row("a", "2026-11-10T18:00:00.000Z", true),
+      {
+        ...row("b", "2026-11-09T12:00:00.000Z"),
+        hold_reasons: [
+          "missing-digest",
+          "held-without-receipt",
+          "asset-missing-or-ambiguous",
+          "missing-digest",
+        ],
+      },
+      row("c", "2026-11-09T12:00:00.000Z", false, null),
+      row("d", "2026-11-09T12:00:00.000Z", false, "2026-09-08T12:00:00.000Z"),
+      row("e", "2026-11-12T12:00:00.000Z", true),
+      { ...row("f", "2026-11-10T20:00:00.000Z"), hold_reasons: [" "] },
+      row("f", "2026-11-10T19:00:00.000Z"),
+    ],
+    new Date(now),
+  );
+  assert.equal(result.first_recorded_evidence_at, "2026-11-09T12:00:00.000Z");
+  assert.equal(result.last_recorded_evidence_at, "2026-11-10T20:00:00.000Z");
+  assert.equal(result.distinct_candidates, 3);
+  assert.equal(result.eligible_candidates, 1);
+  assert.equal(result.pending_candidates, 2);
+  assert.equal(result.pending_without_recorded_hold_reason, 1);
+  assert.equal(result.pending_with_other_recorded_hold_reason, 1);
+  assert.equal(result.observed_pending_candidates, 3);
+  assert.equal(result.observed_pending_to_eligible_candidates, 1);
+  assert.equal(result.unknown_publication_times, 1);
+  assert.equal(result.oldest_pending_age_ms, 216_000_000);
+  assert.deepEqual(result.hold_reasons, [
+    { reason: "asset-missing-or-ambiguous", distinct_candidates: 1 },
+    { reason: "held-without-receipt", distinct_candidates: 1 },
+    { reason: "missing-digest", distinct_candidates: 1 },
+  ]);
+  assert.deepEqual(result.publication_to_recorded_eligibility_ms, {
+    samples: 1,
+    median: 172_800_000,
+    max: 172_800_000,
+  });
+  assert.equal(result.released_client_unattended_availability, null);
+  assert.equal(result.human_interventions, null);
+  assert.equal(result.signed_automatic_repairs, null);
+  assert.equal(result.operating_cost, null);
+});
+
+void test("pending transitions require ordered evidence and count repeated changes once", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const candidate = (id: string, date: string, state: "pending" | "eligible") => ({
+    candidate_key: id.repeat(64),
+    published_at: published,
+    recorded_at: date,
+    state,
+    hold_reasons: [],
+  });
+  const early = "2026-11-09T12:00:00.000Z";
+  const later = "2026-11-10T12:00:00.000Z";
+  const report = managedReleaseEligibilityWindow(
+    [
+      candidate("a", later, "pending"),
+      candidate("a", early, "eligible"),
+      candidate("b", later, "pending"),
+      candidate("b", later, "eligible"),
+      candidate("c", later, "eligible"),
+      candidate("c", early, "pending"),
+      candidate("c", later, "eligible"),
+    ],
+    new Date(now),
+  );
+  assert.equal(report.observed_pending_candidates, 3);
+  assert.equal(report.observed_pending_to_eligible_candidates, 1);
+});
 
 void test("upstream facts keep stable source facts and report coverage gaps", () => {
   const result = upstreamFacts(
@@ -69,6 +467,146 @@ void test("a port added after its source completed is a scope change, not a fact
   );
   assert.deepEqual(result.facts.size, 0);
   assert.equal(result.gaps[0]?.code, "scope-changed");
+});
+
+void test("a held managed source preserves completed successor listing evidence in its gap", () => {
+  const historical = "owner/alpha";
+  const successor = "new-owner/alpha";
+  const catalogWithSuccessor = {
+    ports: [catalog.ports[0]],
+    listings: [{ id: "alpha", project_url: `https://github.com/${successor}` }],
+  };
+  const invalidOrigin = progress(historical, [], {
+    repository_id: null,
+    completed_scope_sha256: null,
+    last_complete_facts_sha256: null,
+    exception_key: exception,
+    exception_rule: "repository-unavailable",
+  });
+  const successorListing = progress(successor, ["alpha"], {
+    last_complete_policies: [
+      {
+        ...progress(successor, ["alpha"]).last_complete_policies[0],
+        catalog_definition_sha256: null,
+      },
+    ],
+  });
+  const partial = upstreamFacts(
+    checkpoint({ [keyOf(historical)]: invalidOrigin, [keyOf(successor)]: successorListing }),
+    catalogWithSuccessor,
+    now,
+  );
+
+  assert.equal(partial.expected, 1);
+  assert.equal(partial.facts.size, 0);
+  assert.equal(partial.gaps.length, 1);
+  const gap = partial.gaps[0]!;
+  assert.deepEqual(
+    gap.source_coverage?.retained.map((source) => source.repository),
+    [successor],
+  );
+  assert.equal(gap.source_coverage?.retained[0]?.scope, "listing");
+  assert.deepEqual(
+    gap.source_coverage?.incomplete.map(({ repository, exception_rule }) => [
+      repository,
+      exception_rule,
+    ]),
+    [[historical, "repository-unavailable"]],
+  );
+  const summary = upstreamSummary(null, gap)!;
+  assert.match(summary, /new-owner\/alpha \(listing\): facts f{12}/u);
+  assert.match(
+    summary,
+    /latest checkpoint: partial source coverage; github owner\/alpha \(operational\): unobserved/u,
+  );
+  assert.deepEqual(upstreamAttention(null, gap), [
+    "upstream observer exception: repository-unavailable (github owner/alpha)",
+  ]);
+
+  const restored = upstreamFacts(
+    checkpoint({
+      [keyOf(historical)]: progress(historical, ["alpha"]),
+      [keyOf(successor)]: successorListing,
+    }),
+    catalogWithSuccessor,
+    now,
+  );
+  assert.equal(restored.facts.size, 1);
+  assert.equal(restored.gaps.length, 0);
+
+  const failedBoth = upstreamFacts(
+    checkpoint({ [keyOf(historical)]: invalidOrigin }),
+    catalogWithSuccessor,
+    now,
+  );
+  const previous = restored.facts.get("port:alpha");
+  const incompleteSummary = upstreamSummary(previous, failedBoth.gaps[0])!;
+  assert.match(incompleteSummary, /new-owner\/alpha \(previous observation\)/u);
+  assert.match(incompleteSummary, /latest checkpoint: incomplete source coverage/u);
+  assert.match(incompleteSummary, /new-owner\/alpha \(listing\): unobserved/u);
+});
+
+void test("retained managed candidates keep their identity from pending to eligible under one tag", () => {
+  const offered = {
+    platform: "linux-x86-64",
+    channel: "stable",
+    channel_candidate: { id: 19, tag: "v2", published_at: "2026-11-10T09:00:00Z" },
+  };
+  const prior = progress("owner/alpha", ["alpha"]);
+  const read = (row: Record<string, unknown>) =>
+    upstreamFacts(
+      checkpoint({
+        [keyOf("owner/alpha")]: {
+          ...prior,
+          last_complete_policies: [
+            {
+              ...prior.last_complete_policies[0],
+              projections: [
+                row,
+                { ...row, channel: "rolling" },
+                { ...row, platform: "windows-x86-64" },
+              ],
+            },
+          ],
+        },
+      }),
+      {
+        ports: [
+          {
+            ...catalog.ports[0],
+            release: { repository: "owner/alpha", curated: { "windows-x86-64": {} } },
+          },
+        ],
+      },
+      now,
+    ).facts.get("port:alpha");
+  const pending = read({
+    ...offered,
+    latest_eligible: { release_id: 18, release: { version: "v1" } },
+    hold_reasons: ["checksum-observation-incomplete"],
+  });
+  const eligible = read({
+    ...offered,
+    latest_eligible: { release_id: 19, release: { version: "v2" } },
+    hold_reasons: [],
+  });
+  const identity = {
+    candidate_key: sha256(JSON.stringify(["alpha", "github", 7, 19, "linux-x86-64", "stable"])),
+    platform: "linux-x86-64",
+    channel: "stable",
+    release_id: 19,
+    tag: "v2",
+    published_at: "2026-11-10T09:00:00.000Z",
+  };
+  for (const [value, state, reasons] of [
+    [pending, "pending", ["checksum-observation-incomplete"]],
+    [eligible, "eligible", []],
+  ] as const) {
+    const fact = value as { sources: { managed_release_candidates: unknown }[] };
+    assert.deepEqual(fact.sources[0]?.managed_release_candidates, [
+      { ...identity, state, hold_reasons: reasons },
+    ]);
+  }
 });
 
 void test("observer exceptions are facts that need attention, or gaps when never completed", () => {
@@ -277,6 +815,7 @@ function observerRuns() {
       artifact?: Record<string, unknown>;
       producer?: Partial<{ run: number; attempt: number; source: string }>;
       archive?: (bytes: Buffer) => Buffer;
+      member?: Buffer;
     } = {},
   ) => {
     const producer = {
@@ -297,7 +836,9 @@ function observerRuns() {
       producer,
       files: { "catalog/checkpoint.json": newCatalogObserverCheckpoint() },
     };
-    const archive = createAuditZip([["checkpoint.json", JSON.stringify(snapshot)]]);
+    const archive = createAuditZip([
+      ["checkpoint.json", options.member ?? JSON.stringify(snapshot)],
+    ]);
     const id = 1000 + archives.size;
     artifacts.get(value.id)!.push({
       id,
@@ -326,9 +867,10 @@ function observerRuns() {
         assert.equal(query.get("status"), "completed");
         // The provider filters by trigger; a foreign row is the provider's own error.
         return Promise.resolve({
-          workflow_runs: runs.filter(
-            (row) => row.event === query.get("event") || row.event === "workflow_dispatch",
-          ),
+          workflow_runs: runs
+            .filter((row) => row.event === query.get("event") || row.event === "workflow_dispatch")
+            .toSorted((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+            .slice(0, Number(query.get("per_page"))),
         });
       }
       const listed = /^actions\/runs\/(\d+)\/artifacts\?per_page=100&page=1$/u.exec(endpoint);
@@ -363,7 +905,8 @@ function observerRuns() {
     setConfig(bytes: Buffer) {
       configBytes = bytes;
     },
-    read: () => readUpstreamObservations(committed, { transport }),
+    read: (reader = committed) => readUpstreamObservations(reader, { transport }),
+    committed,
   };
 }
 
@@ -390,6 +933,72 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("committed source read failures are distinct from malformed producer JSON", async () => {
+  const fixture = observerRuns();
+  const run = fixture.run(101, "schedule", 90);
+  fixture.retain(run);
+  const path = "crates/portcove-core/catalog/listings.json";
+  const read = (listings: () => Buffer) =>
+    fixture.read((revision, file) =>
+      file === path ? listings() : fixture.committed(revision, file),
+    );
+  await assert.rejects(
+    read(() => {
+      throw Object.assign(new Error("private transport details"), { code: "ETIMEDOUT" });
+    }),
+    { message: `Could not read ${path} at ${run.head_sha} (ETIMEDOUT)` },
+  );
+  await assert.rejects(
+    read(() => Buffer.from("{")),
+    {
+      message: `${path} at ${run.head_sha} is not valid JSON`,
+    },
+  );
+});
+
+void test("a full window of admission-only pushes cannot hide a scheduled snapshot", async () => {
+  const fixture = observerRuns();
+  const schedule = fixture.run(500, "schedule", 90);
+  const { id } = fixture.retain(schedule);
+  for (let minute = 1; minute <= 24; minute++) fixture.run(500 + minute, "push", minute);
+
+  const input = await fixture.read();
+  assert.match(input.revision, /^upstream-observer-run:500-1@/u);
+  assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("streaming snapshots deliver a logical controller to maintenance facts", async () => {
+  const fixture = observerRuns();
+  const run = fixture.run(108, "schedule", 5);
+  const controller = checkpoint({
+    [keyOf("owner/alpha")]: progress("owner/alpha", ["alpha"]),
+  });
+  const stored = encodeStoredObserverCheckpoint(controller);
+  assert.notEqual(stored, controller, "fixture controller must be compacted on read");
+  const snapshot = await encodeStreamingObserverSnapshot(
+    {
+      format: 1,
+      authority: "observer-checkpoint-cache-only",
+      repository: "boburning/portcove",
+      repository_id: 1354613114,
+      workflow: ".github/workflows/configured-upstream-observer.yml",
+      ref: "refs/heads/main",
+      config_sha256: observerConfigDigest,
+      created_at: new Date(Date.now() - 1000).toISOString(),
+      producer: { run: run.id, attempt: run.run_attempt, source: run.head_sha },
+      files: { "catalog/checkpoint.json": controller },
+    },
+    Date.now() + 60_000,
+  );
+  fixture.retain(run, { member: snapshot.bytes });
+  const input = await fixture.read();
+  assert.deepEqual(input.checkpoint, controller);
+  assert.deepEqual(
+    [...upstreamFacts(input.checkpoint, input.catalog, now).facts.keys()],
+    ["port:alpha"],
+  );
 });
 
 void test("a foreign producer run is refused before any artifact is read", async () => {

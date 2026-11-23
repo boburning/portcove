@@ -5,13 +5,26 @@ import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { GhostshipLegacyRecovery } from "./GhostshipRecoveryReview";
-import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
+import {
+  BackupReviewDialog,
+  type ApplyBackupAction,
+  type RestoreReviewAvailability,
+} from "./BackupReview";
 import { Button } from "./ui/button";
 import { FailureDetails } from "./FailureDetails";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 import type { TFunction } from "i18next";
 import { useAppTranslation } from "../localization";
+
+function restoreIsAllowed(assessment: BackupInventory["restore_assessment"] | undefined) {
+  return (
+    assessment?.action === "backup_restore" &&
+    assessment.availability === "allowed" &&
+    assessment.reason === "available" &&
+    assessment.definition == null
+  );
+}
 
 export function BackupHistory({
   gameName,
@@ -36,7 +49,7 @@ export function BackupHistory({
   state?: BackupInventory["state"];
   readState?: BackupReadState | undefined;
   restoreAssessment?: BackupInventory["restore_assessment"] | undefined;
-  retryRead?: (() => Promise<void>) | undefined;
+  retryRead?: (() => Promise<BackupInventory | void>) | undefined;
   busy?: string | undefined;
   generation?: number;
   restore: ApplyBackupAction;
@@ -56,12 +69,14 @@ export function BackupHistory({
     index: number;
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
+  const showEmpty =
+    backups.length === 0 &&
+    problems.length === 0 &&
+    state === "healthy" &&
+    readState?.status === "current" &&
+    readState.hasInventory;
   const restoreAllowed =
-    (!readState || readState.status === "current") &&
-    restoreAssessment?.action === "backup_restore" &&
-    restoreAssessment.availability === "allowed" &&
-    restoreAssessment.reason === "available" &&
-    restoreAssessment.definition == null;
+    (!readState || readState.status === "current") && restoreIsAllowed(restoreAssessment);
   const restoreConsistent =
     restoreAssessment?.action === "backup_restore" &&
     restoreAssessment.definition == null &&
@@ -182,22 +197,24 @@ export function BackupHistory({
             </ul>
           </div>
         )}
-        <details>
-          <summary className="cursor-pointer" data-focusable>
-            {t("history.technicalDetails")}
-          </summary>
-          {problems.map((problem) => (
-            <div
-              className="backup-problem mt-[10px] grid gap-[3px]"
-              key={`${problem.operation_id ?? "entry"}-${problem.path}`}
-            >
-              <strong>{problemLabel(t, problem.kind)}</strong>
-              <span className="[overflow-wrap:anywhere]">{problem.message}</span>
-              <span className="[overflow-wrap:anywhere]">{problem.proposed_action}</span>
-              <small className="[overflow-wrap:anywhere]">{problem.path}</small>
-            </div>
-          ))}
-        </details>
+        {problems.length > 0 && (
+          <details>
+            <summary className="cursor-pointer" data-focusable>
+              {t("history.technicalDetails")}
+            </summary>
+            {problems.map((problem) => (
+              <div
+                className="backup-problem mt-[10px] grid gap-[3px]"
+                key={`${problem.operation_id ?? "entry"}-${problem.path}`}
+              >
+                <strong>{problemLabel(t, problem.kind)}</strong>
+                <span className="[overflow-wrap:anywhere]">{problem.message}</span>
+                <span className="[overflow-wrap:anywhere]">{problem.proposed_action}</span>
+                <small className="[overflow-wrap:anywhere]">{problem.path}</small>
+              </div>
+            ))}
+          </details>
+        )}
       </div>
     );
   const renderRestoreAssessment = () =>
@@ -219,8 +236,25 @@ export function BackupHistory({
                     : t("restore.unknownRefresh")}
       </p>
     );
-  const renderReview = () =>
-    selection && (
+  const renderReview = () => {
+    if (!selection) return null;
+    const restoreAvailability = (
+      records: BackupRecord[],
+      allowed: boolean,
+    ): RestoreReviewAvailability => {
+      const matches = records.filter(
+        (backup) =>
+          backup.port_id === selection.backup.port_id && backup.id === selection.backup.id,
+      );
+      if (
+        matches.length !== 1 ||
+        matches[0]?.sha256 !== selection.backup.sha256 ||
+        matches[0]?.file_count === 0
+      )
+        return "backupUnavailable";
+      return allowed ? "ready" : "inventoryUnavailable";
+    };
+    return (
       <BackupReviewDialog
         gameName={gameName}
         key={`${selection.backup.id}:${selection.action}:${generation}`}
@@ -228,6 +262,26 @@ export function BackupHistory({
         action={selection.action}
         generation={generation}
         apply={selection.action === "restore" ? restore : remove}
+        restoreAvailability={
+          readState && readState.status !== "current"
+            ? "inventoryUnavailable"
+            : restoreAvailability(backups, restoreAllowed && state !== "recovery_required")
+        }
+        refreshingHistory={readState?.status === "pending"}
+        refreshRestoreReview={
+          selection.action === "restore" && retryRead
+            ? async () => {
+                const inventory = await retryRead();
+                if (!inventory || inventory.port_id !== selection.backup.port_id)
+                  return "inventoryUnavailable";
+                return restoreAvailability(
+                  inventory.backups,
+                  inventory.state !== "recovery_required" &&
+                    restoreIsAllowed(inventory.restore_assessment),
+                );
+              }
+            : undefined
+        }
         close={() => setSelection(undefined)}
         finalFocus={(closeType) => {
           // The primitive calls this during unmount, before React finishes removing rows.
@@ -236,14 +290,18 @@ export function BackupHistory({
             const opener =
               history.current?.isConnected &&
               selection.opener.isConnected &&
-              !selection.opener.disabled
+              !selection.opener.disabled &&
+              (selection.action === "delete" ||
+                selection.opener.closest<HTMLElement>("[data-backup-sha256]")?.dataset
+                  .backupSha256 === selection.backup.sha256)
                 ? selection.opener
                 : undefined;
-            const actions = history.current?.isConnected
-              ? history.current.querySelectorAll<HTMLButtonElement>(
-                  `button[data-backup-action="${selection.action}"]:not(:disabled)`,
-                )
-              : undefined;
+            const actions =
+              selection.action === "delete" && history.current?.isConnected
+                ? history.current.querySelectorAll<HTMLButtonElement>(
+                    `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+                  )
+                : undefined;
             const target =
               opener ??
               actions?.[Math.min(selection.index, actions.length - 1)] ??
@@ -259,6 +317,7 @@ export function BackupHistory({
         }}
       />
     );
+  };
   return (
     <div
       ref={history}
@@ -269,24 +328,22 @@ export function BackupHistory({
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           {t("history.title")}
         </span>
-        <small className="text-xs text-[var(--color-text-muted)]">
-          {backupSummary(t, backups.length, problems.length, state, readState)}
-        </small>
+        {!showEmpty && (
+          <small className="text-xs text-pc-muted-foreground">
+            {backupSummary(t, backups.length, problems.length, state, readState)}
+          </small>
+        )}
       </div>
       {!embedded && <p>{t("history.description")}</p>}
-      {backups.length === 0 &&
-        problems.length === 0 &&
-        state === "healthy" &&
-        readState?.status === "current" &&
-        readState.hasInventory && (
-          <div className="detail-backup-empty">
-            <Icon glyph={Archive} />
-            <div>
-              <strong>{t("history.empty")}</strong>
-              <p>{t("history.emptyDescription")}</p>
-            </div>
+      {showEmpty && (
+        <div className="detail-backup-empty">
+          <Icon glyph={Archive} />
+          <div>
+            <strong>{t("history.empty")}</strong>
+            <p>{t("history.emptyDescription")}</p>
           </div>
-        )}
+        </div>
+      )}
       {renderReadStatus()}
       {renderInventoryNotice()}
       {renderRestoreAssessment()}
@@ -298,6 +355,7 @@ export function BackupHistory({
             className="backup-row grid min-w-0 gap-3 border-b border-pc-border py-4"
             key={backup.id}
             data-backup-id={backup.id}
+            data-backup-sha256={backup.sha256}
           >
             <span className="min-w-0">
               <strong className="text-sm font-medium [overflow-wrap:anywhere]">
@@ -323,17 +381,6 @@ export function BackupHistory({
                 </small>
               )}
             </span>
-            <details>
-              <summary
-                data-focusable
-                aria-label={t("history.rowDetailsLabel", { time: createdLabel })}
-              >
-                {t("history.technicalDetails")}
-              </summary>
-              <small className="backup-checksum mt-[3px] font-mono text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
-                {t("history.checksum", { sha256: backup.sha256 })}
-              </small>
-            </details>
             <span className="backup-actions flex flex-wrap gap-2">
               <Button
                 data-focusable
@@ -346,30 +393,37 @@ export function BackupHistory({
                   backup.file_count === 0
                 }
                 onClick={(event) =>
-                  setSelection({ backup, action: "restore", opener: event.currentTarget, index })
+                  setSelection({
+                    backup,
+                    action: "restore",
+                    opener: event.currentTarget,
+                    index,
+                  })
                 }
               >
                 <Icon glyph={RotateCcw} />
                 {t("history.restore")}
               </Button>
-              {backup.port_id === "ghostship" && recoverGhostshipLegacy && (
-                <GhostshipLegacyRecovery
-                  key={`${backup.id}:${generation}`}
-                  backup={backup}
-                  generation={generation}
-                  apply={recoverGhostshipLegacy}
-                  disabled={
-                    Boolean(busy) ||
-                    state === "recovery_required" ||
-                    (readState !== undefined && readState.status !== "current")
-                  }
-                />
-              )}
+              {backup.recovery_review === "legacy_install_and_data_v1" &&
+                recoverGhostshipLegacy && (
+                  <GhostshipLegacyRecovery
+                    key={`${backup.id}:${generation}`}
+                    backup={backup}
+                    generation={generation}
+                    apply={recoverGhostshipLegacy}
+                    disabled={
+                      Boolean(busy) ||
+                      state === "recovery_required" ||
+                      (readState !== undefined && readState.status !== "current")
+                    }
+                  />
+                )}
               <Button
                 data-focusable
                 data-backup-action="delete"
-                variant="destructive"
+                variant="outline"
                 size="icon"
+                className="hover:text-pc-danger-foreground"
                 aria-label={t("history.deleteLabel", { time: createdLabel })}
                 disabled={Boolean(busy) || state === "recovery_required"}
                 onClick={(event) =>
@@ -379,6 +433,17 @@ export function BackupHistory({
                 <Icon glyph={Trash2} />
               </Button>
             </span>
+            <details>
+              <summary
+                data-focusable
+                aria-label={t("history.rowDetailsLabel", { time: createdLabel })}
+              >
+                {t("history.technicalDetails")}
+              </summary>
+              <small className="backup-checksum mt-[3px] font-mono text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
+                {t("history.checksum", { sha256: backup.sha256 })}
+              </small>
+            </details>
           </div>
         );
       })}

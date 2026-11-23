@@ -76,7 +76,10 @@ scenario or command.
 Each isolated job checks the interactive session before provisioning, installs
 the source-pinned native prerequisites, uses a fresh application target and runs
 the maintained harness with clean source. The host-publication source also runs
-its four qualification checkpoint unit tests before native execution.
+its four qualification checkpoint unit tests before native execution. Within the existing
+checkpoint discovery window, the harness waits for its wall clock to reach the recorded Core
+entry time. It checks the marker identity and requires more than 30 seconds of the pause to
+remain before proceeding with the owned process interruption.
 
 These are feasibility observations until actual native receipts and positive
 process closure are independently reviewed. The 90-minute job allocation changes
@@ -171,6 +174,23 @@ unreadable logs never establish native acceptance. Failure or an exceeded retent
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
 
+### Linux prerequisite calibration
+
+The permanent `linux-preparation-continuity` route keeps its Ubuntu 22.04 host,
+two existing native selections and 10-minute observation step. Its prerequisite
+step now requests the maintained archive-mirror preference and a 1,200-second APT
+install allowance inside a 30-minute step. The job grows from 60 to 75 minutes,
+retaining its previous 45-minute allowance outside prerequisites. No Windows
+selection or product deadline changes.
+
+The calibration follows temporary qualification run `44395415654/1` on Ubuntu
+24.04: its package index passed, but downloads exhausted the 600-second install
+budget (exit 124) before any application build or native journey. That failed
+attempt is not evidence of the permanent route running. The maintained mirror
+preference selectively rewrites supported Azure entries, without guaranteeing an
+EC2 mirror replacement. Timeout statuses 124/137 still refuse mirror retry on
+possibly interrupted package state; intentional recovery uses a fresh runner.
+
 ## Normal-app presentation and interface sizing
 
 The fixed manual `presentation` operation in `native-design-compatibility.yml`
@@ -204,6 +224,20 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The standalone `native-managed-copy-result` case uses the existing install fixture and an
+owned external registration. It observes the real reviewed transition, verifies
+one download and one Core install outcome, and checks that the original
+external executable and save remain byte-identical. The completed receipt must
+survive navigation and open the exact current game without launching it. The
+CLI seeds the registration. This case verifies the Desktop transition and receipt.
+
+The standalone `native-game-settings-review` case is not a hosted group.
+Hosted runners present a high-integrity token, and Core's settings writer
+requires a medium-integrity token. Run 44933173974 reached the reviewed save and
+recorded that typed refusal. Run the case as explicit acceptance on an
+interactive medium-integrity Windows host; see
+[native desktop smoke tests](DEVELOPMENT-TOOLS.md#native-desktop-smoke-tests).
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
@@ -214,10 +248,23 @@ checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
 the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
 at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through
@@ -227,7 +274,58 @@ through restart, selected setup completion, update
 acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
+Recovery bundle creation, verification, restore and explicit activation run in
+one standalone group. The create and restore fixture compares the exact
+imported Cover bytes in the source, bundle and restored library. It reads the
+same Cover choice through native IPC after explicitly opening and restarting
+the restored library. Interruption and resume run in a second group with a
+fresh runner, library and preferences.
 This preserves the planner's standalone and incompatible-fixture refusals.
+
+The owned Windows preparation harness waits for initial Library content within
+its existing 60-second reload envelope before locating the exact game action.
+Discover setup uses a player-visible search before selecting the exact port ID,
+so an offscreen virtualized card is not mistaken for missing content. Copy consent
+and workspace readback have named 60-second settlement waits; these are harness
+budgets, not product deadlines or proof that a copy succeeded.
+
+The selected-setup journey allows 30 seconds for Core to report each connected
+folder mutation. Job [136689042471](https://github.com/boburning/portcove/actions/runs/44850160213/job/136689042471)
+observed an add worker still settling after the previous five-second wait.
+Before reopening an installation review, the harness gives the previous dialog
+and opener 45 seconds to settle. Job
+[136679148807](https://github.com/boburning/portcove/actions/runs/44850095996/job/136679148807)
+tried the hidden opener after Core recorded cancellation. Both conditions still
+require exact readback or a visible, enabled action. The BIOS scan includes a
+same-size unrelated file and requires the exact BIOS as its only candidate before
+verifying the same game and source profiles in the resumed setup.
+
+In Windows job [136782688592](https://github.com/boburning/portcove/actions/runs/44883170193/job/136782688592),
+the selected game opened and its Review installation operation still showed
+Working when the 15-second dialog wait expired. The first selected review now
+has a 60-second observation window inside the existing scenario budget. The harness
+still requires the exact selected game, the installation review dialog, and
+unchanged Core status before consent. The original timeout remains a failed
+observation for that source.
+
+The install readback probe allows the independent scheduled catalog refresh while
+still requiring one install command and one fixture download. Steam batch review
+checks the singular one-game label before root/profile selection and the plural
+zero/two-game flow. Preliminary setup checks its scoped live selection count and
+exact fixture checkbox, independently of the changing catalog size. Artwork
+reload keeps its request observers, verifies the real workspace still contains
+the exact owned definition and discovery listing, then
+searches by name before selecting its exact ID. It does not disable catalog
+updates or replace catalog authority.
+
+If the held preparation case fails, it requests cancellation only for its captured
+new operation in the owned library. Request acknowledgment is followed by the exact
+authoritative terminal and, for retained failed or cancelled work, Core's read-only
+preparation cleanup preview, which requires proven process quiescence. The harness
+discards no private state. Unknown operation identity or an unjoined worker stops
+the remaining run through the existing driver teardown. A joined failure remains
+failed; cleanup and preservation observations do not replace its original assertion.
+
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime
@@ -268,8 +366,11 @@ successful launch, and the backup review's wait to close after a deletion, are c
 from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
-includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
-selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+includes the preparation journey gets a 20-minute harness watchdog instead of 10.
+The standalone selected-setup completion journey gets 15 minutes. Linux job 137029418197
+confirmed successful preparation before the 10-minute harness deadline stopped the
+driver during the remaining readback. This budget includes restart and owned cleanup.
+The wait for the
 rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
 diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
 20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
@@ -279,7 +380,11 @@ run 43616138586 measured debug-build capability reads at 12-15 s, update plans a
 about 10 s and workspace snapshots at 6-15 s. The game update review's release and
 keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
 from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
-300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
+300 s and 180 s to 600 s. The install-refresh retry now allows 60 s for the exact game’s Ready to play
+state. Hosted job 136875392758 retained one successful transfer and install,
+but was still refreshing at the old 15 s limit. The existing no-replay
+assertions and application timing stay in force.
+The wait for a settled update outcome to close its observation
 review is calibrated from 5 s to 60 s: the review closes after the outcome's
 workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
 supplied update outcome to render after Apply and to show its summary are calibrated
@@ -304,9 +409,16 @@ retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
 first-beta baseline.
+In hosted Windows job 136791041548, install recovery transferred and installed
+the exact fixture once. Retrying the workspace read reached Ready to play, then
+the harness rejected the read-only CLI handoff context requested by game details.
+The retry assertion now accepts that exact read. It still requires a workspace
+snapshot and one installation command and transfer. The update-acquisition
+scenario never ran in that job.
+
 The update-acquisition group also observes #4879's automatic snapshot surfaces
-after its real activating update of a played fixture: the review and rollback
-copy, exactly one Core snapshot labelled with the from/to versions that holds the
+after its real activating update of a played fixture: the library policy and eligible coverage in Saves, Versions and the update review,
+the separate rollback explanation, exactly one Core snapshot labelled with the from/to versions that holds the
 played save, its Automatic label in history and in a cancelled restore review,
 and the per-library Settings control round-tripping through Core. Right after
 those checks, and before the later acquisitions and reviewed uninstall, it presses
@@ -316,20 +428,56 @@ holding the current saves. The fixture save does not change between the update a
 the rollback, so the snapshot's bytes alone do not distinguish it from the update
 snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
+The first update acquisition starts from the existing activation review. The
+harness compares the real archive-only review digest, checks the displayed
+archive and source, and expects the held transfer after a single action from
+that review. Later acquisitions retain the standalone download-review route.
+
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
 synthetic profile and qualification-only closed-client observation; no actual
-Steam client is launched. External-runtime registration uses inert executable
-bytes and never claims to launch that game. Controlled read failures and injected
-input observations retain their fixture labels. No private originals, real user
-profile, release signing or physical controller are required by this selection.
+Steam client is launched. The external-runtime review uses inert executable
+bytes. It checks that cancelling a native relink keeps the checked candidate,
+changed files require a fresh check, and explicit consent changes the same
+registration to the reviewed folder. Relinking and removing the registration
+preserve files in both folders. The scenario does not launch the fixture.
+Before opening removal after relink, the harness allows 60 seconds for the
+visible, enabled action to return after the renderer reads the same registration.
+The independent Core and file checks still run before removal.
+Controlled read failures and injected input observations retain their fixture
+labels. No private originals, real user profile, release signing or physical
+controller are required by this selection.
+
+Recovery bundle interruption waits for the restarted Library to display results
+for the exact active generation before entering Settings. In job
+[136765401809](https://github.com/boburning/portcove/actions/runs/44877522122/job/136765401809),
+the initial workspace snapshot overlapped the explicit Resume command and
+that command reported the library busy. The harness waits for the renderer
+result within 60 seconds. It still requires the actual Core checkpoint, positive
+host exit, exact retained bytes and publication identity.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Reviewed screenshot display
+
+Run the opt-in Windows case with
+`just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+The source must embed reviewed typed IGDB screenshots. The run disables automatic
+catalog refresh in its isolated preferences, verifies embedded catalog delivery and
+compares the effective screenshot inventory with the tracked listing source. The
+normal app opens each exact port through Discover, chooses its original release
+when applicable,
+and compares the decoded gallery image with Core's cache-only read of the exact
+admitted asset. The run retains the viewer screenshots and a report of media IDs,
+digests, scope and decoded geometry. It checks Escape returns focus to the same
+port's gallery. It requires live image access on a cold cache and does not use a
+provider key. A bundled directory result leaves signed delivery and released
+client acceptance open.
 
 ## Hosted installed application update
 

@@ -11,7 +11,11 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::definition_eligibility::{PortAction, PortActionReason, RouteHolding, route_exclusion};
-use crate::{Catalog, Platform, PortcoveError, Result};
+use crate::{
+    Catalog, LoaderContractRef, ModProviderBinding, Platform, PortDefinition, PortListing,
+    PortcoveError, Result,
+    profile_loader::{ModEngine, definition_loader},
+};
 
 /// Every target platform Core can represent.
 pub const INSPECTABLE_PLATFORMS: [Platform; 4] = [
@@ -94,6 +98,125 @@ pub struct PortTargetInspection {
     /// The listing's reviewed restriction on fresh self-service downloads, if any.
     pub download_restriction: Option<String>,
     pub targets: Vec<TargetRoutes>,
+    /// One row for every requested platform, including listings without a definition.
+    pub content_capabilities: Vec<TargetContentCapabilities>,
+}
+
+/// Static, per-operation content evidence. Runtime-required operations still
+/// need an exact retained contract and an ordinary operation decision.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct TargetContentCapabilities {
+    pub platform: Platform,
+    pub loader: Option<LoaderContractRef>,
+    pub provider_browse: ContentCapabilityState,
+    pub provider_bindings: Vec<ModProviderBinding>,
+    pub local_import: ContentCapabilityState,
+    pub managed_install: ContentCapabilityState,
+    pub managed_remove: ContentCapabilityState,
+    pub native_enabled_state: ContentCapabilityState,
+    pub native_ordering: ContentCapabilityState,
+    pub native_mod_settings: ContentCapabilityState,
+    pub profiles: ContentCapabilityState,
+    pub provider_updates: ContentCapabilityState,
+    pub upstream_mod_manager: ContentCapabilityState,
+    pub original_recognition: ContentCapabilityState,
+    pub original_source_profile: Option<String>,
+    pub upstream_setup: ContentCapabilityState,
+    /// A change that can make this projection materially different.
+    pub reconsideration: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentCapabilityState {
+    Unknown,
+    Declared,
+    RequiresReviewedRuntime,
+    UpstreamGuidance,
+}
+
+fn inspect_content(
+    catalog: &Catalog,
+    listing: Option<&PortListing>,
+    port: Option<&PortDefinition>,
+    platform: Platform,
+) -> TargetContentCapabilities {
+    use ContentCapabilityState::{Declared, RequiresReviewedRuntime, Unknown, UpstreamGuidance};
+
+    let loader = port.and_then(|port| definition_loader(port, platform));
+    let runtime = loader.as_ref().map_or(Unknown, |_| RequiresReviewedRuntime);
+    let provider_bindings = port.map_or_else(Vec::new, crate::provider_binding::bindings);
+    let provider_browse = if provider_bindings.is_empty() {
+        Unknown
+    } else {
+        Declared
+    };
+    let updates = if provider_bindings.is_empty() {
+        Unknown
+    } else {
+        runtime
+    };
+    let original_source_profile = port.and_then(|port| port.source_profile.clone());
+    let original_recognition = original_source_profile
+        .as_deref()
+        .and_then(|id| {
+            catalog
+                .source_catalog()?
+                .identities
+                .iter()
+                .find(|profile| profile.id == id)
+        })
+        .is_some_and(|profile| {
+            profile
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .any(|variant| {
+                    variant.representations.iter().any(|representation| {
+                        !matches!(
+                            representation.kind,
+                            crate::SourceRepresentationKind::PinnedValidator { .. }
+                                | crate::SourceRepresentationKind::InformationalExtension { .. }
+                        )
+                    })
+                })
+        });
+    let upstream_setup = if listing
+        .is_some_and(|listing| listing.manual_setup.is_some() || listing.setup_url.is_some())
+    {
+        UpstreamGuidance
+    } else {
+        Unknown
+    };
+    TargetContentCapabilities {
+        platform,
+        loader: loader.as_ref().map(|loader| loader.engine.reference()),
+        provider_browse,
+        provider_bindings,
+        local_import: runtime,
+        managed_install: runtime,
+        managed_remove: runtime,
+        native_enabled_state: runtime,
+        native_ordering: runtime,
+        native_mod_settings: loader
+            .filter(|loader| matches!(loader.engine, ModEngine::N64Recomp))
+            .map_or(Unknown, |_| RequiresReviewedRuntime),
+        profiles: runtime,
+        provider_updates: updates,
+        upstream_mod_manager: Unknown,
+        original_recognition: if original_recognition {
+            Declared
+        } else {
+            Unknown
+        },
+        original_source_profile,
+        upstream_setup,
+        reconsideration: if port.is_none() {
+            "Reconsider when attributed setup evidence or an operational definition arrives."
+        } else {
+            "Reconsider when the definition, runtime, provider scope or source evidence changes."
+        },
+    }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -280,7 +403,7 @@ pub fn inspect_targets(
     Ok(TargetInspection {
         format_version: 2,
         producer: CoreProducer::current(),
-        scope: "catalog route offering and recorded qualification matched to the catalog-offered artifact per target for a fresh library; providers are not resolved, and definition trust, installed state and readiness are not assessed",
+        scope: "catalog route offering, declared content capabilities and recorded qualification matched to the catalog-offered artifact per target for a fresh library; providers are not resolved, and definition trust, installed state and readiness are not assessed",
         platforms,
         ports,
     })
@@ -291,9 +414,21 @@ fn inspect_port(
     port_id: String,
     platforms: &[Platform],
 ) -> PortTargetInspection {
+    use crate::acquisition_restriction::{
+        EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
+    };
     let listing = catalog.listing(&port_id).ok();
-    let download_restriction = listing.and_then(|listing| listing.download_block_reason.clone());
-    let Ok(port) = catalog.port(&port_id) else {
+    let download_restriction = listing.and_then(|listing| {
+        EffectiveRestrictions::listing_only(listing)
+            .evaluate(&RestrictionSubject::deferred(RestrictedOperation::Download))
+            .explanation()
+    });
+    let port = catalog.port(&port_id).ok();
+    let content_capabilities = platforms
+        .iter()
+        .map(|&platform| inspect_content(catalog, listing, port, platform))
+        .collect();
+    let Some(port) = port else {
         return PortTargetInspection {
             presence: if listing.is_some() {
                 CatalogPresence::ListingOnly
@@ -306,19 +441,26 @@ fn inspect_port(
             acquisition_hold: None,
             download_restriction,
             targets: Vec::new(),
+            content_capabilities,
             port_id,
         };
     };
-    let held = crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id).is_some();
+    let restrictions = EffectiveRestrictions::of(catalog, &port_id);
     let targets = platforms
         .iter()
         .map(|&platform| {
             let routes: Vec<TargetRoute> = [PortAction::Install, PortAction::RegisterExternal]
                 .into_iter()
                 .map(|action| {
-                    // A reviewed acquisition hold withdraws fresh managed acquisition,
-                    // exactly as it does in a library's action table.
-                    let reason = if held && crate::managed_runtime_policy::hold_withdraws(action) {
+                    // A restriction withdraws the operation it names on this
+                    // platform, exactly as it does in a library's action table.
+                    let held =
+                        RestrictedOperation::from_port_action(action).is_some_and(|operation| {
+                            restrictions
+                                .evaluate(&RestrictionSubject::deferred(operation).on(platform))
+                                .is_held()
+                        });
+                    let reason = if held {
                         Some(PortActionReason::RouteNotOffered)
                     } else {
                         route_exclusion(port, RouteHolding::default(), platform, action)
@@ -350,10 +492,10 @@ fn inspect_port(
     PortTargetInspection {
         presence: CatalogPresence::Operational,
         declared_platforms: port.platforms.clone(),
-        acquisition_hold: crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id)
-            .map(str::to_owned),
+        acquisition_hold: crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id),
         download_restriction,
         targets,
+        content_capabilities,
         port_id,
     }
 }
@@ -620,6 +762,86 @@ mod tests {
             .unwrap()
             .qualification
             .clone()
+    }
+
+    #[test]
+    fn content_capabilities_account_for_every_catalog_identity_and_target() {
+        let catalog = Catalog::embedded().unwrap();
+        let report = inspect_targets(&catalog, &[], &[]).unwrap();
+        let expected: std::collections::BTreeSet<_> = catalog
+            .listings()
+            .iter()
+            .map(|entry| &entry.id)
+            .chain(catalog.ports().iter().map(|entry| &entry.id))
+            .collect();
+        assert_eq!(
+            report
+                .ports
+                .iter()
+                .map(|entry| &entry.port_id)
+                .collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+        assert!(report.ports.iter().all(|entry| {
+            entry
+                .content_capabilities
+                .iter()
+                .map(|item| item.platform)
+                .eq(INSPECTABLE_PLATFORMS)
+        }));
+        let ship = report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == "shipwright")
+            .unwrap();
+        let windows = &ship.content_capabilities[0];
+        let apple = &ship.content_capabilities[3];
+        assert_eq!(windows.provider_browse, ContentCapabilityState::Declared);
+        assert_eq!(
+            windows.original_recognition,
+            ContentCapabilityState::Declared
+        );
+        assert_eq!(
+            windows.managed_install,
+            ContentCapabilityState::RequiresReviewedRuntime
+        );
+        assert_eq!(apple.provider_browse, ContentCapabilityState::Declared);
+        assert_eq!(apple.managed_install, ContentCapabilityState::Unknown);
+        assert_eq!(
+            apple.upstream_setup,
+            ContentCapabilityState::UpstreamGuidance
+        );
+        let recomp = report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(
+            recomp.content_capabilities[0].native_ordering,
+            ContentCapabilityState::RequiresReviewedRuntime
+        );
+        let dusklight = report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == "dusklight")
+            .unwrap();
+        let original = &dusklight.content_capabilities[0];
+        assert_eq!(
+            original.original_source_profile.as_deref(),
+            Some("twilight-princess")
+        );
+        assert_eq!(
+            original.original_recognition,
+            ContentCapabilityState::Unknown
+        );
+        let listing_only = report
+            .ports
+            .iter()
+            .find(|entry| matches!(entry.presence, CatalogPresence::ListingOnly))
+            .unwrap();
+        assert!(listing_only.content_capabilities.iter().all(|item| {
+            item.managed_install == ContentCapabilityState::Unknown && item.loader.is_none()
+        }));
     }
 
     #[test]
@@ -992,6 +1214,7 @@ mod tests {
                 "wave-race-64-recomp".into(),
                 "dkc2-recomp".into(),
                 "open-nectar-pikmin".into(),
+                "goldeneye-007-n64-pc-port".into(),
             ],
             &[Platform::WindowsX86_64, Platform::LinuxX86_64],
         )
@@ -1013,7 +1236,19 @@ mod tests {
             refusal("wave-race-64-recomp", Platform::WindowsX86_64),
             managed
         );
-        assert_eq!(refusal("wave-race-64-recomp", Platform::LinuxX86_64), None);
+        assert_eq!(
+            refusal("wave-race-64-recomp", Platform::LinuxX86_64),
+            managed
+        );
+        // GoldenEye keeps an upstream Linux listing alongside managed Windows.
+        assert_eq!(
+            refusal("goldeneye-007-n64-pc-port", Platform::WindowsX86_64),
+            managed
+        );
+        assert_eq!(
+            refusal("goldeneye-007-n64-pc-port", Platform::LinuxX86_64),
+            None
+        );
         // Prepared-player routes and held acquisition offer no Install to replace it.
         assert_eq!(refusal("dkc2-recomp", Platform::WindowsX86_64), None);
         assert_eq!(refusal("open-nectar-pikmin", Platform::WindowsX86_64), None);
@@ -1022,8 +1257,16 @@ mod tests {
             json["ports"][0]["targets"][0]["listing_download_refusal"],
             "managed-route"
         );
+        assert_eq!(
+            json["ports"][0]["targets"][1]["listing_download_refusal"],
+            "managed-route"
+        );
+        assert_eq!(
+            json["ports"][3]["targets"][0]["listing_download_refusal"],
+            "managed-route"
+        );
         assert!(
-            json["ports"][0]["targets"][1]
+            json["ports"][3]["targets"][1]
                 .get("listing_download_refusal")
                 .is_none()
         );

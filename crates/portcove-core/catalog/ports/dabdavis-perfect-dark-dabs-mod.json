@@ -60,6 +60,24 @@
     },
     "original_game_title": "Perfect Dark",
     "release_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
+        "https://github.com/DabDavis/perfect-dark-dabs-mod"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/cc90f3635adb570352c55a7ca73ce7198a10769e/README.md"
+          ]
+        }
+      ]
+    }
   }
 }

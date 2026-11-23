@@ -55,7 +55,31 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+        "tracking_issue": 2586
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "kingdom-hearts-chain-of-memories-gba",
+      "evidence_urls": ["https://github.com/MatyMeatBoy/ReKHCoM"],
+      "source_editions": [
+        {
+          "id": "kingdom-hearts-chain-of-memories-gba-game-boy-advance",
+          "title": "Kingdom Hearts: Chain of Memories (GBA) (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/MatyMeatBoy/ReKHCoM/blob/51edf7efa2c49c97a1c389ae2e4cd7e3b749448c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

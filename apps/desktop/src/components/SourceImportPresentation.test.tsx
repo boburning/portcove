@@ -59,7 +59,8 @@ it("describes a BIOS import without calling it a game file", () => {
   const html = renderToStaticMarkup(
     <SourceImportReview plan={biosPlan} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
   );
-  expect(html).toContain("Selected location:");
+  expect(html).toMatch(/<dt[^>]*>Selected location<\/dt>/u);
+  expect(html).toContain("D:/Firmware/bios.bin");
   expect(html).toContain("expected files again");
   expect(html).not.toContain("Game file:");
   expect(html).not.toContain("expected game files");

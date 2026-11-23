@@ -4,6 +4,14 @@
     "id": "ssx-2012-rexglue-static-recompilation-pmrazor-ssx-2012",
     "name": "SSX (2012) — SSX (2012) — rexglue static recompilation (pmrazor)",
     "original_game_title": "SSX (2012)",
+    "artwork": {
+      "game_id": 4179,
+      "cover_id": 138297,
+      "image_id": "co2ypl",
+      "image_sha256": "b3ec5735cf0742944014a45ef318a73aea82f53ccab6d9e01cafca488ec85625",
+      "game_slug": "ssx--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports races and saves on an RTX4070. UI glitches remain at 2x, and Linux and macOS are untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/pmrazor/SSX-RexGlue",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/pmrazor/SSX-RexGlue"
     },
-    "issue_number": 3286
+    "issue_number": 3286,
+    "original_game": {
+      "format_version": 1,
+      "id": "ssx-2012",
+      "evidence_urls": ["https://github.com/pmrazor/SSX-RexGlue"],
+      "source_editions": [
+        {
+          "id": "ssx-2012-xbox-360",
+          "title": "SSX (2012) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/pmrazor/SSX-RexGlue/blob/9eac5873c79b4448e5beded669c03abcaf833165/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

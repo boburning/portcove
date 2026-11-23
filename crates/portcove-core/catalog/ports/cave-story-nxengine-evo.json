@@ -5,8 +5,16 @@
     "name": "Cave Story (NXEngine-evo)",
     "summary": "Use a complete permitted NXEngine-evo player for freeware Cave Story, keeping its prepared data, translations and profile together. Cave Story+ is a separate input. You and the project manage this external copy; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Cave Story",
+    "artwork": {
+      "game_id": 6189,
+      "cover_id": 343222,
+      "image_id": "co7cty",
+      "image_sha256": "e4a8f52012ea95be32f9007525d6360312e5312450ed9eaeb7d0b3da51cc5d49",
+      "game_slug": "cave-story",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/nxengine/nxengine-evo",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nxengine/nxengine-evo",
     "issue_number": 2647,
@@ -52,7 +60,25 @@
         }
       ]
     },
-    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+        "tracking_issue": 2647
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "cave-story",
+      "evidence_urls": [
+        "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
+        "https://github.com/nxengine/nxengine-evo"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

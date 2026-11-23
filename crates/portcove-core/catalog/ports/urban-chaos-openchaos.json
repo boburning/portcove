@@ -3,10 +3,10 @@
   "listing": {
     "id": "urban-chaos-openchaos",
     "name": "Urban Chaos (OpenChaos)",
-    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux Steam Deck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
+    "summary": "OpenChaos runs Urban Chaos using files from your own 1999 PC copy on Steam, GOG or disc. Follow the setup for Windows, Linux or Apple silicon Mac. The project reports an end-to-end playthrough, with some bugs remaining.",
     "original_game_title": "Urban Chaos",
     "project_url": "https://github.com/UltimaBeaR/OpenChaos",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/UltimaBeaR/OpenChaos",
     "artwork": {
@@ -59,6 +59,25 @@
         {
           "title": "Keep every location that receives progress",
           "instruction": "Keep the effective OpenChaos profile, saves, settings and crash logs, the complete original and working game folders, and any files written to a custom location. Early crashes or failed profile lookup can leave files in the working folder. Linux and Mac setup and replacement are yours to manage."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "urban-chaos",
+      "evidence_urls": [
+        "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
+        "https://github.com/UltimaBeaR/OpenChaos",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/urban-chaos-openchaos.json"
+      ],
+      "source_editions": [
+        {
+          "id": "urban-chaos-pc",
+          "title": "Urban Chaos (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/urban-chaos-openchaos.json"
+          ]
         }
       ]
     }

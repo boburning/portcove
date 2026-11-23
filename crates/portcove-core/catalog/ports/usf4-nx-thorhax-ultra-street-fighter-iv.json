@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "usf4-nx-thorhax-ultra-street-fighter-iv",
+    "artwork": {
+      "game_id": 6656,
+      "cover_id": 88300,
+      "image_id": "co1w4s",
+      "image_sha256": "b64ee708f79de4a74f86435d3a507f4660e8de0a655eb7eb8444c3df4809452d",
+      "game_slug": "ultra-street-fighter-iv",
+      "match_kind": "underlying-game"
+    },
     "name": "Ultra Street Fighter IV — usf4-nx (Thorhax)",
     "original_game_title": "Ultra Street Fighter IV",
     "summary": "The project reports Windows Vulkan boot, menus and fights at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -28,7 +36,25 @@
       ],
       "help_url": "https://github.com/Thorhax/usf4-nx"
     },
-    "issue_number": 3230
+    "issue_number": 3230,
+    "original_game": {
+      "format_version": 1,
+      "id": "ultra-street-fighter-iv",
+      "evidence_urls": [
+        "https://github.com/Thorhax/usf4-nx",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/usf4-nx-thorhax-ultra-street-fighter-iv.json"
+      ],
+      "source_editions": [
+        {
+          "id": "ultra-street-fighter-iv-xbox-360",
+          "title": "Ultra Street Fighter IV (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/usf4-nx-thorhax-ultra-street-fighter-iv.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

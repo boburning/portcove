@@ -4,10 +4,18 @@
     "id": "furqanagwan-nhl-recomp-furqanagwan-nhl-legacy-edition",
     "name": "NHL Legacy Edition — furqanagwan NHL Recomp (furqanagwan)",
     "original_game_title": "NHL Legacy Edition",
+    "artwork": {
+      "game_id": 36848,
+      "cover_id": 120254,
+      "image_id": "co2kse",
+      "image_sha256": "defe24f153139946cb3e8a073f682b983dd07d1fee1c2b5e507902e66c231dfc",
+      "game_slug": "nhl-legacy-edition",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports part of a Montreal-at-Toronto match at 60 FPS and 4K on an RTX 5080 laptop in a GDK build. A full match, save/load, title updates, AMD/Intel graphics and the standard non-GDK build remain unconfirmed. Use the ROV renderer; the RTV path produces black 3D output. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/furqanagwan/nhl",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/furqanagwan/nhl",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/furqanagwan/nhl"
     },
-    "issue_number": 3134
+    "issue_number": 3134,
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-legacy-edition",
+      "evidence_urls": ["https://github.com/furqanagwan/nhl"],
+      "source_editions": [
+        {
+          "id": "nhl-legacy-edition-xbox-360",
+          "title": "NHL Legacy Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/furqanagwan-nhl-recomp-furqanagwan-nhl-legacy-edition.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

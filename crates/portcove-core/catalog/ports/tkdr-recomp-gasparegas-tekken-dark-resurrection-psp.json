@@ -35,6 +35,21 @@
       "image_sha256": "14e89635e2d23baa6321a5fde962cacf177150f1e17a2b7eac5f341fa9c09cf4",
       "game_slug": "tekken-dark-resurrection",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-dark-resurrection-psp",
+      "evidence_urls": ["https://github.com/gasparegas/tkdr-recomp"],
+      "source_editions": [
+        {
+          "id": "tekken-dark-resurrection-psp-playstation-portable",
+          "title": "Tekken: Dark Resurrection (PSP) (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/gasparegas/tkdr-recomp/blob/588186e2859c76d0a93ec67f005114114cb21833/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

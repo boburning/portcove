@@ -6,6 +6,14 @@
     "original_game_title": "Felix the Cat (Unl)",
     "summary": "Upstream reports 145 translated functions and comparisons covering 20,000 frames. Random-number behavior, music and audio alignment differ; completion is unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/minusthreenottree/felix-the-cat-bootleg-recomp",
+    "artwork": {
+      "game_id": 200482,
+      "cover_id": 279230,
+      "image_id": "co5zge",
+      "image_sha256": "30dc661294fb5246479d2e4de9aa6f76226415b6ad0b52b5ac02c3dc4ac9e66d",
+      "game_slug": "felix-the-cat--2",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/minusthreenottree/felix-the-cat-bootleg-recomp"
     },
-    "issue_number": 3577
+    "issue_number": 3577,
+    "original_game": {
+      "format_version": 1,
+      "id": "felix-the-cat-unl",
+      "evidence_urls": ["https://github.com/minusthreenottree/felix-the-cat-bootleg-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

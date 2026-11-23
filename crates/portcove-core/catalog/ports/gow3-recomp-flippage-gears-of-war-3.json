@@ -6,7 +6,7 @@
     "original_game_title": "Gears of War 3",
     "summary": "Upstream reports startup, menus, early campaign chapters, saved checkpoints and local two-instance System Link co-op. A full campaign, internet co-op, Horde, Beast, Versus and AMD FSR remain untested. Portcove has not confirmed the release or expanded keybindings. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Flippage/gears-of-war-3-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Flippage/gears-of-war-3-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "9d52d23bb2122aa4484bf3d971ecffea246fcced40234bae059106a95f950f40",
       "game_slug": "gears-of-war-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-3",
+      "evidence_urls": ["https://github.com/Flippage/gears-of-war-3-recomp"],
+      "source_editions": [
+        {
+          "id": "gears-of-war-3-xbox-360",
+          "title": "Gears of War 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Flippage/gears-of-war-3-recomp/blob/81076705bb35e1ae18641af5425bf30f8c310259/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

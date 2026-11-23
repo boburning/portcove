@@ -3,14 +3,57 @@
   "listing": {
     "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
     "name": "Diablo II: Resurrected — Reign of the Warlock (d2r-mobile)",
-    "summary": "An experimental Diablo II: Resurrected-specific ARM64 compatibility project using Metal/Vulkan. Broad mobile playability and performance are project claims; the early Mac version has keyboard/gamepad limits described in its guide. setup.sh prepares patched modules and shaders locally, and mac_app.sh builds a Mac app; DM_MAC_M3 selects the older API. iOS shell ZIPs and Android/HarmonyOS shell files still need your own runtime and game data, and updates require rebuilding. Documented platforms are Apple Silicon macOS 26+ or older API 15–25, iOS 26 or older API 18–25, and Android ARM64 API 31+/Vulkan 1.1; Intel is unsupported. HarmonyOS has separate community support, while tvOS is only a character-selection preview. Use your own Switch game and required expansion 1.0.34.0 (PC 3.3.94012), matching ExeFS/RomFS and prod.keys for extraction. Other build IDs are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build this Diablo II: Resurrected port from your own Switch game and Reign of the Warlock expansion 1.0.34.0. The project has Apple silicon Mac, iOS and Android routes. Mobile downloads still need your game files and a locally prepared runtime.",
     "original_game_title": "Diablo II: Resurrected — Reign of the Warlock",
+    "artwork": {
+      "game_id": 389355,
+      "cover_id": 536725,
+      "image_id": "cobi51",
+      "image_sha256": "da44d1fa63bec349bbdae0dba8788fdb64545d338228fb56fece1518a841bb38",
+      "game_slug": "diablo-ii-resurrected-reign-of-the-warlock",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",
-    "issue_number": 2978
+    "issue_number": 2978,
+    "manual_setup": {
+      "help_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use the matching expansion build 1.0.34.0 (PC 3.3.94012), ExeFS, RomFS and your own prod.keys for extraction. Other build IDs are unconfirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use setup.sh to prepare modules and shaders. On Mac, mac_app.sh builds the app and DM_MAC_M3 selects the older API. The iOS shell ZIP and Android shell files need your own prepared data. Rebuild when updating."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The guide covers Apple silicon macOS 26 or later or an older API on 15–25, iOS 26 or an older API on 18–25, and Android ARM64 API 31+ with Vulkan 1.1. The early Mac has keyboard and gamepad limits. HarmonyOS is community-supported and tvOS has reached character selection only."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-ii-resurrected-reign-of-the-warlock",
+      "evidence_urls": ["https://github.com/jhaizhou-ops/d2r-mobile"],
+      "source_editions": [
+        {
+          "id": "diablo-ii-resurrected-reign-of-the-warlock-nintendo-switch",
+          "title": "Diablo II: Resurrected — Reign of the Warlock (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/jhaizhou-ops/d2r-mobile/blob/90a7a83c142479a262ff7877e4e95ad45125b800/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

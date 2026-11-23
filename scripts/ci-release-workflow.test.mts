@@ -20,7 +20,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
+const reviewedInstallAction = "taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c"; // v2.90.8
 
 void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
@@ -531,11 +531,37 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
 
+void test("only complete regular listing edits bypass PR controller fixture builds", async () => {
+  const { catalogDataOnlyFixtureChanges } = await import("./release-controller-fixture-scope.mts");
+  const path = "crates/portcove-core/catalog/listings.json";
+  const edit = { status: "M", oldMode: "100644", newMode: "100644", oldPath: path, newPath: path };
+  const plan = { mode: "fast" as const, discovery: "complete" as const, changes: [edit] };
+  assert.equal(catalogDataOnlyFixtureChanges(plan), true);
+  for (const changes of [
+    [],
+    [{ ...edit, status: "D", newMode: "000000" }],
+    [{ ...edit, status: "R", newPath: "crates/portcove-core/catalog/other.json" }],
+    [{ ...edit, newMode: "120000" }],
+    [edit, { ...edit, newPath: "crates/portcove-core/src/catalog.rs" }],
+  ])
+    assert.equal(catalogDataOnlyFixtureChanges({ ...plan, changes }), false);
+  assert.equal(catalogDataOnlyFixtureChanges({ ...plan, discovery: "failed" }), false);
+  assert.equal(catalogDataOnlyFixtureChanges({ ...plan, mode: "qualification" }), false);
+});
+
 void test("controller fixtures cover Windows driver, semantic worker, and bootstrap protection changes", async () => {
   const workflow = await readWorkflow(
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
   const settings: unknown = parseDocument(workflow).toJS();
+  for (const name of ["fixture", "windows-tools"]) {
+    const job = workflowJob(name, workflow);
+    assert.equal(job.needs, "scope");
+    assert.match(
+      String(job.if),
+      /!cancelled\(\) && \(needs\.scope\.result != 'success' \|\| needs\.scope\.outputs\.catalog_data_only != 'true'\)/u,
+    );
+  }
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
     const section: unknown = settings.on[trigger];

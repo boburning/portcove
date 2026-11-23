@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hedgewars",
+    "artwork": {
+      "game_id": 28346,
+      "cover_id": 116296,
+      "image_id": "co2hqg",
+      "image_sha256": "e5c79c72e0da09d5dd4659c88dd3464ac13d54093de12410a30a75eef49696f7",
+      "game_slug": "hedgewars",
+      "match_kind": "underlying-game"
+    },
+    "name": "Hedgewars",
+    "original_game_title": "Hedgewars",
+    "summary": "Play turn-based artillery matches with hedgehog teams, campaigns, and local games.",
+    "project_url": "https://github.com/hedgewars/hw",
+    "issue_number": 6423,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://www.hedgewars.org/download.html",
+    "setup_url": "https://www.hedgewars.org/download.html",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the publisher's Windows or Intel Mac installer, or install the Linux package through your package manager or Flathub.",
+        "tracking_issue": 6423
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install Hedgewars on Windows or Intel Mac",
+          "instruction": "Use the publisher’s 1.0.0 installer on Windows with 32-bit application support, or copy the complete Hedgewars app from the Intel Mac disk image. Hedgewars also publishes 1.0.3 source with build and crash fixes. The Windows and Mac binaries are still 1.0.0. Check the publisher’s download page for a newer installer or disk image."
+        },
+        {
+          "title": "Install Hedgewars on Linux",
+          "instruction": "Use your distribution’s hedgewars package or install the community package org.hedgewars.Hedgewars from Flathub on x64 or ARM64. Start the installed launcher so it can find its game data and engine. Use the same package manager for updates."
+        },
+        {
+          "title": "Keep your teams, saves and replays",
+          "instruction": "Close the game before copying its profile. On Windows, copy Hedgewars from your Documents folder. If Windows could not find Documents, check %USERPROFILE%\\.hedgewars. On Mac, copy ~/Library/Application Support/Hedgewars. On Linux, copy ~/.hedgewars or, for Flathub, ~/.var/app/org.hedgewars.Hedgewars/.hedgewars. If you used --config-dir, copy that folder. Keep the whole profile for teams, schemes, saves and replays."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Use an existing Ubuntu installation",
+          "instruction": "When registering the Ubuntu package with the Portcove CLI, select /usr/lib/hedgewars/bin/hedgewars and use /usr/lib/hedgewars/bin as the working directory. The /usr/games/hedgewars shortcut is a symlink. Use the in-match quit prompt when you want to resume an unfinished match."
+        }
+      ],
+      "help_url": "https://www.hedgewars.org/faq.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hedgewars",
+      "evidence_urls": [
+        "https://www.hedgewars.org/download.html",
+        "https://www.hedgewars.org/faq.html",
+        "https://github.com/hedgewars/hw"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hedgewars",
+    "origin": {
+      "project_url": "https://github.com/hedgewars/hw",
+      "repository": {
+        "host": "github.com",
+        "id": "11591232"
+      }
+    },
+    "decisions": []
+  }
+}

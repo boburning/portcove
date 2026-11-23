@@ -7,7 +7,10 @@ use crate::game_settings::{document, windows::HeldFile};
 use crate::operation::game_settings::{FileCustody, SettingsJournal, owned_names};
 use crate::operation::{LifecycleFaultInjector, SettingsFaultPoint};
 
-fn checkpoint(faults: &dyn LifecycleFaultInjector, point: SettingsFaultPoint) -> Result<()> {
+pub(super) fn checkpoint(
+    faults: &dyn LifecycleFaultInjector,
+    point: SettingsFaultPoint,
+) -> Result<()> {
     faults.check(LifecycleFaultPoint::SettingsBoundary(point))
 }
 
@@ -17,7 +20,7 @@ fn conflict() -> PortcoveError {
     )
 }
 
-fn hash(bytes: &[u8]) -> String {
+pub(super) fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
@@ -45,20 +48,20 @@ fn confirm_persisted(store: &OperationStore, operation: &LifecycleOperation) -> 
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum LegState {
+pub(super) enum LegState {
     Before,
     Gap,
     Published,
     Cleaned,
 }
 
-struct Leg {
+pub(super) struct Leg {
     live: Option<HeldFile>,
     stage: Option<HeldFile>,
     old: Option<HeldFile>,
-    state: LegState,
-    before: Option<Vec<u8>>,
-    after: Vec<u8>,
+    pub(super) state: LegState,
+    pub(super) before: Option<Vec<u8>>,
+    pub(super) after: Vec<u8>,
 }
 
 fn open_optional(path: &Path) -> Result<Option<HeldFile>> {
@@ -69,7 +72,7 @@ fn open_optional(path: &Path) -> Result<Option<HeldFile>> {
     }
 }
 
-fn checked_bytes(
+pub(super) fn checked_bytes(
     held: &mut HeldFile,
     custody: &FileCustody,
     original: bool,
@@ -96,7 +99,7 @@ fn checked_bytes(
 }
 
 impl Leg {
-    fn open(custody: &FileCustody, id: &str, role: &str, maximum: u64) -> Result<Self> {
+    pub(super) fn open(custody: &FileCustody, id: &str, role: &str, maximum: u64) -> Result<Self> {
         let (stage_path, old_path) = owned_names(&custody.path, id, role)?;
         let mut live = open_optional(&custody.path)?;
         let mut stage = open_optional(&stage_path)?;
@@ -155,7 +158,7 @@ impl Leg {
         })
     }
 
-    fn publish(
+    pub(super) fn publish(
         &mut self,
         custody: &FileCustody,
         id: &str,
@@ -207,7 +210,7 @@ impl Leg {
         Ok(())
     }
 
-    fn retire_preimage(&mut self, custody: &FileCustody, maximum: u64) -> Result<()> {
+    pub(super) fn retire_preimage(&mut self, custody: &FileCustody, maximum: u64) -> Result<()> {
         checked_bytes(
             self.live.as_mut().ok_or_else(conflict)?,
             custody,
@@ -223,7 +226,11 @@ impl Leg {
     }
 }
 
-fn custody(original: &HeldFile, previous_sha256: &str, proposed_sha256: &str) -> FileCustody {
+pub(super) fn custody(
+    original: &HeldFile,
+    previous_sha256: &str,
+    proposed_sha256: &str,
+) -> FileCustody {
     FileCustody {
         path: original.path.clone(),
         parent_identity: original.parent_identity.clone(),
@@ -231,6 +238,168 @@ fn custody(original: &HeldFile, previous_sha256: &str, proposed_sha256: &str) ->
         replacement_identity: None,
         previous_sha256: previous_sha256.into(),
         proposed_sha256: proposed_sha256.into(),
+    }
+}
+
+pub(super) enum StageBinding {
+    Bind(String),
+    Confirm,
+}
+
+pub(super) fn prepare_file_stage(
+    id: &str,
+    role: &str,
+    bytes: &[u8],
+    original: &HeldFile,
+    custody: &FileCustody,
+    faults: &dyn LifecycleFaultInjector,
+    mut bind: impl FnMut(StageBinding) -> Result<()>,
+) -> Result<()> {
+    use crate::game_settings::windows::StageCheckpoint;
+    if hash(bytes) != custody.proposed_sha256 {
+        return Err(conflict());
+    }
+    let (new, _) = owned_names(&custody.path, id, role)?;
+    let mut stage = if let Some(expected) = &custody.replacement_identity {
+        let stage = HeldFile::open_stage(&new)?;
+        if &stage.identity != expected || stage.parent_identity != custody.parent_identity {
+            return Err(conflict());
+        }
+        stage
+    } else {
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageBeforeCreate
+            } else {
+                SettingsFaultPoint::RuntimeStageBeforeCreate
+            },
+        )?;
+        // Even empty or byte-identical unbound entries are unknown; the
+        // durable intent keeps them discoverable without adopting them.
+        match fs::symlink_metadata(&new) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Ok(_) => return Err(PortcoveError::conflict("unbound configuration staging requires review; original files and staging were preserved").detail("settings_stage_state", "unbound_existing")),
+            Err(error) => return Err(error.into()),
+        }
+        let stage = HeldFile::create_stage(&new)?;
+        if stage.parent_identity != custody.parent_identity {
+            return Err(conflict());
+        }
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageCreated
+            } else {
+                SettingsFaultPoint::RuntimeStageCreated
+            },
+        )?;
+        bind(StageBinding::Bind(stage.identity.clone()))?;
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageBound
+            } else {
+                SettingsFaultPoint::RuntimeStageBound
+            },
+        )?;
+        stage
+    };
+    bind(StageBinding::Confirm)?;
+    stage.preserve_security_from(original)?;
+    stage.fill_stage(bytes, &|point| {
+        checkpoint(
+            faults,
+            match (role, point) {
+                ("canonical", StageCheckpoint::PartialWrite) => {
+                    SettingsFaultPoint::CanonicalStagePartialWrite
+                }
+                ("canonical", StageCheckpoint::BeforeFlush) => {
+                    SettingsFaultPoint::CanonicalStageBeforeFlush
+                }
+                ("canonical", StageCheckpoint::Flushed) => {
+                    SettingsFaultPoint::CanonicalStageFlushed
+                }
+                (_, StageCheckpoint::PartialWrite) => SettingsFaultPoint::RuntimeStagePartialWrite,
+                (_, StageCheckpoint::BeforeFlush) => SettingsFaultPoint::RuntimeStageBeforeFlush,
+                (_, StageCheckpoint::Flushed) => SettingsFaultPoint::RuntimeStageFlushed,
+            },
+        )
+    })?;
+    if hash(&stage.bytes(bytes.len() as u64)?) != custody.proposed_sha256 {
+        return Err(conflict());
+    }
+    Ok(())
+}
+
+impl SettingsJournal {
+    fn reviewed_edits(&self) -> Vec<crate::ReviewedGameSettingsEdit> {
+        match &self.review {
+            SettingsJournalReview::Single(review) => vec![crate::ReviewedGameSettingsEdit {
+                edit: GameSettingsEdit {
+                    setting_id: review.setting_id.clone(),
+                    change: review.change.clone(),
+                },
+                label: review.label.clone(),
+                previous_value: review.previous_value.clone(),
+                proposed_value: review.proposed_value.clone(),
+            }],
+            SettingsJournalReview::ChangeSet(review) => review.edits.clone(),
+        }
+    }
+
+    fn rebuild_postimage(&self, file: &GameSettingsFile, before: &[u8]) -> Result<Vec<u8>> {
+        let expected = self.reviewed_edits();
+        let requests: Vec<_> = expected.iter().map(|entry| entry.edit.clone()).collect();
+        let (bytes, reviewed) = document::edit_set(file, before, &requests)?;
+        if expected != reviewed || hash(&bytes) != self.canonical.proposed_sha256 {
+            return Err(conflict());
+        }
+        Ok(bytes)
+    }
+
+    fn verify_postimage(&self, file: &GameSettingsFile, after: &[u8]) -> Result<()> {
+        let values = document::read(file, after)?;
+        for entry in self.reviewed_edits() {
+            let index = file
+                .settings
+                .iter()
+                .position(|setting| setting.id == entry.edit.setting_id)
+                .ok_or_else(conflict)?;
+            if entry.label != file.settings[index].label
+                || values[index].as_ref() != Some(&entry.proposed_value)
+            {
+                return Err(conflict());
+            }
+        }
+        Ok(())
+    }
+
+    fn verify_review_binding(
+        &self,
+        context: &SettingsContext,
+        file: &GameSettingsFile,
+    ) -> Result<()> {
+        let binding = review_binding(
+            context,
+            file,
+            &self.review,
+            &self.canonical.proposed_sha256,
+            ReviewObjects {
+                canonical: (
+                    &self.canonical.original_identity,
+                    &self.canonical.parent_identity,
+                ),
+                runtime: self
+                    .runtime
+                    .as_ref()
+                    .map(|leg| (leg.original_identity.as_str(), leg.parent_identity.as_str())),
+            },
+        )?;
+        if binding != self.review.sha256() {
+            return Err(conflict());
+        }
+        Ok(())
     }
 }
 
@@ -275,41 +444,8 @@ impl PortcoveService {
                 _ => return Err(conflict()),
             }
         }
-        let index = file
-            .settings
-            .iter()
-            .position(|setting| setting.id == payload.review.setting_id)
-            .ok_or_else(conflict)?;
-        let setting = &file.settings[index];
-        let proposed = match &payload.review.change {
-            GameSettingChange::Set { value } => value.clone(),
-            GameSettingChange::Reset => setting.value.default_value(),
-        };
-        let bytes = document::edit(file, &before, &setting.id, &proposed)?;
-        if hash(&bytes) != payload.canonical.proposed_sha256
-            || payload.review.label != setting.label
-            || document::read(file, &before)?.get(index) != Some(&payload.review.previous_value)
-            || document::read(file, &bytes)?.get(index)
-                != Some(&Some(payload.review.proposed_value.clone()))
-            || review_binding(
-                context,
-                file,
-                &payload.review,
-                &payload.canonical.proposed_sha256,
-                ReviewObjects {
-                    canonical: (
-                        &payload.canonical.original_identity,
-                        &payload.canonical.parent_identity,
-                    ),
-                    runtime: payload
-                        .runtime
-                        .as_ref()
-                        .map(|leg| (leg.original_identity.as_str(), leg.parent_identity.as_str())),
-                },
-            )? != payload.review.review_sha256
-        {
-            return Err(conflict());
-        }
+        payload.verify_review_binding(context, file)?;
+        let bytes = payload.rebuild_postimage(file, &before)?;
         self.prepare_settings_stage(store, operation, "canonical", &bytes, &canonical)?;
         if payload.runtime.is_some() {
             checkpoint(self.faults.as_ref(), SettingsFaultPoint::BetweenStages)?;
@@ -332,7 +468,6 @@ impl PortcoveService {
         bytes: &[u8],
         original: &HeldFile,
     ) -> Result<()> {
-        use crate::game_settings::windows::StageCheckpoint;
         let payload = operation.game_settings.as_ref().ok_or_else(conflict)?;
         let custody = if role == "canonical" {
             &payload.canonical
@@ -340,88 +475,27 @@ impl PortcoveService {
             payload.runtime.as_ref().ok_or_else(conflict)?
         }
         .clone();
-        let (new, _) = owned_names(&custody.path, &operation.id, role)?;
-        let mut stage = if let Some(expected) = &custody.replacement_identity {
-            let stage = HeldFile::open_stage(&new)?;
-            if &stage.identity != expected || stage.parent_identity != custody.parent_identity {
-                return Err(conflict());
-            }
-            stage
-        } else {
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageBeforeCreate
-                } else {
-                    SettingsFaultPoint::RuntimeStageBeforeCreate
-                },
-            )?;
-            // Even empty or byte-identical unbound entries are unknown; the
-            // durable intent keeps them discoverable without adopting them.
-            match fs::symlink_metadata(&new) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
-                Ok(_) => return Err(PortcoveError::conflict("unbound configuration staging requires review; original files and staging were preserved").detail("settings_stage_state", "unbound_existing")),
-                Err(error) => return Err(error.into()),
-            }
-            let stage = HeldFile::create_stage(&new)?;
-            if stage.parent_identity != custody.parent_identity {
-                return Err(conflict());
-            }
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageCreated
-                } else {
-                    SettingsFaultPoint::RuntimeStageCreated
-                },
-            )?;
-            let payload = operation.game_settings.as_mut().ok_or_else(conflict)?;
-            let target = if role == "canonical" {
-                &mut payload.canonical
-            } else {
-                payload.runtime.as_mut().ok_or_else(conflict)?
-            };
-            target.replacement_identity = Some(stage.identity.clone());
-            persist_checked(store, operation)?;
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageBound
-                } else {
-                    SettingsFaultPoint::RuntimeStageBound
-                },
-            )?;
-            stage
-        };
-        confirm_persisted(store, operation)?;
-        stage.preserve_security_from(original)?;
-        stage.fill_stage(bytes, &|point| {
-            checkpoint(
-                self.faults.as_ref(),
-                match (role, point) {
-                    ("canonical", StageCheckpoint::PartialWrite) => {
-                        SettingsFaultPoint::CanonicalStagePartialWrite
-                    }
-                    ("canonical", StageCheckpoint::BeforeFlush) => {
-                        SettingsFaultPoint::CanonicalStageBeforeFlush
-                    }
-                    ("canonical", StageCheckpoint::Flushed) => {
-                        SettingsFaultPoint::CanonicalStageFlushed
-                    }
-                    (_, StageCheckpoint::PartialWrite) => {
-                        SettingsFaultPoint::RuntimeStagePartialWrite
-                    }
-                    (_, StageCheckpoint::BeforeFlush) => {
-                        SettingsFaultPoint::RuntimeStageBeforeFlush
-                    }
-                    (_, StageCheckpoint::Flushed) => SettingsFaultPoint::RuntimeStageFlushed,
-                },
-            )
-        })?;
-        if hash(&stage.bytes(bytes.len() as u64)?) != custody.proposed_sha256 {
-            return Err(conflict());
-        }
-        Ok(())
+        prepare_file_stage(
+            &operation.id.clone(),
+            role,
+            bytes,
+            original,
+            &custody,
+            self.faults.as_ref(),
+            |binding| match binding {
+                StageBinding::Bind(identity) => {
+                    let payload = operation.game_settings.as_mut().ok_or_else(conflict)?;
+                    let target = if role == "canonical" {
+                        &mut payload.canonical
+                    } else {
+                        payload.runtime.as_mut().ok_or_else(conflict)?
+                    };
+                    target.replacement_identity = Some(identity);
+                    persist_checked(store, operation)
+                }
+                StageBinding::Confirm => confirm_persisted(store, operation),
+            },
+        )
     }
 
     pub fn apply_game_setting(
@@ -435,10 +509,52 @@ impl PortcoveService {
         let _ownership = self.library.try_lock_port(port_id, "apply-game-setting")?;
         let context = self.settings_context_already_locked(port_id)?;
         let prepared = self.prepare_settings_change(&context, file_id, setting_id, change)?;
-        if prepared.review.review_sha256 != review_sha256 {
-            return Err(PortcoveError::conflict(
+        self.commit_prepared_settings(&context, file_id, prepared, review_sha256)
+    }
+
+    pub fn apply_game_settings_change_set(
+        &self,
+        port_id: &str,
+        file_id: &str,
+        edits: &[GameSettingsEdit],
+        review_sha256: &str,
+    ) -> Result<GameSettingsView> {
+        let _ownership = self
+            .library
+            .try_lock_port(port_id, "apply-game-settings-change-set")
+            .map_err(|error| error.with_mutation_state(crate::MutationState::NotStarted))?;
+        let context = self
+            .settings_context_for_install_already_locked(
+                port_id,
+                SettingsInstallScope::Materialized,
+            )
+            .map_err(|error| error.with_mutation_state(crate::MutationState::NotStarted))?;
+        let prepared = self
+            .prepare_settings_change_set(&context, file_id, edits)
+            .map_err(|error| error.with_mutation_state(crate::MutationState::NotStarted))?;
+        self.commit_prepared_settings(&context, file_id, prepared, review_sha256)
+    }
+
+    fn commit_prepared_settings(
+        &self,
+        context: &SettingsContext,
+        file_id: &str,
+        prepared: PreparedSettingsChange,
+        review_sha256: &str,
+    ) -> Result<GameSettingsView> {
+        let port_id = &context.port.id;
+        if prepared.review.sha256() != review_sha256 {
+            let error = PortcoveError::conflict(
                 "settings review is stale; read the configuration and review again",
-            ));
+            )
+            .with_known_cause(crate::failure::KnownFailureCause::SettingsReviewStale);
+            return Err(
+                if matches!(&prepared.review, SettingsJournalReview::ChangeSet(_)) {
+                    error.with_mutation_state(crate::MutationState::NotStarted)
+                } else {
+                    error
+                },
+            );
         }
         let file = context
             .port
@@ -456,10 +572,13 @@ impl PortcoveService {
         )?;
         let (canonical_new, canonical_old) =
             owned_names(&prepared.canonical.path, &activity.id, "canonical")?;
-        let previous_sha256 = &prepared.review.configuration_sha256;
+        let (format_version, previous_sha256) = match &prepared.review {
+            SettingsJournalReview::Single(review) => (1, &review.configuration_sha256),
+            SettingsJournalReview::ChangeSet(review) => (2, &review.configuration_sha256),
+        };
         let proposed_sha256 = hash(&prepared.bytes);
         let payload = SettingsJournal {
-            format_version: 1,
+            format_version,
             install: context.install.clone(),
             definition_sha256: context.definition_sha256.clone(),
             file_id: file_id.into(),
@@ -492,6 +611,18 @@ impl PortcoveService {
                 ActivityStatus::Failed,
                 Some(&error.message),
             );
+            let error = if format_version == 2 {
+                let outcome = match store.get(&activity.id) {
+                    Ok(Some(_)) => crate::MutationState::RecoveryRequired,
+                    Ok(None) => crate::MutationState::NoChanges,
+                    Err(_) => crate::MutationState::Unknown,
+                };
+                error
+                    .with_mutation_state(outcome)
+                    .detail("operation_id", &activity.id)
+            } else {
+                error
+            };
             return Err(error);
         }
         drop(prepared);
@@ -501,23 +632,49 @@ impl PortcoveService {
         if let Err(error) = checkpoint(self.faults.as_ref(), SettingsFaultPoint::Journaled)
             .and_then(|()| self.recover_settings_change(&store, &mut operation))
         {
-            if let Ok(Some(mut current)) = store.get(&activity.id) {
-                current.last_error = Some(error.message.clone());
-                let _ = store.put(&mut current);
-            }
-            let _ = self.library.finish_activity(
-                &activity.id,
-                ActivityStatus::Failed,
-                Some(&error.message),
-            );
-            return Err(error);
+            let outcome = match store.get(&activity.id) {
+                Ok(Some(mut current)) => {
+                    current.last_error = Some(error.message.clone());
+                    let _ = store.put(&mut current);
+                    crate::MutationState::RecoveryRequired
+                }
+                Ok(None) if operation.phase == LifecyclePhase::CleanupPending => {
+                    crate::MutationState::Committed
+                }
+                _ => crate::MutationState::Unknown,
+            };
+            let status = if format_version == 2 && outcome == crate::MutationState::Committed {
+                ActivityStatus::Succeeded
+            } else {
+                ActivityStatus::Failed
+            };
+            let _ = self
+                .library
+                .finish_activity(&activity.id, status, Some(&error.message));
+            return Err(if format_version == 2 {
+                error
+                    .with_mutation_state(outcome)
+                    .detail("operation_id", &activity.id)
+            } else {
+                error
+            });
         }
-        self.library.finish_activity(
-            &activity.id,
-            ActivityStatus::Succeeded,
-            Some("reviewed configuration change and runtime projection verified"),
-        )?;
-        self.settings_view_already_locked(&context)
+        self.library
+            .finish_activity(
+                &activity.id,
+                ActivityStatus::Succeeded,
+                Some("reviewed configuration change and runtime projection verified"),
+            )
+            .and_then(|()| self.settings_view_already_locked(context))
+            .map_err(|error| {
+                if format_version == 2 {
+                    error
+                        .with_mutation_state(crate::MutationState::Committed)
+                        .detail("operation_id", &activity.id)
+                } else {
+                    error
+                }
+            })
     }
 
     pub(in crate::service) fn recover_settings_change(
@@ -531,7 +688,13 @@ impl PortcoveService {
             .as_ref()
             .ok_or_else(conflict)?
             .clone();
-        let context = self.settings_context_already_locked(&operation.port_id)?;
+        let context = self.settings_context_for_install_already_locked(
+            &operation.port_id,
+            match &initial.review {
+                SettingsJournalReview::Single(_) => SettingsInstallScope::Active,
+                SettingsJournalReview::ChangeSet(_) => SettingsInstallScope::RecoverMaterialized,
+            },
+        )?;
         if serde_json::to_value(&context.install)? != serde_json::to_value(&initial.install)?
             || context.definition_sha256 != initial.definition_sha256
         {
@@ -554,6 +717,11 @@ impl PortcoveService {
         {
             return Err(conflict());
         }
+        if let SettingsJournalReview::ChangeSet(review) = &initial.review
+            && self.settings_setup_identity(&operation.port_id)? != review.setup
+        {
+            return Err(conflict());
+        }
         if operation.phase == LifecyclePhase::Preparing {
             self.prepare_settings_stages(store, operation, &context, file)?;
         }
@@ -573,51 +741,14 @@ impl PortcoveService {
             .as_ref()
             .map(|leg| Leg::open(leg, &operation.id, "runtime", payload.maximum_bytes))
             .transpose()?;
-        let index = file
-            .settings
-            .iter()
-            .position(|setting| setting.id == payload.review.setting_id)
-            .ok_or_else(conflict)?;
-        let setting = &file.settings[index];
-        if payload.review.label != setting.label {
-            return Err(conflict());
-        }
-        let proposed = match &payload.review.change {
-            GameSettingChange::Set { value } => value.clone(),
-            GameSettingChange::Reset => setting.value.default_value(),
-        };
+        payload.verify_review_binding(&context, file)?;
         for leg in std::iter::once(&canonical).chain(runtime.iter()) {
             if let Some(before) = &leg.before
-                && (document::read(file, before)?.get(index)
-                    != Some(&payload.review.previous_value)
-                    || document::edit(file, before, &setting.id, &proposed)? != leg.after)
+                && payload.rebuild_postimage(file, before)? != leg.after
             {
                 return Err(conflict());
             }
-            if document::read(file, &leg.after)?.get(index)
-                != Some(&Some(payload.review.proposed_value.clone()))
-            {
-                return Err(conflict());
-            }
-        }
-        let binding = review_binding(
-            &context,
-            file,
-            &payload.review,
-            &payload.canonical.proposed_sha256,
-            ReviewObjects {
-                canonical: (
-                    &payload.canonical.original_identity,
-                    &payload.canonical.parent_identity,
-                ),
-                runtime: payload
-                    .runtime
-                    .as_ref()
-                    .map(|leg| (leg.original_identity.as_str(), leg.parent_identity.as_str())),
-            },
-        )?;
-        if binding != payload.review.review_sha256 {
-            return Err(conflict());
+            payload.verify_postimage(file, &leg.after)?;
         }
         let runtime_state = runtime.as_ref().map(|leg| leg.state);
         let allowed = match operation.phase {

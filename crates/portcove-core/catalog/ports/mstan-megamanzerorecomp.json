@@ -18,9 +18,6 @@
       "match_kind": "underlying-game"
     },
     "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["MegaManZeroRecomp-windows-x64-", ".zip"]
-    },
     "release_url": "https://github.com/mstan/MegaManZeroRecomp/releases",
     "manual_setup": {
       "steps": [
@@ -50,9 +47,30 @@
       ],
       "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
     },
-    "original_game_title": "Mega Man Zero"
+    "original_game_title": "Mega Man Zero",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-zero",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
+        "https://github.com/mstan/MegaManZeroRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-zero-game-boy-advance",
+          "title": "Mega Man Zero (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManZeroRecomp/blob/73206f2405d555bdcffff018bd88db1cb0c94a10/README.md"
+          ]
+        }
+      ]
+    }
   },
-  "gba_staged_archive_v1": { "game_code": "AZCE", "versioned_mods": true },
+  "gba_staged_archive_v1": {
+    "game_code": "AZCE",
+    "versioned_mods": true
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -74,5 +92,6 @@
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility."
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

@@ -2,8 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "v64recomp-quake2-us-polaco1782-quake-ii-n64",
+    "artwork": {
+      "game_id": 262016,
+      "cover_id": 337429,
+      "image_id": "co78d1",
+      "image_sha256": "a9e5612910490bb5b25838c9e2b58d12905065226699acf9643bd033a8ecd377",
+      "game_slug": "quake-ii--2",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake II (N64) — v64recomp / quake2-us (polaco1782)",
-    "original_game_title": "Quake II (N64)",
+    "original_game_title": "Quake II (Nintendo 64)",
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "listed_at": "2026-10-25",
@@ -37,7 +45,18 @@
         }
       ]
     },
-    "issue_number": 3604
+    "issue_number": 3604,
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii-nintendo-64",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp",
+        "https://nightdivestudios.com/quake-ii-game/",
+        "https://bethesda.net/en-US/news/quake-ii-enhanced-release"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -50,5 +69,15 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "QuakeII64 has its own19-level campaign and soundtrack; the publisher/developer list it separately from the original PC campaign. Preserve that materially different campaign identity, not merely a source-system split.",
+    "evidence_urls": [
+      "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+      "https://github.com/polaco1782/v64recomp",
+      "https://nightdivestudios.com/quake-ii-game/",
+      "https://bethesda.net/en-US/news/quake-ii-enhanced-release"
+    ]
   }
 }

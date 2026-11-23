@@ -1,0 +1,73 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openclonk",
+    "name": "OpenClonk",
+    "original_game_title": "OpenClonk",
+    "summary": "Explore caves, build settlements, and play strategy and action scenarios in this free successor to Clonk.",
+    "project_url": "https://github.com/openclonk/openclonk",
+    "artwork": {
+      "game_id": 60297,
+      "cover_id": 40006,
+      "image_id": "srsunbryijx7oaoqxilx",
+      "image_sha256": "d8028fa01f18c54dadf72b2b1f74519e109910e8a60c57b9bd4027c8c36bc9b4",
+      "game_slug": "openclonk",
+      "match_kind": "port"
+    },
+    "issue_number": 6529,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://www.openclonk.org/download/",
+    "setup_url": "https://www.openclonk.org/download/",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Install and update OpenClonk through the publisher or your package manager.",
+        "tracking_issue": 6529
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install OpenClonk",
+          "instruction": "On Windows x64, use the Windows 64-bit installer. On Linux, use your distribution’s openclonk package or the community OpenClonk Flatpak for x86-64. Debian also packages OpenClonk for ARM64. The publisher’s Linux archives were built with Ubuntu 16.04, so try your distribution’s package first on a newer system."
+        },
+        {
+          "title": "Choose a player and scenario",
+          "instruction": "Create a player, or select an existing one under Player Selection and choose Activate. Open Start Game, open Tutorials, and start Wandering Wipf to learn the controls. The packages include the game data."
+        }
+      ],
+      "warnings": [
+        "Close OpenClonk before copying players, scenarios, or saves. Keep any custom user data directory or separate configuration file you selected."
+      ],
+      "references": [
+        {
+          "title": "Find your player data",
+          "instruction": "On Windows, look under %APPDATA%\\OpenClonk. Windows stores default settings in HKEY_CURRENT_USER\\Software\\OpenClonk Project\\OpenClonk. Keep that key if you want to transfer these settings. On Linux, keep ~/.clonk/openclonk, including its config file. The Flatpak profile is ~/.var/app/org.openclonk.OpenClonk/.clonk/openclonk."
+        }
+      ],
+      "help_url": "https://www.openclonk.org/download/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "openclonk",
+      "evidence_urls": [
+        "https://www.openclonk.org/download/",
+        "https://github.com/openclonk/openclonk"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "openclonk",
+    "origin": {
+      "project_url": "https://github.com/openclonk/openclonk"
+    },
+    "decisions": []
+  }
+}

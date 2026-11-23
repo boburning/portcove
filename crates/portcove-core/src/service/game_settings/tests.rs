@@ -22,6 +22,10 @@ struct Fixture {
 }
 
 fn fixture(port_id: &str) -> Fixture {
+    settings_fixture(port_id, false)
+}
+
+fn settings_fixture(port_id: &str, second_setting: bool) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     // The real service must support ordinary library DOS paths, not only the
@@ -37,6 +41,14 @@ fn fixture(port_id: &str) -> Fixture {
     // A filename alone implies the legacy N64 materialization contract too.
     port.runtime_source_filename = None;
     port.presentation = None;
+    if second_setting {
+        let settings = &mut port.game_settings.as_mut().unwrap().files[0].settings;
+        let mut other = settings[0].clone();
+        other.id = "fixture-volume".into();
+        other.label = "Fixture volume".into();
+        *other.key.last_mut().unwrap() = "FixtureVolume".into();
+        settings.push(other);
+    }
     let descriptor = port.game_settings.as_ref().unwrap();
     let file = descriptor.files[0].clone();
     let release = &descriptor.releases[0];
@@ -428,6 +440,121 @@ fn both_formats_read_apply_reset_and_restart_through_the_same_core_service() {
 }
 
 #[test]
+fn change_set_binds_every_edit_and_recovers_one_postimage_after_interruption() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
+    for port_id in [SHIP, GOLDEN] {
+        let mut fixture = settings_fixture(port_id, true);
+        let file = &fixture.file.id;
+        let mut edits = vec![
+            GameSettingsEdit {
+                setting_id: fixture.file.settings[1].id.clone(),
+                change: GameSettingChange::Reset,
+            },
+            GameSettingsEdit {
+                setting_id: fixture.file.settings[0].id.clone(),
+                change: GameSettingChange::Set {
+                    value: fixture.proposed.clone(),
+                },
+            },
+        ];
+        let review = fixture
+            .service
+            .review_game_settings_change_set(port_id, file, &edits)
+            .unwrap();
+        assert_eq!(review.edits[0].edit, edits[1]);
+        assert_eq!(review.edits[1].previous_value, None);
+        assert_eq!(
+            review.edits[1].proposed_value,
+            fixture.file.settings[1].value.default_value()
+        );
+        assert_eq!(fs::read(&fixture.canonical).unwrap(), fixture.original);
+
+        let changed = [edits[1].clone()];
+        assert!(
+            fixture
+                .service
+                .apply_game_settings_change_set(port_id, file, &changed, &review.review_sha256)
+                .is_err()
+        );
+        assert_eq!(fs::read(&fixture.canonical).unwrap(), fixture.original);
+
+        // These fixtures have no materialized setup. A pointer change after review
+        // must invalidate the token even when both configuration files still match.
+        let connection = fixture.service.library.connection().unwrap();
+        let profile_id = fixture.service.ensure_default_profile(port_id).unwrap().id;
+        crate::profile::set_selection(&connection, port_id, &profile_id, 1).unwrap();
+        assert!(
+            fixture
+                .service
+                .apply_game_settings_change_set(port_id, file, &edits, &review.review_sha256)
+                .is_err()
+        );
+        let review = fixture
+            .service
+            .review_game_settings_change_set(port_id, file, &edits)
+            .unwrap();
+        assert_eq!(review.setup.as_ref().unwrap().id, profile_id);
+        let layout =
+            crate::profile_deploy::Layout::for_user(&fixture.service.library.user_dir(port_id));
+        let switch_journal = layout.journal();
+        fs::create_dir_all(switch_journal.parent().unwrap()).unwrap();
+        fs::write(&switch_journal, b"inert interrupted setup fixture").unwrap();
+        assert!(
+            fixture
+                .service
+                .review_game_settings_change_set(port_id, file, &edits)
+                .is_err()
+        );
+        assert!(
+            fixture
+                .service
+                .apply_game_settings_change_set(port_id, file, &edits, &review.review_sha256)
+                .is_err()
+        );
+        assert_eq!(fs::read(&fixture.canonical).unwrap(), fixture.original);
+        fs::remove_file(switch_journal).unwrap();
+        edits.reverse();
+        let fault = Arc::new(FailAt {
+            point: SettingsFaultPoint::CanonicalMoved,
+            fired: AtomicBool::new(false),
+        });
+        fixture.service.faults = fault.clone();
+        let failure = fixture
+            .service
+            .apply_game_settings_change_set(port_id, file, &edits, &review.review_sha256)
+            .unwrap_err();
+        assert_eq!(
+            failure.presentation().mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        assert!(!failure.details["operation_id"].is_empty());
+        assert!(fault.fired.load(Ordering::SeqCst));
+        let store = OperationStore::new(fixture.service.library.clone());
+        assert_eq!(
+            store.all().unwrap()[0]
+                .game_settings
+                .as_ref()
+                .unwrap()
+                .format_version,
+            2
+        );
+        fixture.service.faults = Arc::new(NoLifecycleFaults);
+        fixture.service.recover_pending_operations().unwrap();
+        assert!(store.all().unwrap().is_empty());
+        let bytes = fs::read(&fixture.canonical).unwrap();
+        assert_eq!(bytes, fs::read(&fixture.runtime).unwrap());
+        assert_eq!(
+            crate::game_settings::document::read(&fixture.file, &bytes).unwrap(),
+            review
+                .edits
+                .into_iter()
+                .map(|entry| Some(entry.proposed_value))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
 fn stale_bytes_and_replaced_same_bytes_objects_refuse_without_changing_config() {
     let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
@@ -461,18 +588,29 @@ fn stale_bytes_and_replaced_same_bytes_objects_refuse_without_changing_config() 
                 fs::write(&fixture.runtime, &changed).unwrap();
             }
             let before = fs::read(&fixture.canonical).unwrap();
-            assert!(
-                fixture
-                    .service
-                    .apply_game_setting(
-                        port_id,
-                        &fixture.file.id,
-                        &fixture.file.settings[0].id,
-                        change,
-                        &review.review_sha256
-                    )
-                    .is_err()
-            );
+            let refusal = fixture
+                .service
+                .apply_game_setting(
+                    port_id,
+                    &fixture.file.id,
+                    &fixture.file.settings[0].id,
+                    change,
+                    &review.review_sha256,
+                )
+                .unwrap_err()
+                .report();
+            if !replace_identity {
+                assert_eq!(
+                    refusal.presentation.presentation_key,
+                    "settings_review_stale"
+                );
+                assert!(
+                    refusal
+                        .presentation
+                        .summary
+                        .contains("changed after you reviewed it")
+                );
+            }
             assert_eq!(fs::read(&fixture.canonical).unwrap(), before);
             assert!(
                 OperationStore::new(fixture.service.library.clone())

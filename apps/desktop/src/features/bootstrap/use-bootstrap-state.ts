@@ -57,6 +57,7 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
 
   const selectLibrary = async (
     operation: (current: () => boolean) => Promise<BootstrapStatus | undefined>,
+    accepted?: (generation: number) => void,
   ) => {
     const ownershipState = ownership.current;
     const lifecycle = ownershipState.owner;
@@ -71,7 +72,10 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
       ownershipState.pending === selection;
     try {
       const next = await operation(current);
-      if (next && current()) acceptBootstrap(next);
+      if (next && current()) {
+        acceptBootstrap(next);
+        accepted?.(next.generation);
+      }
     } catch (error) {
       if (current()) throw error;
     } finally {
@@ -82,12 +86,21 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
     }
   };
 
-  const switchLibrary = (path: string) => selectLibrary(() => desktopApi.setDefaultLibrary(path));
+  const switchLibrary = (path: string, accepted?: (generation: number) => void, review?: string) =>
+    selectLibrary(
+      () =>
+        review ? desktopApi.setDefaultLibrary(path, review) : desktopApi.setDefaultLibrary(path),
+      accepted,
+    );
   const chooseLibrary = (currentPath = "") =>
     selectLibrary(async (current) => {
       const path = await chooseLibraryFolder(currentPath);
       return path && current() ? desktopApi.setDefaultLibrary(path) : undefined;
     });
-  const resetLibrary = () => selectLibrary(() => desktopApi.resetDefaultLibrary());
+  const resetLibrary = (accepted?: (generation: number) => void, review?: string) =>
+    selectLibrary(
+      () => (review ? desktopApi.resetDefaultLibrary(review) : desktopApi.resetDefaultLibrary()),
+      accepted,
+    );
   return { ...state, recoveryPending, switchLibrary, chooseLibrary, resetLibrary };
 }

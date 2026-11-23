@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["futurecoplapd-", "-linux-x64.zip"],
       "macos-aarch64": ["futurecoplapd-", "-macos-arm64.zip"],
-      "macos-x86-64": ["futurecoplapd-", "-macos-x64.zip"],
-      "windows-x86-64": ["futurecoplapd-", "-windows-x64.zip"]
+      "macos-x86-64": ["futurecoplapd-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "future-cop-l-a-p-d",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "future-cop-l-a-p-d-playstation",
+          "title": "Future Cop: L.A.P.D. (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/96f1fd0e9cc45a58d0d84535bd3a8199af976c23/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Future Cop - L.A.P.D. (Europe) (En,Fr) complete CHD (SLES-01449, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Future Cop - L.A.P.D. (Europe) (En,Fr) complete CHD (SLES-01449, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Future Cop - L.A.P.D. (Europe) (En,Fr) disc (SLES-01449) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

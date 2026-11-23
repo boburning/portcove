@@ -53,7 +53,25 @@
       "windows-x86-64": ["GeometryWarsRetroEvolved2-", "-windows-x64.zip"],
       "linux-x86-64": ["GeometryWarsRetroEvolved2Recompiled-", "-x86_64.AppImage"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "geometry-wars-retro-evolved-2",
+      "evidence_urls": [
+        "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
+        "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme"
+      ],
+      "source_editions": [
+        {
+          "id": "geometry-wars-retro-evolved-2-xbox-360",
+          "title": "Geometry Wars: Retro Evolved 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled/blob/cad0b7ccb4ad8502b76b67e5507bd4348df0de86/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

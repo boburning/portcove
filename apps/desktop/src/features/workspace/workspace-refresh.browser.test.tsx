@@ -1,8 +1,10 @@
 import { controlledAct } from "../../../test/controlled-react-act";
+import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
 import { StrictMode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
@@ -12,6 +14,77 @@ import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
 import { indexStatuses } from "../../view-model";
+import "../../styles/index.css";
+
+it.each([
+  {
+    state: "initial",
+    theme: "light",
+    width: 960,
+    height: 640,
+    failure: { error: new Error("Controlled workspace readback unavailable") },
+    hasSnapshot: false,
+  },
+  {
+    state: "stale-and-recovery",
+    theme: "dark",
+    width: 430,
+    height: 780,
+    failure: { error: new Error("Controlled workspace readback unavailable") },
+    recoveryFailure: { error: failureReport() },
+    hasSnapshot: true,
+  },
+  {
+    state: "manual",
+    theme: "light",
+    width: 320,
+    height: 800,
+    hasSnapshot: true,
+    subscriptionFailure: new Error("Controlled workspace event unavailable"),
+  },
+])(
+  "separates guidance from the retry control in the $state workspace notice",
+  async ({ state, theme, width, height, ...notice }) => {
+    // Capturing a rendered frame requires real render and animation timing.
+    vi.useRealTimers();
+    const documentRoot = document.documentElement;
+    const previousTheme = documentRoot.dataset.theme;
+    const viewport = { width: innerWidth, height: innerHeight };
+    try {
+      documentRoot.dataset.theme = theme;
+      await page.viewport(width, height);
+      await root.rerender(
+        <WorkspaceRefreshNotice
+          {...notice}
+          refreshing={false}
+          retry={vi.fn().mockResolvedValue(undefined)}
+          retryRecovery={vi.fn().mockResolvedValue(undefined)}
+        />,
+      );
+      const bodies = [...document.querySelectorAll('[data-slot="notice-body"]')];
+      expect(bodies).toHaveLength(state === "stale-and-recovery" ? 2 : 1);
+      for (const body of bodies) {
+        const icon = fixtureValue(body.previousElementSibling, "notice icon");
+        expect(icon.getBoundingClientRect().top).toBe(body.getBoundingClientRect().top);
+        expect(body.getBoundingClientRect().left).toBeGreaterThan(
+          icon.getBoundingClientRect().right,
+        );
+        const action = fixtureValue(body.lastElementChild, "retry button");
+        const guidance = fixtureValue(action.previousElementSibling, "guidance before retry");
+        expect(
+          action.getBoundingClientRect().top - guidance.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(8);
+      }
+      expect(documentRoot.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState(`workspace-notice-${state}`);
+    } finally {
+      await cleanup();
+      if (previousTheme) documentRoot.dataset.theme = previousTheme;
+      else delete documentRoot.dataset.theme;
+      await page.viewport(viewport.width, viewport.height);
+    }
+  },
+);
 
 // Flush the existing fake clock's zero-delay notifications inside the controlled React batch.
 async function act<T>(callback: () => T | Promise<T>) {
@@ -190,6 +263,29 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("accepts a new full-read receipt only after a successful authoritative snapshot", async () => {
+    await render();
+    const first = data.workspaceReadRevision;
+    expect(first).toBeGreaterThan(0);
+    const pending = deferred<WorkspaceSnapshot>();
+    vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(pending.promise);
+    let retry!: Promise<void>;
+    await act(async () => {
+      retry = data.retryRefresh();
+    });
+    const started = data.startedWorkspaceReadRevision();
+    expect(started).toBeGreaterThan(first!);
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => {
+      pending.reject(failureReport());
+      await retry;
+    });
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => data.refreshActivities());
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => data.retryRefresh());
+    expect(data.workspaceReadRevision).toBeGreaterThan(started);
+  });
   it("does not miss a library event while registration settles or duplicate the initial read", async () => {
     const registration = deferred<() => void>();
     const fresh = structuredClone(snapshot);
@@ -1209,6 +1305,38 @@ describe("workspace refresh recovery", () => {
     expect(host.querySelector("section")).toBeNull();
   });
 
+  it("holds focus and accepts only one retry while recovery discovery is pending", async () => {
+    const pending = deferred<void>();
+    const retryRecovery = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(undefined);
+    await root.rerender(
+      <WorkspaceRefreshNotice
+        recoveryFailure={{ error: new Error("Retained recovery failure") }}
+        hasSnapshot
+        refreshing={false}
+        retry={vi.fn().mockResolvedValue(undefined)}
+        retryRecovery={retryRecovery}
+      />,
+    );
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(retryRecovery).toHaveBeenCalledOnce();
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retryRecovery).toHaveBeenCalledOnce();
+
+    await act(async () => pending.reject(new Error("Refresh failed after recovery")));
+    expect(button.getAttribute("aria-busy")).toBe("false");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retryRecovery).toHaveBeenCalledTimes(2);
+  });
+
   it.each([true, false])(
     "qualifies the available library snapshot (%s) on recovery failure",
     async (hasSnapshot) => {
@@ -1490,6 +1618,34 @@ describe("workspace refresh recovery", () => {
         (button) => button.textContent === "Refresh now",
       ),
     ).toBeDefined();
+  });
+
+  it("keeps the manual refresh button focused while live updates are degraded", async () => {
+    const retry = vi.fn().mockResolvedValue(undefined);
+    const unavailable = new Error("event bridge unavailable");
+    const notice = (refreshing: boolean) => (
+      <WorkspaceRefreshNotice
+        subscriptionFailure={unavailable}
+        hasSnapshot
+        refreshing={refreshing}
+        retry={retry}
+        retryRecovery={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    await root.rerender(notice(false));
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(true));
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.textContent).toBe("Refreshing library…");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(false));
+    expect(button.textContent).toBe("Refresh now");
+    expect(document.activeElement).toBe(button);
   });
 
   it("refreshes once after an operation and never starts the removed 250ms refresh", async () => {

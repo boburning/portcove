@@ -45,10 +45,37 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+        "tracking_issue": 367
+      }
+    ],
     "recommended_download_channel": "beta",
     "download_asset_hints": {
       "windows-x86-64": ["DantesInferno-", "-portable.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dante-s-inferno",
+      "evidence_urls": [
+        "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
+        "https://github.com/florinp93/hells-gate-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dante-s-inferno-xbox-360",
+          "title": "Dante's Inferno (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/florinp93/hells-gate-recomp/blob/3ce28ec04511756795402a363da8d9779889733f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

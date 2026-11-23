@@ -428,12 +428,18 @@ void test("native receipt capture binds schema validation and reproduction input
     path.join(root, "apps/desktop/src/port-identity.ts"),
   );
   const expected = [
+    "apps/desktop/scripts/desktop-standing-setup-test.mts",
+    "apps/desktop/scripts/desktop-standing-pass-observer.mts",
+    "apps/desktop/scripts/desktop-setup-batch-test.mts",
     "apps/desktop/scripts/desktop-scenario-state.mts",
     "apps/desktop/scripts/desktop-cover-observations.mts",
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
     "apps/desktop/scripts/desktop-staged-layout.mts",
     "apps/desktop/scripts/desktop-game-first-test.mts",
+    "apps/desktop/scripts/desktop-collection-artwork-test.mts",
+    "apps/desktop/scripts/desktop-review-controls.mts",
+    "apps/desktop/scripts/desktop-review-observation.mts",
     "scripts/desktop-game-first-installed-inputs.mts",
     "apps/desktop/scripts/transport-values.mts",
     "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",

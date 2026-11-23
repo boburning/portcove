@@ -3,13 +3,12 @@
   "listing": {
     "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
     "name": "Baldur's Gate II: Enhanced Edition (GemRB)",
-    "summary": "GemRB has experimental support for Baldur’s Gate II: Enhanced Edition, separate from its original-edition support. Use your own installed Enhanced Edition data; exact compatible EE revisions and builds remain unconfirmed. The project offers SourceForge Windows, Linux and macOS archives, Flatpak and source-build instructions. Configure GamePath or the positional game directory for your chosen supported build. Historical/source Linux targets include x86, x86-64, PPC and MIPS, but this guide has not selected or confirmed a package architecture. Portcove offers no setup or launch integration and has not confirmed setup or gameplay.",
-    "original_game_title": "Baldur's Gate II: Enhanced Edition",
+    "summary": "Use your installed Baldur’s Gate II: Enhanced Edition data with GemRB. Upstream marks this edition playable and completable with experimental polish. It uses a separate data layout from the original edition.",
+    "original_game_title": "Baldur’s Gate II: Enhanced Edition",
     "project_url": "https://github.com/gemrb/gemrb",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/gemrb/gemrb",
+    "availability": "packages",
+    "setup_url": "https://gemrb.org/Install.html",
     "artwork": {
       "game_id": 5613,
       "cover_id": 534834,
@@ -18,7 +17,68 @@
       "game_slug": "baldur-s-gate-ii-enhanced-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2633
+    "issue_number": 2633,
+    "original_game": {
+      "format_version": 1,
+      "id": "baldur-s-gate-ii",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb",
+        "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
+      ],
+      "source_editions": [
+        {
+          "id": "baldur-s-gate-ii-enhanced-edition-pc",
+          "title": "Baldur’s Gate II: Enhanced Edition",
+          "system": "pc",
+          "evidence_urls": [
+            "https://www.beamdog.com/games/baldurs-gate-2-enhanced/",
+            "https://gemrb.org/Features.html#status"
+          ]
+        }
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get the complete GemRB player",
+          "instruction": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports."
+        },
+        {
+          "title": "Prepare your own Enhanced Edition data",
+          "instruction": "Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data."
+        },
+        {
+          "title": "Use separate game data folders",
+          "instruction": "Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders."
+        },
+        {
+          "title": "Register the player and play",
+          "instruction": "Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. On Windows, choose the complete GemRB installation folder as the working folder. On Linux and Mac, choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play."
+        },
+        {
+          "title": "Keep your working copy and saves",
+          "instruction": "The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files."
+        }
+      ],
+      "help_url": "https://gemrb.org/Install.html",
+      "references": [
+        {
+          "title": "Edition support status",
+          "instruction": "https://gemrb.org/Features.html#status"
+        },
+        {
+          "title": "Official GemRB downloads",
+          "instruction": "https://sourceforge.net/projects/gemrb/files/"
+        },
+        {
+          "title": "GemRB for Mac",
+          "instruction": "https://www.macsourceports.com/game/gemrb"
+        }
+      ],
+      "warnings": [
+        "Enhanced Edition support is experimental upstream. Keep the original installation, configuration and prior saves."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -31,5 +91,24 @@
       }
     },
     "decisions": []
-  }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "gemrb/gemrb"
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports. Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data. Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders. Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. On Windows, choose the complete GemRB installation folder as the working folder. On Linux and Mac, choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play. The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files."
+    }
+  },
+  "external_registration_v1": true
 }

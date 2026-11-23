@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tekrantgaming-muppet-racemania-recompiled",
+    "artwork": {
+      "game_id": 3259,
+      "cover_id": 213837,
+      "image_id": "co4kzx",
+      "image_sha256": "ca8e2b9d66473b86d282d634f4e78fc0c30ded2504db2cc41d90055a1e0d4d6e",
+      "game_slug": "muppet-racemania",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
     "name": "Muppet RaceMania (TekRantGaming)",
     "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
@@ -29,7 +37,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["MuppetRaceManiaRecompiled-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "muppet-racemania",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+        "https://github.com/TekRantGaming/muppet-racemania-recompiled"
+      ],
+      "source_editions": []
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

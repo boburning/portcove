@@ -45,6 +45,25 @@
     },
     "original_game_title": "The Legend of Zelda: A Link to the Past",
     "release_url": "https://github.com/xander-haj/lawn/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-to-the-past",
+      "evidence_urls": [
+        "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",
+        "https://github.com/xander-haj/Z3R"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+          "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/xander-haj-z3r.json"
+          ]
+        }
+      ]
+    }
   }
 }

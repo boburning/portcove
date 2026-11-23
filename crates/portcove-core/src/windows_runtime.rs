@@ -20,7 +20,7 @@ use crate::Result;
 
 #[cfg(test)]
 #[path = "windows_runtime_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 /// Programs read per assessment: the launch program and DLLs shipped beside it.
 const PROGRAM_LIMIT: usize = 64;
@@ -43,6 +43,10 @@ const WORKING_FOLDER_LIMIT: usize = 16;
 /// including the 2010, 2012 and 2013 releases.
 pub const VISUAL_CPP_DOWNLOAD_PAGE: &str =
     "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist";
+// Microsoft-published permalinks for the supported v14 redistributables.
+const VISUAL_CPP_V14_X86: &str = "https://aka.ms/vc14/vc_redist.x86.exe";
+const VISUAL_CPP_V14_X64: &str = "https://aka.ms/vc14/vc_redist.x64.exe";
+const VISUAL_CPP_V14_ARM64: &str = "https://aka.ms/vc14/vc_redist.arm64.exe";
 /// Microsoft's DirectX End-User Runtime Web Installer page.
 pub const DIRECTX_DOWNLOAD_PAGE: &str = "https://www.microsoft.com/download/details.aspx?id=35";
 const DOTNET_DOWNLOAD_PAGE: &str = "https://dotnet.microsoft.com/download/dotnet";
@@ -160,12 +164,17 @@ impl RuntimePrerequisiteReport {
     }
 }
 
-/// Whether `url` is one of the official Microsoft download pages a report names.
+/// Whether `url` is an official Microsoft download destination a report names.
 pub fn is_official_download_page(url: &str) -> bool {
-    if url == VISUAL_CPP_DOWNLOAD_PAGE
-        || url == DIRECTX_DOWNLOAD_PAGE
-        || url == DOTNET_DOWNLOAD_PAGE
-    {
+    if matches!(
+        url,
+        VISUAL_CPP_DOWNLOAD_PAGE
+            | VISUAL_CPP_V14_X86
+            | VISUAL_CPP_V14_X64
+            | VISUAL_CPP_V14_ARM64
+            | DIRECTX_DOWNLOAD_PAGE
+            | DOTNET_DOWNLOAD_PAGE
+    ) {
         return true;
     }
     url.strip_prefix(DOTNET_DOWNLOAD_PAGE)
@@ -392,10 +401,18 @@ pub(crate) fn assess_program_with(
                     Vec::new()
                 },
                 files,
-                download_page: if runtime == WindowsRuntime::DirectxJune2010 {
-                    DIRECTX_DOWNLOAD_PAGE
-                } else {
-                    VISUAL_CPP_DOWNLOAD_PAGE
+                download_page: match (runtime, architecture) {
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::X86)) => {
+                        VISUAL_CPP_V14_X86
+                    }
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::X64)) => {
+                        VISUAL_CPP_V14_X64
+                    }
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::Arm64)) => {
+                        VISUAL_CPP_V14_ARM64
+                    }
+                    (WindowsRuntime::DirectxJune2010, _) => DIRECTX_DOWNLOAD_PAGE,
+                    _ => VISUAL_CPP_DOWNLOAD_PAGE,
                 }
                 .to_owned(),
             }
@@ -582,6 +599,7 @@ fn list_folder(folder: &Path) -> io::Result<Folder> {
 
 struct WindowsImage {
     architecture: Option<WindowsArchitecture>,
+    native_x64_exe: bool,
     /// Lowercase, deduplicated DLL names from the static import table.
     imports: BTreeSet<String>,
     /// False when an unusable import name was skipped.
@@ -591,6 +609,16 @@ struct WindowsImage {
 enum ProgramImage {
     NotWindows,
     Windows(WindowsImage),
+}
+
+pub(crate) fn is_x64_windows_program(path: &Path) -> bool {
+    matches!(
+        read_program(path),
+        Ok(ProgramImage::Windows(WindowsImage {
+            native_x64_exe: true,
+            ..
+        }))
+    )
 }
 
 fn malformed(reason: &str) -> io::Error {
@@ -694,7 +722,12 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         return Err(malformed("PE header is out of range"));
     }
     let optional = reader.read(header_offset + 24, usize::from(optional_size))?;
-    let (count_offset, directory_offset) = match u16_at(&optional, 0)? {
+    let format = u16_at(&optional, 0)?;
+    let characteristics = u16_at(&coff, 18)?;
+    let native_x64_exe = architecture == Some(WindowsArchitecture::X64)
+        && format == 0x020b
+        && characteristics & (0x0002 | 0x2000) == 0x0002;
+    let (count_offset, directory_offset) = match format {
         0x010b => (92, 96),
         0x020b => (108, 112),
         _ => return Err(malformed("unknown optional header")),
@@ -704,6 +737,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     if u32_at(&optional, count_offset)? < 2 {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
+            native_x64_exe,
             imports,
             complete: true,
         }));
@@ -712,6 +746,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     if import_address == 0 {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
+            native_x64_exe,
             imports,
             complete: true,
         }));
@@ -786,6 +821,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     }
     Ok(ProgramImage::Windows(WindowsImage {
         architecture,
+        native_x64_exe,
         imports,
         complete,
     }))

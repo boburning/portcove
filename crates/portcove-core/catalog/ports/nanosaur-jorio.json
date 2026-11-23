@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nanosaur-jorio",
+    "name": "Nanosaur",
+    "summary": "Recover dinosaur eggs in Pangea Software’s original Nanosaur campaign.",
+    "original_game_title": "Nanosaur",
+    "project_url": "https://github.com/jorio/Nanosaur",
+    "artwork": {
+      "game_id": 70818,
+      "cover_id": 140859,
+      "image_id": "co30or",
+      "image_sha256": "6e2d7fd4a287eeefcc5625077a0793a3454636de81b7f4ab0ee7bb02ed5dd328",
+      "game_slug": "nanosaur",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5647,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md",
+    "release_url": "https://github.com/jorio/Nanosaur/releases/tag/v1.4.4",
+    "download_asset_hints": {
+      "windows-x86-64": ["Nanosaur-", "-windows-x64.zip"],
+      "linux-x86-64": ["Nanosaur-", "-linux-x86_64.AppImage"],
+      "macos-x86-64": ["Nanosaur-", "-mac.dmg"],
+      "macos-aarch64": ["Nanosaur-", "-mac.dmg"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get the publisher’s package for your desktop",
+          "instruction": "On Windows x64, extract the ZIP and keep Nanosaur.exe, its libraries, and the Data folder together. On Linux x86-64 or ARM64, get the matching AppImage, make it executable, and run it with FUSE available. On Intel Mac with macOS 10.11 or later, or Apple Silicon with macOS 11 or later, open the universal DMG and copy the complete Nanosaur.app to Applications."
+        },
+        {
+          "title": "Add an existing copy to Portcove",
+          "instruction": "On Windows choose Nanosaur.exe in the extracted folder. On Linux x86-64 choose the executable AppImage. On Mac choose Contents/MacOS/Nanosaur inside the copied app. Keep the executable’s folder as its working directory and leave arguments empty. Review the selected files, then choose Play when ready."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep your preferences before replacing the game",
+          "instruction": "Close the game and make a copy of the Nanosaur folder under %APPDATA% on Windows, XDG_CONFIG_HOME or ~/.config on Linux, or ~/Library/Preferences on Mac. Nanosaur saves its preferences in this folder. Portcove only keeps your launch registration. Replace the runtime and back up these files yourself. Removing the registration leaves the game and data in place."
+        }
+      ],
+      "help_url": "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nanosaur",
+      "evidence_urls": [
+        "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md",
+        "https://github.com/jorio/Nanosaur"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nanosaur-jorio",
+    "origin": {
+      "project_url": "https://github.com/jorio/Nanosaur",
+      "repository": {
+        "host": "github.com",
+        "id": "312043462"
+      }
+    },
+    "decisions": []
+  }
+}

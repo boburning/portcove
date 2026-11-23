@@ -1,25 +1,27 @@
 # Independent definition delivery contract
 
-This is the successor design for #245. It does not extend signed catalog format
-1, admit a new port, provision a publisher, or activate automatic delivery.
-`portcove-core` remains the sole definition, admission and lifecycle authority.
-The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling. Completed #245/#397/#398 components supply the
-design, compatible client and configured observer; completed #254 supplies bounded
-authoring tooling. #177 owns continued discovery and normalized observations,
-#247 scoped release-health incidents/recovery, and #246 the actual protected
-publication and unchanged-client journey. #534 retains provisioning acceptance;
-component fixtures do not complete either production outcome.
+This document describes the successor design for #245. Signed catalog format 1
+keeps its own contract. Use the separate procedures for port admission, publisher
+setup, and automatic delivery.
+
+`portcove-core` decides which definitions and lifecycle operations to accept.
+The CLI and Tauri expose those results. React and external clients display them.
+Use the Project for scheduling.
+
+Completed work in #245, #397, and #398 covers the design, client, and observer.
+Completed work in #254 covers authoring tools. Find ongoing discovery and
+normalized observations in #177. Find release health and recovery in #247.
+Find protected publication and the unchanged-client workflow in #246.
+Issue #534 holds publisher setup acceptance. Both production outcomes need
+evidence beyond component fixtures.
 
 ## Implemented engine capability negotiation
 
-Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises Libultraship portable version 2,
-native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–36. The inventory owner is
-`EngineTemplateCapability::current()` in
-[`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
-the version semantics and admission limits below remain part of each contract.
+Run `portcove --json capabilities` using the client you intend to support.
+Its `engine_templates` lists the exact adapter and contract versions it can
+interpret. [Check a client's capabilities](#check-a-clients-capabilities)
+before choosing a definition. The source inventory is
+[`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
@@ -201,6 +203,12 @@ Native portable version 35 covers Windows recovery when a Snap64 successor
 starts without inheriting the job handle. Fresh and retained indexed Snap64
 entries that declare the tracked handoff require version 35. Previously
 admitted tracked definitions for other ports retain their original minimum.
+
+Native portable version 36 recognizes `classify_linux_programs_by_format` in
+reviewed Linux x86-64 package layouts. Fresh and retained entries using that
+option require version 36. Core still fingerprints ELF programs, `#!` scripts,
+program and script names, and any library-named file whose header is not a
+verified shared object.
 
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
@@ -532,6 +540,8 @@ provider result before applying a review. Older clients refuse this combination;
 direct manifests retain version 19. This capability does not authenticate a
 publisher, authorize publication or widen the policies' data and consent scope.
 
+### Check a client's capabilities
+
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
 delegate to the same core negotiation. Tauri `get_engine_capabilities` returns
@@ -616,6 +626,12 @@ acquisition hold. Indexed and retained definitions with `excluded_artifacts`
 must declare a staged-source minimum version of 35. Earlier readers reject
 the capability. Holds that omit this field keep their existing behavior and
 capability requirements. The new field grants no additional acquisition authority.
+
+Managed PSX version 6 admits the same exact-artifact exclusion and reviewed
+fallback for GitHub release packages. Fresh and retained definitions containing
+these exclusions must declare a minimum of `psx-recomp-managed` version 6.
+Existing installations keep their executable, original disc and BIOS, settings
+and save data until the player chooses a compatible replacement.
 
 Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
 copier header (the `snes-copier-header-optional` source representation and its
@@ -791,11 +807,27 @@ redistribution each require their applicable authority. A new release identity
 may enter normal protected acceptance. Different bytes under the same accepted
 identity require investigation and must stay held.
 
-The Core verifier, GitHub provider integration, accepted record and scoped
-transition handling are implemented. The #315 production canary, verified cache
-reuse, scoped refusals and recovery, and repeated eligible progression still
-need evidence through the protected route. Proposal-producing runners
-cannot approve their own authority changes or hold signing credentials.
+If a completed curated transfer matches the admitted length but has a different
+SHA-256, Core refuses it before extraction. When cache capacity and authority
+allow, it verifies and keeps those replacement bytes under an inactive cache
+name. The refusal records both digests and the evidence path, or the reason the
+copy could not be retained. Repeated identical observations share the verified
+sample. A later ordinary attempt still requires the original accepted bytes.
+Incomplete transfers retain their existing bounded recovery rules.
+
+When a reusable local archive fails its independently accepted digest or size,
+Core refuses the operation and rechecks the cache object under its existing
+lock. It quarantines confirmed bad bytes under an inactive cache name. The
+refusal records the evidence path and expected digest. Quarantined bytes retain
+their storage accounting. A later normal request can fetch the same approved
+identity through its still-current policy and verify the result. This recovery
+preserves the older installed runtime and existing player data.
+
+The protected route requires a production canary, verified cache reuse, scoped
+refusals and recovery, and repeated eligible progression. The
+[acquisition issue](https://github.com/boburning/portcove/issues/315) records the
+released Windows evidence and the remaining final 0.1.0 acceptance. Proposal
+runners cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
@@ -823,9 +855,10 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces the 4 MiB index, 4,096 definitions, 4 MiB per content target
-and 32 MiB aggregate bounds below before exposing an immutable inventory. This
-first representation conservatively bounds all listed content, including records
+The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
+content bound before exposing an immutable inventory. The general per-target
+ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
+representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
 length before its bounded read and then check supplied bytes against that length
 and SHA-256. Repeated reads remain the transport's responsibility.
@@ -894,7 +927,7 @@ persistence contracts and referenced artifact/evidence identities. Bound entry
 count, individual and total bytes, depth, path lengths and fetched references;
 reject cycles and missing references. No reference can become an executable URL.
 The initial content contract uses a 4 MiB index, at most 4,096 entries, 4 MiB per
-entry, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
+entry, 16 MiB per projection target, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
 references per entry, and 255 UTF-8 bytes per relative path component. Existing
 stricter core path/archive limits still apply. TUF metadata retains the maintained
 client's own separate limits. An unsupported larger document cannot evict the
@@ -912,8 +945,8 @@ Presentation extensions are explicitly segregated from these required fields.
 
 `DefinitionContentIndex::inspect_entry(namespace, stable_id, bytes)` implements
 the entry inspection boundary. It verifies the indexed target bytes before JSON
-decoding and requires schema 1 and exact namespace, stable ID and revision
-agreement. The port ID must match that stable ID. The initial `port` value must
+decoding and requires a supported entry schema and exact namespace, stable ID
+and revision agreement. The port ID must match that stable ID. The initial `port` value must
 contain the complete serialization of the existing `PortDefinition`, including
 default-valued fields. Comparing its typed projection rejects unknown fields at
 every nested port boundary without changing legacy catalog parsing. Object key
@@ -943,8 +976,9 @@ remain required. An indexed empty object is not a usable execution contract.
 `DefinitionContentIndex::inspect_catalog_projection` interprets supplied entry
 and contract bytes through the existing core validators. Its terminal record has
 exactly `contract_schema: 1`, `representation: "catalog_projection"` and `catalog`.
-The catalog is the complete authoritative schema-1 or schema-2 document. Schema 2
-omits derived `source_profiles`; the existing loader reconstructs that projection.
+The catalog is an authoritative schema-1, schema-2 or schema-3 document.
+Schemas 2 and 3 omit derived `source_profiles`. The catalog loader reconstructs
+those profiles from the supplied source graph.
 Every field emitted by the authoritative serializer must be present, including
 default-valued port fields. Unknown, missing or discarded semantics and duplicate
 decoded JSON keys fail closed. Whitespace and object-key order are immaterial;
@@ -963,14 +997,17 @@ role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
 existing byte and reference bounds. As one content target, the projected catalog
-keeps the 4 MiB content bound, inside the 16 MiB signed-catalog bound its decoded
-catalog shares ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
+has a 16 MiB content bound. Its decoded catalog independently shares the
+16 MiB signed-catalog bound ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
 affects only that inspection and leaves the index and other inspections unchanged.
 Other catalog ports preserve the self-contained legacy graph; their presence does
-not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+not admit additional indexed definitions. Package-only settings belong to the
+selected port. Older complete projections omit those settings from unrelated
+ports. At selection, the effective catalog keeps any package-only settings
+already admitted for those ports. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
 or installation. Its validated catalog now carries the selected port's exact
@@ -988,6 +1025,25 @@ recaptures the complete record. Format 2 stays readable as supplied successor
 content but gains no invented authentication. Writer protocols 25 and 27 prevent
 older clients from dropping exact successor bytes or the authenticated admission
 record.
+At authenticated selection and reopen, Core composes a sparse schema-3
+single-port projection into the schema-3 baseline. An existing identity keeps
+its position and a new identity is appended. The projection supplies the
+selected port and its source contracts. Core reuses exact shared evidence,
+identities and validators in baseline order and refuses conflicting records.
+Complete projections, including a catalog that already covers only the selected
+port, keep their existing whole-catalog transition checks. The receipt retains
+the exact verified projection bytes.
+
+Preview.9 can add a new identity from a legacy single-port schema-2 projection
+into a schema-3 baseline. That older compatibility path is limited to a new
+identity. Preview.9 also accepts complete projections matching the baseline
+schema and scope. Use the compatible representation for each supported reader.
+The current reader also carries forward a reviewed layout from a legacy
+single-port projection when the same subject is already embedded. The typed
+port must match apart from its reviewed layouts, and neither side can provide
+source contracts or qualification for that subject. The usual transition checks
+still require every previously reviewed platform to keep its layout check.
+
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.
@@ -1155,18 +1211,25 @@ Desktop schedules one refresh about 15 seconds after a library has loaded, then
 about every 24 hours while it runs. Checks never overlap: Core allows one official
 catalog refresh at a time per process, a scheduled check skips while another runs
 and a player's refresh waits for it. Desktop also waits while another task holds
-the library. Before recording an activity, the scheduled refresh acquires the
-listing target through the same authenticated TUF path and strict parser as the
-manual refresh and runs every admission check without writing. An outage, an
-absent publication (HTTP 404 or 410), expired metadata, a bad signature, a listing
-format this client cannot read, stale metadata or a replay/equivocation returns a
-quiet `unavailable` result with its serving status. No activity is recorded and
-the directory, replay floors and selection do not change. On a library's first
-check, the compiled anchor may already have been installed as described above
-even when the result is `unavailable`. An admissible candidate is published
-through the ordinary update-catalog activity, cancellation and atomic admission
-owner. A player's manual refresh still reports its failures. Any failure keeps
-the accepted directory, replay floors and bundled fallback.
+the library. The scheduled check authenticates one repository snapshot for both listings and
+operational definitions. It checks the listing before recording its ordinary
+update-catalog activity. After its admission, newly accepted listing IDs may
+join existing known IDs and retained official subjects. For those exact
+identities, an independently signed policy can select a compatible indexed
+definition or withdraw its scope. Each positive candidate reads only its entry
+and execution contract from the shared authenticated index. Policy, launch
+assessment and selection use the same admission transactions as the manual check.
+
+Each opportunity allows 120 seconds of network work and up to 32 known subjects.
+The starting subject changes each day, so an early deadline cannot keep the
+same later subjects waiting indefinitely. Unavailable policy, missing or
+unsupported payloads and replay failures leave other subjects eligible for
+checking. Missing policy targets do not withdraw retained authority. Exact
+settled definition replays skip a new definition activity and selection write.
+When neither path verifies, the existing quiet `unavailable` result reports
+the listing or repository failure. On a library's first check, the compiled
+anchor may already have been installed as described above. A player's manual
+refresh still reports its own failures.
 Settings shows the latest result, including a player's successful refresh. A failed scheduled check never raises an
 error notice.
 
@@ -1179,8 +1242,9 @@ updates on removes the value and requests a check soon. **Refresh official
 catalog** stays available while updates are off.
 
 The built-in catalog and installed games remain available when this optional
-source is unconfigured or its refresh fails. A refresh does not install a game,
-authorize a definition or replace executable/player data. The configured
+source is unconfigured or its refresh fails. A scheduled refresh can admit
+signed definition availability within its existing policy scope. It never
+installs a game or replaces executable or player data. The configured
 Windows/native baseline, authenticated feed and protected progression acceptance
 remain separate obligations after this source appointment. Neither compiled input
 nor an installed anchor establishes those outcomes.
@@ -1222,17 +1286,40 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
+Only the selected port can declare a native mod loader in an indexed projection,
+and that declaration requires entry and contract schema 3. Legacy full
+projections preserve unrelated loaders from the effective baseline. Unindexed
+installation captures omit sibling loader declarations while keeping their port
+and source records.
 For its own port, that transition may keep or narrow a managed acquisition hold
 but not remove it or add a reviewed artifact, may replace but not remove a
 reviewed package layout, and may keep or remove `release.accepted_uploaders`
 but not add an uploader the embedded catalog has not accepted
 ([uploader continuity](CATALOG.md#release-selection-and-maintenance)). An entry
 for a port absent from the embedded catalog therefore cannot accept uploaders.
-Existing service instances keep their constructor
-catalog; a new service (the next CLI invocation) consumes the durable selection.
-This explicit command adds no startup polling, Tauri binding, game lifecycle
-side effects or production feed activation. The default root remains absent;
-fixture orchestration is not the protected unchanged-client journey.
+Core keeps an active selection and any previous selection for each subject. A
+refresh changes only the requested subject. On reopen, Core verifies each active
+projection and composes its exact port and source records with the other
+eligible selections. An expired, withdrawn or damaged selection triggers a
+diagnostic for that subject. Previously installed versions retain their own
+creating contracts and still require the applicable launch and recovery checks.
+
+Incoming repository metadata must satisfy the library-wide replay floor. An
+exact selection already committed for another subject remains usable while its
+own policy, metadata and evidence permit the requested operation. A portable
+receipt whose older full projection falls outside the current baseline can
+retain its historical launch authority. Core excludes it from current selection
+and requires its exact subject safety preimage before admitting a successor.
+An import that conflicts with another selected subject's source records refuses
+before changing either subject. Schema 72
+carries forward the old single selection and its predecessor. Older database
+writers refuse the migrated library. Preview.9 still has the earlier single
+selection behavior.
+
+An existing service keeps its constructor catalog. A new service, such as the
+next CLI invocation, consumes the durable selections. See [official catalog
+provisioning](SIGNED-CATALOG.md) for the compiled root and the
+first refresh of an unconfigured library.
 
 Policy schema 1 authorizes **availability only**, binding the namespace,
 stable ID, grant and monotonic policy revision to the exact index, definition
@@ -1398,10 +1485,11 @@ acquisition holds; adoption and preparation recovery apply local-use holds
 alongside their existing publisher and freshness guards. A refusal retains the
 payload and operation journal without activating or registering the target.
 
-These capability and fixture paths do not establish production acceptance.
-[#315](https://github.com/boburning/portcove/issues/315) still requires complete
-cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
-qualification and a lawful exact canary before its complete route is delivered.
+[#315](https://github.com/boburning/portcove/issues/315) tracks production
+acceptance for the lawful exact canary, cache qualification, scoped holds,
+interruption and recovery, and the applicable transitions. It identifies which
+operations have released-client receipts. Capability and fixture results retain
+their tested scope.
 
 ### Exact managed Launch assessment format
 
@@ -1552,14 +1640,13 @@ definition before publishing staged bytes and before registering published bytes
 A refused operation keeps its journal and recovery evidence; the current fallback
 catalog cannot authorize its retained definition. Committed cleanup remains distinct.
 
-Disposable TUF authority and owned HTTP/native probe fixtures exercise this component.
-They do not qualify production TLS, gameplay or automatic publisher delivery.
-Production root/grant provisioning, protected publisher custody and write/signing
-authority, automatic publication and the unchanged-client new-definition,
-next-artifact and correction proof remain distinct #246 acceptance. This is not
-activation of a production feed or whole-issue delivery.
+Disposable authority and HTTP/native fixtures exercise this component in isolation.
+The [current production catalog publisher](RELEASING.md#current-release-process)
+and [workflow](../.github/workflows/catalog-publish.yml) describe today's
+isolated role signing, guarded publication and readback.
 
-#246 uses the existing strict required checks and distinct review under Protect
+**Historical controller design.** The following account records the earlier
+protected-controller design for #246. It used distinct checks and review under Protect
 main ruleset 22155633, including its zero approval count. That rule supplies
 routine merge authority, not signing authority. A separately authorized trusted
 controller runs from a pinned protected revision and accepts inert candidate data.
@@ -1608,16 +1695,15 @@ contains `definitions/index.json`, exactly its `sha256/*.json` content, and the
 corresponding `policy/official/<stable_id>.json` plus required `.launch.json`
 records. Core reuses the definition, capability, publisher and launch parsers;
 missing, extra, changed, linked or unsupported content refuses. The bounds are
-16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
-records. Its exact file/definition manifest grants no semantic or publisher
+16,385 files and 32 MiB in total, with 16 MiB indexed projection leaves, 4 MiB indexes and individual
+definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
-The maintained release inspector and its real-CLI build fixtures accept API84
-and API85 machine envelopes for this unchanged publication-schema-1 report.
-They retain exact envelope/report validation, byte binding and same-process
-inspection custody; unknown versions and reflected authority remain refused.
-This compatibility window changes no publisher, Root, signature or acceptance
-authority, and does not relabel earlier API84 observations.
+The maintained release inspector requires the fixed API 100 machine envelope
+for publication report schema 1. The CLI keeps that response version when its
+general API version advances. Inspection validates the exact envelope and report
+against the input bytes and keeps the result in the same process. It refuses
+unexpected versions and reflected authority.
 
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
@@ -1645,14 +1731,92 @@ Since 2026-11-15 the bundle below is published by
 [Catalog publication](RELEASING.md#current-release-process). The coordinator,
 review and journal steps described in the rest of this section are retired.
 
+### Prepare one generated definition
+
+`node scripts/catalog-prepare-publication.mts project --catalog CATALOG --port ID
+--projection-template TEMPLATE --validator CORE_CLI` writes Core’s canonical typed
+projection to standard output. Use the independently reviewed generated operational
+catalog and a CLI that supports `catalog canonical-definition-projection`. The
+template supplies the existing projection contract schema and reviewed catalog
+source graph, with `representation` set to `catalog_projection` and an empty
+`catalog.ports` array. The tool inserts the exact matching managed record. A
+listing without an operational definition cannot supply this input.
+
+Use `prepare` with the same inputs and `--prior PRIOR_BUNDLE --reviewed
+REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` after
+the request, index, typed definition entry, policy and applicable launch
+records have been independently reviewed. The review directory contains the
+existing `request.json` and `bundle/` layout. A newly generated projection
+must match the indexed digest exactly. A semantically identical projection
+already in the baseline retains its original bytes and digest. Supply
+`--projection-producer CORE_CLI` when the frozen released `--validator`
+supports bundle inspection but predates canonical projection output. The bridge
+fingerprints each executable and sends the completed bundle to the validator.
+
+The index hash binds every retained managed policy. Adding an entry therefore
+requires reviewed policy revisions and matching launch records for the other
+entries. Their definition content, grant scope and launch assessments remain
+intact. Old bindings, equal-revision replacement and missing review files
+refuse. The tool runs the existing inert Core inspector on the supplied prior
+bundle and candidate before it returns a new local `request.json` and `bundle/`
+directory. Its receipt records the exact inputs and output digests with authority
+`none`. The protected publisher still establishes the authenticated baseline,
+revision floors, signing and public delivery through the existing workflow.
+
+### Stage an observed N64 original-input amendment
+
+Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
+--original-input-checkpoint CHECKPOINT --observer-cli OBSERVER_CORE --validator CORE_CLI` with the complete
+configured observer checkpoint and the retained official managed bundle.
+The same inputs work with `prepare`, plus the existing
+`--reviewed REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` options. Both
+commands derive the amendment from the current checkout's authored catalog,
+observer selection and reviewed package receipts. The source completion must
+cover the current scope and remain fresh under the configured observer policy.
+Supply the exact Core binary used by the observation. Preparation fingerprints it
+and reuses its normalized definition inspection over the current catalog and
+listing files to reproduce the collector's scope binding.
+The Core producer validates
+the resulting projection, and the existing prepare step inspects the complete
+prior and proposed bundles.
+
+The amendment requires an existing official schema-4 managed grant. Every
+effective package must match the retained curated repository, release, commit,
+platform, digest and reviewed runtime layout. Every retained platform needs
+curated coverage. Shared packages need evidence for every applicable platform.
+The candidate preserves the port,
+older input bindings, publisher grant, launch assessments, and the full
+existing capability range. The prior minimum must already require capability
+10 for an informational original or 11 for an enforced legacy contract.
+Preparation holds while the existing range admits an older reader. The existing protected publisher authenticates the
+prior publication and controls signing. New curated identities remain on the
+independent acquisition admission route.
+
+This preparation mode is opt-in and the scheduled publisher does not invoke it.
+The current managed index has one N64 definition, Chameleon Twist JP
+Recompiled, with an independently accepted Windows v0.1 archive and a
+capability-1 ceiling. Its authored catalog row is descriptive, so the configured
+observer supplies no operational original-file fact for that port. Harvest Moon
+64 Recompiled has checked input receipts
+for its managed selections, but has no entry in the official managed bundle.
+Neither supplies an eligible publication candidate for this mode.
+
+### Historical coordinator
+
 The automatic catalog authoring boundary is the fixed inert source subtree
 `release/catalog-publication/`: strict `request.json` plus `bundle/` containing
 the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
 the accepted catalog baseline and current component/site identities. The catalog
-source readers reconstruct at most 6,144 entries per complete Git tree and refuse
-truncated or mismatched trees. Its neutral
+source readers reconstruct every entry of a complete Git tree and refuse
+truncated or mismatched trees. The count bound is GitHub's 100,000-entry
+recursive-tree completeness limit; in practice each reader's response byte
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Ancestry comparison stays bounded by commit
+distance from the accepted baseline (2,048 commits; 3,200 for application
+sources), matching the sandboxed history depth. This is an accepted limit (owner
+decision, November 22, 2026): release regularly, and revisit it only if a release
+approaches that distance. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -1766,18 +1930,29 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The complete target is bounded to 8 MiB, each listing
+The legacy target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
 
+The compact target uses the same delegation and an 8 MiB authenticated carrier.
+A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
+of decoded directory data. Compact parsing checks each record separately and
+accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+local readback keep the same decoded bounds and retain the transport identity.
+
 Ordinary preparation and publication carry complete authored listings, including
 acquisition restrictions; package observations and metadata enrichment cannot
 resolve a condition. A reviewed Git-authored resolution may remove it in a newer
 authenticated snapshot. The reader retains snapshot replacement semantics rather
 than making an older restriction an additional policy authority.
+
+Compact preparation projects every canonical listing except explicit withdrawals
+and includes the applicable observations. Capacity exhaustion fails preparation
+and leaves the last-good publication in place. Existing legacy readers keep their
+separately authenticated 8 MiB target.
 
 Core atomically retains the exact target bytes and authenticated metadata
 provenance with the shared installed-authority replay floor. Lower metadata or
@@ -1811,6 +1986,50 @@ observations. Exact native tag identities use the existing project/tag reference
 IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
+
+Listing format 12 adds optional implementation methods and shared dependencies.
+Earlier-format exports omit that inert envelope while preserving setup facts and
+acquisition restrictions. A format-12 publication needs compatible reader coverage;
+this implementation does not authorize a protected publication or change its keys.
+
+Listing format 13 carries typed IGDB backgrounds and screenshots. It has the
+same reader coverage requirement. Exports up to format 12 retain other artwork,
+setup facts and acquisition restrictions. The operational catalog schema and
+retained runtime contracts continue to carry their existing media.
+The observer's managed format-11 delivery keeps its existing reader window.
+When that older overlay cannot express a bundled typed scene, a newer reader
+keeps the scene only if the project and original-game scope still match and
+the combined media passes admission. A format-13 replacement can withdraw it.
+
+Listing format 14 can bind an original edition to a reviewed Core source
+identity. A binding names the exact source game, variant and representation.
+It is descriptive and applies only to current data verified with exact identity.
+Exports through format 13 retain the original editions and omit these bindings.
+The strict operational catalog does not carry the bindings.
+Both signed carriers use the same directory field rules. An older overlay
+keeps bundled bindings only for the same project and original description.
+A format-14 replacement can remove those bindings. Carrier support and format
+support are advertised separately, so compact transport alone does not
+establish format-14 compatibility.
+
+Listing format 15 carries typed [acquisition restrictions](CATALOG.md#acquisition-restrictions).
+Its `download_block_reason` must equal the projection of those restrictions, so
+a format-14 reader keeps enforcing at least the same download hold, and exports
+up to format 14 omit `restrictions` and keep that string. Signed listing
+delivery stays at format 11: the observer's projection accepts the format-15
+canonical directory as input and still publishes Core's format-11 export. A
+delivered listing that repeats the current string for the same project and
+game keeps the reader's typed restrictions; any other delivered value replaces
+them with a whole-listing download hold, or clears them. Publishing a format-15
+signed target is a later, separately gated change.
+
+Managed acquisition holds keep their delivered `managed_acquisition_hold`
+form; Core normalizes it to typed decisions when it loads, and the definition
+loader accepts a selected definition only when it keeps or adds restriction. A
+typed definition field is not deliverable yet. It needs a reader gate that
+older applications refuse, planned as a named definition feature under
+definition schema 4 once [#8496](https://github.com/boburning/portcove/pull/8496)
+lands; until then authoring emits only the legacy hold.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
@@ -1867,3 +2086,151 @@ manifest, encoded current/prior content and changed-source evidence. Attempts
 that exhaust that budget refuse complete review and remain held. The transport
 fixture exercises a 2 MiB current directory and retained prior copy; it supplies
 no actual semantic-review acceptance or production qualification.
+
+### Optional original-file recognition
+
+An indexed projection with `variant_list_recognition_only` binds that
+observation to the selected definition and its exact release and artifact.
+Libultraship portable version 7 and N64 recomp portable version 9 read the
+flag. Existing engine versions retain their original behavior. A definition
+that carries the flag declares the applicable capability floor. Older readers
+can then decline the definition before using the projection, while supported
+readers keep ordinary original-file admission and execution checks.
+
+### Exact N64 Recomp original input
+
+A game source contract can carry `n64_recomp_inputs_v1` for an upstream
+N64 Recomp runtime that uses the supported normalized ROM check. Each binding
+names the release ref, artifact SHA-256, native game ID and expected XXH3-64.
+The native game ID must name the definition's normalized runtime file. The
+contract cites upstream support evidence. Indexed projections carrying these
+bindings require N64 recomp portable version 10 for the selected definition.
+
+A definition that adds release inputs to an enforced legacy contract requires
+N64 recomp portable version 11. Keep the existing accepted variants in the
+profile and contract. A file matching one of the profile's published runtime
+inputs can be registered as an original. Portcove checks the selected release
+and artifact before using that file. A release without an exact binding still
+requires an edition in its legacy list. Every port using the migrated profile
+must be an N64 Recomp port with an enforced legacy game contract.
+
+The matching release and artifact select the requirement during managed
+installation, activation, rollback and launch. Core checks the selected
+registration's storage and content identities and compares the upstream digest
+after N64 padding and byte-order normalization. Before launch, Core also checks
+that the runtime file matches the normalized original's SHA-256 and size. A
+bound release needs a checked original. A binding for a different release or
+artifact supplies no compatibility verdict. A literal value in upstream source
+needs evidence of the applicable runtime check before it can become a binding.
+Existing registrations remain available as exact local instances. When the
+default no longer fits a retained build, Portcove can recheck a unique matching
+saved instance within its bounded lookup. A selected setup with an exact
+original binding keeps that original.
+
+### Native mod loader bindings
+
+Indexed definition schema 3 carries the reviewed `mod_loader` declaration.
+The entry retains the ordinary requirements for its adapter and other fields.
+Existing reader versions continue to reject unrecognized entry schemas, and
+legacy signed catalog envelopes cannot appoint a loader.
+
+A binding declares a versioned engine, GitHub release repository, minimum
+stable release, applicable platforms, and native settings file. N64 Recomp also
+declares the native game. Each loader platform needs executable hints. For the
+Libultraship and N64 Recomp contracts, both the `mods` directory and settings
+file must be persistent paths, and the reviewed artifact fields below are
+refused. Core requires the exact retained installation to match before enabling
+managed mods. A stable successor in the declared release series uses the same
+loader.
+
+The `daggerfall-unity-data` version 1 contract admits data-only `.dfmod`
+bundles for a NativePortable GitHub release. The definition must require
+NativePortable capability 41 or later; older readers cannot interpret the
+binding. The settings file is `PortableAppdata/Mods/GameData/Mods.json`. The
+persistent paths must include `DaggerfallUnity_Data/StreamingAssets/Mods`,
+`Portable.txt` and `PortableAppdata`, and may add only
+`DaggerfallUnity_Data/StreamingAssets/GameFiles`. The definition declares no
+runtime data policy, file patterns or runtime-mutable paths. Each loader
+platform needs one executable hint, a Windows `.exe` or Linux `.x86_64` player,
+and a reviewed package layout. Portcove does not create `Portable.txt`; the
+player's marker is collected from and restored to the active runtime like the
+other declared paths.
+
+The binding adds three reviewed facts:
+
+- `reviewed_artifacts` names one release tag and exact ZIP identity (asset
+  name, size and SHA-256) for every loader platform. The tag must be in the
+  minimum release's major series and no older than the minimum.
+- `reviewed_payload_sha256` optionally records, per loader platform, the
+  digest of the sorted path, size and SHA-256 rows of the reviewed immutable
+  payload.
+- `reviewed_repository_id` is the numeric GitHub repository ID. A payload
+  digest requires it.
+
+An installation matching a reviewed artifact exactly uses the loader after its
+retained files verify. Another release identity can reuse the review only when
+its manifest records the same platform, the declared repository and numeric
+repository ID, and the installed tag. The installed release must be in the
+minimum release's major series and no older than the minimum. Its immutable
+payload rows must produce the reviewed digest. The package's shipped mutable roots must also have the
+reviewed shape: no `Portable.txt` or `PortableAppdata`, and only the stock
+`readme.txt` in `Mods` and `GameFiles`. This comparison grants no new download
+or code-execution authority.
+
+Core deploys reviewed bundles only into
+`DaggerfallUnity_Data/StreamingAssets/Mods` under the exact retained runtime.
+It stages each file in a private directory beside `Mods`, outside Unity's
+recursive scan, and publishes it by rename only. A mount boundary fails closed
+instead of copying into `Mods`. Removal and replacement require the live file
+to match the recorded package. Files the setup does not own, or owned files
+that changed, hold the deployment and stay in place for review.
+
+The authored Shipwright and Zelda 64: Recompiled bindings match the existing
+native settings and platform contracts. Historical definitions keep their
+loader interpretation. Indexed successors preserve the established loader
+and native settings so interrupted writes can resume with the same facts.
+
+2 Ship 2 Harkinian 5.0.1 uses `2ship2harkinian.json` and stores the names
+without extensions in the `gSettings.EnabledMods` list. Its build enables OTR
+and O2R support, and the pinned archive manager gives the last archive
+priority. The binding covers the declared managed Windows and Linux targets.
+[2Ship mod menu](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/mm/2s2h/Enhancements/ModMenu/ModMenu.cpp)
+[2Ship build flags](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/CMakeLists.txt)
+[Pinned archive manager](https://github.com/kenix3/libultraship/blob/7cb10226e7875ec48ceec2f841d00afd84eef964/src/ship/resource/archive/ArchiveManager.cpp)
+
+Banjo: Recompiled v1.0.2 identifies its native game as `bk` and registers its
+application configuration root. Its pinned N64ModernRuntime scans that root's
+`mods` directory for NRM packages and reads `enabled_mods` and `mod_order`
+from `mods.json`. This establishes the source contract for local NRM packages
+on its declared managed platforms. The binding supplies no provider scope or
+texture-pack support.
+[Banjo v1.0.2 source](https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/src/main/main.cpp)
+[Pinned native list implementation](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/mods.cpp)
+[Pinned configuration paths](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/recomp.cpp)
+
+### Reviewed mod provider bindings
+
+An indexed definition can carry one exact GameBanana game ID and one
+Thunderstore community under `mod_provider_bindings`. The port must already
+have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
+require template versions 6 and 8 respectively. Legacy signed catalog
+envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
+An explicit empty list withdraws the provider choices. The library records
+which ports have adopted explicit scopes. If that selection expires, is
+revoked or is replaced by another port, its compiled provider is held until
+a fresh authenticated definition appoints an exact scope. Shared profile writes
+require library schema 69 or newer. Recipes carrying an explicit scope use
+format 4.
+
+When multiple providers are available, select the provider before requesting
+a project or planning an install. Desktop offers the choices and the CLI
+accepts `--provider`. Core project responses and CLI details include provider
+files for inspection. Core offers file review where the port definition and
+host platform have a compatible loader. A plan still checks the exact retained
+runtime and acquired bytes. A plan or installed reference for a new scope carries its
+exact binding. A historical reference with no binding resolves only to its
+original compiled scope. Install, update and recipe replay refuse a changed
+scope.
+
+Keep newly authored scopes out of public projections until the matching
+reader and profile writer are available to the clients using those scopes.

@@ -916,7 +916,6 @@ void test("drafts re-run their own CI run instead of starting a second run on th
   const supersede: unknown = parse(await triggers(".github/workflows/ci-supersede.yml"));
   assert.ok(isRecord(supersede) && isRecord(supersede.on) && isRecord(supersede.on.pull_request));
   assert.deepEqual(supersede.on.pull_request.types, [
-    "opened",
     "synchronize",
     "reopened",
     "ready_for_review",

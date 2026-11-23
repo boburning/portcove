@@ -515,6 +515,9 @@ mod tests {
 
     fn status(id: &str) -> PortStatus {
         PortStatus {
+            exact_release: None,
+            exact_release_hold: None,
+            carried_files: None,
             acquisition: None,
             port_id: id.into(),
             user_data_root: None,
@@ -613,6 +616,7 @@ mod tests {
         status.active = Some(managed(id));
         status.channel = ReleaseChannel::Beta;
         status.external_runtime = Some(ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "external-linux-instance".into(),
             port_id: id.clone(),
@@ -737,6 +741,7 @@ mod tests {
         let mut status = status(&port.id);
         status.channel = ReleaseChannel::Beta;
         status.external_runtime = Some(ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "accepted-external-instance".into(),
             port_id: port.id.clone(),

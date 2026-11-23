@@ -4,7 +4,15 @@
     "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
     "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
     "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
-    "original_game_title": "Wing Commander (Kilrathi Saga)",
+    "original_game_title": "Wing Commander",
+    "artwork": {
+      "game_id": 50167,
+      "cover_id": 27896,
+      "image_id": "amf1oxlh21jfbdvpso8j",
+      "image_sha256": "8960e96afabb01890379af2654d19c28852d0935a3c98059afcf7b7c418a5e87",
+      "game_slug": "wing-commander-the-kilrahi-saga",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/neuromancer/wc1-re",
     "setup_url": "https://github.com/neuromancer/wc1-re",
     "issue_number": 2909,
@@ -39,6 +47,15 @@
         "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
         "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wing-commander",
+      "evidence_urls": [
+        "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
+        "https://github.com/neuromancer/wc1-re"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

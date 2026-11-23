@@ -46,7 +46,25 @@
         }
       ]
     },
-    "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
-    "recommended_download_channel": "beta"
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "third-party-component-terms",
+        "explanation": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
+        "tracking_issue": 1850
+      }
+    ],
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-iii",
+      "evidence_urls": [
+        "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
+        "https://github.com/C7-Game/OpenCiv3"
+      ],
+      "source_editions": []
+    }
   }
 }

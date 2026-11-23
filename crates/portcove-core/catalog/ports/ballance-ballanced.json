@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ballance-ballanced",
+    "artwork": {
+      "game_id": 20895,
+      "cover_id": 458491,
+      "image_id": "co9trv",
+      "image_sha256": "a6b546db13d7aff7833f27ee87d2841b6c892fd04d2e1928366eecbeb206fac9",
+      "game_slug": "ballance",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/doyaGu/Ballanced",
+    "name": "Ballance / Ballanced",
+    "original_game_title": "Ballance",
+    "summary": "Prepare the upstream SDL3 player in a separate copy of your own Ballance installation.",
+    "issue_number": 5657,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/doyaGu/Ballanced/releases/tag/v0.2.0",
+    "setup_url": "https://github.com/doyaGu/Ballanced/blob/v0.2.0/README.md#for-players",
+    "download_asset_hints": {
+      "windows-x86-64": ["ballance-sdl-windows-x64-runtime.zip"],
+      "linux-x86-64": ["ballance-sdl-linux-x64-runtime.tar.gz"],
+      "macos-x86-64": ["ballance-sdl-macos-x64-runtime.tar.gz"],
+      "macos-aarch64": ["ballance-sdl-macos-arm64-runtime.tar.gz"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/doyaGu/Ballanced/blob/v0.2.0/README.md#for-players",
+      "steps": [
+        {
+          "title": "Prepare a separate Ballance folder",
+          "instruction": "Keep your owned Ballance installation intact. Make a separate writable copy of the game folder, including its original base.cmo, Database.tdb and asset directories. Extract the publisher's v0.2.0 runtime archive for your OS and architecture into that working copy, keeping Bin, RenderEngines, Managers, Plugins and BuildingBlocks in the supplied layout."
+        },
+        {
+          "title": "Run the upstream player",
+          "instruction": "On Windows open Bin/Player.exe from the working copy. On Linux or macOS enter that game's root folder in a terminal and run ./Bin/Player. The Linux runtime needs glibc 2.43 or later. The Intel and Apple Silicon Mac runtimes need macOS 15 or later."
+        },
+        {
+          "title": "Preserve the working copy",
+          "instruction": "Close the player and back up the working game folder, including the actual Player.ini and player data, before replacing or deleting it. Keep your original installation and prior working copy available while trying a new release."
+        }
+      ],
+      "warnings": [
+        "The publisher also supplies Windows ARM64, Windows x86 and Linux ARM64 runtime archives through the release page. Choose your actual architecture. Use the reviewed runtime archive for this layout. Upstream setup and backups are player-managed."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ballance",
+      "evidence_urls": [
+        "https://github.com/doyaGu/Ballanced/blob/v0.2.0/README.md#for-players",
+        "https://github.com/doyaGu/Ballanced"
+      ],
+      "source_editions": []
+    }
+  }
+}

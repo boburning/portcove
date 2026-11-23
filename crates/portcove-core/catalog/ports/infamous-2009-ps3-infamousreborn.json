@@ -6,7 +6,7 @@
     "summary": "An early inFamous PS3 recompilation with setup 1.1. The Windows 10/11 x86-64 Direct3D 12 setup EXE checks or installs build tools, imports your own European BCES00220 ISO or game folder, then generates and compiles locally. Encrypted ISOs need their matching .dkey. A launch announcement does not establish playable progress; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "inFamous (2009 PS3)",
     "project_url": "https://github.com/whompay/inFAMOUSreborn",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/whompay/inFAMOUSreborn",
     "artwork": {
@@ -45,6 +45,24 @@
       ],
       "warnings": [
         "Select the completed inFamous.exe launcher and preserve installer/launch.txt plus its full port/data directory. Its handoff can outlive Portcove’s activity; close the actual game/helpers before upstream changes. The setup EXE and a context-free bare runtime are separate routes."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2009-ps3",
+      "evidence_urls": [
+        "https://github.com/whompay/inFAMOUSreborn",
+        "https://github.com/whompay/inFAMOUSreborn/blob/2a66df5010df8d3615b4f9d31885eeb1b28bd8f4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "infamous-2009-ps3-playstation-3",
+          "title": "inFamous (2009 PS3) (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/whompay/inFAMOUSreborn/blob/d87a35dd90ae95176e2532ee2d43b2e33fb7276e/README.md"
+          ]
+        }
       ]
     }
   },

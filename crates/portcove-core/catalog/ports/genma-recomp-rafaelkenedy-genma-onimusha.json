@@ -4,6 +4,14 @@
     "id": "genma-recomp-rafaelkenedy-genma-onimusha",
     "name": "Genma Onimusha — genma-recomp (rafaelkenedy)",
     "original_game_title": "Genma Onimusha",
+    "artwork": {
+      "game_id": 78622,
+      "cover_id": 223773,
+      "image_id": "co4snx",
+      "image_sha256": "87e76f70e31ffd6aa1256bfb7aff245ba6583b4f651c9351b32ee8416ae9f13f",
+      "game_slug": "genma-onimusha",
+      "match_kind": "underlying-game"
+    },
     "summary": "Native Windows player route and modern camera-relative controls documented. Upstream v0.5.1 fixes analog movement through camera cuts by retaining the character’s actual heading through small stick adjustments and clearing retention on guard or other action states. D-pad tank controls and native directional guard steps/dodges remain. Full campaign/completion and package/runtime behavior remain unverified by Portcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/rafaelkenedy/genma-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/rafaelkenedy/genma-recomp"
     },
-    "issue_number": 3624
+    "issue_number": 3624,
+    "original_game": {
+      "format_version": 1,
+      "id": "genma-onimusha",
+      "evidence_urls": ["https://github.com/rafaelkenedy/genma-recomp"],
+      "source_editions": [
+        {
+          "id": "genma-onimusha-xbox",
+          "title": "Genma Onimusha (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

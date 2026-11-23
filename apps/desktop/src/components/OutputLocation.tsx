@@ -1,6 +1,14 @@
 import { countMessage } from "../localization";
 import { ActionRow, MetadataGrid } from "./ui/patterns";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
@@ -12,6 +20,7 @@ import type {
   PortOutputLocation,
 } from "../types";
 import { errorText, formatBytes } from "../view-model";
+import { navigationScope } from "../focus";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -23,9 +32,9 @@ const outputReviewClass =
 const outputReviewTitleClass =
   "output-review-title flex flex-wrap items-start justify-between gap-3";
 const outputCodeClass =
-  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
+  "path-value block rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCodeClass =
-  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
+  "path-value block rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCopyClass =
   "m-0 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]";
 const outputProblemClass =
@@ -42,21 +51,29 @@ function OutputFact({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-export function OutputLocationControl({
-  portId,
-  gameName,
-  generation,
-  busy,
-  onChanged,
-  onApplying,
-}: {
+type OutputLocationProps = {
   portId: string;
   gameName?: string | undefined;
   generation: number;
   busy?: string | undefined;
   onChanged?: (() => void) | undefined;
   onApplying?: (applying: boolean) => void;
-}) {
+};
+
+export function OutputLocationControl(props: OutputLocationProps) {
+  return (
+    <BoundOutputLocationControl key={JSON.stringify([props.portId, props.generation])} {...props} />
+  );
+}
+
+function BoundOutputLocationControl({
+  portId,
+  gameName,
+  generation,
+  busy,
+  onChanged,
+  onApplying,
+}: OutputLocationProps) {
   const [location, setLocation] = useState<PortOutputLocation>();
   const [draft, setDraft] = useState("");
   const [currentPreview, setCurrentPreview] = useState<OutputDestinationPreview>();
@@ -73,6 +90,26 @@ export function OutputLocationControl({
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
+  const retryButton = useRef<HTMLButtonElement>(null);
+  const currentFolder = useRef<HTMLElement>(null);
+  const loadFocusRequest = useRef<
+    { request: number; scope: HTMLElement | Document; removedWhileFocused: boolean } | undefined
+  >(undefined);
+  // Capture focus before a successful retry is removed, without reclaiming a user's later choice.
+  const captureRetryButton = useCallback((node: HTMLButtonElement | null) => {
+    const previous = retryButton.current;
+    const focus = loadFocusRequest.current;
+    if (
+      !node &&
+      previous &&
+      focus?.request === request.current &&
+      document.activeElement === previous &&
+      navigationScope() === focus.scope &&
+      focus.scope.contains(previous)
+    )
+      focus.removedWhileFocused = true;
+    retryButton.current = node;
+  }, []);
   const focusReturn = useRef<"review" | "reset">("review");
 
   const inspectCurrentDestination = useCallback(
@@ -99,35 +136,69 @@ export function OutputLocationControl({
     [generation, portId],
   );
 
+  const loadLocation = useCallback(
+    (focusAfterRead = false) => {
+      const currentRequest = ++request.current;
+      loadFocusRequest.current = focusAfterRead
+        ? { request: currentRequest, scope: navigationScope(), removedWhileFocused: false }
+        : undefined;
+      currentInspection.current += 1;
+      void Promise.all([
+        desktopApi.outputLocation(portId, generation),
+        desktopApi.outputRelocationStatus(portId, generation),
+      ])
+        .then(([result, status]) => {
+          if (request.current !== currentRequest) return;
+          setLocation(result);
+          setRelocationStatus(status ?? undefined);
+          setDraft(result.configured_output_directory ?? result.effective_output_directory);
+          setPending(undefined);
+          void inspectCurrentDestination(result);
+        })
+        .catch((value) => {
+          if (request.current !== currentRequest) return;
+          setError(errorText(value));
+          setPending(undefined);
+        });
+    },
+    [generation, inspectCurrentDestination, portId],
+  );
+
+  const finishApplying = useEffectEvent(() => {
+    if (!applying.current) return;
+    applying.current = false;
+    onApplying?.(false);
+  });
+
   useEffect(() => {
-    const currentRequest = ++request.current;
-    currentInspection.current += 1;
-    void Promise.all([
-      desktopApi.outputLocation(portId, generation),
-      desktopApi.outputRelocationStatus(portId, generation),
-    ])
-      .then(([result, status]) => {
-        if (request.current !== currentRequest) return;
-        setLocation(result);
-        setRelocationStatus(status ?? undefined);
-        setDraft(result.configured_output_directory ?? result.effective_output_directory);
-        setPending(undefined);
-        void inspectCurrentDestination(result);
-      })
-      .catch((value) => {
-        if (request.current !== currentRequest) return;
-        setError(errorText(value));
-        setPending(undefined);
-      });
+    loadLocation();
     return () => {
       request.current += 1;
       currentInspection.current += 1;
-      if (applying.current) {
-        applying.current = false;
-        onApplying?.(false);
-      }
+      loadFocusRequest.current = undefined;
+      finishApplying();
     };
-  }, [generation, inspectCurrentDestination, onApplying, portId]);
+  }, [loadLocation]);
+
+  useLayoutEffect(() => {
+    if (pending === "load") return;
+    const focus = loadFocusRequest.current;
+    loadFocusRequest.current = undefined;
+    const target = currentFolder.current;
+    if (
+      location &&
+      target &&
+      focus?.request === request.current &&
+      focus.removedWhileFocused &&
+      document.activeElement === document.body &&
+      navigationScope() === focus.scope &&
+      focus.scope.contains(target) &&
+      target.getClientRects().length > 0 &&
+      getComputedStyle(target).visibility !== "hidden" &&
+      !target.closest("[inert], [hidden], [aria-hidden=true]")
+    )
+      target.focus();
+  }, [location, pending]);
 
   const invalidate = (path: string) => {
     request.current += 1;
@@ -313,9 +384,42 @@ export function OutputLocationControl({
           {source}
         </span>
       </div>
-      <code className={outputCodeClass} title={location?.effective_output_directory}>
-        {location?.effective_output_directory ?? "Loading current folder…"}
-      </code>
+      {location ? (
+        <code
+          ref={currentFolder}
+          tabIndex={-1}
+          dir="ltr"
+          className={outputCodeClass}
+          title={location.effective_output_directory}
+        >
+          {location.effective_output_directory}
+        </code>
+      ) : (
+        <p className="m-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-xs text-[var(--color-interactive-text)]">
+          {pending === "load" ? "Loading current folder…" : "Current folder unavailable"}
+        </p>
+      )}
+      {!location && (
+        <ActionRow>
+          <Button
+            ref={captureRetryButton}
+            data-focusable
+            variant="outline"
+            type="button"
+            aria-busy={pending === "load"}
+            focusableWhenDisabled={pending === "load"}
+            onClick={() => {
+              if (pending === "load") return;
+              setPending("load");
+              setError(undefined);
+              loadLocation(true);
+            }}
+          >
+            <Icon glyph={RotateCcw} />
+            {pending === "load" ? "Reading current folder…" : "Retry current folder"}
+          </Button>
+        </ActionRow>
+      )}
       {location && (
         <CurrentOutputDestination
           preview={currentPreview}
@@ -500,7 +604,9 @@ function OutputLocationStatus({
         <ul aria-label="Retained old folders" className="grid gap-1 text-xs">
           {result.old_paths_retained.map((path) => (
             <li key={path}>
-              <code className="break-all">{path}</code>
+              <code dir="ltr" className="break-all">
+                {path}
+              </code>
             </li>
           ))}
         </ul>
@@ -515,7 +621,9 @@ function OutputLocationStatus({
         <ul aria-label="Folders awaiting safe cleanup" className="grid gap-1 text-xs">
           {status.cleanup_pending_paths.map((path) => (
             <li key={path}>
-              <code className="break-all">{path}</code>
+              <code dir="ltr" className="break-all">
+                {path}
+              </code>
             </li>
           ))}
         </ul>
@@ -619,6 +727,7 @@ function OutputLocationReview({
             </span>
           </div>
           <code
+            dir="ltr"
             className={outputReviewCodeClass}
             title={preview.proposed.effective_output_directory}
           >
@@ -633,7 +742,9 @@ function OutputLocationReview({
             <OutputFact label="Existing installs">
               {preview.affected_installs.length === 0
                 ? "None"
-                : `${preview.affected_installs.length} remain at their recorded locations`}
+                : preview.affected_installs.length === 1
+                  ? "1 remains at its recorded location"
+                  : `${preview.affected_installs.length} remain at their recorded locations`}
             </OutputFact>
           </MetadataGrid>
           <p className={outputReviewCopyClass}>
@@ -755,7 +866,7 @@ function OutputRelocationReview({
             {plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}
           </span>
         </div>
-        <code className={outputReviewCodeClass} title={plan.destination_root}>
+        <code dir="ltr" className={outputReviewCodeClass} title={plan.destination_root}>
           {plan.destination_root}
         </code>
         <MetadataGrid className="max-[48rem]:grid-cols-1">
@@ -796,7 +907,8 @@ function OutputRelocationReview({
                   .join(" · ")}
               </span>
               <code
-                className="col-span-full text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+                dir="ltr"
+                className="path-value col-span-full text-xs text-[var(--color-text-secondary)]"
                 title={item.install.path}
               >
                 {item.install.path}

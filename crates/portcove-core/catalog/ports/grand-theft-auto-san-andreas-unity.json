@@ -2,16 +2,22 @@
   "format_version": 1,
   "listing": {
     "id": "grand-theft-auto-san-andreas-unity",
+    "artwork": {
+      "game_id": 732,
+      "cover_id": 120933,
+      "image_id": "co2lb9",
+      "image_sha256": "8f6a8446fea52cb23348258ffc8304e13324ea2366bb9b07d46bcc8171d4843e",
+      "game_slug": "grand-theft-auto-san-andreas",
+      "match_kind": "underlying-game"
+    },
     "name": "San Andreas Unity",
     "original_game_title": "Grand Theft Auto: San Andreas",
     "summary": "Explore San Andreas and use the project’s multiplayer features with game data from your own PC installation.",
     "project_url": "https://github.com/in0finite/SanAndreasUnity",
     "issue_number": 6134,
     "listed_at": "2026-11-15",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
-    "download_block_reason": "Portcove downloads are paused while the cover artwork bundled in the Windows, Linux and Android packages is reviewed. Use these instructions for copies you already trust and are permitted to use.",
     "manual_setup": {
       "help_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
       "steps": [
@@ -21,11 +27,12 @@
         },
         {
           "title": "Start an existing Windows or Linux copy",
-          "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data folder together in a writable directory. Launch SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64 from that directory. If the Linux ZIP extracted with no permissions, restore owner read and directory access on that private copy and make SanAndreasUnity.x86_64 executable."
+          "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data together in a writable folder. On Linux, the v4.0 ZIP may need owner read permission on files, owner access on directories and execute permission on SanAndreasUnity.x86_64. In Portcove, select SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64. Choose that folder as the working directory, review the registration and select Play."
         }
       ],
       "warnings": [
-        "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy."
+        "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy.",
+        "The upstream menu and app icons use Grand Theft Auto: San Andreas cover art. You need your own installed PC game for its game data."
       ],
       "references": [
         {
@@ -37,6 +44,50 @@
           "instruction": "The Android v4.0 APK is an ARMv7 debug build and requires a device that can run 32-bit apps. It needs your installed PC game data and keeps its settings in the app’s user data. For Intel Mac and Apple Silicon, refer to the upstream Unity source build instructions. Compatibility for each Mac architecture still needs to be verified."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-san-andreas",
+      "evidence_urls": [
+        "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+        "https://github.com/in0finite/SanAndreasUnity"
+      ],
+      "source_editions": []
+    },
+    "release_url": "https://github.com/in0finite/SanAndreasUnity/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["SanAndreasUnity-", "-windows.zip"],
+      "linux-x86-64": ["SanAndreasUnity-", "-linux.zip"]
+    },
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+        "tracking_issue": 6134
+      }
+    ]
+  },
+  "external_registration_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "in0finite/SanAndreasUnity"
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Keep the complete San Andreas Unity folder and your original installed PC game. Select the player and use its writable folder as the working directory. In the player, choose Change path to GTA and select the installed game. You manage updates, settings and backups. Removing the registration keeps your files."
     }
   }
 }

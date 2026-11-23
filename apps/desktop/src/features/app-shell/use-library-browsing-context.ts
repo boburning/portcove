@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAppShellState, type BrowsingInputs } from "./use-app-shell-state";
 import { useWorkspaceContinuity, type WorkspaceBrowsingPositions } from "../../keyboard-shortcuts";
+import { withoutVerbatimPrefix } from "../../path-presentation";
 
 export type LibraryBrowsingContext = {
   inputs: BrowsingInputs;
@@ -119,12 +120,6 @@ function writeBrowsingInputs(root: string, serializedInputs: string): void {
   window.localStorage.setItem(libraryBrowsingPreferenceKey(root), serialized);
 }
 
-/** A Windows path as the player knows it, without the `\\?\` verbatim prefix. */
-export function withoutVerbatimPrefix(path: string): string {
-  if (path.startsWith("\\\\?\\UNC\\")) return `\\\\${path.slice(8)}`;
-  return path.startsWith("\\\\?\\") ? path.slice(4) : path;
-}
-
 export function libraryBrowsingKey(root: string): string {
   return withoutVerbatimPrefix(root);
 }
@@ -144,8 +139,8 @@ export function useLibraryBrowsingContext({
   initial?: LibraryBrowsingContext | undefined;
   returnToSelection?: "switch" | "reset" | undefined;
   remember: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   ready?: boolean;
   installedCount?: number | undefined;
   catalogCount?: number | undefined;
@@ -247,13 +242,13 @@ export function useLibraryBrowsingContext({
         positions: browsingPositions(),
       });
   };
-  const switchLibraryWithContext = async (path: string) => {
+  const switchLibraryWithContext = async (path: string, review?: string) => {
     save();
-    await switchLibrary(path);
+    await (review ? switchLibrary(path, review) : switchLibrary(path));
   };
-  const resetLibraryWithContext = async () => {
+  const resetLibraryWithContext = async (review?: string) => {
     save();
-    await resetLibrary();
+    await (review ? resetLibrary(review) : resetLibrary());
   };
   return {
     ui,

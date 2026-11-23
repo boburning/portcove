@@ -1,11 +1,10 @@
 # Project governance
 
-The public, user-owned
-[Portcove Roadmap](https://github.com/users/boburning/projects/1) is the sole live
-planning authority. Project fields may change freely without a documentation
-rewrite. GitHub issues preserve implementation-ready specifications and evidence;
-repository documentation preserves stable contracts and dated snapshots;
-`catalog.json` preserves actual port support.
+Use the public, user-owned
+[Portcove Roadmap](https://github.com/users/boburning/projects/1) for current
+plans. When a Project field changes, update the Project. Put implementation
+requirements and evidence in GitHub issues. Keep stable rules and dated
+snapshots in the docs. Record actual port support in `catalog.json`.
 
 Do not create a JSON ledger, `STATUS.md`, TODO list, milestone mirror, or second
 planning service. GitHub milestones are not the target-release authority.
@@ -29,10 +28,10 @@ The Project uses these single-select fields:
   Platform support, Port catalog, Release engineering, Documentation and
   governance.
 - **Platform:** Unknown, All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
-  macOS Apple Silicon, Android, Not applicable.
-- **Port stage:** Watchlist, Researching, Source contract known, Release
-  integrity qualified, Cataloged, Automated qualification, Manual
-  qualification, Supported, Blocked, Rejected.
+  macOS Apple Silicon, Android, PS5, Not applicable.
+- **Port stage:** Watchlist, Researching, Blocked, Rejected, Cataloged,
+  Automated qualification, Supported. Three historical options remain visible
+  in Project readback while retained assignments still use them.
 - **Effort:** XS, S, M, L, XL, Unknown.
 
 GitHub reserves the field name `Type` for its own item-type filter, so the live
@@ -45,6 +44,16 @@ Project field.
 
 ## Port-stage contract
 
+Close a title's finite work when the delivered operations meet the applicable
+catalog contract. When a canonical issue exists, record the platform, ownership,
+released route and relevant qualification there. Issue-free additions follow
+the existing catalog preparation and delivery path. A port can be Done at the
+Cataloged stage. A pending shared capability keeps its canonical
+engineering owner and its applicable consumers. Discovery, a watch and a product
+exclusion contribute to inventory coverage only. When an older specification
+requires more than the offered operation, link its dated evidence and identify
+the superseded requirement separately from any passed check.
+
 `Port stage` is a workflow and evidence summary, not a synonym for release
 channel, catalog maturity, or Project Status:
 
@@ -52,23 +61,11 @@ channel, catalog maturity, or Project Status:
   presence does not grant catalog support.
 - **Researching:** active investigation of upstream identity, releases, source
   requirements, platforms, persistence, or adapter fit.
-- **Source contract known:** required game/source identity and accepted
-  revisions are sufficiently documented for implementation planning. No
-  runnable release is implied.
-- **Release integrity qualified:** at least one useful runnable artifact has a
-  deterministic, reviewable integrity path for an intended platform. Portcove
-  installation or gameplay has not necessarily passed.
 - **Cataloged:** exactly one valid `catalog.json` ID exists, but no catalog-owned
   automated platform qualification has been recorded.
 - **Automated qualification:** at least one declared platform has catalog-owned
   automated evidence, but no supported platform scope has completed the
   required hands-on evidence.
-- **Manual qualification:** automated evidence exists and hands-on
-  qualification is the active next or partially completed gate. This workflow
-  stage does not itself assert a recorded hands-on pass. The stage name is
-  historical; it does not require a human operator when an agent can directly
-  observe the same behavior on the runtime and any input or device relevant to
-  the claim.
 - **Supported:** historical entries require at least one declared platform in
   both legacy qualification arrays. New exact claims require matching scoped
   automated and hands-on records for the artifact, source contract, variant,
@@ -108,7 +105,10 @@ release campaign. Planned work remains selectable without committing speculative
 family-wide enhancement lists.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-and initializes neutral Watchlist fields. A public New
+and initializes neutral Watchlist fields. After the creation receipt, it reads the
+exact issue’s active and archived memberships and verifies the selected Project
+item by its REST and opaque IDs. An unconfirmed attachment keeps the receipt for
+`normalize-port` recovery. A public New
 Port form submission enters the same contract when a maintainer runs
 `normalize-port --issue <number>`. Normalization preserves contributor content,
 requires the canonical `[Port]` title plus direct-upstream and lowercase
@@ -119,7 +119,17 @@ and fills neutral values only where fields are unset. Both intake paths preserve
 existing parent relationships and leave unparented issues unparented.
 When a researched port is later admitted to the operational catalog, rerunning
 `normalize-port` links its existing key only when both the exact catalog ID and
-normalized direct upstream match. Listing-only keys, other games sharing an
+normalized direct upstream match. When the research key differs, the
+`normalize-port` CLI command (and the workflow that runs it) links instead when
+exactly one catalog listing records this issue as its `issue_number`, that
+listing's ID is an operational catalog entry whose normalized `project_url`
+matches the issue's direct upstream, and the issue title names the listing's
+original game or listing name. It refuses an issue claimed by several or
+malformed listings, a differing upstream, a title naming another game, or a
+listing claim that contradicts the issue's existing catalog ID. A claim by a
+research-only listing that is not yet in the operational catalog leaves the
+research key unchanged. Discovery and hosted intake do not pass listings and
+use only the exact-key rule. Other listing-only keys, other games sharing an
 upstream and unreviewed upstream changes remain research identities. This does
 not promote Project qualification or change support. Normalization refuses a
 changed issue preimage before publishing its marker update.
@@ -171,7 +181,7 @@ of concurrent field edits.
 
 All live Roadmap repository issue inventories use one verified direct GraphQL collector. Metadata pages contain at most 100 issues; body-inclusive pages contain at most 50. Stable totals, terminal pagination, advancing cursors, unique node IDs and issue numbers, required fields, repository identity, issue URL bindings and before/after newest-issue markers establish complete coverage. A newest-record marker alone never establishes middle-page coverage. Collector results are bound to their client, fields and observation time; raw arrays and persisted caches cannot establish live completeness.
 
-Standalone and programmatic doctors use the same collector regardless of evidence reporting. Supplied collector-validated Roadmap inventories bypass duplicate collection. Otherwise doctor brackets its fresh repository issue read with independent active-Project count, identity and revision observations. The same issue traversal may project complete live issue-side Project memberships and their fields. A unique same-Project active set establishes Project coverage only when its size exhausts the stable independent count; this cardinality proof does not assume drafts, foreign issues or pull requests are absent. A smaller projection still requires full Project item enumeration; a larger projection, malformed nested connections, or changing revision/counts invalidate the observation. No persisted membership proof or partial traversal is reused. This avoids the Project-wide listing when fresh authoritative memberships already prove the whole set, while retaining complete-list coverage for broader Projects. A self-consistent but truncated Project traversal cannot establish missing memberships. Discovery also checks independently counted active-plus-archived membership in its existing Project revision reads; redacted Project content remains incomplete coverage. Discovery preserves metadata-first enumeration, revision checks, body-cache hashes, hydration batches of ten, archive scope, freshness and mutation invalidation. The generic connection validator is shared with Project/dependency traversals; their independent scope remains required.
+Standalone and programmatic doctors use the same collector regardless of evidence reporting. Supplied collector-validated Roadmap inventories bypass duplicate collection. Otherwise doctor brackets its fresh repository issue read with independent active-Project count, identity and revision observations. The same issue traversal may project complete live issue-side Project memberships and their fields. A unique same-Project active set establishes Project coverage only when its size exhausts the stable independent count; this cardinality proof does not assume drafts, foreign issues or pull requests are absent. A smaller projection still requires complete enumeration of active Project item identities. Doctor reuses the live repository issue, dependencies and Project fields for matching memberships whose issue and item identities and revisions agree across the reads. It hydrates all other listed items with exact Project/archival identity and complete fields, including drafts, foreign issues, pull requests and rows with missing or same-second versions. For local rows in that additional read, the issue body, complete blocking relationships and normalized Project field values must agree across both sources. A larger projection, malformed nested connections, or changing revision/counts invalidate the observation. No persisted membership proof or partial traversal is reused. This avoids the Project-wide listing when fresh authoritative memberships already prove the whole set, while retaining complete-list coverage for broader Projects. A self-consistent but truncated Project traversal cannot establish missing memberships. Discovery also checks independently counted active-plus-archived membership in its existing Project revision reads; redacted Project content remains incomplete coverage. Discovery preserves metadata-first enumeration, revision checks, body-cache hashes, hydration batches of ten, archive scope, freshness and mutation invalidation. The generic connection validator is shared with Project/dependency traversals; their independent scope remains required.
 
 Each logical collection makes one traversal. Eligible SDK reads have at most three total transport attempts under the original deadline and budgets. Only the standalone doctor may restart its whole read once after typed concurrent changes or an admitted timeout, connection reset, or HTTP 502/503/504. Fresh counts and provider quota must admit the replacement read within caller deadlines; rate limits, authentication, malformed/incomplete data, identity failures and exhausted budgets never trigger that retry. Every retry discards prior observations and Project context and repeats checkout-context checks. Discovery retains its own single recollection allowance without expanded hard budgets. Whole-read recovery preserves exhausted transport allowances, original deadlines and remaining resources. Intentional stability observations remain distinct reads charged to the operation budget.
 
@@ -645,15 +655,15 @@ restart after it stops.
 
 The saved views are entry points into one Project, not independent authorities:
 
-| View                                     | Question answered                                                                                                             |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
-| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
-| In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
-| Next Queue                               | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
-| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
-| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
-| Blocked & Deferred / Product Triage      | What has a resume condition, and which product reports or requests need triage?                                               |
+| View                                                 | Question answered                                                                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product Outcomes                                     | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
+| Required for Beta / Required through 1.0             | Which direct Required outcomes remain?                                                                                        |
+| In Progress                                          | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
+| Next Queue                                           | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
+| Planned Additions                                    | Which approved non-gating additions remain, across releases?                                                                  |
+| Port Pipeline / Active Port Work / Blocked Port Work | Which ports are in the inventory, actively being worked on, or blocked?                                                       |
+| Blocked & Deferred / Product Triage                  | What has a resume condition, and which product reports or requests need triage?                                               |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every
@@ -898,25 +908,84 @@ Use `node scripts/roadmap.mts capture-port` for direct maintainer port intake,
 `doctor` exposes the actual checkout root, HEAD/branch and catalog hash before
 reading GitHub. After delivery, use verified current main containing the merge
 and pass `doctor --expected-head <verified-main-sha>`; a different HEAD or modified
-catalog/configuration stops before network checks. Input changes during the check
+catalog, listings or configuration stops before network checks. Input changes during the check
 invalidate success. `--json` returns the context and diagnostic report; raw reports
 remain under ignored `work/roadmap-doctor`. Checkout mismatches are distinct from
 Project drift.
 
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
-coverage contract across both repository issues and Project items, honest
+coverage contract for issue-linked ports across repository issues and Project items, honest
 Port-stage evidence and exact Supported platform intersections, final UX
 origin ownership, supported-source plan ownership, active-release commitment
 classification, and dependency-graph consistency. It requires every
 canonical issue and every open repository issue whose title begins `[Port]` to
-have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
+have exactly one Port item. A matching generated listing with a reviewed original
+game and no issue assignment can represent an issue-free catalog port. The
+doctor still checks every canonical issue it finds, including duplicate claims
+on an issue-free catalog ID. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target
 identities, unsupported stage claims, Blocked entries without usable resume
 conditions, and Rejected entries that still claim catalog support. Distinct
 games or targets may share one upstream. Grouping and sorting are verified by readback; auto-add and completion workflows
 remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
+
+For the #4850 read-only migration inventory, run
+`node scripts/roadmap.mts doctor --stage-migration-dry-run --expected-head <sha> --json`.
+It uses complete, revision-checked Project inventory for active and archived
+items. The report retains current values with Project item IDs, issue links,
+and observed body digests, and reports missing or conflicting catalog links
+as unresolved. A failed or incomplete read establishes no migration counts.
+This mode reports migration coverage separately from global doctor health.
+
+The [owner-approved stage model](https://github.com/boburning/portcove/issues/4850#issuecomment-7068240241)
+keeps **Watchlist**, **Researching**, **Blocked**, and **Rejected** as deliberate
+planning values. **Cataloged**, **Automated qualification**, and **Supported**
+follow existing catalog admission and platform qualification. Intake fills an
+unset stage from a uniquely matched operational catalog definition with the
+same upstream. Unbound intake starts at Watchlist. Normalization preserves
+already assigned values and leaves a completed unbound assignment unset.
+Single and bulk edits to a catalog-derived stage require the canonical issue's
+exact current catalog projection.
+
+**Source contract known**, **Release integrity qualified**, and **Manual
+qualification** are historical options. Routine Roadmap tooling refuses new
+assignments to them and accepts them in readback. Keep their option identities
+available while retained items use them. Preserve source, artifact, and
+hands-on evidence in the owning issue before applying a separately reviewed
+transition. The report
+shows each historical value beside its catalog projection when a unique link
+exists. Doctor already computes and reports drift in either direction from
+observed catalog evidence. It reports a lower stored stage as advisory and
+continues to fail when a stored qualification claim exceeds its evidence.
+A dry-run finding proposes a review of the Project assignment at the stage
+the catalog already establishes. When the catalog link is absent or ambiguous,
+the finding asks for binding verification and proposes no target. Reporting
+does not grant catalog support or change the recorded planning values.
+
+An issue-free prepared listing can record inspection, runtime observations or
+failures independently. The report includes a catalog projection for matching
+operational ports covered by the issue-free listing rule. A listing or dated
+runtime observation alone supplies no substitute for an automated or hands-on
+qualification pass. The read-only doctor report runs under existing authority.
+The approved assignment plan covers 299 clears, 20 transitions to Researching,
+five transitions to Blocked, and 34 historical holds. Apply a transition
+only after rechecking that exact row and preserving its supporting evidence
+in the owning issue. Changed or newly identified assignments need separate
+disposition.
+
+For each historical assignment, the dry run retains the exact old value and
+issue body with the Project and issue IDs, observed revision, and body digest.
+It proposes leaving Port stage unset after evidence preservation when the
+owning issue is closed as Completed, Project Status is Done, and neither the
+issue markers nor an admitted listing establish an operational catalog binding.
+This preserves the recorded completion of limited work, including an
+upstream-owned player route. For open issues, a recorded Blocked status needs
+the existing issue blocker and resume evidence. Active investigation can map
+to Researching when the issue specifies pending qualification work and tests.
+A Triage status alone leaves the historical value on hold. An ambiguous catalog
+binding or insufficient current evidence also retains the historical value.
 
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under

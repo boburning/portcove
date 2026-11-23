@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "unvanquished",
+    "name": "Unvanquished",
+    "original_game_title": "Unvanquished",
+    "artwork": {
+      "game_id": 139329,
+      "cover_id": 116302,
+      "image_id": "co2hqm",
+      "image_sha256": "cccaa8a21e2ffbe501b7867881abcc72882e04098d6d4d0e5a3a0f9ea375677e",
+      "game_slug": "unvanquished",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Build bases and play team matches as humans or aliens, online or in a local game.",
+    "project_url": "https://github.com/Unvanquished/Unvanquished",
+    "issue_number": 6468,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://unvanquished.net/download/",
+    "setup_url": "https://unvanquished.net/download/",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+        "tracking_issue": 6468
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the publisher’s launcher",
+          "instruction": "Download the official launcher for Windows, Linux x64, or Mac. Start the launcher and select the download arrow. When the download finishes, select the play arrow. Use this launcher to update the game. The Mac client uses an Intel build through Rosetta 2 on Apple Silicon. On Linux, you can also install net.unvanquished.Unvanquished from Flathub and update that copy through your package manager."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep your settings and downloaded content",
+          "instruction": "Close Unvanquished before backing up. Copy Documents/My Games/Unvanquished on Windows, ~/Library/Application Support/Unvanquished on Mac, or ~/.local/share/unvanquished on Linux. Use the game’s actual homepath if you changed it, and ~/.var/app/net.unvanquished.Unvanquished/data/unvanquished for the Flatpak. Keep the backup private because it can contain your client key."
+        },
+        {
+          "title": "Use the universal ZIP for other Linux architectures",
+          "instruction": "The universal ZIP includes Linux x64, ARM64, ARM hard-float and i686 engine archives, Windows x64 and i686 engine archives, and the Intel Mac app. On Linux or Windows, unpack the matching inner engine archive alongside the pkg folder and keep the complete set together. Start daemon on Linux or daemon.exe on Windows. On Mac, prefer the official launcher because macOS can prevent the manually extracted app from reading its adjacent game data. The official release does not provide an Android client."
+        }
+      ],
+      "help_url": "https://wiki.unvanquished.net/wiki/Install_and_play"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "unvanquished",
+      "evidence_urls": [
+        "https://wiki.unvanquished.net/wiki/Install_and_play",
+        "https://github.com/Unvanquished/Unvanquished"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "unvanquished",
+    "origin": {
+      "project_url": "https://github.com/Unvanquished/Unvanquished",
+      "repository": {
+        "host": "github.com",
+        "id": "2490468"
+      }
+    },
+    "decisions": []
+  }
+}

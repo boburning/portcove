@@ -109,7 +109,7 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
   exact(value.network, "addresses,metadata_base_url,targets_base_url");
   assert.equal(value.network.metadata_base_url, fixedMetadata);
   assert.equal(value.network.targets_base_url, fixedTargets);
-  exact(value.network.addresses, [...hosts].sort().join(","));
+  exact(value.network.addresses, hosts.toSorted().join(","));
   const addressInputs = value.network.addresses;
   const addresses = Object.fromEntries(
     hosts.map((host) => {

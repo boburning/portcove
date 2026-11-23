@@ -4,6 +4,14 @@
     "id": "restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012",
     "name": "FIFA Street (2012) — ReStreet — FIFA Street (2012) on PC (samuelit0davila)",
     "original_game_title": "FIFA Street (2012)",
+    "artwork": {
+      "game_id": 5575,
+      "cover_id": 93636,
+      "image_id": "co2090",
+      "image_sha256": "232d928ffc33f1440ab09795f75bd68fbbd91a0a0d8b2ea457b4cd42b3251c7b",
+      "game_slug": "fifa-street--3",
+      "match_kind": "underlying-game"
+    },
     "summary": "Version 2.0.8 fixes match, sign-in and save defects. Complete progression has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/samuelit0davila/fifa-street-pc-port",
     "listed_at": "2026-10-25",
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/samuelit0davila/fifa-street-pc-port"
     },
-    "issue_number": 3206
+    "issue_number": 3206,
+    "original_game": {
+      "format_version": 1,
+      "id": "fifa-street-2012",
+      "evidence_urls": [
+        "https://github.com/samuelit0davila/fifa-street-pc-port",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012.json"
+      ],
+      "source_editions": [
+        {
+          "id": "fifa-street-2012-xbox-360",
+          "title": "FIFA Street (2012) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

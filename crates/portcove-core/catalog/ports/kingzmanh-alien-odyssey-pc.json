@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "kingzmanh-alien-odyssey-pc",
+    "artwork": {
+      "game_id": 50325,
+      "cover_id": 276356,
+      "image_id": "co5x8k",
+      "image_sha256": "840cfba9d4dad5f1a6099af9cd60336c1c0245273e6fc2d1ecf4011cca01b4be",
+      "game_slug": "alien-odyssey",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/kingzmanh/alien-odyssey-pc",
     "name": "Alien Odyssey / Windows native",
     "original_game_title": "Alien Odyssey",
@@ -31,6 +39,15 @@
       "warnings": [
         "The original’s sections run within the installed odyssey.exe player. The publisher’s setup and uninstaller own replacement and removal."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-odyssey",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/alien-odyssey-pc/blob/v0.1.0/README.md",
+        "https://github.com/kingzmanh/alien-odyssey-pc"
+      ],
+      "source_editions": []
     }
   }
 }

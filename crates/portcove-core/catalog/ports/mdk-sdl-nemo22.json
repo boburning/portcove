@@ -49,7 +49,28 @@
         }
       ]
     },
-    "original_game_title": "MDK"
+    "original_game_title": "MDK",
+    "original_game": {
+      "format_version": 1,
+      "id": "mdk",
+      "evidence_urls": [
+        "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
+        "https://github.com/nautilusbits/mdk-sdl",
+        "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.6",
+        "https://github.com/nautilusbits/mdk-sdl/commit/1094e273b33c3bae6a06c5b04d0381ebc5f143c3",
+        "https://api.github.com/repositories/1406153922"
+      ],
+      "source_editions": [
+        {
+          "id": "mdk-pc",
+          "title": "MDK (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/nautilusbits/mdk-sdl/blob/1094e273b33c3bae6a06c5b04d0381ebc5f143c3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

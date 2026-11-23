@@ -3,7 +3,7 @@ use crate::transport::BackupReview;
 use crate::{
     DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
 };
-use portcove_core::{BackupAction, BackupRecord, PortcoveError, RestoreResult};
+use portcove_core::{BackupAction, BackupRecord, MutationState, PortcoveError, RestoreResult};
 
 #[tauri::command]
 pub(crate) async fn preview_backup_action(
@@ -41,7 +41,12 @@ pub(crate) async fn restore_backup(
         BackupAction::Restore,
         generation,
     )
-    .await?;
+    .await
+    .map_err(|mut error| {
+        // There has been no native confirmation or restore attempt.
+        error.presentation.mutation_state = MutationState::NotStarted;
+        error
+    })?;
     if !confirm_review(&app, review, &expected_preview).await? {
         return Ok(None);
     }
@@ -108,6 +113,7 @@ async fn confirm_review(
         return Err(PortcoveError::conflict(
             "backup or saved data changed after review; review again",
         )
+        .with_mutation_state(MutationState::NoChanges)
         .into());
     }
     let (title, message, action) = backup_consent(&review);
@@ -174,6 +180,7 @@ mod tests {
                 action,
                 backup: BackupRecord {
                     automatic: None,
+                    recovery_review: None,
                     id: "selected".to_owned(),
                     port_id: "sample-port".to_owned(),
                     path: PathBuf::from("backups/sample-port/selected"),
@@ -187,6 +194,7 @@ mod tests {
                 safety_backup_will_be_created,
                 retained_runtime_copy_will_be_deleted: false,
                 preview_sha256: "b".repeat(64),
+                restore_target_sha256: None,
             },
             port_name: "Sample Port".to_owned(),
             persistent_data_path: PathBuf::from("user/sample-port"),

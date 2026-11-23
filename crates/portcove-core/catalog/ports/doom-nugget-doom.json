@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-nugget-doom",
+    "name": "Doom / Nugget Doom",
+    "original_game_title": "Doom",
+    "summary": "Play Doom or Freedoom in Nugget Doom, with additional gameplay, control and display options.",
+    "project_url": "https://github.com/MrAlaux/Nugget-Doom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5729,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/MrAlaux/Nugget-Doom#readme",
+    "release_url": "https://github.com/MrAlaux/Nugget-Doom/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the matching IWAD from your own Doom installation or a freely available Freedoom IWAD. Pass -iwad followed by the quoted file path. Leave nugget-doom.pk3 in the extracted package. It supplies engine resources."
+        },
+        {
+          "title": "Start Nugget Doom on Windows",
+          "instruction": "Extract the complete x64 ZIP. Run nugget-doom.exe from that directory or run nugget-doom-setup.exe to configure controls and video. The publisher also provides a separate 32-bit ZIP."
+        },
+        {
+          "title": "Start Nugget Doom on Linux",
+          "instruction": "Make the x86-64 AppImage executable and run it with the IWAD. The 6.1.0 engine requires glibc 2.38 or later. If FUSE is unavailable, use --appimage-extract and run AppRun from the complete extracted directory."
+        },
+        {
+          "title": "Start Nugget Doom on a Mac",
+          "instruction": "Extract the universal ZIP and keep the player, setup program, engine PK3 and soundfonts together. Run ./nugget-doom with your IWAD in Terminal. Both Intel and Apple Silicon slices of 6.1.0 require macOS 26 or later."
+        }
+      ],
+      "warnings": [
+        "The publisher player can register a Discord link handler on startup. Installation, updates and user data stay with the upstream package or your own copy.",
+        "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits."
+      ],
+      "help_url": "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
+      "references": [
+        {
+          "title": "Preserve the profile with the matching IWAD",
+          "instruction": "On Linux keep $XDG_DATA_HOME/nugget-doom, normally ~/.local/share/nugget-doom. It holds nugget-doom.cfg and per-IWAD savegames. Preserve your active profile, IWAD and add-ons before changing engine or package versions."
+        }
+      ]
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["Nugget-Doom-", "-win64.zip"],
+      "linux-x86-64": ["Nugget-Doom-", "-Linux.AppImage"],
+      "macos-x86-64": ["Nugget-Doom-", "-Mac-uni.zip"],
+      "macos-aarch64": ["Nugget-Doom-", "-Mac-uni.zip"]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-nugget-doom",
+    "origin": {
+      "project_url": "https://github.com/MrAlaux/Nugget-Doom",
+      "repository": {
+        "host": "github.com",
+        "id": "401848609"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
+      "https://github.com/MrAlaux/Nugget-Doom"
+    ]
+  }
+}

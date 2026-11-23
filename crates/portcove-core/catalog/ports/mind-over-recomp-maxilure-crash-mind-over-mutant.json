@@ -4,6 +4,14 @@
     "id": "mind-over-recomp-maxilure-crash-mind-over-mutant",
     "name": "Crash: Mind over Mutant — Mind over Recomp (Maxilure)",
     "original_game_title": "Crash: Mind over Mutant",
+    "artwork": {
+      "game_id": 1191,
+      "cover_id": 169870,
+      "image_id": "co3n2m",
+      "image_sha256": "d5320e416e2d5037ac2d6fa6ee621c8e1e95ac0429f4cdc328276ad8f51b45f2",
+      "game_slug": "crash-mind-over-mutant",
+      "match_kind": "underlying-game"
+    },
     "summary": "Alpha: boots and plays, but has not been played through to the end. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Maxilure/MindOver-Recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/Maxilure/MindOver-Recomp"
     },
-    "issue_number": 3454
+    "issue_number": 3454,
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-mind-over-mutant",
+      "evidence_urls": [
+        "https://github.com/Maxilure/MindOver-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mind-over-recomp-maxilure-crash-mind-over-mutant.json"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-mind-over-mutant-xbox-360",
+          "title": "Crash: Mind over Mutant (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mind-over-recomp-maxilure-crash-mind-over-mutant.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

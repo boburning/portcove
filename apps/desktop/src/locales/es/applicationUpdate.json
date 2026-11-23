@@ -54,6 +54,7 @@
     "checking": "Buscando actualizaciones…",
     "current": "Portcove está actualizado. Última comprobación: {{checked}}.",
     "notChecked": "Portcove aún no ha buscado actualizaciones.",
-    "title": "Estado"
+    "title": "Estado",
+    "updating": "Actualizando Portcove…"
   }
 }

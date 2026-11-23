@@ -1,13 +1,18 @@
 //! Version-bound game configuration declarations. Declarations do not grant
 //! installation, filesystem, execution or definition-admission authority.
 
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
-use crate::{Platform, PortcoveError, Result};
+use crate::{Platform, PortcoveError, ReleaseChannel, Result};
 
 pub(crate) mod document;
 mod qualification;
@@ -18,6 +23,376 @@ pub(crate) mod windows;
 pub use service_types::*;
 
 pub(crate) const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct ShippedDefault {
+    sha256: String,
+    // Hex keeps the serialized size bounded at twice the declared byte limit.
+    // The exact bytes may be needed after ordinary persistence overwrites the
+    // staged runtime's copy or the original archive leaves the download cache.
+    bytes_hex: String,
+}
+
+impl ShippedDefault {
+    pub(crate) fn verified_bytes(&self, file: &GameSettingsFile) -> Result<Vec<u8>> {
+        if (self.bytes_hex.len() as u64) > 2 * file.maximum_bytes.min(MAX_SETTINGS_BYTES) {
+            return Err(PortcoveError::verification(
+                "retained package settings default exceeds the declared file limit",
+            ));
+        }
+        let bytes = hex::decode(&self.bytes_hex).map_err(|_| {
+            PortcoveError::verification("retained package settings default is malformed")
+        })?;
+        if hex::encode(Sha256::digest(&bytes)) != self.sha256 {
+            return Err(PortcoveError::verification(
+                "retained package settings default differs from its recorded digest",
+            ));
+        }
+        document::read(file, &bytes)?;
+        Ok(bytes)
+    }
+}
+
+/// The persistence owner must provide a deletion receipt. Filesystem absence
+/// alone leaves the live state unobserved.
+#[derive(Clone, Copy)]
+pub(crate) enum PlayerSettings<'a> {
+    Present(&'a [u8]),
+    RecordedDeletion,
+    Unobserved,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum SettingsUpdate {
+    KeepPlayer,
+    InstallDefault(Vec<u8>),
+    KeepPlayerAndDefault(Vec<u8>),
+    MissingBaseline { incoming_default: Option<Vec<u8>> },
+    MissingPlayerEvidence(Vec<u8>),
+}
+
+/// Plan the raw-file transition before any publication. The lifecycle owner
+/// must recheck the same player preimage and retain both versions on conflict.
+pub(crate) fn reconcile_shipped_default(
+    file: &GameSettingsFile,
+    old: Option<(&GameSettingsFile, &ShippedDefault)>,
+    player: PlayerSettings<'_>,
+    incoming: Option<&ShippedDefault>,
+) -> Result<SettingsUpdate> {
+    let incoming = incoming
+        .map(|value| value.verified_bytes(file))
+        .transpose()?;
+    let Some((old_file, old)) = old else {
+        return Ok(SettingsUpdate::MissingBaseline {
+            incoming_default: incoming,
+        });
+    };
+    let Some(incoming) = incoming else {
+        return Ok(SettingsUpdate::MissingBaseline {
+            incoming_default: None,
+        });
+    };
+    // The earlier default was verified against its own retained declaration.
+    // A newer range or enumeration can legitimately exclude an older value.
+    let old = old.verified_bytes(old_file)?;
+    if old == incoming {
+        return Ok(SettingsUpdate::KeepPlayer);
+    }
+    Ok(match player {
+        PlayerSettings::Present(player) if player == incoming.as_slice() => {
+            SettingsUpdate::KeepPlayer
+        }
+        PlayerSettings::Present(player) if player == old.as_slice() => {
+            SettingsUpdate::InstallDefault(incoming)
+        }
+        PlayerSettings::Present(_) | PlayerSettings::RecordedDeletion => {
+            SettingsUpdate::KeepPlayerAndDefault(incoming)
+        }
+        PlayerSettings::Unobserved => SettingsUpdate::MissingPlayerEvidence(incoming),
+    })
+}
+
+pub(crate) struct SettingsFileUpdate {
+    pub path: String,
+    pub player_preimage: SettingsPreimage,
+    pub update: SettingsUpdate,
+    file_id: String,
+    format: GameSettingsFormat,
+}
+
+/// An expected absent file has different authority from an unobserved file.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum SettingsPreimage {
+    Present { sha256: String },
+    RecordedDeletion,
+    Unobserved,
+}
+
+/// Read one settings copy at a previously authorized persistence root. A
+/// missing coordinate is observable, but does not by itself establish deletion.
+pub(crate) fn observe_player_settings_copy(
+    root: &Path,
+    file: &GameSettingsFile,
+) -> Result<Option<Vec<u8>>> {
+    crate::archive::validate_relative_path(&file.path, false)?;
+    let path = root.join(&file.path);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    match fs::symlink_metadata(&path) {
+        Ok(_) => crate::external_runtime::read_single_link_metadata(
+            &path,
+            file.maximum_bytes.min(MAX_SETTINGS_BYTES),
+        )
+        .map(Some),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            crate::persistence::require_absent_path(root, &file.path)?;
+            Ok(None)
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+impl SettingsFileUpdate {
+    /// Recheck the planned player bytes immediately before a transaction takes
+    /// custody. The old active mirror must still agree with canonical data.
+    /// Absence only matches an already recorded deletion; it never grants one.
+    pub(crate) fn require_unchanged_player(
+        &self,
+        file: &GameSettingsFile,
+        canonical_root: &Path,
+        active_mirror: Option<&Path>,
+    ) -> Result<()> {
+        if self.path != file.path || self.file_id != file.id || self.format != file.format {
+            return Err(PortcoveError::verification(
+                "the settings update differs from its declared file identity",
+            ));
+        }
+        let current = observe_player_settings_copy(canonical_root, file)?;
+        if let Some(root) = active_mirror
+            && observe_player_settings_copy(root, file)? != current
+        {
+            return Err(PortcoveError::conflict(
+                "the active and canonical settings files differ; preserve both before changing versions",
+            )
+            .detail("settings_file", &self.path));
+        }
+        let matches = match (&self.player_preimage, current.as_deref()) {
+            (SettingsPreimage::Present { sha256 }, Some(bytes)) => {
+                hex::encode(Sha256::digest(bytes)) == *sha256
+            }
+            (SettingsPreimage::RecordedDeletion, None) => true,
+            _ => false,
+        };
+        if !matches {
+            return Err(PortcoveError::conflict(
+                "the player's settings changed or lack a verified preimage; review this installation again",
+            )
+            .detail("settings_file", &self.path));
+        }
+        Ok(())
+    }
+}
+
+pub(crate) struct RetainedSettingsDefaults {
+    pub contract: GameSettingsContract,
+    pub shipped: BTreeMap<String, ShippedDefault>,
+    pub capture_gaps: BTreeMap<String, ShippedDefaultGap>,
+}
+
+impl RetainedSettingsDefaults {
+    /// Compare incoming declared settings with the prior retained package.
+    /// The caller supplies the persistence owner's coherent file observations.
+    pub(crate) fn plan_update(
+        &self,
+        prior: Option<&Self>,
+        player: &BTreeMap<String, PlayerSettings<'_>>,
+    ) -> Result<Vec<SettingsFileUpdate>> {
+        let mut updates = Vec::new();
+        for file in &self.contract.files {
+            let incoming = self.shipped.get(&file.path);
+            let old = prior.and_then(|prior| {
+                let old_file = prior.contract.files.iter().find(|old| {
+                    old.id == file.id && old.path == file.path && old.format == file.format
+                })?;
+                Some((old_file, prior.shipped.get(&file.path)?))
+            });
+            if incoming.is_none() && old.is_none() {
+                continue;
+            }
+            let player = player
+                .get(&file.path)
+                .copied()
+                .unwrap_or(PlayerSettings::Unobserved);
+            let player_preimage = match player {
+                PlayerSettings::Present(bytes) => {
+                    if bytes.len() as u64 > MAX_SETTINGS_BYTES {
+                        return Err(PortcoveError::verification(
+                            "player settings exceed the reconciliation file limit",
+                        ));
+                    }
+                    SettingsPreimage::Present {
+                        sha256: hex::encode(Sha256::digest(bytes)),
+                    }
+                }
+                PlayerSettings::RecordedDeletion => SettingsPreimage::RecordedDeletion,
+                PlayerSettings::Unobserved => SettingsPreimage::Unobserved,
+            };
+            updates.push(SettingsFileUpdate {
+                path: file.path.clone(),
+                player_preimage,
+                update: reconcile_shipped_default(file, old, player, incoming)?,
+                file_id: file.id.clone(),
+                format: file.format,
+            });
+        }
+        Ok(updates)
+    }
+}
+
+/// Only the verified package's pristine private extraction may supply these
+/// defaults. Missing or unreadable files provide no baseline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ShippedDefaultGap {
+    Omitted,
+    Unreadable,
+    Malformed,
+}
+
+impl ShippedDefaultGap {
+    pub(crate) fn hold_reason(self) -> Option<&'static str> {
+        match self {
+            Self::Omitted => None,
+            Self::Unreadable => Some("unreadable-package-default"),
+            Self::Malformed => Some("malformed-package-default"),
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ShippedDefaultCapture {
+    pub defaults: BTreeMap<String, ShippedDefault>,
+    pub gaps: BTreeMap<String, ShippedDefaultGap>,
+}
+
+#[cfg(test)]
+pub(crate) fn capture_shipped_defaults(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    version: &str,
+    archive_sha256: &str,
+    persistence_root: &Path,
+) -> BTreeMap<String, ShippedDefault> {
+    capture_shipped_settings(
+        port,
+        platform,
+        ReleaseChannel::Stable,
+        version,
+        archive_sha256,
+        persistence_root,
+    )
+    .defaults
+}
+
+pub(crate) fn capture_shipped_settings(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    channel: ReleaseChannel,
+    version: &str,
+    archive_sha256: &str,
+    persistence_root: &Path,
+) -> ShippedDefaultCapture {
+    let Some(contract) = port.game_settings.as_ref() else {
+        return ShippedDefaultCapture::default();
+    };
+    if contract.validate_port(port).is_err() {
+        return ShippedDefaultCapture::default();
+    }
+    if !contract.accepts_archive_receipt(platform, channel, version, archive_sha256) {
+        return ShippedDefaultCapture::default();
+    }
+    let mut captured = ShippedDefaultCapture::default();
+    for file in &contract.files {
+        let bytes = match observe_player_settings_copy(persistence_root, file) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => {
+                captured
+                    .gaps
+                    .insert(file.path.clone(), ShippedDefaultGap::Omitted);
+                continue;
+            }
+            Err(_) => {
+                captured
+                    .gaps
+                    .insert(file.path.clone(), ShippedDefaultGap::Unreadable);
+                continue;
+            }
+        };
+        if document::read(file, &bytes).is_err() {
+            captured
+                .gaps
+                .insert(file.path.clone(), ShippedDefaultGap::Malformed);
+            continue;
+        }
+        captured.defaults.insert(
+            file.path.clone(),
+            ShippedDefault {
+                sha256: hex::encode(Sha256::digest(&bytes)),
+                bytes_hex: hex::encode(bytes),
+            },
+        );
+    }
+    captured
+}
+
+/// Reopened installs must still bind the preserved defaults to the exact
+/// artifact and file declarations retained at acquisition.
+pub(crate) fn verify_shipped_defaults(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    channel: ReleaseChannel,
+    version: &str,
+    archive_sha256: &str,
+    defaults: &BTreeMap<String, ShippedDefault>,
+    gaps: &BTreeMap<String, ShippedDefaultGap>,
+) -> Result<()> {
+    if defaults.is_empty() && gaps.is_empty() {
+        return Ok(());
+    }
+    let contract = port
+        .game_settings
+        .as_ref()
+        .filter(|contract| {
+            contract.accepts_archive_receipt(platform, channel, version, archive_sha256)
+        })
+        .ok_or_else(|| {
+            PortcoveError::verification(
+                "shipped settings defaults have no retained archive authority",
+            )
+        })?;
+    contract.validate_port(port)?;
+    if defaults.len() + gaps.len() > contract.files.len()
+        || gaps.keys().any(|path| {
+            defaults.contains_key(path) || !contract.files.iter().any(|file| &file.path == path)
+        })
+    {
+        return Err(PortcoveError::verification(
+            "shipped settings defaults exceed their retained file declarations",
+        ));
+    }
+    for (path, default) in defaults {
+        let file = contract
+            .files
+            .iter()
+            .find(|file| &file.path == path)
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "shipped settings default has no retained file declaration",
+                )
+            })?;
+        default.verified_bytes(file)?;
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -259,11 +634,103 @@ impl GameSettingType {
     }
 }
 
+/// Existing native mirrors and declared package-only staged-source mirrors
+/// share the whole-file activation and restore custody protocol.
+pub(crate) fn admits_mirrored_package_defaults(port: &crate::PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable
+        || (crate::persistence::ready_staged_archive(port)
+            && port.archive_data_compatibility_v1.is_none()
+            && port.user_data_environment.is_none()
+            && port.release.provider == crate::ReleaseSource::Github
+            && port
+                .game_settings
+                .as_ref()
+                .is_some_and(GameSettingsContract::package_only))
+}
+
+fn numbered_release(tag: &str) -> Option<[u32; 3]> {
+    let mut parts = tag.strip_prefix('v').unwrap_or(tag).split('.');
+    let mut version = [0; 3];
+    for part in &mut version {
+        let digits = parts.next()?;
+        if !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        *part = digits.parse().ok()?;
+    }
+    parts.next().is_none().then_some(version)
+}
+
 impl GameSettingsContract {
+    pub(crate) fn package_only(&self) -> bool {
+        self.format_version == 2
+    }
+
+    pub(crate) fn validate_port(&self, port: &crate::PortDefinition) -> Result<()> {
+        self.validate(&port.persistent_paths)?;
+        if !port.platforms.contains(&Platform::WindowsX86_64)
+            || (self.package_only()
+                && (!admits_mirrored_package_defaults(port)
+                    || port.release.provider != crate::ReleaseSource::Github
+                    || port.runtime_data_policy.is_some()
+                    || port.user_data_environment.is_some()
+                    || port.linux_packaged_library.is_some()
+                    || port.archive_data_compatibility_v1.is_some()))
+        {
+            return Err(declaration_error(
+                "game_settings",
+                "settings contract requires a declared supporting Windows x86-64 integration",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn covers_archive(
+        &self,
+        platform: Platform,
+        version: &str,
+        archive_sha256: &str,
+    ) -> bool {
+        self.releases.iter().any(|release| {
+            release.platform == platform
+                && release.version == version
+                && release.archive_sha256 == archive_sha256
+        })
+    }
+
+    /// A package-only declaration can follow an ordinary stable patch release
+    /// of its reviewed series. Acquisition still verifies the selected package
+    /// independently. Explicitly enrolled tags always keep their exact digest.
+    pub(crate) fn accepts_archive_receipt(
+        &self,
+        platform: Platform,
+        channel: ReleaseChannel,
+        version: &str,
+        archive_sha256: &str,
+    ) -> bool {
+        if self.covers_archive(platform, version, archive_sha256) {
+            return true;
+        }
+        if !self.package_only() || channel != ReleaseChannel::Stable || !digest(archive_sha256, 64)
+        {
+            return false;
+        }
+        let Some(candidate) = numbered_release(version) else {
+            return false;
+        };
+        self.releases
+            .iter()
+            .filter(|release| release.platform == platform)
+            .filter_map(|release| numbered_release(&release.version))
+            .filter(|verified| verified[..2] == candidate[..2])
+            .max()
+            .is_some_and(|verified| candidate > verified)
+    }
+
     /// Validate declaration shape only. The service must separately establish
     /// accepted retained authority, exact installation and safe current storage.
     pub fn validate(&self, persistent_paths: &[String]) -> Result<()> {
-        if self.format_version != 1 {
+        if !matches!(self.format_version, 1 | 2) {
             return Err(declaration_error(
                 "game_settings.format_version",
                 "unsupported settings contract version",
@@ -280,6 +747,7 @@ impl GameSettingsContract {
             if release.platform != Platform::WindowsX86_64
                 || !text(&release.version, 128)
                 || !digest(&release.archive_sha256, 64)
+                || (self.package_only() && numbered_release(&release.version).is_none())
                 || !digest(&release.source_commit, 40)
                 || release.evidence_urls.is_empty()
                 || release.evidence_urls.len() > 8
@@ -300,10 +768,10 @@ impl GameSettingsContract {
                 ));
             }
         }
-        if self.files.is_empty() || self.files.len() > 8 {
+        if self.files.is_empty() || self.files.len() > if self.package_only() { 1 } else { 8 } {
             return Err(declaration_error(
                 "game_settings.files",
-                "settings require one to eight configuration files",
+                "editable settings require one to eight files and package-only settings require one file",
             ));
         }
         let mut files = BTreeSet::new();
@@ -312,6 +780,7 @@ impl GameSettingsContract {
         let mut count = 0;
         for file in &self.files {
             crate::archive::validate_relative_path(&file.path, false)?;
+            let folded_path = file.path.to_ascii_lowercase();
             let suffix = match file.format {
                 GameSettingsFormat::Json => ".json",
                 GameSettingsFormat::Ini => ".ini",
@@ -325,22 +794,33 @@ impl GameSettingsContract {
                         || component.to_ascii_lowercase().starts_with(".portcove")
                 })
                 || !file.path.to_ascii_lowercase().ends_with(suffix)
-                || !files.insert(file.path.to_ascii_lowercase())
+                || !files.insert(folded_path.clone())
                 || file.maximum_bytes == 0
                 || file.maximum_bytes > MAX_SETTINGS_BYTES
-                || !persistent_paths
-                    .iter()
-                    .any(|path| file.path == *path || file.path.starts_with(&format!("{path}/")))
+                || !persistent_paths.iter().any(|path| {
+                    file.path == *path
+                        || (!self.package_only() && file.path.starts_with(&format!("{path}/")))
+                })
+                || (self.package_only()
+                    && persistent_paths.iter().any(|path| {
+                        if path == &file.path {
+                            return false;
+                        }
+                        let other = path.to_ascii_lowercase();
+                        other == folded_path
+                            || folded_path.starts_with(&format!("{other}/"))
+                            || other.starts_with(&format!("{folded_path}/"))
+                    }))
             {
                 return Err(declaration_error(
                     "game_settings.files",
                     "settings target must be an explicit bounded persistent configuration file",
                 ));
             }
-            if file.settings.is_empty() {
+            if file.settings.is_empty() != self.package_only() {
                 return Err(declaration_error(
                     "game_settings.files.settings",
-                    "a configuration file requires editable settings",
+                    "package-only files omit scalar settings; editable files require them",
                 ));
             }
             let mut keys = BTreeSet::new();

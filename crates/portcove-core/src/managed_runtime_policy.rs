@@ -3,11 +3,27 @@
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
 pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 35;
+pub(crate) const EXACT_EXCLUSION_PSX_CAPABILITY: u32 = 6;
 
 pub(crate) fn has_exact_exclusions(port: &PortDefinition) -> bool {
     port.managed_acquisition_hold
         .as_ref()
         .is_some_and(|hold| !hold.excluded_artifacts.is_empty())
+}
+
+pub(crate) fn exact_exclusion_capability(port: &PortDefinition) -> Option<(&'static str, u32)> {
+    if !has_exact_exclusions(port) {
+        return None;
+    }
+    match port.adapter {
+        crate::AdapterKind::StagedSourcePortable => {
+            Some(("staged-source-portable", EXACT_EXCLUSION_STAGED_CAPABILITY))
+        }
+        crate::AdapterKind::PsxRecompManaged => {
+            Some(("psx-recomp-managed", EXACT_EXCLUSION_PSX_CAPABILITY))
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
@@ -18,11 +34,11 @@ pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
     else {
         return Ok(());
     };
-    if port.adapter != crate::AdapterKind::StagedSourcePortable
+    if exact_exclusion_capability(port).is_none()
         || port.release.provider != crate::ReleaseSource::Github
     {
         return Err(PortcoveError::verification(format!(
-            "{} requires a GitHub staged-source release for exact exclusions",
+            "{} requires a GitHub staged-source or managed PSX release for exact exclusions",
             port.id
         )));
     }
@@ -46,112 +62,129 @@ pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
-/// Catalog-owned containment for a managed route whose upstream release still
-/// matches its selector but changed reviewed behavior. Ports absent from the
-/// catalog have no hold; their retained definitions keep their own checks.
-pub(crate) fn acquisition_hold<'a>(
-    catalog: &'a crate::Catalog,
-    port_id: &str,
-) -> Option<&'a crate::ManagedAcquisitionHold> {
-    catalog
-        .port(port_id)
-        .ok()?
-        .managed_acquisition_hold
-        .as_ref()
+// The entry points below keep their signatures and delegate to the one
+// restriction evaluator. Ports absent from the catalog have no restriction;
+// their retained definitions keep their own checks.
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionSubject, SubjectArtifact,
+};
+
+/// The explanation of a hold on fresh managed acquisition, if one applies
+/// before the release is resolved.
+pub(crate) fn acquisition_hold_reason(catalog: &crate::Catalog, port_id: &str) -> Option<String> {
+    crate::acquisition_restriction::evaluate(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Install),
+    )
+    .explanation()
 }
 
-pub(crate) fn acquisition_hold_reason<'a>(
-    catalog: &'a crate::Catalog,
-    port_id: &str,
-) -> Option<&'a str> {
-    acquisition_hold(catalog, port_id)
-        .filter(|hold| hold.excluded_artifacts.is_empty())
-        .map(|hold| hold.reason.as_str())
-}
-
-/// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
-/// whether a first install or an update. Shared by a library's action table and
-/// library-free target inspection so both report the same offering.
+/// Port actions an acquisition hold withdraws: fresh managed acquisition,
+/// whether a first install or an update. Production paths evaluate through
+/// `assess_port_actions`; tests keep this summary of the managed form.
+#[cfg(test)]
 pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
     matches!(
-        action,
-        crate::PortAction::Install | crate::PortAction::Update
+        RestrictedOperation::from_port_action(action),
+        Some(RestrictedOperation::Install | RestrictedOperation::Update)
     )
 }
 
 pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
-    match acquisition_hold_reason(catalog, port_id) {
-        Some(reason) => Err(PortcoveError::unsupported(reason)),
-        None => Ok(()),
-    }
+    crate::acquisition_restriction::require(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Install),
+    )
 }
 
+/// An adopted folder cannot prove its release package, so a hold scoped to
+/// exact artifacts fails closed. Route-wide holds are enforced separately by
+/// [`require_acquisition_available`].
 pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
-    if acquisition_hold(catalog, port_id).is_some_and(|hold| !hold.excluded_artifacts.is_empty()) {
-        return Err(PortcoveError::unsupported(
-            "Install through Portcove to verify the release archive. An extracted folder cannot prove which release package it came from.",
-        ));
+    let outcome = crate::acquisition_restriction::evaluate(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt)
+            .unverifiable_artifact()
+            .final_check(),
+    );
+    if outcome.unverifiable {
+        return outcome.into_result();
     }
     Ok(())
 }
 
-impl crate::ManagedAcquisitionHold {
-    pub(crate) fn excludes(&self, version: &str, sha256: &str) -> bool {
-        self.excluded_artifacts
-            .iter()
-            .any(|artifact| artifact.matches(version, sha256))
-    }
-
-    pub(crate) fn reviewed(&self, version: &str, sha256: &str) -> bool {
-        self.reviewed_artifacts
-            .iter()
-            .any(|artifact| artifact.matches(version, sha256))
-    }
+/// The final gate for a fresh adoption: any hold on adopting this port on the
+/// current host refuses, whatever the deciding scope. The offer-phase
+/// acquisition gate alone can clear a whole hold that a possible install
+/// permit outranks. Recovery of a journaled adoption keeps
+/// [`require_adoption_available`] alone, so a route-wide hold added later
+/// never strands a started adoption.
+pub(crate) fn require_fresh_adoption_available(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> Result<()> {
+    fresh_adoption_gate(&EffectiveRestrictions::of(catalog, port_id))
 }
 
-impl crate::ReviewedHoldArtifact {
-    fn matches(&self, version: &str, sha256: &str) -> bool {
-        self.version == version && self.sha256.eq_ignore_ascii_case(sha256)
-    }
+pub(crate) fn fresh_adoption_gate(restrictions: &EffectiveRestrictions) -> Result<()> {
+    restrictions.require(
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt)
+            .on_current_host()
+            .unverifiable_artifact()
+            .final_check(),
+    )
 }
 
+/// The final gate for an exact artifact: any hold on it refuses, whatever the
+/// deciding scope. Route-wide holds already refuse earlier through
+/// [`require_acquisition_available`] with the same explanation.
 pub(crate) fn require_artifact_available(
     catalog: &crate::Catalog,
     port_id: &str,
     version: &str,
     sha256: &str,
 ) -> Result<()> {
-    if let Some(hold) = acquisition_hold(catalog, port_id)
-        && hold.excludes(version, sha256)
-    {
-        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    match EffectiveRestrictions::of(catalog, port_id).artifact_hold(
+        RestrictedOperation::Install,
+        version,
+        sha256,
+    ) {
+        Some(outcome) => outcome.into_result(),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 pub(crate) fn require_managed_activation_available(
     catalog: &crate::Catalog,
     install: &crate::InstallRecord,
 ) -> Result<()> {
-    let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
-        return Ok(());
-    };
-    let version = &install.version;
-    let sha256 = &install.artifact.sha256;
-    if !hold.excludes(version, sha256)
-        && (!hold.excluded_artifacts.is_empty() || hold.reviewed(version, sha256))
-    {
-        return Ok(());
-    }
-    Err(PortcoveError::unsupported(hold.activation_reason.clone()))
+    crate::acquisition_restriction::require(
+        catalog,
+        &install.port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Activate)
+            .on_current_host()
+            .artifact(SubjectArtifact {
+                version: &install.version,
+                sha256: &install.artifact.sha256,
+                asset_name: Some(&install.artifact.asset_name),
+            })
+            .final_check(),
+    )
 }
 
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
     port.release.provider == crate::ReleaseSource::Github
-        && (port.managed_initialization
-            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
-            || port.managed_shared_preferences
-                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        && (matches!(
+            port.managed_initialization,
+            Some(
+                crate::ManagedInitialization::TfeDarkForcesPortableV1
+                    | crate::ManagedInitialization::ChocolateFamilyPortableV1
+            )
+        ) || port.managed_shared_preferences
+            == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
             || port.runtime_data_policy
                 == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
             || port.archive_data_compatibility_v1.is_some())
@@ -176,6 +209,7 @@ pub(crate) fn require_native_appimage_artifact(
                     | crate::ExternalProfilePolicy::VkquakeLinuxV1
                     | crate::ExternalProfilePolicy::CorsixthLinuxV1
                     | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                    | crate::ExternalProfilePolicy::EndlessSkyDesktopV1
             )
         )
     {
@@ -447,12 +481,12 @@ mod tests {
     }
 
     #[test]
-    fn super_metroid_excludes_v0_4_6_without_withdrawing_acquisition() {
+    fn super_metroid_excludes_known_packages_without_withdrawing_acquisition() {
         let catalog = crate::Catalog::embedded().unwrap();
         let id = "super-metroid-recomp";
         assert!(require_acquisition_available(&catalog, id).is_ok());
 
-        let staged = |version: &str, sha256: &str| crate::InstallRecord {
+        let staged = |version: &str, package: &str, sha256: &str| crate::InstallRecord {
             id: "staged".into(),
             port_id: id.into(),
             version: version.into(),
@@ -462,12 +496,17 @@ mod tests {
             verified: true,
             staged: true,
             artifact: crate::ArtifactIdentity {
-                asset_name: format!("supermetroid-{}-windows-x64.zip", &version[1..]),
+                asset_name: format!("supermetroid-{}-{package}.zip", &version[1..]),
                 sha256: sha256.into(),
                 size: 1,
             },
             manifest_sha256: "a".repeat(64),
-            selected_executable: "SuperMetroidSNESRecomp.exe".into(),
+            selected_executable: if package == "windows-x64" {
+                "SuperMetroidSNESRecomp.exe"
+            } else {
+                "SuperMetroidSNESRecomp"
+            }
+            .into(),
             runtime: None,
         };
         for (version, sha256) in [
@@ -481,27 +520,67 @@ mod tests {
             ),
         ] {
             assert!(
-                require_managed_activation_available(&catalog, &staged(version, sha256)).is_ok(),
+                require_managed_activation_available(
+                    &catalog,
+                    &staged(version, "windows-x64", sha256)
+                )
+                .is_ok(),
                 "{version}"
             );
         }
         // A published Linux sibling is reviewed too, so it activates.
-        let mut linux = staged(
+        let linux = staged(
             "v0.4.5",
+            "linux-x64",
             "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
         );
-        linux.artifact.asset_name = "supermetroid-0.4.5-linux-x64.zip".into();
-        linux.selected_executable = "SuperMetroidSNESRecomp".into();
         assert!(require_managed_activation_available(&catalog, &linux).is_ok());
-        let refusal = require_managed_activation_available(
-            &catalog,
-            &staged(
+        let hold = catalog
+            .port(id)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_ref()
+            .unwrap();
+        for (version, package, sha256) in [
+            (
                 "v0.4.6",
+                "windows-x64",
                 "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429",
             ),
-        )
-        .unwrap_err();
-        assert!(refusal.message.contains("new window"));
+            (
+                "v0.4.7",
+                "windows-x64",
+                "e83cb8b742990495c88111b224d36ffc0507a57b399a34268854bbd2a34018be",
+            ),
+            (
+                "v0.4.7",
+                "linux-x64",
+                "1c8891ad9700c87427794620eb0d4eaa5201aec3bf5e1b05828c33cf2f6beed0",
+            ),
+            (
+                "v0.4.7",
+                "macos-x64",
+                "98de08608f702b63752ccfdc596c183e8c8b414e95eb0b5c13e941aef6914317",
+            ),
+            (
+                "v0.4.7",
+                "macos-arm64",
+                "8858c75fc8aa062978cb5dc1a95f71628795a9192f7f3e12e5ddeea688d3e46d",
+            ),
+        ] {
+            let refusal =
+                require_managed_activation_available(&catalog, &staged(version, package, sha256))
+                    .unwrap_err();
+            assert_eq!(
+                refusal.code,
+                crate::ErrorCode::Unsupported,
+                "{version} {package}"
+            );
+            assert_eq!(
+                refusal.message, hold.activation_reason,
+                "{version} {package}"
+            );
+        }
     }
 
     const PORTS: [&str; 3] = [

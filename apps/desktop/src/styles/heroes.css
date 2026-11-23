@@ -8,6 +8,16 @@
     border-radius: var(--radius-lg);
     background: var(--color-bg-elevated);
   }
+  .game-hero-framing-preview {
+    margin-block-end: var(--space-2);
+  }
+  .game-hero-framing-preview-detail {
+    container: detail / inline-size;
+  }
+  .game-hero-framing-preview-continue {
+    container: library-query / inline-size;
+    max-inline-size: 28rem;
+  }
   .game-hero-body {
     position: relative;
     z-index: 1;
@@ -42,6 +52,11 @@
     block-size: auto;
     object-fit: contain;
   }
+  .game-hero-collection {
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: var(--radius-md);
+  }
   .game-hero[data-hero-identity="cover"] .game-hero-image {
     inline-size: 100%;
     block-size: 100%;
@@ -73,6 +88,7 @@
     min-block-size: 0;
   }
   .game-hero-background {
+    container: hero-background / inline-size;
     position: absolute;
     z-index: 0;
     inset: 0;
@@ -82,8 +98,13 @@
     inline-size: 100%;
     block-size: 100%;
     object-fit: cover;
-    object-position: center 35%;
+    object-position: var(--hero-background-wide-position, center 35%);
     mask: url("../assets/header-artwork-mask.svg") center / 100% 100% no-repeat;
+  }
+  @container hero-background (width <= 32rem) {
+    .game-hero-background img {
+      object-position: var(--hero-background-narrow-position, center 35%);
+    }
   }
   .game-hero-credits {
     position: relative;
@@ -95,6 +116,9 @@
   .game-hero-credits > summary {
     inline-size: fit-content;
     cursor: pointer;
+  }
+  .game-hero-credits > summary + * {
+    margin-block-start: var(--space-2);
   }
   .game-hero-continue .game-hero-body {
     align-items: center;
@@ -200,6 +224,10 @@
       max-width: 32ch;
     }
   }
+  .game-hero-detail[data-hero-identity="title"] .game-hero-body {
+    min-block-size: 0;
+    padding-block: var(--space-6);
+  }
   @container library-query (width <= 32rem) {
     .game-hero-continue .game-hero-content {
       align-items: flex-start;
@@ -259,6 +287,27 @@
     }
     .game-hero-detail .game-hero-content {
       padding-block: 0.25rem;
+    }
+  }
+  .game-hero-detail[data-hero-compact] .game-hero-body {
+    min-block-size: 0;
+    padding: var(--space-4);
+  }
+  .game-hero-detail[data-hero-compact] .game-hero-content {
+    padding-block: 0;
+  }
+  .game-hero-detail[data-hero-compact] .detail-title {
+    max-inline-size: none;
+    font-size: var(--text-xl);
+  }
+  .game-hero-detail[data-hero-compact] .detail-project {
+    margin-block-start: var(--space-1);
+  }
+  @container detail (width <= 20rem) {
+    .game-hero-detail[data-hero-compact] .detail-header-actions > [data-variant="primary"],
+    .game-hero-detail[data-hero-compact] .detail-hero-primary,
+    .game-hero-detail[data-hero-compact] .detail-hero-action {
+      min-inline-size: 0;
     }
   }
 }

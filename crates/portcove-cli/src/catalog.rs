@@ -16,6 +16,10 @@ pub(crate) use render::{
     definition_capabilities, proposal_inspection, publication_inspection, upstream_observation,
 };
 
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_COMMAND: &str =
+    "catalog.inspect-definition-publication";
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA: u32 = 100;
+
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub(crate) struct CatalogSourceArgs {
@@ -74,7 +78,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date; 10 adds funding links.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds dates; 10 adds funding links; 11 adds cover collections; 12 adds implementation descriptions.
         #[arg(long)]
         format_version: Option<u32>,
     },
@@ -86,6 +90,11 @@ pub(crate) enum CatalogCommand {
     /// Check an inert requirements file against installed engine template versions.
     CheckCapabilities {
         /// Inert capability-requirements JSON file to inspect without opening a library.
+        file: PathBuf,
+    },
+    /// Emit one canonical typed definition projection without opening a library.
+    CanonicalDefinitionProjection {
+        /// Inert single-port catalog projection assembled from a generated row and reviewed source graph.
         file: PathBuf,
     },
     /// Validate inert catalog declarations without changing the trusted catalog.
@@ -124,10 +133,14 @@ pub(crate) enum CatalogCommand {
         /// Exclude verified shared libraries from the macOS program inventory.
         #[arg(long)]
         ignore_verified_macos_libraries: bool,
+        /// Count Linux executable-mode files by content, excluding verified ELF shared libraries.
+        #[arg(long)]
+        classify_linux_programs_by_format: bool,
     },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
+    #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
-        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
+        /// Local ZIP, TAR.GZ, Linux x86-64 TAR.XZ, or reviewed native Mac bundle TAR.XZ.
         archive: PathBuf,
         /// Embedded catalog port ID whose managed route the archive belongs to.
         #[arg(long)]
@@ -141,6 +154,9 @@ pub(crate) enum CatalogCommand {
         /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
         #[arg(long)]
         sha256: String,
+        /// Exact provider observation JSON for a reviewed predecessor. Inspection only.
+        #[arg(long)]
+        predecessor_observation: Option<String>,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {
@@ -152,6 +168,9 @@ pub(crate) enum CatalogCommand {
         /// Inert versioned listings JSON file to inspect.
         #[arg(long)]
         path: PathBuf,
+        /// Export this validated directory for a supported strict reader.
+        #[arg(long)]
+        format_version: Option<u32>,
     },
     /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
     InspectDefinitionPublication {
@@ -274,13 +293,14 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::CanonicalDefinitionProjection { .. } => "catalog.canonical-definition-projection",
             Self::InspectTargets { .. } => "catalog.inspect-targets",
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
-            Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
+            Self::InspectDefinitionPublication { .. } => DEFINITION_PUBLICATION_INSPECTION_COMMAND,
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",
@@ -476,6 +496,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::CanonicalDefinitionProjection { .. } => {
+            unreachable!("projection preparation executes before opening a library")
         }
         CatalogCommand::InspectTargets { .. } => {
             unreachable!("target inspection executes before opening a library")

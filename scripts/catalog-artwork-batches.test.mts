@@ -862,6 +862,49 @@ void test("logical artwork maintenance crosses 400 IDs, checkpoints interruption
   }
 });
 
+void test("a verified Gone image removes an out-of-workset companion without changing its primary cover", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-companion-"));
+  try {
+    const fixture = await capturedArtworkRefresh();
+    const primary = {
+      game_id: 102,
+      cover_id: 203,
+      image_id: "retained",
+      image_sha256: "b".repeat(64),
+      game_slug: "retained",
+      match_kind: "port",
+    };
+    fixture.accepted.ports.push({
+      id: "combined",
+      presentation: {
+        artwork: primary,
+        companion_cover: fixture.accepted.ports[0]?.presentation?.artwork,
+      },
+    });
+    const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+    const prepared = await prepareCatalogArtwork(fixture.accepted, {
+      ...fixture.options,
+      selectedPortIds: ["refresh-probe"],
+    });
+    assert.deepEqual(prepared.catalog.ports[1]?.presentation, { artwork: primary });
+    assert.ok(prepared.workset.invalidated_port_ids.includes("combined"));
+    const result = await prepareArtworkWorkset(fixture.accepted, {
+      root: scratch,
+      identities: fixture.options.identities,
+      validatorIdentity: null,
+      selectedPortIds: ["refresh-probe"],
+      refreshPortIds: ["refresh-probe"],
+      inspector: fixture.inspector,
+    });
+    assert.deepEqual(result.gone_image_ids, ["coexisting"]);
+    assert.deepEqual(result.catalog.ports[1]?.presentation, { artwork: primary });
+    assert.ok(result.workset.invalidated_port_ids.includes("combined"));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("reobserved artwork invalidates an original mapping inherited while its alternative was Gone", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-reobserved-"));
@@ -1036,6 +1079,238 @@ void test("automatic due maintenance uses actual retained observation clocks and
     const overdue = await prepareArtworkWorkset(fixture.catalog, options);
     assert.equal(overdue.workset.selected_port_ids.length, 2);
     assert.equal(fixture.requests.length, 5);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("an explicit refresh reuses a recent result and samples an older one again", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-explicit-refresh-"));
+  const fixture = scalableArtworkFixture(1);
+  let time = Date.parse("2026-10-01T00:00:00Z");
+  let imageId = "firstimage";
+  const options = {
+    root: scratch,
+    identities: {},
+    inspector: {
+      ...fixture.inspector,
+      inspectGame(identity: Parameters<typeof fixture.inspector.inspectGame>[0]) {
+        return fixture.inspector.inspectGame(identity).map((match) => ({
+          ...match,
+          cover: { ...match.cover, image_id: imageId },
+        }));
+      },
+    },
+    validatorIdentity: null,
+    selectedPortIds: ["scale-0"],
+    refreshPortIds: ["scale-0"],
+    now: () => time,
+  };
+  try {
+    const first = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(first.records[0]?.mapping?.image_id, "firstimage");
+    imageId = "replacementimage";
+    const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(resumed.records[0]?.mapping?.image_id, "firstimage");
+    assert.equal(fixture.requests.length, 1);
+
+    time += 28 * 24 * 60 * 60 * 1000;
+    const refresh = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(refresh.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(fixture.requests.length, 2);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("bounded due maintenance rotates attempted retained covers without admitting unreviewed rows", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-limit-"));
+  const fixture = scalableArtworkFixture(3);
+  for (let index = 0; index < 2; index++) {
+    fixture.catalog.ports[index]!.presentation = {
+      artwork: {
+        game_id: index + 1,
+        cover_id: index + 1,
+        image_id: `scale${index}`,
+        image_sha256: "d".repeat(64),
+        game_slug: `scale-${index}`,
+        match_kind: "port",
+      },
+    };
+  }
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    retainedCoverLimit: 1,
+    now: () => Date.parse("2026-11-21T00:00:00Z"),
+  };
+  try {
+    fixture.fail("Scale 0");
+    const first = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(first.workset.selected_port_ids, ["scale-0"]);
+    assert.equal(first.continuation.unselected_due_count, 1);
+    assert.equal(first.continuation.complete, false);
+
+    const second = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(second.workset.selected_port_ids, ["scale-1"]);
+    assert.equal(second.continuation.unselected_due_count, 1);
+    assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+    assert.equal(second.catalog.ports[2]?.presentation?.artwork, undefined);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("due maintenance revalidates the same game and cover role", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-identity-"));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "acceptedimage",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "port",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  fixture.catalog.ports[0]!.underlying_game = {
+    names: ["Original Game"],
+    evidence_url: "https://example.org/original",
+    project_url: "https://example.org/original",
+  };
+  let allowReplacement = false;
+  const requests: [number | null, string | null, string][] = [];
+  const images: string[] = [];
+  const options = {
+    root: scratch,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    inspector: {
+      inspectGame(identity: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0]) {
+        requests.push([identity.game_id, identity.slug, identity.kind]);
+        return allowReplacement
+          ? [
+              {
+                id: 1,
+                slug: "scale-0",
+                name: "Scale 0",
+                cover: { id: 2, image_id: "replacementimage" },
+              },
+            ]
+          : [
+              {
+                id: 2,
+                slug: "original-game",
+                name: "Original Game",
+                websites: [{ url: "https://example.org/original" }],
+                cover: { id: 3, image_id: "unreviewedimage" },
+              },
+            ];
+      },
+      inspectImage(imageId: string) {
+        images.push(imageId);
+        return fixture.inspector.inspectImage();
+      },
+    },
+  };
+  try {
+    const explicit = await prepareArtworkWorkset(fixture.catalog, {
+      ...options,
+      maintenance: false,
+      selectedPortIds: ["scale-0"],
+      refreshPortIds: ["scale-0"],
+    });
+    assert.equal(explicit.records[0]?.mapping?.match_kind, "underlying-game");
+    requests.length = 0;
+    images.length = 0;
+
+    const held = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(requests, [[1, "scale-0", "port"]]);
+    assert.deepEqual(images, []);
+    assert.deepEqual(held.records[0]?.mapping, artwork);
+    assert.equal(held.continuation.complete, false);
+
+    allowReplacement = true;
+    const next = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(requests, [
+      [1, "scale-0", "port"],
+      [1, "scale-0", "port"],
+    ]);
+    assert.deepEqual(images, ["replacementimage"]);
+    assert.equal(next.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(next.records[0]?.mapping?.game_id, artwork.game_id);
+    assert.equal(next.records[0]?.mapping?.match_kind, artwork.match_kind);
+    assert.equal(next.continuation.complete, true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("maintenance refreshes an accepted original cover without an authored original title", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-unnamed-original-"));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "approvedimage",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "underlying-game",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  let game = { id: 1, slug: "different-edition", imageId: "unapprovedimage" };
+  const options = {
+    root: scratch,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    inspector: {
+      inspectGame(identity: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0]) {
+        assert.equal(identity.kind, "underlying-game");
+        assert.equal(identity.game_id, 1);
+        assert.equal(identity.slug, "scale-0");
+        assert.deepEqual(identity.names, []);
+        return [
+          {
+            id: game.id,
+            slug: game.slug,
+            name: "Original Title",
+            cover: { id: 3, image_id: game.imageId },
+          },
+        ];
+      },
+      inspectImage(imageId: string) {
+        assert.equal(imageId, "observedimage");
+        return fixture.inspector.inspectImage();
+      },
+    },
+  };
+  try {
+    const wrongSlug = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(wrongSlug.continuation.complete, false);
+    assert.deepEqual(wrongSlug.records[0]?.mapping, artwork);
+
+    game = { id: 2, slug: "scale-0", imageId: "unapprovedimage" };
+    const wrongId = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(wrongId.continuation.complete, false);
+    assert.deepEqual(wrongId.records[0]?.mapping, artwork);
+
+    game = { id: 1, slug: "scale-0", imageId: "observedimage" };
+    const result = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(result.continuation.complete, true);
+    assert.deepEqual(result.records[0]?.mapping, {
+      ...artwork,
+      cover_id: 3,
+      image_id: "observedimage",
+    });
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -1350,4 +1625,173 @@ void test("operations over a large workset refuse unknown refresh and duplicate 
     ),
     /unique catalog port ids/,
   );
+});
+
+function reviewedCollectionFixture() {
+  const covers = [1, 2].map((index) => ({
+    game_id: index,
+    cover_id: index,
+    image_id: `member${index}`,
+    image_sha256: index.toString(16).repeat(64),
+    game_slug: `member-${index}`,
+    match_kind: "underlying-game" as const,
+  }));
+  const catalog: ArtworkCatalog = {
+    ports: [
+      {
+        id: "collection",
+        name: "Collection",
+        project_url: "https://example.org/collection",
+        presentation: { collection_covers: covers },
+      },
+    ],
+  };
+  return { covers, catalog };
+}
+
+void test("reviewed collection reuse is offline and later Gone observations remove only exact members", async () => {
+  const { prepareCatalogArtwork, reconcileCatalogArtworkWithdrawals } =
+    await import("./inspect-igdb-artwork.mts");
+  const { catalog, covers } = reviewedCollectionFixture();
+  const prepared = await prepareCatalogArtwork(catalog, {
+    acceptedCatalog: catalog,
+    inspectGame() {
+      throw new Error("unnecessary metadata query");
+    },
+    inspectImage() {
+      throw new Error("unnecessary image query");
+    },
+  });
+  assert.deepEqual(prepared.records[0]?.collection, covers);
+  assert.equal(prepared.metrics.fallback, 0);
+  reconcileCatalogArtworkWithdrawals(prepared, [covers[0]!.image_id]);
+  assert.deepEqual(prepared.records[0]?.collection, [covers[1]]);
+  assert.deepEqual(prepared.catalog.ports[0]?.presentation?.collection_covers, [covers[1]]);
+  reconcileCatalogArtworkWithdrawals(prepared, [covers[1]!.image_id]);
+  assert.equal(prepared.catalog.ports[0]?.presentation?.collection_covers, undefined);
+  assert.equal(prepared.records[0]?.collection, undefined);
+  assert.equal(prepared.records[0]?.reason, "generated-fallback");
+  assert.equal(prepared.metrics.fallback, 1);
+  assert.equal(prepared.metrics.reused, 0);
+  assert.deepEqual(catalog.ports[0]?.presentation?.collection_covers, covers);
+  const changed = structuredClone(catalog);
+  changed.ports[0]!.project_url = "https://example.org/other";
+  const rejected = await prepareCatalogArtwork(changed, { acceptedCatalog: catalog });
+  assert.equal(rejected.records[0]?.reason, "collection-mapping-review-required");
+  assert.equal(rejected.catalog.ports[0]?.presentation?.collection_covers, undefined);
+});
+
+void test("collection refresh distinguishes a confirmed Gone image from an outage", async () => {
+  const { createHash } = await import("node:crypto");
+  const digest = createHash("sha256")
+    .update(readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg")))
+    .digest("hex");
+  for (const status of [410, 503]) {
+    const fixture = await capturedArtworkRefresh({ status });
+    const first = {
+      game_id: 101,
+      cover_id: 202,
+      image_id: "coexisting",
+      image_sha256: "a".repeat(64),
+      game_slug: "refresh-probe",
+      match_kind: "port",
+    };
+    const second = {
+      ...first,
+      game_id: 102,
+      cover_id: 203,
+      image_id: "coother",
+      image_sha256: digest,
+      game_slug: "other",
+    };
+    fixture.accepted.ports[0]!.presentation = { collection_covers: [first, second] };
+    const result = await fixture.run();
+    const expected = status === 410 ? [second] : [first, second];
+    assert.deepEqual(result.catalog.ports[0]?.presentation?.collection_covers, expected);
+    assert.deepEqual(result.records[0]?.collection, expected);
+    assert.deepEqual(result.gone_image_ids, status === 410 ? [first.image_id] : []);
+    assert.equal(result.metrics.fallback, 0);
+    const checks = result.records[0]?.checks;
+    assert.ok(checks && "live_refresh_passed" in checks);
+    assert.equal(checks.live_refresh_passed, status === 410);
+  }
+});
+
+void test("collection checkpoints retain the refresh clock across ordinary reuse and expire normally", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const { catalog, covers } = reviewedCollectionFixture();
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-collection-clock-"));
+  let now = Date.parse("2026-11-17T10:00:00Z");
+  let requests = 0;
+  const options = {
+    root: scratch,
+    acceptedCatalog: catalog,
+    identities: {},
+    validatorIdentity: null,
+    selectedPortIds: ["collection"],
+    now: () => now,
+    inspector: {
+      inspectImage(imageId: string) {
+        requests++;
+        const cover = covers.find((value) => value.image_id === imageId)!;
+        return {
+          sha256: cover.image_sha256,
+          bytes: 100,
+          width: 264,
+          height: 352,
+          format: "jpeg",
+          validator: "portcove-core",
+        };
+      },
+    },
+  };
+  try {
+    await prepareArtworkWorkset(catalog, options);
+    assert.equal(requests, 0);
+    const first = await prepareArtworkWorkset(catalog, { ...options, maintenance: true });
+    assert.equal(requests, 2);
+    assert.equal(first.metrics.fallback, 0);
+    await prepareArtworkWorkset(catalog, options);
+    await prepareArtworkWorkset(catalog, { ...options, maintenance: true });
+    assert.equal(requests, 2);
+    now += 29 * 24 * 60 * 60 * 1000;
+    await prepareArtworkWorkset(catalog, { ...options, maintenance: true });
+    assert.equal(requests, 4);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("a sparse refresh withdraws matching collection members outside the selected workset", async () => {
+  const fixture = await capturedArtworkRefresh();
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const first = {
+    game_id: 101,
+    cover_id: 202,
+    image_id: "coexisting",
+    image_sha256: "a".repeat(64),
+    game_slug: "refresh-probe",
+    match_kind: "port",
+  };
+  const second = {
+    ...first,
+    game_id: 102,
+    cover_id: 203,
+    image_id: "retainedmember",
+    image_sha256: "b".repeat(64),
+    game_slug: "other",
+  };
+  fixture.accepted.ports.push({
+    id: "collection-other",
+    name: "Other collection",
+    project_url: "https://example.org/other",
+    presentation: { collection_covers: [first, second] },
+  });
+  const result = await prepareCatalogArtwork(fixture.accepted, {
+    ...fixture.options,
+    selectedPortIds: ["refresh-probe"],
+  });
+  assert.deepEqual(result.catalog.ports[1]?.presentation?.collection_covers, [second]);
+  assert.ok(result.workset.invalidated_port_ids.includes("collection-other"));
+  assert.deepEqual(fixture.accepted.ports[1]?.presentation?.collection_covers, [first, second]);
 });

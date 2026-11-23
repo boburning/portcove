@@ -183,6 +183,8 @@ impl PortcoveService {
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
             || retained.launch_environment != to.launch_environment
+            || (platform == Platform::LinuxX86_64
+                && retained.linux_packaged_library != to.linux_packaged_library)
             || retained.user_data_environment != to.user_data_environment
             || retained.source_profile != to.source_profile
             || retained.runtime_source_set != to.runtime_source_set
@@ -638,6 +640,9 @@ mod tests {
     };
 
     include!("native_portable_transition_tests.rs");
+    include!("carry_retained_tests.rs");
+    include!("carry_space_tests.rs");
+    include!("carry_recovery_tests.rs");
 
     struct Provider(Mutex<ResolvedRelease>);
     #[async_trait::async_trait]
@@ -729,6 +734,56 @@ mod tests {
         ) -> ResolvedRelease {
             self.release_with_files(version, revision, folder, program_name, &[])
         }
+        // Real route contracts keep their generated reviewed baseline. The
+        // transport fixtures supply inert files at those reviewed coordinates.
+        fn release_with_reviewed_layout(
+            &self,
+            version: &str,
+            revision: u8,
+            program_name: &str,
+        ) -> ResolvedRelease {
+            let files: &[(&str, &[u8])] = match program_name {
+                "SonicTheHedgehogRecomp.exe" => &[
+                    ("assets/fixture.dat", b"fixture"),
+                    ("docs/fixture.txt", b"fixture"),
+                    ("tools/fixture.txt", b"fixture"),
+                    ("build-info.json", b"{}"),
+                ],
+                "SuperMetroidSNESRecomp.exe" => &[
+                    ("assets/fixture.dat", b"fixture"),
+                    ("docs/fixture.txt", b"fixture"),
+                    ("config.ini", b"# fixture"),
+                    ("release-profile.json", b"{}"),
+                    (
+                        "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                ],
+                _ => &[],
+            };
+            self.release_with_files(version, revision, "", program_name, files)
+        }
+
         fn release_with_files(
             &self,
             version: &str,
@@ -2466,6 +2521,7 @@ mod tests {
         fs::write(root.join("game.exe"), b"untouched external executable").unwrap();
         fs::write(root.join("save.dat"), b"external player progress").unwrap();
         let record = ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: Some(crate::UserSelectedLaunch {
                 arguments: Vec::new(),
             }),
@@ -3398,7 +3454,7 @@ mod tests {
             .iter()
             .find(|case| case["port_id"] == id)
             .unwrap();
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::retained_manual_dhewm3_catalog(id);
         let port = catalog.port(id).unwrap().clone();
         let disposable = case["disposable_probes"].as_array();
         if disposable.is_some() {
@@ -3622,6 +3678,17 @@ mod tests {
         assert!(staged.staged, "{id}");
         service.activate_staged(id).unwrap();
         phase("rolling-activation-complete");
+        let catalog = if matches!(
+            id,
+            "doom-3-classic-dhewm3" | "doom-3-resurrection-of-evil-classic-dhewm3"
+        ) {
+            let current = Catalog::embedded().unwrap();
+            assert!(current.port(id).unwrap().source_profile.is_some());
+            service.replace_catalog_for_test(current.clone());
+            current
+        } else {
+            catalog
+        };
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, second.id, "{id}");
         phase("rollback-complete");
@@ -3630,10 +3697,19 @@ mod tests {
         restarted.replace_catalog_for_test(catalog);
         phase("restart-complete");
         let retained = restarted.installed_port(&previous).unwrap();
+        assert_eq!(retained.source_profile, port.source_profile, "{id}");
+        assert_eq!(retained.persistent_paths, port.persistent_paths, "{id}");
         let spec = restarted
             .prepare_launch_for_install(&retained, &previous, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
+        for path in &probes {
+            assert_eq!(
+                fs::read(spec.working_directory.join(path)).unwrap(),
+                contents(path),
+                "{id}: retained rollback {path}"
+            );
+        }
         // An unknown runtime addition is never a wildcard data scope. It does
         // not hold removal (#5359): the removal review lists it before consent.
         let unknown = spec.working_directory.join("unknown-player-addition");
@@ -4358,37 +4434,57 @@ mod tests {
         .unwrap()
     }
 
-    fn compatible_archive_fixture_catalog(mut port: PortDefinition, original: &[u8]) -> Catalog {
-        // Controlled original bytes replace only this consumer's original identity.
-        // The real schema-3 source-policy gate and all other declarations remain,
-        // except a route-wide acquisition hold: these fixtures install controlled
-        // loopback releases, and the hold's own policy tests cover its refusal.
+    fn compatible_archive_fixture_catalog(
+        embedded: &Catalog,
+        mut port: PortDefinition,
+        original: &[u8],
+    ) -> Catalog {
+        // Keep the selected port's authored policy and complete source graph.
+        // An unindexed runtime retains this document in its installed contract.
+        // Unrelated titles only make each backup and restore reprocess that data.
+        let mut document = embedded.authoritative_document();
+        let sources = document.source_catalog.as_mut().unwrap();
+        sources
+            .contracts
+            .retain(|contract| contract.port_id == port.id);
+        sources
+            .qualification
+            .retain(|record| record.scope.port_id == port.id);
+        sources.identities.retain(|identity| {
+            port.source_profile.as_ref() == Some(&identity.id)
+                || port.bios_source_profile.as_ref() == Some(&identity.id)
+                || sources
+                    .contracts
+                    .iter()
+                    .any(|contract| contract.profile_id == identity.id)
+        });
+
+        let Some(profile) = port.source_profile.clone() else {
+            document.ports = vec![port];
+            return Catalog::from_document(document).unwrap();
+        };
+        // The fixture uses a checked loopback release and controlled original
+        // bytes. Keep the route's ordinary schema-3 source-policy gate.
         port.managed_acquisition_hold = None;
-        let embedded = Catalog::embedded().unwrap();
-        let mut document = serde_json::to_value(embedded.authoritative_document()).unwrap();
         let hash = hex::encode(Sha256::digest(original));
         port.runtime_source_hashes
             .insert(port.runtime_source_filename.clone().unwrap(), hash.clone());
-        let profile = port.source_profile.as_ref().unwrap();
-        let identity = document["source_catalog"]["identities"]
+        document.ports = vec![port];
+        let mut json = serde_json::to_value(document).unwrap();
+        let identity = json["source_catalog"]["identities"]
             .as_array_mut()
             .unwrap()
             .iter_mut()
-            .find(|p| p["id"] == *profile)
+            .find(|identity| identity["id"] == profile)
             .unwrap();
         for variant in identity["variants"].as_array_mut().unwrap() {
             for representation in variant["representations"].as_array_mut().unwrap() {
-                representation["identities"] = serde_json::json!([{ "scope":"original-file", "sha1":null, "sha256":hash, "crc32":null }]);
+                representation["identities"] = serde_json::json!([
+                    {"scope": "original-file", "sha1": null, "sha256": hash, "crc32": null}
+                ]);
             }
         }
-        let index = document["ports"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .position(|p| p["id"] == port.id)
-            .unwrap();
-        document["ports"][index] = serde_json::to_value(port).unwrap();
-        Catalog::from_json(&document.to_string()).unwrap()
+        Catalog::from_json(&json.to_string()).unwrap()
     }
 
     #[tokio::test]
@@ -4477,6 +4573,7 @@ mod tests {
         sram: Option<&'static str>,
         added: &'static [&'static str],
     ) {
+        let started = std::time::Instant::now();
         let client_path = std::env::current_exe().unwrap();
         let client_sha256 =
             crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| {
@@ -4484,7 +4581,6 @@ mod tests {
             })
             .unwrap()
             .0;
-        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -4497,12 +4593,13 @@ mod tests {
             [executable]
         );
         let original = b"lawful fixed first-party original fixture";
-        let fixed = if declared.source_profile.is_some() {
-            compatible_archive_fixture_catalog(declared.clone(), original)
-        } else {
-            embedded
-        };
+        let fixed = compatible_archive_fixture_catalog(&embedded, declared.clone(), original);
         let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
+        eprintln!(
+            "compatible release fixture {id}: {} retained definition bytes at {:?}",
+            definition.len(),
+            started.elapsed()
+        );
         let definition_sha256 = hex::encode(Sha256::digest(&definition));
         // The structural predecessor an existing installation was created with.
         let predecessor = (!added.is_empty()).then(|| {
@@ -4534,7 +4631,7 @@ mod tests {
             None => fixed.clone(),
         };
         let package = |version: &str, revision| {
-            let mut release = server.release_in_folder(version, revision, "", executable);
+            let mut release = server.release_with_reviewed_layout(version, revision, executable);
             release.asset.name = if id == "super-metroid-recomp" {
                 format!("{prefix}{version}-windows-x64.zip")
             } else if id == "retropulse03-winback-n64recomp" {
@@ -4887,6 +4984,10 @@ mod tests {
         service
             .restore_backup(id, &backup.id, &consent.token)
             .unwrap();
+        eprintln!(
+            "compatible release final restore complete at {:?}",
+            started.elapsed()
+        );
         let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
         restarted.replace_catalog_for_test(fixed);
         assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
@@ -4967,6 +5068,10 @@ mod tests {
                 "opaque preservation must not grant fresh runtime data-compatibility authority"
             );
         }
+        eprintln!(
+            "compatible release client and definition verified at {:?}",
+            started.elapsed()
+        );
         api_server.join().unwrap();
         let requests = api_requests.try_iter().collect::<Vec<_>>();
         assert!(
@@ -5401,10 +5506,9 @@ mod tests {
                 .join(if sonic { "fixture.bin" } else { "fixture.sfc" });
             fs::write(&source, original).unwrap();
             let server = Server::new();
-            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            let provider = Arc::new(Provider(Mutex::new(server.release_with_reviewed_layout(
                 &release.version,
                 1,
-                "",
                 executable,
             ))));
             let mut service = build_service(library.clone(), provider);
@@ -5670,7 +5774,7 @@ mod tests {
             let library = Library::open(temporary.path().join("library")).unwrap();
             let server = Server::new();
             let provider = Arc::new(Provider(Mutex::new(
-                server.release_in_folder(version, 2, "", executable),
+                server.release_with_reviewed_layout(version, 2, executable),
             )));
             let mut service = build_service(library.clone(), provider);
             service.replace_catalog_for_test(diagnostic_scope_fixture(id, true, original));
@@ -5718,7 +5822,12 @@ mod tests {
             assert!(service.prepare_retained_install_data(&staged).is_err());
             assert!(service.activate_staged(id).is_err());
             assert!(!receipt.exists());
-            assert!(!staged.path.join(config).exists());
+            let staged_config = staged.path.join(config);
+            if id == "super-metroid-recomp" {
+                assert_eq!(fs::read(staged_config).unwrap(), b"# fixture");
+            } else {
+                assert!(!staged_config.exists());
+            }
             assert_eq!(
                 fs::read(library.user_dir(id).join(config)).unwrap(),
                 b"unknown creating runtime"

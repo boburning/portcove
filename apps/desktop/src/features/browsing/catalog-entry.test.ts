@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type {
   CatalogMediaAsset,
@@ -77,6 +77,49 @@ function enrichedEntry(definition: ReturnType<typeof portDefinition>) {
     [],
   )[0]!;
 }
+
+it("uses projected IGDB scenes with legacy strict media and preserves an explicit clear", () => {
+  const admittedShot: CatalogMediaAsset = {
+    ...screenshot,
+    id: "admitted-igdb-shot",
+    igdb: {
+      game_id: 38,
+      record_id: 39,
+      kind: "screenshot",
+      image_id: "fixture",
+      game_slug: "reviewed-original",
+    },
+  };
+  const definition = {
+    ...portDefinition(),
+    id: listing.id,
+    project_url: listing.project_url,
+    presentation: {
+      installation_method: "portable-package" as const,
+      saves_and_settings: "portcove-managed" as const,
+      source_requirements: [],
+      original_game: original,
+      media: [screenshot],
+    },
+  };
+  const accepted = {
+    format_version: 13,
+    listings: [{ ...enrichedListing, media: [screenshot, admittedShot] }],
+  };
+  const accepts = (media: CatalogMediaAsset[]) =>
+    catalogEntries(
+      {
+        schema_version: 1,
+        ports: [{ ...definition, presentation: { ...definition.presentation, media } }],
+        source_profiles: [],
+      },
+      accepted,
+      [],
+      [],
+    )[0]?.presentation?.media;
+  expect(accepts([screenshot])).toEqual([screenshot, admittedShot]);
+  expect(accepts([])).toEqual([]);
+});
 
 describe("lightweight catalog entries", () => {
   it("keeps every identity searchable without manufacturing an integration", () => {
@@ -434,6 +477,75 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
   };
   const current = Date.parse("2026-10-27T06:00:00Z");
   expect(listingAvailabilityLabel(observed, current)).toBe("Package candidates observed");
+  const other = {
+    ...listing,
+    id: "other-project",
+    platforms: [],
+    availability: "unknown",
+  } as const;
+  const featured = (candidate: PortListing, now: number) => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const entries = catalogEntries(
+        undefined,
+        { format_version: 1, listings: [{ ...other, platforms: [] }, candidate] },
+        [],
+        [],
+      );
+      return filterPorts(entries, new Map(), "catalog", "all", "", "catalog", {
+        devicePlatform: "windows-x86-64",
+      })[0]?.id;
+    } finally {
+      clock.mockRestore();
+    }
+  };
+  expect(featured(observed, current)).toBe(observed.id);
+  const linux = catalogEntries(
+    undefined,
+    {
+      format_version: 1,
+      listings: [
+        { ...other, platforms: [] },
+        { ...observed, availability: "packages", platforms: ["linux-x86-64"] },
+      ],
+    },
+    [],
+    [],
+  );
+  expect(
+    filterPorts(
+      linux,
+      new Map(),
+      "catalog",
+      "all",
+      "",
+      "catalog",
+      {
+        devicePlatform: "linux-x86-64",
+      },
+      current,
+    )[0]?.id,
+  ).toBe(observed.id);
+  expect(featured(observed, Date.parse("2026-10-28T00:00:00Z"))).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        upstream_observation: { ...observed.upstream_observation!, status: "incomplete" },
+      },
+      current,
+    ),
+  ).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        availability_override_reason: "Reviewed distribution restriction",
+      },
+      current,
+    ),
+  ).toBe(other.id);
+
   expect(listingAvailabilityLabel(gitlab, current)).toBe(
     listingAvailabilityLabel(observed, current),
   );
@@ -451,7 +563,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
       { ...observed, availability_override_reason: "Reviewed distribution restriction" },
       current,
     ),
-  ).toBe("Source only (authored override)");
+  ).toBe("Source only (catalog setting)");
   expect(listingAvailabilityLabel(observed, Date.parse("2026-10-28T00:00:00Z"))).toContain(
     "stale observation",
   );
@@ -486,7 +598,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(unknown, current)).toBe(
-    "Package availability unknown (check unavailable)",
+    "Source only. Package availability unknown (check unavailable)",
   );
   const assetsOnly = {
     ...observed,
@@ -507,6 +619,6 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(assetsOnly, current)).toBe(
-    "Release assets observed; package availability unknown",
+    "Source only. Release assets observed; package availability unknown",
   );
 });

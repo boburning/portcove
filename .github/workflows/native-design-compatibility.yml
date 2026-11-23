@@ -278,7 +278,7 @@ jobs:
   linux_preparation_continuity:
     if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -320,9 +320,9 @@ jobs:
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
       - name: Install the existing disposable Linux prerequisites
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
@@ -479,7 +479,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -563,7 +563,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       # The native jobs share the reviewed runtime floor and exact driver readiness.
@@ -622,11 +622,15 @@ jobs:
               - native-external-cli-reconciliation
               - native-ready-detail-composition
               - native-game-return-continuity
-              - native-game-update-review
               - native-missing-readiness-recovery
               - native-retained-contract-repair-state
               - native-update-settings-save-without-execution
               - native-release-channel-selection-and-restart
+          # Serves its offered release from the owned install fixture instead of the
+          # live provider API, so it builds with qualification fixtures (#4879).
+          - selection: owned-update-review
+            scenarios:
+              - native-game-update-review
           - selection: owned-recovery
             scenarios:
               - native-preparation-cancellation
@@ -683,6 +687,12 @@ jobs:
           - selection: library-switch
             scenarios:
               - native-library-switch-recovery
+          - selection: recovery-bundle-create-restore
+            scenarios:
+              - native-library-recovery-bundle
+          - selection: recovery-bundle-interruption
+            scenarios:
+              - native-library-recovery-interruption
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
@@ -736,7 +746,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       # The native jobs share the reviewed runtime floor and exact driver readiness.
@@ -1072,7 +1082,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1148,7 +1158,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1222,7 +1232,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin
@@ -1296,7 +1306,7 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Read source aqua pin

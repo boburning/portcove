@@ -6,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import { ArtworkControls, ArtworkImage } from "../components/Artwork";
+import { GameHeroFramingPreview } from "../components/GameHero";
 import { artworkState, portDefinition } from "../test-fixtures";
 import "../styles/index.css";
 
@@ -48,7 +49,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
         <ArtworkProvider generation={7}>
           <h2>{port.name}</h2>
           <ArtworkImage port={port} />
-          <ArtworkControls port={port} />
+          <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
         </ArtworkProvider>
       </DirectionProvider>,
     ),
@@ -56,12 +57,13 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   await expect
     .poll(() => host.querySelector<HTMLImageElement>("img")?.naturalWidth, { timeout: 10_000 })
     .toBe(1);
-  await userEvent.click(page.getByText("Change artwork", { exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Change artwork", exact: true }));
   const cover = page.getByRole("region", { name: "Cover image", exact: true });
-  const detail = page.getByRole("region", { name: "Detail image", exact: true });
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
+  const detail = page.getByRole("region", { name: "Background", exact: true });
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeEnabled();
   const src = host.querySelector<HTMLImageElement>("img")!.src;
-  const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
+  const calls = vi.mocked(desktopApi.artwork).mock.calls;
+  const reads = calls.length;
   vi.mocked(desktopApi.artwork).mockRejectedValueOnce(new Error("Artwork read unavailable."));
   await userEvent.click(cover.getByRole("button", { name: "Refresh artwork" }));
   await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");
@@ -74,13 +76,16 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   expect(host.querySelector<HTMLImageElement>("img")?.src).toBe(src);
   expect(host.querySelector<HTMLImageElement>("img")?.naturalWidth).toBe(1);
   await expect.element(cover.getByRole("button", { name: "Choose local image" })).toBeDisabled();
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeDisabled();
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeDisabled();
+  await userEvent.click(page.getByRole("tab", { name: "Background", exact: true }));
   await expect.element(detail.getByRole("button", { name: "Choose local image" })).toBeEnabled();
+  await userEvent.click(page.getByRole("tab", { name: "Cover image", exact: true }));
+  await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");
   await userEvent.click(cover.getByRole("button", { name: "Refresh artwork" }));
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeEnabled();
   await expect.element(cover.getByRole("alert")).not.toBeInTheDocument();
   expect(host.textContent).not.toContain("Showing previously loaded artwork.");
-  expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBe(reads + 2);
+  expect(calls.slice(reads).map(([, slot]) => slot)).toEqual(["cover", "detail", "cover"]);
   expect(desktopApi.importArtwork).not.toHaveBeenCalled();
   expect(desktopApi.resetArtwork).not.toHaveBeenCalled();
 });

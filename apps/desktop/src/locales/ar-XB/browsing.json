@@ -1,7 +1,7 @@
 {
   "alternatives": {
     "external": "تثبيت خارجي · <version/>",
-    "heading": "منافذ أخرى لهذه اللعبة ({{total}})",
+    "heading": "خيارات أخرى لهذه اللعبة ({{total}})",
     "independence": "يحتفظ كل مشروع بملفاته وتثبيته الخاص. اختيار أحدها لا ينقل الحفظ ولا يختار إصدارًا.",
     "managed": "تثبيت مُدار · <version/>",
     "notInstalled": "غير مثبت",
@@ -41,30 +41,33 @@
       "optionsIntro": "تفاصيل الميزات غير متاحة لكل مشروع. راجع التقارير وتعليمات المشروع. قد لا تعمل ملفات الحفظ والتعديلات مع منفذ آخر.",
       "outsideFilters": "خارج عوامل التصفية الحالية.",
       "setup": "كيفية الإعداد",
-      "several": "قارن متطلبات الإعداد للمنافذ ({{total}}). راجع تعليمات كل منفذ لمعرفة مواقع الحفظ المشتركة.",
+      "several": "قارن متطلبات الإعداد للخيارات ({{total}}). راجع تعليمات كل خيار لمعرفة مواقع الحفظ المشتركة.",
       "single": "راجع متطلبات إعداد هذا المنفذ وتقاريره.",
       "status": "الحالة الحالية",
       "updates": "من يتولى التحديثات"
     },
     "compareMatching": "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
     "drop": {
+      "checkWith": "التحقق من الملفات مع <name/>",
+      "choose": "اختر خيارًا للتحقق من هذه الملفات. يتحقق كل خيار من متطلبات ملفاته الخاصة.",
       "hover": "أسقط هنا للتحقق لهذه اللعبة",
-      "release": "أفلت للتحقق"
+      "release": "أفلت للتحقق",
+      "review": "أسقط لاختيار خيار والتحقق من الملفات"
     },
     "favorite": {
       "add": "إضافة إلى المفضلة",
       "label": "تفضيل {{game}}",
       "remove": "إزالة من المفضلة"
     },
-    "groupLabel_zero": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
-    "groupLabel_one": "{{title}}. مشروع منفصل واحد؛ {{matching}} مطابقة.",
-    "groupLabel_two": "{{title}}. مشروعان منفصلان؛ {{matching}} مطابقة.",
-    "groupLabel_few": "{{title}}. {{count}} مشاريع منفصلة؛ {{matching}} مطابقة.",
-    "groupLabel_many": "{{title}}. {{count}} مشروعًا منفصلًا؛ {{matching}} مطابقة.",
-    "groupLabel_other": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
+    "groupLabel_zero": "{{title}}. {{count}} خيارات؛ {{matching}} مطابقة.",
+    "groupLabel_one": "{{title}}. خيار واحد؛ {{matching}} مطابقة.",
+    "groupLabel_two": "{{title}}. خياران؛ {{matching}} مطابقة.",
+    "groupLabel_few": "{{title}}. {{count}} خيارات؛ {{matching}} مطابقة.",
+    "groupLabel_many": "{{title}}. {{count}} خيارًا؛ {{matching}} مطابقة.",
+    "groupLabel_other": "{{title}}. {{count}} خيار؛ {{matching}} مطابقة.",
     "identity": {
       "matching": "{{title}} {{project}}. المنفذ المطابق: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "اكتشاف الألعاب",
     "matchingPort": "المنفذ المطابق: <port />",
@@ -75,18 +78,19 @@
       "notInstalled": "غير مثبت. اتبع تعليمات إعداد هذا المشروع.",
       "unavailable": "الجهة المسؤولة عن التثبيت غير معروفة. راجع تعليمات المشروع."
     },
-    "separateProjects_zero": "{{count}} مشروع منفصل",
-    "separateProjects_one": "مشروع منفصل واحد",
-    "separateProjects_two": "مشروعان منفصلان",
-    "separateProjects_few": "{{count}} مشاريع منفصلة",
-    "separateProjects_many": "{{count}} مشروعًا منفصلًا",
-    "separateProjects_other": "{{count}} مشروع منفصل",
+    "separateProjects_zero": "{{count}} خيارات",
+    "separateProjects_one": "خيار واحد",
+    "separateProjects_two": "خياران",
+    "separateProjects_few": "{{count}} خيارات",
+    "separateProjects_many": "{{count}} خيارًا",
+    "separateProjects_other": "{{count}} خيار",
     "unavailableFor": "غير متاح لـ {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}} لُعبت مؤخرًا",
     "credits": "حقوق الصور",
-    "detailLabel": "تفاصيل لعبة {{title}}"
+    "detailLabel": "تفاصيل لعبة {{title}}",
+    "openDetails": "تفاصيل اللعبة"
   },
   "implementation": {
     "choose": "اختيار <name/>",
@@ -108,6 +112,7 @@
     "chosen": "<name/> · اختيارك",
     "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
     "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "label": "عناصر المكتبة",
     "outside": "<name/> · خارج عوامل التصفية الحالية",
     "portCount_zero": "{{count, number}} منفذ",
     "portCount_one": "منفذ واحد ({{count, number}})",
@@ -139,8 +144,10 @@
     "unavailable": "نتائج التصفية هذه غير متاحة. عد إلى المرشحات لتحديث اختياراتك أو للفحص مرة أخرى."
   },
   "media": {
+    "availableScreenshots": "لقطات الشاشة المتاحة",
     "captionUnavailable": "<caption/> · الصورة غير متاحة",
     "choose": "اختر لقطة شاشة",
+    "chooseRelease": "اختر إصدارًا أصليًا",
     "creditOriginal": "الإصدار الأصلي · <edition/> · <credit/>",
     "creditPort": "صورة المنفذ · <credit/>",
     "enlarge": "تكبير لقطة الشاشة {{number, number}}: {{caption}}",
@@ -156,6 +163,7 @@
     "retry": "إعادة محاولة الصورة",
     "retryScreenshot": "إعادة محاولة لقطة الشاشة {{number, number}}",
     "screenshots": "لقطات الشاشة",
+    "screenshotSource": "مصدر لقطات الشاشة",
     "show": "عرض لقطة الشاشة {{number, number}}: {{caption}}",
     "source": "المصدر",
     "unavailable": "الصورة غير متاحة"
@@ -178,6 +186,7 @@
     "archived": "أبلغ GitHub في {{checked}} أن مؤلفي المشروع أرشفوه ولم يعودوا يقبلون التغييرات. من غير المرجح صدور إصدارات جديدة.",
     "label": "نشاط المصدر على GitHub",
     "quiet": "أبلغ GitHub في {{checked}} أن المشروع لم يتغير منذ {{date}}. من غير المرجح صدور إصدارات جديدة ما لم يُستأنف العمل.",
-    "recent": "أبلغ GitHub في {{checked}} أن آخر تغيير في المشروع كان في {{date}}."
+    "recent": "أبلغ GitHub في {{checked}} أن آخر تغيير في المشروع كان في {{date}}.",
+    "unknown": "تمت مراجعة GitHub في {{checked}}. تاريخ آخر تغيير غير معروف."
   }
 }

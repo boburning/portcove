@@ -3,13 +3,13 @@
   "listing": {
     "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
     "name": "Mario Kart 8 Deluxe (Racing-8-DX-Recomp)",
-    "summary": "An experimental Mario Kart 8 Deluxe project documenting strict ahead-of-time translation with SUYU_NO_JIT=ON and native Vulkan. Its emulator ancestry alone does not prove runtime CPU JIT; strict coverage has not been exercised. The project claims 60 FPS races and four-player play on AMD. DLSS compiles but has not been tested on NVIDIA; game rates above 60 FPS are planned. Tag v0.1.0 contains no package files. The source launcher generates a personal AppImage locally; no downloadable AppImage is established. Linux is the documented workflow with exact CPU support unconfirmed; Windows is planned and Android is in development. Use your own base game and 3.0.4 update, optional owned DLC, keys and firmware. Generated rtld/main/subsdk modules remain private; exact region/build hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Racing-8-DX-Recomp uses your own Mario Kart 8 Deluxe game and 3.0.4 update. The project reports races and four-player play on AMD hardware. The BETA-0.2.5 prerelease offered a Linux x86-64 AppImage, and v0.2.4 offered Windows and Linux packages. Portcove has yet to qualify these packages.",
     "original_game_title": "Mario Kart 8 Deluxe",
     "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
     "artwork": {
       "game_id": 26764,
       "cover_id": 94741,
@@ -18,7 +18,33 @@
       "game_slug": "mario-kart-8-deluxe",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2946
+    "issue_number": 2946,
+    "manual_setup": {
+      "help_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Prepare your base game and 3.0.4 update, required keys and firmware. Add DLC only if you own the corresponding content."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use the project’s Linux source launcher to generate the AppImage locally. Keep the generated game modules private. The supported Linux CPU is unconfirmed."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports 60 FPS races using ahead-of-time translation and Vulkan. NVIDIA DLSS has compiled but has no play report. Higher game rates, Windows and Android are still in development or planned."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-8-deluxe",
+      "evidence_urls": ["https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

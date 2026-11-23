@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+    "project_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+    "name": "Crusader: No Remorse / SDL port",
+    "original_game_title": "Crusader: No Remorse",
+    "artwork": {
+      "game_id": 7840,
+      "cover_id": 104235,
+      "image_id": "co28ff",
+      "image_sha256": "c6ad7109ca86f9ef9490a0e75f6abc0d7375b5b497f408b5d8f646419115578c",
+      "game_slug": "crusader-no-remorse",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Set up the upstream Windows, Linux or PortMaster player with a copy of your original game data.",
+    "issue_number": 5569,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases",
+    "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+    "download_asset_hints": {
+      "windows-x86-64": ["crusader-", "-windows-x64.zip"],
+      "linux-x86-64": ["crusader-", "-linux-x64.tar.gz"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+      "steps": [
+        {
+          "title": "Supply the original game on desktop",
+          "instruction": "Extract the x64 package into a fresh writable folder. Copy your owned French 1.08 or US 1.23 disc image, or the English 1.01 GOG GAME.GOG image, into the package's data folder. You can also copy the complete original game files using the layout in the upstream guide. Keep your original separately. A partial digital installation may lack files included on its disc image."
+        },
+        {
+          "title": "Open the desktop player",
+          "instruction": "From the extracted package folder, run crusader.exe data on Windows or ./crusader data on Linux. The Linux player includes SDL2. It needs glibc 2.35 or later, GCC 11-era libstdc++ and your distribution's desktop audio and graphics libraries. The player extracts an image into the working data folder on first launch. If import is interrupted, preserve anything you need from that folder and retry in a fresh working folder."
+        },
+        {
+          "title": "Use the upstream PortMaster package",
+          "instruction": "On a compatible ARM64 Linux handheld, follow the publisher's PortMaster README. Use the original French 1.08 or US 1.23 files or a copy of its .iso in ports/crusader/data. Keep the package's Crusader.sh launcher and open Crusader from the device's Ports menu."
+        },
+        {
+          "title": "Keep saves and settings",
+          "instruction": "Close the game and keep the working data folder, especially SAVEGAME and CRUSADER.CFG, before replacing the upstream player. Back up any separately used mod save folder. On PortMaster also retain the port's conf folder. Keep your original media separate."
+        }
+      ],
+      "warnings": [
+        "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crusader-no-remorse",
+      "evidence_urls": [
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+      ],
+      "source_editions": [
+        {
+          "id": "crusader-no-remorse-pc",
+          "title": "Crusader: No Remorse (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+          ]
+        }
+      ]
+    }
+  }
+}

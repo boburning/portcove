@@ -33,7 +33,16 @@
       ]
     },
     "platforms": ["windows-x86-64"],
-    "download_block_reason": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+        "tracking_issue": 2836
+      }
+    ],
     "artwork": {
       "game_id": 18998,
       "cover_id": 137555,
@@ -41,6 +50,15 @@
       "image_sha256": "3bc779f0ac8a658c115ce6723605ae5d5a30172c2d61c495e42ae1cb2ea18dd4",
       "game_slug": "cybermage-darklight-awakening",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cybermage-darklight-awakening",
+      "evidence_urls": [
+        "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+        "https://github.com/lodilorenzo/cybermage-darklight-re-awakening"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

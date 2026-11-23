@@ -1,6 +1,7 @@
+import { captureParityState } from "../../test/parity-capture";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vite-plus/test";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import type { LauncherLibraryEntry, LauncherLibraryInventory } from "../types";
 import {
@@ -9,6 +10,12 @@ import {
   launcherEntryCanBeBatched,
   launcherEntryCanBeReviewed,
 } from "./LauncherLibraryImport";
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
+});
 
 function entry(overrides: Partial<LauncherLibraryEntry>): LauncherLibraryEntry {
   return {
@@ -88,6 +95,8 @@ it("offers review only for matched launcher apps that have a folder", () => {
 });
 
 it("lists a chosen launcher's apps and hands only reviewable ones to the copy review", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
@@ -116,6 +125,7 @@ it("lists a chosen launcher's apps and hands only reviewable ones to the copy re
     expect(page.getByRole("button", { name: "Review copying Other" }).elements()).toHaveLength(0);
     // No app is missing its folder, so no apps-folder recovery is offered.
     expect(page.getByLabelText("Apps folder, if it moved").elements()).toHaveLength(0);
+    await captureParityState("launcher-expanded-inventory");
     await page.getByRole("button", { name: "Review copying Shared" }).click();
     expect(choose).toHaveBeenCalledWith(expect.objectContaining({ name: "Shared" }));
     // Choosing collapses the list so the copy review is next; it can be reopened.
@@ -137,6 +147,8 @@ it("lists a chosen launcher's apps and hands only reviewable ones to the copy re
 });
 
 it("offers a moved apps folder and lists again with it when apps were not found", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
@@ -166,6 +178,8 @@ it("offers a moved apps folder and lists again with it when apps were not found"
     await userEvent.fill(page.getByLabelText("Apps folder, if it moved"), "D:\\Apps");
     await page.getByRole("button", { name: "List apps again" }).click();
     expect(inspect).toHaveBeenLastCalledWith("github-launcher", "C:\\GHL", "D:\\Apps");
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    await captureParityState("launcher-moved-apps-folder");
     // A failed listing clears the results but keeps the override visible and editable.
     inspect.mockResolvedValueOnce(undefined as unknown as LauncherLibraryInventory);
     await page.getByRole("button", { name: "List apps again" }).click();
@@ -284,6 +298,8 @@ it("selects launcher apps for a several-app copy with accessible checkboxes", as
 });
 
 it("never offers two launcher apps for the same game in one copy", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
@@ -331,6 +347,7 @@ it("never offers two launcher apps for the same game in one copy", async () => {
       .toHaveAccessibleDescription(
         "Another app for this game is selected. Clear it to choose this one.",
       );
+    await captureParityState("launcher-duplicate-game-selection");
   } finally {
     await act(async () => root.unmount());
     container.remove();

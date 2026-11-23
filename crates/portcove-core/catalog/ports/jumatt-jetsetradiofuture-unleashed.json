@@ -49,6 +49,30 @@
       ],
       "warnings": [
         "Use the standalone US disc data; preserve game-folder UDATA separately from the actual per-user or portable launcher storage."
+      ],
+      "references": [
+        {
+          "title": "Use the Android JSRF Unleashed package",
+          "instruction": "JSRF Unleashed v0.6.10 publishes JSRF-Unleashed-android-arm64.apk. Open it once and select your supported original Xbox disc image. If you copy the extracted game into Android/data/com.jumatt.jsrfunleashed/files/game instead, tap I copied the folder: start. Later launches use that copy. Keep the app’s profile when updating. The project reports Android emulator testing."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-set-radio-future",
+      "evidence_urls": [
+        "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/9ddb226f66d92c8c6bfed56ea9797bcaa2da48a5/README.md",
+        "https://github.com/JuMatt/JetSetRadioFuture-Unleashed"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-set-radio-future-xbox",
+          "title": "Jet Set Radio Future (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/0f3426954c76b243a9aa5b1b97b39062950dec78/README.md"
+          ]
+        }
       ]
     }
   },

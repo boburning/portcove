@@ -1,4 +1,4 @@
-//! Shadow package-shape verdicts recorded by real installs (#5359 phase 1).
+//! Package-shape comparison and refusal through the real installer (#5359).
 //! Inert fixtures only; nothing is executed.
 use super::*;
 use crate::package_shape::{
@@ -44,26 +44,37 @@ fn serve_archive(members: &[&str]) -> (crate::ReleaseAsset, std::thread::JoinHan
 }
 
 async fn install(installer: &Installer, library: &Library, version: &str, members: &[&str]) {
+    let operation = OperationCoordinator::new("install", None);
+    let (_, result) = attempt_install(installer, library, version, members, &operation).await;
+    result.unwrap();
+}
+
+async fn attempt_install(
+    installer: &Installer,
+    library: &Library,
+    version: &str,
+    members: &[&str],
+    operation: &OperationCoordinator,
+) -> (ResolvedRelease, Result<InstallRecord>) {
     let (asset, server) = serve_archive(members);
+    let release = ResolvedRelease {
+        version: version.into(),
+        channel: crate::ReleaseChannel::Stable,
+        published_at: None,
+        asset,
+        uploader_continuity: None,
+    };
     let request = InstallRequest {
         port_id: "sample".into(),
         output_root: library.versions_dir().join("sample"),
-        release: ResolvedRelease {
-            version: version.into(),
-            channel: crate::ReleaseChannel::Stable,
-            published_at: None,
-            asset,
-            uploader_continuity: None,
-        },
+        release: release.clone(),
         activate: true,
         managed: None,
         qualification: InstallQualification::test("sample-game.exe"),
     };
-    installer
-        .install(request, &OperationCoordinator::new("install", None), |_| {})
-        .await
-        .unwrap();
+    let result = installer.install(request, operation, |_| {}).await;
     server.join().unwrap();
+    (release, result)
 }
 
 fn recorded(installer: &Installer, version: &str) -> crate::package_shape::PackageShapeRecord {
@@ -77,7 +88,7 @@ fn recorded(installer: &Installer, version: &str) -> crate::package_shape::Packa
 }
 
 #[tokio::test]
-async fn installs_record_their_shape_and_a_shadow_verdict_without_refusing_drift() {
+async fn install_withholds_known_drift_before_publishing_and_preserves_the_active_version() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let installer = Installer::new(library.clone()).unwrap();
@@ -133,17 +144,29 @@ async fn installs_record_their_shape_and_a_shadow_verdict_without_refusing_drift
     // The local baseline was itself unreviewed, so nothing is inherited.
     assert_eq!(second.provenance, ShapeProvenance::Unreviewed);
 
-    // A new program and a removed configuration are drift, recorded only.
-    install(
+    // Model an independently reviewed prior package in this synthetic library.
+    let active = rewrite_manifest(&install_record(&library, "v2"), |manifest| {
+        manifest.get_mut("package_shape").unwrap()["provenance"] = serde_json::json!("reviewed");
+    });
+    library.update_install_manifest(&active).unwrap();
+    let retry = OperationCoordinator::new("install", None);
+    let (release, result) = attempt_install(
         &installer,
         &library,
         "v3",
         &["sample-game.exe", "updater.exe", "data/level.dat"],
+        &retry,
     )
     .await;
-    let third = recorded(&installer, "v3");
-    let ShapeVerdict::Drifted { changes, .. } = &third.verdict else {
-        panic!("expected drift, got {:?}", third.verdict);
+    let error = result.unwrap_err();
+    assert!(matches!(
+        error.known_cause(),
+        Some(crate::failure::KnownFailureCause::PackageShapeDrift)
+    ));
+    let verdict: ShapeVerdict =
+        serde_json::from_str(&error.details["package_shape_verdict"]).unwrap();
+    let ShapeVerdict::Drifted { changes, .. } = verdict else {
+        panic!("expected drift, got {verdict:?}");
     };
     let components = changes
         .iter()
@@ -153,12 +176,95 @@ async fn installs_record_their_shape_and_a_shadow_verdict_without_refusing_drift
         components,
         [ShapeComponent::Programs, ShapeComponent::ConfigFiles]
     );
+    let port = sample_definition();
+    let platform = Platform::WindowsX86_64;
+    let retained = crate::package_shape::withheld::current(
+        &library,
+        &port,
+        platform,
+        &release,
+        crate::package_shape::enforcement_capability(port.adapter).unwrap(),
+        None,
+        || installer.local_shape_baseline(&port, platform).unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(retained, Some(ShapeVerdict::Drifted { .. })));
     let shapes = installer.installed_package_shapes("sample").unwrap();
-    assert_eq!(shapes.len(), 3);
+    assert_eq!(shapes.len(), 2);
     assert!(
         shapes
             .iter()
-            .any(|install| install.active && install.version == "v3")
+            .any(|install| install.active && install.version == "v2")
+    );
+    assert_eq!(
+        fs::read(active.path.join("config.ini")).unwrap(),
+        b"config.ini"
+    );
+    assert!(!active.path.join("updater.exe").exists());
+
+    let store = crate::operation::OperationStore::new(library.clone());
+    assert!(store.get(retry.operation_id()).unwrap().is_none());
+    // The second archive reuses the same logical operation after private cleanup.
+    let (_, retried) = attempt_install(
+        &installer,
+        &library,
+        "v2-compatible",
+        &["sample-game.exe", "config.ini", "data/reviewed.dat"],
+        &retry,
+    )
+    .await;
+    let retried = retried.unwrap();
+    assert!(retried.path.join("data/reviewed.dat").is_file());
+    assert!(store.get(retry.operation_id()).unwrap().is_none());
+    assert!(
+        installer
+            .installed_package_shapes("sample")
+            .unwrap()
+            .iter()
+            .any(|install| install.active && install.install_id == retried.id)
+    );
+}
+
+fn sample_definition() -> PortDefinition {
+    InstallQualification::test("sample-game.exe")
+        .retained_contract
+        .unwrap()
+        .catalog("sample")
+        .unwrap()
+        .port("sample")
+        .unwrap()
+        .clone()
+}
+
+#[tokio::test]
+async fn a_local_baseline_requires_the_same_shape_derivation_inputs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let installer = Installer::new(library.clone()).unwrap();
+    install(
+        &installer,
+        &library,
+        "v1",
+        &["sample-game.exe", "config.ini"],
+    )
+    .await;
+
+    let platform = Platform::WindowsX86_64;
+    let mut port = sample_definition();
+    port.name = "Updated display name".into();
+    assert!(
+        installer
+            .local_shape_baseline(&port, platform)
+            .unwrap()
+            .is_some()
+    );
+
+    port.persistent_paths.push("config.ini".into());
+    assert!(
+        installer
+            .local_shape_baseline(&port, platform)
+            .unwrap()
+            .is_none()
     );
 }
 
@@ -236,7 +342,7 @@ async fn an_unverifiable_active_manifest_is_no_local_baseline_and_never_refuses_
     fs::write(&manifest, bytes).unwrap();
     assert!(
         installer
-            .local_shape_baseline("sample", Platform::WindowsX86_64)
+            .local_shape_baseline(&sample_definition(), Platform::WindowsX86_64)
             .is_err()
     );
 
@@ -316,7 +422,7 @@ async fn a_record_from_a_newer_portcove_never_makes_the_manifest_unreadable() {
     );
     assert!(
         installer
-            .local_shape_baseline("sample", Platform::WindowsX86_64)
+            .local_shape_baseline(&sample_definition(), Platform::WindowsX86_64)
             .is_err(),
         "the registered digest still names the original bytes"
     );
@@ -355,4 +461,56 @@ async fn a_manifest_without_a_shape_reads_as_no_record() {
             .unwrap()
             .contains_key("package_shape")
     );
+}
+
+#[tokio::test]
+async fn installs_keep_writing_version_one_records_and_read_both_component_versions() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let installer = Installer::new(library.clone()).unwrap();
+    install(
+        &installer,
+        &library,
+        "v1",
+        &["sample-game.exe", "config.ini"],
+    )
+    .await;
+    // Installs derive components only, so earlier Portcove builds keep
+    // reading what this build records.
+    let record = recorded(&installer, "v1");
+    assert_eq!(
+        record.shape_version,
+        crate::package_shape::COMPONENT_RULES_VERSION
+    );
+    assert_eq!(record.shape_version, 1);
+    let original = install_record(&library, "v1");
+    for (version, status) in [
+        (1, InstalledShapeStatus::Recorded),
+        (
+            crate::package_shape::SHAPE_VERSION,
+            InstalledShapeStatus::Recorded,
+        ),
+        (
+            crate::package_shape::SHAPE_VERSION + 1,
+            InstalledShapeStatus::Unrecognized,
+        ),
+        (0, InstalledShapeStatus::Unrecognized),
+    ] {
+        let mut value = serde_json::to_value(&record).unwrap();
+        value["shape_version"] = serde_json::json!(version);
+        let rewritten = rewrite_manifest(&original, |manifest| {
+            manifest.insert("package_shape".into(), value.clone());
+        });
+        library.update_install_manifest(&rewritten).unwrap();
+        let shapes = installer.installed_package_shapes("sample").unwrap();
+        assert_eq!(shapes[0].status, status, "{version}");
+        assert_eq!(
+            installer
+                .local_shape_baseline(&sample_definition(), Platform::WindowsX86_64)
+                .unwrap()
+                .is_some(),
+            status == InstalledShapeStatus::Recorded,
+            "{version}"
+        );
+    }
 }

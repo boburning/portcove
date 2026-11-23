@@ -20,9 +20,6 @@
     "original_game_title": "Beetle Adventure Racing!",
     "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
     "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["beetle-adventure-racing-recomp-", "windows-x64.zip"]
-    },
     "manual_setup": {
       "steps": [
         {
@@ -45,8 +42,27 @@
           "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "beetle-adventure-racing",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+        "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "beetle-adventure-racing-nintendo-64",
+          "title": "Beetle Adventure Racing! (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

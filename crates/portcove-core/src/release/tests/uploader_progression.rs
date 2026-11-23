@@ -395,3 +395,185 @@ fn a_staged_build_from_an_uploader_no_longer_accepted_is_held() {
         .require_activation_gates(&established, None)
         .unwrap();
 }
+
+#[test]
+fn profile_binding_holds_a_staged_build_without_recorded_uploader_facts() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    crate::retained_build::tests::install(&library, "active", b"active runtime", true);
+    let default = service.ensure_default_profile("starship").unwrap();
+    let customized = service
+        .copy_profile("starship", &default.id, "Customized")
+        .unwrap();
+    let staged =
+        crate::retained_build::tests::install(&library, "staged", b"staged runtime", false);
+    service
+        .preview_retained_build_binding("starship", "saved-build", &staged.id)
+        .unwrap();
+
+    let unrecorded = as_unrecorded(&library, &staged);
+    assert_unconfirmed(
+        &service
+            .preview_retained_build_binding("starship", "saved-build", &unrecorded.id)
+            .unwrap_err(),
+    );
+    assert_unconfirmed(
+        &service
+            .create_profile_revision(
+                "starship",
+                &customized.id,
+                &crate::ProfileRevisionRequest {
+                    expected_revision: customized.current_revision,
+                    install_id: Some(unrecorded.id),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err(),
+    );
+}
+
+#[test]
+fn an_existing_pin_holds_launch_after_an_accepted_uploader_is_removed() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let mut service = crate::PortcoveService::new(library.clone()).unwrap();
+    let active = crate::retained_build::tests::install(&library, "active", b"active runtime", true);
+    let default = service.ensure_default_profile("starship").unwrap();
+    let customized = service
+        .copy_profile("starship", &default.id, "Customized")
+        .unwrap();
+
+    let mut document = service.catalog().document().clone();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "starship")
+        .unwrap();
+    port.release.accepted_uploaders = serde_json::from_value(serde_json::json!([
+        {"id": FOREIGN, "login": "accepted-before"}
+    ]))
+    .unwrap();
+    let narrowed = service.catalog().clone();
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let staged =
+        crate::retained_build::tests::install(&library, "staged", b"staged runtime", false);
+    let accepted = rewrite_manifest(&library, &staged, |manifest| {
+        manifest["uploader_continuity"] = serde_json::json!({
+            "basis": "accepted", "uploader_id": FOREIGN, "uploaded_at": AFTER
+        });
+    });
+    service
+        .create_profile_revision(
+            "starship",
+            &customized.id,
+            &crate::ProfileRevisionRequest {
+                expected_revision: customized.current_revision,
+                install_id: Some(accepted.id.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    service
+        .activate_profile("starship", &customized.id)
+        .unwrap();
+    assert_eq!(
+        service
+            .profile_pinned_install("starship", Some(active.clone()))
+            .unwrap()
+            .unwrap()
+            .id,
+        accepted.id
+    );
+
+    service.replace_catalog_for_test(narrowed);
+    let error = service
+        .profile_pinned_install("starship", Some(active))
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(error.details["reason"], "provider_uploader_not_continuous");
+    assert_eq!(error.details["profile"], "Customized");
+    let resolved = service
+        .resolve_retained_build("starship", &customized.id)
+        .unwrap();
+    assert_eq!(
+        resolved.availability,
+        crate::RetainedBuildAvailability::Held
+    );
+
+    // Matching the active ID also cannot bypass the pin gate. The clean
+    // Default launch follows the existing active-runtime policy.
+    library.register_install(&accepted, true).unwrap();
+    let error = service
+        .profile_pinned_install("starship", Some(accepted.clone()))
+        .unwrap_err();
+    assert_eq!(error.details["reason"], "provider_uploader_not_continuous");
+    service.activate_profile("starship", &default.id).unwrap();
+    assert_eq!(
+        service
+            .profile_pinned_install("starship", Some(accepted.clone()))
+            .unwrap()
+            .unwrap()
+            .id,
+        accepted.id
+    );
+}
+
+#[test]
+fn unconfirmed_output_folder_publication_recovers_as_held_without_activation() {
+    use crate::operation::{
+        LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore,
+    };
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    let active = crate::retained_build::tests::install(&library, "active", b"active runtime", true);
+    let id = uuid::Uuid::new_v4().to_string();
+    let install = crate::retained_build::tests::install(&library, &id, b"published runtime", false);
+    let mut install = as_unrecorded(&library, &install);
+    install.installed_at = 1_795_000_000;
+    install.staged = false;
+    let output = temporary.path().join("custom-game-output");
+    service.set_output_directory("starship", &output).unwrap();
+    let output =
+        crate::output_root::prepare_for_install(&library, "starship", &output, &id, 0).unwrap();
+    let destination = output.root.join("published");
+    std::fs::rename(&install.path, &destination).unwrap();
+    std::fs::create_dir_all(&output.operation_root).unwrap();
+    install.path = destination.clone();
+    library
+        .connection()
+        .unwrap()
+        .execute("DELETE FROM installs WHERE id=?1", [&id])
+        .unwrap();
+    assert!(
+        library
+            .all_installs()
+            .unwrap()
+            .iter()
+            .all(|row| row.id != id)
+    );
+    let mut operation = LifecycleOperation::new(&id, LifecycleOperationKind::Install, "starship");
+    operation.phase = LifecyclePhase::PayloadPublished;
+    operation.activate = true;
+    operation.paths.staging = Some(output.operation_root.clone());
+    operation.paths.final_path = Some(destination.clone());
+    operation.install = Some(install.clone());
+    let store = OperationStore::new(library.clone());
+    store.put(&mut operation).unwrap();
+
+    let error =
+        crate::recovery::recover_published_install(&service, &store, &mut operation).unwrap_err();
+    assert_unconfirmed(&error);
+    assert_eq!(error.details["recovery_action"], "check_for_updates");
+    let status = service.status("starship").unwrap();
+    assert_eq!(status.active.unwrap().id, active.id);
+    let staged = status.staged.unwrap();
+    assert_eq!(staged.id, install.id);
+    assert_eq!(staged.path, destination);
+    assert!(destination.is_dir());
+    assert!(!output.operation_root.exists());
+    assert!(!library.has_unfinished_lifecycle("starship").unwrap());
+    assert_unconfirmed(&service.activate_staged("starship").unwrap_err());
+}

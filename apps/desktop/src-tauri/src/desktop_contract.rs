@@ -2,7 +2,8 @@
 //! Native policies, commands, storage, and event emission remain in their owners.
 
 use portcove_core::{
-    LibrarySelection, ReconcileResult, ReleaseChannel, SourceVerification, UpdateCheck,
+    LibrarySelection, LibrarySelectionContents, LibrarySelectionSource, ReconcileResult,
+    ReleaseChannel, SourceVerification, UpdateCheck,
 };
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,12 @@ pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
 pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 
 pub(crate) type DesktopError = portcove_core::FailureReport;
+
+#[derive(Serialize, JsonSchema)]
+pub(crate) struct DesktopArtworkSelectionPreview {
+    pub(crate) original_sha256: String,
+    pub(crate) png_base64: String,
+}
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
@@ -70,6 +77,24 @@ pub(crate) struct BootstrapStatus {
     pub(crate) error: Option<DesktopError>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LibrarySelectionEffect {
+    Keep,
+    ChangeStartup,
+    Open,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct LibrarySelectionReview {
+    pub(crate) path: PathBuf,
+    pub(crate) source: LibrarySelectionSource,
+    pub(crate) effect: LibrarySelectionEffect,
+    pub(crate) contents: LibrarySelectionContents,
+    pub(crate) resets_preferences: bool,
+    pub(crate) review_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub(crate) struct DesktopLocalePreference {
     pub(crate) locale: Option<String>,
@@ -80,6 +105,17 @@ pub(crate) struct BackupReview {
     pub(crate) preview: portcove_core::BackupActionPreview,
     pub(crate) port_name: String,
     pub(crate) persistent_data_path: PathBuf,
+}
+
+/// A recipe review's display data and its exact Core-owned import plan.
+/// JavaScript numbers cannot preserve every JSON number representation, so
+/// only the unchanged serialized plan is sent back for Core to verify and use.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeImportReview {
+    pub(crate) plan: portcove_core::RecipeImportPlan,
+    pub(crate) serialized_plan: String,
+    /// Exact native text in the same order as `plan.recipe.settings`.
+    pub(crate) setting_values: Vec<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -430,10 +466,12 @@ pub fn export_transport_schemas() -> Value {
         "output": {
             "game_comparison": output::<portcove_core::GameComparison>(),
             "bootstrap_status": output::<BootstrapStatus>(),
+            "library_selection_review": output::<LibrarySelectionReview>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
+            "recipe_import_review": output::<RecipeImportReview>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
             "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
@@ -468,6 +506,7 @@ pub fn export_transport_schemas() -> Value {
             "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
             "game_file_scan_match_page": output::<portcove_core::GameFileScanMatchPage>(),
+            "game_file_scan_registered_matches": output::<portcove_core::GameFileScanRegisteredMatches>(),
             "store_game_installs": output::<portcove_core::StoreGameInstalls>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
@@ -481,6 +520,7 @@ pub fn export_transport_schemas() -> Value {
             "setup_launch_targets": output::<portcove_core::SetupLaunchTargets>(),
             "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
             "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
+            "artwork_selection_preview": output::<DesktopArtworkSelectionPreview>(),
             "steam_entry_review": output::<SteamEntryReview>(),
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
@@ -507,6 +547,7 @@ pub fn export_transport_schemas() -> Value {
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
+            "artwork_selection_framing": schemars::schema_for!(portcove_core::ArtworkSelectionFraming),
         },
         "events": events,
     })

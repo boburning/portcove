@@ -16,6 +16,7 @@ import {
   filterPorts,
   indexStatuses,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   mostRecentPort,
   portReadiness,
   progressPresentation,
@@ -54,6 +55,28 @@ it("does not turn current bytes or missing legacy assessment into confirmed comp
   expect(
     hasUnconfirmedLaunchInput(status, { ...portDefinition(), source_profile: "required" }),
   ).toBe(true);
+});
+
+it("uses actual Continue action labels for the current runtime state", () => {
+  const definition = portDefinition();
+  const status: PortStatus = {
+    ...portStatus(),
+    successful_launches: 2,
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+  };
+  expect(continueActionPresentation(definition, status, false).label).toBe("Continue playing");
+  expect(continueActionPresentation(definition, status, true).label).toBe("Review launch");
+  expect(continueActionPresentation(definition, undefined, false).label).toBe("Review launch");
+  expect(
+    continueActionPresentation(
+      definition,
+      { ...status, readiness: { launchable: true, pending_setup: true, blockers: [] } },
+      false,
+    ).label,
+  ).toBe("Launch to finish setup");
+  expect(
+    continueActionPresentation({ ...definition, source_profile: "required" }, status, false).label,
+  ).toBe("Try launch");
 });
 
 it("does not inherit managed source requirements for a user-selected installation", () => {
@@ -265,6 +288,32 @@ describe("catalog view model", () => {
       filterPorts(unordered, statuses, "catalog", "all", "alpha", "name").map((item) => item.id),
     ).toEqual(["alpha", "alpha-two"]);
     expect(unordered.map((item) => item.id)).toEqual(["zeta", "alpha", "alpha-two", "beta"]);
+  });
+
+  it("sorts names lexically with stable accent and case ties in both directions", () => {
+    const unordered = [
+      { ...port("eclair-accent", ["stable"]), name: "Éclair" },
+      { ...port("game-two", ["stable"]), name: "Game 2" },
+      { ...port("eclair-upper", ["stable"]), name: "ECLAIR" },
+      { ...port("game-ten", ["stable"]), name: "Game 10" },
+      { ...port("eclair-lower", ["stable"]), name: "eclair" },
+    ];
+    const ids = (sort: "name" | "name-desc") =>
+      filterPorts(unordered, new Map(), "catalog", "all", "", sort).map(({ id }) => id);
+    expect(ids("name")).toEqual([
+      "eclair-accent",
+      "eclair-upper",
+      "eclair-lower",
+      "game-ten",
+      "game-two",
+    ]);
+    expect(ids("name-desc")).toEqual([
+      "game-two",
+      "game-ten",
+      "eclair-accent",
+      "eclair-upper",
+      "eclair-lower",
+    ]);
   });
 
   it("searches the visible installation method without indexing the internal adapter id", () => {

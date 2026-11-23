@@ -1,109 +1,208 @@
-//! Disposable cover acceleration and process-local work admission.
-//!
-//! Originals, choices and catalog admission remain authoritative in the parent.
+//! Disposable remote artwork derivatives and blocking work admission.
 use std::{
-    collections::VecDeque,
-    sync::atomic::{AtomicUsize, Ordering},
+    io::{Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+    sync::{Condvar, Mutex},
+    time::{Duration, Instant},
 };
 
-use super::IgdbRequestKey;
-use crate::{PortcoveError, Result, artwork_image};
+use sha2::{Digest, Sha256};
 
-/// Maximum simultaneous IGDB original reads, fetches and image conversions.
-/// Hosts can wait asynchronously before dispatching this blocking Core work.
-pub const IGDB_ARTWORK_WORK_LIMIT: usize = 2;
+use crate::{Library, PortcoveError, Result, artwork_image, signed_catalog::digest};
 
-const MAX_DERIVATIVE_BYTES: usize = 8 * 1024 * 1024;
-const MAX_DERIVATIVE_ENTRIES: usize = 256;
-// This cache never survives the executable. Explicit recipe/limit identity also
-// prevents a future in-process recipe change from reusing an older derivative.
-const DERIVATION: [u64; 7] = [
-    1,
-    artwork_image::MAX_ORIGINAL_BYTES,
-    artwork_image::MAX_DECODED_BYTES,
-    artwork_image::MAX_PIXELS,
-    artwork_image::MAX_THUMBNAIL_BYTES,
-    artwork_image::THUMBNAIL_WIDTH as u64,
-    artwork_image::THUMBNAIL_HEIGHT as u64,
-];
+/// Maximum simultaneous remote original retrievals.
+pub const IGDB_ARTWORK_WORK_LIMIT: usize = 6;
+const DIGEST_BYTES: usize = 64;
+const DERIVATIVE_MARKER: &[u8; 8] = b"PCDERIV1";
+const SOURCE_BINDING_BYTES: usize = DERIVATIVE_MARKER.len() + DIGEST_BYTES;
+const TRAILER_BYTES: usize = SOURCE_BINDING_BYTES + DIGEST_BYTES;
 
-struct Derivative {
-    key: IgdbRequestKey,
-    recipe: [u64; 7],
-    sha256: String,
-    png: Vec<u8>,
+/// The path keys only reusable bytes. The caller still has to resolve the
+/// current listing and choice and verify the admitted original before use.
+pub(crate) struct RemoteDerivative {
+    key: String,
+    source: String,
+    path: PathBuf,
 }
 
-#[derive(Default)]
-pub(super) struct Derivatives {
-    entries: VecDeque<Derivative>,
-    bytes: usize,
-}
+impl RemoteDerivative {
+    pub(crate) fn new(library: &Library, source: &str, recipe: &str) -> Result<Self> {
+        crate::artwork_store::validate_hash(source)?;
+        // Bump this version whenever the shared EXIF orientation, fit, or
+        // static PNG encoding recipe changes.
+        let key = digest(format!("oriented-png-v1:{source}:{recipe}").as_bytes());
+        let path = super::thumbnail_path(library, &key)?;
+        Ok(Self {
+            key,
+            source: source.into(),
+            path,
+        })
+    }
 
-impl Derivatives {
-    /// Call only after reading and verifying the expected original digest.
-    pub(super) fn get(&mut self, key: &IgdbRequestKey) -> Option<Vec<u8>> {
-        let index = self.entries.iter().position(|entry| &entry.key == key)?;
-        let entry = self.entries.remove(index)?;
-        self.bytes -= entry.png.len();
-        if entry.recipe != DERIVATION
-            || entry.png.len() as u64 > artwork_image::MAX_THUMBNAIL_BYTES
-            || crate::signed_catalog::digest(&entry.png) != entry.sha256
+    pub(crate) fn key(&self) -> &str {
+        &self.key
+    }
+
+    fn checksum(&self, png: &[u8]) -> String {
+        let mut hash = Sha256::new();
+        hash.update(self.key.as_bytes());
+        hash.update(png);
+        hex::encode(hash.finalize())
+    }
+
+    /// Read just the source binding when an original is retired. Ordinary
+    /// local thumbnails have no binding and keep their existing cache path.
+    pub(super) fn retained_source(path: &Path, size: u64) -> Option<String> {
+        if path.extension().and_then(|extension| extension.to_str()) != Some("png")
+            || !(TRAILER_BYTES as u64..=artwork_image::MAX_THUMBNAIL_BYTES).contains(&size)
         {
             return None;
         }
-        let png = entry.png.clone();
-        self.bytes += entry.png.len();
-        self.entries.push_back(entry);
-        Some(png)
+        crate::path::refuse_symlink_ancestors(path).ok()?;
+        let mut file = crate::external_runtime::open_identity_handle(path).ok()?;
+        let metadata = file.metadata().ok()?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() != size {
+            return None;
+        }
+        file.seek(SeekFrom::End(-(TRAILER_BYTES as i64))).ok()?;
+        let mut binding = [0_u8; SOURCE_BINDING_BYTES];
+        file.read_exact(&mut binding).ok()?;
+        let source = std::str::from_utf8(binding.strip_prefix(DERIVATIVE_MARKER)?).ok()?;
+        crate::artwork_store::validate_hash(source).ok()?;
+        Some(source.into())
     }
 
-    /// Accept only the output of the parent's validated JPEG conversion.
-    pub(super) fn insert(&mut self, key: IgdbRequestKey, png: &[u8]) {
-        if png.is_empty() || png.len() as u64 > artwork_image::MAX_THUMBNAIL_BYTES {
+    /// Check the recipe-bound digest trailer as well as the existing byte bound.
+    pub(crate) fn read(&self) -> Option<Vec<u8>> {
+        let started = Instant::now();
+        let result =
+            crate::path::read_bounded_regular(&self.path, artwork_image::MAX_THUMBNAIL_BYTES)
+                .ok()
+                .and_then(|mut bytes| {
+                    let size = bytes.len().checked_sub(TRAILER_BYTES)?;
+                    let (png, trailer) = bytes.split_at(size);
+                    let (binding, checksum) = trailer.split_at(SOURCE_BINDING_BYTES);
+                    if !png.starts_with(b"\x89PNG\r\n\x1a\n")
+                        || binding.strip_prefix(DERIVATIVE_MARKER) != Some(self.source.as_bytes())
+                        || checksum != self.checksum(png).as_bytes()
+                    {
+                        return None;
+                    }
+                    bytes.truncate(size);
+                    Some(bytes)
+                });
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            input_bytes = result.as_ref().map_or(0, |bytes| bytes.len() as u64),
+            success = result.is_some(),
+            message = "Remote artwork derivative lookup"
+        );
+        result
+    }
+
+    /// The caller holds the library artwork lock. Cache failure cannot hide
+    /// artwork that was already accepted and converted for this request.
+    pub(crate) fn retain(&self, library: &Library, source: &Path, png: &[u8]) {
+        if png.len() + TRAILER_BYTES > artwork_image::MAX_THUMBNAIL_BYTES as usize {
             return;
         }
-        if let Some(index) = self.entries.iter().position(|entry| entry.key == key)
-            && let Some(previous) = self.entries.remove(index)
-        {
-            self.bytes -= previous.png.len();
+        // Another publication can retire this original while a cached image
+        // is converting outside the lock. Keep the computed result in memory.
+        if !std::fs::symlink_metadata(source).is_ok_and(|metadata| {
+            metadata.is_file()
+                && !metadata.file_type().is_symlink()
+                && metadata.len() <= artwork_image::MAX_ORIGINAL_BYTES
+        }) {
+            return;
         }
-        while self.bytes + png.len() > MAX_DERIVATIVE_BYTES
-            || self.entries.len() >= MAX_DERIVATIVE_ENTRIES
-        {
-            if let Some(oldest) = self.entries.pop_front() {
-                self.bytes -= oldest.png.len();
-            }
+        let mut bytes = Vec::with_capacity(png.len() + TRAILER_BYTES);
+        bytes.extend_from_slice(png);
+        bytes.extend_from_slice(DERIVATIVE_MARKER);
+        bytes.extend_from_slice(self.source.as_bytes());
+        bytes.extend_from_slice(self.checksum(png).as_bytes());
+        if let Err(error) = super::publish_cache_file(
+            library,
+            &self.path,
+            "pending-thumbnail",
+            artwork_image::MAX_THUMBNAIL_BYTES,
+            &bytes,
+            None,
+            Some(source),
+        ) {
+            tracing::debug!(code = ?error.code, "Remote artwork derivative cache publication failed");
         }
-        self.bytes += png.len();
-        self.entries.push_back(Derivative {
-            key,
-            recipe: DERIVATION,
-            sha256: crate::signed_catalog::digest(png),
-            png: png.to_vec(),
-        });
-    }
-
-    pub(super) fn clear_library(&mut self, root: &std::path::Path, id: &str) {
-        self.entries
-            .retain(|entry| entry.key.0 != root || entry.key.1 != id);
-        self.bytes = self.entries.iter().map(|entry| entry.png.len()).sum();
     }
 }
 
-pub(super) struct WorkBudget(AtomicUsize);
+const CACHE_EPOCH_FILE: &str = "artwork-cache-epoch";
+const EPOCH_BYTES: u64 = 16;
+
+pub(super) fn cache_epoch(library: &Library) -> Result<Option<uuid::Uuid>> {
+    let path = library.locks_dir().join(CACHE_EPOCH_FILE);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    match path.symlink_metadata() {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+        Ok(_) => {
+            let bytes = crate::path::read_bounded_regular(&path, EPOCH_BYTES)?;
+            uuid::Uuid::from_slice(&bytes)
+                .map(Some)
+                .map_err(|_| PortcoveError::verification("invalid artwork cache epoch"))
+        }
+    }
+}
+
+/// The caller holds the artwork lock. A fixed staged name bounds debris after
+/// interruption. Existing processes compare this token before publishing.
+pub(super) fn advance_cache_epoch(library: &Library) -> Result<()> {
+    let directory = library.locks_dir();
+    let path = directory.join(CACHE_EPOCH_FILE);
+    let pending = directory.join("artwork-cache-epoch.pending");
+    crate::path::refuse_symlink_ancestors(&path)?;
+    crate::path::refuse_symlink_ancestors(&pending)?;
+    if pending.exists() {
+        crate::path::read_bounded_regular(&pending, EPOCH_BYTES)?;
+        std::fs::remove_file(&pending)?;
+    }
+    crate::artwork_ingestion::write_staged_file(&pending, uuid::Uuid::new_v4().as_bytes())?;
+    tempfile::TempPath::try_from_path(pending)?
+        .persist(&path)
+        .map_err(|error| PortcoveError::from(error.error))?;
+    crate::durability::sync_publication(&directory)
+}
+
+pub(super) struct WorkBudget {
+    active: Mutex<usize>,
+    available: Condvar,
+}
 
 impl WorkBudget {
     pub(super) const fn new() -> Self {
-        Self(AtomicUsize::new(0))
+        Self {
+            active: Mutex::new(0),
+            available: Condvar::new(),
+        }
     }
 
     pub(super) fn try_acquire(&self) -> Result<WorkPermit<'_>> {
-        self.0
-            .try_update(Ordering::AcqRel, Ordering::Acquire, |active| {
-                (active < IGDB_ARTWORK_WORK_LIMIT).then_some(active + 1)
-            })
-            .map_err(|_| PortcoveError::conflict("cover retrieval is busy; retry shortly"))?;
+        self.acquire_until(Duration::ZERO)
+    }
+
+    pub(super) fn acquire_until(&self, wait: Duration) -> Result<WorkPermit<'_>> {
+        let unavailable = |_| PortcoveError::state("artwork work budget is unavailable");
+        let mut active = self.active.lock().map_err(unavailable)?;
+        if *active == IGDB_ARTWORK_WORK_LIMIT && !wait.is_zero() {
+            (active, _) = self
+                .available
+                .wait_timeout_while(active, wait, |active| *active == IGDB_ARTWORK_WORK_LIMIT)
+                .map_err(|_| PortcoveError::state("artwork work budget is unavailable"))?;
+        }
+        if *active == IGDB_ARTWORK_WORK_LIMIT {
+            return Err(PortcoveError::conflict(
+                "artwork retrieval is busy; retry shortly",
+            ));
+        }
+        *active += 1;
         Ok(WorkPermit(self))
     }
 }
@@ -112,7 +211,13 @@ pub(crate) struct WorkPermit<'a>(&'a WorkBudget);
 
 impl Drop for WorkPermit<'_> {
     fn drop(&mut self) {
-        self.0.0.fetch_sub(1, Ordering::Release);
+        let mut active = self
+            .0
+            .active
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *active -= 1;
+        self.0.available.notify_one();
     }
 }
 
@@ -120,85 +225,62 @@ impl Drop for WorkPermit<'_> {
 mod tests {
     use super::*;
 
-    fn key(index: usize) -> IgdbRequestKey {
-        (
-            std::path::PathBuf::from("library"),
-            "durable identity".into(),
-            format!("image{index}"),
-            format!("{index:064x}"),
-        )
-    }
-
     #[test]
-    fn derivatives_bound_bytes_and_entries_and_evict_least_recently_used() {
-        let mut cache = Derivatives::default();
-        let png = vec![7; artwork_image::MAX_THUMBNAIL_BYTES as usize];
-        for index in 0..8 {
-            cache.insert(key(index), &png);
-        }
-        assert_eq!(cache.bytes, MAX_DERIVATIVE_BYTES);
-        assert!(cache.get(&key(0)).is_some());
-        cache.insert(key(8), &png);
-        assert!(cache.get(&key(0)).is_some());
-        assert!(cache.get(&key(1)).is_none());
-        assert_eq!(cache.bytes, MAX_DERIVATIVE_BYTES);
-        cache.insert(key(8), &[9]);
-        assert_eq!(cache.bytes, 7 * png.len() + 1);
-        cache.insert(key(9), &vec![0; png.len() + 1]);
-        assert!(cache.get(&key(9)).is_none());
-        for index in 10..400 {
-            cache.insert(key(index), &[1]);
-        }
-        assert_eq!(cache.entries.len(), MAX_DERIVATIVE_ENTRIES);
-        assert_eq!(cache.bytes, MAX_DERIVATIVE_ENTRIES);
-    }
+    fn disk_derivative_refuses_wrong_recipe_and_repairs_interrupted_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = "1".repeat(64);
+        let first = RemoteDerivative::new(&library, &source, "header:1280x720").unwrap();
+        let other = RemoteDerivative::new(&library, &source, "logo:568x320").unwrap();
+        let png = b"\x89PNG\r\n\x1a\nfixture";
+        let original = library
+            .root()
+            .join("artwork-cache")
+            .join(format!("{source}.image"));
+        let lock = library.try_lock_artwork().unwrap();
+        std::fs::create_dir_all(original.parent().unwrap()).unwrap();
+        std::fs::write(&original, b"source bytes").unwrap();
+        first.retain(&library, &original, png);
+        assert_eq!(first.read().unwrap(), png);
+        let size = std::fs::metadata(&first.path).unwrap().len();
+        assert_eq!(
+            RemoteDerivative::retained_source(&first.path, size).as_deref(),
+            Some(source.as_str())
+        );
 
-    #[test]
-    fn corrupt_or_different_recipe_derivatives_are_discarded_and_copies_are_isolated() {
-        let mut cache = Derivatives::default();
-        cache.insert(key(0), &[1, 2, 3]);
-        let mut output = cache.get(&key(0)).unwrap();
-        output[0] = 9;
-        assert_eq!(cache.get(&key(0)).unwrap(), [1, 2, 3]);
-        cache.entries[0].png[0] = 9;
-        assert!(cache.get(&key(0)).is_none());
-        assert_eq!(cache.bytes, 0);
-        cache.insert(key(0), &[1, 2, 3]);
-        cache.entries[0].recipe[0] += 1;
-        assert!(cache.get(&key(0)).is_none());
-        assert_eq!(cache.bytes, 0);
-    }
+        std::fs::copy(&first.path, &other.path).unwrap();
+        assert!(other.read().is_none());
+        std::fs::write(&first.path, b"partial").unwrap();
+        assert!(first.read().is_none());
+        let pending = first.path.with_file_name("pending-thumbnail");
+        std::fs::write(&pending, b"partial").unwrap();
+        first.retain(&library, &original, png);
+        assert!(!pending.exists());
+        drop(lock);
 
-    #[test]
-    fn derivative_clear_is_scoped_to_canonical_root_and_durable_identity() {
-        let mut cache = Derivatives::default();
-        let first = key(0);
-        let mut other_root = first.clone();
-        other_root.0 = "other library".into();
-        let mut other_id = first.clone();
-        other_id.1 = "replacement identity".into();
-        for identity in [&first, &other_root, &other_id] {
-            cache.insert(identity.clone(), &[1, 2]);
-        }
-        cache.clear_library(&first.0, &first.1);
-        assert!(cache.get(&first).is_none());
-        assert!(cache.get(&other_root).is_some());
-        assert!(cache.get(&other_id).is_some());
-        assert_eq!(cache.bytes, 4);
+        let reopened = RemoteDerivative::new(&library, &source, "header:1280x720").unwrap();
+        assert_eq!(reopened.read().unwrap(), png);
+
+        let _lock = library.try_lock_artwork().unwrap();
+        std::fs::remove_file(&original).unwrap();
+        std::fs::remove_file(&first.path).unwrap();
+        first.retain(&library, &original, png);
+        assert!(!first.path.exists());
     }
 
     #[test]
     fn work_budget_refuses_excess_without_waiting_and_releases_permits() {
         let budget = WorkBudget::new();
-        let first = budget.try_acquire().unwrap();
-        let second = budget.try_acquire().unwrap();
+        let mut held: Vec<_> = (0..IGDB_ARTWORK_WORK_LIMIT)
+            .map(|_| budget.try_acquire().unwrap())
+            .collect();
         assert!(
             matches!(budget.try_acquire(), Err(error) if error.code == crate::ErrorCode::Conflict)
         );
-        drop(first);
+        drop(held.pop());
         let replacement = budget.try_acquire().unwrap();
-        drop((second, replacement));
-        assert_eq!(budget.0.load(Ordering::Acquire), 0);
+        drop((held, replacement));
+        assert_eq!(*budget.active.lock().unwrap(), 0);
     }
 
     #[test]

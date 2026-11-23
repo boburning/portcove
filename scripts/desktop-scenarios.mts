@@ -17,6 +17,14 @@ interface DesktopScenario {
 }
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
+export const hostPublicationScenarios = [
+  "native-host-publication-recovery",
+  "native-library-recovery-interruption",
+] as const;
+
+export function usesHostPublicationHarness(scenarios: readonly string[]) {
+  return hostPublicationScenarios.some((id) => scenarios.includes(id));
+}
 
 // Two finite install waits, source scan, owned game observation and cleanup.
 // This explicit MM case does not change product or other scenario deadlines.
@@ -85,6 +93,36 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-large-discovery-setup-review",
+    "Native retained pages select twenty eligible games, preserve version choices and cancel without mutation.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32", "linux"],
+    },
+  ),
+  scenario(
+    "native-reviewed-discovery-setup-batch",
+    "A reviewed native two-game setup batch preserves consent, originals and completed installs across restart.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-standing-setup-source-return",
+    "Native standing consent waits for its original, then normal startup installs once without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-standing-setup-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-selected-setup-completion",
     "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
     {
@@ -116,6 +154,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-external-runtime-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-library-recovery-interruption",
+    "Interrupt recovery bundle creation and restore at recorded Core boundaries and resume.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "install-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-host-publication-test.mts",
       qualification_only: true,
       platforms: ["win32"],
     },
@@ -252,6 +301,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-collection-artwork-presentation",
+    "Actual listing-only two/four-member collections preserve public thumbnail identity, contained Discover/detail artwork, credits and Back focus.",
+    {
+      source: "desktop-collection-artwork-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-application-update-preferences",
     "Application update setup consent, focus and corrupt-state recovery remain isolated and explicit.",
   ),
@@ -308,6 +366,26 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-settings-review",
+    "A reviewed two-field Game settings change set is saved through native IPC to the exact installed target.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-managed-copy-result",
+    "A reviewed managed copy replaces an external registration while preserving its files, retains the exact completion, and opens only that installation without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-update-acquisition-lifecycle",
     "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
@@ -345,6 +423,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-secondary-panel-presentation",
+    "Secondary reviews render supplied states in the native WebView with owned DAT and metadata actions.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      dependencies: ["native-preparation-review-and-play"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-secondary-panels-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-ready-detail-composition",
     "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
     {
@@ -364,7 +454,9 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
     operation_routes: [{ operation: "update", runtime_kind: "managed" }],
-    prerequisites: ["desktop", "owned-fixture"],
+    // Its offered release comes from the owned install fixture's direct manifest,
+    // not the live provider API (#4879).
+    prerequisites: ["desktop", "owned-fixture", "install-fixture"],
     source: "desktop-preparation-test.mts",
   }),
   scenario("native-missing-readiness-recovery", "Missing rendered readiness recovers safely.", {
@@ -430,7 +522,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-host-interrupted-preparation",
-    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    "Forced Windows host termination preserves originals and a reviewed fresh preparation can finish.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-recovery-test.mts",
@@ -626,6 +718,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-cli-handoff-test.mts",
   }),
   scenario(
+    "native-library-recovery-bundle",
+    "Create, verify and restore an owned recovery bundle before a separate library switch.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      platforms: ["win32"],
+      qualification_only: true,
+      source: "desktop-library-handoff-test.mts",
+    },
+  ),
+  scenario(
     "native-local-artwork-picker-and-recovery",
     "Local artwork uses the native picker safely.",
     {
@@ -652,6 +755,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-default-cover-cache-conditions",
     "Every mapped cover survives an offline cached restart; missing bytes exercise backend refusal and fallback.",
     { source: "desktop-default-cover-test.mts", qualification_only: true },
+  ),
+  scenario(
+    "native-reviewed-screenshot-display",
+    "Compare native gallery thumbnails with the exact admitted screenshot bytes.",
+    {
+      source: "desktop-default-cover-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
   ),
   scenario(
     "native-default-cover-display",
@@ -782,6 +894,19 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  // Supplied projections remain cached until this Windows chooser session closes.
+  if (
+    uniqueRequested.includes("native-secondary-panel-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("Native secondary-panel presentation requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-collection-artwork-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-collection-artwork-presentation requires one standalone Windows scenario",
+    );
   if (
     uniqueRequested.includes("native-interface-size") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -797,6 +922,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-update-acquisition-lifecycle requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-managed-copy-result") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-managed-copy-result requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
@@ -812,6 +942,30 @@ export function resolveDesktopSelection({
       throw new Error("native-preliminary-source-review requires one exact standalone scenario");
     if (platform !== "win32") throw new Error("native-preliminary-source-review requires Windows");
   }
+  if (
+    uniqueRequested.includes("native-large-discovery-setup-review") &&
+    (uniqueRequested.length !== 1 || !["win32", "linux"].includes(platform))
+  )
+    throw new Error(
+      "native-large-discovery-setup-review requires one standalone Windows/Linux scenario",
+    );
+  if (
+    uniqueRequested.includes("native-reviewed-discovery-setup-batch") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-reviewed-discovery-setup-batch requires one standalone Windows scenario",
+    );
+  if (
+    uniqueRequested.includes("native-standing-setup-source-return") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-standing-setup-source-return requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-game-settings-review") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-game-settings-review requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
@@ -866,10 +1020,13 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (
-    uniqueRequested.includes("native-host-publication-recovery") &&
+    uniqueRequested.includes("native-library-recovery-bundle") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
-    throw new Error("native-host-publication-recovery requires one standalone Windows scenario");
+    throw new Error("native-library-recovery-bundle requires one standalone Windows scenario");
+  const hostPublication = hostPublicationScenarios.find((id) => uniqueRequested.includes(id));
+  if (hostPublication && (uniqueRequested.length !== 1 || platform !== "win32"))
+    throw new Error(`${hostPublication} requires one standalone Windows scenario`);
   if (
     uniqueRequested.includes("native-real-prepared-runtime") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -909,6 +1066,11 @@ export function resolveDesktopSelection({
     uniqueRequested.length !== 1
   )
     throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-reviewed-screenshot-display") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-reviewed-screenshot-display requires one standalone Windows scenario");
   const nonRunnable = uniqueRequested.filter((id) => !requireDesktopScenario(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);
@@ -966,13 +1128,56 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Run44395050884/job135122626818 took749.558s with one staged case still
+  // unrun. Give only this six-case aggregate finite headroom for that case,
+  // debug IPC variance and owned cleanup; standalone/product waits stay intact.
+  const installSteamArtwork = [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+  ];
+  if (
+    selection.setup_scenarios.length === 0 &&
+    selection.selected_scenarios.length === installSteamArtwork.length &&
+    installSteamArtwork.every((id) => selection.selected_scenarios.includes(id))
+  )
+    return 1_800_000;
+  // On Windows, 26a0748b reached the repaired workspace and began its final
+  // restart before the 180 s watchdog stopped the driver. Allow time to check
+  // the saved preferences after restart and join the owned processes.
+  if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
+  // Job 137029359741 completed both themes' cover and row focus transitions.
+  // Give this standalone run time for its remaining compact checks and cleanup.
+  if (
+    selection.selected_scenarios.length === 1 &&
+    selection.selected_scenarios[0] === "native-library-layout"
+  )
+    return 300_000;
+  // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
+  if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
+  // Six public collection previews, two themes, compact capture and owned native exit.
+  if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
+    return 600_000;
+  // Prepared-folder registration and relink plus separate draft validation and
+  // fresh launch review. Keep the extra time within this Windows-only fixture.
+  if (selection.selected_scenarios.includes("native-external-runtime-review")) return 420_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
-  // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
-  // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
-  // 180 s watchdog left no room for failure capture and cleanup. Harness only.
-  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
+  // Native Game settings review: owned Windows install, reviewed save, readback
+  // and stale refusal. Harness only.
+  if (selection.selected_scenarios.includes("native-game-settings-review")) return 600_000;
+  // Linux job 137029418197 had confirmed the exact preparation result when
+  // the 600 s watchdog cut off the remaining readback, restart and cleanup.
+  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 900_000;
+  // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
+  if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;
+  if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+    return 600_000;
+  if (selection.selected_scenarios.includes("native-standing-setup-source-return")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
@@ -993,8 +1198,9 @@ export function desktopHarnessDeadlineMs(
   // finish first. Harness only; product deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
     return 1_200_000;
+  if (selection.selected_scenarios.includes("native-managed-copy-result")) return 600_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
-  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
+  if (usesHostPublicationHarness(selection.selected_scenarios)) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
@@ -1002,13 +1208,23 @@ export function desktopHarnessDeadlineMs(
     // The integrated full suite has 35 journeys plus two-theme capture matrices.
     // Its previous ten-minute watchdog expired during still-progressing native
     // file handling. Keep individual waits and cleanup unchanged.
-    executed > 24
-      ? 20 * 60_000
-      : executed > 8 ||
-          selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
-          selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
-        ? 10 * 60_000
-        : 3 * 60_000,
+    executed > 24 ? 20 * 60_000 : executed > 8 ? 10 * 60_000 : 3 * 60_000,
+    // Windows job 136906004836 reached its 600 s watchdog after restore,
+    // deletion and the first degraded-history capture. Keep another 10 min for
+    // the remaining scenarios, evidence capture and owned process cleanup.
+    selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
+      selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      ? 1_200_000
+      : 0,
+    // Hosted Windows job 136791041646 stopped after 81 s with the first of two
+    // roles still settling. Allow the two picker/confirmation sequences,
+    // bounded readback, reload and owned cleanup to run under one watchdog.
+    selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") ? 600_000 : 0,
+    // Native gallery opens live typed screenshots, verifies cached bytes and restores focus.
+    selection.selected_scenarios.includes("native-reviewed-screenshot-display") ? 600_000 : 0,
+    // Linux keyboard fixture readiness has two finite 90s phases; retain room
+    // for real keyboard controls and owned cleanup without changing predicates.
+    selection.selected_scenarios.includes("keyboard-layout") ? 360_000 : 0,
     // Hosted presentation 43633220056 stopped at 180 s before native cleanup.
     // Allow the two-theme Settings captures and owned exit joins to finish.
     DESKTOP_PROFILES.presentation.every((id) => selection.selected_scenarios.includes(id))
@@ -1017,7 +1233,8 @@ export function desktopHarnessDeadlineMs(
     // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
     // the copy and move journeys and was still in the CLI handoff when the 300 s
     // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
-    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
+    selection.selected_scenarios.includes("native-library-recovery-bundle") ||
+      selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 600_000
       : 0,
@@ -1027,6 +1244,11 @@ export function desktopHarnessDeadlineMs(
     selection.selected_scenarios.includes("native-source-intake-and-discovery-dialogs")
       ? 600_000
       : 0,
+    // The standalone game update review (#4879) seeds an adopted installation,
+    // then runs its review, dispositions and three supplied outcome cases, each
+    // bounded at 60 s on the debug build. Within owned-ready it ran under the
+    // 20-minute group watchdog; alone it would get only the 180 s default.
+    selection.selected_scenarios.includes("native-game-update-review") ? 600_000 : 0,
     // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
     // 76 s and interrupted recovery was still in its native cleanup confirmations
     // (up to 60 s each) after 87 s when the watchdog stopped it. Harness only.
@@ -1042,10 +1264,20 @@ export function desktopHarnessDeadlineMs(
     // waits calibrated, hosted owned-ready (job 132439346320) completed preparation,
     // Try launch and two later journeys before the 600 s watchdog stopped it.
     // Harness only; individual waits and product deadlines are unchanged.
-    executed > 8 &&
+    // Moving the update review to its own group (#4879) left owned-ready at eight
+    // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
+    // release-channel restart journey keeps the allowance from eight executed.
+    // Native run 17 combined 17 executed ordinary workflows and reached backup
+    // restore at 20 minutes before the watchdog stopped its live driver. Larger owned
+    // combinations get 40 minutes; the established eight-case and standalone budgets stay.
+    (executed > 8 ||
+      (executed === 8 &&
+        selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
-      ? 1_200_000
+      ? executed > 8
+        ? 2_400_000
+        : 1_200_000
       : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(

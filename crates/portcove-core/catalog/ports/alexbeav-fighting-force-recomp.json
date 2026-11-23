@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["fighting-force-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["fighting-force-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["fighting-force-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["fighting-force-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "fighting-force",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fighting-force-playstation",
+          "title": "Fighting Force (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/afbbbb061e831aa4c9a07ff64ef86ef9467a121a/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Fighting Force (USA) (Rev 2) complete CHD (SLUS-00433, 27 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Fighting Force (USA) (Rev 2) complete CHD (SLUS-00433, 27 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Fighting Force (USA) (Rev 2) disc (SLUS-00433) with all 27 of its tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

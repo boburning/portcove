@@ -2,6 +2,75 @@
   "format_version": 1,
   "order": 1,
   "listing": {
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "2ship-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "a46664a01623ad5d7cc82d29a9889699f6a98c9501c7a959a089f34380c1f078",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "6cdd4fe06f3f9b095e99c86fef70b9265cc921fb6faa7ba1e18e94e90ed0b345",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "b6019b4339d06ce0a476299a5be7b35629dff2fb779acb3da219da3cfcf1f84a",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "b6019b4339d06ce0a476299a5be7b35629dff2fb779acb3da219da3cfcf1f84a",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    },
     "id": "2ship2harkinian",
     "name": "2Ship2Harkinian",
     "summary": "Native Majora's Mask port from HarbourMasters.",
@@ -67,6 +136,44 @@
         "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
       ],
       "help_url": "https://github.com/2ship2harkinian/2ship2harkinian/releases"
+    },
+    "implementation": {
+      "format_version": 1,
+      "methods": [
+        {
+          "kind": "source-port",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/CMakeLists.txt",
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/mm/CMakeLists.txt"
+          ],
+          "note": "Builds the game from C and C++ source with libultraship. Supply a supported original game dump for its assets."
+        }
+      ],
+      "dependencies": [
+        {
+          "kind": "library",
+          "project_url": "https://github.com/kenix3/libultraship",
+          "name": "libultraship",
+          "confidence": "confirmed",
+          "version_scope": "Source revision e5e9f3364a37ca78283cc96f4e35606e48a55d97",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/.gitmodules",
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/CMakeLists.txt"
+          ]
+        },
+        {
+          "kind": "source-preparation",
+          "project_url": "https://github.com/HarbourMasters/ZAPDTR",
+          "name": "ZAPDTR",
+          "confidence": "confirmed",
+          "version_scope": "Source revision e5e9f3364a37ca78283cc96f4e35606e48a55d97",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/.gitmodules",
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/e5e9f3364a37ca78283cc96f4e35606e48a55d97/CMakeLists.txt"
+          ],
+          "note": "The upstream build uses this extractor for original game assets."
+        }
+      ]
     }
   },
   "integration": {
@@ -74,6 +181,16 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "libultraship-portable",
+    "mod_loader": {
+      "contract": {
+        "id": "libultraship",
+        "version": "1"
+      },
+      "repository": "2ship2harkinian/2ship2harkinian",
+      "minimum_version": "5.0.1",
+      "settings_file": "2ship2harkinian.json",
+      "platforms": ["windows-x86-64", "linux-x86-64"]
+    },
     "windows_runtime_path_policy": "relative-file-max-path",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
@@ -119,7 +236,16 @@
           "verification": "catalog-rules"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install with Portcove",
+            "instruction": "Use a compatible Majora’s Mask game file you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

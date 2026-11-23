@@ -34,7 +34,7 @@ beforeAll(async () => {
   initializeLocalization(["en-US"]);
 });
 
-it("keeps an absent or dateless observation unknown", () => {
+it("keeps missing activity unknown and dates an observation without a change date", () => {
   expect(upstreamActivityState(undefined)).toBeUndefined();
   expect(
     upstreamActivityState({ repository: REPOSITORY, observed_at: OBSERVED, archived: false }),
@@ -50,7 +50,7 @@ it("keeps an absent or dateless observation unknown", () => {
         status={status({ observed_at: OBSERVED, archived: false })}
       />,
     ),
-  ).toBe("");
+  ).toContain(`GitHub was checked on ${day(OBSERVED)}. The latest change date is unknown.`);
 });
 
 it("hides an observation of another repository or provider", () => {

@@ -1,23 +1,14 @@
 # Continuous verified delivery
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Game release streams are independent of application update feeds. See [game release channels](CLI.md#release-channels).
 
-This is the approved delivery design, not a claim that unattended publication
-or the application updater is active. [Releasing](RELEASING.md) retains the
-current protected tag/draft/publication procedure until a separately authorized,
-implemented and proven replacement is activated. The live
-[Project](https://github.com/users/boburning/projects/1) owns scheduling;
-canonical issues own acceptance and evidence. Immutable release records own
-shipped provenance; catalog data owns actual port availability and support.
-
-The current protected release implementation starts full validation, a read-only
-three-platform build matrix after validation; the dedicated read-only Intel
-producer may prepare compilation concurrently after the cheap identity gate. Native Intel verification begins as soon as that
-producer completes instead of waiting for unrelated platforms. Finalization remains
-serialized behind an explicit all-results gate, native Intel execution of the
-cross-built x86_64 artifacts, and exact run/revision producer lineage. This latency
-optimization does not activate unattended publication,
-change signing authority, or make a rehearsal equivalent to a released artifact.
+This document records delivery decisions and earlier proposals. For production
+tags, packaging, signing, and publication, follow the
+[current release process](RELEASING.md#current-release-process).
+For updates to an installed app, read the
+[current updater contract](UPDATER-TRUST.md).
+GitHub issues and the [Project](https://github.com/users/boburning/projects/1)
+track acceptance and remaining work.
 
 [QUALITY](QUALITY.md#required-hosted-baseline) owns CI scheduling. Ordinary PRs
 use the minimum Windows baseline. Nightly/manual full-platform qualification and
@@ -28,71 +19,47 @@ publication authority.
 
 ## First public beta host boundary
 
-The owner-approved first public beta application host is **Windows x86-64** at
-its existing supported Windows/WebView2 baseline. This changes the application
-host release commitment, not the original platforms of games Portcove manages,
-historical port inventory membership, or truthful per-port support metadata.
-The November 3 port-commitment decision below separately removes the full-cohort
-first-beta deadline while preserving tracked work and safeguards.
+The first public beta targets **Windows x86-64** and **Linux x86-64** under the
+[recorded release decision](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340).
+Each platform needs evidence for its own release candidate before it can be
+called Beta-supported. macOS remains experimental under the release runbook.
+The November 3 port-commitment decision below governs
+the separate port rollout.
 
-| Obligation                             | First Windows beta boundary                                                                                                                                                                                                                                            |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows application/product acceptance | Required: supported baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates at their actual scope. Windows Steam remains Required.                                                     |
-| Shared infrastructure/correctness      | Required regardless of execution OS: authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery and useful shared tests/build/publishing infrastructure. Linux/WSL or macOS execution does not make a shared check optional.               |
-| Linux application/release acceptance   | Planned for a subsequent beta with existing owners. Preserve implementation, metadata, completed receipts and unfinished native/package/updater/Steam acceptance. An unshipped Linux application artifact or Linux-only observation does not gate this Windows launch. |
-| Other non-Windows qualification        | Retain existing owners and before-1.0 commitments. Platform-only observations do not gate Windows; shared or Windows-affecting defects still do.                                                                                                                       |
+| Obligation                            | First public beta evidence                                                                                                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows application                   | Qualify the supported Windows/WebView2 baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates. Windows Steam remains Required. |
+| Linux application                     | Qualify the x86-64 AppImage, installation, installed update and save preservation for the supported Linux baseline. Existing owners retain native, package and updater evidence and remaining work.             |
+| Shared infrastructure and correctness | Verify authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery, and the required shared tests and publishing infrastructure on their appropriate hosts.                          |
+| Other platforms                       | Keep existing owners and before-1.0 commitments. Platform evidence applies to the tested host and artifact.                                                                                                     |
 
-Mixed owners have independently finishable Windows/shared initial-beta minima.
-Existing #45/#46 retain later native/platform and final-package qualification;
-#290 retains its deferred Linux graphical Steam acceptance. #49/#706 retain the
-Linux GLib defect, actual remediation and exact scope/expiry/effect limits of
-existing Linux-only risk decisions. This Windows decision neither fixes the
-advisory nor exercises, renews or expands those decisions. A later Linux release
-must satisfy its applicable security and package requirements afresh. Use
-[package qualification](RELEASING.md#declared-package-policy) for final package
-and uninstall acceptance, and the [upgrade acceptance procedure](RELEASING.md#upgrade-acceptance-and-technical-previews)
-for platform-specific updater continuity. Additional distribution such as winget
-can be prioritized independently of the existing release commitments.
+Existing #45/#46 retain their platform and final-package work. #290 retains
+the separate Linux graphical Steam acceptance. #49/#706 govern Linux GLib
+remediation and the scope and expiry of any Linux-specific risk decision.
+Use [the active release runbook](RELEASING.md#current-release-process) for
+packaging and publication and the
+[hosted installed-update procedure](NATIVE-HOSTED-ACCEPTANCE.md#hosted-installed-application-update)
+for platform-specific updater continuity.
 
-The selected additive profile is `initial-beta-windows-x86_64-v1` through the
-existing qualification, release admission, package and feed machinery. It must
-require actual Windows/shared evidence, reject missing/mismatched/invalid inputs,
-and refuse unqualified non-Windows packages or advertising. The existing `full`
-and historical `initial-beta-win-linux` profiles and their evidence retain their
-broader scope. A failed full-platform run never becomes a Windows-profile pass.
-Profile engineering, exact-candidate qualification and protected production
-acceptance must actually be delivered before this path is eligible; the owner
-scope decision alone is not implementation or publication authority.
-
-Current branch protections, five exact-head contexts, spending limits and
-publication/credential/signing authority remain unchanged. No nightly schedule
-change or Audit 01 completion follows. Continue unrelated Windows/shared work;
-serialize only actual overlapping inputs, protected changes and constrained
-native resources. Reuse valid evidence at its source/artifact/profile scope and
-repeat only invalidated observations.
+The existing `initial-beta-windows-x86_64-v1` profile covers Windows and shared
+qualification. The `full` and historical `initial-beta-win-linux` profiles
+retain their recorded scopes. Apply the active release procedure to each
+candidate and use evidence at its actual source, artifact and profile scope.
+Production admission, signing and publication follow the existing protected
+procedure.
 
 ## Versions, channels and readiness
 
-Application versions, update channels, capability workstreams and readiness
-commitments are independent. Rolling describes frequent delivery; Stable and
-Preview are the only application channels. Game channels and catalog delivery
-retain their independent contracts. Choosing application Preview never opts
-games into upstream previews. Prepared games remain usable offline without an
-account, GitHub token, telemetry or persistent device identifier.
+The [active application release table](RELEASING.md#current-release-process)
+defines accepted tags, channels, feeds and approvals. A `preview.N` prerelease
+goes to Preview. A bare 0.x version goes to Beta and Preview. Check the
+publisher's table before choosing the next version. The [installed updater
+contract](UPDATER-TRUST.md#channels-and-feeds) explains the default and opt-in
+feeds. The live Project owns the decision to call a release the public beta.
 
-Published versions and evidence are permanent. Continue forward from the actual
-inventory: after `0.1.0-alpha.2`, possible previews are `0.1.0-alpha.3` and
-`0.1.0-alpha.4`; first public beta may be `0.1.0`, then `0.1.1`, `0.2.0` and
-`0.3.0`, production candidates `1.0.0-rc.1`, and production `1.0.0`. These are
-examples, not required stops. Never reset to `0.0.1` or reuse published versions.
-
-Public 0.x releases are Preview-only and GitHub prereleases, including bare
-`0.1.0`, which is not syntactically a SemVer prerelease. Show “Public beta” only
-after the beta gate passes. Stable requires explicit production approval;
-absence of a suffix, GitHub latest, and a prerelease checkbox are insufficient.
-Preview includes eligible experimental/beta/RC and corresponding final releases.
-At production readiness, Stable becomes the default for new installations;
-existing testers choose Stable or continued Preview once and retain that choice.
+**Historical delivery design.** The following design criteria describe the
+earlier proposal. For shipped eligibility, channels, consent and trust, use the
+two current contracts above.
 
 Use maintained SemVer parsing and precedence, never lexical or publication-time
 ordering. Build metadata is provenance, not an update increment. Normal upgrades
@@ -135,7 +102,7 @@ was satisfied before broad migration; its [historical inputs and measurements](D
 remain evidence at their original scope. These completed owners are not new
 migration prerequisites. New Windows candidates still require applicable
 exact-candidate release qualification. Retained Linux evidence remains separate
-from later Linux application qualification, and #45 retains broader 1.0 work.
+from qualification of a Linux beta candidate, and #45 retains broader 1.0 work.
 Neither an ordinary merge nor these historical completions authorizes publication
 or certifies new package bytes or an unqualified platform.
 
@@ -236,10 +203,10 @@ Failed/expired checks never disable offline application use.
 
 ## Platform contracts
 
-Windows x86-64 is the first Public beta application qualification commitment.
-The Linux row is retained for a planned subsequent beta; its completed components
-and unfinished acceptance remain with #45/#46 and their existing component owners.
-It is not a Windows launch prerequisite. The macOS row is the later qualified-support contract under #45/#226,
+The Windows and Linux x86-64 rows define platform-specific contracts for the
+first public beta targets. #45/#46 and existing component owners retain
+completed Linux evidence and unfinished work. The macOS row is the later
+qualified-support contract under #45/#226,
 delivered during beta and Required before 1.0. The Steam Deck row is a separate
 later contract: #51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
 before 1.0. Until it passes, the Linux build may run on SteamOS but Deck is
@@ -267,15 +234,11 @@ Never make disabling Defender/Gatekeeper or stripping quarantine the normal path
 format, key lifecycle, bounded transport, compatibility and recovery design with
 disposable test-key fixtures. It does not activate production update behavior.
 
-Every artifact has a mandatory Tauri signature. A small separately authenticated
-metadata contract binds immutable release/hash/version/target/package/compatibility
-identity and channel eligibility. Authenticate promotion separately so existing
-bytes can become Stable without rewriting them. Payload signatures do not
-authenticate arbitrary feed JSON; HTTPS and adjacent checksums are insufficient.
-Use maintained cryptographic formats/libraries, separate from catalog execution
-authority. Define replay/freeze limits, constrained origins/redirects, bounded
-parsing/extraction and old-client behavior; metadata failure blocks new updating,
-not offline use.
+The proposal called for a separately authenticated channel metadata document.
+The shipped updater instead uses fixed HTTPS feed URLs and verifies the
+downloaded package signature and signed version. The [application trust
+contract](UPDATER-TRUST.md#owners-and-independent-trust-claims) explains exactly
+what is authenticated. The official catalog uses its own TUF authority.
 
 Plan an automation-capable protected release key, offline recovery backup,
 separate production/test keys, tested recovery/rotation bridges, compromise and

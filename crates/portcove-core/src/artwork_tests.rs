@@ -1640,7 +1640,7 @@ fn legacy_metadata_imports_execute_without_manufacturing_artwork() {
 #[test]
 fn listing_check_evidence_moves_with_the_library_and_import_starts_without_it() {
     use crate::artwork_store::listing_checks;
-    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    use crate::{ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role};
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("source");
     let destination = temp.path().join("destination");
@@ -1926,16 +1926,9 @@ fn oversized_published_thumbnail_is_retained_as_an_unexpected_cache_entry() {
         .join(format!("{}.png", selected.asset_sha256.as_ref().unwrap()));
     let oversized = vec![0_u8; crate::artwork_image::MAX_THUMBNAIL_BYTES as usize + 1];
     fs::write(&cache, &oversized).unwrap();
-    let error = service.clear_artwork_cache().unwrap_err();
-    assert!(error.message.contains("unexpected entry"), "{error}");
-    assert_eq!(fs::read(&cache).unwrap(), oversized);
-    fs::write(&cache, &oversized[..oversized.len() - 1]).unwrap();
     let cleared = service.clear_artwork_cache().unwrap();
     assert_eq!(cleared.removed_files, 1);
-    assert_eq!(
-        cleared.removed_bytes,
-        crate::artwork_image::MAX_THUMBNAIL_BYTES
-    );
+    assert_eq!(cleared.removed_bytes, oversized.len() as u64);
     assert!(!cache.exists());
     assert_eq!(
         service
@@ -1962,6 +1955,7 @@ fn transient_cover_failure_backs_off_without_erasing_the_choice() {
             service.library(),
             artwork,
             0,
+            Default::default(),
             |_| panic!("failure cannot publish"),
             || {
                 requests.set(requests.get() + 1);
@@ -2096,6 +2090,7 @@ fn cover_with_fetch(
         service.library(),
         artwork,
         0,
+        Default::default(),
         |bytes| {
             let cache = service.library().root().join("artwork-cache");
             fs::create_dir_all(&cache)?;
@@ -2123,6 +2118,7 @@ fn cover_backoff_expires_from_completion_and_success_recovers() {
         service.library(),
         &artwork,
         0,
+        Default::default(),
         |_| panic!("no publication"),
         || {
             requests.set(1);
@@ -2172,7 +2168,7 @@ fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
         .png
         .is_empty()
     );
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     assert!(cover_with_fetch(&service, &artwork, now, || Ok(bytes)).is_ok());
 }
 
@@ -2253,6 +2249,7 @@ fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
             service.library(),
             &artwork,
             0,
+            Default::default(),
             |_| Err(crate::PortcoveError::conflict("stale choice")),
             || {
                 requests.set(requests.get() + 1);
@@ -2373,6 +2370,7 @@ fn cover_request_registry_is_bounded_and_never_evicts_active_requests() {
             "durable fixture identity".to_owned(),
             format!("image{index}"),
             "0".repeat(64),
+            None,
         )
     };
     let mut active = (0..256)
@@ -2502,7 +2500,7 @@ fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
         cold.png
     );
     assert_eq!(crate::artwork_image::decode_count(), before + 1);
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     fs::write(&original, &bytes).unwrap();
     assert_eq!(
         cover_with_fetch(&service, &artwork, now, || panic!("disk original retained"))
@@ -2571,55 +2569,66 @@ fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
         sync::mpsc,
         time::{Duration, Instant},
     };
-    let first_root = tempfile::tempdir().unwrap();
-    let second_root = tempfile::tempdir().unwrap();
-    let third_root = tempfile::tempdir().unwrap();
-    let (first_service, first_artwork, _) = backoff_fixture(first_root.path());
-    let (second_service, second_artwork, second_bytes) = backoff_fixture(second_root.path());
-    let (third_service, third_artwork, third_bytes) = backoff_fixture(third_root.path());
+    let limit = crate::IGDB_ARTWORK_WORK_LIMIT;
+    let extra_root = tempfile::tempdir().unwrap();
+    let (extra_service, extra_artwork, extra_bytes) = backoff_fixture(extra_root.path());
+    let roots: Vec<_> = (0..limit).map(|_| tempfile::tempdir().unwrap()).collect();
     let now = Instant::now();
     let (started, waiting) = mpsc::channel();
-    let (release_first, first_released) = mpsc::channel();
-    let (release_second, second_released) = mpsc::channel();
+    let mut releases = Vec::new();
     std::thread::scope(|scope| {
-        let first_started = started.clone();
-        let first = scope.spawn(move || {
-            cover_with_fetch(&first_service, &first_artwork, now, || {
-                first_started.send(()).unwrap();
-                first_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Err(transient_cover_error())
-            })
-        });
-        let second = scope.spawn(move || {
-            cover_with_fetch(&second_service, &second_artwork, now, || {
-                started.send(()).unwrap();
-                second_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Ok(second_bytes)
-            })
-        });
-        for _ in 0..crate::IGDB_ARTWORK_WORK_LIMIT {
+        let mut workers = Vec::new();
+        for (index, root) in roots.iter().enumerate() {
+            let (service, artwork, bytes) = backoff_fixture(root.path());
+            let (release, released) = mpsc::channel();
+            releases.push(release);
+            let started = started.clone();
+            // The first worker fails transiently; the rest succeed.
+            workers.push(scope.spawn(move || {
+                cover_with_fetch(&service, &artwork, now, || {
+                    started.send(()).unwrap();
+                    released.recv_timeout(Duration::from_secs(10)).unwrap();
+                    if index == 0 {
+                        Err(transient_cover_error())
+                    } else {
+                        Ok(bytes)
+                    }
+                })
+            }));
+        }
+        for _ in 0..limit {
             waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         }
-        let busy = cover_with_fetch(&third_service, &third_artwork, now, || {
+        let busy = cover_with_fetch(&extra_service, &extra_artwork, now, || {
             panic!("excess fetch")
         })
         .unwrap_err();
         assert_eq!(busy.code, crate::ErrorCode::Conflict);
+        let cache = extra_service.library().root().join("artwork-cache");
+        fs::create_dir_all(&cache).unwrap();
+        let original = cache.join(format!("{}.jpg", extra_artwork.image_sha256));
+        fs::write(&original, &extra_bytes).unwrap();
+        let available = cover_with_fetch(&extra_service, &extra_artwork, now, || {
+            panic!("the cached cover must bypass network admission")
+        })
+        .unwrap();
+        assert!(!available.png.is_empty());
+        fs::remove_file(original).unwrap();
         // No library operation lock is held by the artwork admission budget.
-        assert!(third_service.library().try_lock_artwork().is_ok());
-        release_first.send(()).unwrap();
-        release_second.send(()).unwrap();
-        assert_eq!(
-            first.join().unwrap().unwrap_err().code,
-            crate::ErrorCode::Network
-        );
-        assert!(second.join().unwrap().is_ok());
+        assert!(extra_service.library().try_lock_artwork().is_ok());
+        for release in &releases {
+            release.send(()).unwrap();
+        }
+        for (index, worker) in workers.into_iter().enumerate() {
+            let result = worker.join().unwrap();
+            if index == 0 {
+                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+            } else {
+                assert!(result.is_ok());
+            }
+        }
     });
-    assert!(cover_with_fetch(&third_service, &third_artwork, now, || Ok(third_bytes)).is_ok());
+    assert!(cover_with_fetch(&extra_service, &extra_artwork, now, || Ok(extra_bytes)).is_ok());
 }
 
 #[test]
@@ -2632,6 +2641,7 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
     let now = Instant::now();
+    let replacement_bytes = bytes.clone();
     let (started, waiting) = mpsc::channel();
     let (release, released) = mpsc::channel();
     std::thread::scope(|scope| {
@@ -2643,18 +2653,16 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
                 released.recv_timeout(Duration::from_secs(10)).unwrap();
                 Ok(bytes)
             })
-            .unwrap()
         });
         waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         service.clear_artwork_cache().unwrap();
         release.send(()).unwrap();
-        let completed = first.join().unwrap();
-        // Clear does not cancel the existing fetch's disk publication. It does
-        // detach its memory state, so this verified original must convert anew.
+        let error = first.join().unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(!cached_original(service, artwork));
         let before = crate::artwork_image::decode_count();
-        let rebuilt =
-            cover_with_fetch(service, artwork, now, || panic!("published original")).unwrap();
-        assert_eq!(rebuilt.png, completed.png);
+        let rebuilt = cover_with_fetch(service, artwork, now, || Ok(replacement_bytes)).unwrap();
+        assert!(!rebuilt.png.is_empty());
         assert_eq!(crate::artwork_image::decode_count(), before + 1);
     });
 }
@@ -2729,6 +2737,235 @@ fn retention_catalog(listings: &[(&str, Option<&crate::IgdbArtwork>)]) -> crate:
         .unwrap()
 }
 
+type EditionCoverListing<'a> = (
+    &'a str,
+    &'a str,
+    &'a [&'a str],
+    Option<&'a crate::IgdbArtwork>,
+);
+
+fn edition_cover_catalog(listings: &[EditionCoverListing<'_>]) -> crate::Catalog {
+    let mut document = retention_catalog(
+        &listings
+            .iter()
+            .map(|(port_id, _, _, cover)| (*port_id, *cover))
+            .collect::<Vec<_>>(),
+    )
+    .listing_document()
+    .clone();
+    document.format_version = 3;
+    for listing in &mut document.listings {
+        let (_, game_id, editions, _) = listings
+            .iter()
+            .find(|(id, _, _, _)| *id == listing.id.as_str())
+            .unwrap();
+        listing.original_game = Some(crate::OriginalGameIdentity {
+            format_version: 1,
+            id: (*game_id).into(),
+            evidence_urls: vec!["https://example.invalid/game".into()],
+            source_editions: editions
+                .iter()
+                .map(|id| crate::SourceEdition {
+                    id: (*id).into(),
+                    title: (*id).into(),
+                    system: Some("nintendo-64".into()),
+                    evidence_urls: vec!["https://example.invalid/edition".into()],
+                    verified_sources: Vec::new(),
+                })
+                .collect(),
+        });
+    }
+    crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap()
+}
+
+#[test]
+fn matching_edition_inherits_a_reviewed_cover_across_display_and_handoff() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let bytes = coloured_jpeg([180, 42, 60]);
+    let mut shared = retention_mapping("editioncover", &bytes);
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let direct = retention_mapping("directcover", &coloured_jpeg([20, 25, 80]));
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("second-donor", "original-game", &["console"], Some(&shared)),
+        ("receiver", "original-game", &["console"], None),
+        ("direct", "original-game", &["console"], Some(&direct)),
+        ("another-game", "another-game", &["console"], None),
+        ("another-edition", "original-game", &["remaster"], None),
+        (
+            "multi-edition",
+            "original-game",
+            &["console", "remaster"],
+            None,
+        ),
+        ("unknown-edition", "original-game", &[], None),
+    ]));
+    let receiver = "receiver";
+    let slot = ArtworkSlot::Cover;
+    let state = service.artwork(receiver, slot).unwrap();
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = state.resolved_source else {
+        panic!("the matching edition must resolve the shared cover");
+    };
+    assert_eq!(igdb_cover(&service, receiver), Some(shared.clone()));
+    assert_eq!(igdb_cover(&service, "direct"), Some(direct));
+    for other in [
+        "another-game",
+        "another-edition",
+        "multi-edition",
+        "unknown-edition",
+    ] {
+        assert!(igdb_cover(&service, other).is_none(), "{other}");
+    }
+    assert_eq!(
+        service
+            .artwork(receiver, ArtworkSlot::Detail)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback,
+    );
+    published_cover(&service, &shared, || Ok(bytes)).unwrap();
+    let thumbnail = service
+        .artwork_thumbnail(receiver, slot, state.choice.revision)
+        .unwrap();
+    assert_eq!(thumbnail.asset_sha256, cache_id);
+    assert!(!thumbnail.png.is_empty());
+    let handoff = service
+        .destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(
+        matches!(handoff.source, DestinationArtworkSource::CatalogDefault { artwork } if artwork == shared)
+    );
+
+    let local = image_file(temporary.path(), "chosen.png", image::ImageFormat::Png);
+    let chosen = service
+        .import_artwork(receiver, slot, &local, state.choice.revision)
+        .unwrap();
+    assert!(matches!(
+        chosen.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let hidden = service
+        .suppress_artwork(receiver, slot, chosen.choice.revision)
+        .unwrap();
+    assert_eq!(
+        hidden.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(
+        service
+            .artwork_thumbnail(receiver, slot, hidden.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+    let handoff = service
+        .destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(matches!(
+        handoff.source,
+        DestinationArtworkSource::GeneratedFallback
+    ));
+    assert!(handoff.selected_asset_sha256.is_none());
+
+    let reset = service
+        .reset_artwork(receiver, slot, hidden.choice.revision)
+        .unwrap();
+    assert!(
+        matches!(reset.resolved_source, ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork == shared)
+    );
+
+    service.replace_catalog_for_test(edition_cover_catalog(&[(
+        receiver,
+        "original-game",
+        &["console"],
+        None,
+    )]));
+    assert!(cached_original(&service, &shared));
+    assert!(igdb_cover(&service, receiver).is_none());
+    assert_eq!(
+        service
+            .artwork_thumbnail(receiver, slot, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+}
+
+#[test]
+fn automatic_cover_rejects_conflicting_mappings_and_port_specific_donors() {
+    use crate::IgdbArtworkMatch;
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let specific = retention_mapping("specificcover", &coloured_jpeg([5, 10, 15]));
+    let mut first = retention_mapping("firstcover", &coloured_jpeg([140, 45, 205]));
+    first.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let mut other = retention_mapping("secondcover", &coloured_jpeg([60, 150, 81]));
+    other.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let receiver = ("receiver", "original-game", &["console"][..], None);
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("specific", "original-game", &["console"], Some(&specific)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        ("other", "original-game", &["console"], Some(&other)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        (
+            "other",
+            "original-game",
+            &["console", "remaster"],
+            Some(&other),
+        ),
+    ]));
+    assert_eq!(igdb_cover(&service, "receiver"), Some(first));
+}
+
+#[test]
+fn automatic_cover_preserves_reviewed_collection_identity() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let mut shared = retention_mapping("sharedcover", &coloured_jpeg([55, 90, 125]));
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let member = retention_mapping("membercover", &coloured_jpeg([20, 45, 70]));
+    let mut document = edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("collection", "original-game", &["console"], None),
+    ])
+    .listing_document()
+    .clone();
+    document.format_version = 11;
+    document
+        .listings
+        .iter_mut()
+        .find(|listing| listing.id == "collection")
+        .unwrap()
+        .collection_covers = Some(vec![member.clone()]);
+    let catalog = crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap();
+    service.replace_catalog_for_test(catalog);
+    assert!(igdb_cover(&service, "collection").is_none());
+    let handoff = service
+        .destination_artwork("collection", DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert_eq!(handoff.source, DestinationArtworkSource::GeneratedFallback);
+    let original = service.catalog().listing("collection").unwrap();
+    assert_eq!(original.collection_covers, Some(vec![member]));
+}
+
 /// Uses the production publication route, including its artwork lock and retention.
 fn published_cover(
     service: &PortcoveService,
@@ -2748,10 +2985,8 @@ fn published_cover_at(
         service.library(),
         artwork,
         0,
-        |original| {
-            let _guard = service.library().try_lock_artwork()?;
-            service.publish_igdb_original(artwork, original)
-        },
+        Default::default(),
+        |original| service.publish_igdb_original(artwork, original),
         fetch,
         || now,
     )
@@ -2775,6 +3010,220 @@ fn igdb_cover(service: &PortcoveService, port_id: &str) -> Option<crate::IgdbArt
         ArtworkResolvedSource::IgdbCover { artwork, .. } => Some(artwork),
         _ => None,
     }
+}
+
+#[test]
+fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let port_id = "kirby-letsgo-oracles-decomp";
+    let primary = retention_mapping("fixtureages", &coloured_jpeg([30, 30, 200]));
+    let bytes = coloured_jpeg([200, 30, 30]);
+    let mut companion = retention_mapping("fixtureseasons", &bytes);
+    companion.game_id += 1;
+    companion.cover_id += 1;
+    let mut document = service.catalog().document().clone();
+    let presentation = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap();
+    presentation.artwork = Some(primary);
+    presentation.companion_cover = Some(companion.clone());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = service
+        .artwork(port_id, ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    else {
+        panic!("catalog default missing");
+    };
+    let cached = published_cover(&service, &companion, || Ok(bytes)).unwrap();
+    let get = |revision| {
+        service.companion_cover_thumbnail(port_id, &cache_id, &companion.image_sha256, revision)
+    };
+    let shown = get(0).unwrap();
+    assert_eq!(shown.asset_sha256, companion.image_sha256);
+    assert_eq!(shown.png, cached.png);
+    assert_eq!(
+        service
+            .companion_cover_thumbnail(port_id, "stale", &companion.image_sha256, 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let hidden = service
+        .suppress_artwork(port_id, ArtworkSlot::Cover, 0)
+        .unwrap();
+    assert!(hidden.choice.suppressed);
+    assert_eq!(
+        hidden.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(
+        get(hidden.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        service
+            .artwork_thumbnail(port_id, ArtworkSlot::Cover, hidden.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+    let handoff = service
+        .destination_artwork(port_id, crate::DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(matches!(
+        handoff.source,
+        crate::DestinationArtworkSource::GeneratedFallback
+    ));
+    assert!(handoff.selected_asset_sha256.is_none());
+    assert!(
+        serde_json::to_value(handoff).unwrap()["choice"]
+            .get("suppressed")
+            .is_none()
+    );
+    let automatic = service
+        .reset_artwork(port_id, ArtworkSlot::Cover, hidden.choice.revision)
+        .unwrap();
+    assert!(automatic.choice.is_automatic());
+    assert_eq!(
+        get(automatic.choice.revision).unwrap().asset_sha256,
+        companion.image_sha256
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(
+            port_id,
+            ArtworkSlot::Cover,
+            &local,
+            automatic.choice.revision,
+        )
+        .unwrap();
+    assert_eq!(get(0).unwrap_err().code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        get(selected.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+}
+
+#[test]
+fn collection_members_obey_local_choice_and_retain_registered_identity_after_directory_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "collection-fixture";
+    let first_bytes = coloured_jpeg([180, 30, 30]);
+    let second_bytes = coloured_jpeg([30, 30, 180]);
+    let first = retention_mapping("collectionfirst", &first_bytes);
+    let mut second = retention_mapping("collectionsecond", &second_bytes);
+    second.game_id += 1;
+    second.cover_id += 1;
+    let directory = crate::CatalogListingDocument::from_json(&serde_json::json!({
+        "format_version": 11, "listings": [{"id": id, "name": "Collection fixture", "summary": "A descriptive project with two games.", "project_url": "https://example.invalid/collection", "collection_covers": [first, second]}]
+    }).to_string()).unwrap();
+    service.replace_catalog_for_test(
+        retention_catalog(&[])
+            .with_listing_document(directory)
+            .unwrap(),
+    );
+    published_cover(&service, &first, || Ok(first_bytes)).unwrap();
+    published_cover(&service, &second, || Ok(second_bytes)).unwrap();
+    for cover in [&first, &second] {
+        let shown = service
+            .collection_cover_thumbnail(id, &cover.image_sha256, 0)
+            .unwrap();
+        assert_eq!(shown.asset_sha256, cover.image_sha256);
+        assert!(!shown.png.is_empty());
+    }
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &"f".repeat(64), 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    let hidden = service.suppress_artwork(id, ArtworkSlot::Cover, 0).unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, hidden.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let automatic = service
+        .reset_artwork(id, ArtworkSlot::Cover, hidden.choice.revision)
+        .unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, automatic.choice.revision)
+            .unwrap()
+            .asset_sha256,
+        first.image_sha256
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &local, automatic.choice.revision)
+        .unwrap();
+    for revision in [0, selected.choice.revision] {
+        assert_eq!(
+            service
+                .collection_cover_thumbnail(id, &first.image_sha256, revision)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+    }
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    let listed_bytes = coloured_jpeg([30, 180, 30]);
+    let listed = retention_mapping("collectionlisted", &listed_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[("collection-other", Some(&listed))]));
+    // A real publication sweeps unreferenced originals; retained members must survive.
+    published_cover(&service, &listed, || Ok(listed_bytes)).unwrap();
+    for cover in [&first, &second] {
+        assert!(cached_original(&service, cover));
+        assert!(
+            !service
+                .collection_cover_thumbnail(id, &cover.image_sha256, reset.choice.revision)
+                .unwrap()
+                .png
+                .is_empty()
+        );
+    }
+    let fresh_bytes = coloured_jpeg([180, 180, 30]);
+    let fresh = retention_mapping("collectionfresh", &fresh_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[
+        (id, None),
+        ("collection-other", Some(&fresh)),
+    ]));
+    published_cover(&service, &fresh, || Ok(fresh_bytes)).unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    assert!(!cached_original(&service, &first));
+    assert!(!cached_original(&service, &second));
+    assert!(cached_original(&service, &fresh));
 }
 
 #[test]
@@ -2861,11 +3310,72 @@ fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals()
     );
     assert!(cached_original(&service, &unrelated));
     assert!(cached_original(&service, &fresh));
+    assert_eq!(fs::read_dir(&cache).unwrap().count(), before);
     assert_eq!(
         service.artwork(other, ArtworkSlot::Detail).unwrap().choice,
         chosen.choice
     );
     assert!(local.is_file());
+}
+
+#[test]
+fn large_retained_registration_stays_visible_in_listings_and_artwork() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "zelda64-recomp";
+    let pixels = coloured_jpeg([200, 30, 30]);
+    let artwork = retention_mapping("capacitycover", &pixels);
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 6 * 1024 * 1024);
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork = Some(artwork.clone());
+    let retained = crate::Catalog::from_document(document).unwrap();
+    let working = temporary.path().join("fixture-registration");
+    fs::create_dir(&working).unwrap();
+    let record = crate::ExternalRuntimeRecord {
+        setup_download: None,
+        id: "catalog-capacity-runtime".into(),
+        port_id: id.into(),
+        path: working.clone(),
+        executable: working.join("game.exe"),
+        version: "fixture-1".into(),
+        platform: crate::Platform::WindowsX86_64,
+        archive_sha256: "a".repeat(64),
+        immutable_tree_sha256: "b".repeat(64),
+        registered_at: 1,
+        retained_definition: None,
+        user_selected: None,
+        shared_preferences: None,
+    };
+    service
+        .library()
+        .register_external_runtime(&record, &retained)
+        .unwrap();
+    let mut former_budget = 8 * 1024 * 1024;
+    assert!(
+        service
+            .library()
+            .external_runtime_with_port_bounded(id, &mut former_budget)
+            .is_err()
+    );
+
+    service.replace_catalog_for_test(retention_catalog(&[("unrelated-artwork", None)]));
+    assert!(service.catalog().listing(id).is_err());
+    assert!(
+        service
+            .listing_statuses()
+            .unwrap()
+            .iter()
+            .any(|status| status.port_id == id)
+    );
+    assert_eq!(igdb_cover(&service, id), Some(artwork));
 }
 
 #[test]
@@ -2947,6 +3457,7 @@ fn reference_retention_covers_catalog_media_and_keeps_local_thumbnails() {
         crate::artwork_image::MAX_ORIGINAL_BYTES,
         b"verified media",
         Some(&referenced),
+        None,
     )
     .unwrap();
     let mut names = fs::read_dir(&cache)
@@ -2976,7 +3487,7 @@ fn encoded(width: u32, height: u32, format: image::ImageFormat) -> Vec<u8> {
 
 fn provider_candidate(
     id: u64,
-    role: crate::DestinationArtworkRole,
+    role: crate::SteamGridDbArtworkRole,
     width: u32,
     height: u32,
     mime: &str,
@@ -3036,7 +3547,7 @@ fn prepared_report(
 
 #[test]
 fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
-    use crate::{DestinationArtworkRole as Role, SteamGridDbListingResult as Listing};
+    use crate::{SteamGridDbArtworkRole as Role, SteamGridDbListingResult as Listing};
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3199,7 +3710,7 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
 #[test]
 fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record() {
     use crate::artwork_store::{ListingObservation, apply_listing_check, listing_checks};
-    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    use crate::{ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role};
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3332,7 +3843,7 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
 
 #[test]
 fn listing_check_subjects_carry_the_stored_image_facts() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3405,7 +3916,7 @@ fn listing_check_subjects_carry_the_stored_image_facts() {
 
 #[test]
 fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3446,7 +3957,10 @@ fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
 
     // The destination handoff carries the same credit under schema 3.
     let handoff = service
-        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .destination_artwork(
+            "zelda64-recomp",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
         .unwrap();
     assert_eq!(handoff.handoff_schema, 4);
     assert_eq!(handoff.attribution, chosen.attribution);
@@ -3456,7 +3970,7 @@ fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
 
 #[test]
 fn provider_images_that_differ_from_their_listing_never_replace_current_art() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3515,7 +4029,7 @@ fn provider_images_that_differ_from_their_listing_never_replace_current_art() {
 
 #[test]
 fn provider_provenance_requires_metadata_schema_eight_and_valid_records() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3579,7 +4093,7 @@ fn provider_provenance_requires_metadata_schema_eight_and_valid_records() {
 
 #[test]
 fn schema_eight_library_import_restores_provider_attribution_and_origins() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3622,7 +4136,7 @@ fn schema_eight_library_import_restores_provider_attribution_and_origins() {
 
 #[test]
 fn only_stored_steamgriddb_credits_and_the_key_page_are_reviewed_links() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3796,5 +4310,732 @@ fn landscape_choices_require_metadata_schema_nine_and_round_trip() {
     assert_eq!(state.availability, ArtworkAvailability::Available);
 }
 
+#[test]
+fn provider_logo_keeps_credit_and_does_not_feed_destination_artwork() {
+    use crate::{DestinationArtworkRole, SteamGridDbArtworkRole};
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let bytes = encoded(28, 12, image::ImageFormat::Png);
+    let candidate = |role| provider_candidate(17, role, 28, 12, "image/png", bytes.clone());
+    assert!(
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                candidate(SteamGridDbArtworkRole::Logo),
+                0
+            )
+            .is_err()
+    );
+    let logo = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Logo,
+            42,
+            candidate(SteamGridDbArtworkRole::Logo),
+            0,
+        )
+        .unwrap();
+    let credit = crate::steamgriddb_credit_url(&logo.attribution[0]);
+    assert_eq!(credit, "https://www.steamgriddb.com/logo/17");
+    assert!(service.is_reviewed_resource_url(&credit).unwrap());
+    assert!(
+        !service
+            .is_reviewed_resource_url("https://www.steamgriddb.com/grid/17")
+            .unwrap()
+    );
+
+    // Same bytes and ID cannot redirect the saved Logo credit to a grid record.
+    assert!(
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                candidate(SteamGridDbArtworkRole::PortraitCover),
+                0
+            )
+            .is_err()
+    );
+    let cover = temporary.path().join("cover.png");
+    fs::write(&cover, &bytes).unwrap();
+    service
+        .import_artwork(&port.id, ArtworkSlot::Cover, &cover, 0)
+        .unwrap();
+    let destination = service
+        .destination_artwork(&port.id, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(destination.attribution.is_empty());
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let mut metadata = service.export_library_metadata().unwrap();
+    metadata
+        .artwork
+        .as_mut()
+        .unwrap()
+        .choices
+        .retain(|choice| choice.slot != ArtworkSlot::Logo);
+    crate::portability_authority::seal(&mut metadata, Vec::new()).unwrap();
+    assert_eq!(metadata.schema_version, 14);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut wrong_format = metadata.clone();
+    wrong_format.artwork.as_mut().unwrap().assets[0].format = crate::ArtworkImageFormat::Jpeg;
+    assert!(crate::library_import::validate_metadata(&wrong_format, &catalogs).is_err());
+    metadata.schema_version = 13;
+    assert!(crate::library_import::validate_metadata(&metadata, &catalogs).is_err());
+    assert!(
+        service
+            .artwork(&port.id, ArtworkSlot::Logo)
+            .unwrap()
+            .attribution
+            .contains(&logo.attribution[0])
+    );
+}
+
+#[test]
+fn local_logo_round_trips_without_changing_other_artwork_roles() {
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let cover_image = image_file(temporary.path(), "cover.png", image::ImageFormat::Png);
+    let logo_image = temporary.path().join("logo.png");
+    image::RgbaImage::from_pixel(32, 14, image::Rgba([40, 80, 190, 140]))
+        .save(&logo_image)
+        .unwrap();
+    let cover = service
+        .import_artwork(PORT, ArtworkSlot::Cover, &cover_image, 0)
+        .unwrap();
+    assert!(service.export_library_metadata().unwrap().schema_version < 14);
+
+    let logo = service
+        .import_artwork(PORT, ArtworkSlot::Logo, &logo_image, 0)
+        .unwrap();
+    let logo_hash = logo.choice.asset_sha256.as_ref().unwrap();
+    assert_eq!(logo.choice.revision, 1);
+    assert_eq!(logo.availability, ArtworkAvailability::Available);
+    let handoff =
+        serde_json::to_value(schemars::schema_for!(crate::DestinationArtworkHandoff)).unwrap();
+    assert_eq!(
+        handoff["$defs"]["DestinationArtworkSlot"]["enum"],
+        serde_json::json!(["cover", "detail", "landscape"]),
+    );
+    assert_eq!(
+        &service
+            .artwork_thumbnail(PORT, ArtworkSlot::Logo, 1)
+            .unwrap()
+            .asset_sha256,
+        logo_hash,
+    );
+    assert!(service.reset_artwork(PORT, ArtworkSlot::Logo, 0).is_err());
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 14);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut downgraded = metadata;
+    downgraded.schema_version = 13;
+    assert!(crate::library_import::validate_metadata(&downgraded, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Logo).unwrap().choice,
+        logo.choice
+    );
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+    let reset = restored.reset_artwork(PORT, ArtworkSlot::Logo, 1).unwrap();
+    assert_eq!(reset.choice.revision, 2);
+    assert!(reset.choice.asset_sha256.is_none());
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+    assert_eq!(
+        restored.export_library_metadata().unwrap().schema_version,
+        14
+    );
+}
+
 #[path = "artwork_withdrawal_tests.rs"]
 mod withdrawal;
+
+#[test]
+fn background_framing_follows_the_selected_revision_through_portable_restore() {
+    use crate::{ArtworkFocalPoint, ArtworkFraming, DestinationArtworkRole};
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let image = temporary.path().join("background.png");
+    image::RgbImage::from_pixel(32, 16, image::Rgb([40, 80, 190]))
+        .save(&image)
+        .unwrap();
+    let framing = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 0, y: 5000 },
+        narrow: ArtworkFocalPoint { x: 10000, y: 3400 },
+    };
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 0, Some(framing))
+            .is_err()
+    );
+    let initial = service
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 0)
+        .unwrap();
+    assert!(initial.choice.framing.is_none());
+    let invalid = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 10001, y: 1000 },
+        narrow: ArtworkFocalPoint { x: 2000, y: 3400 },
+    };
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 1, Some(invalid))
+            .is_err()
+    );
+    let framed = service
+        .set_background_artwork_framing(PORT, 1, Some(framing))
+        .unwrap();
+    assert_eq!(framed.choice.revision, 2);
+    assert_eq!(framed.choice.framing, Some(framing));
+    assert_eq!(framed.choice.asset_sha256, initial.choice.asset_sha256);
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 1, None)
+            .is_err()
+    );
+
+    let handoff = service
+        .destination_artwork(PORT, crate::DestinationArtworkRole::HeroBanner)
+        .unwrap();
+    let document = serde_json::to_value(&handoff).unwrap();
+    assert!(document["choice"].get("framing").is_none());
+    for value in [
+        serde_json::Value::Null,
+        serde_json::to_value(framing).unwrap(),
+    ] {
+        let mut invalid_handoff = document.clone();
+        invalid_handoff["choice"]["framing"] = value;
+        assert!(
+            serde_json::from_value::<crate::DestinationArtworkHandoff>(invalid_handoff).is_err()
+        );
+    }
+    let bytes = service
+        .destination_artwork_bytes(
+            PORT,
+            DestinationArtworkRole::HeroBanner,
+            &handoff.library.id,
+            2,
+            framed.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(bytes.original, fs::read(&image).unwrap());
+
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 15);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut downgraded = metadata.clone();
+    downgraded.schema_version = 14;
+    assert!(crate::library_import::validate_metadata(&downgraded, &catalogs).is_err());
+    let mut wrong_role = metadata;
+    wrong_role.artwork.as_mut().unwrap().choices[0].slot = ArtworkSlot::Cover;
+    assert!(crate::library_import::validate_metadata(&wrong_role, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
+        framed.choice
+    );
+    let reselected = restored
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 2)
+        .unwrap();
+    assert_eq!(reselected.choice.revision, 3);
+    assert_eq!(reselected.choice.framing, Some(framing));
+    assert_eq!(reselected.choice.asset_sha256, framed.choice.asset_sha256);
+    assert_eq!(
+        restored.export_library_metadata().unwrap().schema_version,
+        15
+    );
+    let replacement = image_file(temporary.path(), "replacement.png", image::ImageFormat::Png);
+    let replaced = restored
+        .import_artwork(PORT, ArtworkSlot::Detail, &replacement, 3)
+        .unwrap();
+    assert_eq!(replaced.choice.revision, 4);
+    assert!(replaced.choice.framing.is_none());
+    assert!(restored.export_library_metadata().unwrap().schema_version < 15);
+    restored
+        .set_background_artwork_framing(PORT, 4, Some(framing))
+        .unwrap();
+    let reset = restored
+        .reset_artwork(PORT, ArtworkSlot::Detail, 5)
+        .unwrap();
+    assert_eq!(reset.choice.revision, 6);
+    assert!(reset.choice.framing.is_none());
+    assert!(reset.choice.asset_sha256.is_none());
+}
+
+#[test]
+fn reviewed_local_selections_bind_bytes_without_background_framing() {
+    use crate::{ArtworkSelectionFraming, ErrorCode};
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let image = temporary.path().join("review.png");
+    let before = service.export_library_metadata().unwrap().artwork;
+    for (slot, width, height) in [
+        (ArtworkSlot::Cover, 16, 24),
+        (ArtworkSlot::Landscape, 32, 16),
+        (ArtworkSlot::Logo, 32, 10),
+    ] {
+        let bytes = encoded(width, height, image::ImageFormat::Png);
+        fs::write(&image, &bytes).unwrap();
+        let preview = service.preview_local_artwork(PORT, &image).unwrap();
+        assert_eq!(
+            preview.original_sha256,
+            crate::signed_catalog::digest(&bytes)
+        );
+        assert!(preview.png.starts_with(b"\x89PNG"));
+        let original =
+            crate::artwork::original_path(service.library(), &preview.original_sha256).unwrap();
+        assert!(!original.exists());
+        let review = ArtworkSelectionFraming {
+            preview_sha256: preview.original_sha256,
+            framing: None,
+        };
+        let replacement = encoded(width + 1, height, image::ImageFormat::Png);
+        fs::write(&image, &replacement).unwrap();
+        let refusal = service
+            .import_artwork_with_framing(PORT, slot, &image, 0, Some(review.clone()))
+            .unwrap_err();
+        assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(refusal.details["artwork_preview_changed"], "true");
+        assert_eq!(service.artwork(PORT, slot).unwrap().choice.revision, 0);
+        assert!(!original.exists());
+        let replacement_path = crate::artwork::original_path(
+            service.library(),
+            &crate::signed_catalog::digest(&replacement),
+        )
+        .unwrap();
+        assert!(!replacement_path.exists());
+        fs::write(&image, &bytes).unwrap();
+        let chosen = service
+            .import_artwork_with_framing(PORT, slot, &image, 0, Some(review.clone()))
+            .unwrap();
+        assert_eq!(chosen.choice.revision, 1);
+        assert_eq!(chosen.choice.asset_sha256, Some(review.preview_sha256));
+        assert!(chosen.choice.framing.is_none());
+        assert_eq!(fs::read(original).unwrap(), bytes);
+    }
+    assert_ne!(service.export_library_metadata().unwrap().artwork, before);
+    assert_eq!(
+        service
+            .artwork(PORT, ArtworkSlot::Detail)
+            .unwrap()
+            .choice
+            .revision,
+        0
+    );
+}
+
+#[test]
+fn reviewed_provider_selections_validate_exact_role_and_commit_reviewed_bytes() {
+    use crate::{
+        ArtworkSelectionFraming, ArtworkSelectionPreview, ErrorCode, SteamGridDbArtworkRole as Role,
+    };
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let port = service.artwork_port(PORT).unwrap();
+    for (slot, role, asset_id, width, height) in [
+        (ArtworkSlot::Cover, Role::PortraitCover, 7, 16, 24),
+        (ArtworkSlot::Landscape, Role::LandscapeCover, 8, 32, 16),
+        (ArtworkSlot::Logo, Role::Logo, 9, 32, 10),
+    ] {
+        let bytes = encoded(width, height, image::ImageFormat::Png);
+        let source =
+            || provider_candidate(asset_id, role, width, height, "image/png", bytes.clone());
+        let before = service.export_library_metadata().unwrap().artwork;
+        let preview = ArtworkSelectionPreview::from_provider(slot, &source()).unwrap();
+        assert_eq!(
+            preview.original_sha256,
+            crate::signed_catalog::digest(&bytes)
+        );
+        assert!(preview.png.starts_with(b"\x89PNG"));
+        assert!(ArtworkSelectionPreview::from_provider(ArtworkSlot::Detail, &source()).is_err());
+        let original =
+            crate::artwork::original_path(service.library(), &preview.original_sha256).unwrap();
+        assert!(!original.exists());
+        let refusal = service
+            .choose_fetched_artwork_with_framing(
+                &port,
+                slot,
+                42,
+                source(),
+                0,
+                Some(ArtworkSelectionFraming {
+                    preview_sha256: "0".repeat(64),
+                    framing: None,
+                }),
+            )
+            .unwrap_err();
+        assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(service.export_library_metadata().unwrap().artwork, before);
+        assert!(!original.exists());
+        let chosen = service
+            .choose_fetched_artwork_with_framing(
+                &port,
+                slot,
+                42,
+                source(),
+                0,
+                Some(ArtworkSelectionFraming {
+                    preview_sha256: preview.original_sha256,
+                    framing: None,
+                }),
+            )
+            .unwrap();
+        assert_eq!(chosen.choice.revision, 1);
+        assert!(chosen.choice.framing.is_none());
+        assert_eq!(chosen.attribution[0].role, role);
+        assert_eq!(chosen.attribution[0].asset_id, asset_id);
+        assert_eq!(fs::read(original).unwrap(), bytes);
+    }
+}
+
+#[test]
+fn reviewed_background_replacement_commits_image_and_framing_together() {
+    use crate::{ArtworkFocalPoint, ArtworkFraming, ArtworkSelectionFraming, ErrorCode};
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let image = temporary.path().join("background.png");
+    let write = |color| {
+        image::RgbImage::from_pixel(32, 16, image::Rgb(color))
+            .save(&image)
+            .unwrap();
+    };
+    write([20, 90, 40]);
+    let before = service.export_library_metadata().unwrap().artwork;
+    let preview = service.preview_local_artwork(PORT, &image).unwrap();
+    assert_eq!(
+        preview.original_sha256,
+        crate::signed_catalog::digest(&fs::read(&image).unwrap())
+    );
+    assert!(preview.png.starts_with(b"\x89PNG"));
+    let original = |sha: &str| crate::artwork::original_path(service.library(), sha).unwrap();
+    assert!(!original(&preview.original_sha256).exists());
+    assert_eq!(service.export_library_metadata().unwrap().artwork, before);
+    let framing = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 2000, y: 6500 },
+        narrow: ArtworkFocalPoint { x: 9000, y: 4300 },
+    };
+    let update = ArtworkSelectionFraming {
+        preview_sha256: preview.original_sha256,
+        framing: Some(framing),
+    };
+    write([100, 20, 50]);
+    let changed = service
+        .import_artwork_with_framing(PORT, ArtworkSlot::Detail, &image, 0, Some(update))
+        .unwrap_err();
+    assert_eq!(changed.code, ErrorCode::Conflict);
+    let changed_digest = crate::signed_catalog::digest(&fs::read(&image).unwrap());
+    assert!(!original(&changed_digest).exists());
+    assert_eq!(service.export_library_metadata().unwrap().artwork, before);
+
+    let preview = service.preview_local_artwork(PORT, &image).unwrap();
+    let update = ArtworkSelectionFraming {
+        preview_sha256: preview.original_sha256,
+        framing: Some(framing),
+    };
+    let chosen = service
+        .import_artwork_with_framing(PORT, ArtworkSlot::Detail, &image, 0, Some(update.clone()))
+        .unwrap();
+    assert_eq!(chosen.choice.revision, 1);
+    assert_eq!(chosen.choice.framing, Some(framing));
+    assert_eq!(
+        chosen.choice.asset_sha256.as_deref(),
+        Some(update.preview_sha256.as_str())
+    );
+    let stale = service
+        .import_artwork_with_framing(PORT, ArtworkSlot::Detail, &image, 0, Some(update.clone()))
+        .unwrap_err();
+    assert_eq!(stale.code, ErrorCode::Conflict);
+    assert_eq!(
+        service.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
+        chosen.choice
+    );
+    assert!(
+        service
+            .import_artwork_with_framing(PORT, ArtworkSlot::Cover, &image, 0, Some(update.clone()),)
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .artwork(PORT, ArtworkSlot::Cover)
+            .unwrap()
+            .choice
+            .revision,
+        0
+    );
+    let centered = service
+        .import_artwork_with_framing(
+            PORT,
+            ArtworkSlot::Detail,
+            &image,
+            1,
+            Some(ArtworkSelectionFraming {
+                framing: None,
+                ..update
+            }),
+        )
+        .unwrap();
+    assert_eq!(centered.choice.revision, 2);
+    assert_eq!(centered.choice.asset_sha256, chosen.choice.asset_sha256);
+    assert!(centered.choice.framing.is_none());
+}
+
+#[test]
+fn provider_background_refuses_a_crop_reviewed_against_different_bytes() {
+    use crate::{
+        ArtworkFocalPoint, ArtworkFraming, ArtworkSelectionFraming, ErrorCode,
+        SteamGridDbArtworkRole as Role,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let bytes = encoded(32, 16, image::ImageFormat::Png);
+    let candidate = || provider_candidate(7, Role::HeroBanner, 32, 16, "image/png", bytes.clone());
+    let framing = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 2000, y: 6500 },
+        narrow: ArtworkFocalPoint { x: 9000, y: 4300 },
+    };
+    let before = service.export_library_metadata().unwrap().artwork;
+    let refused = service
+        .choose_fetched_artwork_with_framing(
+            &port,
+            ArtworkSlot::Detail,
+            42,
+            candidate(),
+            0,
+            Some(ArtworkSelectionFraming {
+                preview_sha256: "0".repeat(64),
+                framing: Some(framing),
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    assert_eq!(service.export_library_metadata().unwrap().artwork, before);
+    let chosen = service
+        .choose_fetched_artwork_with_framing(
+            &port,
+            ArtworkSlot::Detail,
+            42,
+            candidate(),
+            0,
+            Some(ArtworkSelectionFraming {
+                preview_sha256: crate::signed_catalog::digest(&bytes),
+                framing: Some(framing),
+            }),
+        )
+        .unwrap();
+    assert_eq!(chosen.choice.revision, 1);
+    assert_eq!(chosen.choice.framing, Some(framing));
+    assert_eq!(chosen.attribution[0].asset_id, 7);
+
+    // Leave a deletion pending to model interruption after the eviction
+    // marker was committed. A stale Apply must refuse before that sweep.
+    let sha = chosen.choice.asset_sha256.as_deref().unwrap();
+    let original = crate::artwork::original_path(service.library(), sha).unwrap();
+    assert!(original.is_file());
+    let _guard = service.library().try_lock_artwork().unwrap();
+    crate::artwork_store::mark_evicted(&service.library().connection().unwrap(), sha, 1).unwrap();
+    drop(_guard);
+    let stale = service
+        .choose_fetched_artwork_with_framing(
+            &port,
+            ArtworkSlot::Detail,
+            42,
+            candidate(),
+            0,
+            Some(ArtworkSelectionFraming {
+                preview_sha256: sha.into(),
+                framing: Some(framing),
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(stale.code, ErrorCode::Conflict);
+    assert!(original.is_file());
+}
+
+#[test]
+fn hiding_retains_the_selection_and_unhiding_restores_it_through_portable_restore() {
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let image = image_file(temporary.path(), "background.png", image::ImageFormat::Png);
+    service
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 0)
+        .unwrap();
+    let framing = crate::ArtworkFraming::V1 {
+        wide: crate::ArtworkFocalPoint { x: 2500, y: 4000 },
+        narrow: crate::ArtworkFocalPoint { x: 7500, y: 6000 },
+    };
+    let selected = service
+        .set_background_artwork_framing(PORT, 1, Some(framing))
+        .unwrap();
+    assert_eq!(selected.choice.revision, 2);
+    let original = crate::artwork::original_path(
+        service.library(),
+        selected.choice.asset_sha256.as_deref().unwrap(),
+    )
+    .unwrap();
+    let cover = service.artwork(PORT, ArtworkSlot::Cover).unwrap();
+    let rejected = service
+        .suppress_artwork(PORT, ArtworkSlot::Detail, 1)
+        .unwrap_err();
+    assert_eq!(rejected.code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        service
+            .unhide_artwork(PORT, ArtworkSlot::Detail, 2)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let hidden = service
+        .suppress_artwork(PORT, ArtworkSlot::Detail, 2)
+        .unwrap();
+    assert_eq!(hidden.choice.revision, 3);
+    assert!(hidden.choice.suppressed);
+    // Option A: the player's selection stays stored, unshown, while hidden.
+    assert_eq!(hidden.choice.asset_sha256, selected.choice.asset_sha256);
+    assert_eq!(hidden.choice.framing, Some(framing));
+    assert_eq!(hidden.selection, selected.selection);
+    assert_eq!(hidden.availability, ArtworkAvailability::Fallback);
+    assert_eq!(
+        hidden.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(
+        service
+            .artwork_thumbnail(PORT, ArtworkSlot::Detail, 3)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    let handoff = service
+        .destination_artwork(PORT, crate::DestinationArtworkRole::HeroBanner)
+        .unwrap();
+    assert!(handoff.selected_asset_sha256.is_none());
+    assert!(handoff.choice.unwrap().asset_sha256.is_none());
+    assert_eq!(
+        service
+            .set_background_artwork_framing(PORT, 3, None)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        service
+            .suppress_artwork(PORT, ArtworkSlot::Detail, 3)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let unused = service.unused_local_artwork().unwrap();
+    assert!(unused.is_empty());
+    assert_eq!(fs::read(&original).unwrap(), fs::read(&image).unwrap());
+    assert_eq!(
+        service.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 16);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut old_reader = metadata.clone();
+    old_reader.schema_version = 15;
+    assert!(crate::library_import::validate_metadata(&old_reader, &catalogs).is_err());
+    let mut unbound = metadata;
+    unbound
+        .artwork
+        .as_mut()
+        .unwrap()
+        .choices
+        .iter_mut()
+        .find(|choice| choice.slot == ArtworkSlot::Detail)
+        .unwrap()
+        .asset_sha256 = Some("f".repeat(64));
+    assert!(crate::library_import::validate_metadata(&unbound, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
+        hidden.choice
+    );
+    let shown = restored
+        .unhide_artwork(PORT, ArtworkSlot::Detail, 3)
+        .unwrap();
+    assert_eq!(shown.choice.revision, 4);
+    assert!(!shown.choice.suppressed);
+    assert_eq!(shown.choice.asset_sha256, selected.choice.asset_sha256);
+    assert_eq!(shown.choice.framing, Some(framing));
+    assert!(matches!(
+        shown.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    assert_eq!(
+        restored.export_library_metadata().unwrap().schema_version,
+        15
+    );
+    let hidden_again = restored
+        .suppress_artwork(PORT, ArtworkSlot::Detail, 4)
+        .unwrap();
+    let automatic = restored
+        .reset_artwork(PORT, ArtworkSlot::Detail, hidden_again.choice.revision)
+        .unwrap();
+    assert_eq!(automatic.choice.revision, 6);
+    assert!(automatic.choice.is_automatic());
+    assert!(automatic.choice.framing.is_none());
+    assert!(restored.export_library_metadata().unwrap().schema_version < 15);
+}
+
+#[test]
+fn hiding_an_automatic_role_and_unhiding_returns_to_automatic() {
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let hidden = service
+        .suppress_artwork(PORT, ArtworkSlot::Logo, 0)
+        .unwrap();
+    assert!(hidden.choice.suppressed);
+    assert!(hidden.choice.asset_sha256.is_none());
+    let shown = service
+        .unhide_artwork(PORT, ArtworkSlot::Logo, hidden.choice.revision)
+        .unwrap();
+    assert_eq!(shown.choice.revision, 2);
+    assert!(shown.choice.is_automatic());
+}

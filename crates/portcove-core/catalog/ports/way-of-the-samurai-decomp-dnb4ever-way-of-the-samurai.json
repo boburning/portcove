@@ -35,6 +35,21 @@
       "image_sha256": "0815a55716747a41b76673d9c4b05e6fdc99bdb382d1b7254e4f1b6d34d9f2c9",
       "game_slug": "way-of-the-samurai",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "way-of-the-samurai",
+      "evidence_urls": ["https://github.com/dnb4ever/way-of-the-samurai-decomp"],
+      "source_editions": [
+        {
+          "id": "way-of-the-samurai-playstation-2",
+          "title": "Way of the Samurai (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/dnb4ever/way-of-the-samurai-decomp/blob/1a49bb50b466e8090c4a406379b6a35ea2d3214f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

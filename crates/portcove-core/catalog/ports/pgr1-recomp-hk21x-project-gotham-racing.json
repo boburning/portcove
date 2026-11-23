@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pgr1-recomp-hk21x-project-gotham-racing",
+    "artwork": {
+      "game_id": 3320,
+      "cover_id": 86421,
+      "image_id": "co1uol",
+      "image_sha256": "0dfad0a2edcbd276057c8536a3a23e874938bcba5b8abef496391409e39bb957",
+      "game_slug": "project-gotham-racing",
+      "match_kind": "underlying-game"
+    },
     "name": "Project Gotham Racing — pgr1-recomp (hk21x)",
     "original_game_title": "Project Gotham Racing",
     "summary": "Native title runtime and modern frontend described; the extent of working races and career progression has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/hk21x/pgr1-recomp"
     },
-    "issue_number": 3573
+    "issue_number": 3573,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing",
+      "evidence_urls": ["https://github.com/hk21x/pgr1-recomp"],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-xbox",
+          "title": "Project Gotham Racing (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/hk21x/pgr1-recomp/blob/ce110e2c441a5e128a98a57dfe6b5d582c619a03/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

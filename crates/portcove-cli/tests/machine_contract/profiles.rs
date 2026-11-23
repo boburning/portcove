@@ -5,6 +5,41 @@ use std::{fs, path::Path};
 
 const PORT: &str = "opengoal-jak1";
 
+#[test]
+fn capabilities_advertise_the_public_profile_commands() {
+    let temporary = tempfile::tempdir().unwrap();
+    let capabilities = result(
+        temporary.path(),
+        &["--json", "capabilities"],
+        "capabilities",
+    );
+    assert_eq!(
+        capabilities["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
+    let commands = capabilities["commands"].as_array().unwrap();
+    for name in [
+        "profile",
+        "profile.list",
+        "profile.create-clean",
+        "profile.original-instances",
+        "profile.select-original",
+        "profile.relink-original",
+        "profile.package-plan",
+        "profile.package-apply",
+        "profile.provider-plan",
+        "profile.provider-apply",
+        "profile.recover-plan",
+        "profile.recover",
+    ] {
+        assert!(
+            commands.iter().any(|command| command == name),
+            "capabilities did not advertise {name}"
+        );
+    }
+    assert!(!commands.iter().any(|command| command == "profile.help"));
+}
+
 fn invoke(root: &Path, arguments: &[&str]) -> Output {
     portcove_tool(
         &root.join("preferences.json"),
@@ -20,6 +55,76 @@ fn result(root: &Path, arguments: &[&str], expected_command: &str) -> Value {
     assert_eq!(value["command"], expected_command);
     assert_eq!(value["ok"], true);
     value["data"].clone()
+}
+
+#[test]
+fn profile_inventory_verifies_adopted_builds_without_granting_loader_authority() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    // Adoption verifies the selected files but cannot establish their upstream
+    // version or grant the catalog's reviewed loader to those bytes.
+    let port_id = "zelda64-recomp";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(port_id).unwrap();
+    let original = root.join("owned-installation");
+    fs::create_dir(&original).unwrap();
+    let relative = &port.executable_hints[&portcove_core::Platform::current().unwrap()][0];
+    let executable = original.join(relative);
+    fs::create_dir_all(executable.parent().unwrap()).unwrap();
+    fs::copy(compile_native_fixture(root), &executable).unwrap();
+    let install = result(
+        root,
+        &[
+            "--json",
+            "--non-interactive",
+            "adopt",
+            original.to_str().unwrap(),
+            "--port",
+            port_id,
+            "--yes",
+        ],
+        "adopt",
+    );
+    result(
+        root,
+        &["--json", "profile", "ensure-default", port_id],
+        "profile.ensure-default",
+    );
+    let setups = result(
+        root,
+        &["--json", "profile", "setups", port_id],
+        "profile.setups",
+    );
+    assert_eq!(setups["supported"], false, "{setups}");
+    let view = result(
+        root,
+        &["--json", "profile", "list", port_id],
+        "profile.list",
+    );
+    assert_eq!(view["profiles"].as_array().unwrap().len(), 1, "{view}");
+    assert_eq!(
+        view["profiles"][0]["build_availability"], "verified",
+        "{view}"
+    );
+    let installed = Path::new(install["path"].as_str().unwrap())
+        .join(install["selected_executable"].as_str().unwrap());
+    let mut bytes = fs::read(&installed).unwrap();
+    bytes[0] ^= 1;
+    fs::write(installed, bytes).unwrap();
+    let changed = result(
+        root,
+        &["--json", "profile", "list", port_id],
+        "profile.list",
+    );
+    assert_eq!(
+        changed["profiles"][0]["build_availability"], "changed",
+        "{changed}"
+    );
+    assert!(
+        !serde_json::to_string(&changed)
+            .unwrap()
+            .contains("\"present\"")
+    );
 }
 
 #[test]
@@ -55,6 +160,21 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     );
     let empty = result(root, &["--json", "profile", "list", PORT], "profile.list");
     assert_eq!(empty["profiles"], serde_json::json!([]));
+
+    let original_requirement = port.source_profile.as_deref().unwrap();
+    let disc = root.join("original.iso");
+    fs::write(&disc, b"synthetic profile recipe original").unwrap();
+    let registered = result(
+        root,
+        &[
+            "--json",
+            "source",
+            "add",
+            original_requirement,
+            disc.to_str().unwrap(),
+        ],
+        "source.add",
+    );
 
     let default = result(
         root,
@@ -226,13 +346,52 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     assert_eq!(inventory["profiles"].as_array().unwrap().len(), 2);
     assert_eq!(inventory["profiles"][0]["profile"]["id"], default["id"]);
 
+    // The archived revision endpoint is available, with setup recovery limited
+    // to ports with a supported mod deployment contract.
+    for arguments in [
+        &["--json", "profile", "recover-plan", PORT, profile_id, "1"][..],
+        &[
+            "--json",
+            "--non-interactive",
+            "profile",
+            "recover",
+            PORT,
+            profile_id,
+            "1",
+            "--expected-plan",
+            "reviewed",
+            "--yes",
+        ][..],
+    ] {
+        let output = invoke(root, arguments);
+        assert!(!output.status.success(), "{arguments:?}: {output:?}");
+        let envelope = json_stdout(&output);
+        let command = if arguments.contains(&"recover-plan") {
+            "profile.recover-plan"
+        } else {
+            "profile.recover"
+        };
+        assert_eq!(envelope["command"], command);
+        assert_eq!(envelope["error"]["code"], "unsupported");
+    }
+
     // Recipes: export identity only, inspect locally, plan, and import as a new profile.
     let exported = result(
         root,
         &["--json", "profile", "recipe-export", PORT, profile_id],
         "profile.recipe-export",
     );
-    assert_eq!(exported["format"], 1);
+    assert_eq!(exported["format"], 3);
+    assert_eq!(exported["originals"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        exported["originals"][0]["requirement_id"],
+        original_requirement
+    );
+    assert_eq!(exported["originals"][0]["sha256"], registered["sha256"]);
+    assert_eq!(
+        exported["originals"][0]["storage"]["sha256"],
+        registered["storage_sha256"]
+    );
     let recipe_file = root.join("recipe.json");
     fs::write(&recipe_file, serde_json::to_vec_pretty(&exported).unwrap()).unwrap();
     let text = fs::read_to_string(&recipe_file).unwrap();
@@ -332,4 +491,59 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
         ],
     );
     assert!(!refused.status.success());
+}
+
+#[test]
+fn capabilities_advertise_reviewed_recipe_commands() {
+    let temporary = tempfile::tempdir().unwrap();
+    let capabilities = result(
+        temporary.path(),
+        &["--json", "capabilities"],
+        "capabilities",
+    );
+    let commands = capabilities["commands"].as_array().unwrap();
+    for name in [
+        "profile",
+        "profile.recipe-export",
+        "profile.recipe-inspect",
+        "profile.recipe-acquire",
+        "profile.recipe-discard",
+        "profile.recipe-plan",
+        "profile.recipe-apply",
+    ] {
+        assert_eq!(
+            commands.iter().filter(|command| *command == name).count(),
+            1,
+            "capabilities must advertise {name} once"
+        );
+    }
+}
+
+#[test]
+fn reviewed_github_mod_outputs_export_machine_schemas() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    let catalog = &schema["data"]["github_mod_catalog"];
+    for field in [
+        "port_id",
+        "platform",
+        "repository_id",
+        "source_url",
+        "native_import_offered",
+        "releases",
+        "complete",
+        "freshness",
+    ] {
+        assert!(catalog["properties"][field].is_object(), "{field}");
+    }
+    let review = &schema["data"]["github_mod_compound_review"];
+    for field in ["repository_id", "release_id", "asset_id", "review"] {
+        assert!(review["properties"][field].is_object(), "{field}");
+    }
+    assert!(review["$defs"]["RecompCompoundReview"]["properties"]["companions"].is_object());
+    assert!(!library.exists());
 }

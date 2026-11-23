@@ -43,7 +43,8 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
     expect(
       host.querySelector(".recovery-review")?.classList.contains("recovery-review-quiet"),
     ).toBe(false);
-    expect(host.querySelector("summary")?.textContent).toContain(port.name);
+    expect(host.querySelector("h3")?.textContent).toContain(port.name);
+    expect(host.querySelector("summary")?.textContent).toBe("Record details");
     const details = host.querySelector("details")!;
     expect(details.open).toBe(false);
     await act(async () => {
@@ -371,12 +372,18 @@ it("presents recovery items, failures and navigation in the active locale", asyn
     expect(host.querySelector("[role=alert]")?.textContent).toBe(
       "تعذّر تحديث معلومات الاسترداد: Core detail يبقى آخر فحص مكتمل ظاهرًا.",
     );
-    const summaries = [...host.querySelectorAll("summary")].map((summary) => summary.textContent);
-    expect(summaries).toEqual([
+    const headings = [...host.querySelectorAll(".recovery-review-item h3")].map(
+      (heading) => heading.textContent,
+    );
+    expect(headings).toEqual([
       `${port.name} · النسخة الاحتياطية تحتاج إلى انتباه`,
       `${port.name} · معلومات الاسترداد تحتاج إلى مراجعة`,
     ]);
-    expect(host.querySelector("summary bdi")?.textContent).toBe(port.name);
+    expect(host.querySelector("h3 bdi")?.textContent).toBe(port.name);
+    expect([...host.querySelectorAll("summary")].map((summary) => summary.textContent)).toEqual([
+      "تفاصيل السجل",
+      "تفاصيل السجل",
+    ]);
     const buttons = [...host.querySelectorAll("button")].map((button) => button.textContent);
     expect(buttons).toContain("تحديث معلومات الاسترداد");
     expect(buttons).toContain("مراجعة ملفات الحفظ والنسخ الاحتياطية");

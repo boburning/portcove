@@ -1,3 +1,4 @@
+import { useEffect, useState, type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
@@ -62,6 +63,7 @@ export function ProtectionSummary({
   readState,
   inventoryState,
   problems = [],
+  children,
 }: {
   portId: string;
   status?: PortStatus | undefined;
@@ -69,6 +71,7 @@ export function ProtectionSummary({
   readState?: BackupReadState | undefined;
   inventoryState?: BackupInventory["state"] | undefined;
   problems?: BackupInventory["problems"] | undefined;
+  children?: ReactNode;
 }) {
   const { t } = useAppTranslation("backups");
   const matches =
@@ -86,142 +89,179 @@ export function ProtectionSummary({
   const complete = inventoryState === "healthy" && problems.length === 0;
   const current = matches && readState?.status === "current" && readState.hasInventory;
   return (
-    <section
-      aria-label={t("protection.title")}
-      className="grid min-w-0 gap-3 text-sm wrap-anywhere"
-    >
-      <h3 className="m-0 text-base font-semibold">{t("protection.title")}</h3>
-      {!current && (
-        <p role="status">
-          {readState?.status === "failed"
-            ? t("protection.loadFailed")
-            : readState?.status === "pending"
-              ? t("protection.checking")
-              : readState?.status === "current" && readState.hasInventory
-                ? // The list was read; only this installation's protection details are missing.
-                  t("protection.detailsMissing")
-                : t("protection.unavailable")}
-        </p>
-      )}
-      {matches && protection && (
-        <>
-          <p>
-            {current ? t("protection.latestInformation") : t("protection.lastLoadedInformation")}
+    <>
+      <section
+        aria-label={t("protection.title")}
+        className="grid min-w-0 gap-3 text-sm wrap-anywhere"
+      >
+        <h3 className="m-0 text-base font-semibold">{t("protection.title")}</h3>
+        {!current && (
+          <p role="status">
+            {readState?.status === "failed"
+              ? t("protection.loadFailed")
+              : readState?.status === "pending"
+                ? t("protection.checking")
+                : readState?.status === "current" && readState.hasInventory
+                  ? // The list was read; only this installation's protection details are missing.
+                    t("protection.detailsMissing")
+                  : t("protection.unavailable")}
           </p>
-          {protection.problem && (
-            <div role="status">
-              <p>{t("protection.installationProblem")}</p>
-              <details>
-                <summary data-focusable>{t("protection.installationCheckDetails")}</summary>
-                <p>{protection.problem}</p>
-              </details>
-            </div>
-          )}
-          {!protection.installations.length && !protection.problem && (
-            <p>{t("protection.noInstallation")}</p>
-          )}
-          {!complete && <p role="status">{t("protection.unconfirmedLatest")}</p>}
-          {protection.latest_completed_backup ? (
-            <div>
-              <p>
-                {/* Dates follow the system's regional format, separate from message language. */}
-                {current && complete
-                  ? t("protection.latestBackup", {
-                      time: new Date(
-                        protection.latest_completed_backup.created_at * 1000,
-                      ).toLocaleString(),
-                      count: protection.latest_completed_backup.file_count,
-                    })
-                  : t("protection.lastKnownBackup", {
-                      time: new Date(
-                        protection.latest_completed_backup.created_at * 1000,
-                      ).toLocaleString(),
-                      count: protection.latest_completed_backup.file_count,
-                    })}
-              </p>
-              <details>
-                <summary data-focusable>{t("protection.backupIdentifier")}</summary>
-                <code>{protection.latest_completed_backup.id}</code>
-              </details>
-            </div>
-          ) : (
+        )}
+        {matches && protection && (
+          <>
             <p>
-              {!complete
-                ? t("protection.historyIncomplete")
-                : current
-                  ? t("protection.noCompletedBackup")
-                  : t("protection.noCompletedBackupLastLoaded")}
+              {current ? t("protection.latestInformation") : t("protection.lastLoadedInformation")}
             </p>
-          )}
-          {protection.installations.map((install) => (
-            <div
-              className="grid gap-2 rounded-pc-md border border-pc-border p-3"
-              key={install.install_id}
-            >
-              <h4 className="m-0 font-semibold">
-                {installHeading(t, install.role, install.version)}
-              </h4>
-              <p>
-                {install.update_owner === "portcove"
-                  ? t("protection.updatesPortcove")
-                  : t("protection.updatesExternal")}
-              </p>
-              <p>{collectionLabel(t, install.collection)}</p>
-              {!install.retained && install.role !== "external" && (
-                <p>{t("protection.rulesUnavailableVersion")}</p>
-              )}
-              {install.problem && (
+            {protection.problem && (
+              <div role="status">
+                <p>{t("protection.installationProblem")}</p>
                 <details>
-                  <summary data-focusable>{t("protection.backupCheckDetails")}</summary>
-                  <p>{install.problem}</p>
+                  <summary data-focusable>{t("protection.installationCheckDetails")}</summary>
+                  <p>{protection.problem}</p>
                 </details>
-              )}
-              {install.collection_root && (
+              </div>
+            )}
+            {!protection.installations.length && !protection.problem && (
+              <p>{t("protection.noInstallation")}</p>
+            )}
+            {!complete && <p role="status">{t("protection.unconfirmedLatest")}</p>}
+            {protection.latest_completed_backup ? (
+              <CompletedBackupSummary
+                key={protection.latest_completed_backup.id}
+                backup={protection.latest_completed_backup}
+                current={current && complete}
+              />
+            ) : (
+              <p>
+                {!complete
+                  ? t("protection.historyIncomplete")
+                  : current
+                    ? t("protection.noCompletedBackup")
+                    : t("protection.noCompletedBackupLastLoaded")}
+              </p>
+            )}
+          </>
+        )}
+      </section>
+      {children}
+      {matches && protection && (
+        <details className="text-sm wrap-anywhere">
+          <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
+            {t("protection.backupCheckDetails")}
+          </summary>
+          <div className="grid gap-3">
+            {protection.installations.map((install) => (
+              <div
+                className="grid gap-2 rounded-pc-md border border-pc-border p-3"
+                key={install.install_id}
+              >
+                <h3 className="m-0 font-semibold">
+                  {installHeading(t, install.role, install.version)}
+                </h3>
                 <p>
-                  <Trans
-                    t={t}
-                    i18nKey="protection.foundAt"
-                    components={{ code: <code dir="ltr">{install.collection_root}</code> }}
-                  />
+                  {install.update_owner === "portcove"
+                    ? t("protection.updatesPortcove")
+                    : t("protection.updatesExternal")}
                 </p>
-              )}
-              {!!install.collection_candidates.length && (
-                <ul className="list-disc ps-5">
-                  {install.collection_candidates.map((entry) => (
-                    <li key={entry.path}>
-                      <Trans
-                        t={t}
-                        i18nKey="protection.candidate"
-                        values={{ state: pathLabel(t, entry.state) }}
-                        components={{ code: <code dir="ltr">{entry.path}</code> }}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p>{t("protection.foundNotBackedUp")}</p>
-              <Declaration title={t("protection.rulesInstallation")} value={install.retained} />
-              <Declaration title={t("protection.filesConsidered")} value={install.effective} />
-              {install.exclusions.map((text) => (
-                <p key={text}>{text}</p>
-              ))}
-            </div>
-          ))}
-          <p>
-            <Trans
-              t={t}
-              i18nKey="protection.savedFolder"
-              values={{ state: pathLabel(t, protection.managed_data.state) }}
-              components={{ code: <code dir="ltr">{protection.managed_data.path}</code> }}
-            />
-          </p>
-          <Declaration title={t("protection.rulesCatalog")} value={protection.catalog} />
-          {protection.exclusions.map((text) => (
-            <p key={text}>{text}</p>
-          ))}
-        </>
+                <p>{collectionLabel(t, install.collection)}</p>
+                {!install.retained && install.role !== "external" && (
+                  <p>{t("protection.rulesUnavailableVersion")}</p>
+                )}
+                {install.problem && <p>{install.problem}</p>}
+                {install.collection_root && (
+                  <p>
+                    <Trans
+                      t={t}
+                      i18nKey="protection.foundAt"
+                      components={{ code: <code dir="ltr">{install.collection_root}</code> }}
+                    />
+                  </p>
+                )}
+                {!!install.collection_candidates.length && (
+                  <ul className="list-disc ps-5">
+                    {install.collection_candidates.map((entry) => (
+                      <li key={entry.path}>
+                        <Trans
+                          t={t}
+                          i18nKey="protection.candidate"
+                          values={{ state: pathLabel(t, entry.state) }}
+                          components={{ code: <code dir="ltr">{entry.path}</code> }}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p>{t("protection.foundNotBackedUp")}</p>
+                <Declaration title={t("protection.rulesInstallation")} value={install.retained} />
+                <Declaration title={t("protection.filesConsidered")} value={install.effective} />
+                {install.exclusions.map((text) => (
+                  <p key={text}>{text}</p>
+                ))}
+              </div>
+            ))}
+            <p>
+              <Trans
+                t={t}
+                i18nKey="protection.savedFolder"
+                values={{ state: pathLabel(t, protection.managed_data.state) }}
+                components={{ code: <code dir="ltr">{protection.managed_data.path}</code> }}
+              />
+            </p>
+            <Declaration title={t("protection.rulesCatalog")} value={protection.catalog} />
+            {protection.exclusions.map((text) => (
+              <p key={text}>{text}</p>
+            ))}
+          </div>
+        </details>
       )}
-    </section>
+    </>
+  );
+}
+
+const minuteMs = 60_000;
+const minutesPerDay = 24 * 60;
+
+function CompletedBackupSummary({
+  backup,
+  current,
+}: {
+  backup: NonNullable<Protection["latest_completed_backup"]>;
+  current: boolean;
+}) {
+  const { t, i18n } = useAppTranslation("backups");
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), minuteMs);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const timestamp = new Date(backup.created_at * 1000);
+  // Show the elapsed time from Core's epoch timestamp, independent of time-zone changes.
+  const elapsedFormatter = new Intl.RelativeTimeFormat(i18n.resolvedLanguage);
+  const minutes = Math.floor((now - timestamp.getTime()) / minuteMs);
+  let age: string | undefined;
+  if (minutes >= minutesPerDay)
+    age = elapsedFormatter.format(-Math.floor(minutes / minutesPerDay), "day");
+  else if (minutes >= 60) age = elapsedFormatter.format(-Math.floor(minutes / 60), "hour");
+  else if (minutes >= 0) age = elapsedFormatter.format(-minutes, "minute");
+  // Keep the system's regional date format and the app's language for relative wording.
+  const date = Number.isFinite(timestamp.getTime())
+    ? timestamp.toLocaleString()
+    : t("protection.backupDateUnavailable");
+  const time = age ? `${date} (${age})` : date;
+  return (
+    <div>
+      <p>
+        {t(current ? "protection.latestBackup" : "protection.lastKnownBackup", {
+          time,
+          count: backup.file_count,
+        })}
+      </p>
+      <details>
+        <summary data-focusable>{t("protection.backupIdentifier")}</summary>
+        <code>{backup.id}</code>
+      </details>
+    </div>
   );
 }
 

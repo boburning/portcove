@@ -31,6 +31,106 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn provider_bindings_require_the_adapter_floor_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    let bindings = vec![
+        crate::ModProviderBinding::Gamebanana { game_id: 32001 },
+        crate::ModProviderBinding::Thunderstore {
+            community: "owned-fixture".into(),
+        },
+    ];
+    port.mod_provider_bindings = Some(bindings.clone());
+    let mut entry = entry_for_port(&port);
+    let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
+    entry["required_capabilities"][0]["maximum_version"] = json!(version);
+    for minimum in [version - 1, version] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum < version {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("mod provider bindings")
+                );
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
+fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    port.upstream_active_reviewed = true;
+    port.mod_loader = None;
+    let binding = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
+    port.mod_provider_bindings = Some(vec![binding.clone()]);
+    let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(version);
+    for (schema, minimum, refusal) in [
+        (1, version, Some("indexed definition schema 2")),
+        (2, version - 1, Some("mod provider bindings")),
+        (2, version, None),
+    ] {
+        entry["definition_schema"] = json!(schema);
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if let Some(message) = refusal {
+                assert!(result.unwrap_err().message.contains(message));
+            } else {
+                let accepted = result.unwrap();
+                assert!(accepted.capabilities().compatible);
+                assert_eq!(
+                    accepted.port().declared_upstream_status(),
+                    Some(crate::UpstreamStatus::Active)
+                );
+                assert_eq!(
+                    accepted.port().mod_provider_bindings.as_deref(),
+                    Some(std::slice::from_ref(&binding))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    // Isolate the loader schema fence from the separate provider capability.
+    port.mod_provider_bindings = None;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if schema == 3 {
+                assert_eq!(result.unwrap().port().mod_loader, port.mod_loader);
+            } else {
+                assert!(result.unwrap_err().message.contains("definition schema 3"));
+            }
+        }
+    }
+}
+
+#[test]
 fn executable_grants_require_their_adapter_floor_for_fresh_and_retained_reads() {
     for (adapter, version) in [
         (crate::AdapterKind::NativePortable, 22),
@@ -411,7 +511,20 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
 #[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    // The embedded record now also opts its Linux layout into the program
+    // format classifier, which requires version 36 (covered by
+    // linux_program_format_classifier_requires_native_36_...). Check the Mac
+    // bundle contract on the record as it was before that opt-in.
+    let mut port = catalog
+        .port("wolfenstein-3d-reflectionhle")
+        .unwrap()
+        .clone();
+    let linux = port
+        .reviewed_package_layouts
+        .remove(&crate::Platform::LinuxX86_64)
+        .unwrap();
+    assert!(linux.classify_linux_programs_by_format);
+    let port = &port;
     let mut entry = entry_for_port(port);
     for minimum in [25, 26] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -614,6 +727,30 @@ fn macos_library_filter_requires_native_30_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn linux_program_format_classifier_requires_native_36_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["wolfenstein-3d-reflectionhle", "pilotwings-64-dgv-recomp"] {
+        let port = catalog.port(id).unwrap();
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(36);
+        for minimum in [35, 36] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+            ] {
+                if minimum == 36 {
+                    assert!(result.unwrap().capabilities().compatible, "{id}");
+                } else {
+                    assert!(result.unwrap_err().message.contains("version 36"), "{id}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn reviewed_package_layouts_require_a_capable_native_reader() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;
@@ -621,6 +758,7 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
         port.platforms[0],
         crate::ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: vec![],
             executables: vec!["fixture.exe".to_owned()],
         },
@@ -669,6 +807,25 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
         invalid["port"]["reviewed_package_layouts"]["linux-x86-64"]["executables"] = paths;
         assert!(inspect(&invalid).is_err());
     }
+}
+
+#[test]
+fn reviewed_predecessor_layouts_require_the_new_reader_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("dethrace-labs-dethrace").unwrap();
+    let mut entry = entry_for_port(port);
+    let capability = crate::package_layout::PREDECESSOR_LAYOUT_CAPABILITY;
+    let inspect_retained = |entry: &serde_json::Value| {
+        let bytes = serde_json::to_vec(entry).unwrap();
+        index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes)
+    };
+    entry["required_capabilities"][0]["minimum_version"] = json!(41);
+    entry["required_capabilities"][0]["maximum_version"] = json!(capability);
+    assert!(inspect(&entry).is_err());
+    assert!(inspect_retained(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = json!(capability);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(inspect_retained(&entry).unwrap().capabilities().compatible);
 }
 
 #[test]
@@ -984,6 +1141,7 @@ fn libultraship_windows_paths_require_the_owning_v2_template() {
 fn shipwright_working_directory_persistence_requires_the_v3_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("shipwright").unwrap().clone();
+    port.mod_provider_bindings = None;
     port.source_profile = None;
     port.presentation = None;
     let mut entry = entry_for_port(&port);
@@ -1154,6 +1312,9 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(37);
         entry["required_capabilities"][0]["maximum_version"] = json!(37);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(39);
+        entry["required_capabilities"][0]["maximum_version"] = json!(39);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1330,17 +1491,20 @@ fn catalog_fixture() -> Value {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = &catalog.ports()[0];
     let mut entry = entry_for_port(port);
-    if port.windows_shipwright_persistence {
-        entry["required_capabilities"][0]["minimum_version"] = json!(3);
-        entry["required_capabilities"][0]["maximum_version"] = json!(3);
-    }
+    let minimum = if port.windows_shipwright_persistence {
+        3
+    } else {
+        1
+    };
+    entry["required_capabilities"] =
+        json!(crate::test_fixture::definition_requirements(port, minimum));
     entry
 }
 
 fn entry_for_port(port: &crate::PortDefinition) -> Value {
     let contract = target(b"{}");
     json!({
-        "definition_schema": 1, "namespace": "official", "stable_id": port.id,
+        "definition_schema": if port.mod_loader.is_some() { 3 } else { 1 }, "namespace": "official", "stable_id": port.id,
         "revision": 1, "required_capabilities": [{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
         "port": port, "source_contracts": [], "execution_contract": contract,
         "persistence_contract": contract, "artifact_bindings": [], "evidence_references": []
@@ -1402,6 +1566,49 @@ fn exact_exclusions_require_version_35_in_fresh_and_retained_readers() {
     );
     entry["required_capabilities"][0]["minimum_version"] = json!(35);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn managed_psx_exact_exclusions_require_version_six_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("alexbeav-vampire-hunter-d-recomp")
+        .unwrap()
+        .clone();
+    port.managed_acquisition_hold = catalog
+        .port("super-metroid-recomp")
+        .unwrap()
+        .managed_acquisition_hold
+        .clone();
+    let mut entry = entry_for_port(&port);
+    let requirement = &mut entry["required_capabilities"][0];
+    requirement["minimum_version"] = json!(5);
+    requirement["maximum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }
 
 fn target(bytes: &[u8]) -> String {
@@ -1480,6 +1687,12 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(5);
     entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(7);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
@@ -1711,12 +1924,15 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
         value["stable_id"] = json!(port.id);
+        value["definition_schema"] = json!(if port.mod_loader.is_some() { 3 } else { 1 });
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        let version = if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; keep it first.
             33
@@ -1790,6 +2006,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -1949,7 +2167,7 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
     let baseline = fixture();
     let stable_id = baseline["stable_id"].as_str().unwrap();
     for (key, changed) in [
-        ("definition_schema", json!(2)),
+        ("definition_schema", json!(4)),
         ("namespace", json!("community")),
         ("stable_id", json!("different-port")),
         ("revision", json!(2)),
@@ -2057,11 +2275,24 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
-    value["port"]["persistent_paths"] = json!(["../outside"]);
+    let port = value["port"].as_object_mut().unwrap();
+    // Exercise generic persistence validation rather than the earlier loader fence.
+    port.remove("mod_loader");
+    port.remove("mod_provider_bindings");
+    // Keep the fixture's authored settings targets in the persistence contract.
+    port.get_mut("persistent_paths")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .push(json!("../outside"));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
-    assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+    let error = crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).unwrap_err();
+    assert!(
+        error.message.contains("unsafe persistent path: ../outside"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -2420,7 +2651,7 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
 
 #[test]
 fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
     for id in [
         "blake-stone-aliens-of-gold-bstone",
         "blake-stone-planet-strike-bstone",
@@ -2445,6 +2676,43 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn packaged_linux_libraries_require_the_native_reader_floor() {
+    let capability = crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY;
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(
+            port.linux_packaged_library.as_deref(),
+            Some("discord_game_sdk.so")
+        );
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(capability);
+        for minimum in [capability - 1, capability] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum < capability {
+                    assert!(
+                        result
+                            .unwrap_err()
+                            .message
+                            .contains(&format!("native capability version {capability}"))
+                    );
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+        let mut unsafe_port = port.clone();
+        unsafe_port.linux_packaged_library = Some("../discord_game_sdk.so".into());
+        assert!(crate::runtime::validate_linux_packaged_library(&unsafe_port).is_err());
     }
 }
 
@@ -2476,4 +2744,33 @@ fn native_originals_require_native6_in_fresh_and_retained_readers() {
             .capabilities()
             .compatible
     );
+}
+
+#[test]
+fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers() {
+    let mut port = crate::native_temp::tests::port();
+    port.source_profile = Some("exact-relative-originals".into());
+    port.runtime_source_set.push(crate::RuntimeSourceTarget {
+        source_filenames: vec!["base/pak000.pk4".into()],
+        destination: "base/pak000.pk4".into(),
+        materialization: crate::RuntimeSourceMaterialization::Copy,
+    });
+    port.runtime_source_hashes
+        .insert("base/pak000.pk4".into(), "a".repeat(64));
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(37);
+    for minimum in [36, 37] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 36 {
+                assert!(result.unwrap_err().message.contains("version 37"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
 }

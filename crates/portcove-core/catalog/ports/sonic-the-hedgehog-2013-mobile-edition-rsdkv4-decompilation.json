@@ -42,8 +42,18 @@
     "original_game_title": "Sonic the Hedgehog",
     "download_asset_hints": {
       "linux-x86-64": ["v4-linux.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog",
+      "evidence_urls": [
+        "https://github.com/RSDKModding/RSDKv4-Decompilation#readme",
+        "https://github.com/RSDKModding/RSDKv4-Decompilation"
+      ],
+      "source_editions": []
     }
   },
+  "rsdkv4_portable_data_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -60,18 +70,6 @@
       "windows-x86-64": ["RSDKv4.exe"],
       "linux-x86-64": ["RSDKv4"]
     },
-    "persistent_paths": [
-      "Data.rsdk",
-      "Data",
-      "settings.ini",
-      "SData.bin",
-      "UData.bin",
-      "mods",
-      "log.txt",
-      "Bytecode",
-      "SGame.bin",
-      "usage.txt"
-    ],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

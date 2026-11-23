@@ -49,6 +49,36 @@
         }
       ]
     },
-    "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy.",
+        "tracking_issue": 327
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/FinFanTacRecomp",
+        "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/final-fantasy-tactics-finfantacrecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-tactics-playstation",
+          "title": "Final Fantasy Tactics (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/final-fantasy-tactics-finfantacrecomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Final Fantasy Tactics"
   }
 }

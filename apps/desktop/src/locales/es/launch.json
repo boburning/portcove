@@ -2,6 +2,7 @@
   "failure": {
     "copied": "Copiado",
     "copyExitCode": "Copiar código de salida",
+    "copyFailed": "No se pudo copiar el código de salida. Selecciona y copia el código de arriba, o vuelve a intentarlo.",
     "exitCode": "Código de salida <code/>",
     "label": "Último inicio",
     "openActivity": "Abrir Actividad",
@@ -9,6 +10,7 @@
   },
   "runtimes": {
     "aspnetCore": "ASP.NET Core Runtime {{version}}",
+    "checking": "Comprobando…",
     "directxJune2010": "DirectX End-User Runtime (junio de 2010)",
     "dotnetDesktop": ".NET Desktop Runtime {{version}}",
     "dotnetFramework": ".NET {{name}} {{version}}",
@@ -17,7 +19,10 @@
     "item": "{{name}} ({{architecture}})",
     "label": "Componentes de Microsoft",
     "missing": "Lo más probable es que a Windows le falte algo que este juego necesita para iniciarse:",
-    "nextAction": "Instala lo indicado desde Microsoft y vuelve a iniciar el juego.",
+    "nextAction": "Instala los componentes indicados desde Microsoft y vuelve a comprobarlos aquí.",
+    "present": "Los componentes comprobados están instalados.",
+    "recheck": "Volver a comprobar los componentes",
+    "unconfirmed": "Portcove no pudo confirmar que todos los componentes necesarios estén instalados. Puedes volver a comprobarlos.",
     "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
     "visualCpp2012": "Microsoft Visual C++ 2012 Redistributable",
     "visualCpp2013": "Microsoft Visual C++ 2013 Redistributable",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "might-and-magic-ix-macos",
+    "artwork": {
+      "game_id": 7741,
+      "cover_id": 95063,
+      "image_id": "co21cn",
+      "image_sha256": "153c0c5aace95230420b910f2c4cd378070b77a36c03f46aa81e787084d8b77e",
+      "game_slug": "might-and-magic-ix",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
     "name": "Might and Magic IX / MM9 Native macOS",
     "original_game_title": "Might and Magic IX",
@@ -12,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/releases/tag/v1.3",
     "setup_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
-    "download_block_reason": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+        "tracking_issue": 6109
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
       "steps": [
@@ -32,6 +49,24 @@
       "warnings": [
         "The upstream Uninstaller DMG can also remove saves and the Wine installation. Leave those choices off to keep them.",
         "The setup tools have universal Mac executables, but the builder and native game require Apple Silicon. There is no Windows, Linux, Intel Mac, or Android native package from this project."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "might-and-magic-ix",
+      "evidence_urls": [
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS"
+      ],
+      "source_editions": [
+        {
+          "id": "might-and-magic-ix-pc",
+          "title": "Might and Magic IX (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+          ]
+        }
       ]
     }
   }

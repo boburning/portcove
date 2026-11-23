@@ -51,6 +51,16 @@
         }
       ],
       "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-legaia",
+      "evidence_urls": [
+        "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md",
+        "https://github.com/SamSteProjects/legend-of-legaia-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Legend of Legaia"
   }
 }

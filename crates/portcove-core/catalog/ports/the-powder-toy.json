@@ -1,0 +1,79 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-powder-toy",
+    "name": "The Powder Toy",
+    "original_game_title": "The Powder Toy",
+    "artwork": {
+      "game_id": 79055,
+      "cover_id": 386298,
+      "image_id": "co8a2i",
+      "image_sha256": "937e42bc49d24c834cdb0e9532a72583354da204bfd4beddba35186b3f3ffc58",
+      "game_slug": "the-powder-toy",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Draw with materials and experiment with weather, fluids, and circuits in a physics sandbox.",
+    "project_url": "https://github.com/The-Powder-Toy/The-Powder-Toy",
+    "issue_number": 6491,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://powdertoy.co.uk/Download/Platforms.html",
+    "setup_url": "https://powdertoy.co.uk/Download/Platforms.html",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Choose the package for your system from the publisher’s download page.",
+        "tracking_issue": 6491
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose a desktop package",
+          "instruction": "On Windows x64, download and extract the standard ZIP, then open Powder.exe. For Windows on ARM, choose Older, then Browse and open the current build page. Extract the ARM64 ZIP and open Powder arm64.exe. On Linux x86-64, extract the archive and run powder. The current Linux build needs glibc 2.35 or later. On Mac, choose the disk image for Intel or Apple Silicon."
+        },
+        {
+          "title": "Create and reopen a local stamp",
+          "instruction": "Cancel the optional installation prompt to try the sandbox without registering file types. Draw in the canvas, press S, and drag around the area to keep. Press K to open your stamp library. Stamps work locally without a website account."
+        },
+        {
+          "title": "Keep your local data",
+          "instruction": "Use Open Data Folder in the game’s settings. Close the game before copying that folder, including local saves, stamps, scripts, and preferences. Keep a separate copy before updating. The game’s updater or the original package source handles runtime updates."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Check Android and other Linux builds",
+          "instruction": "The publisher links the official Android app in Google Play. Its GitHub APKs are experimental. The tagged GitHub release has a Linux ARM64 build. See the publisher’s notes before using a non-website desktop build."
+        },
+        {
+          "title": "Check the current Mac packages",
+          "instruction": "The publisher supplies separate Intel and Apple Silicon disk images. The current Apple Silicon release has a signing limitation. macOS decides whether it can open either app. The publisher’s browser player is available from Play online."
+        }
+      ],
+      "help_url": "https://powdertoy.co.uk/FAQ.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-powder-toy",
+      "evidence_urls": [
+        "https://powdertoy.co.uk/FAQ.html",
+        "https://github.com/The-Powder-Toy/The-Powder-Toy"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-powder-toy",
+    "origin": {
+      "project_url": "https://github.com/The-Powder-Toy/The-Powder-Toy"
+    },
+    "decisions": []
+  }
+}

@@ -35,6 +35,21 @@
       "image_sha256": "389c8cc18ee4453cd653f8fa3600f0a9c2abd7472abe32a625e94ed274fca025",
       "game_slug": "wii-party",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wii-party",
+      "evidence_urls": ["https://github.com/bennoekart2-del/WPnative"],
+      "source_editions": [
+        {
+          "id": "wii-party-wii",
+          "title": "Wii Party (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/bennoekart2-del/WPnative/blob/69857c5e7f743bc6c5d8727eaae65535534d04f4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

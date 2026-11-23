@@ -1,7 +1,8 @@
+import { inspectLibraryGroups } from "../../browser/discover-test-helpers";
 import { startDevelopmentScenarios } from "../start";
 import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 import { desktopApi } from "../../api";
@@ -33,8 +34,13 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 
-async function mount(journey: string) {
-  window.history.replaceState(null, "", `/scenarios.html?mode=interactive&journey=${journey}`);
+async function mount(journey: string, embedded = false) {
+  const embed = embedded ? "&embed=1" : "";
+  window.history.replaceState(
+    null,
+    "",
+    `/scenarios.html?mode=interactive&journey=${journey}${embed}`,
+  );
   document.body.innerHTML = new DOMParser().parseFromString(
     scenarioShell,
     "text/html",
@@ -155,7 +161,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await expect.element(input).toHaveValue("fixture/future-draft");
-  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
   await expect
     .element(
       page
@@ -163,6 +169,10 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
         .getByRole("button", { name: "Choose local image", exact: true }),
     )
     .toBeVisible();
+  await page
+    .getByRole("dialog", { name: "Change artwork", exact: true })
+    .getByRole("button", { name: "Close", exact: true })
+    .click();
   await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await page.getByRole("button", { name: /^More actions for Harbor Adventure/ }).click();
   await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
@@ -224,7 +234,21 @@ it("uses a viewport-bound demo workspace across resizing and preserves embedded 
   expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
   await click("Reset journey");
   expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
-  await vi.waitFor(() => expect(document.querySelectorAll(".collection-entry")).toHaveLength(60));
+  await vi.waitFor(() =>
+    expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+      "60",
+    ),
+  );
+  const indices = [
+    2,
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 6),
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 4),
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 5),
+    0,
+    1,
+    ...Array.from({ length: 15 }, (_, n) => 4 * n + 3),
+  ];
+  await inspectLibraryGroups(indices.map((index) => [`collection-${index}`]));
 });
 
 it("returns to the exact older recovery activity after opening its game", async () => {
@@ -273,11 +297,44 @@ it("returns to the exact older recovery activity after opening its game", async 
   expect(opener).not.toBeNull();
   await act(async () => opener!.click());
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .element(page.getByRole("button", { name: "Back to Activity", exact: true }))
     .toBeVisible();
-  await click("Back to previous workspace");
+  await click("Back to Activity");
   await expect.poll(() => document.activeElement?.getAttribute("data-detail-origin")).toBe(origin);
   expect(document.querySelector('[data-activity-id="recovery-history-12"]')).not.toBeNull();
+});
+
+it("reveals the entire Activity target focus ring after returning at a narrow width", async () => {
+  await page.viewport(430, 780);
+  // Measure real document scrolling instead of the inert scrollTo used by other scenarios.
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
+  try {
+    await mount("activity", true);
+    await navigateTo("Activity");
+    const target = '[data-detail-origin="updates:activity:fixture-retained-harbor:target"]';
+    const opener = page.getByRole("button", { name: "Harbor Adventure", exact: true });
+    await expect.element(opener).toBeVisible();
+    document.querySelector<HTMLButtonElement>(target)!.focus();
+    await userEvent.keyboard("{Enter}");
+
+    const back = page.getByRole("button", { name: "Back to Activity", exact: true });
+    await expect.element(back).toBeVisible();
+    document.querySelector<HTMLButtonElement>("[data-detail-back]")!.focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => document.activeElement?.matches(target)).toBe(true);
+    const restored = document.querySelector<HTMLButtonElement>(target)!;
+    const ring = getComputedStyle(restored);
+    expect(restored.matches(":focus-visible")).toBe(true);
+    expect(ring.outlineStyle).toBe("solid");
+    const outlineEnd =
+      restored.getBoundingClientRect().bottom +
+      parseFloat(ring.outlineWidth) +
+      parseFloat(ring.outlineOffset);
+    expect(outlineEnd).toBeLessThanOrEqual(window.innerHeight);
+  } finally {
+    await page.viewport(1280, 800);
+  }
 });
 
 it("opens current Settings read surfaces without fixture refusals", async () => {
@@ -322,13 +379,14 @@ it("opens About through Settings and keeps custom catalog trust under Advanced",
     .toHaveAttribute("aria-current", "page");
   const navigation = page.getByRole("navigation", { name: "Settings categories" });
   await navigation.getByRole("button", { name: "Updates", exact: true }).click();
-  await page.getByRole("button", { name: "Manage custom catalog sources", exact: true }).click();
+  const catalog = page.getByRole("button", { name: "Manage custom catalog sources", exact: true });
+  await catalog.click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(catalog).toHaveFocus();
   await expect
-    .element(navigation.getByRole("button", { name: "Advanced", exact: true }))
+    .element(navigation.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-current", "page");
-  await expect
-    .element(page.getByRole("heading", { name: "Custom catalog sources", exact: true }))
-    .toBeVisible();
 });
 
 it("opens the Updates category before focusing an application-update notice", async () => {
@@ -362,7 +420,6 @@ it("opens application updates from Activity without entering custom catalog sett
   await mount("library");
   await navigateTo("Activity");
   await page.getByRole("tab", { name: "Game updates", exact: true }).click();
-  await page.getByText("About update checks", { exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(
@@ -519,6 +576,7 @@ it("shows recovery choices, accepts the platform-default choice, and resets to t
   expect(document.body.textContent).toContain("Continue location change");
   expect(document.body.textContent).toContain("Keep using original library");
   await click("Use platform default");
+  await click("Open reviewed library");
   expect(document.querySelector("#port-search")).not.toBeNull();
   await click("Reset journey");
   expect(document.body.textContent).toContain("Portcove couldn’t start");
@@ -556,8 +614,8 @@ it("stacks downloaded setup and installation context without horizontal overflow
     })
     .click();
   await expect
-    .element(page.getByRole("tab", { name: "Game files", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
+    .element(page.getByRole("combobox", { name: "Game detail sections Game files", exact: true }))
+    .toBeVisible();
   const main = document.querySelector<HTMLElement>(".detail-setup-main")!;
   const context = document.querySelector<HTMLElement>(".detail-setup-context")!;
   await expect

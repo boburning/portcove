@@ -19,7 +19,7 @@
             "crates/portcove-core/src/source_catalog.rs",
             "crates/portcove-core/src/source_catalog_tests.rs"
           ],
-          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/) | test(/^installed_contract::tests::catalog_growth_stays_within_the_legacy_compatibility_margin$/)"
+          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/) | test(/^installed_contract::tests::catalog_growth_stays_within_supported_capacity$/)"
         },
         {
           "id": "route-enrollment-fixtures",
@@ -312,6 +312,46 @@
       "platforms": ["linux", "darwin", "win32"],
       "category": "explicit-acceptance",
       "requires_qualification_fixtures": true
+    },
+    {
+      "source": "crates/portcove-core/src/jakmods_tests.rs",
+      "test": "real_before_and_served_feed_addition_appears_only_for_jak1",
+      "reason": "requires the two retained upstream JakMods feed snapshots for the explicit replay in docs/CLI.md",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/library_recovery_bundle/execution.rs",
+      "test": "a_full_filesystem_leaves_the_exact_recovery_copy_resumable",
+      "reason": "requires a private 80 MiB Linux test filesystem",
+      "package": "portcove-core",
+      "platforms": ["linux"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/github_mods.rs",
+      "test": "real_release_successor_retains_numeric_github_identity",
+      "reason": "natural-event observation, not ordinary coverage: requires the real retained GitHub release metadata for the reviewed mod source in PORTCOVE_GITHUB_MOD_RELEASES",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/github_compound_custody.rs",
+      "test": "genuine_companion_successor_requires_its_own_choice_and_survives_reopen",
+      "reason": "natural-event observation, not ordinary coverage: requires the verified upstream v0.9.5 and v0.9.5a wrapper ZIPs in PORTCOVE_TEST_COMPOUND_WRAPPERS",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/recomp_companion_review.rs",
+      "test": "real_successor_changes_the_companion_set_without_changing_the_nrms",
+      "reason": "natural-event observation, not ordinary coverage: requires the externally retained exact predecessor and successor wrapper ZIPs in PORTCOVE_GITHUB_MOD_ARCHIVES",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
     },
     {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",

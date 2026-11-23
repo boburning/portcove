@@ -7,7 +7,7 @@
     "project_url": "https://github.com/sp00nznet/advancewars",
     "issue_number": 166,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "source-only",
     "setup_url": "https://github.com/sp00nznet/advancewars#readme",
     "artwork": {
@@ -37,6 +37,26 @@
           "instruction": "Use your own Advance Wars USA Rev 1 ROM with SHA-1 15053499d5b3f49128a941d7f2d84876f5424d0c. The player derives the Flash save path from its ROM argument. With game/aw.gba this is game/aw.sav. Close the game and preserve both files and the creating runtime before replacing it. Keep locally generated game code private."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "advance-wars",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/advancewars#readme",
+        "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md",
+        "https://github.com/sp00nznet/advancewars"
+      ],
+      "source_editions": [
+        {
+          "id": "advance-wars-game-boy-advance",
+          "title": "Advance Wars (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Advance Wars"
   }
 }

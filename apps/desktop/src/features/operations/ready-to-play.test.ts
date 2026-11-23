@@ -27,7 +27,7 @@ describe("readyToPlayAfter", () => {
   it("hands back a game whose current readiness is ready after setup or install", () => {
     expect(portReadiness(ready)).toBe("ready");
     expect(readyToPlayAfter(record(), ready, port)).toBe(true);
-    expect(readyToPlayAfter(record("install"), ready, port)).toBe(true);
+    expect(readyToPlayAfter(record("install"), ready, port)).toBe(false);
   });
 
   it("follows Core's launch assessment even when readiness says launchable", () => {

@@ -45,8 +45,27 @@
           "instruction": "Preserve ~/.config/BanjoRecompiled on Linux, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.banjorecomp.banjorecomp. Back up the original, saves, mods and settings before replacing an upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-kazooie",
+      "evidence_urls": [
+        "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md",
+        "https://github.com/HarbourMasters/Lighthouse/blob/f757b547c8996ad0d67647560098c76bac0898a6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-kazooie-nintendo-64",
+          "title": "Banjo-Kazooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md"
+          ]
+        }
+      ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -54,6 +73,17 @@
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "n64-recomp-portable",
+    "mod_loader": {
+      "contract": {
+        "id": "n64-recomp",
+        "version": "1"
+      },
+      "repository": "BanjoRecomp/BanjoRecomp",
+      "minimum_version": "1.0.2",
+      "settings_file": "mods.json",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "native_game": "bk"
+    },
     "release": {
       "repository": "BanjoRecomp/BanjoRecomp",
       "asset_hints": {
@@ -68,22 +98,6 @@
       "macos-x86-64": ["banjorecompiled"],
       "macos-aarch64": ["banjorecompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "bk.n64.us.1.0.z64"
-    ],
     "runtime_source_filename": "bk.n64.us.1.0.z64",
     "presentation": {
       "installation_method": "portable-recompilation",
@@ -95,7 +109,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Banjo-Kazooie US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BanjoRecomp/BanjoRecomp#readme"
+      }
     }
   }
 }

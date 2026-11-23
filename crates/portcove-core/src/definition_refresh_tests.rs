@@ -10,6 +10,7 @@ fn request_leaf(url: &Url) -> Option<&str> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RefreshTarget {
+    ListingDirectory,
     LaunchCompanion,
     CandidateIndex,
 }
@@ -17,6 +18,7 @@ enum RefreshTarget {
 impl RefreshTarget {
     fn matches(self, url: &Url) -> bool {
         request_leaf(url).is_some_and(|leaf| match self {
+            Self::ListingDirectory => leaf.ends_with("catalog.listings.json"),
             Self::LaunchCompanion => leaf.ends_with(".launch.json"),
             Self::CandidateIndex => leaf == "index.json",
         })
@@ -357,6 +359,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     // independent working-directory authority and tracked handoff compiled
     // into the client; a legacy catalog cannot deliver either.
     for port in &mut baseline.ports {
+        port.mod_provider_bindings = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
     }
@@ -682,7 +685,41 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
             recovered.disposition,
             DefinitionRefreshDisposition::Selected
         ));
-        assert_eq!(recovered.selection.selected.unwrap().policy_revision, 2);
+        assert_eq!(
+            recovered
+                .selection
+                .selected
+                .as_ref()
+                .unwrap()
+                .policy_revision,
+            2
+        );
+        let retained_floor = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT replay_floor_json FROM definition_publisher_authority",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap()
+        };
+        let floor = retained_floor();
+        let retried = refresh_fixture(
+            &service,
+            &source(&fixture),
+            ID,
+            &root,
+            FilesystemTransport,
+            |_| {},
+        )
+        .await
+        .unwrap();
+        assert!(!retried.policy_changed);
+        assert!(!retried.launch_assessment_changed);
+        assert_eq!(retried.selection, recovered.selection);
+        assert_eq!(retained_floor(), floor);
     }
 }
 
@@ -764,4 +801,260 @@ async fn ordinary_refresh_refuses_a_transition_that_removes_unrelated_catalog_en
         serde_json::from_str::<Value>(&retained).unwrap()["policy_revision"],
         2
     );
+}
+
+#[tokio::test]
+async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_scope() {
+    use crate::OfficialCatalogAutomaticOutcome as Outcome;
+    use policy::provisioning::official_catalog::{
+        automatic_refresh_fixture, serialize_automatic_refresh_fixtures,
+    };
+    let _fixtures = serialize_automatic_refresh_fixtures().await;
+
+    const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = authority_provisioning::single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let host = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(host.path().join("preferences.json")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let repository = source(&fixture);
+    let catalog = Catalog::embedded().unwrap();
+    let ids = [
+        catalog.ports()[0].id.as_str(),
+        catalog.ports()[1].id.as_str(),
+    ];
+    let entries = ids.map(|id| repository_targets_for(&catalog, id));
+    let mut definitions = Vec::new();
+    let mut contents = std::collections::BTreeMap::new();
+    let mut targets = std::collections::BTreeMap::new();
+    for entry in &entries {
+        let index: Value = serde_json::from_slice(&entry[0].1).unwrap();
+        definitions.extend(index["definitions"].as_array().unwrap().iter().cloned());
+        for record in index["contents"].as_array().unwrap() {
+            contents.insert(
+                record["target"].as_str().unwrap().to_owned(),
+                record.clone(),
+            );
+        }
+        targets.extend(entry.iter().skip(1).cloned());
+    }
+    let index = serde_json::to_vec(&serde_json::json!({
+        "index_schema": 1,
+        "definitions": definitions,
+        "contents": contents.into_values().collect::<Vec<_>>(),
+    }))
+    .unwrap();
+    let index_sha256 = hex::encode(Sha256::digest(&index));
+    targets.insert(INDEX_TARGET.to_owned(), index);
+    for (id, entry) in ids.iter().zip(&entries) {
+        let mut document = availability_for(entry, id, 1);
+        document["decision"]["index_sha256"] = index_sha256.clone().into();
+        targets.insert(
+            format!("policy/official/{id}.json"),
+            serde_json::to_vec(&document).unwrap(),
+        );
+    }
+    // An authenticated but unknown policy target cannot make a new ID known.
+    targets.insert(
+        "policy/official/unlisted-scheduled-fixture.json".into(),
+        b"unknown scope must not be read".to_vec(),
+    );
+    let original_expiration = later();
+    fixture
+        .publish_with_policy(
+            &targets.clone().into_iter().collect::<Vec<_>>(),
+            true,
+            &DEFINITION_ROLE_PATHS,
+            original_expiration,
+            Some((&key, 1)),
+        )
+        .await;
+
+    let transport = ObservedTransport::default();
+    preferences
+        .set_official_catalog_automatic_updates(false)
+        .unwrap();
+    let off = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        transport.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(off.outcome, Outcome::TurnedOff);
+    assert!(transport.requests.lock().unwrap().is_empty());
+    assert!(library.activities(10).unwrap().is_empty());
+
+    preferences
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    let first = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        transport.clone(),
+    )
+    .await
+    .unwrap();
+    // No descriptive target in this fixture. Known definitions can still be admitted.
+    assert_eq!(first.outcome, Outcome::Refreshed);
+    let selections = ids.map(|id| {
+        library
+            .definition_selection_status_for("official", id)
+            .unwrap()
+    });
+    for (id, selection) in ids.iter().zip(&selections) {
+        assert_eq!(selection.selected.as_ref().unwrap().stable_id, *id);
+        let (effective, _) = library.load_catalog().unwrap();
+        assert!(effective.definition_selection(id).is_some());
+    }
+    let requests = transport.requests.lock().unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|url| request_leaf(url) == Some("timestamp.json"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|url| request_leaf(url)
+                .is_some_and(|leaf| leaf.ends_with(".index.json") || leaf == "index.json"))
+            .count(),
+        1
+    );
+    assert!(
+        !requests
+            .iter()
+            .any(|url| url.path().ends_with("unlisted-scheduled-fixture.json"))
+    );
+    drop(requests);
+
+    let activities = library.activities(10).unwrap().len();
+    let replay = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(replay.outcome, Outcome::Refreshed);
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+    assert_eq!(
+        ids.map(|id| library
+            .definition_selection_status_for("official", id)
+            .unwrap()),
+        selections
+    );
+
+    let original_targets = targets.clone().into_iter().collect::<Vec<_>>();
+    targets.insert(
+        policy::listing_delivery::TARGET.into(),
+        serde_json::to_vec(&serde_json::json!({
+            "listing_delivery_schema": 1,
+            "revision": 1,
+            "withdrawn_ids": [],
+            "directory": {"format_version": 1, "listings": []},
+        }))
+        .unwrap(),
+    );
+    for (index, id) in ids.into_iter().enumerate() {
+        let policy_path = format!("policy/official/{id}.json");
+        let mut document: Value = serde_json::from_slice(&targets[&policy_path]).unwrap();
+        document["policy_revision"] = 2.into();
+        if index == 0 {
+            document["decision"] = serde_json::json!({ "status": "revoked" });
+        } else {
+            document["policy_schema"] = 99.into();
+        }
+        targets.insert(policy_path, serde_json::to_vec(&document).unwrap());
+    }
+    fixture
+        .publish_with_policy(
+            &targets.into_iter().collect::<Vec<_>>(),
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let pending = Arc::new(AtomicUsize::new(0));
+    let transport = ObservedTransport {
+        suspended: Some((
+            RefreshTarget::ListingDirectory,
+            started.clone(),
+            pending.clone(),
+        )),
+        ..Default::default()
+    };
+    let mut check = Box::pin(automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        transport,
+    ));
+    tokio::select! {
+        result = &mut check => panic!("scheduled check skipped stalled listing: {result:?}"),
+        () = started.notified() => {}
+    }
+    assert_eq!(pending.load(Ordering::SeqCst), 1);
+    // The valid scoped revocation is still processed after the listing deadline.
+    tokio::time::pause();
+    tokio::time::advance(std::time::Duration::from_secs(26)).await;
+    let partial = check.await.unwrap();
+    tokio::time::resume();
+    assert_eq!(pending.load(Ordering::SeqCst), 0);
+    assert_eq!(partial.outcome, Outcome::Refreshed);
+    let (effective, _) = library.load_catalog().unwrap();
+    assert!(effective.definition_selection(ids[0]).is_none());
+    assert!(effective.definition_selection(ids[1]).is_some());
+    assert_eq!(
+        library
+            .definition_selection_status_for("official", ids[1])
+            .unwrap()
+            .selected,
+        selections[1].selected,
+    );
+
+    // The second subject still holds the exact old bytes. The accepted
+    // withdrawal for its neighbor advanced shared authority, so their old
+    // snapshot cannot qualify as a successful no-op.
+    fixture
+        .publish_with_policy(
+            &original_targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            original_expiration,
+            Some((&key, 1)),
+        )
+        .await;
+    let stale = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(stale.outcome, Outcome::Unavailable);
+    let (effective, _) = library.load_catalog().unwrap();
+    assert!(effective.definition_selection(ids[0]).is_none());
+    assert!(effective.definition_selection(ids[1]).is_some());
 }

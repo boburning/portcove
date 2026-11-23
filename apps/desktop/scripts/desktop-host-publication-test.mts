@@ -3,13 +3,28 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { mkdir, readFile, writeFile, rename, stat, realpath } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+  rename,
+  stat,
+  realpath,
+} from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { clickVisible, reviewControls, selectCatalogPort } from "./desktop-review-controls.mts";
+import {
+  clickVisible,
+  reviewControls,
+  selectCatalogPort,
+  selectPrimaryNavigation,
+} from "./desktop-review-controls.mts";
+import { executeBrowserScript } from "./browser-script.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -17,6 +32,7 @@ import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 
 interface Context {
+  bundleOnly?: boolean;
   browser: WebDriver;
   output: string;
   library: string;
@@ -76,6 +92,20 @@ export async function assertPublicationImportReadback(
     exportedRelative && !exportedRelative.startsWith("..") && !paths.isAbsolute(exportedRelative),
   );
   assert.ok(samePath(imported, paths.join(importRoot, exportedRelative), paths));
+}
+
+export function checkpointClockReady(marker: Record<string, unknown>, observedAt = Date.now()) {
+  const { entered_unix_ms: entered, deadline_unix_ms: deadline } = marker;
+  assert.ok(
+    typeof entered === "number" && Number.isSafeInteger(entered) && entered >= 0,
+    "Checkpoint entry timestamp is invalid",
+  );
+  assert.ok(
+    typeof deadline === "number" && Number.isSafeInteger(deadline) && deadline > entered,
+    "Checkpoint deadline is invalid",
+  );
+  assert.ok(deadline > observedAt + 30_000, "Checkpoint pause has too little time remaining");
+  return entered <= observedAt;
 }
 
 function journal(library: string, kind: string, portId: string) {
@@ -150,7 +180,7 @@ export async function hostPublicationScenario(context: Context) {
     const markerPath = path.join(controlRoot, `entered-${nonce}.json`);
     const result: Record<string, unknown> = { checkpoint, control, control_sha256: sha256 };
     cases.push(result);
-    async function held(application?: CapturedNativeProcess) {
+    async function readMarker(application?: CapturedNativeProcess) {
       const metadata = await stat(markerPath);
       assert.ok(metadata.isFile() && metadata.size <= 16_384);
       const marker = object(JSON.parse(await readFile(markerPath, "utf8")));
@@ -161,21 +191,24 @@ export async function hostPublicationScenario(context: Context) {
       assert.ok(
         typeof marker.library_root === "string" && samePath(marker.library_root, checkpointRoot),
       );
-      assert.ok(typeof marker.entered_unix_ms === "number" && marker.entered_unix_ms <= Date.now());
-      assert.ok(
-        typeof marker.deadline_unix_ms === "number" &&
-          marker.deadline_unix_ms > Date.now() + 30_000,
-      );
       assert.ok(Number.isSafeInteger(marker.process_id) && Number(marker.process_id) > 0);
       if (application) assert.equal(marker.process_id, application.pid);
+      return marker;
+    }
+    async function held(application?: CapturedNativeProcess) {
+      const marker = await readMarker(application);
+      assert.ok(checkpointClockReady(marker), "Checkpoint entry is ahead of the observer clock");
       result.marker = marker;
       return marker;
     }
     async function wait() {
-      await browser.wait(
+      result.marker = await browser.wait(
         async () => {
           try {
-            return await held();
+            const marker = await readMarker();
+            // Publishers and observers can sample different ticks while the marker first appears.
+            // Use the original wait for the observer to catch up before accepting it.
+            return checkpointClockReady(marker) ? marker : false;
           } catch (error) {
             if ((isRecord(error) && error.code === "ENOENT") || error instanceof SyntaxError)
               return false;
@@ -198,6 +231,290 @@ export async function hostPublicationScenario(context: Context) {
   }
   const assertIdentity = async (identity: Awaited<ReturnType<typeof fileIdentity>>) =>
     assert.deepEqual(await fileIdentity(identity.path), identity);
+  if (context.bundleOnly) {
+    try {
+      const bundle = path.join(output, "interrupted-recovery-bundle");
+      const destination = path.join(output, "interrupted-bundle-restore");
+      const relativeSave = path.join("user", "owned-interruption-progress.bin");
+      const sourceSave = path.join(library, relativeSave);
+      await mkdir(path.dirname(sourceSave), { recursive: true });
+      await writeFile(sourceSave, "owned recovery progress", { flag: "wx" });
+      const save = await fileIdentity(sourceSave);
+      const confirmActiveSource = async () => {
+        const status = transportValue(
+          "desktop_bootstrap_status",
+          success(await invoke("get_bootstrap_status")),
+        );
+        assert.equal(status.ready, true);
+        assert.ok(status.library_root && samePath(status.library_root, library));
+        return transportValue(
+          "library_identity",
+          success(await invoke("get_library_identity", { generation: status.generation })),
+        );
+      };
+      const activeSource = await confirmActiveSource();
+      const storage = async () => {
+        const status = transportValue(
+          "desktop_bootstrap_status",
+          success(await invoke("get_bootstrap_status")),
+        );
+        assert.equal(status.ready, true);
+        assert.ok(status.library_root && samePath(status.library_root, library));
+        await browser.wait(
+          until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+          60_000,
+        );
+        // Startup navigation can mount while the initial workspace reader still
+        // holds a shared lease. Observe the actual Library result before opening Settings.
+        await selectPrimaryNavigation(browser, "Library");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (generation) => {
+                const main = document.querySelector("main[data-workspace-continuity-scope]");
+                const raw = main?.getAttribute("data-workspace-continuity-scope");
+                const scope: unknown = raw ? JSON.parse(raw) : null;
+                return (
+                  Array.isArray(scope) &&
+                  scope[0] === generation &&
+                  scope[1] === "library" &&
+                  Boolean(main?.querySelector("[data-library-port-ids], .empty-state"))
+                );
+              },
+              status.generation,
+            ),
+          60_000,
+          "The exact recovery source Library must finish its first workspace read",
+        );
+        await selectPrimaryNavigation(browser, "Settings");
+        await reviewControls(browser).click(button("Library and storage"));
+      };
+      const click = (label: string) => reviewControls(browser).click(button(label));
+      const field = async (label: string, value: string) => {
+        const name = await browser.findElement(
+          By.xpath(`//*[@role="dialog"]//label[normalize-space(.)="${label}"]`),
+        );
+        const id = await name.getAttribute("for");
+        assert.ok(id);
+        await browser.findElement(By.id(id)).sendKeys(value);
+      };
+      const waitText = async (text: string) => {
+        await browser.wait(
+          async () =>
+            (await browser.findElement(By.css('[role="dialog"]')).getText()).includes(text),
+          60_000,
+          text,
+        );
+      };
+      const creation = await arm("recovery_bundle_copied", library);
+      await storage();
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("Review what Portcove will copy");
+      await click("Copy and verify");
+      await creation.wait();
+      const stages = (await readdir(output, { withFileTypes: true })).filter(
+        (entry) =>
+          entry.isDirectory() && /^\.portcove-recovery-bundle-[a-f0-9-]{36}$/u.test(entry.name),
+      );
+      assert.equal(stages.length, 1);
+      const stage = path.join(output, stages[0]!.name);
+      const creationIntent = await fileIdentity(path.join(stage, "intent.json"));
+      const copiedSave = await fileIdentity(path.join(stage, "payload", "content", relativeSave));
+      assert.equal(copiedSave.sha256, save.sha256);
+      const staysIncomplete = async () => {
+        await assertIdentity(creationIntent);
+        await assertIdentity(copiedSave);
+        await assertIdentity(save);
+        await assert.rejects(access(bundle), { code: "ENOENT" });
+        await assert.rejects(access(path.join(stage, "payload", "portcove-recovery-bundle.json")), {
+          code: "ENOENT",
+        });
+      };
+      await staysIncomplete();
+      browser = await interruptHost(
+        "bundle-creation-copied",
+        async (application) => {
+          await creation.held(application);
+          await staysIncomplete();
+        },
+        async () => {
+          await staysIncomplete();
+          await creation.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      assert.equal(
+        object(await invoke("inspect_library_recovery_bundle", { path: stage })).ok,
+        false,
+      );
+      await storage();
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("An interrupted copy is waiting for this bundle folder.");
+      await waitText(path.basename(stage));
+      await staysIncomplete();
+      await capture("interrupted-bundle-creation-rediscovered");
+      const publication = await arm("recovery_bundle_published", library);
+      await reviewControls(browser).click(
+        By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle creation"]'),
+      );
+      await publication.wait();
+      const publishedManifest = await fileIdentity(
+        path.join(bundle, "portcove-recovery-bundle.json"),
+      );
+      const publishedSave = await fileIdentity(path.join(bundle, "content", relativeSave));
+      assert.equal(publishedSave.sha256, save.sha256);
+      const staysPublished = async () => {
+        await assertIdentity(creationIntent);
+        await assertIdentity(publishedManifest);
+        await assertIdentity(publishedSave);
+        await assertIdentity(save);
+        await assert.rejects(access(path.join(stage, "payload")), { code: "ENOENT" });
+      };
+      browser = await interruptHost(
+        "bundle-creation-published",
+        async (application) => {
+          await publication.held(application);
+          await staysPublished();
+        },
+        async () => {
+          await staysPublished();
+          await publication.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      await storage();
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("A previous copy was published to this folder.");
+      await staysPublished();
+      await click("Verify published bundle");
+      await waitText("Bundle verified");
+      await capture("interrupted-bundle-creation-resumed");
+      const verified = transportValue(
+        "library_recovery_bundle",
+        success(await invoke("inspect_library_recovery_bundle", { path: bundle })),
+      );
+      assert.equal(verified.source_library_id, activeSource.id);
+      await staysPublished();
+      const bundleIdentity = publishedManifest;
+      publication.result.readback = { publishedManifest, publishedSave, verified };
+      assert.equal(
+        (await fileIdentity(path.join(bundle, "content", relativeSave))).sha256,
+        save.sha256,
+      );
+      creation.result.resumed = { stage, creationIntent, copiedSave, verified };
+      await click("Close");
+      await browser.wait(
+        async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+        60_000,
+      );
+
+      // A new, empty owned destination gives the checkpoint a canonical root.
+      await mkdir(destination);
+      const copying = await arm("recovery_bundle_restore_copying", destination);
+      await storage();
+      await click("Inspect or restore a bundle");
+      await field("Recovery bundle folder", bundle);
+      await click("Verify bundle");
+      await waitText("Bundle verified");
+      await field("Restore destination", destination);
+      await click("Review restore");
+      await waitText("Review the restore destination");
+      await click("Restore library");
+      await copying.wait();
+      const journalPath = path.join(destination, ".portcove-import.json");
+      const journal = object(JSON.parse(await readFile(journalPath, "utf8")));
+      assert.equal(journal.schema_version, 2);
+      assert.equal(journal.phase, "copying");
+      assert.equal(object(journal.bundle).receipt_sha256, verified.receipt_sha256);
+      const transfer = await fileIdentity(journalPath);
+      const preserved = async () => {
+        await assertIdentity(transfer);
+        await assertIdentity(bundleIdentity);
+        await assertIdentity(save);
+        await assert.rejects(access(path.join(destination, relativeSave)), { code: "ENOENT" });
+      };
+      await preserved();
+      browser = await interruptHost(
+        "bundle-restore-copying",
+        async (application) => {
+          await copying.held(application);
+          await preserved();
+        },
+        async () => {
+          await preserved();
+          await copying.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      const reviewRecoveredDestination = async () => {
+        await storage();
+        await click("Inspect or restore a bundle");
+        await field("Recovery bundle folder", bundle);
+        await click("Verify bundle");
+        await waitText("Bundle verified");
+        await field("Restore destination", destination);
+        await click("Review restore");
+      };
+      await reviewRecoveredDestination();
+      await waitText("An interrupted restore is waiting in this folder.");
+      await preserved();
+      await capture("interrupted-bundle-restore-rediscovered");
+      await reviewControls(browser).click(
+        By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle restore"]'),
+      );
+      await waitText("Library restored");
+      await capture("interrupted-bundle-restore-resumed");
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      const restored = await fileIdentity(path.join(destination, relativeSave));
+      assert.equal(restored.sha256, save.sha256);
+      const archived = object(
+        JSON.parse(
+          await readFile(path.join(destination, "recovery", "library-import.json"), "utf8"),
+        ),
+      );
+      assert.equal(archived.phase, "complete");
+      assert.equal(archived.transfer_id, journal.transfer_id);
+      await assertIdentity(save);
+      await assertIdentity(bundleIdentity);
+      const archivedIdentity = await fileIdentity(
+        path.join(destination, "recovery", "library-import.json"),
+      );
+      await click("Close");
+      await browser.wait(
+        async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+        60_000,
+      );
+      await reviewRecoveredDestination();
+      await waitText("This bundle was restored to this folder.");
+      await click("Check restored library");
+      await waitText("Library restored");
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      await assertIdentity(archivedIdentity);
+      await assertIdentity(restored);
+      await assertIdentity(save);
+      await assertIdentity(bundleIdentity);
+      await capture("interrupted-bundle-restore-readback");
+      copying.result.resumed = { transfer, archived, restored };
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "recovery-bundle-interruption.json");
+      await writeFile(file, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(file);
+    }
+    return;
+  }
   const archive = await fileIdentity(fixture.artifactPath);
   try {
     for (const [port, checkpoint, phase] of [

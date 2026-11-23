@@ -3,11 +3,11 @@
   "listing": {
     "id": "super-mario-odyssey-smo-recomp",
     "name": "Super Mario Odyssey (smo-recomp)",
-    "summary": "An early Super Mario Odyssey port translating AArch64 code to C in a game DLL with a native Windows Vulkan player. It claims no interpreter/JIT or running firmware. Scripted Cap Kingdom and short stress tests are separate from manual Cap-to-Cascade checkpoint play. Some observations concern 1.0.0 rather than 1.4.1; update additions are untested, and online play is unavailable. There are no releases: local preparation uses LLVM 9, VS2019 SDK, Vulkan SDK, SDL3 and Python. Windows 10/11 x64 needs Vulkan 1.3 and the documented extensions; development used RTX 4090. Supply your own decrypted 1.4.1 updated program, merged RomFS and update control data. Keys and firmware are explicitly unnecessary for that extracted route; exact region/build hashes and other desktops are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build this Windows port of Super Mario Odyssey from your own extracted 1.4.1 Switch game. The project reports manual play from Cap Kingdom to a Cascade Kingdom checkpoint. Some tests used 1.0.0, and the additions in 1.4.1 remain untested.",
     "original_game_title": "Super Mario Odyssey",
     "project_url": "https://github.com/Coz-0/smo-recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Coz-0/smo-recomp",
     "artwork": {
@@ -18,7 +18,42 @@
       "game_slug": "super-mario-odyssey",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2944
+    "issue_number": 2944,
+    "manual_setup": {
+      "help_url": "https://github.com/Coz-0/smo-recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Supply your decrypted, updated 1.4.1 program, complete merged RomFS and update control data. This extracted-file route requires no separate keys or firmware."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build the Windows x64 Vulkan player from source using LLVM 9, the VS2019 SDK, the Vulkan SDK, SDL3 and Python. Use Windows 10 or 11 with Vulkan 1.3 and the extensions listed by the project."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The development system used an RTX 4090. The project offers no release package, online play or confirmed route on another desktop OS."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-odyssey",
+      "evidence_urls": ["https://github.com/Coz-0/smo-recomp"],
+      "source_editions": [
+        {
+          "id": "super-mario-odyssey-nintendo-switch",
+          "title": "Super Mario Odyssey (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Coz-0/smo-recomp/blob/0414341471307605b8cb5d0c1a9928db5fe84e07/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

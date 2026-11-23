@@ -4,6 +4,14 @@
     "id": "drakengard-recomp-boubou666-drakengard",
     "name": "Drakengard — Drakengard_Recomp (boubou666)",
     "original_game_title": "Drakengard",
+    "artwork": {
+      "game_id": 11635,
+      "cover_id": 200193,
+      "image_id": "co4agx",
+      "image_sha256": "d00597cc082e76a67df129f4f38f1dda8e0fb3f9c914692bea9572b36ce78eee",
+      "game_slug": "drakengard",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental Drakengard source project. Upstream reports title/menu screens and a New Game path, but explicitly says it is not playable. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/boubou666/Drakengard_Recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/boubou666/Drakengard_Recomp"
     },
-    "issue_number": 3057
+    "issue_number": 3057,
+    "original_game": {
+      "format_version": 1,
+      "id": "drakengard",
+      "evidence_urls": ["https://github.com/boubou666/Drakengard_Recomp"],
+      "source_editions": [
+        {
+          "id": "drakengard-playstation-2",
+          "title": "Drakengard (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/boubou666/Drakengard_Recomp/blob/d8cdbcb80809ca39ef1cdcfb0dcdc69bdeed04d8/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

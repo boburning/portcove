@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "josiahg2502-glitch-newsuperpaperbros",
+    "artwork": {
+      "game_id": 2191,
+      "cover_id": 526324,
+      "image_id": "coba44",
+      "image_sha256": "d1bfd5538cf045c99228595c72a8bd73d224c9fb392bbe5f02a678185ef1d170",
+      "game_slug": "super-paper-mario",
+      "match_kind": "underlying-game"
+    },
     "name": "Super Paper Mario (New Super Paper Bros.)",
     "summary": "An experimental Super Paper Mario port with project-reported gameplay and enhancements. Windows 10/11 x64 uses Direct3D 12/Vulkan; new Linux 64-bit support needs glibc 2.35+ and Vulkan. Screenshot names do not establish macOS support. Use your own supported Wii disc and follow the project’s setup. Its source packager expects an HQ-music mod locally; that optional content is separate from engine requirements. You and the project manage installation and version changes. Exact original revision/hashes, BIOS/firmware needs and full platform/gameplay coverage are unconfirmed, and release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Super Paper Mario",
     "project_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
     "issue_number": 2772,
@@ -28,13 +36,31 @@
         }
       ],
       "warnings": [
-        "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. No rights to game assets follow from a framework license. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance.",
+        "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. The reviewed v1.0.8 ZIP contains optional music with unresolved provenance. Use a prepared copy whose contents you are permitted to use. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance.",
         "Preserve old Play/UserData layouts and any upstream import backups if present; registration does not migrate, merge or certify console/Dolphin save compatibility."
       ],
       "references": [
         {
           "title": "Preserve disc-specific saves and settings",
           "instruction": "Keep the whole release folder, Disc/DATA, engine/UserData/Config.toml, engine/UserData/NAND, engine/UserData/Saves, mods, texture replacements, caches and any created logs. The first played disc owns the main NAND; other disc copies use keyed save subfolders, and USA and Europe have different Wii title IDs. Use the creating launcher’s Open saves folder to identify the actual save. Preserve old Play/UserData layouts and any upstream import backups if present; registration does not migrate, merge or certify console/Dolphin save compatibility."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-paper-mario",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
+        "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-paper-mario-wii",
+          "title": "Super Paper Mario (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
+          ]
         }
       ]
     }

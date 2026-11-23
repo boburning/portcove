@@ -24,13 +24,11 @@ pub(crate) const UNKNOWN_FILES_DIRECTORY: &str = "unknown-files";
 pub(crate) const MAX_UNKNOWN_FILES: usize = 1_024;
 pub(crate) const MAX_UNKNOWN_FILE_BYTES: u64 = 16 * 1024 * 1024;
 pub(crate) const MAX_UNKNOWN_TOTAL_BYTES: u64 = 64 * 1024 * 1024;
-/// Free space kept after copying, as for Tier 2 carries: the larger of this
-/// and a fiftieth of the volume.
-pub(crate) const UNKNOWN_FILES_RESERVE_BYTES: u64 = 1024 * 1024 * 1024;
-
-/// The bytes that must be free to copy `bytes`, or `None` when they fit.
+/// The bytes that must be free to copy `bytes`, or `None` when they fit. The
+/// reserve kept afterwards is the Tier 2 carry reserve,
+/// `crate::carry_step::reserve_bytes`.
 pub(crate) fn space_shortfall(bytes: u64, available: u64, total: u64) -> Option<u64> {
-    let required = bytes.saturating_add(UNKNOWN_FILES_RESERVE_BYTES.max(total / 50));
+    let required = bytes.saturating_add(crate::carry_step::reserve_bytes(total));
     (required > available).then_some(required)
 }
 
@@ -756,15 +754,22 @@ mod tests {
     #[test]
     fn space_check_keeps_the_larger_reserve_free() {
         let gib = 1024 * 1024 * 1024;
-        // A 10 GiB volume keeps 1 GiB free; a 500 GiB volume keeps 10 GiB.
+        // A 10 GiB volume keeps 1 GiB free; a 300 GiB volume keeps its 2% (6 GiB).
         assert_eq!(space_shortfall(gib, 2 * gib, 10 * gib), None);
         assert_eq!(
             space_shortfall(gib + 1, 2 * gib, 10 * gib),
             Some(2 * gib + 1)
         );
-        assert_eq!(space_shortfall(gib, 11 * gib, 500 * gib), None);
-        assert_eq!(space_shortfall(gib, 10 * gib, 500 * gib), Some(11 * gib));
+        assert_eq!(space_shortfall(gib, 7 * gib, 300 * gib), None);
+        assert_eq!(space_shortfall(gib, 6 * gib, 300 * gib), Some(7 * gib));
         assert_eq!(space_shortfall(u64::MAX, u64::MAX - 1, 0), Some(u64::MAX));
+        // The reserve stops growing at 8 GiB: a small backup fits on a 10 TiB
+        // volume with 9 GiB free, which the uncapped 2% (205 GiB) refused.
+        assert_eq!(space_shortfall(gib, 9 * gib, 10 * 1024 * gib), None);
+        assert_eq!(
+            space_shortfall(gib, 8 * gib, 10 * 1024 * gib),
+            Some(9 * gib)
+        );
         let temporary = tempfile::tempdir().unwrap();
         let mut huge = installation(temporary.path(), "install-a", &[("replay.dat", b"x")]);
         require_space(temporary.path(), &huge, 0).unwrap();

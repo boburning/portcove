@@ -10,7 +10,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports#using-a-release-launcher",
-    "download_block_reason": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+        "tracking_issue": 6005
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
@@ -30,6 +39,48 @@
         "Upstream testing varies by title and platform. Check the notes for the package you choose."
       ],
       "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
-    }
+    },
+    "collection_covers": [
+      {
+        "game_id": 2626,
+        "cover_id": 123757,
+        "image_id": "co2nhp",
+        "image_sha256": "17ffbbf892889f90f17cfaa50f67d03cd57f79f856b895555ba9fb8c6a607b92",
+        "game_slug": "burnout-revenge",
+        "match_kind": "underlying-game"
+      },
+      {
+        "game_id": 201644,
+        "cover_id": 294814,
+        "image_id": "co6bha",
+        "image_sha256": "256235d63a2dd949cd655e0b28d59f000e2f52f048107669f8cb0e7259d4939d",
+        "game_slug": "banjo-kazooie--1",
+        "match_kind": "underlying-game"
+      },
+      {
+        "game_id": 15756,
+        "cover_id": 288708,
+        "image_id": "co66ro",
+        "image_sha256": "7b8b36781520e5bd98d507f2db8fae975b07fd34ae5d78ce921800d8bc1411d5",
+        "game_slug": "geometry-wars-retro-evolved",
+        "match_kind": "underlying-game"
+      },
+      {
+        "game_id": 84308,
+        "cover_id": 133079,
+        "image_id": "co2uon",
+        "image_sha256": "4f9137fedf281cd967f35616a9d94263c3235fd843bd797293825c057c4d44ea",
+        "game_slug": "rez-hd",
+        "match_kind": "underlying-game"
+      }
+    ]
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The collection publishes title-specific launchers for multiple Xbox360 games; each selected bundle has its own SOURCE.txt original identity. This umbrella record has no one original-game scope.",
+    "evidence_urls": [
+      "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases",
+      "https://github.com/CrownParkComputing/Xbox360-Native-Ports"
+    ]
   }
 }

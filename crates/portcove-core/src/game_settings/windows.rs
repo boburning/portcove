@@ -16,10 +16,11 @@ use std::{
 };
 
 use windows_sys::Win32::Storage::FileSystem::{
-    DELETE, FILE_ATTRIBUTE_REPARSE_POINT, FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_ID_INFO,
-    FILE_RENAME_INFO, FILE_SHARE_READ, FILE_SHARE_WRITE, FileDispositionInfo, FileIdInfo,
-    FileRenameInfo, GetFileInformationByHandleEx, SetFileInformationByHandle, WRITE_DAC,
+    DELETE, FILE_ATTRIBUTE_REPARSE_POINT, FILE_BASIC_INFO, FILE_DISPOSITION_INFO,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ,
+    FILE_GENERIC_WRITE, FILE_ID_INFO, FILE_RENAME_INFO, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    FileBasicInfo, FileDispositionInfo, FileIdInfo, FileRenameInfo, GetFileInformationByHandleEx,
+    SetFileInformationByHandle, WRITE_DAC,
 };
 
 use crate::{PortcoveError, Result};
@@ -134,6 +135,63 @@ fn pin_parents(parent: &Path) -> Result<Vec<File>> {
         held.push(file);
     }
     Ok(held)
+}
+
+/// Pin the parent directories while checking a vacant player coordinate.
+/// External applications can still create children. Callers recheck the
+/// vacancy at each commit boundary and never mutate this pathname.
+pub(crate) struct HeldAbsence {
+    pub(crate) path: PathBuf,
+    pub(crate) parent_identity: String,
+    parents: Vec<File>,
+}
+
+impl HeldAbsence {
+    pub(crate) fn open(path: &Path) -> Result<Self> {
+        validate_local_path(path)?;
+        let parent = path.parent().ok_or_else(changed)?;
+        let parents = pin_parents(parent)?;
+        let parent_identity = physical_identity(parents.last().ok_or_else(changed)?)?;
+        let held = Self {
+            path: path.to_path_buf(),
+            parent_identity,
+            parents,
+        };
+        held.confirm()?;
+        Ok(held)
+    }
+
+    pub(crate) fn confirm(&self) -> Result<()> {
+        let parent = self.path.parent().ok_or_else(changed)?;
+        let name = self
+            .path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(changed)?;
+        crate::persistence::require_absent_path(parent, name)
+    }
+
+    pub(crate) fn change_time(&self) -> Result<i64> {
+        let mut information = FILE_BASIC_INFO::default();
+        let parent = self.parents.last().ok_or_else(changed)?;
+        // SAFETY: the live borrowed directory handle and initialized buffer
+        // satisfy FileBasicInfo for this synchronous call.
+        if unsafe {
+            GetFileInformationByHandleEx(
+                parent.as_raw_handle() as _,
+                FileBasicInfo,
+                std::ptr::from_mut(&mut information).cast(),
+                size_of::<FILE_BASIC_INFO>() as u32,
+            )
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if information.ChangeTime <= 0 {
+            return Err(changed());
+        }
+        Ok(information.ChangeTime)
+    }
 }
 
 pub(crate) struct HeldFile {

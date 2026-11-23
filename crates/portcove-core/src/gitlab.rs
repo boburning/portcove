@@ -13,11 +13,11 @@ use tokio::sync::RwLock;
 mod catalog_download;
 
 use crate::{
-    Library, Platform, PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel,
-    ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    ExactReleaseSelection, Library, Platform, PortDefinition, PortcoveError, ReleaseAsset,
+    ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
     library::HttpCacheEntry,
     release::{
-        PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
+        ExactReleaseQuery, PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
         RELEASE_CACHE_MAX_ENTRIES, ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
     },
 };
@@ -515,6 +515,36 @@ impl GitlabReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for GitlabReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        let query = ExactReleaseQuery::Review(version);
+        query.require_route(port, channel, platform, ReleaseSource::Gitlab, scope)?;
+        self.resolve_exact_bounded(port, channel, platform, query)
+            .await
+            .map(|(_, pin)| pin)
+    }
+
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        pin.require_context(port, channel, platform, scope)?;
+        let (selected, _) = self
+            .resolve_exact_bounded(port, channel, platform, ExactReleaseQuery::Saved(pin))
+            .await?;
+        crate::ScopedResolvedRelease::legacy(selected).for_selection(port, platform, channel)
+    }
+
     async fn resolve(
         &self,
         port: &PortDefinition,
@@ -654,6 +684,17 @@ struct GitlabProject {
     archived: Option<bool>,
 }
 
+#[derive(Deserialize)]
+struct GitlabTag {
+    name: String,
+    commit: GitlabCommit,
+}
+
+#[derive(Deserialize)]
+struct GitlabCommit {
+    id: String,
+}
+
 #[derive(Debug, Deserialize)]
 struct GitlabRelease {
     tag_name: String,
@@ -718,7 +759,10 @@ fn choose_link<'a>(
         .iter()
         .filter_map(|link| {
             let name = link.name.to_ascii_lowercase();
-            if link.link_type != "package" || conflicts_with_platform(&name, platform) {
+            if link.link_type != "package"
+                || crate::service::package_selection::is_server_package(&name)
+                || conflicts_with_platform(&name, platform)
+            {
                 return None;
             }
             if port.n64_runtime_at_executable_parent {
@@ -957,6 +1001,11 @@ fn resolve_observed_asset(
                 .unwrap_or_else(|| link.url.clone()),
         )
     };
+    if crate::service::package_selection::is_server_package(&name) {
+        return Err(PortcoveError::verification(
+            "GitLab package filename identifies a dedicated server",
+        ));
+    }
     if port.n64_runtime_at_executable_parent
         && native_archive_score(
             &name.to_ascii_lowercase(),

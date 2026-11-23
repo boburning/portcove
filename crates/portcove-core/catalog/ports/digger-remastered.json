@@ -1,0 +1,84 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "digger-remastered",
+    "name": "Digger Remastered",
+    "original_game_title": "Digger",
+    "summary": "Collect emeralds, dig tunnels, and evade monsters in this standalone SDL remake of Digger.",
+    "project_url": "https://github.com/sobomax/digger",
+    "artwork": {
+      "game_id": 24425,
+      "cover_id": 368555,
+      "image_id": "co7wdn",
+      "image_sha256": "b65c075bbeab1a3cc7485d6b6de29b82fe645ef9b5c47943919fd2455f442f53",
+      "game_slug": "digger",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 6740,
+    "listed_at": "2026-11-17",
+    "availability": "packages",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "release_url": "https://github.com/sobomax/digger/releases/tag/v0.5",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the Windows x64 portable copy",
+          "instruction": "Extract digger-win64.zip to a writable folder. Start digger.exe with SDL2.dll and zlib1.dll beside it. The release already includes the game."
+        },
+        {
+          "title": "Install on Debian or Ubuntu x64",
+          "instruction": "On the release page, choose the ZIP named for your distribution and version. Extract it and install the ordinary digger amd64 DEB with your distro package manager. Start digger from a terminal."
+        },
+        {
+          "title": "Install on Apple Silicon",
+          "instruction": "The upstream 1.3 MB digger-macos.pkg contains an Apple Silicon player for macOS 26 or later. It installs into /usr/local. After installing, run /usr/local/bin/digger from a terminal."
+        },
+        {
+          "title": "Keep scores, settings and recordings",
+          "instruction": "Close Digger before copying its files. In a Windows portable copy, keep DIGGER.INI, DIGGER.SCO, DIGGER.FRD and DIGGER.DRF when present. Linux and Mac keep .digger.rc, .digger.sco and .digger.frd in your home folder. Copy any named recordings and custom levels from the folder where you saved them."
+        }
+      ],
+      "references": [
+        {
+          "title": "Use the source or browser edition",
+          "instruction": "The upstream release provides source for local SDL builds. The project README also links the browser edition. The inspected Mac installer contains only Apple Silicon code, and this release supplies no Linux ARM64 or native Android package."
+        }
+      ],
+      "help_url": "https://github.com/sobomax/digger/releases/tag/v0.5",
+      "warnings": [
+        "The upstream game includes the Digger soundtrack. Use a copy you already have permission to use, and keep your scores and recordings before replacing it."
+      ]
+    },
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "The package includes gameplay music whose source and permissions still need review. Use a copy you already have permission to use.",
+        "tracking_issue": 6740
+      }
+    ],
+    "original_game": {
+      "format_version": 1,
+      "id": "digger",
+      "evidence_urls": [
+        "https://github.com/sobomax/digger/releases/tag/v0.5",
+        "https://github.com/sobomax/digger"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "digger-remastered",
+    "origin": {
+      "project_url": "https://github.com/sobomax/digger",
+      "repository": {
+        "host": "github.com",
+        "id": "21509409"
+      }
+    },
+    "decisions": []
+  }
+}

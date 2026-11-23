@@ -6,12 +6,29 @@
     "original_game_title": "Bips, Bips Gold, and Bips Platinum",
     "summary": "Play box-pushing puzzles from three Bips games and create your own levels in the bundled editor.",
     "project_url": "https://github.com/joyrider3774/blips",
+    "artwork": {
+      "game_id": 320157,
+      "cover_id": 417823,
+      "image_id": "co8ye7",
+      "image_sha256": "2a1a04c544b979bca4cafda2910b0f3b92ed6ef5148a71216ee659d18844d973",
+      "game_slug": "blips",
+      "match_kind": "port"
+    },
     "issue_number": 6132,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
-    "download_block_reason": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+        "tracking_issue": 6132
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
       "steps": [
@@ -34,5 +51,13 @@
         }
       ]
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "Authored scope names Bips, BipsGold and BipsPlatinum. Preserve the multi-game series scope rather than assigning one of those originals.",
+    "evidence_urls": [
+      "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
+      "https://github.com/joyrider3774/blips"
+    ]
   }
 }

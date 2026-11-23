@@ -1,9 +1,16 @@
+import {
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+} from "./discover-test-helpers";
 import { captureParityState } from "../../test/parity-capture";
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
+import { navigationScope } from "../focus";
 import { PortBrowser } from "../components/PortBrowser";
 import { desktopApi } from "../api";
 import { artworkState } from "../test-fixtures";
@@ -11,6 +18,8 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { collectionLayoutKey } from "../features/browsing/use-collection-layout";
 import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
+import { browserFixture } from "../../test/browser-fixture";
+import { THEME_STORAGE_KEY } from "../theme";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -24,7 +33,7 @@ afterEach(async () => {
   document.querySelector("#collection-spacing")?.remove();
 });
 
-async function mount(theme: string) {
+async function mount(theme: string, container?: HTMLElement) {
   transport = installInteractiveTransport("collection", (message) => {
     throw new Error(message);
   });
@@ -34,10 +43,126 @@ async function mount(theme: string) {
     <LocalizationProvider api={desktopApi}>
       <App />
     </LocalizationProvider>,
+    container ? { container } : {},
   );
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
 }
+
+it.each([0, 12])(
+  "omits an unloaded Library badge and then shows the actual %i count",
+  async (count) => {
+    const owner = browserFixture({ viewport: true, attributes: ["data-theme"] });
+    let release!: () => void;
+    const initialRead = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalSnapshot = desktopApi.workspaceSnapshot;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async (generation) => {
+      const snapshot = await originalSnapshot(generation);
+      await initialRead;
+      return { ...snapshot, statuses: snapshot.statuses.slice(0, count) };
+    });
+    const container = document.createElement("div");
+    container.id = "root";
+    document.body.append(container);
+    try {
+      localStorage.clear();
+      localStorage.setItem(THEME_STORAGE_KEY, "light");
+      await page.viewport(960, 640);
+      transport = installInteractiveTransport("collection", (message) => {
+        throw new Error(message);
+      });
+      initializeLocalization(["en"]);
+      document.documentElement.dataset.theme = "light";
+      await render(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+        { container },
+      );
+      await expect
+        .poll(() => document.querySelector('[data-navigation-destination="library"]'))
+        .not.toBeNull();
+      const library = document.querySelector<HTMLButtonElement>(
+        '[data-navigation-destination="library"]',
+      )!;
+      await expect.element(library).toBeVisible();
+      await expect
+        .element(page.getByText("Loading your port library", { exact: true }))
+        .toBeVisible();
+      expect(library.querySelector("b")).toBeNull();
+      expect(library.textContent).toContain("Library");
+      await captureParityState(`library-unloaded-count-${count}`);
+      release();
+      await expect
+        .poll(() => library.querySelector("b")?.getAttribute("aria-label"))
+        .toBe(`${count} in library`);
+      expect(library.querySelector("b")?.textContent).toBe(String(count));
+      await expect
+        .element(page.getByText("Loading your port library", { exact: true }))
+        .not.toBeInTheDocument();
+    } finally {
+      release();
+      await cleanup();
+      container.remove();
+      await owner.dispose();
+    }
+  },
+);
+
+it("retains the loaded Library count during authoritative workspace refresh", async () => {
+  const owner = browserFixture({ viewport: true, attributes: ["data-theme"] });
+  const container = document.createElement("div");
+  container.id = "root";
+  document.body.append(container);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let readback: ReturnType<typeof desktopApi.workspaceSnapshot> | undefined;
+  try {
+    localStorage.clear();
+    localStorage.setItem(THEME_STORAGE_KEY, "light");
+    await page.viewport(960, 640);
+    await mount("light", container);
+    const originalSnapshot = desktopApi.workspaceSnapshot;
+    const snapshot = vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation((generation) => {
+      readback = (async () => {
+        const result = await originalSnapshot(generation);
+        await pending;
+        return result;
+      })();
+      return readback;
+    });
+    const launch = vi.spyOn(desktopApi, "launch").mockResolvedValue({
+      processId: null,
+      sessionId: "fixture-library-count-readback",
+    });
+    const play = [
+      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
+    ].find((button) => button.textContent?.trim() === "Play")!;
+    play.scrollIntoView({ block: "center" });
+    await userEvent.click(play);
+    await expect.poll(() => snapshot.mock.calls.length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-navigation-destination="library"] b')?.textContent).toBe(
+      "12",
+    );
+    await expect
+      .element(page.getByText("Loading your port library", { exact: true }))
+      .not.toBeInTheDocument();
+    expect(launch).toHaveBeenCalledOnce();
+    await captureParityState("library-refresh-retained-count");
+  } finally {
+    release();
+    await readback;
+    await cleanup();
+    container.remove();
+    await owner.dispose();
+  }
+});
 
 it.each(["Covers", "Compact rows"])(
   "keeps the %s launch origin focused while the same-target operation settles",
@@ -51,10 +176,14 @@ it.each(["Covers", "Compact rows"])(
         finish = resolve;
       }),
     );
-    const play = [
-      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
-    ].find((button) => button.textContent?.trim() === "Play")!;
+    let play = [...document.querySelectorAll<HTMLButtonElement>(".collection-actions button")].find(
+      (button) => button.textContent?.trim() === "Play",
+    )!;
     expect(play).toBeDefined();
+    const origin = play.dataset.detailOrigin!;
+    expect(origin).toMatch(/^library:card:collection-\d+:play$/u);
+    const currentPlay = () =>
+      document.querySelector<HTMLButtonElement>(`[data-detail-origin="${CSS.escape(origin)}"]`);
     play.scrollIntoView({ block: "center" });
     play.focus({ preventScroll: true });
     play.click();
@@ -75,8 +204,14 @@ it.each(["Covers", "Compact rows"])(
     await captureParityState(`library-launch-pending-${layout === "Covers" ? "covers" : "rows"}`);
     finish({ processId: null, sessionId: "fixture-return-focus" });
     await expect
-      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
-      .toBe(false);
+      .poll(() => {
+        const current = currentPlay();
+        return Boolean(
+          current && !current.disabled && current.getAttribute("aria-disabled") !== "true",
+        );
+      })
+      .toBe(true);
+    play = currentPlay()!;
     expect(play.isConnected).toBe(true);
     expect(document.activeElement).toBe(play);
     let finishAgain!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
@@ -91,7 +226,14 @@ it.each(["Covers", "Compact rows"])(
     const search = document.querySelector<HTMLInputElement>("#port-search")!;
     search.focus({ preventScroll: true });
     finishAgain({ processId: null, sessionId: "fixture-return-after-navigation" });
-    await expect.poll(() => play.getAttribute("aria-disabled")).not.toBe("true");
+    await expect
+      .poll(() => {
+        const current = currentPlay();
+        return Boolean(
+          current && !current.disabled && current.getAttribute("aria-disabled") !== "true",
+        );
+      })
+      .toBe(true);
     expect(document.activeElement).toBe(search);
   },
 );
@@ -116,6 +258,7 @@ it.each([
           view="library"
           ports={[]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -156,6 +299,7 @@ it.each([
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}
@@ -195,13 +339,19 @@ it("retains a session-only layout through the real details unmount and return", 
   await expect
     .element(page.getByRole("button", { name: "Compact rows", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
-  expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
-  expect(document.body.textContent).toContain(
-    "This collection view is available for this session; it could not be saved.",
+  expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+    "12",
   );
+  // The inventory helper navigates the virtual rows. Check the detail return first.
   await expect
     .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
     .toBe("collection-0");
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
+  );
+  expect(document.body.textContent).toContain(
+    "This collection view is available for this session; it could not be saved.",
+  );
   await captureParityState("library-session-only-layout");
 });
 
@@ -222,7 +372,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
-      "12 in your library",
+      "12 ports in your library",
     );
     const entryFor = (index: number) =>
       entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;
@@ -278,8 +428,10 @@ for (const theme of ["dark", "light"]) {
     for (const image of document.querySelectorAll(".collection-art img"))
       expect(getComputedStyle(image).objectFit).toBe("contain");
     expect(entryFor(3).textContent).toContain("Update saved for later");
+    await mountLibraryPort("collection-3");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
+    await mountLibraryPort("collection-4");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
     // Stable is kept here only because it differs from the selected channel.
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
@@ -304,8 +456,15 @@ for (const theme of ["dark", "light"]) {
     }
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
-    expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
+    expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+      "12",
+    );
+    await inspectLibraryGroups(
+      [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
+    );
+    await mountLibraryPort("collection-3");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
+    await mountLibraryPort("collection-4");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
@@ -466,12 +625,19 @@ it.each(["dark", "light"])(
     await page.viewport(390, 844);
     await mount(theme);
     const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
-    if (navigation.query()) await navigation.click();
+    await navigation.click();
     await page.getByRole("button", { name: "Discover", exact: true }).click();
-    await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(12);
-    const cards = [...document.querySelectorAll<HTMLElement>(".discover-game")];
-    for (const card of cards) {
-      const left = card.getBoundingClientRect().left;
+    // Let the narrow navigation dialog finish its normal focus return before a
+    // new collection operation takes ownership of the workspace.
+    await expect.poll(() => navigationScope()).toBe(document);
+    await expect.element(navigation).toHaveFocus();
+    const order = [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]);
+    await inspectDiscoverGroups(order, (card) => {
+      const surface = getComputedStyle(card);
+      const left =
+        card.getBoundingClientRect().left +
+        parseFloat(surface.borderLeftWidth) +
+        parseFloat(surface.paddingLeft);
       for (const selector of [
         ".collection-art",
         ".collection-title",
@@ -484,9 +650,9 @@ it.each(["dark", "light"])(
           Math.abs(card.querySelector(selector)!.getBoundingClientRect().left - left),
         ).toBeLessThanOrEqual(1.5);
       expect(card.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth + 1);
-    }
+    });
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-    const first = cards[0]!;
+    const first = await mountDiscoverPort("collection-2");
     await userEvent.click(
       first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!,
     );
@@ -514,6 +680,7 @@ it("opens details from a plain fact inside a narrow row's details outline", asyn
   });
   await mount("dark");
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  await mountLibraryPort("collection-0");
   const identity = document.querySelector<HTMLButtonElement>(
     '.collection-row [data-detail-game-id="collection-0"]',
   )!;

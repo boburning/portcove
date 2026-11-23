@@ -48,6 +48,27 @@
       "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
       "game_slug": "ape-escape",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": [
+        "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/README.md",
+        "https://github.com/nvd123-YT/ApeEscapeRecompiled",
+        "https://api.github.com/repositories/1421330677",
+        "https://api.github.com/users/NVDEMU",
+        "https://api.github.com/repos/NVDEMU/ApeEscapeRecomp-MacWindowsLinux"
+      ],
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/b0c56c5b989a8b3412c51b14a95aecc76563de90/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

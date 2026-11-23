@@ -71,20 +71,22 @@ export function ImplementationChoice({
           })();
         }}
       >
-        {/* The project name is an exact value, never interpolated. */}
-        {selected ? (
-          <Trans
-            t={t}
-            i18nKey="implementation.preferred"
-            components={{ name: <bdi>{projectName}</bdi> }}
-          />
-        ) : (
-          <Trans
-            t={t}
-            i18nKey="implementation.choose"
-            components={{ name: <bdi>{projectName}</bdi> }}
-          />
-        )}
+        <span className="min-w-0 text-start">
+          {/* The project name is an exact value, never interpolated. */}
+          {selected ? (
+            <Trans
+              t={t}
+              i18nKey="implementation.preferred"
+              components={{ name: <bdi>{projectName}</bdi> }}
+            />
+          ) : (
+            <Trans
+              t={t}
+              i18nKey="implementation.choose"
+              components={{ name: <bdi>{projectName}</bdi> }}
+            />
+          )}
+        </span>
       </Button>
       {failed && <p role="alert">{t("implementation.unconfirmed")}</p>}
       {(failed || organization?.failure === "read") && organization && (

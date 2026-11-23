@@ -41,17 +41,27 @@
     "open": "Restaurar desde una copia de la biblioteca",
     "plan": "Plan de restauración de la biblioteca",
     "recovery": {
+      "bundleIntro": "Termina de comprobar y restaurar el paquete antes de abrir la biblioteca.",
+      "bundleRestored": "La biblioteca se ha restaurado. Ábrela cuando estés listo.",
+      "bundleResume": "Reanudar restauración del paquete",
+      "bundleUnknown": "Portcove no pudo confirmar la restauración del paquete.",
       "busy": "Recuperando la restauración de la biblioteca…",
       "destination": "Destino de la restauración: <path />",
       "heading": "Terminar la restauración interrumpida de la biblioteca",
       "intro": "Reanuda la restauración para verificar y terminar de abrir la biblioteca copiada. La exportación de Portcove no cambia. Las copias incompletas siguen cerradas hasta que la recuperación se complete.",
       "label": "Recuperación de la restauración de la biblioteca",
+      "open": "Abrir biblioteca restaurada",
       "resume": "Reanudar la restauración"
     },
     "restore": "Restaurar esta biblioteca",
     "review": "Revisar la restauración",
     "title": "Restaurar desde una copia de la biblioteca",
     "trust": "<strong>Usa una exportación de confianza.</strong> Revisa su origen, el destino, el espacio necesario, las versiones instaladas, las ubicaciones de los archivos guardados y los archivos copiados antes de restaurarla."
+  },
+  "steamGridDb": {
+    "readAgain": "Volver a comprobar la configuración",
+    "readFailed": "No se pudo comprobar la configuración de SteamGridDB. Vuelve a comprobarla para saber si hay una clave guardada.",
+    "reading": "Comprobando la configuración de SteamGridDB…"
   },
   "supportReport": {
     "collecting": "Recopilando los diagnósticos disponibles…",

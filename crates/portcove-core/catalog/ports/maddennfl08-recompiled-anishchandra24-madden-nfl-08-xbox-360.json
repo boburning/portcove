@@ -3,10 +3,10 @@
   "listing": {
     "id": "maddennfl08-recompiled-anishchandra24-madden-nfl-08-xbox-360",
     "name": "Madden NFL 08 (Xbox 360) — MaddenNFL08-Recompiled (anishchandra24)",
-    "original_game_title": "Madden NFL 08 (Xbox 360)",
+    "original_game_title": "Madden NFL 08",
     "summary": "Upstream reports testing this early native port on two PCs. Countdown beeps are missing in the 40-yard dash; vector aliasing and texture-mip fixes are documented. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "f5536fd9ce283a8ee839d1910dafd3d947f63187dd96d84ade058f4335a126b5",
       "game_slug": "madden-nfl-08",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "madden-nfl-08",
+      "evidence_urls": ["https://github.com/anishchandra24/MaddenNFL08-Recompiled"],
+      "source_editions": [
+        {
+          "id": "madden-nfl-08-xbox-360",
+          "title": "Madden NFL 08 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/anishchandra24/MaddenNFL08-Recompiled/blob/42aa83dbccad6c4ff930bfc5025420741b9604b4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -3,9 +3,17 @@
   "listing": {
     "id": "gt2-recomp-samiulh25-gran-turismo-2-simulation-mode-v1-2",
     "name": "Gran Turismo 2 (Simulation Mode v1.2) — gt2-recomp (SamiulH25)",
-    "original_game_title": "Gran Turismo 2 (Simulation Mode v1.2)",
+    "original_game_title": "Gran Turismo 2",
     "summary": "Upstream reports menus, the garage and race rendering from a mix of recompiled and progressively decompiled code. Save/load through a full session remains unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SamiulH25/gt2-recomp",
+    "artwork": {
+      "game_id": 1597,
+      "cover_id": 93687,
+      "image_id": "co20af",
+      "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+      "game_slug": "gran-turismo-2",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/SamiulH25/gt2-recomp"
     },
-    "issue_number": 3522
+    "issue_number": 3522,
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-2",
+      "evidence_urls": ["https://github.com/SamiulH25/gt2-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

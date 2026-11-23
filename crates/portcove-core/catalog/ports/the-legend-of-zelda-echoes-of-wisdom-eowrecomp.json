@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp",
     "name": "The Legend of Zelda: Echoes of Wisdom (EoWRecomp)",
-    "summary": "An experimental Echoes of Wisdom port translating AArch64 code to C with LAS-derived Vulkan/MoltenVK services. It is not fully playable: Linux reaches the opening and first controllable scene, with full progress, saves and PC features unfinished. The reviewed alpha_1 release has a Mac ARM64 ZIP, Android APK and checksums; Linux/Windows use source. Packages build your game locally. Apple Silicon macOS 15+ and Android ARM64 package tests covered setup without the game. Windows x64 was cross-built, with setup/game untested and no Windows release file. Use your own version 1.0.0 title 01008CF01BAAC000 without updates and prod.keys, as NSP/XCI/NCA. Generated code still reads original package data. Separate firmware, region and hashes are unspecified. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "An early Echoes of Wisdom port for the original 1.0.0 Switch game. Linux reaches the first controllable scene. The Mac and Android packages have been tested through setup without game data. Saving and further progress remain unfinished.",
     "original_game_title": "The Legend of Zelda: Echoes of Wisdom",
     "project_url": "https://github.com/Nycolazs/EoWRecomp",
     "listed_at": "2026-10-25",
@@ -18,7 +18,42 @@
       "game_slug": "the-legend-of-zelda-echoes-of-wisdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2947
+    "issue_number": 2947,
+    "manual_setup": {
+      "help_url": "https://github.com/Nycolazs/EoWRecomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use your version 1.0.0 game for title 01008CF01BAAC000 as NSP, XCI or NCA, plus your prod.keys. Updates are unsupported. Keep the original package available because the player continues to read it."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "The alpha_1 release provides an Apple silicon macOS 15 or later ZIP and an Android ARM64 APK. Linux and Windows use source builds. The project has no packaged Windows player."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "Windows x64 was cross-built without running setup or the game. The project has not confirmed full play, separate firmware requirements, region or exact hashes."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-echoes-of-wisdom",
+      "evidence_urls": ["https://github.com/Nycolazs/EoWRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-echoes-of-wisdom-nintendo-switch",
+          "title": "The Legend of Zelda: Echoes of Wisdom (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Nycolazs/EoWRecomp/blob/dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

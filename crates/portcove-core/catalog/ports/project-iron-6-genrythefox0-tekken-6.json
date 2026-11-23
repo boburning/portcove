@@ -8,7 +8,16 @@
     "project_url": "https://github.com/GenryTheFox0/Project-Iron-6",
     "platforms": [],
     "availability": "unavailable",
-    "download_block_reason": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+        "tracking_issue": 3130
+      }
+    ],
     "issue_number": 3130,
     "listed_at": "2026-10-25",
     "artwork": {
@@ -19,7 +28,13 @@
       "game_slug": "tekken-6--3",
       "match_kind": "underlying-game"
     },
-    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again."
+    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": ["https://github.com/GenryTheFox0/Project-Iron-6"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["dragonballzultimatebattle22-", "-linux-x64.zip"],
       "macos-aarch64": ["dragonballzultimatebattle22-", "-macos-arm64.zip"],
-      "macos-x86-64": ["dragonballzultimatebattle22-", "-macos-x64.zip"],
-      "windows-x86-64": ["dragonballzultimatebattle22-", "-windows-x64.zip"]
+      "macos-x86-64": ["dragonballzultimatebattle22-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-ultimate-battle-22",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-ultimate-battle-22-playstation",
+          "title": "Dragon Ball Z: Ultimate Battle 22 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/35c1a67fa2bfe85d2b4e24a0375dc9265f9a9af7/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Dragon Ball Z - Ultimate Battle 22 (Europe) complete CHD (SLES-03736, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Dragon Ball Z - Ultimate Battle 22 (Europe) complete CHD (SLES-03736, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Dragon Ball Z - Ultimate Battle 22 (Europe) disc (SLES-03736) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

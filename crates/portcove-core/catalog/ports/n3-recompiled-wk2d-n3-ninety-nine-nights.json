@@ -36,6 +36,21 @@
       "image_sha256": "17ed19cb7a1460efe1610188859596304216a2f8b85d1fda7a77f06945445891",
       "game_slug": "n3-ninety-nine-nights",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "n3-ninety-nine-nights",
+      "evidence_urls": ["https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp"],
+      "source_editions": [
+        {
+          "id": "n3-ninety-nine-nights-xbox-360",
+          "title": "N3: Ninety-Nine Nights (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp/blob/d1416e56cf3066e4b07d0bd50fa8dbd1bd1e590d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

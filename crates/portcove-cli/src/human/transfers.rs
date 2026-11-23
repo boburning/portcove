@@ -112,7 +112,7 @@ pub(crate) fn source_removal_preview(preview: &SourceRemovalPreview, catalog: &C
         .map(|id| port_name(catalog, id))
         .collect::<Vec<_>>();
     format!(
-        "Remove saved game-file location review\nProfile: {}\nSaved path: {}\nContent SHA-256: {}\nStored file SHA-256: {}\nReview SHA-256: {}\nInstalled ports depending on this saved registration: {}\nChanges: remove only the saved registration. Original game files stay in place.{}",
+        "Remove saved game-file location review\nProfile: {}\nSaved path: {}\nContent SHA-256: {}\nStored file SHA-256: {}\nReview SHA-256: {}\nInstalled ports depending on this saved registration: {}\nChanges: remove only the saved registration. Original game files stay in place. Setups that need those exact files must find them again.{}",
         profile_name(catalog, &preview.source.profile_id),
         clean(&preview.source.path.display().to_string()),
         clean(&preview.source.sha256),

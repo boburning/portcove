@@ -54,8 +54,18 @@
         }
       ]
     },
-    "original_game_title": "Wolfenstein RPG"
+    "original_game_title": "Wolfenstein RPG",
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-rpg",
+      "evidence_urls": [
+        "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
+        "https://github.com/Erick194/WolfensteinRPG-RE"
+      ],
+      "source_editions": []
+    }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -65,29 +75,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "Erick194/WolfensteinRPG-RE",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        },
-        "linux-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "Erick194/WolfensteinRPG-RE"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

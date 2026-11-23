@@ -994,7 +994,7 @@ try {
           }
       });
     }
-    for (const entry of [...ownedProcesses].reverse()) {
+    for (const entry of ownedProcesses.toReversed()) {
       const live = await procIdentity(entry.pid);
       if (live?.start_ticks !== entry.start_ticks) continue;
       try {

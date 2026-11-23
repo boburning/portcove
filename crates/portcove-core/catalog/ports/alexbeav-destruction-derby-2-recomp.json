@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "psx_managed_windows_v1": "split-mods-no-crash-log",
   "listing": {
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
@@ -45,13 +46,30 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["Destruction-Derby-2-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Destruction-Derby-2-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Destruction-Derby-2-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Destruction-Derby-2-Recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "destruction-derby-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "destruction-derby-2-playstation",
+          "title": "Destruction Derby 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/888d09093702abed87411cd43c28b4a20866dba9/game.toml"
+          ]
+        }
+      ]
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -72,49 +90,6 @@
       "windows-x86-64": ["Destruction_Derby_2_Recompiled.exe"],
       "linux-x86-64": ["Destruction_Derby_2_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -132,7 +107,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native generation, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

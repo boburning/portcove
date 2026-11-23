@@ -131,6 +131,19 @@ fn observed_path(path: PathBuf) -> ProtectionPath {
 }
 
 impl PortcoveService {
+    /// Read the active installation's protection without loading backup history.
+    pub fn active_installation_protection(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<InstallationProtection>> {
+        let port = self.catalog.port(port_id)?;
+        let status = self.library.status(port_id, super::default_channel(port))?;
+        Ok(status
+            .active
+            .as_ref()
+            .map(|install| self.installation_protection(install, ProtectionInstallRole::Active)))
+    }
+
     pub(super) fn player_data_protection(
         &self,
         port: &PortDefinition,
@@ -376,6 +389,13 @@ mod tests {
         let inventory = service.list_backups("zelda64-recomp").unwrap();
         let protection = inventory.protection.unwrap();
         let install = &protection.installations[0];
+        assert_eq!(
+            service
+                .active_installation_protection("zelda64-recomp")
+                .unwrap()
+                .as_ref(),
+            Some(install)
+        );
         assert_eq!(install.update_owner, InstallationUpdateOwner::Portcove);
         assert_eq!(install.role, ProtectionInstallRole::Active);
         assert_ne!(
@@ -401,6 +421,7 @@ mod tests {
         let port_id = "zelda64-recomp";
         let root = library.root().join("external");
         let record = crate::ExternalRuntimeRecord {
+            setup_download: None,
             id: uuid::Uuid::new_v4().to_string(),
             port_id: port_id.into(),
             path: root.clone(),

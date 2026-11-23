@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "corepunch-openrealm-warcraft-3",
+    "artwork": {
+      "game_id": 132,
+      "cover_id": 90530,
+      "image_id": "co1xuq",
+      "image_sha256": "7fec1528a806a6d4db90c23cb07f077aece432e0f38ebe1a6fcb372b5ae045bd",
+      "game_slug": "warcraft-iii-reign-of-chaos",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/corepunch/open-realm",
     "name": "Warcraft III / OpenRealm",
     "original_game_title": "Warcraft III",
@@ -48,6 +56,15 @@
           "instruction": "OpenRealm saves the data folder it last used in config.cfg in the shared profile. After a run with -data data, a Windows copy started without -data looks for that relative data folder instead of searching for a Warcraft III installation; pass -data with your own folder for that copy. If the profile folder cannot be written, OpenRealm keeps config.cfg and saves under share/warcraft-3 beside the program instead."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-iii",
+      "evidence_urls": [
+        "https://github.com/corepunch/open-realm/blob/v0.0.11-alpha/README.md",
+        "https://github.com/corepunch/open-realm"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

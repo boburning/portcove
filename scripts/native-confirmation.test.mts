@@ -352,6 +352,29 @@ void test("native game-file picker titles match the actual application dialog", 
     const source = await readFile(path.join("apps/desktop/scripts", helper), "utf8");
     assert.ok(source.includes(title), `${helper} must recognize the actual application dialog`);
   }
+  const datTitle = picker.match(/export function pickDatPath\([\s\S]*?title: "([^"]+)"/u)?.[1];
+  assert.equal(datTitle, "Choose a DAT file");
+  const confirmation = await readFile("apps/desktop/scripts/native-confirmation.ps1", "utf8");
+  const allowed = confirmation.match(/\$openTitles = @\(([^)]+)\)/u)?.[1];
+  assert.ok(allowed);
+  assert.ok(allowed.split(", ").includes(`'${datTitle}'`));
+  const secondary = await readFile(
+    "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+    "utf8",
+  );
+  assert.ok(secondary.includes(`"${datTitle}",\n        "Open",`));
+  const recipeMessages: unknown = JSON.parse(
+    await readFile("apps/desktop/src/locales/en/gameSettings.json", "utf8"),
+  );
+  assert.ok(isRecord(recipeMessages) && isRecord(recipeMessages.mods));
+  const recipe = recipeMessages.mods.recipe;
+  assert.ok(isRecord(recipe) && typeof recipe.openPicker === "string");
+  for (const title of [recipe.openPicker, "Import saves"])
+    assert.ok(allowed.split(", ").includes(`'${title}'`));
+  const saves = confirmation.match(/\$saveTitles = @\(([^)]+)\)/u)?.[1];
+  assert.equal(saves, "'Export library information', 'Export saves'");
+  for (const title of ["Export library information", "Export saves", "Import saves"])
+    assert.ok(picker.includes(`title: "${title}"`));
 });
 
 void test("game-first adoption confirms the actual native copy title and button", async () => {
@@ -405,6 +428,44 @@ ${fixture}
     }),
   };
 }
+
+void test("Save picker inputs require an explicit owned parent and a fresh literal JSON leaf", async (t) => {
+  const { result } = await isolatedConsumer(
+    t,
+    `
+const { validatePickerInput: validate } = await import('./apps/desktop/scripts/desktop-native-confirmation.mts');
+const { mkdir } = await import('node:fs/promises');
+const existing = path.join(output, 'existing.json');
+await writeFile(existing, 'retained existing data');
+await mkdir(path.join(output, 'nested'));
+await mkdir(path.join(output, 'directory.json'));
+const input = { output, title:'Export library information', button:'Save',
+  filePath:path.join(output,'new.json'), ownedSaveRoot:output };
+for (const title of ['Export library information','Export saves']) await validate({...input,title});
+for (const variant of [
+  {...input, ownedSaveRoot:undefined},
+  {...input, title:'Export library information extra'},
+  {...input, title:'Choose a DAT file'},
+  {...input, button:'Yes'},
+  {...input, button:'Open'},
+  {...input, filePath:undefined},
+  {...input, filePath:existing},
+  {...input, filePath:path.join(output,'directory.json')},
+  {...input, filePath:path.join(output,'nested','new.json')},
+  {...input, filePath:output + path.sep + 'nested' + path.sep + '..' + path.sep + 'new.json'},
+  {...input, ownedSaveRoot:path.dirname(output)},
+  {...input, output:path.join(output,'missing'), ownedSaveRoot:path.join(output,'missing'),
+    filePath:path.join(output,'missing','new.json')},
+  {...input, filePath:path.join(output,'new.exe')},
+  {...input, filePath:path.join(output,'*.json')},
+  {...input, filePath:path.join(output,'CON.json')},
+]) await assert.rejects(validate(variant));
+assert.equal(await readFile(existing,'utf8'), 'retained existing data');
+assert.equal(globalThis.calls.length,0,'validation must not start PowerShell or send native input');
+`,
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 void test(
   "failed confirmation retains a redacted helper receipt before its original assertion",
@@ -745,14 +806,14 @@ $source = [IO.File]::ReadAllText('${helper.replaceAll("'", "''")}')
 $code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?\\n'@").Groups[1].Value
 if (-not $code) { throw 'production algorithm absent' }
 Write-SelectionPhase 'source-ready'
-# Replace only the five OS boundaries; compile the production Matches/Find bodies.
+# Replace only the OS boundaries and compile the production picker predicates.
 $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
-if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
+if ([regex]::Matches($code, $pattern).Count -ne 16) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
-    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false;
+    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false, metadataTitle = false;
     public static string fieldCase = "valid", sentText = null;
-    public static int sends = 0, itemCalls = 0;
+    public static int sends = 0, itemCalls = 0, selections = 0;
     public static int clicks = 0;
     public static int reads = 0;
     private static bool EnumWindows(Visitor visit, IntPtr state) {
@@ -770,10 +831,11 @@ $boundary = @'
         process = handle.ToInt32() == 3 || (handle.ToInt32() == 20 && (fieldCase == "cancel-foreign" || (fieldCase == "late-cancel-foreign" && reads > 1))) || ((handle.ToInt32() == 11 || handle.ToInt32() == 20) && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
     }
     private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
-        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : pickerTitle ? "Select Folder" : "Choose Portcove library";
+        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : metadataTitle ? "Export library information" : pickerTitle ? "Select Folder" : "Choose Portcove library";
         text.Append(title); return title.Length;
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
+    private static bool IsChild(IntPtr window, IntPtr child) { return window.ToInt32() == 2 && child.ToInt32() == 9 && fieldCase != "not-descendant"; }
     private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
         name.Append(handle.ToInt32() == 11 || handle.ToInt32() == 16 || handle.ToInt32() == 20 ? (fieldCase == "button-class" || (handle.ToInt32() == 20 && fieldCase == "cancel-class") ? "other" : "Button") : handle.ToInt32() == 2 || (handle.ToInt32() == 5 && secondDialog) ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
     }
@@ -786,11 +848,20 @@ $boundary = @'
         return fieldCase == "readonly" || (fieldCase == "late-readonly" && itemCalls > 1) ? 0x0800 : 0;
     }
     private static IntPtr SendText(IntPtr window, uint message, UIntPtr parameter, string text, uint flags, uint timeout, out UIntPtr result) {
-        if (window.ToInt32() != 9 || message != 12 || flags != 34 || timeout != 5000) throw new Exception("wrong native text target");
+        bool target = message == 0x00C2 && timeout == 1000 && metadataTitle
+            || message == 12 && timeout == 5000 && !metadataTitle;
+        if (window.ToInt32() != 9 || !target || flags != 34 || parameter != UIntPtr.Zero) throw new Exception("wrong native text target");
         sends++; sentText = text; result = new UIntPtr(1); return fieldCase == "timeout" ? IntPtr.Zero : new IntPtr(1);
     }
-    private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && reads > 0) ? 8 : 2); }
+    private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && (reads > 0 || selections > 0)) ? 8 : 2); }
     private static IntPtr SendClick(IntPtr window, uint message, UIntPtr parameter, IntPtr data, uint flags, uint timeout, out UIntPtr result) {
+        if (message == 0x00B1) {
+            if (!metadataTitle || window.ToInt32() != 9 || parameter != UIntPtr.Zero ||
+                data != new IntPtr(-1) || flags != 34 || timeout != 1000) throw new Exception("wrong metadata selection target");
+            selections++;
+            result = UIntPtr.Zero;
+            return fieldCase == "selection-timeout" ? IntPtr.Zero : new IntPtr(1);
+        }
         if ((window.ToInt32() != 11 && window.ToInt32() != 20) || message != 245 || flags != 34 || timeout != 5000 || data != IntPtr.Zero || parameter != UIntPtr.Zero) throw new Exception("wrong native click target");
         clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" || (window.ToInt32() == 20 && fieldCase == "cancel-click-timeout") ? IntPtr.Zero : new IntPtr(1);
     }
@@ -838,6 +909,20 @@ foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id',
     if ([PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Native text boundary failed $case" }
     if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-fixture') { throw 'Native text value changed' }
 }
+[PortcoveNativeWindows]::metadataTitle = $true
+foreach ($case in @('valid', 'foreign', 'not-descendant', 'field-class', 'readonly', 'disabled', 'root-disabled', 'background', 'late-background', 'selection-timeout', 'timeout', 'wrong-title')) {
+    [PortcoveNativeWindows]::fieldCase = $case
+    [PortcoveNativeWindows]::metadataTitle = $case -ne 'wrong-title'
+    [PortcoveNativeWindows]::sends = 0; [PortcoveNativeWindows]::selections = 0; [PortcoveNativeWindows]::reads = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::ReplaceMetadataSaveText([IntPtr]2, [IntPtr]9, 42, 'owned-metadata.json') } catch { $rejected = $true }
+    $expectedSelections = if ($case -in @('valid', 'late-background', 'selection-timeout', 'timeout')) { 1 } else { 0 }
+    $expectedSends = if ($case -in @('valid', 'timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::selections -ne $expectedSelections -or [PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Metadata edit boundary failed $case" }
+    if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-metadata.json') { throw 'Metadata edit value changed' }
+}
+[PortcoveNativeWindows]::metadataTitle = $false
+[PortcoveNativeWindows]::selections = 0
 Write-SelectionPhase 'text-controls-ready'
 [PortcoveNativeWindows]::fieldCase = 'valid'
 foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-class', 'button-id', 'button-parent', 'button-caption', 'button-disabled', 'button-replacement', 'background', 'late-background', 'root-class', 'root-disabled', 'read-timeout', 'click-timeout')) {
@@ -907,6 +992,7 @@ void test(
     t.after(() => rm(root, { recursive: true, force: true }));
     const names = [
       "player-owned-runtime",
+      "replacement-player-owned-runtime",
       "real-prepared-runtime-dkc3-recomp",
       "real-prepared-runtime-wave-race-64-racewave46",
       "real-prepared-runtime-wave-race-64-recomp",
@@ -930,10 +1016,10 @@ if(-not $guard){throw 'Actual picker preflight missing'}
 $ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
 foreach($title in @('Select Folder','Choose game files folder')){
  $ExpectedPickerTitle=$title
- foreach($name in @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46','real-prepared-runtime-wave-race-64-recomp','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
+ foreach($name in @('player-owned-runtime','replacement-player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46','real-prepared-runtime-wave-race-64-recomp','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
   $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
   try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
-  $allowed=if($title -ceq 'Select Folder'){$name -cin @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46')}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
+  $allowed=if($title -ceq 'Select Folder'){$name -cin @('player-owned-runtime','replacement-player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46')}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
   if($allowed -eq $rejected){throw "Wrong actual fixture guard result for $title / $name"}
  }
  $PreparedRuntimeDirectory='selected-setup-inputs';$rejected=$false
@@ -996,39 +1082,104 @@ void test(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class OwnedSavePathWitness {
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    public static extern uint GetShortPathName(string input, StringBuilder output, uint size);
+}
+'@
 $ast = [Management.Automation.Language.Parser]::ParseFile('${source}', [ref]$null, [ref]$null)
 function Block([string]$marker) {
     $node = $ast.Find({ param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Extent.Text.StartsWith('if ($FilePath)') -and $n.Extent.Text.Contains($marker) }, $true)
     if (-not $node) { throw 'Production file-picker inventory changed' }
     return [scriptblock]::Create($node.Extent.Text)
 }
+$saveDefinition = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Resolve-OwnedSaveTarget' }, $true)
+if (-not $saveDefinition) { throw 'Production owned Save guard missing' }
+. ([scriptblock]::Create($saveDefinition.Extent.Text))
 $inputBody = Block 'SetValue($selected)'
 $readbackBody = Block "Write-ObservationProgress 'file-input-readback'"
 $closeBody = Block '$closeDeadline ='
 function Assert-ExactConfirmationWindow { param($w) if ($w.Current.NativeWindowHandle -ne 7) { throw 'changed window' } }
 function Assert-LiveApplication { if ($script:case -eq 'changed-app') { throw 'changed application' } }
+function Set-NativeMetadataSaveText($Picker, $Edit, [string]$Value) {
+    if ($Picker.Current.NativeWindowHandle -ne 7 -or $Edit.Current.ProcessId -ne 42 -or -not $Edit.Current.HasKeyboardFocus) {
+        throw 'Metadata input must target the same owned focused edit'
+    }
+    $script:metadataEdits++
+    $script:values++
+    $Edit.Current.Value = $Value
+}
 function Write-ObservationProgress { param($stage) }
 function Get-OwnedConfirmationWindows {
     $script:polls++
-    if ($script:case -eq 'still-open' -or ($script:case -eq 'valid' -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
+    if ($script:case -eq 'still-open' -or ($script:case -in $validCases -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
 }
 $FilePath = '${fixture.replaceAll("'", "''")}'; $DirectoryPath = $null; $Title = 'Choose game files'; $Button = 'Open'; $applicationId = 42
 $window = [pscustomobject]@{ Current = [pscustomobject]@{ NativeWindowHandle = 7 } }; $selectedWindowHandle = 7
-foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app')) {
-    $script:polls = 0; $failed = $false
-    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -eq 'foreign-field') { 99 } else { 42 }); Value = '' } }
+$ownedRoot = '${root.replaceAll("'", "''")}'
+$existingJson = [IO.Path]::Combine($ownedRoot, 'existing.json')
+[IO.File]::WriteAllText($existingJson, 'retained data')
+$nested = [IO.Directory]::CreateDirectory([IO.Path]::Combine($ownedRoot, 'nested')).FullName
+$shortRootBuffer = [Text.StringBuilder]::new(32768)
+if ([OwnedSavePathWitness]::GetShortPathName($ownedRoot, $shortRootBuffer, 32768) -eq 0) { throw 'Owned fixture short-path observation failed' }
+$shortOwnedRoot = $shortRootBuffer.ToString()
+Write-Output ('owned-save-short-alias-observed=' + (-not [string]::Equals($shortOwnedRoot, $ownedRoot, [StringComparison]::OrdinalIgnoreCase)))
+$validCases = @('valid', 'dat-valid', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid')
+$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'metadata-save-no-focus', 'short-root-existing-save', 'short-root-foreign-save')
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid', 'short-root-existing-save', 'short-root-foreign-save', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'metadata-save-no-focus', 'save-target-appeared')) {
+    $script:polls = 0; $script:values = 0; $script:metadataEdits = 0; $failed = $false; $failureMessage = ''
+    $Title = if ($script:case.StartsWith('dat-')) { 'Choose a DAT file' } else { 'Choose game files' }
+    $Button = if ($script:case -eq 'dat-wrong-action') { 'Save' } else { 'Open' }
+    $OwnedSaveRoot = $null
+    $FilePath = '${fixture.replaceAll("'", "''")}'
+    if ($script:case -eq 'recipe-valid') { $Title = 'Open setup recipe…' }
+    if ($script:case -eq 'saves-import-valid') { $Title = 'Import saves' }
+    if ($script:case -eq 'dat-title-suffix') { $Title = 'Choose a DAT file extra' }
+    if ($script:case -eq 'unknown-open') { $Title = 'Unrelated file picker' }
+    if ($script:case -like '*save*' -and $script:case -ne 'saves-import-valid') {
+        $Title = 'Export library information'; $Button = 'Save'; $OwnedSaveRoot = $ownedRoot
+        $FilePath = [IO.Path]::Combine($ownedRoot, $script:case + '.json')
+    }
+    switch ($script:case) {
+        'saves-export-valid' { $Title = 'Export saves' }
+        'unknown-save' { $Title = 'Export library information extra' }
+        'save-title-open' { $Button = 'Open' }
+        'save-yes' { $Button = 'Yes' }
+        'missing-save-root' { $OwnedSaveRoot = $null }
+        'missing-save-parent' { $OwnedSaveRoot = [IO.Path]::Combine($ownedRoot,'missing'); $FilePath = [IO.Path]::Combine($OwnedSaveRoot,'new.json') }
+        'foreign-save-parent' { $FilePath = [IO.Path]::Combine($nested,'new.json') }
+        'save-traversal' { $FilePath = $ownedRoot + [IO.Path]::DirectorySeparatorChar + 'nested' + [IO.Path]::DirectorySeparatorChar + '..' + [IO.Path]::DirectorySeparatorChar + 'new.json' }
+        'existing-save-target' { $FilePath = $existingJson }
+        'save-device' { $FilePath = [IO.Path]::Combine($ownedRoot,'CON.json') }
+        'save-wildcard' { $FilePath = [IO.Path]::Combine($ownedRoot,'*.json') }
+        'short-root-save-valid' { $OwnedSaveRoot = $shortOwnedRoot }
+        'short-path-save-valid' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = [IO.Path]::Combine($shortOwnedRoot, $script:case + '.json') }
+        'short-root-existing-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = $existingJson }
+        'short-root-foreign-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = [IO.Path]::Combine($nested,'new.json') }
+    }
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -in @('foreign-field', 'dat-foreign-field', 'save-foreign-field')) { 99 } else { 42 }); Value = ''; HasKeyboardFocus = $false } }
+    $field | Add-Member ScriptMethod SetFocus { if ($script:case -ne 'metadata-save-no-focus') { $this.Current.HasKeyboardFocus = $true } }
     $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
-    $field | Add-Member ScriptMethod SetValue { param($value) if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
+    $field | Add-Member ScriptMethod SetValue { param($value) $script:values++; if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
     $children = @($field)
     try {
         . $inputBody
         if ($script:case -eq 'changed-field') { $field.Current.Value = 'other' }
+        if ($script:case -eq 'save-target-appeared') { [IO.File]::WriteAllText($FilePath,'concurrent owned fixture') }
         . $readbackBody
         . $closeBody
-    } catch { $failed = $true }
-    if ($failed -ne ($script:case -ne 'valid')) { throw "Wrong verdict for $script:case" }
-    if ($script:case -eq 'valid' -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2)) { throw 'Missing fresh dismissal/readback witness' }
+    } catch { $failed = $true; $failureMessage = $_.Exception.Message }
+    if ($failed -ne ($script:case -notin $validCases)) { throw "Wrong verdict for $script:case; observed refusal: $failureMessage" }
+    if ($script:case -in $validCases -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2 -or $script:values -ne 1)) { throw 'Missing fresh dismissal/readback witness' }
+    if ($script:case -in $zeroInputCases -and $script:values -ne 0) { throw 'Refused picker target received file input' }
+    if ($script:case -in @('metadata-save-valid', 'short-root-save-valid', 'short-path-save-valid') -and $script:metadataEdits -ne 1) { throw 'Metadata save did not use the targeted edit route' }
+    if ($script:case -in @('saves-export-valid', 'valid') -and $script:metadataEdits -ne 0) { throw 'Unrelated picker used the metadata edit route' }
 }
+if ([IO.File]::ReadAllText($existingJson) -cne 'retained data') { throw 'Save overwrote retained fixture data' }
 Write-Output 'file-picker-witness-passed'
 `,
     );
@@ -1039,5 +1190,11 @@ Write-Output 'file-picker-witness-passed'
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /file-picker-witness-passed/u);
+    const shortAlias = result.stdout.match(/owned-save-short-alias-observed=(True|False)/u);
+    assert.ok(shortAlias, "Retain whether this filesystem provided a distinct 8.3 alias");
+    console.info(
+      "Owned Save path witness:",
+      JSON.stringify({ short_path_alias_observed: shortAlias[1] === "True" }),
+    );
   },
 );

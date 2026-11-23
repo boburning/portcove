@@ -22,6 +22,8 @@ interface NamespaceReceipt {
   init_sha256?: string;
   node_sha256?: string;
   inputs_captured_at?: string;
+  input_capture_budget_ms?: number;
+  input_capture_duration_ms?: number;
   protocol_error?: string;
   exit?: NamespaceExit;
   startup_stderr?: string;
@@ -83,12 +85,15 @@ const digest = async (file: string) =>
   createHash("sha256")
     .update(await readFile(file))
     .digest("hex");
-const deadline = <Value,>(promise: Promise<Value>, message: string) => {
+// The 150 MB pinned Node input capture exceeded 10 s in diagnostic 06.
+// Hashing remains mandatory; readiness/join deadlines stay 10 s.
+export const nativeNamespaceInputCaptureMs = 60_000;
+const deadline = <Value,>(promise: Promise<Value>, message: string, budget = 10_000) => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), 10_000);
+      timer = setTimeout(() => reject(new Error(message)), budget);
     }),
   ]).finally(() => clearTimeout(timer));
 };
@@ -116,15 +121,19 @@ export async function launchLinuxNativeSession(
     ready: undefined,
     events: [],
   };
+  const captureStarted = performance.now();
   const [unshareDigest, initDigest, nodeDigest] = await deadline(
     Promise.all([digest(unshare), digest(init), digest(process.execPath)]),
     "Native namespace input capture timed out before launch",
+    nativeNamespaceInputCaptureMs,
   );
   Object.assign(receipt, {
     unshare_sha256: unshareDigest,
     init_sha256: initDigest,
     node_sha256: nodeDigest,
     inputs_captured_at: new Date().toISOString(),
+    input_capture_budget_ms: nativeNamespaceInputCaptureMs,
+    input_capture_duration_ms: performance.now() - captureStarted,
   });
   beforeLaunch();
   const child = spawn(
@@ -158,12 +167,11 @@ export async function launchLinuxNativeSession(
     buffer = "";
     rejectReady(error);
   };
-  let resolveReady!: (receipt: NamespaceReceipt) => void;
-  let rejectReady!: (error?: unknown) => void;
-  const readiness = new Promise<NamespaceReceipt>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
+  const {
+    promise: readiness,
+    resolve: resolveReady,
+    reject: rejectReady,
+  } = Promise.withResolvers<NamespaceReceipt>();
   const protocol = child.stdio[3];
   assert.ok(protocol);
   protocol.on("data", (data: Buffer) => {

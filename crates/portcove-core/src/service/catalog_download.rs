@@ -7,12 +7,40 @@ use super::*;
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, Knowledge, Phase, RestrictedOperation, RestrictionSubject,
+    SubjectArtifact,
+};
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
 const RECORDS_LIMIT: usize = 10_000;
 const TOTAL_RECORD_BYTES: usize = 8 * 1024 * 1024;
 const RECEIPT_NAME: &str = ".portcove-download.json";
+
+/// One upstream package as a download restriction subject. An offer may judge
+/// a provider-reported digest; only the final check on downloaded bytes can
+/// let a permit decide.
+fn download_artifact_subject<'a>(
+    release_tag: &'a str,
+    asset_name: &'a str,
+    sha256: Option<&'a str>,
+    phase: Phase,
+) -> RestrictionSubject<'a> {
+    let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host();
+    subject.release = Knowledge::Known(release_tag);
+    if let Some(sha256) = sha256 {
+        subject = subject.artifact(SubjectArtifact {
+            version: release_tag,
+            sha256,
+            asset_name: Some(asset_name),
+        });
+    }
+    if phase == Phase::Final {
+        subject = subject.final_check();
+    }
+    subject
+}
 
 #[cfg(test)]
 #[path = "catalog_download_tests.rs"]
@@ -201,6 +229,18 @@ pub struct PendingSetupRecord {
     pub reason: Option<String>,
 }
 
+impl PendingSetupRecord {
+    pub(crate) fn into_setup_download(self) -> crate::SetupDownloadSelection {
+        crate::SetupDownloadSelection {
+            release_id: self.artifact.release_id,
+            asset_id: self.artifact.asset_id,
+            release_tag: self.artifact.release_tag,
+            filename: self.artifact.name,
+            download_sha256: self.archive_sha256,
+        }
+    }
+}
+
 fn legacy_record_format() -> u8 {
     1
 }
@@ -248,9 +288,11 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     } else {
         2
     };
-    if record.format_version != expected_format {
+    if record.format_version != expected_format
+        || crate::catalog::listings::has_verified_source_editions(&record.listing)
+    {
         return Err(PortcoveError::unsupported(
-            "pending setup record format does not match its provider",
+            "pending setup record format does not match its provider or listing fields",
         ));
     }
     if let CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
@@ -525,11 +567,77 @@ impl PortcoveService {
         Ok(managed_route_refusal(&status.port_actions))
     }
 
-    fn require_download_available(&self, port_id: &str) -> Result<()> {
-        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
-        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
-            return Err(PortcoveError::unsupported(reason.clone()));
+    fn require_download_artifact(
+        &self,
+        port_id: &str,
+        release_tag: &str,
+        asset_name: &str,
+        sha256: Option<&str>,
+        phase: Phase,
+    ) -> Result<()> {
+        EffectiveRestrictions::of(&self.catalog, port_id).require(&download_artifact_subject(
+            release_tag,
+            asset_name,
+            sha256,
+            phase,
+        ))
+    }
+
+    /// Held sibling assets leave the offer and are explained as limitations. A
+    /// provider-reported digest decides the offer only; the downloaded bytes
+    /// are checked again before anything is moved into place. The offer is
+    /// refused outright only when no release or package of this listing could
+    /// be permitted, so a permitted older release stays reachable.
+    fn withhold_restricted_candidates(
+        &self,
+        port_id: &str,
+        candidates: Vec<CatalogDownloadCandidate>,
+        mut coverage: CatalogDownloadCoverage,
+    ) -> (
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Option<String>,
+    ) {
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut kept = Vec::with_capacity(candidates.len());
+        let mut first = None;
+        let mut scoped = false;
+        for candidate in candidates {
+            let subject = download_artifact_subject(
+                &candidate.release_tag,
+                &candidate.name,
+                candidate.sha256.as_deref(),
+                Phase::Offer,
+            );
+            let outcome = restrictions.evaluate(&subject);
+            match outcome.explanation() {
+                Some(explanation) => {
+                    coverage
+                        .limitations
+                        .push(format!("{}: {explanation}", candidate.name));
+                    scoped |= outcome.artifact_scoped() || outcome.release_scoped();
+                    if first.is_none() {
+                        first = Some(explanation);
+                    }
+                }
+                None => kept.push(candidate),
+            }
         }
+        let refused = kept.is_empty()
+            && !scoped
+            && !restrictions.has_scoped_permit(RestrictedOperation::Download);
+        (kept, coverage, if refused { first } else { None })
+    }
+
+    fn require_download_available(&self, port_id: &str) -> Result<()> {
+        self.catalog.listing(port_id)?;
+        // Both carriers; a hold that a scoped permit may still cancel is
+        // decided per artifact in the offer and again on the actual bytes.
+        crate::acquisition_restriction::require(
+            &self.catalog,
+            port_id,
+            &RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host(),
+        )?;
         if let Some(refusal) = self.listing_download_refusal(port_id)? {
             return Err(PortcoveError::unsupported(refusal.message())
                 .detail("refusal", enum_value(refusal)?));
@@ -608,7 +716,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, None, None, None)
+        self.catalog_download_options_inner(port_id, None, None, None, None)
             .await
     }
 
@@ -626,8 +734,27 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None)
+        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None, None)
             .await
+    }
+
+    /// As `catalog_download_options`, listing the newest `release_window`
+    /// releases (10 to 1,000) so older releases can be chosen in the workflow.
+    pub async fn catalog_download_options_window(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
+        channel: ReleaseChannel,
+        release_window: usize,
+    ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options_inner(
+            port_id,
+            selected_release_id,
+            Some(channel),
+            None,
+            Some(release_window),
+        )
+        .await
     }
 
     #[cfg(test)]
@@ -644,6 +771,7 @@ impl PortcoveService {
             selected_release_id.map(Into::into),
             channel,
             provider.as_ref(),
+            None,
         )
         .await
     }
@@ -654,6 +782,7 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: Option<ReleaseChannel>,
         provider: Option<&CatalogDownloadProvider>,
+        release_window: Option<usize>,
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
@@ -707,23 +836,61 @@ impl PortcoveService {
                 .eq_ignore_ascii_case(repository.name())
         });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
-        let (candidates, coverage, releases, selected) = provider
-            .options(
-                repository.name(),
-                selected_release_id.as_ref(),
-                channel,
-                rolling_tag,
-            )
-            .await?;
+        let platform = Platform::current()?;
+        let github_other_stream_prefixes = definition
+            .filter(|port| port.release.provider == crate::ReleaseSource::Github)
+            .map(|port| port.release.github_stream_exclusions(platform))
+            .unwrap_or_default();
+        // Shared observations only serve the non-managed browse window. They never
+        // enter the managed release resolver or the exact preview/download path.
+        let observed = match provider {
+            CatalogDownloadProvider::Github(provider)
+                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+            {
+                provider
+                    .observed_catalog_download_options(
+                        listing,
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        time::OffsetDateTime::now_utc(),
+                    )
+                    .map(|(candidates, coverage, releases, selected)| {
+                        (candidates, coverage, releases, selected.map(Into::into))
+                    })
+            }
+            _ => None,
+        };
+        let reused_observation = observed.is_some();
+        let (candidates, coverage, releases, selected) = match observed {
+            Some(options) => options,
+            None => {
+                provider
+                    .options(
+                        repository.name(),
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        github_other_stream_prefixes,
+                        release_window,
+                    )
+                    .await?
+            }
+        };
+        let (candidates, coverage, refused) =
+            self.withhold_restricted_candidates(port_id, candidates, coverage);
+        if let Some(reason) = refused {
+            result.reason = Some(reason);
+            return Ok(result);
+        }
         result.releases = releases;
         result.selected_release_id = selected.clone();
-        let platform = Platform::current()?;
         let hints = definition
             .and_then(|port| port.release.asset_hints.get(&platform))
             .or_else(|| listing.download_asset_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let (packages, recommended) = super::package_selection::recommend_packages(
+        let (packages, recommended, any_suitable) = super::package_selection::recommend_packages(
             &candidates,
             platform,
             hints,
@@ -738,11 +905,7 @@ impl PortcoveService {
                 .into()
         } else if !coverage.candidates_complete {
             "Some upstream files could not be assessed. Review the available downloads or open upstream setup.".into()
-        } else if result
-            .packages
-            .iter()
-            .any(|package| package.suitability == "suitable")
-        {
+        } else if any_suitable {
             "Several plausible packages remain. Choose the build you want from this release.".into()
         } else {
             "No native package could be recommended. Check other downloads or follow upstream setup instructions.".into()
@@ -750,6 +913,18 @@ impl PortcoveService {
         result.candidates = candidates;
         result.allowed = true;
         result.reason = coverage.reason(result.candidates.is_empty());
+        if reused_observation {
+            let observation = listing
+                .upstream_observation
+                .as_ref()
+                .expect("reused observation");
+            result.reason = Some(format!(
+                "Upstream metadata observed at {} (fresh until {}). Preview checks the selected file upstream before download. {}",
+                observation.observed_at.as_deref().unwrap_or_default(),
+                observation.fresh_until.as_deref().unwrap_or_default(),
+                result.reason.as_deref().unwrap_or_default(),
+            ));
+        }
         result.coverage = Some(coverage);
         result.default_destination_parent = directories::UserDirs::new().and_then(|directories| {
             let mut choices = vec![directories.home_dir().join("Games")];
@@ -771,6 +946,66 @@ impl PortcoveService {
         request: &CatalogDownloadRequest,
     ) -> Result<CatalogDownloadPreview> {
         self.catalog_download_preview_inner(request, None).await
+    }
+
+    /// Recheck the exact offered package before handing its notes to the browser.
+    pub async fn catalog_download_release_notes(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+    ) -> Result<String> {
+        self.catalog_download_release_notes_inner(
+            port_id,
+            release_id,
+            asset_id,
+            displayed_url,
+            None,
+        )
+        .await
+    }
+
+    async fn catalog_download_release_notes_inner(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<String> {
+        let listing = self.catalog.listing(port_id)?;
+        listing.validate()?;
+        self.require_download_available(port_id)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
+        let release_url = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id)
+            .await?;
+        if release_url != displayed_url {
+            return Err(PortcoveError::conflict(
+                "The selected release page changed. Check downloads again.",
+            ));
+        }
+        Ok(release_url)
+    }
+
+    fn catalog_download_source(
+        &self,
+        listing: &PortListing,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<(CatalogDownloadRepository, CatalogDownloadProvider)> {
+        let repository = CatalogDownloadRepository::parse(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )?;
+        let provider = match provider {
+            Some(provider) => provider.clone(),
+            None => CatalogDownloadProvider::for_repository(&self.library, &repository)?,
+        };
+        provider.require_repository(&repository)?;
+        Ok((repository, provider))
     }
 
     #[cfg(test)]
@@ -795,22 +1030,7 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let repository = CatalogDownloadRepository::parse(
-            listing
-                .release_url
-                .as_deref()
-                .unwrap_or(&listing.project_url),
-        )?;
-        let default_provider;
-        let provider = match provider {
-            Some(provider) => provider,
-            None => {
-                default_provider =
-                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
-                &default_provider
-            }
-        };
-        provider.require_repository(&repository)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let artifact = provider
             .candidate(repository.name(), &request.release_id, &request.asset_id)
             .await?;
@@ -827,14 +1047,13 @@ impl PortcoveService {
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
         }
-        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
-            crate::managed_runtime_policy::require_artifact_available(
-                &self.catalog,
-                &request.port_id,
-                &artifact.release_tag,
-                digest,
-            )?;
-        }
+        self.require_download_artifact(
+            &request.port_id,
+            &artifact.release_tag,
+            &artifact.name,
+            artifact.sha256.as_deref().or(expected.as_deref()),
+            Phase::Offer,
+        )?;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
             request,
@@ -1014,6 +1233,9 @@ impl PortcoveService {
                 fs::set_permissions(stage.path(), fs::Permissions::from_mode(0o700))?;
             }
             self.require_download_destination(stage.path())?;
+            let mut listing = self.catalog.listing(&request.port_id)?.clone();
+            listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+            crate::catalog::listings::strip_verified_sources(&mut listing);
             let mut record = PendingSetupRecord {
                 format_version: if preview.artifact.release_id.github_id().is_some() {
                     1
@@ -1022,7 +1244,7 @@ impl PortcoveService {
                 },
                 id: Uuid::new_v4().to_string(),
                 port_id: request.port_id.clone(),
-                listing: self.catalog.listing(&request.port_id)?.clone(),
+                listing,
                 path: preview.destination_path.clone(),
                 state: PendingSetupState::AttentionRequired,
                 artifact: preview.artifact.clone(),
@@ -1075,11 +1297,13 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
-                crate::managed_runtime_policy::require_artifact_available(
-                    &self.catalog,
+                // The downloaded bytes, not the provider report, decide a permit.
+                self.require_download_artifact(
                     &request.port_id,
                     &record.artifact.release_tag,
-                    &archive_sha256,
+                    &record.artifact.name,
+                    Some(&archive_sha256),
+                    Phase::Final,
                 )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()
@@ -1448,5 +1672,53 @@ impl PortcoveService {
             ));
         }
         Ok(stored.record.path)
+    }
+
+    /// Read-only browser handoff from the exact saved setup and its retained guide.
+    pub fn pending_setup_resource(
+        &self,
+        port_id: &str,
+        pending_id: &str,
+        url: &str,
+    ) -> Result<String> {
+        let (record, _) = self
+            .pending_setup_registration(port_id)?
+            .filter(|(record, _)| record.id == pending_id)
+            .ok_or_else(|| PortcoveError::conflict("pending setup changed or no longer exists"))?;
+        let listing = &record.listing;
+        let retains_guide = [
+            listing.setup_url.as_deref(),
+            listing
+                .manual_setup
+                .as_ref()
+                .and_then(|guide| guide.help_url.as_deref()),
+        ]
+        .contains(&Some(url));
+        let retains_release = url == record.artifact.release_url
+            && CatalogDownloadRepository::parse(
+                listing
+                    .release_url
+                    .as_deref()
+                    .unwrap_or(&listing.project_url),
+            )
+            .ok()
+            .and_then(|repository| repository.release_notes_url(&record.artifact.release_tag))
+            .is_some_and(|expected| expected == url);
+        if url.len() <= 4096
+            && url.trim() == url
+            && !url.chars().any(char::is_control)
+            && (retains_guide || retains_release)
+            && reqwest::Url::parse(url).is_ok_and(|parsed| {
+                parsed.scheme() == "https"
+                    && parsed.host_str().is_some()
+                    && parsed.username().is_empty()
+                    && parsed.password().is_none()
+            })
+        {
+            return Ok(url.to_owned());
+        }
+        Err(PortcoveError::usage(
+            "This link does not belong to the saved setup.",
+        ))
     }
 }

@@ -1,11 +1,13 @@
 import { captureParityState } from "../../test/parity-capture";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import App, { BootstrapRecovery } from "../App";
 import { desktopApi } from "../api";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
+import { initializeLocalization, LocalizationProvider } from "../localization";
 import { failureReport, fixtureValue } from "../test-fixtures";
 import type { BootstrapStatus, DesktopSupportBundleExport } from "../types";
 import { SettingsView } from "./Chrome";
@@ -147,19 +149,19 @@ it("exports only on request after failed library startup and leaves recovery ava
     <StrictMode>
       <BootstrapRecovery
         error={startupFailure()}
-        chooseLibrary={chooseLibrary}
+        switchLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
     </StrictMode>,
   );
   expect(create).not.toHaveBeenCalled();
   const action = button("Create a support report");
-  await act(async () => {
-    action.click();
-    action.click();
-  });
+  action.focus();
+  await userEvent.keyboard("{Enter}{Enter}");
   expect(create).toHaveBeenCalledOnce();
-  expect(action.disabled).toBe(true);
+  expect(action.getAttribute("aria-disabled")).toBe("true");
+  expect(action.getAttribute("aria-busy")).toBe("true");
+  expect(document.activeElement).toBe(action);
   expect(button("Retry startup").disabled).toBe(false);
   expect(button("Choose library").disabled).toBe(false);
   expect(button("Use platform default").disabled).toBe(false);
@@ -232,25 +234,94 @@ it("uses the same receipt in Settings without refreshing diagnostic state", asyn
   expect(host.textContent).toContain("Some diagnostics are partial or omitted.");
 });
 
+it("retains the exact support report and folder action across workspace navigation", async () => {
+  const transport = installInteractiveTransport("collection", (message) => {
+    throw new Error(message);
+  });
+  try {
+    initializeLocalization(["en"]);
+    const pending = deferred<DesktopSupportBundleExport>();
+    const create = vi.spyOn(desktopApi, "createSupportBundle").mockReturnValue(pending.promise);
+    const open = vi.spyOn(desktopApi, "openSupportReportFolder").mockResolvedValue(undefined);
+    const saved = bundle();
+    await root.rerender(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Settings categories" })
+      .getByRole("button", { name: "Advanced", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Create a support report" }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Creating support report…" }))
+      .toHaveAttribute("aria-busy", "true");
+    await page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("button", { name: /^Library\b/ })
+      .click();
+    await act(async () => pending.resolve(saved));
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+
+    await expect.element(page.getByText(saved.path, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Open support report folder" }).click();
+    expect(open).toHaveBeenCalledExactlyOnceWith();
+    expect(create).toHaveBeenCalledExactlyOnceWith(1);
+  } finally {
+    await root.rerender(null);
+    transport.dispose();
+  }
+});
+
 it("opens the support report folder only after export and keeps the saved path when opening fails", async () => {
+  const opening = deferred<void>();
   const open = vi
     .spyOn(desktopApi, "openSupportReportFolder")
-    .mockRejectedValueOnce(new Error("no file manager"))
+    .mockReturnValueOnce(opening.promise)
     .mockResolvedValueOnce(undefined);
   await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => bundle())} />);
   expect(host.textContent).not.toContain("Open support report folder");
   await click("Create a support report");
   expect(open).not.toHaveBeenCalled();
 
-  await click("Open support report folder");
-  await vi.waitFor(() => expect(host.textContent).toContain("Couldn’t open the folder."));
-  expect(open).toHaveBeenCalledOnce();
-  expect(open).toHaveBeenCalledWith();
+  const action = button("Open support report folder");
+  action.focus();
+  await userEvent.keyboard("{Enter}{Enter}");
+  expect(open).toHaveBeenCalledExactlyOnceWith();
+  expect(action.getAttribute("aria-busy")).toBe("true");
+  expect(action.getAttribute("aria-disabled")).toBe("true");
+  expect(document.activeElement).toBe(action);
+  await act(async () => opening.reject(new Error("no file manager")));
+  expect(host.textContent).toContain("Couldn’t open the folder.");
+  expect(document.activeElement).toBe(action);
   expect(host.textContent).toContain("Support report saved to E:/diagnostics/نسخة/support.zip");
   expect(button("Create a support report").disabled).toBe(false);
 
   await click("Open support report folder");
   await vi.waitFor(() => expect(host.textContent).not.toContain("Couldn’t open the folder."));
+  expect(open).toHaveBeenCalledTimes(2);
+});
+
+it("ignores an earlier folder failure after a new support report replaces the receipt", async () => {
+  const opening = deferred<void>();
+  const open = vi
+    .spyOn(desktopApi, "openSupportReportFolder")
+    .mockReturnValueOnce(opening.promise)
+    .mockResolvedValueOnce(undefined);
+  const replacement = bundle();
+  replacement.path = "E:/diagnostics/new-fixture.zip";
+  const create = vi.fn().mockResolvedValueOnce(bundle()).mockResolvedValueOnce(replacement);
+  await root.rerender(<SupportBundleExport createSupportBundle={create} />);
+
+  await click("Create a support report");
+  await click("Open support report folder");
+  await click("Create a support report");
+  expect(host.textContent).toContain(replacement.path);
+  await act(async () => opening.reject(new Error("outgoing folder failure")));
+  expect(host.textContent).not.toContain("Couldn’t open the folder.");
+  await click("Open support report folder");
   expect(open).toHaveBeenCalledTimes(2);
 });
 
@@ -309,7 +380,9 @@ it.each(["success", "failure"])(
       .mockResolvedValueOnce(replacement);
     await root.rerender(<App />);
     await click("Create a support report");
+    vi.spyOn(desktopApi, "defaultLibraryRoot").mockResolvedValue("E:/default");
     await click("Use platform default");
+    await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
     expect(button("Create a support report").disabled).toBe(false);
     await click("Create a support report");
     await act(async () => {

@@ -108,6 +108,10 @@ pub(crate) struct AcquisitionJournal {
     pub view: GameUpdateAcquisition,
     pub definition_sha256: String,
     pub assets: Vec<crate::ReleaseAsset>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explicit_package_proof_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release_sha256: Option<String>,
 }
 
 pub(crate) fn root(library: &Library, id: &str) -> Result<PathBuf> {
@@ -191,6 +195,13 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
         || payload.assets[0] != payload.view.release.asset
         || bytes > MAX_BYTES
         || payload.definition_sha256.len() != 64
+        || [
+            payload.explicit_package_proof_sha256.as_deref(),
+            payload.exact_release_sha256.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .any(|sha| sha.len() != 64 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()))
     {
         return Err(PortcoveError::verification(
             "acquisition journal has foreign ownership, paths or intent",
@@ -329,6 +340,8 @@ mod tests {
                 },
                 definition_sha256: "b".repeat(64),
                 assets: vec![asset],
+                explicit_package_proof_sha256: None,
+                exact_release_sha256: None,
             },
         )
         .unwrap()

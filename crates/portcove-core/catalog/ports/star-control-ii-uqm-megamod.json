@@ -1,0 +1,85 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-control-ii-uqm-megamod",
+    "artwork": {
+      "game_id": 1046,
+      "cover_id": 110505,
+      "image_id": "co2d9l",
+      "image_sha256": "b4012c48e5e5f6e84b9c5352454dc81ec01052175df789a17421e977334682db",
+      "game_slug": "star-control-ii",
+      "match_kind": "underlying-game"
+    },
+    "name": "Star Control II / The Ur-Quan Masters MegaMod",
+    "original_game_title": "Star Control II",
+    "summary": "Explore the original Star Control II campaign with the standalone Ur-Quan Masters MegaMod and its optional graphics and audio packs.",
+    "project_url": "https://github.com/JHGuitarFreak/UQM-MegaMod",
+    "issue_number": 6061,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/JHGuitarFreak/UQM-MegaMod/releases/tag/0.8.5",
+    "setup_url": "https://uqm-mods.sourceforge.net/Download",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the upstream installer, Linux package or Flatpak. The packages include modified game content and use their own installation and replacement tools.",
+        "tracking_issue": 6061
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the Windows build in a separate folder",
+          "instruction": "Run the publisher's mm-0.8.5-installer.exe and choose a dedicated MegaMod folder. The installer and UrQuanMasters.exe are 32-bit and need Windows support for 32-bit applications. Keep any existing Ur-Quan Masters installation in its own folder. The installer supplies the base data and offers optional content. Open UrQuanMasters.exe or the MegaMod shortcut after setup."
+        },
+        {
+          "title": "Choose the Linux package for your system",
+          "instruction": "On x86-64 Linux, the publisher's .deb requires glibc 2.43 or later. Install it with your distro's package manager, then use the UrQuanMasters launcher. The upstream-linked Flathub package net.sourceforge.uqm_mods.UQM-MegaMod is available for x86-64 and ARM64 and includes additional graphics and audio packs."
+        },
+        {
+          "title": "Keep your MegaMod profile",
+          "instruction": "Close the game before backing up the whole MegaMod profile. The Windows installer normally uses %APPDATA%/UQM-MegaMod. The Linux .deb launcher uses ~/.uqm-megamod. Flatpak keeps that directory under ~/.var/app/net.sourceforge.uqm_mods.UQM-MegaMod. Preserve saves, teams, screenshots and settings. Back up any content or add-ons you added to the game folder or to a custom add-on directory separately."
+        }
+      ],
+      "warnings": [
+        "The inspected Windows and Linux packages include the MegaMod base data. Use MegaMod's own content releases for add-ons. Optional packs and controller mappings vary by package."
+      ],
+      "references": [
+        {
+          "title": "Recover a clipped Linux window",
+          "instruction": "If the Linux .deb shows a clipped window on X11, open it in a session with a window manager and try UrQuanMasters --renderer=software."
+        },
+        {
+          "title": "Write a named save from the Game menu",
+          "instruction": "In MegaMod 0.8.5, choose Game, then Save Game to write a named slot. Reopen the slot through Load Game. F3 quicksave can report a failure after writing its file."
+        },
+        {
+          "title": "Check release availability",
+          "instruction": "This MegaMod release offers Windows and Linux packages. The tag includes Mac source build material, with no publisher Intel or Apple Silicon Mac binary and no Android APK in this release."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-control-ii",
+      "evidence_urls": ["https://github.com/JHGuitarFreak/UQM-MegaMod"],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "star-control-ii-uqm-megamod",
+    "origin": {
+      "project_url": "https://github.com/JHGuitarFreak/UQM-MegaMod",
+      "repository": {
+        "host": "github.com",
+        "id": "211363646"
+      }
+    },
+    "decisions": []
+  }
+}

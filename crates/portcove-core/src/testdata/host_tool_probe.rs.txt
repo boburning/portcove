@@ -125,6 +125,12 @@ fn main() {
             println!("chdman verify extractdvd");
             std::process::exit(1);
         }
+        Some("--help") if env::current_exe().ok()
+            .and_then(|path| path.file_stem().map(|name| name == "portcove-dolphin-help-fixture"))
+            == Some(true) => {
+            eprintln!("usage: dolphin-tool COMMAND -h\n\ncommands supported: [convert, verify, header, extract]");
+            std::process::exit(1);
+        }
         Some("--success") => println!("testtool verify convert"),
         Some("--nonzero") => std::process::exit(7),
         Some("--sleep") => {

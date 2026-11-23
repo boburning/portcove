@@ -210,6 +210,26 @@ pub struct AuthenticatedDefinitionLaunchAssessment {
 }
 
 impl AuthenticatedDefinitionLaunchAssessment {
+    /// Exact accepted bytes, metadata and retained decision inventory. A
+    /// scheduled replay can skip writes without hiding an incomplete recovery.
+    pub(super) fn already_admitted(&self, connection: &Connection) -> Result<bool> {
+        let namespace = &self.document.namespace;
+        let stable_id = &self.document.stable_id;
+        let stored: Option<(String, String, String)> = connection.query_row(
+            "SELECT document_json,provenance_json,inventory_sha256 FROM definition_launch_assessments
+             WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional()?;
+        let Some((bytes, provenance, digest)) = stored else {
+            return Ok(false);
+        };
+        Ok(bytes.as_bytes() == self.bytes
+            && provenance == serde_json::to_string(&self.provenance)?
+            && established_revision(connection, namespace, stable_id)? == self.document.revision
+            && inventory(connection, namespace, stable_id)?.0 == digest)
+    }
+
     /// Canonical exact decision identities for a subsequent explicit correction.
     /// Authentication and this inspection do not imply library admission.
     pub fn decision_sha256s(&self) -> Result<Vec<String>> {
@@ -372,6 +392,7 @@ impl Library {
                     PortcoveError::state("launch assessment authority has no replay floor")
                 })?;
         accepted.provenance.check_advance(&floor)?;
+        let floor_current = accepted.provenance.matches_authority_floor(&floor);
         let established =
             established_revision(&transaction, &document.namespace, &document.stable_id)?;
         let previous: Option<(String, String, String)> = transaction.query_row(
@@ -408,7 +429,7 @@ impl Library {
                     "launch assessment replay or equivocation",
                 ));
             }
-            document == &prior && accepted.provenance == provenance && accepted.provenance == floor
+            document == &prior && accepted.provenance == provenance && floor_current
         } else {
             if established > 0 || !prior_inventory.1.is_empty() {
                 return Err(PortcoveError::state(
@@ -490,11 +511,13 @@ impl Library {
             document_json=excluded.document_json,provenance_json=excluded.provenance_json,
             inventory_sha256=excluded.inventory_sha256",
             params![document.namespace, document.stable_id, bytes, provenance, inventory_sha256])?;
-        transaction.execute(
-            "UPDATE definition_publisher_authority SET replay_floor_json=?1
-            WHERE anchor_sha256=?2",
-            params![provenance, accepted.provenance.anchor_sha256],
-        )?;
+        if !floor_current {
+            transaction.execute(
+                "UPDATE definition_publisher_authority SET replay_floor_json=?1
+                WHERE anchor_sha256=?2",
+                params![provenance, accepted.provenance.anchor_sha256],
+            )?;
+        }
         accepted.provenance.require_fresh()?;
         grant_provenance.require_fresh()?;
         transaction.execute(

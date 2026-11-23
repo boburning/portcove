@@ -2,20 +2,38 @@ use super::*;
 use serde_json::{Value, json};
 
 fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
-    let mut document =
-        crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
+    fixture_with_catalog_growth(schema, 0, None)
+}
+
+fn fixture_with_catalog_growth(
+    schema: u32,
+    additional_bytes: usize,
+    padded_leaf_bytes: Option<usize>,
+) -> BTreeMap<String, Vec<u8>> {
+    let mut document = crate::test_fixture::indexed_fixture_document_for_port(
+        &crate::Catalog::embedded().unwrap(),
+        "shipwright",
+    );
     document
         .ports
         .iter_mut()
         .find(|port| port.id == "shipwright")
         .unwrap()
         .windows_shipwright_persistence = false;
+    if additional_bytes > 0 {
+        crate::test_fixture::grow_catalog_evidence(&mut document, additional_bytes);
+    }
     let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
-    let leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    let loader_schema = if port.mod_loader.is_some() { 3 } else { 1 };
+    let mut leaf = serde_json::to_vec(&json!({"contract_schema":loader_schema,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    if let Some(bytes) = padded_leaf_bytes {
+        assert!(leaf.len() < bytes);
+        leaf.resize(bytes, b' ');
+    }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
-    let entry = serde_json::to_vec(&json!({"definition_schema":1,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
-        "required_capabilities":[{"template":"libultraship-portable","minimum_version":1,"maximum_version":1}],
+    let entry = serde_json::to_vec(&json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
+        "required_capabilities":crate::test_fixture::definition_requirements(port, 1),
         "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]})).unwrap();
     let entry_target = format!("sha256/{}.json", hash(&entry));
     let index = serde_json::to_vec(&json!({"index_schema":1,"definitions":[{"namespace":"official","stable_id":port.id,"revision":1,"target":entry_target}],
@@ -226,5 +244,56 @@ fn descriptive_directory_publication_is_exact_and_separate_from_managed_grants()
     assert!(report.definitions.is_empty());
     assert_eq!(report.listings.unwrap().sha256, hash(&bytes));
     files.insert("policy/official/other.listings.json".into(), bytes);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}
+
+#[test]
+fn full_catalog_projection_above_four_mib_uses_the_indexed_publication_path() {
+    let files = fixture_with_catalog_growth(1, 2 * 1024 * 1024, None);
+    assert!(files.values().any(|bytes| bytes.len() > 4 * 1024 * 1024));
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.definitions.len(), 1);
+    assert!(
+        report
+            .files
+            .iter()
+            .any(|target| target.bytes > 4 * 1024 * 1024)
+    );
+}
+
+#[test]
+fn publication_refuses_a_valid_leaf_that_cannot_fit_the_escaped_selection() {
+    let files = fixture_with_catalog_growth(1, 0, Some(MAX_LEAF));
+    let error = inspect_definition_publication_bytes(&files).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("escaped definition snapshot exceeds selection storage capacity")
+    );
+}
+
+#[test]
+fn publication_inspects_the_compact_producer_body_and_retained_legacy_together() {
+    let mut files = BTreeMap::from([(
+        INDEX.into(),
+        br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec(),
+    )]);
+    let old = portcove_listing_carrier::LEGACY_TARGET;
+    let new = portcove_listing_carrier::COMPACT_TARGET;
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    files.insert(new.into(), wire.to_vec());
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    files.insert(old.into(), legacy.to_vec());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    let summary = report.listings.unwrap();
+    assert_eq!(summary.target, new);
+    assert_eq!(summary.sha256, hash(wire));
+    assert_eq!(summary.revision, 1);
+    assert_eq!(summary.listing_count, 1);
+    assert!(report.definitions.is_empty());
+    let mut revised = legacy.to_vec();
+    revised.push(b' ');
+    files.insert(old.into(), revised);
     assert!(inspect_definition_publication_bytes(&files).is_err());
 }

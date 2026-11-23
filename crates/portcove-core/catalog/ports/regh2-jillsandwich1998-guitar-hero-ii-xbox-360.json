@@ -3,7 +3,7 @@
   "listing": {
     "id": "regh2-jillsandwich1998-guitar-hero-ii-xbox-360",
     "name": "Guitar Hero II (Xbox 360) — reGH2 (jillsandwich1998)",
-    "original_game_title": "Guitar Hero II (Xbox 360)",
+    "original_game_title": "Guitar Hero II",
     "summary": "Early prerelease tested on one computer. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jillsandwich1998/reGH2",
     "platforms": ["linux-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
       "game_slug": "guitar-hero-ii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-ii",
+      "evidence_urls": ["https://github.com/jillsandwich1998/reGH2"],
+      "source_editions": [
+        {
+          "id": "guitar-hero-ii-xbox-360",
+          "title": "Guitar Hero II (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jillsandwich1998/reGH2/blob/3c5f75c52c116b49b5f212d403c0e1cccb37f510/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

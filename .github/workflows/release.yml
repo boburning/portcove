@@ -149,7 +149,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
       - name: Install repository quality tools
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.quality-pins.outputs.required_all }}
       - name: Install Linux desktop prerequisites
@@ -248,7 +248,7 @@ jobs:
         run: echo "spec=cargo-deny@$(node scripts/quality-tools.mts --version cargo-deny)" >> "$GITHUB_OUTPUT"
       - name: Install the pinned scanner in the credential-free compiler job
         if: runner.os == 'Linux' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
-        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.compiler-scanner-pin.outputs.spec }}
       - run: pnpm install --frozen-lockfile
@@ -489,7 +489,7 @@ jobs:
       - name: Read pinned assembly scanner
         id: assembly-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.assembly-pins.outputs.required_prebuilt }}
       - name: Download complete release matrix
@@ -519,7 +519,7 @@ jobs:
           path: .
           format: spdx-json
           output-file: release-assets-aggregate/Portcove-SBOM.spdx.json
-          syft-version: v1.57.1
+          syft-version: v1.57.2
           dependency-snapshot: false
           upload-artifact: false
           upload-release-assets: false
@@ -759,7 +759,7 @@ jobs:
       - name: Read pinned security scanner
         id: security-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: ${{ steps.security-pins.outputs.required_prebuilt }}
       - name: Recheck Linux release authorization before upload

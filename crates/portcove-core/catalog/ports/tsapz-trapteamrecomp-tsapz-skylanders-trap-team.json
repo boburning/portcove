@@ -4,10 +4,18 @@
     "id": "tsapz-trapteamrecomp-tsapz-skylanders-trap-team",
     "name": "Skylanders: Trap Team — tsapZ TrapTeamRecomp (tsapZ)",
     "original_game_title": "Skylanders: Trap Team",
+    "artwork": {
+      "game_id": 8509,
+      "cover_id": 91741,
+      "image_id": "co1ysd",
+      "image_sha256": "6451b8490a0246ad47c6fd28dea12cb33ef7c90403db54b66df33d5315562c4d",
+      "game_slug": "skylanders-trap-team",
+      "match_kind": "underlying-game"
+    },
     "summary": "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/TrapTeamRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/tsapZ/TrapTeamRecomp",
     "manual_setup": {
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/tsapZ/TrapTeamRecomp"
     },
-    "issue_number": 3152
+    "issue_number": 3152,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-trap-team",
+      "evidence_urls": [
+        "https://github.com/tsapZ/TrapTeamRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-trapteamrecomp-tsapz-skylanders-trap-team.json"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-trap-team-xbox-360",
+          "title": "Skylanders: Trap Team (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-trapteamrecomp-tsapz-skylanders-trap-team.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

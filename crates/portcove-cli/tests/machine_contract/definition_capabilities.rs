@@ -60,6 +60,7 @@ fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
             response["command"],
             "catalog.inspect-definition-publication"
         );
+        assert_eq!(response["schema_version"], 100);
         assert_eq!(response["data"]["authority"], "none");
         assert_eq!(response["data"]["publication_schema"], 1);
         assert_eq!(
@@ -70,16 +71,25 @@ fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
         assert!(!library.exists());
     }
     std::fs::write(bundle.join("extra.json"), b"{}").unwrap();
-    let result = portcove(
-        &library,
-        &[
-            "--json",
-            "catalog",
-            "inspect-definition-publication",
-            bundle.to_str().unwrap(),
-        ],
-    );
-    assert!(!result.status.success());
+    for mode in ["--json", "--jsonl"] {
+        let result = portcove(
+            &library,
+            &[
+                mode,
+                "catalog",
+                "inspect-definition-publication",
+                bundle.to_str().unwrap(),
+            ],
+        );
+        assert!(!result.status.success());
+        let response = json_stdout(&result);
+        assert_eq!(response["schema_version"], 100);
+        assert_eq!(response["ok"], false);
+        assert_eq!(
+            response["command"],
+            "catalog.inspect-definition-publication"
+        );
+    }
     assert!(!library.exists());
 }
 
@@ -93,7 +103,7 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
         "required_capabilities": [
             {"template":"n64-recomp-portable", "minimum_version":1, "maximum_version":1},
             {"template":"future-template", "minimum_version":1, "maximum_version":1},
-            {"template":"generated-cache", "minimum_version":4, "maximum_version":5}
+            {"template":"generated-cache", "minimum_version":5, "maximum_version":6}
         ]
     });
     std::fs::write(&file, serde_json::to_vec(&request).unwrap()).unwrap();
@@ -124,7 +134,7 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
         assert_eq!(checks[1]["outcome"], "unsupported_template");
         assert!(checks[1]["installed_version"].is_null());
         assert_eq!(checks[2]["outcome"], "unsupported_version");
-        assert_eq!(checks[2]["installed_version"], 3);
+        assert_eq!(checks[2]["installed_version"], 4);
         assert!(!library.exists());
     }
     request["publisher_approved"] = true.into();
@@ -167,16 +177,27 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("libultraship-portable", 2),
         ("libultraship-portable", 3),
         ("libultraship-portable", 4),
+        ("libultraship-portable", 5),
+        ("libultraship-portable", 6),
+        ("libultraship-portable", 7),
         ("generated-cache", 2),
         ("generated-cache", 3),
+        ("generated-cache", 4),
         ("n64-recomp-portable", 2),
         ("n64-recomp-portable", 3),
         ("n64-recomp-portable", 4),
         ("n64-recomp-portable", 5),
         ("n64-recomp-portable", 6),
+        ("n64-recomp-portable", 7),
+        ("n64-recomp-portable", 8),
+        ("n64-recomp-portable", 9),
+        ("n64-recomp-portable", 10),
+        ("n64-recomp-portable", 11),
         ("psx-recomp-managed", 2),
         ("psx-recomp-managed", 3),
         ("psx-recomp-managed", 4),
+        ("psx-recomp-managed", 5),
+        ("psx-recomp-managed", 6),
         ("native-portable", 2),
         ("native-portable", 3),
         ("native-portable", 4),
@@ -195,7 +216,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     }
     let staged_versions = [
         2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-        31, 32, 33, 34, 35, 36,
+        31, 32, 33, 34, 35, 36, 37, 38,
     ];
     for version in staged_versions {
         assert!(expected.insert(("staged-source-portable", version)));
@@ -220,6 +241,14 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(expected.insert(("native-portable", 32)));
     assert!(expected.insert(("native-portable", 33)));
     assert!(expected.insert(("native-portable", 35)));
+    assert!(expected.insert(("native-portable", 36)));
+    assert!(expected.insert(("native-portable", 37)));
+    assert!(expected.insert(("native-portable", 38)));
+    assert!(expected.insert(("native-portable", 39)));
+    assert!(expected.insert(("native-portable", 40)));
+    // Daggerfall Unity local mod bundles require a reader newer than packaged Linux libraries.
+    assert!(expected.insert(("native-portable", 41)));
+    assert!(expected.insert(("native-portable", 42)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }
@@ -275,12 +304,14 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (34, true, 34),
         (35, true, 35),
         (36, true, 36),
-        (37, false, 36),
-        (6, false, 36),
-        (7, false, 36),
-        (9, false, 36),
-        (13, false, 36),
-        (14, false, 36),
+        (37, true, 37),
+        (38, true, 38),
+        (39, false, 38),
+        (6, false, 38),
+        (7, false, 38),
+        (9, false, 38),
+        (13, false, 38),
+        (14, false, 38),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,
@@ -299,7 +330,10 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
             negotiated["schema_version"],
             portcove_core::API_SCHEMA_VERSION
         );
-        assert_eq!(negotiated["data"]["compatible"], compatible);
+        assert_eq!(
+            negotiated["data"]["compatible"], compatible,
+            "staged-source-portable version {version}"
+        );
         assert_eq!(
             negotiated["data"]["checks"][0]["installed_version"],
             installed_version
@@ -504,6 +538,11 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     let core = portcove_core::Library::open(&library).unwrap();
     let before = core.review_definition_authority().unwrap();
     let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    // Format 15 carries typed acquisition restrictions; signed delivery stays older.
+    assert_eq!(
+        capabilities["data"]["listing_formats"],
+        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(
         commands

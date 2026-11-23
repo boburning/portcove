@@ -3,6 +3,10 @@ import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portStatus } from "../test-fixtures";
+import shadowRemake from "../../../../crates/portcove-core/catalog/ports/ajncsystem-shadowofthecolossus-pc.json";
+import { catalogEntries } from "../features/browsing/catalog-entry";
+import type { PortListing } from "../types";
+import { ListingDetailPanel } from "./ListingDetailPanel";
 import { DetailPanel } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { actions, installRecord } from "./rendered-test-fixtures";
@@ -43,6 +47,7 @@ it(
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -94,3 +99,37 @@ it.each([null, "game-data/extract-info.json"])(
     ).toBeNull();
   },
 );
+
+it("shows the PS4 edition and upstream update ownership on the actual remake listing", async () => {
+  const listing = shadowRemake.listing as PortListing;
+  const [entry] = catalogEntries(undefined, { format_version: 12, listings: [listing] }, [], []);
+  await render(
+    <ListingDetailPanel
+      entry={entry!}
+      generation={1}
+      perform={vi.fn()}
+      onChanged={vi.fn()}
+      close={vi.fn()}
+    />,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect.element(identity.getByText("PlayStation 4", { exact: true })).toBeVisible();
+  await expect.element(identity.getByText("Update channel not applicable")).not.toBeInTheDocument();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await expect
+    .element(page.getByText("Managed by the upstream project", { exact: true }))
+    .toBeVisible();
+});
+
+it("keeps the actual managed game's channel in the Detail header", async () => {
+  await render(
+    <DetailPanel
+      port={currentCatalogPort("zelda64-recomp")}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect.element(identity.getByText("Stable", { exact: true })).toBeVisible();
+});

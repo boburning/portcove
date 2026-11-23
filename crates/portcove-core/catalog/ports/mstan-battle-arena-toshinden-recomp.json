@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
     "issue_number": 826,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
     "artwork": {
@@ -19,7 +19,16 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Battle Arena Toshinden",
-    "download_block_reason": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+        "tracking_issue": 826
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
@@ -49,6 +58,24 @@
         "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
       ],
       "help_url": "https://github.com/mstan/BattleArenaToshindenRecomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-arena-toshinden",
+      "evidence_urls": [
+        "https://github.com/mstan/BattleArenaToshindenRecomp#readme",
+        "https://github.com/mstan/BattleArenaToshindenRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "battle-arena-toshinden-playstation",
+          "title": "Battle Arena Toshinden (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/BattleArenaToshindenRecomp/blob/6810d2053f1e1f6788c78e0f5dcc509b1fa8f34c/README.md"
+          ]
+        }
+      ]
     }
   }
 }

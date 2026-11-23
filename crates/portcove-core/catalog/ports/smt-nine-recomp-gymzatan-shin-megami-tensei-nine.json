@@ -6,7 +6,7 @@
     "original_game_title": "Shin Megami Tensei NINE",
     "summary": "The project tested startup, save/load, movies, streets and shops, story battles, RTS tutorials and entry into chapter 2. It explicitly does not guarantee a full playthrough or stable 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gymzatan/smt-nine-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/gymzatan/smt-nine-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "1342bdbcc6616dcef7d7cac7824afa94f9e20913bf9ea90d9c45008c57635c6a",
       "game_slug": "shin-megami-tensei-nine",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-megami-tensei-nine",
+      "evidence_urls": ["https://github.com/gymzatan/smt-nine-recomp"],
+      "source_editions": [
+        {
+          "id": "shin-megami-tensei-nine-xbox",
+          "title": "Shin Megami Tensei NINE (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/gymzatan/smt-nine-recomp/blob/dc4a1d2ece51ac3ecb30ee1a70a2f79b0324a87f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

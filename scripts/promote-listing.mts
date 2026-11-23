@@ -1,3 +1,10 @@
+import { requireOriginalGameDecision } from "./catalog-game-review.mts";
+import { listingDownloadBlockReason } from "./catalog-acquisition-restrictions.mts";
+import {
+  checkedAuthoredPort,
+  readCatalogSource,
+  assembleCatalogRecords,
+} from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -85,9 +92,9 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
   if (!isRecord(port) || !isRecord(port.listing)) throw new Error("Port file has no listing.");
   if ("integration" in port) throw new Error("This port already has an integration.");
   const listing = port.listing;
-  if (listing.download_block_reason !== undefined)
+  if (listingDownloadBlockReason(listing) !== undefined || "download_block_reason" in listing)
     throw new Error(
-      "The listing has a download_block_reason, which a managed route cannot keep; remove it once the route resolves that condition, and rewrite the listing guide to match.",
+      "The listing restrictions hold Download (its derived download_block_reason), which a managed route cannot keep; remove that hold once the route resolves its condition, and rewrite the listing guide to match.",
     );
   if (typeof listing.summary === "string") {
     const summary = ` ${listing.summary.toLowerCase()} `;
@@ -125,7 +132,7 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
   const repository = options.repository ?? releaseRepository(listing);
   if (!repository)
     throw new Error(
-      "Name the GitHub repository; the listing's release URL is not a GitHub repository.",
+      "Name the GitHub repository; the listing's release URL is not a GitHub repository. Other hosts need an exactly pinned direct-manifest archive, written by hand.",
     );
   const assetHints: Json = {};
   const executableHints: Json = {};
@@ -416,6 +423,17 @@ function main() {
   }
   const portPath = join(root, "crates/portcove-core/catalog/ports", `${id}.json`);
   const promoted = promotePort(JSON.parse(readFileSync(portPath, "utf8")), { ...options, layouts });
+  const reviewed = checkedAuthoredPort(promoted, id);
+  const catalogRoot = dirname(dirname(portPath));
+  const source = readCatalogSource(catalogRoot);
+  requireOriginalGameDecision(reviewed, source.records);
+  const shared: unknown = JSON.parse(
+    readFileSync(join(catalogRoot, "catalog-shared.json"), "utf8"),
+  );
+  assembleCatalogRecords(
+    shared,
+    source.records.map((record) => (record.listing.id === id ? reviewed : record)),
+  );
 
   // Every refusal above happens before the first write.
   const fixturePath = join(

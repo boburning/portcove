@@ -6,6 +6,9 @@
 /apps/desktop/src-tauri/gen/
 .fallow/
 /.codex-remote-attachments/
+/.env
+/.env.local
+/.neon
 /work/
 /apps/desktop/.vitest/
 /.vitest/

@@ -1,10 +1,18 @@
 import type { DetailDestination } from "../../view-model";
 
-export const detailSections = ["overview", "files", "saves", "versions", "manage"] as const;
+export const detailSections = [
+  "overview",
+  "files",
+  "mods",
+  "saves",
+  "versions",
+  "configuration",
+  "manage",
+] as const;
 export type DetailSection = (typeof detailSections)[number];
 export type DetailOpening = {
   token: number;
-  destination?: DetailDestination | undefined;
+  destination?: DetailDestination | DetailSection | undefined;
   originKey?: string | undefined;
 };
 
@@ -37,10 +45,11 @@ export function initialDetailSection({
   needsFiles,
   hasUpdate,
 }: {
-  destination?: DetailDestination | undefined;
+  destination?: DetailDestination | DetailSection | undefined;
   needsFiles: boolean;
   hasUpdate: boolean;
 }): DetailSection {
+  if (destination === "artwork") return "manage";
   if (destination) return destination === "updates" ? "versions" : destination;
   if (needsFiles) return "files";
   return hasUpdate ? "versions" : "overview";

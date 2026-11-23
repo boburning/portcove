@@ -5,6 +5,14 @@
     "name": "Quake II (Yamagi Quake II)",
     "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Portcove can register this existing copy and start the selected player; original and save qualification remain separate.",
     "original_game_title": "Quake II",
+    "artwork": {
+      "game_id": 286,
+      "cover_id": 434744,
+      "image_id": "co9bg8",
+      "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
+      "game_slug": "quake-ii",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/yquake2/yquake2",
     "platforms": [],
     "availability": "unknown",
@@ -40,6 +48,15 @@
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": [
+        "https://github.com/yquake2/yquake2/tree/76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+        "https://github.com/yquake2/yquake2"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

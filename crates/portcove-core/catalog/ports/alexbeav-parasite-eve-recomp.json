@@ -54,10 +54,26 @@
     "recommended_download_channel": "stable",
     "original_game_title": "Parasite Eve",
     "download_asset_hints": {
-      "linux-x86-64": ["Parasite-Eve-Recompiled-", "-linux-x64.zip"],
       "macos-aarch64": ["Parasite-Eve-Recompiled-", "-macos-arm64.zip"],
-      "macos-x86-64": ["Parasite-Eve-Recompiled-", "-macos-x64.zip"],
-      "windows-x86-64": ["Parasite-Eve-Recompiled-", "-windows-x64.zip"]
+      "macos-x86-64": ["Parasite-Eve-Recompiled-", "-macos-x64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "parasite-eve-playstation",
+          "title": "Parasite Eve (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/aa070962ba2c1d3265c7871f8d8bfb1c483f4c6d/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -80,50 +96,6 @@
       "windows-x86-64": ["Parasite_Eve.exe"],
       "linux-x86-64": ["Parasite_Eve"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -141,11 +113,27 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own single-track CHDs for SLUS-00662 and SLUS-00668 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc’s data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc. Upstream reports that each disc starts; a change to Disc 2 during play hasn’t been tested. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own single-track CHDs for SLUS-00662 and SLUS-00668 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc’s data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc. Upstream reports that each disc starts; a change to Disc 2 during play hasn’t been tested. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Parasite Eve (USA) two-disc set (SLUS-00662, SLUS-00668), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks each disc’s data track and track count. Keep every disc intact.",
+          "Upstream reports that each disc starts. A change to Disc 2 during play hasn’t been tested.",
+          "Native build, disc switching, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios",
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
+  "psx_managed_windows_v1": "split-mods"
 }

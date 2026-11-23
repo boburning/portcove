@@ -5,6 +5,21 @@
     "project": "Proyecto original",
     "steam": "Acceso directo de Steam"
   },
+  "artwork": {
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "previewFailed": "No se pudo abrir la vista previa. Cancela y elige otra imagen.",
+    "reviewAutomatic": "Usa la ilustración predeterminada para esta función si está disponible.",
+    "reviewChange": "Revisar cambio de ilustración",
+    "reviewHide": "Oculta la ilustración para esta función. Las demás no cambian.",
+    "reviewImage": "Revisar {{role}}",
+    "reviewLocalImage": "Imagen local",
+    "reviewPreviewChanged": "La imagen cambió. Cancela y vuelve a elegirla para revisar la nueva imagen.",
+    "reviewProviderImage": "Imagen de SteamGridDB de {{author}}",
+    "reviewShow": "Vuelve a mostrar esta función con la ilustración que tenía antes de ocultarla.",
+    "reviewStale": "Esta elección de ilustración cambió. Cancela y revisa la elección actual.",
+    "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."
+  },
   "capabilities": {
     "assessment": "Detalles de la evaluación",
     "backupNone": "Última copia de seguridad completada: no hay ninguna registrada. Revisa Partidas y copias de seguridad para ver qué se incluye y qué se excluye.",
@@ -29,6 +44,16 @@
     "heading": "Qué funciona y problemas conocidos",
     "intro": "La disponibilidad y las pruebas son cosas distintas. Cada acción comprueba sus propios requisitos actuales.",
     "label": "Qué funciona y problemas conocidos",
+    "launch": {
+      "asks-for-game-files": "Pide los archivos del juego",
+      "evidenceObserved": "Comportamiento observado al iniciar",
+      "evidenceUpstream": "Según el proyecto",
+      "first": "Primer inicio",
+      "opens-project-launcher": "Abre el lanzador del proyecto",
+      "repeat": "Volver a jugar",
+      "starts-game-directly": "Inicia el juego directamente",
+      "unknown": "Desconocido"
+    },
     "mode": {
       "automatic": "Disponible en Portcove",
       "manual": "Manual",
@@ -47,7 +72,7 @@
       "separator": " · ",
       "source": "Fuente",
       "sourceLine": "<link /> · {{date}}",
-      "versionSpecific": "Datos de una versión concreta: comprueba este ámbito exacto antes de aplicarlo a tu copia. Las versiones posteriores no heredan un fallo ni una corrección."
+      "versionSpecific": "Estos detalles se aplican al ámbito indicado arriba."
     },
     "noticesUnavailable": "Los avisos opcionales de problemas conocidos no están disponibles. La configuración y el inicio conservan sus evaluaciones actuales.",
     "observations": {
@@ -69,13 +94,45 @@
     "unavailable": "Los detalles de las funciones no están disponibles. Usa las evaluaciones actuales de las acciones y las instrucciones de configuración.",
     "untested": "{{mode}} · Este informe no lo ha probado"
   },
+  "carriedFiles": {
+    "availableBytes": "Espacio disponible al cambiar de versión",
+    "copied": "Copiados en la versión activa",
+    "copiedBytes": "Bytes copiados",
+    "count": "Número de archivos registrado: {{value, number}}",
+    "countUnknown": "No se registró el número completo de archivos.",
+    "details": "Revisar el resultado registrado para los archivos",
+    "differencesKept": "Algunos archivos eran diferentes entre versiones. Cada versión conservó su propia copia.",
+    "examplesOnly": "Solo se muestran los ejemplos de rutas registrados.",
+    "folderUnavailable": "La carpeta ya no está registrada",
+    "fromFolder": "Carpeta de la versión anterior al cambio",
+    "fromVersion": "Versión anterior al cambio",
+    "historical": "Este registro describe el cambio de versión. No vuelve a comprobar los archivos actuales.",
+    "insufficientSpace": "Los archivos se dejaron con la versión anterior porque no había suficiente espacio libre.",
+    "largeCopy": "Portcove copió {{size}} de archivos que no había instalado a esta versión.",
+    "noLongerRecorded": "Ya no está registrada",
+    "packageCopy": "La nueva versión incluía sus propias copias de algunos archivos. Las copias anteriores se dejaron con la versión anterior.",
+    "readFailed": "Algunos archivos no se pudieron leer y se dejaron con la versión anterior.",
+    "removed": "Copias sin cambios eliminadas del destino",
+    "requiredBytes": "Espacio necesario al cambiar de versión",
+    "separate": "Copias diferentes conservadas por separado",
+    "shipped": "Incluidos en la nueva versión",
+    "sizeUnknown": "Tamaño desconocido",
+    "skippedCount": "Archivos que quedaron por falta de espacio",
+    "sourceModified": "Los archivos se dejaron con la versión anterior porque su instalación había cambiado.",
+    "sourceNotRechecked": "La versión anterior ya no está registrada. No se han vuelto a comprobar sus archivos.",
+    "title": "Archivos conservados al cambiar de versión",
+    "toFolder": "Carpeta de la versión activa",
+    "toVersion": "Versión activa",
+    "unreadable": "No se pudieron leer"
+  },
   "identity": {
     "label": "Identidad del juego y de la adaptación",
     "offeredChannel": "Canal de actualización ofrecido",
     "originalSystem": "Sistema original",
     "originalSystemUnspecified": "Sistema original no especificado",
     "runsOn": "Funciona en",
-    "selectedChannel": "Canal de actualización seleccionado"
+    "selectedChannel": "Canal de actualización seleccionado",
+    "upstreamPlatform": "{{platform}} · Proyecto original"
   },
   "requirements": {
     "fallback": "Revisa Archivos del juego y las instrucciones del proyecto original para conocer los requisitos de esta adaptación.",
@@ -92,11 +149,24 @@
     "website": "Sitio web del proyecto"
   },
   "section": {
+    "configuration": "Ajustes del juego",
     "files": "Archivos del juego",
     "label": "Secciones de detalles del juego",
     "manage": "Administrar",
+    "mods": "Mods",
     "overview": "Resumen",
     "saves": "Partidas y copias de seguridad",
     "versions": "Versiones y actualizaciones"
+  },
+  "withdrawal": {
+    "installedBadge": "Versión instalada retirada",
+    "installedNext": "Puedes conservar la copia instalada y las partidas guardadas.",
+    "installedReason": "El responsable del catálogo retiró la versión {{version}}.",
+    "label": "Versión retirada",
+    "recommendedBadge": "Versión recomendada retirada",
+    "recommendedNext": "Espera a que haya una versión compatible o revisa las versiones disponibles.",
+    "recommendedReason": "El responsable del catálogo retiró la versión recomendada.",
+    "rollback": "Revisar la reversión",
+    "versions": "Ver versiones"
   }
 }

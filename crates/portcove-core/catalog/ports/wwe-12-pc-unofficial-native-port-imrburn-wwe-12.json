@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wwe-12-pc-unofficial-native-port-imrburn-wwe-12",
+    "artwork": {
+      "game_id": 5294,
+      "cover_id": 365563,
+      "image_id": "co7u2j",
+      "image_sha256": "e113f222cf771a314608d0796bd6970c1ffaef0cab81b10f86ed5efbd4caa4ea",
+      "game_slug": "wwe-12",
+      "match_kind": "underlying-game"
+    },
     "name": "WWE '12 — WWE '12 PC — unofficial native port (iMrBurn)",
     "original_game_title": "WWE '12",
     "summary": "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/iMrBurn/wwe12-pc"
     },
-    "issue_number": 3210
+    "issue_number": 3210,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-12",
+      "evidence_urls": [
+        "https://github.com/iMrBurn/wwe12-pc",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wwe-12-pc-unofficial-native-port-imrburn-wwe-12.json"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-12-xbox-360",
+          "title": "WWE '12 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wwe-12-pc-unofficial-native-port-imrburn-wwe-12.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

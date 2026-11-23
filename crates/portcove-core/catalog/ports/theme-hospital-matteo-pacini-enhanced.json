@@ -33,7 +33,28 @@
           "instruction": "The pinned master revision documents the DOS reconstruction. Use the matching owned GOG installer identified by upstream. After closing DOSBox, preserve build/run, including HOSPITAL.CFG and your saves, and keep the original data it links from orig. The earlier native branch instructions apply to a different revision."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-hospital",
+      "evidence_urls": [
+        "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+        "https://github.com/matteo-pacini/theme-hospital-decomp",
+        "https://github.com/matteo-pacini/theme-hospital-decomp/commit/7993814a4f562a1898b20621dbfa60644f9697d7",
+        "https://api.github.com/repos/matteo-pacini/theme-hospital-enhanced"
+      ],
+      "source_editions": [
+        {
+          "id": "theme-hospital-dos",
+          "title": "Theme Hospital (DOS)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Theme Hospital"
   },
   "upstream_lineage": {
     "format_version": 1,

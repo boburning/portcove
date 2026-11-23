@@ -15,7 +15,7 @@ export type InputCatalogUpdateSource =
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
-export type InputGameSettingChange =
+export type GameSettingChange =
   | {
       action: "set";
       value: unknown;
@@ -29,6 +29,14 @@ export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
  * is an opt-in feed that receives builds before Beta.
  */
 export type ApplicationUpdateChannel = "beta" | "preview";
+/**
+ * Presentation data for wide and narrow consumers of the same background.
+ */
+export type ArtworkFraming = {
+  narrow: ArtworkFocalPoint;
+  version: "v1";
+  wide: ArtworkFocalPoint;
+};
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -150,11 +158,13 @@ export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   definition_capability_request: InputDefinitionCapabilityRequest;
   game_file_query_request: InputGameFileQueryRequest;
-  game_setting_change: InputGameSettingChange;
+  game_setting_change: GameSettingChange;
+  game_settings_edit: InputGameSettingsEdit;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
   desktop_application_update_preferences: InputDesktopApplicationUpdatePreferences;
+  desktop_artwork_selection_framing: InputDesktopArtworkSelectionFraming;
   desktop_bug_report_field: InputDesktopBugReportField;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
@@ -203,6 +213,13 @@ export interface GameFileRouteRequest {
   port_id: string;
   route: GameFileRouteKind;
 }
+/**
+ * An edit to one declared key within the change-set's single configuration file.
+ */
+export interface InputGameSettingsEdit {
+  change: GameSettingChange;
+  setting_id: string;
+}
 export interface SourceDiscoveryLimits {
   max_candidates: number;
   max_depth: number;
@@ -243,6 +260,20 @@ export interface InputDesktopApplicationUpdatePreferences {
    */
   automatic_checks: boolean;
   channel: ApplicationUpdateChannel;
+}
+/**
+ * The full identity of a reviewed image and optional background framing.
+ */
+export interface InputDesktopArtworkSelectionFraming {
+  framing?: ArtworkFraming | null;
+  preview_sha256: string;
+}
+/**
+ * A focal point on the orientation-corrected image, in ten-thousandths.
+ */
+export interface ArtworkFocalPoint {
+  x: number;
+  y: number;
 }
 export interface InputDesktopBugReportField {
   id: string;
@@ -294,6 +325,10 @@ export interface InputDesktopGameFileScanMatchQuery {
    */
   limit: number;
   offset?: number;
+  /**
+   * Only matches for this source profile.
+   */
+  profile_id?: string | null;
   /**
    * Only matches inside this saved folder.
    */

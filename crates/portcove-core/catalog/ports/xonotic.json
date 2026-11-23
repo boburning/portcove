@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xonotic",
+    "artwork": {
+      "game_id": 9587,
+      "cover_id": 481674,
+      "image_id": "coabnu",
+      "image_sha256": "d5e7b6660b63c0165ae11c9ae5b94ccadc5286b2627ef27df64386f3a9eb9ac1",
+      "game_slug": "xonotic",
+      "match_kind": "underlying-game"
+    },
+    "name": "Xonotic",
+    "original_game_title": "Xonotic",
+    "summary": "Play Xonotic's standalone arena shooter with the maps and game data included in its official release.",
+    "project_url": "https://gitlab.com/xonotic/xonotic",
+    "issue_number": 6394,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://xonotic.org/download/",
+    "setup_url": "https://xonotic.org/download/",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+        "tracking_issue": 6394
+      }
+    ],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the player from the release folder",
+          "instruction": "Extract the full official ZIP and keep data beside the player in the Xonotic folder. On Windows start xonotic.exe for x64 or xonotic-x86.exe for 32-bit Windows. On Linux x64 run ./xonotic-linux-sdl.sh with glibc 2.29 or newer, SDL2, libvorbisfile, libcurl, libpng and a working OpenGL 2.1 driver. On Intel Mac open Xonotic.app from the Xonotic folder. The dedicated server binaries cannot open the player."
+        },
+        {
+          "title": "Play your extracted Linux x64 copy from Portcove CLI",
+          "instruction": "Run portcove external select-preview xonotic /path/to/Xonotic/xonotic-linux64-sdl --working-directory /path/to/Xonotic using your actual absolute paths. Use portcove external select with the same inputs, plus --expected-preview with the displayed SHA-256 and --yes. Start the registered copy with portcove exec xonotic. Keep the package and your ~/.xonotic profile outside the Portcove library. Removing the registration leaves both in place."
+        },
+        {
+          "title": "Use the package manager if you installed the Flatpak",
+          "instruction": "On Linux you can install org.xonotic.Xonotic through Flathub. Use your Flatpak app manager to update or remove that copy. Its profile lives at ~/.var/app/org.xonotic.Xonotic/.xonotic."
+        },
+        {
+          "title": "Keep your settings and custom maps",
+          "instruction": "Close the game and copy the full profile before replacing your package. For the official ZIP copy Saved Games/xonotic from your Windows user folder, ~/.xonotic on Linux, or ~/Library/Application Support/xonotic on Mac. Keep your private stats key with the backup and copy custom content added to the installation separately."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Try the X11 player if the match renders black",
+          "instruction": "From the extracted Xonotic folder on Linux x64, run ./xonotic-linux64-glx +gl_texturecompression 0 with a working X11 and GLX session. This uses the same game data and profile as the SDL player."
+        },
+        {
+          "title": "Check Apple Silicon and Android availability",
+          "instruction": "The stable ZIP contains an Intel Mac player. Apple Silicon does not have a native player in that ZIP, and Android has no official stable package in this release."
+        }
+      ],
+      "help_url": "https://xonotic.org/faq/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "xonotic",
+      "evidence_urls": ["https://xonotic.org/faq/", "https://gitlab.com/xonotic/xonotic"],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "xonotic",
+    "origin": {
+      "project_url": "https://gitlab.com/xonotic/xonotic"
+    },
+    "decisions": []
+  }
+}

@@ -4,10 +4,9 @@ fn transition_fixture_catalogs(
     original: &[u8],
     predecessor: &ResolvedRelease,
 ) -> (Catalog, Catalog) {
-    let target = compatible_archive_fixture_catalog(
-        Catalog::embedded().unwrap().port(id).unwrap().clone(),
-        original,
-    );
+    let embedded = Catalog::embedded().unwrap();
+    let target =
+        compatible_archive_fixture_catalog(&embedded, embedded.port(id).unwrap().clone(), original);
     let mut old = crate::test_fixture::v26_diagnostic_port(id);
     old.runtime_source_hashes = target.port(id).unwrap().runtime_source_hashes.clone();
     let direct = old
@@ -89,7 +88,7 @@ async fn assert_reviewed_archive_transition(
         ),
         _ => panic!("undeclared transition consumer"),
     };
-    let old_release = server.release_in_folder("controlled-predecessor", 1, "", executable);
+    let old_release = server.release_with_reviewed_layout("controlled-predecessor", 1, executable);
     let original = b"lawful original fixture for reviewed predecessor data transition";
     let (creating, target) = transition_fixture_catalogs(id, original, &old_release);
     let definition = serde_json::to_vec(&target.authoritative_document()).unwrap();
@@ -140,7 +139,7 @@ async fn assert_reviewed_archive_transition(
             .unwrap();
     let old_program = fs::read(first.path.join(executable)).unwrap();
     service.replace_catalog_for_test(target.clone());
-    *provider.0.lock().unwrap() = server.release_in_folder("controlled-next", 2, "", executable);
+    *provider.0.lock().unwrap() = server.release_with_reviewed_layout("controlled-next", 2, executable);
     let review = service.plan_game_update(id, false).await.unwrap();
     assert!(review.data_transition.is_some());
     assert!(

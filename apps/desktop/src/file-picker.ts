@@ -21,6 +21,23 @@ export function pickModPackagePath(packageTypes: string[]) {
   });
 }
 
+export function pickModRecipePath(title: string, label: string) {
+  return open({
+    title,
+    multiple: false,
+    directory: false,
+    filters: [{ name: label, extensions: ["json"] }],
+  });
+}
+
+export function saveModRecipePath(title: string, label: string) {
+  return save({
+    title,
+    defaultPath: "portcove-setup.json",
+    filters: [{ name: label, extensions: ["json"] }],
+  });
+}
+
 export async function pickSourcePath(
   profile: SourceProfile,
   currentPath: string,

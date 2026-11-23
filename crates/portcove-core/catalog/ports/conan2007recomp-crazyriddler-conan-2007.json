@@ -6,6 +6,14 @@
     "original_game_title": "Conan (2007)",
     "summary": "The project describes a Direct3D 12 player. It requires a controller and has physics defects at high frame rates. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/crazyriddler/Conan2007Recomp",
+    "artwork": {
+      "game_id": 9006,
+      "cover_id": 135210,
+      "image_id": "co2wbu",
+      "image_sha256": "628d0b91fc81f6122d700a857d54b512da1f781a087d2f8ec199074eda692581",
+      "game_slug": "conan--1",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/crazyriddler/Conan2007Recomp"
     },
-    "issue_number": 3297
+    "issue_number": 3297,
+    "original_game": {
+      "format_version": 1,
+      "id": "conan-2007",
+      "evidence_urls": ["https://github.com/crazyriddler/Conan2007Recomp"],
+      "source_editions": [
+        {
+          "id": "conan-2007-xbox-360",
+          "title": "Conan (2007) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/crazyriddler/Conan2007Recomp/blob/ef2603b111290f52c4fbb3f8a2c1200efdf4c26c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

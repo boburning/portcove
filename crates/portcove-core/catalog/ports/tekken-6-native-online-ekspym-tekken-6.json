@@ -4,6 +4,14 @@
     "id": "tekken-6-native-online-ekspym-tekken-6",
     "name": "Tekken 6 — Tekken 6 Native Online (Ekspym)",
     "original_game_title": "Tekken 6",
+    "artwork": {
+      "game_id": 1236,
+      "cover_id": 545264,
+      "image_id": "coboq8",
+      "image_sha256": "9ee8d6115d06e5e81f2f7c3068c6012528cae77ceb24bc799a66ee46623f93f4",
+      "game_slug": "tekken-6--3",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes native matches, lobby and rollback, but does not establish a campaign. It credits mahmoud-mess for faster recompiled code; reuse does not establish the same runtime owner. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Ekspym/Tekken6-native-online",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/Ekspym/Tekken6-native-online"
     },
-    "issue_number": 3129
+    "issue_number": 3129,
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": ["https://github.com/Ekspym/Tekken6-native-online"],
+      "source_editions": [
+        {
+          "id": "tekken-6-xbox-360",
+          "title": "Tekken 6 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Ekspym/Tekken6-native-online/blob/f68b65b253d85f2627f4501b6c35125243f770fe/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

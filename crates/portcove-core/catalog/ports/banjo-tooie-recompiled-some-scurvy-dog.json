@@ -41,6 +41,27 @@
         }
       ],
       "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": [
+        "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt",
+        "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port",
+        "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/releases/tag/v0.1.0-alpha.4.3",
+        "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/commit/cfe1a3755a84f38f54662a2bddb8a4c41e6e9213",
+        "https://api.github.com/repositories/1391565885"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-tooie-nintendo-64",
+          "title": "Banjo-Tooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/banjo-tooie-recompiled-some-scurvy-dog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

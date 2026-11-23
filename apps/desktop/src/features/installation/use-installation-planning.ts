@@ -67,6 +67,8 @@ export function useInstallPlanning(
   context: InvocationContext | undefined,
   registeredSource?: SourceRecord,
   sourcePath = "",
+  registeredBios?: SourceRecord,
+  biosPath = "",
 ) {
   // Empty and the automatically filled saved path select the same registration.
   // A display-only prefill must not discard its checked setup continuation.
@@ -81,6 +83,8 @@ export function useInstallPlanning(
       context?.libraryGeneration,
       registeredSource,
       explicitSourcePath,
+      registeredBios,
+      biosPath === registeredBios?.path ? "" : biosPath,
     ]),
     perform,
   );
@@ -148,6 +152,9 @@ export function useAdoptionPlanning(
   );
   const [failedIdentity, setFailedIdentity] = useState<string>();
   const [completedIdentity, setCompletedIdentity] = useState<string>();
+  const [readbackIdentity, setReadbackIdentity] = useState<string>();
+  // Retire display state when this review owner ends, including A → B → A.
+  useLayoutEffect(() => () => setReadbackIdentity(undefined), [identity]);
   const notifiedCompletion = useRef<string | undefined>(undefined);
   const context = (action: string, selected?: string) => {
     const port = ports.find((candidate) => candidate.id === selected);
@@ -163,6 +170,7 @@ export function useAdoptionPlanning(
   const review = async (selectedPortId?: string) => {
     if (selectedPortId && !request.value?.detected_port_ids.includes(selectedPortId)) return;
     setFailedIdentity(undefined);
+    setReadbackIdentity(undefined);
     if (open && path.trim())
       await request.review(
         "preview adoption",
@@ -185,24 +193,34 @@ export function useAdoptionPlanning(
     notifiedCompletion.current = undefined;
     setCompletedIdentity(undefined);
     setApplying(true);
+    setReadbackIdentity(undefined);
     const current = request.guard();
     request.invalidate(preview);
     let adopted: Awaited<ReturnType<typeof desktopApi.adopt>> | undefined;
     try {
       adopted = await perform(
         "adopt",
-        () =>
-          desktopApi.adopt(
+        async () => {
+          const result = await desktopApi.adopt(
             path,
             preview.plan_sha256,
             generation,
             preview.selected_port_id ?? undefined,
-          ),
-        { context: context("Copy existing installation", preview.selected_port_id) },
+          );
+          // perform retains exclusion while reading the authoritative workspace.
+          // The copy/native-confirmation command has returned; only readback remains.
+          if (current()) setReadbackIdentity(identity);
+          return result;
+        },
+        {
+          context: context("Copy existing installation", preview.selected_port_id),
+          cancelledResult: (value) => value === null,
+        },
       );
     } finally {
       inFlight.current = false;
       setApplying(false);
+      setReadbackIdentity(undefined);
     }
     if (current()) {
       if (adopted !== undefined) setCompletedIdentity(identity);
@@ -213,8 +231,12 @@ export function useAdoptionPlanning(
     preview: request.value,
     review,
     adopt,
-    invalidate: request.invalidate,
+    invalidate: () => {
+      setReadbackIdentity(undefined);
+      request.invalidate();
+    },
     applying,
+    refreshing: applying && readbackIdentity === identity,
     copyFailed: failedIdentity === identity,
   };
 }

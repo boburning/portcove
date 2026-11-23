@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "dungeon-siege-joshspeakman-macos",
+    "artwork": {
+      "game_id": 329,
+      "cover_id": 97352,
+      "image_id": "co2348",
+      "image_sha256": "916d34141868c80d9c7d178af505e52c6b11dfb42315484ce449310e98c08fd4",
+      "game_slug": "dungeon-siege",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
     "name": "Dungeon Siege / Dungeon Siege macOS",
     "original_game_title": "Dungeon Siege",
@@ -12,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/Joshspeakman/dungeon-siege-macos/releases/tag/beta-3",
     "setup_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
-    "download_block_reason": "Open the publisher’s preview release for the DMG. It requires Apple Silicon and macOS 27.2 or later.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Open the publisher’s preview release for the DMG. It requires Apple Silicon and macOS 27.2 or later.",
+        "tracking_issue": 6104
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
       "steps": [
@@ -32,6 +49,24 @@
       "warnings": [
         "The two downloaded preview packages both contain an Apple Silicon launcher built for macOS 27.2. Use a corrected package or verify the source-build route separately for earlier macOS versions.",
         "This setup uses the base game executable. The publisher offers a separate owned Legends of Aranna archive route. Keep expansion files and saves separate from your base game."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-siege",
+      "evidence_urls": [
+        "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
+        "https://github.com/Joshspeakman/dungeon-siege-macos"
+      ],
+      "source_editions": [
+        {
+          "id": "dungeon-siege-pc",
+          "title": "Dungeon Siege (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+          ]
+        }
       ]
     }
   }
