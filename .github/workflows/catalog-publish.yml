@@ -438,21 +438,32 @@ jobs:
           path: ${{ runner.temp }}/catalog-publication-live-readback.json
           retention-days: 7
           if-no-files-found: error
-      # Freshness, definitions and policy are already published; a stopped
-      # listing publication still fails the run so a person resolves it.
-      - name: Fail the run when listing publication stopped
+      # Freshness, definitions and policy are already published. A stopped
+      # listing publication, or a compact activation (first publication or
+      # format raise) deferred for any reason, still fails the run so a person
+      # resolves it instead of the deferral repeating silently.
+      - name: Fail the run when listing publication stopped or activation is pending
         run: |
           set -euo pipefail
           node --input-type=module -e '
             import {appendFileSync, readFileSync} from "node:fs";
             const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            const lines = [];
             const stopped = report.listing_publication_stopped;
-            if (!stopped) process.exit(0);
-            const line = "Listing publication stopped (" + stopped.code + "): " + stopped.reason +
-              "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures);
-            const escaped = line.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-            console.log("::error title=Listing publication stopped::" + escaped);
+            if (stopped)
+              lines.push(["Listing publication stopped", "Listing publication stopped (" + stopped.code + "): " +
+                stopped.reason + "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures)]);
+            const pending = report.listing_activation_pending;
+            if (pending)
+              lines.push(["Compact listing activation pending", "Compact listing activation pending (" +
+                pending.prior_carrier + " format " + pending.prior_format + " -> compact format " +
+                pending.candidate_format + "): " + pending.reason + "; prior listing targets renewed."]);
+            if (!lines.length) process.exit(0);
             const summary = process.env.GITHUB_STEP_SUMMARY;
-            if (summary) appendFileSync(summary, "### Listing publication stopped\n\n" + line + "\n");
+            for (const [title, line] of lines) {
+              const escaped = line.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+              console.log("::error title=" + title + "::" + escaped);
+              if (summary) appendFileSync(summary, "### " + title + "\n\n" + line + "\n");
+            }
             process.exit(1);
           ' "$RUNNER_TEMP/catalog-work/observation-projection.json"

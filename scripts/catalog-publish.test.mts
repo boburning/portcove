@@ -1080,7 +1080,7 @@ void test("compact listing activation selects the released reader and rechecks i
   assert.equal(source.match(/catalog-released-reader\.mts/gu)?.length, 1);
 });
 
-void test("a stopped listing publication fails the run only after publish and readback", () => {
+void test("a stopped listing publication or pending activation fails the run only after publish and readback", () => {
   const workflow = read("catalog-publish.yml");
   const observe = workflow.jobs.prepare!.steps!.find(({ id }) => id === "observe")!;
   assert.match(
@@ -1089,7 +1089,7 @@ void test("a stopped listing publication fails the run only after publish and re
   );
   const steps = workflow.jobs.publish!.steps!;
   const stop = steps.findIndex(
-    ({ name }) => name === "Fail the run when listing publication stopped",
+    ({ name }) => name === "Fail the run when listing publication stopped or activation is pending",
   );
   const push = steps.findIndex(({ run }) => run?.includes("git -C site push"));
   const readback = steps.findIndex(({ id }) => id === "readback");
@@ -1131,6 +1131,25 @@ void test("a stopped listing publication fails the run only after publish and re
       stopped.stdout,
       /^::error title=Listing publication stopped::Listing publication stopped \(decoded_bound\): Complete compact listing exceeds its decoded byte bound; prior listing targets renewed\. Figures: \{"decoded_bytes":33554433,"decoded_limit":33554432\}$/mu,
     );
+    // A released-reader refusal defers a pending cutover: the run fails.
+    const pending = run({
+      carrier: "legacy-renewal",
+      released_reader_unavailable: "Public Portcove API attestations unavailable (403)",
+      listing_activation_pending: {
+        prior_carrier: "legacy",
+        prior_format: 11,
+        candidate_format: 15,
+        reason: "Public Portcove API attestations unavailable (403)",
+      },
+    });
+    assert.equal(pending.status, 1);
+    assert.equal(pending.summary, true);
+    assert.match(
+      pending.stdout,
+      /^::error title=Compact listing activation pending::Compact listing activation pending \(legacy format 11 -> compact format 15\): Public Portcove API attestations unavailable \(403\); prior listing targets renewed\.$/mu,
+    );
+    // After cutover, a renewal without a pending activation stays green.
+    assert.equal(run({ carrier: "compact", changed: false }).status, 0);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

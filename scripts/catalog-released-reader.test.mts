@@ -266,3 +266,42 @@ void test("a Pages push retry refuses a reader withdrawn after preparation", (t)
     /withdrawn|selection changed/u,
   );
 });
+
+void test("the attestation read retries only rate limits and server errors within its budget", async () => {
+  const { attestationRetryDelaysMs, retryUnavailableApi } =
+    await import("./catalog-released-reader.mts");
+  assert.deepEqual([...attestationRetryDelaysMs], [5_000, 15_000, 45_000]);
+  const run = async (failures: string[]) => {
+    const waits: number[] = [];
+    let calls = 0;
+    const result = await retryUnavailableApi(
+      () => {
+        const failure = failures[calls++];
+        return failure ? Promise.reject(new Error(failure)) : Promise.resolve("ok");
+      },
+      attestationRetryDelaysMs,
+      (ms) => {
+        waits.push(ms);
+        return Promise.resolve();
+      },
+    ).catch((error: Error) => error.message);
+    return { result, calls, waits };
+  };
+  const unavailable = (status: number) =>
+    `Public Portcove API attestations unavailable (${status})`;
+  // A transient refusal recovers on a later attempt.
+  assert.deepEqual(await run([unavailable(403), unavailable(503)]), {
+    result: "ok",
+    calls: 3,
+    waits: [5_000, 15_000],
+  });
+  // The budget is finite; the last refusal is returned unchanged.
+  assert.deepEqual(await run(Array.from({ length: 5 }, () => unavailable(429))), {
+    result: unavailable(429),
+    calls: 4,
+    waits: [5_000, 15_000, 45_000],
+  });
+  // Other failures are not retried.
+  for (const failure of [unavailable(404), "Verified release attestation identity differs"])
+    assert.deepEqual(await run([failure]), { result: failure, calls: 1, waits: [] });
+});

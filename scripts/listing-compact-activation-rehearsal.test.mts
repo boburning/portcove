@@ -392,10 +392,16 @@ void test("compact capacity overflow stops listing publication instead of trimmi
   for (let index = 0; stream.length * 32 < 6_400_000; index++)
     stream.push(createHash("sha256").update(String(index)).digest());
   const entropy = Buffer.concat(stream).toString("base64");
+  // Released readers bound each record at 1 MiB, so the filler is spread
+  // over rows below that bound.
   const listingsWith = (length: number) => [
     ...canonical.listings,
     ...enrichment.rows,
-    row("capacity-filler", { summary: entropy.slice(0, length) }),
+    ...Array.from({ length: Math.ceil(length / 900_000) }, (_, index) =>
+      row(`capacity-filler-${String(index).padStart(2, "0")}`, {
+        summary: entropy.slice(index * 900_000, Math.min(length, (index + 1) * 900_000)),
+      }),
+    ),
   ];
   const wireBytes = (decoded: Buffer) =>
     Buffer.byteLength(
@@ -610,6 +616,17 @@ void test("automatic reader selection activates, advances or renews exact carrie
     assert.equal(read(output, compactListingDeliveryTarget), null);
     assert.deepEqual(read(output, listingDeliveryTarget), legacy);
     assert.ok(result.released_reader_unavailable, name);
+    // A deferred cutover is reported so the run fails after readback.
+    assert.deepEqual(
+      result.listing_activation_pending,
+      {
+        prior_carrier: "legacy",
+        prior_format: 11,
+        candidate_format: 15,
+        reason: result.released_reader_unavailable,
+      },
+      name,
+    );
   }
   // A compact format increase with a verified reader advances the format.
   const advanced = await prepare("advance", compactPrior, { binary: stub, version: "0.1.0" });
@@ -624,6 +641,15 @@ void test("automatic reader selection activates, advances or renews exact carrie
   assert.equal(renewed.listing_format, 14);
   assert.equal(renewed.changed, false);
   assert.match(String(renewed.released_reader_unavailable), /withdrawn/u);
+  // A deferred format raise is reported the same way.
+  assert.deepEqual(renewed.listing_activation_pending, {
+    prior_carrier: "compact",
+    prior_format: 14,
+    candidate_format: 15,
+    reason: renewed.released_reader_unavailable,
+  });
+  assert.equal(activated.listing_activation_pending, undefined);
+  assert.equal(advanced.listing_activation_pending, undefined);
   assert.deepEqual(read("renew", listingDeliveryTarget), legacy);
   assert.deepEqual(read("renew", compactListingDeliveryTarget), compact14);
   // An anonymous API refusal (rate limit or outage) renews them the same way.
@@ -643,6 +669,7 @@ void test("automatic reader selection activates, advances or renews exact carrie
   assert.equal(acquisitions, before);
   assert.equal(steady.listing_format, 15);
   assert.equal(steady.released_reader_unavailable, undefined);
+  assert.equal(steady.listing_activation_pending, undefined);
   // A canonical change after cutover reaches only the compact target.
   const changedCanonical = fixture.write("changed.json", {
     ...canonical,
@@ -793,6 +820,7 @@ void test("a first-cutover Core refusal renews the legacy-only publication and r
   assert.match(stopped.reason, /Core refused the candidate publication \(verification\)/u);
   assert.equal(report.listing_format, 11);
   assert.equal(report.revision, 1);
+  assert.equal((report.listing_activation_pending as { reason: string }).reason, stopped.reason);
   assertExactPriorRenewal(path.join(fixture.root, "out"), report, legacyTarget, null);
 });
 
@@ -800,21 +828,33 @@ void test("a post-cutover decoded-bound breach renews the exact compact carrier"
   const fixture = fixtureWorkspace(t);
   // Compressible signed observations retained from the prior compact target
   // bring the decoded document just under 32 MiB; one new row crosses it.
-  const filler = "x".repeat(8 * 1024 ** 2);
-  const observed = canonical.listings.map((listing) => ({
-    ...listing,
-    upstream_observation: {
-      provider: "github",
-      repository: `owner/${listing.id}`,
-      status: "complete",
-      releases: [{ version: filler.slice(0, 8 * 1024 ** 2 - 4096) }],
-    },
-  }));
+  // Each record stays below the released readers' 1 MiB record bound.
+  const filler = "x".repeat(1000 * 1024);
+  const observed = Array.from({ length: 32 }, (_, index) => row(`observed-${index}`)).map(
+    (listing) => ({
+      ...listing,
+      upstream_observation: {
+        provider: "github",
+        repository: `owner/${listing.id}`,
+        status: "complete",
+        releases: [{ version: filler }],
+      },
+    }),
+  );
+  const observedCanonical = observed.map((listing) => {
+    const authored: Row = { ...listing };
+    delete authored.upstream_observation;
+    return authored;
+  });
   const { prior, decoded } = compactPrior(fixture.root, observed);
   assert.ok(decoded.length <= compactListingDecodedMaximum);
   const grown = fixture.write("grown.json", {
     ...canonical,
-    listings: [...canonical.listings, row("new-row", { summary: "y".repeat(64 * 1024) })],
+    listings: [
+      ...observedCanonical,
+      row("new-row", { summary: "y".repeat(900 * 1024) }),
+      row("new-row-2", { summary: "y".repeat(900 * 1024) }),
+    ],
   });
   const report = await prepareObservationBundle({
     bundle: fixture.bundle,
@@ -1048,4 +1088,43 @@ void test("the committed withdrawal record is valid against the committed listin
     "utf8",
   );
   assert.ok(workflow.includes(`--withdrawals ${listingWithdrawalsInput}`));
+});
+
+void test("projection stops at the released readers' listing-count and record bounds", async () => {
+  const { compactListingCountMaximum, compactListingRecordMaximum, ListingPublicationStop } =
+    await import("./listing-directory-carrier.mts");
+  assert.equal(compactListingCountMaximum, 10000);
+  assert.equal(compactListingRecordMaximum, 1024 ** 2);
+  const project = (listings: Row[]) =>
+    projectListingDelivery({ format_version: 15, listings }, [], null, {
+      compatible: { format_version: 15, listings },
+      now: 0,
+    });
+  const stopCode = (listings: Row[]) => {
+    try {
+      project(listings);
+      return null;
+    } catch (error) {
+      assert.ok(error instanceof ListingPublicationStop, String(error));
+      return { code: error.code, figures: error.figures };
+    }
+  };
+  const ids = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `l${index}` }));
+  // Count: exactly the bound is delivered; one more stops.
+  assert.equal(project(ids(compactListingCountMaximum)).delivered_records, 10000);
+  assert.deepEqual(stopCode(ids(compactListingCountMaximum + 1)), {
+    code: "listing_count",
+    figures: { listings: 10001, listing_limit: 10000 },
+  });
+  // Record: a serialized row of exactly 1 MiB is delivered; one byte more stops.
+  const sized = (bytes: number): Row => {
+    const shell = Buffer.byteLength(JSON.stringify({ id: "big", summary: "" }));
+    return { id: "big", summary: "s".repeat(bytes - shell) };
+  };
+  assert.equal(Buffer.byteLength(JSON.stringify(sized(compactListingRecordMaximum))), 1024 ** 2);
+  assert.equal(project([sized(compactListingRecordMaximum)]).delivered_records, 1);
+  assert.deepEqual(stopCode([row("small"), sized(compactListingRecordMaximum + 1)]), {
+    code: "record_bound",
+    figures: { listing_id: "big", record_bytes: 1024 ** 2 + 1, record_limit: 1024 ** 2 },
+  });
 });

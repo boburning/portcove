@@ -202,13 +202,40 @@ export function liveReleasedReaderSources(checkout: string, privateRoot: string)
     },
     download: (tag, name, maximumBytes) => downloadPortcoveReleaseAsset(tag, name, maximumBytes),
     attestations: (sha256) =>
-      fetchPublicPortcoveApi(`attestations/sha256:${sha256}`, 4 * metadataMaximum),
+      retryUnavailableApi(() =>
+        fetchPublicPortcoveApi(`attestations/sha256:${sha256}`, 4 * metadataMaximum),
+      ),
     verifyAttestation(bundle) {
       trustedRoot ??= githubTrustedRoot(privateRoot);
       return verifyGitHubReleaseAttestation(bundle, trustedRoot).statement;
     },
   };
   return sources;
+}
+
+/** Harness budget for the anonymous attestation read: up to four attempts,
+ * waiting 5, 15 and 45 seconds (65 seconds in all) after a rate limit (403,
+ * 429) or server error (5xx). A shared runner address can exceed the 60
+ * requests an hour GitHub allows anonymously; a transient refusal should not
+ * defer the cutover by a 12-hour cycle. Other failures are not retried, and
+ * the last refusal is returned unchanged so the gate still fails closed. */
+export const attestationRetryDelaysMs = [5_000, 15_000, 45_000] as const;
+
+export async function retryUnavailableApi<T>(
+  read: () => Promise<T>,
+  delays: readonly number[] = attestationRetryDelaysMs,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      const retryable =
+        error instanceof Error && /unavailable \((?:403|429|5\d\d)\)$/u.test(error.message);
+      if (!retryable || attempt >= delays.length) throw error;
+      await sleep(delays[attempt]!);
+    }
+  }
 }
 
 export interface AcquiredReleasedReader {

@@ -31,6 +31,7 @@ import {
   compactListingCountMaximum,
   compactListingDecodedMaximum,
   compactListingDeliveryTarget,
+  compactListingRecordMaximum,
   decodeRetainedCompactListing,
   encodeCompactListing,
   listingDeliveryMaximum as maximum,
@@ -59,7 +60,9 @@ function directory(value: unknown): Directory {
     Number(value.format_version) < 1 ||
     Number(value.format_version) > latestListingFormat ||
     !Array.isArray(value.listings) ||
-    value.listings.length > 10000
+    // A structural input bound only. The released readers' listing-count
+    // bound is checked by projection as a listing publication stop.
+    value.listings.length > 10 * compactListingCountMaximum
   )
     throw new Error("Listing projection requires a supported bounded canonical directory");
   const seen = new Set();
@@ -418,6 +421,30 @@ export function projectListingDelivery(
       return result;
     })
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
+  // The bounds the currently supported released readers enforce, stated here
+  // rather than taken from this checkout's Core, which a later reader
+  // generation may raise.
+  if (listings.length > compactListingCountMaximum)
+    throw new ListingPublicationStop(
+      "listing_count",
+      "Delivered listings exceed the released readers' count bound; retaining last-good publication",
+      { listings: listings.length, listing_limit: compactListingCountMaximum },
+    );
+  let largest = { id: "", bytes: 0 };
+  for (const listing of listings) {
+    const bytes = Buffer.byteLength(JSON.stringify(listing));
+    if (bytes > largest.bytes) largest = { id: String(listing.id), bytes };
+  }
+  if (largest.bytes > compactListingRecordMaximum)
+    throw new ListingPublicationStop(
+      "record_bound",
+      "A delivered listing exceeds the released readers' record byte bound; retaining last-good publication",
+      {
+        listing_id: largest.id,
+        record_bytes: largest.bytes,
+        record_limit: compactListingRecordMaximum,
+      },
+    );
   const revision = Math.max(previousDocument?.revision ?? 0, revisionFloor) + 1;
   if (!Number.isSafeInteger(revision) || revision > 9007199254740991)
     throw new Error("Descriptive revision exhausted");
@@ -919,7 +946,12 @@ export async function prepareObservationBundle(options: {
   let officialReader: AcquiredReleasedReader | undefined;
   let releasedReader: { version: string; sha256: string } | undefined;
   let readerUnavailable: string | undefined;
-  if (!renewal && (!priorCompact || format > previousDocument.directory.format_version)) {
+  // A first compact publication or a compact format raise is pending until a
+  // run publishes it; every deferral is reported and fails the run after
+  // readback, so it is never silently postponed.
+  const activationNeeded = !priorCompact || format > previousDocument.directory.format_version;
+  const priorUnavailable = renewal !== undefined;
+  if (!renewal && activationNeeded) {
     try {
       if (automatic) {
         if (format !== latestListingFormat)
@@ -1155,6 +1187,22 @@ export async function prepareObservationBundle(options: {
         }
       : {}),
     ...(readerUnavailable ? { released_reader_unavailable: readerUnavailable } : {}),
+    ...(activationNeeded && renewal
+      ? {
+          listing_activation_pending: {
+            prior_carrier: priorCompact ? "compact" : "legacy",
+            prior_format: previousDocument.directory.format_version,
+            candidate_format: format,
+            reason: (
+              readerUnavailable ??
+              stopped?.message ??
+              (priorUnavailable
+                ? "the prior signed repository could not be verified"
+                : "not published")
+            ).slice(0, 600),
+          },
+        }
+      : {}),
     ...(stopped
       ? {
           // The run publishes freshness, definitions and policy, then fails

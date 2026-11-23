@@ -21,6 +21,8 @@ const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex
 export type ListingStopCode =
   | "decoded_bound"
   | "transport_bound"
+  | "listing_count"
+  | "record_bound"
   | "withdrawal_count"
   | "withdrawal_input"
   | "missing_without_withdrawal"

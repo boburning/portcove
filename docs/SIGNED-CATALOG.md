@@ -353,7 +353,13 @@ renews its exact compact and legacy targets. Other catalog changes and
 freshness renewal continue. The report records the reason in
 `released_reader_unavailable`. GitHub allows 60 anonymous API requests an hour
 per address, so a shared runner address can delay the cutover; it cannot
-change what is published. The publish job reruns
+change what is published. The attestation read retries a rate limit (403, 429) or server error (5xx) up to three times, after 5, 15 and 45 seconds
+(`attestationRetryDelaysMs`); any other failure is not retried. While the
+first compact publication, or a compact format raise, is pending, any run
+that renews the prior targets instead records `listing_activation_pending`
+(prior carrier and format, candidate format, reason). Like a listing stop,
+it fails the run after the Pages push and readback, so a deferred cutover is
+never silent. The publish job reruns
 `node scripts/catalog-released-reader.mts site` on each fresh Pages base and
 stops that push if the selected reader was withdrawn or replaced.
 `node scripts/catalog-released-reader.mts select DIR` is a read-only preflight.
@@ -372,15 +378,17 @@ policy still publish. The report records `listing_publication_stopped` with a
 `Catalog publish` emits an `::error::` annotation and a step summary with those
 figures and fails the run, so a person resolves it. The stop codes are:
 
-| Code                         | Cause                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `decoded_bound`              | The decoded compact document exceeds 32 MiB                              |
-| `transport_bound`            | The encoded compact target exceeds 8 MiB                                 |
-| `withdrawal_count`           | Withdrawals exceed 10,000                                                |
-| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)        |
-| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal  |
-| `conflicting_observations`   | Two observer candidates claim the same listing                           |
-| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope |
+| Code                         | Cause                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `decoded_bound`              | The decoded compact document exceeds 32 MiB                                |
+| `transport_bound`            | The encoded compact target exceeds 8 MiB                                   |
+| `listing_count`              | Delivered listings exceed 10,000 (`compactListingCountMaximum`)            |
+| `record_bound`               | A delivered listing serializes above 1 MiB (`compactListingRecordMaximum`) |
+| `withdrawal_count`           | Withdrawals exceed 10,000                                                  |
+| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)          |
+| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal    |
+| `conflicting_observations`   | Two observer candidates claim the same listing                             |
+| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope   |
 
 Everything else fails preparation as before and publishes nothing: canonical
 inputs (`listings.json`, `catalog.json`, the withdrawal record) changing during
@@ -581,6 +589,12 @@ for Preview 13, 14 and 15, each matching its release `SHA256SUMS`:
 | Real CLIs' `inspect-definition-publication` on the staged bundle                                                                      | Preview 15 selects the compact target, revision 48, 1,649 listings, `ed6d37df…`. Preview 14 and 13 refuse with `query metadata exceeds its read budget` (their publisher inspector's 64 KiB policy-file cap).                                                                                                                                                                                                                               |
 | Preview 14 storage of a decoded document above 8 MiB (source at `nightly-0.1.0-preview.14`, `listing_delivery.rs`)                    | Compact documents go to their own `compact_listing_delivery` table with a 32 MiB `CHECK`; before inserting a document above 8 MiB, Preview 14 drops a table created with the 8 MiB check. Replaying that DDL in SQLite 3.54.1 with the staged 9,602,327-byte document: the 8 MiB-checked table refuses it, the 32 MiB table stores it. Preview 14's parser and projection of these exact bytes were run earlier (the evidence table above). |
 
+Control: the same Preview 13, 14 and 15 inspectors accept the legacy-only
+bundle staged by the fail-closed run (revision 47, `0d20ba97…`, 1,193
+listings). Their refusal of the cutover bundle comes from the compact target
+alone, which their inspector does not recognize and reads under the 64 KiB
+policy-file cap.
+
 No real client can refresh from the staged bundle. `listing-refresh` accepts
 only HTTPS bases and only the compiled-in root, and the staged bundle carries
 no role signatures; producing them needs the official online keys. Readback
@@ -664,7 +678,7 @@ The released readers' limits can change only with a new reader release.
 | ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | Listing target wire bytes          | 8 MiB               | Reader acquisition and carrier decode; publisher transport encoding; signer and history verification (`portcove_listing_carrier::MAX_BYTES`) | Yes                                 |
 | Compact decoded bytes              | 32 MiB              | Reader `parse_compact` and its SQLite check; publisher projection                                                                            | Yes                                 |
-| Compact record bytes               | 1 MiB               | Reader `parse_compact`; the publisher inherits it through Core inspection                                                                    | Yes                                 |
+| Compact record bytes               | 1 MiB               | Reader `parse_compact`; publisher projection (`compactListingRecordMaximum`)                                                                 | Yes                                 |
 | Listings and withdrawals           | 10,000 each         | Reader; publisher projection                                                                                                                 | Yes                                 |
 | TUF snapshot / targets / timestamp | 4 / 8 / 1 MiB       | Reader TUF client (`definition_repository.rs`)                                                                                               | Yes                                 |
 | Embedded `listings.json`           | 8 MiB, 85% CI guard | Each build's own embedded and authored directory; `catalog-capacity --check`; publisher canonical input read                                 | Only for that build's embedded copy |
