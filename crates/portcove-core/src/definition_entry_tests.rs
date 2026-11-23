@@ -2868,7 +2868,7 @@ fn mod_sources_require_their_named_reader_and_refuse_only_their_definition() {
     entry["required_features"] = json!(["mods.sources-v2"]);
     let newer = inspect(&entry).unwrap_err();
     assert_eq!(newer.code, crate::ErrorCode::Unsupported);
-    assert!(crate::definition_capabilities::is_unknown_required_feature(
+    assert!(crate::definition_capabilities::requires_newer_engine(
         &newer
     ));
     // This reader refuses an unknown kind or an invalid address per definition.
