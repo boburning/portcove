@@ -9,7 +9,11 @@ use crate::{
     ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
+mod identity_index;
 pub(crate) mod listings;
+
+pub(crate) use identity_index::DocumentDigest;
+use identity_index::Indexed;
 
 pub(crate) fn validate_cover_collection(
     covers: Option<&[crate::IgdbArtwork]>,
@@ -88,8 +92,9 @@ struct RetainedDefinition {
 
 #[derive(Debug, Clone)]
 pub struct Catalog {
-    document: Arc<CatalogDocument>,
-    listings: Arc<crate::CatalogListingDocument>,
+    /// Each document carries its own identity index; see `identity_index`.
+    document: Arc<Indexed<CatalogDocument>>,
+    listings: Arc<Indexed<crate::CatalogListingDocument>>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
@@ -218,6 +223,10 @@ impl Catalog {
     }
 
     pub fn embedded() -> Result<Self> {
+        #[cfg(test)]
+        if let Some(catalog) = crate::scaling_profile_tests::embedded_override() {
+            return Ok(catalog);
+        }
         #[cfg(feature = "qualification-fixtures")]
         if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
             return Self::read_qualification_catalog(Path::new(&path));
@@ -421,9 +430,9 @@ impl Catalog {
         };
         listings.promote_projected_format();
         let catalog = Self {
-            listings: Arc::new(listings),
+            listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
-            document: Arc::new(document),
+            document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };
         catalog.validate()?;
@@ -459,7 +468,7 @@ impl Catalog {
                 "unsupported catalog export schema",
             ));
         }
-        let mut document = self.document.as_ref().clone();
+        let mut document = CatalogDocument::clone(&self.document);
         document.schema_version = schema_version;
         if schema_version < 3 {
             for port in &mut document.ports {
@@ -512,6 +521,7 @@ impl Catalog {
                 ));
             }
             let Some(port) = Arc::make_mut(&mut self.document)
+                .make_mut()
                 .ports
                 .iter_mut()
                 .find(|port| port.id == compiled.id)
@@ -532,7 +542,7 @@ impl Catalog {
     }
 
     pub(crate) fn retain_unrelated_upstream_reviews(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
             {
@@ -544,7 +554,7 @@ impl Catalog {
     /// Legacy full projections carry graph rows for unrelated ports without
     /// their loader bindings. Keep the bindings already present in the baseline.
     pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
             {
@@ -557,7 +567,7 @@ impl Catalog {
     /// cannot appoint, change or withdraw another port's sources, including
     /// a projection published before sources were catalog data.
     pub(crate) fn retain_unrelated_mod_sources(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
             {
@@ -568,7 +578,7 @@ impl Catalog {
 
     /// A sibling projection cannot appoint or remove package-only settings.
     pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
                 && original
@@ -582,7 +592,7 @@ impl Catalog {
     }
 
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+        let Some(index) = self.document.position(port_id) else {
             return;
         };
         // The floor fences both bundled and legacy scopes. Only the currently
@@ -590,7 +600,8 @@ impl Catalog {
         let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
             && self.definition_selection(port_id).is_some();
         if !has_admitted_scope {
-            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+            Arc::make_mut(&mut self.document).make_mut().ports[index].legacy_mod_provider_held =
+                true;
         }
     }
 
@@ -642,8 +653,67 @@ impl Catalog {
         self.retained_definitions = Arc::clone(&effective.retained_definitions);
     }
 
+    /// The authoritative document's exact serialization without cloning it:
+    /// schema-2 catalogs omit the derived schema-1 `source_profiles` projection.
+    pub(crate) fn authoritative_view(&self) -> impl serde::Serialize + '_ {
+        #[derive(serde::Serialize)]
+        struct AuthoritativeView<'a> {
+            schema_version: u32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            source_catalog: Option<&'a crate::SourceCatalog>,
+            #[serde(skip_serializing_if = "<[_]>::is_empty")]
+            source_profiles: &'a [SourceProfile],
+            ports: &'a [PortDefinition],
+        }
+        let document: &CatalogDocument = &self.document;
+        AuthoritativeView {
+            schema_version: document.schema_version,
+            source_catalog: document.source_catalog.as_ref(),
+            source_profiles: if document.source_catalog.is_some() {
+                &[]
+            } else {
+                &document.source_profiles
+            },
+            ports: &document.ports,
+        }
+    }
+
+    /// SHA-256 and lengths of this revision's canonical serialization, computed
+    /// once per document value and discarded with any change to it.
+    pub(crate) fn document_digest(&self) -> Result<&DocumentDigest> {
+        self.document.digest(|document| {
+            use sha2::{Digest, Sha256};
+            struct Writer(Sha256, usize);
+            impl std::io::Write for Writer {
+                fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                    self.0.update(bytes);
+                    self.1 += bytes.len();
+                    Ok(bytes.len())
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            let mut canonical = Writer(Sha256::new(), 0);
+            serde_json::to_writer(&mut canonical, &self.authoritative_view())?;
+            let document_bytes =
+                if document.source_catalog.is_some() && !document.source_profiles.is_empty() {
+                    let mut whole = Writer(Sha256::new(), 0);
+                    serde_json::to_writer(&mut whole, document)?;
+                    whole.1
+                } else {
+                    canonical.1
+                };
+            Ok(DocumentDigest {
+                sha256: hex::encode(canonical.0.finalize()),
+                canonical_bytes: canonical.1,
+                document_bytes,
+            })
+        })
+    }
+
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {
-        let mut document = self.document.as_ref().clone();
+        let mut document = CatalogDocument::clone(&self.document);
         if document.source_catalog.is_some() {
             document.source_profiles.clear();
         }
@@ -677,10 +747,11 @@ impl Catalog {
     }
 
     pub fn port(&self, id: &str) -> Result<&PortDefinition> {
+        #[cfg(test)]
+        crate::scaling_profile_tests::count_lookup(crate::scaling_profile_tests::Lookup::Port);
         self.document
-            .ports
-            .iter()
-            .find(|port| port.id == id)
+            .position(id)
+            .map(|index| &self.document.ports[index])
             .ok_or_else(|| PortcoveError::not_found(format!("unknown port id: {id}")))
     }
 
@@ -9428,6 +9499,7 @@ mod tests {
     fn psx_bin_cue_runtime_identity_requires_the_cue_and_first_track() {
         let mut catalog = Catalog::embedded().expect("catalog should load");
         let port = Arc::make_mut(&mut catalog.document)
+            .make_mut()
             .ports
             .iter_mut()
             .find(|port| port.id == "ape-escape-recompiled")
@@ -9776,20 +9848,20 @@ mod tests {
             .iter()
             .position(|port| port.id == "project-picori")
             .unwrap();
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .retain(|path| path != "baserom.gba");
         assert!(catalog.validate().is_err());
 
         // A declared parent directory owns the staged file, but a similarly
         // named sibling does not.
-        Arc::make_mut(&mut catalog.document).ports[index].runtime_source_filename =
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index].runtime_source_filename =
             Some("rom/baserom.gba".into());
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .push("rom-other".into());
         assert!(catalog.validate().is_err());
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
@@ -9840,6 +9912,7 @@ mod tests {
         for (id, breakage) in broken {
             let mut catalog = Catalog::embedded().unwrap();
             let port = Arc::make_mut(&mut catalog.document)
+                .make_mut()
                 .ports
                 .iter_mut()
                 .find(|port| port.id == id)
@@ -9892,6 +9965,7 @@ mod tests {
         ] {
             let mut catalog = Catalog::embedded().unwrap();
             let profile = Arc::make_mut(&mut catalog.document)
+                .make_mut()
                 .source_profiles
                 .iter_mut()
                 .find(|profile| profile.id == profile_id)
@@ -9905,6 +9979,7 @@ mod tests {
     fn single_file_runtime_hashes_bind_the_exact_destination() {
         let mut catalog = Catalog::embedded().unwrap();
         let port = Arc::make_mut(&mut catalog.document)
+            .make_mut()
             .ports
             .iter_mut()
             .find(|port| port.id == "dr-mario-64-recomp")

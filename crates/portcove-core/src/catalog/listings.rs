@@ -1031,9 +1031,11 @@ impl Catalog {
     }
 
     pub fn listing(&self, id: &str) -> Result<&PortListing> {
-        self.listings()
-            .iter()
-            .find(|listing| listing.id == id)
+        #[cfg(test)]
+        crate::scaling_profile_tests::count_lookup(crate::scaling_profile_tests::Lookup::Listing);
+        self.listings
+            .position(id)
+            .map(|index| &self.listings.listings[index])
             .ok_or_else(|| PortcoveError::not_found(format!("unknown listing id: {id}")))
     }
 
@@ -1122,19 +1124,20 @@ impl Catalog {
                 });
             }
         }
+        let listed = document
+            .listings
+            .iter()
+            .map(|listing| listing.id.as_str())
+            .collect::<HashSet<_>>();
         for port in self.ports() {
-            if !document
-                .listings
-                .iter()
-                .any(|listing| listing.id == port.id)
-            {
+            if !listed.contains(port.id.as_str()) {
                 return Err(PortcoveError::usage(format!(
                     "listing directory omits operational port {}",
                     port.id
                 )));
             }
         }
-        self.listings = Arc::new(document);
+        self.listings = Arc::new(Indexed::new(document));
         Ok(self)
     }
 
@@ -1279,14 +1282,25 @@ impl Catalog {
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
         if has_extended_media(&listing) {
-            Arc::make_mut(&mut catalog.listings).format_version = 5;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 5;
         } else if listing.original_game.is_some() || !listing.media.is_empty() {
-            Arc::make_mut(&mut catalog.listings).format_version = 3;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 3;
         } else if listing.download_block_reason.is_some() {
-            Arc::make_mut(&mut catalog.listings).format_version = 2;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 2;
         }
-        Arc::make_mut(&mut catalog.listings).listings.push(listing);
-        Arc::make_mut(&mut catalog.listings).promote_projected_format();
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .listings
+            .push(listing);
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .promote_projected_format();
         catalog.user_selected_listing = true;
         Ok(catalog)
     }

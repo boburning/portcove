@@ -97,6 +97,19 @@ fn serialized_size(value: &impl Serialize, limit: usize) -> Result<Option<usize>
     Ok(Some(limit - writer.remaining))
 }
 
+/// `fingerprint(&catalog.authoritative_document())`, from the revision's
+/// cached digest. The binding byte budget still applies to the same bytes.
+fn definition_fingerprint(catalog: &Catalog) -> Result<String> {
+    let digest = catalog.document_digest()?;
+    if digest.canonical_bytes > MAX_BINDING_BYTES {
+        return Err(serde_json::Error::io(std::io::Error::other(
+            "browsing serialization budget reached",
+        ))
+        .into());
+    }
+    Ok(digest.sha256.clone())
+}
+
 fn fingerprint(value: &impl Serialize) -> Result<String> {
     let mut writer = BindingWriter {
         remaining: MAX_BINDING_BYTES,
@@ -118,12 +131,15 @@ fn projection_fits(
 ) -> Result<bool> {
     // Leave room in the binding ceiling for retained definition digests and
     // envelope fields; those are bounded by MAX_CONTEXTS, not source strings.
-    if serialized_size(
-        &(catalog.document(), statuses, sources, library),
-        MAX_BINDING_BYTES / 2,
-    )?
-    .is_none()
-    {
+    // `[document,statuses,sources,library]` is exactly one byte (the comma)
+    // longer than `[statuses,sources,library]` plus the cached document length.
+    let Some(remaining) = (MAX_BINDING_BYTES / 2)
+        .checked_sub(catalog.document_digest()?.document_bytes)
+        .and_then(|remaining| remaining.checked_sub(1))
+    else {
+        return Ok(false);
+    };
+    if serialized_size(&(statuses, sources, library), remaining)?.is_none() {
         return Ok(false);
     }
     let Some(mut bytes) = serialized_size(library, MAX_RESPONSE_BYTES)? else {
@@ -279,11 +295,7 @@ pub(crate) fn project_browsing_contexts(
             && (status.external_runtime.is_none()
                 || facts.is_some_and(|facts| facts.external_observed))
     });
-    let definition = |catalog: Option<&Catalog>| {
-        catalog
-            .map(|catalog| fingerprint(&catalog.authoritative_document()))
-            .transpose()
-    };
+    let definition = |catalog: Option<&Catalog>| catalog.map(definition_fingerprint).transpose();
     let retained_binding: Vec<_> = catalog
         .ports()
         .iter()
@@ -304,14 +316,14 @@ pub(crate) fn project_browsing_contexts(
         .collect();
     let binding = fingerprint(&(
         &library,
-        catalog.authoritative_document(),
+        catalog.authoritative_view(),
         statuses,
         sources,
         host_platform,
         retained_metadata_complete,
         retained_binding,
     ))?;
-    let current_definition = fingerprint(&catalog.authoritative_document())?;
+    let current_definition = definition_fingerprint(catalog)?;
     let indexed: HashMap<_, _> = statuses
         .iter()
         .map(|status| (&status.port_id, status))

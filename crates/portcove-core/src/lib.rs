@@ -163,6 +163,8 @@ mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
 mod runtime_path_policy;
+#[cfg(test)]
+mod scaling_profile_tests;
 mod service;
 mod signed_catalog;
 mod source;
