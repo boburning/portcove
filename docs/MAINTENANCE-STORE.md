@@ -1713,8 +1713,9 @@ GitHub repository name or family key, with the catalog as the dictionary
 (`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
 prepared runtime contracts) matched against definition values; the
 `native_external_profile` modules, covered through `ExternalProfilePolicy`;
-compiled provider binding tables; the `github_mods.rs` source table and
-`external-mod-portals.json`. Only `#[test]` functions and items gated on exactly
+compiled provider binding tables; and the retired `github_mods.rs` source
+table and `external-mod-portals.json`, which #8567 replaced with catalog
+`mod_sources` data and which must stay absent. Only `#[test]` functions and items gated on exactly
 `#[cfg(test)]`, and test-named files, are excluded; platform gates such as
 `cfg(any(test, windows))` are production code. Each kind reports its count,
 files, covered identities where derivable and any entries it cannot attribute,

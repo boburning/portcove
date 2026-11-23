@@ -2810,6 +2810,74 @@ fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
 }
 
 #[test]
+fn mod_sources_require_their_named_reader_and_refuse_only_their_definition() {
+    let base = fixture_catalog().ports()[0].clone();
+    let mut port = base.clone();
+    let mut platforms = port.platforms.clone();
+    platforms.sort();
+    port.mod_sources = vec![crate::ModSource {
+        id: "community".into(),
+        authority: crate::ModSourceAuthority::LinkOut,
+        platforms,
+        name: Some("Community mods".into()),
+        instructions: Some("Follow the author’s setup.".into()),
+        source: crate::ModSourceKind::ExternalPortal {
+            site: crate::ModPortalSite::CommunitySite,
+            url: "https://mods.example.org/".into(),
+        },
+    }];
+    let mut entry = entry_for_port(&port);
+    // Older entry schemas cannot carry the field.
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!([]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("mods.sources-v1")
+    );
+    entry["required_features"] = json!(["mods.sources-v1"]);
+    assert_eq!(
+        inspect(&entry).unwrap().port().mod_sources,
+        port.mod_sources
+    );
+    // A reader without this feature sees an unknown name: it refuses this
+    // definition as needing a newer engine, not as invalid.
+    entry["required_features"] = json!(["mods.sources-v2"]);
+    let newer = inspect(&entry).unwrap_err();
+    assert_eq!(newer.code, crate::ErrorCode::Unsupported);
+    assert!(crate::definition_capabilities::is_unknown_required_feature(
+        &newer
+    ));
+    // This reader refuses an unknown kind or an invalid address per definition.
+    entry["required_features"] = json!(["mods.sources-v1"]);
+    let mut unknown = entry.clone();
+    unknown["port"]["mod_sources"][0]["source"]["kind"] = json!("future_feed");
+    assert!(inspect(&unknown).is_err());
+    let mut insecure = entry.clone();
+    insecure["port"]["mod_sources"][0]["source"]["url"] = json!("http://mods.example.org/");
+    assert!(
+        inspect(&insecure)
+            .unwrap_err()
+            .message
+            .contains("invalid mod source")
+    );
+    // A definition without sources keeps its legacy schema.
+    let mut legacy = entry_for_port(&base);
+    legacy["definition_schema"] = json!(1);
+    assert!(inspect(&legacy).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn reviewed_runtime_compatibility_artifacts_require_named_entry_even_when_retained() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog

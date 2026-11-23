@@ -2931,7 +2931,7 @@ impl PortcoveService {
         let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
         let (url, native) = match catalog.port(port_id) {
             Ok(port) => (
-                crate::github_mods::github_mod_release_url(port),
+                crate::github_mods::github_mod_release_url(port, platform),
                 self.github_native_import(port, platform)?,
             ),
             Err(_) if !external_mod_portals.is_empty() => (None, false),
@@ -2953,7 +2953,8 @@ impl PortcoveService {
         let Ok(port) = self.catalog().port(port_id) else {
             return self.preview_mod_handoff(port_id);
         };
-        let github_release_url = crate::github_mods::github_mod_release_url(port);
+        let github_release_url =
+            crate::github_mods::github_mod_release_url(port, crate::Platform::current().ok());
         let github_native_import_offered =
             self.github_native_import(port, crate::Platform::current().ok())?;
         let external_mod_portals = crate::external_mod_portal::portals(

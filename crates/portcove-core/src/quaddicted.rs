@@ -1,4 +1,5 @@
-//! Read-only Quaddicted v1 observations for reviewed Quake engines.
+//! Read-only Quaddicted v1 observations for Quake engines whose definitions
+//! declare a Quaddicted mod source.
 use std::collections::{BTreeMap, BTreeSet};
 
 use reqwest::Url;
@@ -7,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    AdapterKind, Observed, Platform, PortDefinition, PortcoveError, ReleaseSource, Result,
-    mod_provider::sanitize_text, provider_http::ProviderHttp,
+    Observed, Platform, PortDefinition, PortcoveError, Result, mod_provider::sanitize_text,
+    provider_http::ProviderHttp,
 };
 
 const API: &str = "https://www.quaddicted.com/api/v1/";
@@ -26,18 +27,7 @@ pub enum QuakeEngine {
 }
 
 pub(crate) fn source(port: &PortDefinition, platform: Platform) -> Option<QuakeEngine> {
-    if port.adapter != AdapterKind::NativePortable
-        || port.release.provider != ReleaseSource::Github
-        || !matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
-        || !port.platforms.contains(&platform)
-    {
-        return None;
-    }
-    match (port.id.as_str(), port.release.repository.as_str()) {
-        ("quake-vkquake", "Novum/vkQuake") => Some(QuakeEngine::VkQuake),
-        ("quake-ironwail", "andrei-drexler/ironwail") => Some(QuakeEngine::Ironwail),
-        _ => None,
-    }
+    crate::mod_source::quaddicted(port, platform)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

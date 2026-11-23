@@ -2811,11 +2811,10 @@ vkQuake route also offers Arcane Dimensions file notices via
 `portcove profile mod-db-notices quake-vkquake`. These notices can include
 patches and documentation. Use the source page to see its instructions.
 
-The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
-specifies the exact port ID, original game ID, project URL and host platforms.
-Core also checks the current catalog when it returns a link or authorizes the
-desktop to open it. Browser routes supply no account, download, package trust
-or managed-import capability.
+Each port's `integration.mod_sources` catalog data declares its sources, their
+authority and host platforms. Core checks the current catalog when it returns a
+link or authorizes the desktop to open it. Browser routes supply no account,
+download, package trust or managed-import capability.
 
 ### Browsing JakMods in OpenGOAL
 

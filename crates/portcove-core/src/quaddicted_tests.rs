@@ -14,7 +14,11 @@ fn reviewed_engines_and_platforms_are_exact() {
         Some(QuakeEngine::VkQuake)
     );
     assert_eq!(source(&port, Platform::MacosAarch64), None);
-    port.release.repository = "other/vkQuake".into();
+    // The engine comes from the definition's own declaration.
+    let mut other_provider = port.clone();
+    other_provider.release.provider = crate::ReleaseSource::Gitlab;
+    assert_eq!(source(&other_provider, Platform::WindowsX86_64), None);
+    port.mod_sources.clear();
     assert_eq!(source(&port, Platform::WindowsX86_64), None);
     let ironwail = catalog.port("quake-ironwail").unwrap();
     assert_eq!(

@@ -112,12 +112,16 @@ mod dfu_mod;
 mod disc_filesystem;
 mod disc_product;
 mod external_mod_portal;
-pub use external_mod_portal::{ExternalModPortal, ExternalModPortalSource};
+pub use external_mod_portal::{ExternalModBrowser, ExternalModPortal, ExternalModSite};
 mod gamebanana;
 mod github_mods;
 mod jakmods;
 mod mod_package;
 mod mod_provider;
+mod mod_source;
+pub use mod_source::{
+    ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority, ModSourceKind,
+};
 mod moddb_feed;
 mod native_mod_list;
 mod profile;

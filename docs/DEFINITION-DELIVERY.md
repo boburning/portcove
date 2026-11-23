@@ -2353,3 +2353,30 @@ scope.
 
 Keep newly authored scopes out of public projections until the matching
 reader and profile writer are available to the clients using those scopes.
+
+### Catalog-declared mod sources
+
+`port.mod_sources` declares link-out, browse and inspect mod sources. The
+[catalog contract](CATALOG.md#declare-mod-sources) lists the kinds, their
+authority ceilings and address rules. An indexed entry that carries a
+non-empty list must use definition schema 4 and name `mods.sources-v1`. A
+schema 1 through 3 entry that carries one is refused. The projection may not
+place sources on a sibling port. Legacy signed catalog envelopes cannot
+appoint or withdraw a source. They keep the baseline catalog's declaration.
+
+Readers check compatibility per definition:
+
+- A reader without `mods.sources-v1` refuses only the definition that names
+  it, as needing a newer engine. Other definitions in the same snapshot stay
+  usable. That client keeps its current version of the port, including its
+  built-in sources, and receives no newer revision of that port until it
+  upgrades.
+- A reader with the feature refuses a definition whose source has an unknown
+  kind, authority or field. A new kind or authority needs a new feature name.
+- Definitions without `mod_sources` keep their existing schema and remain
+  readable by older clients.
+
+No published definition carries `mod_sources` yet. Publish one only with
+separate approval, one low-risk port first. Publishing a widely installed port
+with sources stops older clients' updates for that port until they upgrade.
+Publishing it without sources removes the sources for upgraded clients.

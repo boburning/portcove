@@ -186,8 +186,8 @@ fn read_plan(path: &Path, digest: &str) -> Result<GithubCompoundPlan> {
 fn verify_wrapper(
     path: &Path,
     plan: &GithubCompoundPlan,
-    source: ReviewedSource,
-    layout: CompanionLayout,
+    source: ReviewedSource<'_>,
+    layout: &CompanionLayout,
 ) -> Result<()> {
     if plan.repository_id != source.repository_id
         || plan.repository != source.repository
@@ -204,7 +204,9 @@ fn verify_wrapper(
         &path.join("wrapper.zip"),
         plan.wrapper_bytes,
         &plan.wrapper_sha256,
-        source.game,
+        &source
+            .game()
+            .ok_or_else(|| PortcoveError::unsupported("the port has no reviewed Recomp game"))?,
         layout,
         source.companions,
     )?;
@@ -303,7 +305,7 @@ fn publish_plan(
 }
 
 fn reviewed_members(
-    layout: CompanionLayout,
+    layout: &CompanionLayout,
     staged: &recomp_companion_review::StagedCompoundReview,
 ) -> Result<BTreeMap<String, RecompCompanionMemberV1>> {
     let primary_name = format!(
@@ -370,6 +372,29 @@ fn publish_consent(
 }
 
 impl PortcoveService {
+    /// The current definition that declares the GitHub source, after checking
+    /// that the exact installation's retained definition still describes the
+    /// same Recomp runtime and native game on the platform.
+    fn declared_source_port(
+        &self,
+        install: &crate::InstallRecord,
+        port_id: &str,
+        platform: Platform,
+    ) -> Result<&PortDefinition> {
+        let retained = crate::install::retained_catalog_for_install(install)?
+            .ok_or_else(|| PortcoveError::unsupported("retained runtime catalog is unavailable"))?;
+        let port = self.catalog().port(port_id)?;
+        let retained = retained.port(port_id)?;
+        if !retained.platforms.contains(&platform) || !retained_runtime_matches(retained, port) {
+            return Err(PortcoveError::unsupported(
+                "the installed runtime no longer matches the declared mod source",
+            ));
+        }
+        Ok(port)
+    }
+}
+
+impl PortcoveService {
     /// Acquire and review an immutable public ZIP for the platform of a retained
     /// setup. Publication is limited to private intake; gameplay is unaffected.
     pub async fn prepare_github_compound_plan(
@@ -392,9 +417,7 @@ impl PortcoveService {
             .filter(|loader| loader == &ModEngine::N64Recomp.reference())
             .ok_or_else(|| PortcoveError::unsupported("a retained Recomp loader is required"))?;
         let install = install_for_plan(self.library(), &revision)?;
-        let retained = crate::install::retained_catalog_for_install(&install)?
-            .ok_or_else(|| PortcoveError::unsupported("retained runtime catalog is unavailable"))?;
-        let port = retained.port(port_id)?;
+        let port = self.declared_source_port(&install, port_id, revision.build.platform)?;
         let (source, layout, selected_tag, staged) = self
             .stage_github_mod_archive(
                 port,
@@ -469,18 +492,13 @@ impl PortcoveService {
                 "the admitted runtime or loader changed",
             ));
         }
-        let retained = crate::install::retained_catalog_for_install(&install)?
-            .ok_or_else(|| PortcoveError::unsupported("retained runtime catalog is unavailable"))?;
-        let source = reviewed_source(retained.port(port_id)?)
-            .ok_or_else(|| PortcoveError::unsupported("retained compound source is unavailable"))?;
-        let layout = source
-            .companions
-            .iter()
-            .copied()
-            .find(|layout| layout.platform == revision.build.platform)
-            .ok_or_else(|| {
-                PortcoveError::unsupported("retained companion layout is unavailable")
-            })?;
+        let platform = revision.build.platform;
+        let port = self.declared_source_port(&install, port_id, platform)?;
+        let source = reviewed_source(port, platform, ModSourceAuthority::Inspect)
+            .ok_or_else(|| PortcoveError::unsupported("the compound source is unavailable"))?;
+        let layout = source.inspection_layout(platform).ok_or_else(|| {
+            PortcoveError::unsupported("the reviewed companion layout is unavailable")
+        })?;
         verify_wrapper(&root, &plan, source, layout)?;
         Ok(plan)
     }
@@ -599,14 +617,23 @@ mod tests {
         assert!(exact_consent(&successor, &choice).is_err());
     }
 
-    const SYNTHETIC_SOURCE: ReviewedSource = ReviewedSource {
-        runtime_repository: "Owner/Runtime",
-        game: recomp_companion_review::fixtures::GAME,
-        repository: "Owner/Wrapper",
-        repository_id: 7,
-        asset_name: "Wrapper.zip",
-        companions: &recomp_companion_review::fixtures::LAYOUTS,
-    };
+    fn synthetic_port() -> PortDefinition {
+        crate::mod_source::synthetic_github_port(
+            "Owner/Wrapper",
+            7,
+            "Wrapper.zip",
+            recomp_companion_review::fixtures::layouts().to_vec(),
+        )
+    }
+
+    fn synthetic_source(port: &PortDefinition) -> ReviewedSource<'_> {
+        let source = crate::mod_source::github(port, Platform::LinuxX86_64).unwrap();
+        assert_eq!(
+            source.game().as_deref(),
+            Some(recomp_companion_review::fixtures::GAME)
+        );
+        source
+    }
 
     struct Published {
         plan: GithubCompoundPlan,
@@ -623,7 +650,7 @@ mod tests {
             platform: layout.platform,
             ..crate::install::retained_build_identity_for_install(&install).unwrap()
         };
-        let staged = fixtures::stage_for(&fixtures::complete(), layout).unwrap();
+        let staged = fixtures::stage_for(&fixtures::complete(), &layout).unwrap();
         check_runtime("1.2.0", &staged.review).unwrap();
         assert!(check_runtime("v1.1.9", &staged.review).is_err());
         let plan = GithubCompoundPlan {
@@ -633,14 +660,14 @@ mod tests {
             build,
             loader: ModEngine::N64Recomp.reference(),
             runtime_version: "1.2.0".into(),
-            repository: SYNTHETIC_SOURCE.repository.into(),
-            repository_id: SYNTHETIC_SOURCE.repository_id,
+            repository: "Owner/Wrapper".into(),
+            repository_id: 7,
             release_id: 11,
             release_tag: "v1".into(),
             asset_id: 12,
             wrapper_sha256: staged.review.archive_sha256.clone(),
             wrapper_bytes: staged.review.archive_bytes,
-            members: reviewed_members(layout, &staged).unwrap(),
+            members: reviewed_members(&layout, &staged).unwrap(),
         };
         let root = tempfile::tempdir().unwrap();
         publish_plan(root.path(), &plan, &staged).unwrap();
@@ -659,15 +686,15 @@ mod tests {
 
     #[test]
     fn synthetic_compound_record_survives_reopen_with_exact_roles() {
-        for layout in recomp_companion_review::fixtures::LAYOUTS {
-            let published = publish_synthetic(layout);
+        for layout in recomp_companion_review::fixtures::layouts() {
+            let published = publish_synthetic(layout.clone());
             let roles = published
                 .plan
                 .members
                 .iter()
                 .map(|(name, member)| (name.as_str(), member.role))
                 .collect::<BTreeMap<_, _>>();
-            let (primary, bundled) = (layout.files[0], layout.files[1]);
+            let (primary, bundled) = (layout.files[0].as_str(), layout.files[1].as_str());
             assert_eq!(
                 roles,
                 BTreeMap::from([
@@ -681,11 +708,12 @@ mod tests {
                 read_plan(&published.path, &published.key).unwrap(),
                 published.plan
             );
+            let port = synthetic_port();
             verify_wrapper(
                 &published.path,
                 &published.plan,
-                SYNTHETIC_SOURCE,
-                published.layout,
+                synthetic_source(&port),
+                &published.layout,
             )
             .unwrap();
             let consent = GithubCompoundConsent {
@@ -712,8 +740,10 @@ mod tests {
 
     #[test]
     fn synthetic_compound_record_refuses_changed_files_and_identity() {
-        let layout = recomp_companion_review::fixtures::LAYOUTS[1];
-        let fresh = || publish_synthetic(layout);
+        let layout = recomp_companion_review::fixtures::layouts()[1].clone();
+        let fresh = || publish_synthetic(layout.clone());
+        let port = synthetic_port();
+        let synthetic = synthetic_source(&port);
         let error_text = |published: &Published| {
             read_plan(&published.path, &published.key)
                 .unwrap_err()
@@ -763,14 +793,14 @@ mod tests {
         let source = fresh();
         let mut other_repository = source.plan.clone();
         other_repository.repository_id += 1;
-        assert!(verify_wrapper(&source.path, &other_repository, SYNTHETIC_SOURCE, layout).is_err());
+        assert!(verify_wrapper(&source.path, &other_repository, synthetic, &layout).is_err());
         let mut other_platform = source.plan.clone();
         other_platform.build.platform = Platform::WindowsX86_64;
-        assert!(verify_wrapper(&source.path, &other_platform, SYNTHETIC_SOURCE, layout).is_err());
+        assert!(verify_wrapper(&source.path, &other_platform, synthetic, &layout).is_err());
         let mut forged = source.plan.clone();
         forged.members.get_mut("Glue.so").unwrap().sha256 = "f".repeat(64);
         assert!(
-            verify_wrapper(&source.path, &forged, SYNTHETIC_SOURCE, layout)
+            verify_wrapper(&source.path, &forged, synthetic, &layout)
                 .unwrap_err()
                 .to_string()
                 .contains("does not come from the exact wrapper")
@@ -778,7 +808,7 @@ mod tests {
         let mut older_runtime = source.plan.clone();
         older_runtime.runtime_version = "1.1.0".into();
         assert!(
-            verify_wrapper(&source.path, &older_runtime, SYNTHETIC_SOURCE, layout)
+            verify_wrapper(&source.path, &older_runtime, synthetic, &layout)
                 .unwrap_err()
                 .to_string()
                 .contains("older than this mod requires")
@@ -792,7 +822,10 @@ mod tests {
         let (_temporary, _service, install) = crate::retained_build::tests::fixture();
         let build = crate::install::retained_build_identity_for_install(&install).unwrap();
         let private = tempfile::tempdir().unwrap();
-        let source = SOURCES[0];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        let source = crate::mod_source::github(port, Platform::LinuxX86_64).unwrap();
+        let game = source.game().unwrap();
         for layout in source.companions {
             let build = RetainedBuildIdentity {
                 platform: layout.platform,
@@ -803,8 +836,8 @@ mod tests {
                     &root.join(format!("{asset_id}.zip")),
                     bytes,
                     digest,
-                    source.game,
-                    *layout,
+                    &game,
+                    layout,
                     source.companions,
                 )
                 .unwrap();
@@ -826,7 +859,7 @@ mod tests {
                     asset_id,
                     wrapper_sha256: digest.into(),
                     wrapper_bytes: bytes,
-                    members: reviewed_members(*layout, &staged).unwrap(),
+                    members: reviewed_members(layout, &staged).unwrap(),
                 };
                 publish_plan(private.path(), &plan, &staged).unwrap();
                 let key = plan.sha256().unwrap();
@@ -879,17 +912,17 @@ mod tests {
                 &reloaded,
             )
             .unwrap();
-            verify_wrapper(&new_path, &new, source, *layout).unwrap();
+            verify_wrapper(&new_path, &new, source, layout).unwrap();
             let mut wrong_source = new.clone();
             wrong_source.repository_id += 1;
-            assert!(verify_wrapper(&new_path, &wrong_source, source, *layout).is_err());
+            assert!(verify_wrapper(&new_path, &wrong_source, source, layout).is_err());
             let mut forged = new.clone();
             forged
                 .members
                 .get_mut(new_consent.native_libraries.keys().next().unwrap())
                 .unwrap()
                 .sha256 = "f".repeat(64);
-            let error = verify_wrapper(&new_path, &forged, source, *layout).unwrap_err();
+            let error = verify_wrapper(&new_path, &forged, source, layout).unwrap_err();
             assert!(
                 error
                     .to_string()

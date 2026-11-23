@@ -505,6 +505,16 @@ impl DefinitionContentIndex {
             )
             .detail("port_id", &sibling.id));
         }
+        if let Some(sibling) = catalog
+            .ports()
+            .iter()
+            .find(|sibling| sibling.id != stable_id && !sibling.mod_sources.is_empty())
+        {
+            return Err(PortcoveError::verification(
+                "mod sources must belong to the selected definition",
+            )
+            .detail("port_id", &sibling.id));
+        }
         document.validate_loader_schema(&catalog)?;
         if let Some(artifacts) = &document.tool_artifacts {
             if !entry.supports_feature(

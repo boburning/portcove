@@ -1147,6 +1147,11 @@ pub struct PortDefinition {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) legacy_mod_provider_held: bool,
+    /// Catalog-declared mod sources and the authority each one carries. None
+    /// of them can install: install authority comes only from
+    /// `mod_provider_bindings`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mod_sources: Vec<crate::ModSource>,
     /// Versioned native loader facts admitted with this exact definition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_loader: Option<ModLoaderBinding>,

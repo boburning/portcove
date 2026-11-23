@@ -977,7 +977,7 @@ pub(crate) async fn open_upstream_mod_notice(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
-    source: portcove_core::ExternalModPortalSource,
+    source: String,
     page_url: String,
 ) -> DesktopResult<()> {
     let selection = state.inner().clone();
@@ -986,7 +986,7 @@ pub(crate) async fn open_upstream_mod_notice(
         generation,
         move |service| async move {
             let reviewed = service
-                .review_external_mod_source_page(&port_id, source, &page_url)
+                .review_external_mod_source_page(&port_id, &source, &page_url)
                 .await?;
             crate::require_library_generation(crate::state_generation(&selection), generation)?;
             crate::open_host_target(std::ffi::OsStr::new(&reviewed))

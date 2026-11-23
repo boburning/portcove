@@ -1214,7 +1214,16 @@ it("offers CoopDX's own file import on the Mods tab before installation", async 
     package_types: [],
     port_id: port.id,
     supported: false,
-    external_mod_portals: [{ source: "coop-dx", url }],
+    external_mod_portals: [
+      {
+        source: "coop-dx",
+        site: "community_site",
+        name: "CoopDX Mods",
+        url,
+        instructions:
+          "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+      },
+    ],
   });
   const open = vi.spyOn(desktopApi, "openUpstreamModNotice").mockResolvedValue(undefined);
   try {

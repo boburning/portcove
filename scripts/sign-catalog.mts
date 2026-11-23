@@ -173,6 +173,11 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
         "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",
       );
     }
+    if ("mod_sources" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver mod sources. Use a compatible indexed definition.",
+      );
+    }
     if ("windows_shipwright_persistence" in port && port.windows_shipwright_persistence === true) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",

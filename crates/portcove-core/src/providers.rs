@@ -423,6 +423,7 @@ mod tests {
             upstream_active_reviewed: false,
             mod_provider_bindings: None,
             legacy_mod_provider_held: false,
+            mod_sources: Vec::new(),
             mod_loader: None,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),

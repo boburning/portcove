@@ -82,6 +82,32 @@
   },
   "external_registration_v1": true,
   "integration": {
+    "mod_sources": [
+      {
+        "id": "mod-io-open-xcom",
+        "authority": "link_out",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "name": "mod.io",
+        "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+        "source": {
+          "kind": "external_portal",
+          "site": "mod_io",
+          "url": "https://mod.io/g/openxcom/"
+        }
+      },
+      {
+        "id": "mod-db-open-xcom",
+        "authority": "link_out",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "name": "Mod DB",
+        "instructions": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+        "source": {
+          "kind": "external_portal",
+          "site": "mod_db",
+          "url": "https://www.moddb.com/games/openxcom/mods"
+        }
+      }
+    ],
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

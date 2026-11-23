@@ -9,8 +9,8 @@ use serde_json::Value;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
-    Platform, PortDefinition, PortcoveError, PortcoveService, ProviderFreshness,
-    RecompCompoundReview, Result,
+    ModSourceAuthority, Platform, PortDefinition, PortcoveError, PortcoveService,
+    ProviderFreshness, RecompCompoundReview, Result,
     mod_provider::sanitize_text,
     profile_loader::ModEngine,
     provider_http::ProviderHttp,
@@ -26,66 +26,61 @@ const API: &str = "https://api.github.com";
 const MAX_RELEASES: usize = 30;
 const MAX_ASSETS: usize = 128;
 
-#[derive(Clone, Copy)]
-struct ReviewedSource {
-    runtime_repository: &'static str,
-    game: &'static str,
-    repository: &'static str,
-    repository_id: u64,
-    asset_name: &'static str,
-    companions: &'static [CompanionLayout],
+type ReviewedSource<'a> = crate::mod_source::GithubSource<'a>;
+
+/// The port's declared GitHub release source on the platform, when its
+/// authority reaches `authority`.
+fn reviewed_source(
+    port: &PortDefinition,
+    platform: Platform,
+    authority: ModSourceAuthority,
+) -> Option<ReviewedSource<'_>> {
+    crate::mod_source::github(port, platform).filter(|source| source.authority >= authority)
 }
 
-const SOURCES: &[ReviewedSource] = &[ReviewedSource {
-    runtime_repository: "Zelda64Recomp/Zelda64Recomp",
-    game: "mm",
-    repository: "RecompRando/MMRecompRando",
-    repository_id: 854379059,
-    asset_name: "MMRecompRando.zip",
-    companions: &[
-        CompanionLayout {
-            platform: Platform::WindowsX86_64,
-            declared_library: "APCpp-Glue",
-            files: &["APCpp-Glue.dll", "python311.dll"],
-        },
-        CompanionLayout {
-            platform: Platform::LinuxX86_64,
-            declared_library: "APCpp-Glue",
-            files: &["APCpp-Glue.so", "libpython3.11.so.1.0"],
-        },
-    ],
-}];
-
-fn reviewed_source(port: &PortDefinition) -> Option<ReviewedSource> {
-    let loader = crate::profile_loader::configured_loader(port)?;
-    if loader.engine != ModEngine::N64Recomp {
-        return None;
-    }
-    SOURCES.iter().copied().find(|binding| {
-        port.release
-            .repository
-            .eq_ignore_ascii_case(binding.runtime_repository)
-            && loader.native_game.as_deref() == Some(binding.game)
-    })
-}
-
-/// Eligibility to explicitly browse the upstream source, without a network read.
+/// Whether the definition declares a GitHub release mod source on any platform.
 pub fn has_github_mod_source(port: &PortDefinition) -> bool {
-    reviewed_source(port).is_some()
+    port.mod_sources
+        .iter()
+        .any(|source| matches!(source.source, crate::ModSourceKind::GithubRelease { .. }))
 }
 
-/// The reviewed upstream releases page. A link-out alone grants no native
+/// The declared upstream releases page. A link-out alone grants no native
 /// import; that comes only from an installed build.
-pub(crate) fn github_mod_release_url(port: &PortDefinition) -> Option<String> {
-    reviewed_source(port).map(|source| format!("https://github.com/{}/releases", source.repository))
+pub(crate) fn github_mod_release_url(
+    port: &PortDefinition,
+    platform: Option<Platform>,
+) -> Option<String> {
+    reviewed_source(port, platform?, ModSourceAuthority::LinkOut)
+        .map(|source| source.releases_url())
+}
+
+/// The retained definition of an installed build still describes the same
+/// Recomp runtime and native game as the current definition that declares
+/// the source. Source facts come from the current definition, so withdrawing
+/// the source there revokes every use of it.
+fn retained_runtime_matches(retained: &PortDefinition, current: &PortDefinition) -> bool {
+    let game = |port: &PortDefinition| {
+        crate::profile_loader::configured_loader(port)
+            .filter(|loader| loader.engine == ModEngine::N64Recomp)
+            .and_then(|loader| loader.native_game.clone())
+    };
+    retained
+        .release
+        .repository
+        .eq_ignore_ascii_case(&current.release.repository)
+        && game(retained).is_some()
+        && game(retained) == game(current)
 }
 
 /// Whether the exact installed runtime admits native companion import on the
 /// platform: its own retained definition must bind the reviewed Recomp loader
-/// to this build and carry a companion layout for the platform. Each mod's
-/// minimum runtime is checked separately against the reviewed wrapper.
+/// to this build, and the current definition must declare an inspect-level
+/// source with a companion layout for the platform. Each mod's minimum
+/// runtime is checked separately against the reviewed wrapper.
 pub(crate) fn installed_native_import(
     install: &crate::InstallRecord,
+    port: &PortDefinition,
     platform: Platform,
 ) -> Result<bool> {
     let build = crate::install::retained_build_identity_for_install(install)?;
@@ -98,14 +93,12 @@ pub(crate) fn installed_native_import(
     let Some(retained) = crate::install::retained_catalog_for_install(install)? else {
         return Ok(false);
     };
-    let port = retained.port(&install.port_id)?;
-    Ok(port.platforms.contains(&platform)
-        && reviewed_source(port).is_some_and(|source| {
-            source
-                .companions
-                .iter()
-                .any(|layout| layout.platform == platform)
-        }))
+    let retained = retained.port(&install.port_id)?;
+    Ok(install.port_id == port.id
+        && retained.platforms.contains(&platform)
+        && retained_runtime_matches(retained, port)
+        && reviewed_source(port, platform, ModSourceAuthority::Inspect)
+            .is_some_and(|source| source.inspection_layout(platform).is_some()))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -176,7 +169,7 @@ impl PortcoveService {
             return Ok(false);
         };
         match self.active_install(port)? {
-            Some(install) => Ok(installed_native_import(&install, platform).unwrap_or(false)),
+            Some(install) => Ok(installed_native_import(&install, port, platform).unwrap_or(false)),
             None => Ok(false),
         }
     }
@@ -195,9 +188,10 @@ impl PortcoveService {
         port: &PortDefinition,
         platform: Platform,
     ) -> Result<GithubModCatalog> {
-        let binding = reviewed_source(port).ok_or_else(|| {
-            PortcoveError::unsupported("this port has no reviewed GitHub mod source")
-        })?;
+        let binding =
+            reviewed_source(port, platform, ModSourceAuthority::Browse).ok_or_else(|| {
+                PortcoveError::unsupported("this port has no reviewed GitHub mod source")
+            })?;
         let library = self.library();
         let http = ProviderHttp::new(Some(library.clone()), "GitHub Releases", "github.com")?
             .with_backoff(library.github_mod_backoff.clone());
@@ -225,7 +219,7 @@ impl PortcoveService {
             platform,
             repository: binding.repository.into(),
             repository_id: binding.repository_id,
-            source_url: format!("https://github.com/{}/releases", binding.repository),
+            source_url: binding.releases_url(),
             native_import_offered: self.github_native_import(port, Some(platform))?,
             releases,
             complete,
@@ -249,7 +243,7 @@ impl PortcoveService {
             .await?;
         let native_import_offered = match self.active_install(port)? {
             Some(install) => {
-                installed_native_import(&install, platform)?
+                installed_native_import(&install, port, platform)?
                     && check_runtime(&install.version, &staged.review).is_ok()
             }
             None => false,
@@ -265,28 +259,27 @@ impl PortcoveService {
         })
     }
 
-    async fn stage_github_mod_archive(
+    async fn stage_github_mod_archive<'a>(
         &self,
-        port: &PortDefinition,
+        port: &'a PortDefinition,
         platform: Platform,
         release_id: u64,
         asset_id: u64,
         expected_tag: Option<&str>,
         archive: Option<&Path>,
     ) -> Result<(
-        ReviewedSource,
-        CompanionLayout,
+        ReviewedSource<'a>,
+        &'a CompanionLayout,
         String,
         recomp_companion_review::StagedCompoundReview,
     )> {
-        let source = reviewed_source(port).ok_or_else(|| {
-            PortcoveError::unsupported("this port has no reviewed GitHub mod source")
-        })?;
+        let source =
+            reviewed_source(port, platform, ModSourceAuthority::Inspect).ok_or_else(|| {
+                PortcoveError::unsupported("this port has no reviewed GitHub mod source")
+            })?;
         let layout = source
-            .companions
-            .iter()
-            .copied()
-            .find(|layout| layout.platform == platform && port.platforms.contains(&platform))
+            .inspection_layout(platform)
+            .filter(|_| port.platforms.contains(&platform))
             .ok_or_else(|| {
                 PortcoveError::unsupported(
                     "this source has no reviewed companion layout for the platform",
@@ -324,15 +317,19 @@ impl PortcoveService {
             }
             (path, Some(temporary))
         };
+        let game = source
+            .game()
+            .ok_or_else(|| PortcoveError::unsupported("the port has no reviewed Recomp game"))?;
+        let (selected_layout, companions) = (layout.clone(), source.companions.to_vec());
         let review = tokio::task::spawn_blocking(move || {
             let _download_custody = temporary;
             recomp_companion_review::stage(
                 &archive,
                 bytes,
                 &digest,
-                source.game,
-                layout,
-                source.companions,
+                &game,
+                &selected_layout,
+                &companions,
             )
         })
         .await
@@ -341,7 +338,7 @@ impl PortcoveService {
     }
 }
 
-fn require_repository_identity(binding: ReviewedSource, row: &Value) -> Result<()> {
+fn require_repository_identity(binding: ReviewedSource<'_>, row: &Value) -> Result<()> {
     if row["id"].as_u64() != Some(binding.repository_id)
         || row["full_name"].as_str() != Some(binding.repository)
         || row["private"].as_bool() != Some(false)
@@ -354,7 +351,7 @@ fn require_repository_identity(binding: ReviewedSource, row: &Value) -> Result<(
 }
 
 fn exact_release(
-    binding: ReviewedSource,
+    binding: ReviewedSource<'_>,
     row: &Value,
     release_id: u64,
     asset_id: u64,
@@ -377,7 +374,7 @@ fn exact_release(
 
 async fn observe_exact_release(
     http: &ProviderHttp,
-    binding: ReviewedSource,
+    binding: ReviewedSource<'_>,
     release_id: u64,
     asset_id: u64,
     expected_tag: Option<&str>,
@@ -444,7 +441,7 @@ fn public_id(value: &Value) -> Option<u64> {
     value.as_u64().filter(|id| (1..=(1 << 53) - 1).contains(id))
 }
 
-fn parse_asset(row: &Value, binding: ReviewedSource) -> Option<GithubModAsset> {
+fn parse_asset(row: &Value, binding: ReviewedSource<'_>) -> Option<GithubModAsset> {
     let name = row["name"]
         .as_str()
         .filter(|name| *name == binding.asset_name)?;
@@ -487,7 +484,7 @@ fn release_tag(value: &Value) -> Option<&str> {
     })
 }
 
-fn missing_named_asset(binding: ReviewedSource, value: &Value) -> bool {
+fn missing_named_asset(binding: ReviewedSource<'_>, value: &Value) -> bool {
     public_id(&value["id"]).is_some()
         && release_tag(value).is_some()
         && value["assets"].as_array().is_some_and(|assets| {
@@ -500,7 +497,7 @@ fn missing_named_asset(binding: ReviewedSource, value: &Value) -> bool {
         })
 }
 
-fn parse_release(binding: ReviewedSource, value: &Value) -> Option<GithubModRelease> {
+fn parse_release(binding: ReviewedSource<'_>, value: &Value) -> Option<GithubModRelease> {
     let rows = value["assets"]
         .as_array()
         .filter(|rows| rows.len() <= MAX_ASSETS)?;
@@ -531,7 +528,7 @@ fn parse_release(binding: ReviewedSource, value: &Value) -> Option<GithubModRele
 }
 
 fn project_releases(
-    binding: ReviewedSource,
+    binding: ReviewedSource<'_>,
     value: &Value,
 ) -> Result<(Vec<GithubModRelease>, bool)> {
     let rows = value
@@ -588,7 +585,8 @@ mod tests {
 
     #[test]
     fn old_releases_without_the_named_zip_do_not_hold_exact_review() {
-        let binding = SOURCES[0];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let binding = zelda_source(&catalog);
         let release = json!({
             "id": 90, "tag_name": "v2", "draft": false, "prerelease": false,
             "assets": [{"id": 20, "name": binding.asset_name, "size": 24,
@@ -622,21 +620,45 @@ mod tests {
     }
 
     #[test]
-    fn reviewed_repository_scope_uses_loader_identity() {
+    fn declared_source_and_reviewed_loader_decide_each_authority() {
         let catalog = crate::Catalog::embedded().unwrap();
+        let linux = Some(Platform::LinuxX86_64);
         let mut port = catalog.port("zelda64-recomp").unwrap().clone();
         assert!(has_github_mod_source(&port));
         assert!(!has_github_mod_source(catalog.port("shipwright").unwrap()));
         assert_eq!(
-            github_mod_release_url(&port).as_deref(),
+            github_mod_release_url(&port, linux).as_deref(),
             Some("https://github.com/RecompRando/MMRecompRando/releases")
         );
+        assert_eq!(github_mod_release_url(&port, None), None);
         assert_eq!(
-            github_mod_release_url(catalog.port("shipwright").unwrap()),
+            github_mod_release_url(catalog.port("shipwright").unwrap(), linux),
             None
         );
-        port.release.repository = "unrelated/unreviewed".into();
+        // An installed build must still describe this runtime and game.
+        let retained = port.clone();
+        assert!(retained_runtime_matches(&retained, &port));
+        let mut other_runtime = retained.clone();
+        other_runtime.release.repository = "unrelated/unreviewed".into();
+        assert!(!retained_runtime_matches(&other_runtime, &port));
+        // Inspection needs the definition's reviewed Recomp loader.
+        let mut without_loader = port.clone();
+        without_loader.mod_loader = None;
+        without_loader.id = "unreviewed-recomp-runtime".into();
+        let source = reviewed_source(
+            &without_loader,
+            Platform::LinuxX86_64,
+            ModSourceAuthority::Browse,
+        )
+        .unwrap();
+        assert!(source.inspection_layout(Platform::LinuxX86_64).is_none());
+        // Withdrawing the declaration withdraws the link and every reader.
+        port.mod_sources.clear();
         assert!(!has_github_mod_source(&port));
+        assert_eq!(github_mod_release_url(&port, linux), None);
+        assert!(
+            reviewed_source(&port, Platform::LinuxX86_64, ModSourceAuthority::LinkOut).is_none()
+        );
     }
 
     fn service_with_install(version: Option<&str>) -> (tempfile::TempDir, PortcoveService) {
@@ -656,8 +678,17 @@ mod tests {
         (temporary, PortcoveService::new_read_only(library).unwrap())
     }
 
+    fn zelda_source(catalog: &crate::Catalog) -> ReviewedSource<'_> {
+        crate::mod_source::github(
+            catalog.port("zelda64-recomp").unwrap(),
+            Platform::LinuxX86_64,
+        )
+        .unwrap()
+    }
+
     fn host_has_layout(platform: Platform) -> bool {
-        SOURCES[0]
+        let catalog = crate::Catalog::embedded().unwrap();
+        zelda_source(&catalog)
             .companions
             .iter()
             .any(|layout| layout.platform == platform)
@@ -711,7 +742,7 @@ mod tests {
         let port = service.catalog().port("zelda64-recomp").unwrap().clone();
         let install = service.active_install(&port).unwrap().unwrap();
         std::fs::write(install.path.join(".portcove-manifest.json"), b"changed").unwrap();
-        assert!(installed_native_import(&install, platform).is_err());
+        assert!(installed_native_import(&install, &port, platform).is_err());
         assert!(!service.github_native_import(&port, Some(platform)).unwrap());
         let view = service.preview_mod_handoff("zelda64-recomp").unwrap();
         assert!(view.github_release_url.is_some());
@@ -747,7 +778,9 @@ mod tests {
             "id": 91, "draft":false, "prerelease":false, "tag_name":"v1.2.3/preview",
             "assets":assets,
         });
-        let (files, complete) = project_releases(SOURCES[0], &json!([ready.clone()])).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let source = zelda_source(&catalog);
+        let (files, complete) = project_releases(source, &json!([ready.clone()])).unwrap();
         assert!(complete);
         assert_eq!(files[0].release_id, 91);
         assert_eq!(files[0].asset.asset_id, 17);
@@ -756,10 +789,10 @@ mod tests {
             Some("a".repeat(64).as_str())
         );
         assert!(files[0].release_url.ends_with("v1.2.3%2Fpreview"));
-        assert!(project_releases(SOURCES[0], &json!([ready.clone(), ready.clone()])).is_err());
+        assert!(project_releases(source, &json!([ready.clone(), ready.clone()])).is_err());
         let mut corrupt = ready;
         corrupt["assets"][1]["digest"] = json!("md5:0000");
-        let (files, complete) = project_releases(SOURCES[0], &json!([corrupt])).unwrap();
+        let (files, complete) = project_releases(source, &json!([corrupt])).unwrap();
         assert!(files.is_empty());
         assert!(!complete);
     }
@@ -769,7 +802,8 @@ mod tests {
     fn real_release_successor_retains_numeric_github_identity() {
         let path = std::env::var_os("PORTCOVE_GITHUB_MOD_RELEASES").unwrap();
         let metadata: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-        let (releases, _) = project_releases(SOURCES[0], &metadata).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let (releases, _) = project_releases(zelda_source(&catalog), &metadata).unwrap();
         let pair: Vec<_> = releases
             .iter()
             .filter(|release| ["v0.9.5", "v0.9.5a"].contains(&release.tag.as_str()))
