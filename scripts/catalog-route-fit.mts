@@ -9,6 +9,11 @@ import {
   type CatalogPort,
 } from "./catalog-authoring.mts";
 import type { RestrictedOperation, RestrictionScope } from "./catalog-acquisition-restrictions.mts";
+import {
+  registrationQueues,
+  type Generation,
+  type RegistrationQueues,
+} from "./catalog-generated-registration.mts";
 import { carriers, heldAt, usesScummvmEngine } from "./catalog-route-holds.mts";
 import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import {
@@ -129,6 +134,12 @@ export interface RouteFitReport {
   format_version: 2;
   summary: RouteFitSummary;
   identities: RouteFitRecord[];
+  /**
+   * The generated registration route's exception queues: every identity per
+   * blocked reason, unread package form and name veto. Present when the
+   * catalog generation is an input.
+   */
+  registration_queues?: RegistrationQueues;
 }
 export interface RouteFitInputs {
   records: readonly AuthoredPort[];
@@ -137,6 +148,8 @@ export interface RouteFitInputs {
   routeEnrollment: unknown;
   /** The generated registration table; absent means no generated routes. */
   generatedRegistration?: unknown;
+  /** The catalog generation, for the generated route's exception queues. */
+  generation?: Generation;
   observerReport?: unknown;
 }
 
@@ -498,6 +511,7 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
       observer_report: inputs.observerReport === undefined ? "absent" : "applied",
     },
     identities,
+    ...(inputs.generation ? { registration_queues: registrationQueues(inputs.generation) } : {}),
   };
 }
 
@@ -519,6 +533,17 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
     ...Object.entries(summary.observations).map(([state, count]) => row(state, count)),
     "Families:",
     ...Object.entries(summary.by_family).map(([family, count]) => row(family, count)),
+    ...(report.registration_queues
+      ? [
+          "Generated registration queues (identity lists with --json):",
+          ...Object.entries(report.registration_queues.reasons)
+            .filter(([, ids]) => ids.length)
+            .map(([reason, ids]) => row(reason, ids.length)),
+          ...Object.entries(report.registration_queues.unread_forms).map(([form, ids]) =>
+            row(`unread form ${form}`, ids.length),
+          ),
+        ]
+      : []),
   ];
   return lines.join("\n");
 }
@@ -539,7 +564,7 @@ const catalogDirectory = "crates/portcove-core/catalog";
 
 export function readRouteFitInputs(repositoryRoot: string, observerReportPath?: string) {
   const catalogRoot = join(repositoryRoot, catalogDirectory);
-  const { records, catalog } = readCatalogSource(catalogRoot);
+  const { records, catalog, generation } = readCatalogSource(catalogRoot);
   const read = (file: string): unknown => parseCatalogSource(readFileSync(file, "utf8"));
   return {
     records,
@@ -547,6 +572,7 @@ export function readRouteFitInputs(repositoryRoot: string, observerReportPath?: 
     packageShapes: read(join(catalogRoot, "package-shapes.generated.json")),
     routeEnrollment: read(join(catalogRoot, "route-enrollment.generated.json")),
     generatedRegistration: read(join(catalogRoot, "generated-registration.generated.json")),
+    generation,
     ...(observerReportPath === undefined ? {} : { observerReport: read(observerReportPath) }),
   } satisfies RouteFitInputs;
 }

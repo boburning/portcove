@@ -23,6 +23,9 @@ import {
 import {
   boundFactsBatch,
   checkFactsProvenance,
+  compareCodePoints,
+  machineSystem,
+  registrationQueues,
   checkListingFactsTable,
   deltaBounds,
   digestOf,
@@ -81,6 +84,7 @@ const classification = JSON.parse(
       os: string;
       arch: string;
       tool_token: string | null;
+      system_token: string | null;
     }[];
     programs: { name: string; tool_token: string | null }[];
   };
@@ -123,6 +127,7 @@ function suggestion(name: string): NameSuggestion {
     os: known.os,
     arch: known.arch,
     tool_token: known.tool_token,
+    system_token: known.system_token,
   };
 }
 
@@ -197,6 +202,7 @@ function entry(
       ...fields,
     },
     ineligible: null,
+    unread_forms: [],
     attempt: null,
     artifacts,
     ...extra,
@@ -435,7 +441,19 @@ void test("an archive whose own name says another role, system or architecture i
     assert.equal(fact.contradictory, true, `${name} (${why})`);
     assert.equal(fact.role, "desktop-game-runtime", "the structural claim is kept for evidence");
     const decision = decide(listing(id), result.table.entries[0]);
-    assert.equal(reasonOf(decision), "contradictory-role", name);
+    const expected = [
+      "dedicated-server",
+      "installer",
+      "builder",
+      "compiler",
+      "dev-tool",
+      "importer",
+    ].includes(why)
+      ? "tool-not-game"
+      : ["mobile-package", "console-output"].includes(why)
+        ? "non-desktop-platform"
+        : "contradictory-role";
+    assert.equal(reasonOf(decision), expected, name);
   }
   // A plain desktop name with a matching player is not vetoed.
   const plain = artifact("Game-v1.0.zip", exe);
@@ -503,7 +521,7 @@ void test("a release whose only native archives are all vetoed does not enroll; 
 
 void test("structural and coverage rules still apply to worker facts", () => {
   const cases: [ArtifactFactV2, string][] = [
-    [artifact(windowsZip, []), "no-runtime-role"],
+    [artifact(windowsZip, []), "no-player"],
     // A 32-bit player in a 64-bit-named archive: the name vetoes it.
     [artifact(windowsZip, [player("game/game.exe", "pe-x86")]), "contradictory-role"],
     // A 32-bit player in an unlabelled archive: no supported platform runs it.
@@ -942,7 +960,7 @@ void test("every identity of a 60-identity fixture is attempted within a bounded
   // runs, and three transient failures complete on their third attempt.
   assert.ok(runs <= 8, `took ${runs} runs`);
   const blocked = enrollmentTable(generateRegistrations(records, facts)).blocked;
-  assert.equal(blocked["unbound-archive"], 25);
+  assert.equal(blocked["no-digest"], 25);
   assert.equal(blocked["exceeds-run-budget"], 1);
   assert.equal(blocked["repeated-inspection-failure"], 3);
   assert.equal(generateRegistrations(records, facts).enrollments.length, 31);
@@ -1001,7 +1019,7 @@ void test("transient failures retry from a bounded queue; permanent refusals com
     first.state.retry.map((item) => item.port_id),
     ["zz-retry-a"],
   );
-  assert.equal(outcome(first, "zz-retry-b")!.reason, "inspection-refused");
+  assert.equal(outcome(first, "zz-retry-b")!.reason, "core-refused");
   assert.equal(outcome(first, "zz-retry-c")!.outcome, "complete");
   const second = await derive(records, report, first.table, {
     state: first.state,
@@ -1114,7 +1132,7 @@ void test("a complete observation that no longer fits withdraws immediately", as
     good.table,
     { inspect: inspector({ "MyGame-dedicated-server-win64.zip": [player("game.exe")] }) },
   );
-  assert.equal(reasonOf(decide(records[0]!, serverOnly.table.entries[0])), "contradictory-role");
+  assert.equal(reasonOf(decide(records[0]!, serverOnly.table.entries[0])), "tool-not-game");
 });
 
 void test("facts bind the repository id: a rename continues, a different id withdraws", async () => {
@@ -1200,9 +1218,23 @@ void test("players are shown only through a conservative name class, at most thr
     guideOf([player("Game/Game.x86_64.exe")]).steps[2]!.instruction,
     /^Select Game\.x86_64\.exe in/u,
   );
-  const many = guideOf(["A.exe", "B.exe", "C.exe", "D.exe", "E.exe"].map((path) => player(path)));
+  // Five distinct programs are never one game.
+  const distinct = ["A.exe", "B.exe", "C.exe", "D.exe", "E.exe"].map((path) => player(path));
+  assert.equal(
+    reasonOf(decide(listing(), entry([artifact(windowsZip, distinct)]))),
+    "ambiguous-player",
+  );
+  // Five builds of one program enroll; the guide names none and lists three.
+  const many = guideOf(
+    ["Game.exe", "Game32.exe", "Game64.exe", "Game.console.exe", "Game.x86_64.exe"].map((path) =>
+      player(path),
+    ),
+  );
   assert.equal(many.steps[2]!.instruction, genericSelection);
-  assert.match(many.references[1]!.instruction, /contains A\.exe, B\.exe, C\.exe and 2 more\./u);
+  assert.match(
+    many.references[1]!.instruction,
+    /contains Game\.console\.exe, Game\.exe, Game\.x86_64\.exe and 2 more\./u,
+  );
   const hidden = guideOf([player("game.exe")], windowsZip);
   assert.match(hidden.references[1]!.instruction, /release v1\.0/u);
   // A name outside the class falls back to generic wording everywhere.
@@ -1317,6 +1349,10 @@ void test("the worker reuses unchanged archives and holds facts beyond one batch
   assert.deepEqual(enrolledIds(records, first.table), ids.slice(0, 64));
   assert.equal(first.state.held.length, 6);
   assert.ok(first.report.filter((row) => row.outcome === "held-for-batch").length === 6);
+  // Held facts are backlog too, named apart from inspection work.
+  assert.equal(first.backlog.held_for_batch, 6);
+  assert.equal(first.backlog.runs_to_land_held, 1);
+  assert.equal(first.no_progress, false);
   log.length = 0;
   const second = await derive(records, report, first.table, {
     state: first.state,
@@ -1326,6 +1362,7 @@ void test("the worker reuses unchanged archives and holds facts beyond one batch
   assert.deepEqual(log, [], "held and landed facts are reused, not downloaded again");
   assert.deepEqual(enrolledIds(records, second.table), ids);
   assert.deepEqual(second.state.held, []);
+  assert.equal(second.backlog.held_for_batch, 0);
   gateGeneration(
     enrollmentTable(generateRegistrations(records, first.table)),
     generateRegistrations(records, second.table),
@@ -1395,6 +1432,7 @@ const anyNameClassifier: NameClassifier = async (input) => ({
         os: "unknown",
         arch: "unknown",
         tool_token: null,
+        system_token: null,
       },
   ),
   programs: input.programs.map(
@@ -1421,7 +1459,8 @@ void test("an oversized tag and release file name settle only their identity; an
     observerReport: observerReport({
       [bad]: {
         releases: [
-          // Newest, but its tag cannot be classified: counted as a prerelease.
+          // Newest, but its tag cannot be classified: never skipped as a
+          // prerelease, so the identity records invalid facts.
           {
             id: 12,
             tag: longTag,
@@ -1451,7 +1490,9 @@ void test("an oversized tag and release file name settle only their identity; an
   assert.equal(refusals.count, 0, "the worker never sends a name Core refuses");
   assert.equal(outcome(result, bad)!.reason, "invalid-facts");
   const badEntry = result.table.entries.find((item) => item.port_id === bad)!;
-  assert.equal(badEntry.observation.tag, "v1.0", "the unclassified tag is not the stable release");
+  assert.equal(badEntry.observation.release_id, 12, "no silent fallback to an older release");
+  assert.equal(badEntry.observation.tag, "release-12");
+  assert.match(badEntry.ineligible!.detail, /tag Core could not classify/u);
   assert.ok(
     log.every((url) => url.includes(good)),
     "an identity with an unclassified release file reads no bytes",
@@ -1924,13 +1965,14 @@ void test("the listing-only tool veto excludes tool programs and archives, and r
   const decisions = new Map(generation.decisions.map((decision) => [decision.port_id, decision]));
   const reason = (id: string) => reasonOf(decisions.get(id)!);
   assert.equal(reason(sampleIds.windows), "fit");
-  assert.equal(reason(sampleIds.patcherOnly), "no-runtime-role");
-  assert.equal(reason(sampleIds.patcherArchive), "contradictory-role");
+  assert.equal(reason(sampleIds.patcherOnly), "tool-not-game");
+  assert.equal(reason(sampleIds.patcherArchive), "tool-not-game");
   assert.match(
     (decisions.get(sampleIds.patcherArchive) as { detail: string }).detail,
     /asset-tool-name patcher \(Patcher-v1\.0-windows-x64\.zip\)/u,
   );
-  assert.equal(reason(sampleIds.several), "fit");
+  // Game.exe beside Launcher.exe: two programs cannot be told from two titles.
+  assert.equal(reason(sampleIds.several), "ambiguous-player");
   assert.equal(reason(sampleIds.recomp), "fit", "a ...Recomp game port is not a tool");
   assert.equal(reason(sampleIds.linux), "fit");
   assert.equal(reason(sampleIds.mac), "fit");
@@ -1938,7 +1980,10 @@ void test("the listing-only tool veto excludes tool programs and archives, and r
     generation.records.find((record) => record.listing.id === id)!.listing.manual_setup as Guide;
   assert.match(guide(sampleIds.windows).steps[2]!.instruction, /^Select Game\.exe in/u);
   assert.doesNotMatch(JSON.stringify(guide(sampleIds.windows)), /Patcher|CrashHandler/u);
-  assert.equal(guide(sampleIds.several).steps[2]!.instruction, genericSelection);
+  assert.equal(
+    generation.records.find((record) => record.listing.id === sampleIds.several)!.integration,
+    undefined,
+  );
   const windows = generation.enrollments.find((row) => row.port_id === sampleIds.windows)!;
   assert.deepEqual(
     windows.runtimes[0]!.players.map((item) => item.display_path),
@@ -1956,8 +2001,8 @@ void test("the listing-only tool veto excludes tool programs and archives, and r
       key: "asset-tool-name:patcher",
       count: 2,
       examples: [
-        `${sampleIds.patcherOnly}=no-runtime-role:Patcher-v1.0-windows-x64.zip`,
-        `${sampleIds.patcherArchive}=contradictory-role:Patcher-v1.0-windows-x64.zip`,
+        `${sampleIds.patcherOnly}=tool-not-game:Patcher-v1.0-windows-x64.zip`,
+        `${sampleIds.patcherArchive}=tool-not-game:Patcher-v1.0-windows-x64.zip`,
       ],
     },
     {
@@ -1965,8 +2010,13 @@ void test("the listing-only tool veto excludes tool programs and archives, and r
       count: 2,
       examples: [
         `${sampleIds.windows}=enrolled:Patcher.exe`,
-        `${sampleIds.patcherOnly}=no-runtime-role:Patcher.exe`,
+        `${sampleIds.patcherOnly}=tool-not-game:Patcher.exe`,
       ],
+    },
+    {
+      key: "ambiguous-player:several-programs",
+      count: 1,
+      examples: [`${sampleIds.several}=ambiguous-player:Game.exe + Launcher.exe`],
     },
     {
       key: "player-tool-name:crashhandler",
@@ -1997,4 +2047,388 @@ void test("the worker's sample output is pinned for Core's forged-fact guard", a
   // portcove-core re-runs its own rules on every fact of this file
   // (`worker_sample_facts_equal_what_core_computes_and_forgeries_do_not`).
   assert.equal(readFileSync(samplePath, "utf8"), text);
+});
+
+// ---------------------------------------------------------------------------
+// Platform-true hosts (F1): a player's own machine names its system.
+
+const neutralZip = "Game-v1.0.zip";
+
+void test("non-desktop and unknown-platform players never enroll, whatever the archive is called", () => {
+  for (const [machine, reason] of [
+    // An iOS application in a neutral archive (`Payload/X.app/X`).
+    ["macho-ios-arm64", "non-desktop-platform"],
+    ["macho-ios-universal-arm64+x86-64", "non-desktop-platform"],
+    ["macho-tvos-arm64", "non-desktop-platform"],
+    ["elf64-android-arm64", "non-desktop-platform"],
+    ["elf64-android-x86-64", "non-desktop-platform"],
+    ["elf64-freebsd-x86-64", "non-desktop-platform"],
+    ["pe-xbox-x86-64", "non-desktop-platform"],
+    ["elf64-unknown-x86-64", "unknown-platform"],
+    ["macho-unplatformed-arm64", "unknown-platform"],
+    ["macho-unknown-universal-arm64+x86-64", "unknown-platform"],
+    ["pe-unknown-x86-64", "unknown-platform"],
+  ] as const) {
+    const fact = artifact(neutralZip, [player("Payload/Game.app/Game", machine)]);
+    assert.equal(fact.contradictory, false, machine);
+    const decision = decide(listing(), entry([fact]));
+    assert.equal(reasonOf(decision), reason, machine);
+    for (const platform of ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])
+      assert.equal(machineRunsOn(machine, platform), false, `${machine} on ${platform}`);
+  }
+  // The same layouts with desktop machines still enroll.
+  assert.deepEqual(
+    (
+      decide(
+        listing(),
+        entry([artifact(neutralZip, [player("Game.app/Contents/MacOS/Game", "macho-arm64")])]),
+      ) as { enrollment: { platforms: string[] } }
+    ).enrollment.platforms,
+    ["macos-aarch64"],
+  );
+  assert.equal(machineSystem("elf64-x86-64").platformClass, "desktop");
+  assert.equal(machineSystem("elf64-android-arm64").os, "android");
+  assert.equal(machineSystem("macho-ios-arm64").os, "ios");
+  assert.equal(machineSystem("macho-unplatformed-arm64").platformClass, "unknown");
+});
+
+void test("system tokens in an archive name veto it as non-desktop; titles that merely contain one do not", () => {
+  const linux = [player("Game/Game.x86_64", "elf64-x86-64")];
+  for (const name of [
+    "Game-v1.0-freebsd-x86_64.tar.gz",
+    "Game-v1.0-iphone.zip",
+    "Game-v1.0-android-tv.zip",
+    "Game-v1.0-ps4.zip",
+  ]) {
+    const fact = artifact(name, linux);
+    assert.equal(fact.contradictory, true, name);
+    assert.equal(reasonOf(decide(listing(), entry([fact]))), "non-desktop-platform", name);
+  }
+  for (const name of ["HaikuQuest-v1.0-windows-x64.zip", "Switchblade-v1.0-windows-x64.zip"])
+    assert.equal(decide(listing(), entry([artifact(name, [player("Game.exe")])])).fit, true, name);
+});
+
+void test("the gate refuses an enrollment resting on a non-desktop machine even when the fit rule is bypassed", () => {
+  const generation = generateRegistrations([listing()], table(entry()));
+  const forged = structuredClone(generation);
+  const facts = forged.facts.entries[0]!;
+  facts.artifacts[0]!.players[0]!.machine = "pe-xbox-x86-64";
+  forged.enrollments[0]!.runtimes[0]!.players[0]!.machine = "pe-xbox-x86-64";
+  forged.enrollments[0]!.facts_sha256 = digestOf(facts);
+  assert.throws(() => gateGeneration(null, forged), /has no matching player/u);
+});
+
+void test("release forms the worker does not read are recorded, and decide the reason when nothing else is there", async () => {
+  const spec = (names: string[]): ObservationSpec => ({
+    releases: [
+      { id: 8, tag: "v1.0", assets: names.map((name, index) => ({ id: 21 + index, name })) },
+    ],
+  });
+  const ids = {
+    desktop: "zz-forms-a-desktop",
+    mobile: "zz-forms-b-mobile",
+    mixed: "zz-forms-c-mixed",
+    none: "zz-forms-d-none",
+  };
+  const records = Object.values(ids).map((id) => listing(id));
+  const result = await derive(
+    records,
+    observerReport({
+      [ids.desktop]: spec(["Game-v1.0-win64.7z", "Game-v1.0.rar", "Game.exe", "Game.AppImage"]),
+      [ids.mobile]: spec(["Game.ipa", "Game.apk", "Game.vpk", "Game.nro"]),
+      [ids.mixed]: spec([windowsZip, "Game.dmg", "Game.apk", "Game.msi"]),
+      [ids.none]: spec(["README.md"]),
+    }),
+  );
+  const entryOf = (id: string) => result.table.entries.find((item) => item.port_id === id)!;
+  assert.equal(entryOf(ids.desktop).ineligible!.reason, "unsupported-archive-format");
+  assert.deepEqual(entryOf(ids.desktop).unread_forms, [".7z", ".appimage", ".exe", ".rar"]);
+  assert.match(entryOf(ids.desktop).ineligible!.detail, /\.7z, \.appimage, \.exe, \.rar/u);
+  assert.equal(entryOf(ids.mobile).ineligible!.reason, "non-desktop-platform");
+  assert.deepEqual(entryOf(ids.mobile).unread_forms, [".apk", ".ipa", ".nro", ".vpk"]);
+  assert.equal(entryOf(ids.mixed).ineligible, null);
+  assert.deepEqual(entryOf(ids.mixed).unread_forms, [".apk", ".dmg", ".msi"]);
+  assert.equal(entryOf(ids.none).ineligible!.reason, "no-release-archive");
+  const generation = generateRegistrations(records, result.table);
+  assert.deepEqual(
+    generation.enrollments.map((row) => row.port_id),
+    [ids.mixed],
+  );
+  const queues = registrationQueues(generation);
+  assert.deepEqual(queues.reasons["unsupported-archive-format"], [ids.desktop]);
+  assert.deepEqual(queues.reasons["non-desktop-platform"], [ids.mobile]);
+  assert.deepEqual(queues.reasons["no-release-archive"], [ids.none]);
+  assert.deepEqual(queues.unread_forms[".apk"], [ids.mobile, ids.mixed]);
+  assert.deepEqual(queues.unread_forms[".7z"], [ids.desktop]);
+});
+
+// ---------------------------------------------------------------------------
+// Multi-title archives (F2): one program per platform.
+
+void test("two distinct programs on a platform are ambiguous; builds of one program are not", () => {
+  const exe = (path: string, machine = "pe-x86-64") => player(path, machine);
+  const cases: [PlayerFact[], string][] = [
+    // Two titles of one engine in one directory.
+    [[exe("OpenJK/openjk.x86_64.exe"), exe("OpenJK/openjo.x86_64.exe")], "ambiguous-player"],
+    [[exe("openjk.x86_64.exe"), exe("openjo.x86_64.exe")], "ambiguous-player"],
+    // A launcher beside its game cannot be told from a second title.
+    [[exe("Game.exe"), exe("Launcher.exe")], "ambiguous-player"],
+    // One program under two top-level directories.
+    [[exe("A/Game.exe"), exe("B/Game.exe")], "ambiguous-player"],
+    // Architecture, console and debug builds of one program.
+    [[exe("openjk.x86_64.exe"), exe("openjk.x86.exe", "pe-x86")], "fit"],
+    [[exe("Game/Game.exe"), exe("Game/Game64.exe"), exe("Game/Game.console.exe")], "fit"],
+    // A tool beside the game is vetoed by name, not counted.
+    [[exe("Game.exe"), exe("Patcher.exe")], "fit"],
+  ];
+  for (const [players, reason] of cases)
+    assert.equal(
+      reasonOf(decide(listing(), entry([artifact(windowsZip, players)]))),
+      reason,
+      players.map((item) => item.display_path).join(" + "),
+    );
+  // Ambiguous sets are grouped beside the name vetoes, by kind.
+  const pair = generateRegistrations(
+    [listing()],
+    table(entry([artifact(windowsZip, [exe("openjk.x86_64.exe"), exe("openjo.x86_64.exe")])])),
+  );
+  assert.deepEqual(
+    enrollmentTable(pair).blocked_exclusions.map((group) => [
+      `${group.reason}:${group.token}`,
+      group.examples.map((example) => `${example.outcome}:${example.name}`),
+    ]),
+    [
+      [
+        "ambiguous-player:several-programs",
+        ["ambiguous-player:openjk.x86_64.exe + openjo.x86_64.exe"],
+      ],
+    ],
+  );
+  const split = generateRegistrations(
+    [listing()],
+    table(entry([artifact(windowsZip, [exe("A/Game.exe"), exe("B/Game.exe")])])),
+  );
+  assert.deepEqual(registrationQueues(split).exclusions, {
+    "ambiguous-player:several-directories": [unseen],
+  });
+  // Distinct programs in two archives for the same platform are ambiguous too.
+  const two = entry([
+    artifact(windowsZip, [exe("Game.exe")], 11),
+    artifact(neutralZip, [exe("Other.exe")], 12),
+  ]);
+  assert.equal(reasonOf(decide(listing(), two)), "ambiguous-player");
+  // One program on Windows and another on Linux: each platform has one.
+  const combined = entry([artifact(neutralZip, [exe("Game.exe"), player("Game", "elf64-x86-64")])]);
+  assert.deepEqual(
+    (decide(listing(), combined) as { enrollment: { platforms: string[] } }).enrollment.platforms,
+    ["windows-x86-64", "linux-x86-64"],
+  );
+});
+
+void test("the gate independently refuses several programs, a trimmed player list and split directories", () => {
+  const generation = generateRegistrations([listing()], table(entry()));
+  const withFacts = (change: (fact: ArtifactFactV2) => void) => {
+    const forged = structuredClone(generation);
+    const facts = forged.facts.entries[0]!;
+    change(facts.artifacts[0]!);
+    forged.enrollments[0]!.facts_sha256 = digestOf(facts);
+    return forged;
+  };
+  const second = player("Unseen/Other.exe");
+  assert.throws(
+    () =>
+      gateGeneration(
+        null,
+        withFacts((fact) => fact.players.push(second)),
+      ),
+    /does not name every player[\s\S]*2 distinct programs/u,
+  );
+  const sameName = player("Elsewhere/Unseen.exe", "pe-x86-64", "elsewhere");
+  const directories = withFacts((fact) => fact.players.push(sameName));
+  directories.enrollments[0]!.runtimes[0]!.players.push(sameName);
+  assert.throws(() => gateGeneration(null, directories), /several top-level directories/u);
+});
+
+// ---------------------------------------------------------------------------
+// Per-player hosts (F4): helpers and combined archives.
+
+void test("a 32-bit helper and a combined Windows and Linux archive no longer block their real platforms", () => {
+  const helper = entry([
+    artifact(windowsZip, [player("Game/Game.exe"), player("Game/Helper.exe", "pe-x86")]),
+  ]);
+  const decision = decide(listing(), helper);
+  assert.ok(decision.fit);
+  assert.deepEqual(
+    decision.enrollment.runtimes[0]!.players.map((item) => item.display_path),
+    ["Game/Game.exe"],
+  );
+  for (const name of [neutralZip, "Game-v1.0-x64.zip"]) {
+    const combined = entry([
+      artifact(name, [player("Game/Game.exe"), player("Game/Game.x86_64", "elf64-x86-64")]),
+    ]);
+    const fitted = decide(listing(), combined);
+    assert.ok(fitted.fit, name);
+    assert.deepEqual(fitted.enrollment.platforms, ["windows-x86-64", "linux-x86-64"]);
+    assert.deepEqual(
+      fitted.enrollment.runtimes.map((runtime) => runtime.players[0]!.machine),
+      ["pe-x86-64", "elf64-x86-64"],
+    );
+    gateGeneration(null, generateRegistrations([listing()], table(combined)));
+  }
+  // A name that says Windows still vetoes Linux for the same combined archive.
+  const named = decide(
+    listing(),
+    entry([
+      artifact(windowsZip, [player("Game/Game.exe"), player("Game/Game.x86_64", "elf64-x86-64")]),
+    ]),
+  );
+  assert.ok(named.fit);
+  assert.deepEqual(named.enrollment.platforms, ["windows-x86-64"]);
+});
+
+void test("no generated enrollment names a platform its artifact has no running player for", () => {
+  const random = seeded(8569);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const machines = [
+    "pe-x86-64",
+    "pe-x86",
+    "pe-arm64",
+    "pe-xbox-x86-64",
+    "elf64-x86-64",
+    "elf64-arm64",
+    "elf32-x86",
+    "elf64-android-x86-64",
+    "elf64-freebsd-x86-64",
+    "elf64-unknown-x86-64",
+    "macho-x86-64",
+    "macho-arm64",
+    "macho-universal-arm64+x86-64",
+    "macho-ios-arm64",
+    "macho-unplatformed-arm64",
+  ];
+  const names = [
+    windowsZip,
+    linuxTar,
+    macZip,
+    neutralZip,
+    "Game-v1.0-x64.zip",
+    "Game-win32.zip",
+    "Game-v1.0-macos-arm64.zip",
+    "Game-v1.0-freebsd-x86_64.tar.gz",
+  ];
+  const programs = [
+    "Game/Game.exe",
+    "Game/Game.x86_64",
+    "Game/Game64.exe",
+    "Game/Other.exe",
+    "Game",
+  ];
+  let enrolled = 0;
+  for (let round = 0; round < 400; round++) {
+    const artifacts = Array.from({ length: 1 + Math.floor(random() * 2) }, (_, index) =>
+      artifact(
+        pick(names),
+        [
+          ...new Set(Array.from({ length: 1 + Math.floor(random() * 3) }, () => pick(programs))),
+        ].map((path) => player(path, pick(machines))),
+        11 + index,
+      ),
+    );
+    const facts = entry(artifacts);
+    const decision = decide(listing(), facts);
+    if (!decision.fit) continue;
+    enrolled++;
+    for (const runtime of decision.enrollment.runtimes) {
+      const source = facts.artifacts.find((item) => item.asset_id === runtime.asset_id)!;
+      assert.equal(source.contradictory, false);
+      assert.ok(runtime.players.length > 0);
+      for (const item of runtime.players) {
+        assert.ok(
+          machineRunsOn(item.machine, runtime.platform),
+          `${item.machine} ${runtime.platform}`,
+        );
+        assert.ok(source.players.some((candidate) => candidate.path === item.path));
+      }
+    }
+    gateGeneration(null, generateRegistrations([listing()], table(facts)));
+  }
+  assert.ok(enrolled > 20, `only ${enrolled} rounds enrolled`);
+});
+
+// ---------------------------------------------------------------------------
+// Determinism (F5) and honest run output (F6).
+
+void test("orders are by code point, never by locale", () => {
+  const values = ["b", "B", "a", "é", "\u{1F600}", "\uFFFF", "Z", "aa", ""];
+  assert.deepEqual(values.toSorted(compareCodePoints), [
+    "",
+    "B",
+    "Z",
+    "a",
+    "aa",
+    "b",
+    "é",
+    "\uFFFF",
+    "\u{1F600}",
+  ]);
+  for (const file of [
+    "scripts/listing-package-facts.mts",
+    "scripts/catalog-generated-registration.mts",
+  ])
+    assert.doesNotMatch(readFileSync(join(root, file), "utf8"), /\.localeCompare\(/u, file);
+});
+
+void test("a run that settles nothing while work waits reports no progress", async () => {
+  const records = [listing("zz-stall-a"), listing("zz-stall-b")];
+  const result = await derive(
+    records,
+    observerReport({ "zz-stall-a": {}, "zz-stall-b": {} }),
+    undefined,
+    {
+      inspect: inspector({ [windowsZip]: new InspectionError("Download failed.", false) }),
+      budget: { maxIdentities: 1 },
+    },
+  );
+  assert.equal(result.settled, 0);
+  assert.equal(result.backlog.new_pending, 1);
+  assert.equal(result.no_progress, true);
+  const moving = await derive(records, observerReport({ "zz-stall-a": {}, "zz-stall-b": {} }));
+  assert.equal(moving.settled, 2);
+  assert.equal(moving.no_progress, false);
+});
+
+void test("a malformed release record makes the identity invalid instead of choosing another release", async () => {
+  const id = "zz-malformed";
+  const report = observerReport({ [id]: {} });
+  const update = (
+    report.listings[0]!.listing_update as { upstream_observation: { releases: unknown[] } }
+  ).upstream_observation;
+  update.releases.unshift({ id: 99, version: 12, assets: [] });
+  const result = await derive([listing(id)], report);
+  assert.equal(outcome(result, id)!.reason, "invalid-facts");
+  assert.match(result.table.entries[0]!.ineligible!.detail, /cannot read/u);
+  assert.deepEqual(enrolledIds([listing(id)], result.table), []);
+});
+
+void test("the route fit report carries every exception queue with its identities", () => {
+  const records = [listing("zz-queue-a"), listing("zz-queue-b"), listing("zz-queue-c")];
+  const facts = table(
+    entry([artifact(windowsZip, [player("A.exe"), player("B.exe")])], {}, "zz-queue-a"),
+    entry([artifact(neutralZip, [player("Game", "elf64-android-x86-64")])], {}, "zz-queue-b"),
+    entry(undefined, {}, "zz-queue-c"),
+  );
+  const assembled = assembleCatalogRecords(shared, records, facts);
+  const report = routeFitReport({
+    records: assembled.records,
+    ports: assembled.catalog.ports,
+    packageShapes: { entries: [] },
+    routeEnrollment: { cases: [] },
+    generatedRegistration: enrollmentTable(assembled.generation),
+    generation: assembled.generation,
+  });
+  const queues = report.registration_queues!;
+  assert.deepEqual(queues.reasons["ambiguous-player"], ["zz-queue-a"]);
+  assert.deepEqual(queues.reasons["non-desktop-platform"], ["zz-queue-b"]);
+  assert.deepEqual(Object.values(queues.reasons).flat().toSorted(), ["zz-queue-a", "zz-queue-b"]);
+  assert.equal(enrollmentTable(assembled.generation).blocked["ambiguous-player"], 1);
 });

@@ -11,7 +11,16 @@
 //! reviewed prerelease tag rule to the facts worker. A filename never
 //! authorizes a runtime; the worker uses it only to veto one. It adds a
 //! listing-only tool-name veto ([`listing_tool_token`]) for asset names and
-//! player program names. Managed routes keep the shared classifier unchanged.
+//! player program names, and a listing-only system-name veto
+//! ([`listing_system_token`]) for asset names. Managed routes keep the shared
+//! classifier unchanged.
+//!
+//! A player's machine here is platform-true
+//! ([`machine::ExecutableImage::platform_machine`]): an image built for another
+//! system than its format's desktop host is named with that system, so it can
+//! never be read as a Windows, Linux or macOS program. A Mach-O image without
+//! a platform load command is placed by its package structure
+//! ([`mach_o_structure`]).
 
 use std::{
     fs,
@@ -46,7 +55,8 @@ pub struct ListingPlayerCandidate {
     pub path: String,
     /// The same path with the archive's own letter case, for display.
     pub display_path: String,
-    /// The PE, ELF or Mach-O header machine, for example `pe-x86-64`.
+    /// The platform-true header machine, for example `pe-x86-64`,
+    /// `elf64-android-arm64` or `macho-ios-arm64`.
     pub machine: String,
     pub sha256: String,
 }
@@ -91,10 +101,22 @@ pub fn inspect_listing_artifact_archive(
             }
             sha2::Digest::update(&mut digest, &buffer[..read]);
         }
+        let system = match image.system {
+            Some("unplatformed") | None if image.machine.starts_with("macho-") => {
+                mach_o_structure(relative, image.system)
+            }
+            system => system,
+        };
+        let named = machine::ExecutableImage { system, ..image }.platform_machine();
+        if !machine::is_machine_name(&named) {
+            return Err(PortcoveError::verification(
+                "a player's machine has no recognized name",
+            ));
+        }
         player_candidates.push(ListingPlayerCandidate {
             path: relative.clone(),
             display_path: display.clone(),
-            machine: image.machine,
+            machine: named,
             sha256: hex::encode(sha2::Digest::finalize(digest)),
         });
     }
@@ -104,6 +126,37 @@ pub fn inspect_listing_artifact_archive(
         files: files.len(),
         player_candidates,
     })
+}
+
+/// Whether a lowercase package path is shaped like an iOS application: inside
+/// a top-level `Payload/` directory (an `.ipa` layout), or directly inside an
+/// `.app` bundle root, where a macOS bundle never puts its program.
+fn ios_shaped(path: &str) -> bool {
+    let parts = path.split('/').collect::<Vec<_>>();
+    parts.first() == Some(&"payload")
+        || parts
+            .len()
+            .checked_sub(2)
+            .is_some_and(|parent| parts[parent].ends_with(".app"))
+}
+
+/// The system a Mach-O player is placed on by its package structure. An
+/// image whose load commands say macOS stays macOS unless its path is shaped
+/// like an iOS application, which leaves it `unknown`. An image with no
+/// platform load command is macOS only under `*.app/Contents/MacOS/` or as a
+/// bare program outside any iOS-shaped location; otherwise it stays
+/// `unplatformed`.
+pub(crate) fn mach_o_structure(path: &str, system: Option<&'static str>) -> Option<&'static str> {
+    let in_mac_bundle =
+        path.split('/').collect::<Vec<_>>().windows(3).any(|parts| {
+            parts[0].ends_with(".app") && parts[1] == "contents" && parts[2] == "macos"
+        });
+    match system {
+        None if ios_shaped(path) => Some("unknown"),
+        None => None,
+        Some("unplatformed") if in_mac_bundle || !ios_shaped(path) => None,
+        other => other,
+    }
 }
 
 /// Regular files under `root` by lowercase `/`-joined relative path, with the
@@ -204,6 +257,9 @@ pub struct ListingNameSuggestion {
     /// The listing-only tool token the name carries; any token vetoes the
     /// whole archive.
     pub tool_token: Option<String>,
+    /// The listing-only non-desktop system token the name carries; any token
+    /// vetoes the whole archive.
+    pub system_token: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -262,6 +318,58 @@ pub const LISTING_TOOL_TOKENS: &[&str] = &[
 /// Tool words matched only as whole words between separators, because as a
 /// camel-case word they also start real titles (`PatchQuest`).
 pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &["patch"];
+
+/// Systems Portcove offers no desktop route for, matched only as a whole
+/// separator-delimited word or two adjacent words joined (`android-tv`,
+/// `Wii U`), case-insensitively. Never a camel-case part or substring, so a
+/// title such as `HaikuQuest` or `Switchblade` is not vetoed. The first group
+/// is the shared classifier's own set.
+pub const LISTING_SYSTEM_TOKENS: &[&str] = &[
+    "android",
+    "ios",
+    "switch",
+    "vita",
+    "wii",
+    "portmaster",
+    // Apple devices.
+    "iphone",
+    "ipad",
+    "ipados",
+    "tvos",
+    "watchos",
+    "visionos",
+    // Other operating systems.
+    "freebsd",
+    "openbsd",
+    "netbsd",
+    "haiku",
+    "androidtv",
+    // Consoles and handhelds.
+    "ps3",
+    "ps4",
+    "ps5",
+    "psp",
+    "psvita",
+    "xbox",
+    "wiiu",
+    "3ds",
+    "nds",
+];
+
+/// The listing-only non-desktop system token a file name carries, if any.
+pub fn listing_system_token(name: &str) -> Option<&'static str> {
+    let (delimited, _) = name_words(name);
+    let joined = delimited
+        .windows(2)
+        .map(|pair| pair.concat())
+        .collect::<Vec<_>>();
+    delimited.iter().chain(&joined).find_map(|word| {
+        LISTING_SYSTEM_TOKENS
+            .iter()
+            .copied()
+            .find(|token| *token == word.as_str())
+    })
+}
 
 /// Words a name holds: separator-delimited words, their camel-case and
 /// letter/digit parts, all lowercase.
@@ -363,6 +471,7 @@ pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesC
                     os: suggestion.os,
                     arch: suggestion.arch,
                     tool_token: listing_tool_token(name).map(str::to_owned),
+                    system_token: listing_system_token(name).map(str::to_owned),
                 }
             })
             .collect(),
@@ -379,7 +488,9 @@ pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesC
 
 #[cfg(test)]
 mod tests {
-    use super::super::machine::fixtures::{elf64, pe};
+    use super::super::machine::fixtures::{
+        LINUX_INTERPRETER, elf64, elf64_for, mach_o, mach_o_for, pe, pe_subsystem, universal_of,
+    };
     use super::*;
     use std::io::Write as _;
 
@@ -445,6 +556,255 @@ mod tests {
                 inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
                     .unwrap();
             assert_eq!(inspection.player_candidates, [], "{entries:?}");
+        }
+    }
+
+    fn platform_machine(bytes: &[u8]) -> String {
+        machine::classify(&mut std::io::Cursor::new(bytes))
+            .unwrap()
+            .unwrap()
+            .platform_machine()
+    }
+
+    const ARM64: u32 = 0x0100_000c;
+    const X86_64: u32 = 0x0100_0007;
+    const EXECUTE: u32 = 2;
+
+    #[test]
+    fn executable_systems_are_read_from_the_headers_and_named_platform_true() {
+        // (bytes, platform-true machine, the historical machine name).
+        let cases = [
+            (pe(0x8664, EXECUTABLE), "pe-x86-64"),
+            (pe_subsystem(0x8664, EXECUTABLE, 2), "pe-x86-64"),
+            (pe_subsystem(0x8664, EXECUTABLE, 14), "pe-xbox-x86-64"),
+            (pe_subsystem(0x8664, EXECUTABLE, 10), "pe-efi-x86-64"),
+            (pe_subsystem(0x8664, EXECUTABLE, 1), "pe-unknown-x86-64"),
+            (elf64(3, 62, true), "elf64-x86-64"),
+            (
+                elf64_for(2, 62, 0, Some("/lib/ld-musl-x86_64.so.1")),
+                "elf64-x86-64",
+            ),
+            (elf64_for(2, 62, 3, None), "elf64-x86-64"),
+            (elf64_for(2, 62, 3, Some(LINUX_INTERPRETER)), "elf64-x86-64"),
+            (elf64_for(2, 62, 0, None), "elf64-unknown-x86-64"),
+            (
+                elf64_for(3, 183, 0, Some("/system/bin/linker64")),
+                "elf64-android-arm64",
+            ),
+            (
+                elf64_for(3, 62, 0, Some("/system/bin/linker64")),
+                "elf64-android-x86-64",
+            ),
+            (
+                elf64_for(2, 62, 9, Some("/libexec/ld-elf.so.1")),
+                "elf64-freebsd-x86-64",
+            ),
+            (elf64_for(2, 62, 9, None), "elf64-freebsd-x86-64"),
+            (
+                elf64_for(2, 62, 9, Some(LINUX_INTERPRETER)),
+                "elf64-unknown-x86-64",
+            ),
+            (
+                elf64_for(3, 62, 0, Some("/usr/libexec/ld.so")),
+                "elf64-openbsd-x86-64",
+            ),
+            (
+                elf64_for(3, 62, 0, Some("/usr/libexec/ld.elf_so")),
+                "elf64-netbsd-x86-64",
+            ),
+            (
+                elf64_for(3, 62, 0, Some("/system/runtime_loader")),
+                "elf64-haiku-x86-64",
+            ),
+            (
+                elf64_for(3, 62, 0, Some("/opt/loader")),
+                "elf64-unknown-x86-64",
+            ),
+            (mach_o_for(ARM64, EXECUTE, 1, false), "macho-arm64"),
+            (mach_o_for(ARM64, EXECUTE, 6, false), "macho-arm64"),
+            (mach_o_for(X86_64, EXECUTE, 0x24, true), "macho-x86-64"),
+            (mach_o_for(ARM64, EXECUTE, 2, false), "macho-ios-arm64"),
+            (mach_o_for(X86_64, EXECUTE, 7, false), "macho-ios-x86-64"),
+            (mach_o_for(ARM64, EXECUTE, 0x25, true), "macho-ios-arm64"),
+            (mach_o_for(ARM64, EXECUTE, 3, false), "macho-tvos-arm64"),
+            (
+                mach_o_for(ARM64, EXECUTE, 0x30, true),
+                "macho-watchos-arm64",
+            ),
+            (
+                mach_o_for(ARM64, EXECUTE, 11, false),
+                "macho-visionos-arm64",
+            ),
+            (mach_o_for(ARM64, EXECUTE, 10, false), "macho-other-arm64"),
+            (mach_o_for(ARM64, EXECUTE, 99, false), "macho-unknown-arm64"),
+            (mach_o(ARM64, EXECUTE), "macho-unplatformed-arm64"),
+            (
+                universal_of(&[
+                    mach_o_for(ARM64, EXECUTE, 1, false),
+                    mach_o_for(X86_64, EXECUTE, 1, false),
+                ]),
+                "macho-universal-arm64+x86-64",
+            ),
+            (
+                universal_of(&[
+                    mach_o_for(ARM64, EXECUTE, 2, false),
+                    mach_o_for(X86_64, EXECUTE, 7, false),
+                ]),
+                "macho-ios-universal-arm64+x86-64",
+            ),
+            (
+                universal_of(&[
+                    mach_o_for(ARM64, EXECUTE, 2, false),
+                    mach_o_for(X86_64, EXECUTE, 1, false),
+                ]),
+                "macho-unknown-universal-arm64+x86-64",
+            ),
+            (
+                universal_of(&[
+                    mach_o(ARM64, EXECUTE),
+                    mach_o_for(X86_64, EXECUTE, 1, false),
+                ]),
+                "macho-unplatformed-universal-arm64+x86-64",
+            ),
+        ];
+        for (bytes, expected) in cases {
+            let named = platform_machine(&bytes);
+            assert_eq!(named, expected);
+            assert!(machine::is_machine_name(&named), "{named}");
+        }
+        // The historical name says nothing about the system and is unchanged.
+        let image = machine::classify(&mut std::io::Cursor::new(mach_o_for(
+            ARM64, EXECUTE, 2, false,
+        )))
+        .unwrap()
+        .unwrap();
+        assert_eq!(image.machine, "macho-arm64");
+    }
+
+    #[test]
+    fn mach_o_without_a_platform_command_is_placed_by_its_package_structure() {
+        for (path, system) in [
+            ("game.app/contents/macos/game", None),
+            ("dist/game", None),
+            ("game", None),
+            ("payload/game.app/game", Some("unplatformed")),
+            ("payload/game", Some("unplatformed")),
+            ("game.app/game", Some("unplatformed")),
+        ] {
+            assert_eq!(
+                mach_o_structure(path, Some("unplatformed")),
+                system,
+                "{path}"
+            );
+        }
+        // Load commands saying macOS do not survive an iOS-shaped location.
+        assert_eq!(
+            mach_o_structure("payload/game.app/game", None),
+            Some("unknown")
+        );
+        assert_eq!(mach_o_structure("game.app/contents/macos/game", None), None);
+        assert_eq!(mach_o_structure("x/payload/game", Some("ios")), Some("ios"));
+    }
+
+    #[test]
+    fn neutral_named_non_desktop_archives_record_non_desktop_machines() {
+        for (entries, expected) in [
+            // An iOS application with no telling name.
+            (
+                vec![(
+                    "Payload/Game.app/Game",
+                    mach_o_for(ARM64, EXECUTE, 2, false),
+                )],
+                vec!["macho-ios-arm64"],
+            ),
+            // The same layout without any platform command.
+            (
+                vec![("Payload/Game.app/Game", mach_o(ARM64, EXECUTE))],
+                vec!["macho-unplatformed-arm64"],
+            ),
+            (
+                vec![("Game.app/Game", mach_o(ARM64, EXECUTE))],
+                vec!["macho-unplatformed-arm64"],
+            ),
+            // A macOS bundle without a platform command is still macOS.
+            (
+                vec![("Game.app/Contents/MacOS/Game", mach_o(ARM64, EXECUTE))],
+                vec!["macho-arm64"],
+            ),
+            (
+                vec![(
+                    "game/game",
+                    elf64_for(2, 62, 9, Some("/libexec/ld-elf.so.1")),
+                )],
+                vec!["elf64-freebsd-x86-64"],
+            ),
+            (
+                vec![(
+                    "game/game",
+                    elf64_for(3, 62, 0, Some("/system/bin/linker64")),
+                )],
+                vec!["elf64-android-x86-64"],
+            ),
+            (
+                vec![("game/game", elf64_for(2, 62, 0, None))],
+                vec!["elf64-unknown-x86-64"],
+            ),
+            (
+                vec![("Game.exe", pe_subsystem(0x8664, EXECUTABLE, 14))],
+                vec!["pe-xbox-x86-64"],
+            ),
+        ] {
+            let (_temporary, path, size, digest) = archive(&entries);
+            let inspection =
+                inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                    .unwrap();
+            let machines = inspection
+                .player_candidates
+                .iter()
+                .map(|player| player.machine.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(machines, expected, "{entries:?}");
+        }
+    }
+
+    #[test]
+    fn system_tokens_veto_whole_words_only() {
+        for (name, token) in [
+            ("Game-v1.0-iphone.zip", "iphone"),
+            ("Game_iPad.zip", "ipad"),
+            ("Game-v1.0-ipados.zip", "ipados"),
+            ("Game-tvOS.zip", "tvos"),
+            ("Game-watchOS.zip", "watchos"),
+            ("Game-visionOS.zip", "visionos"),
+            ("Game-v1.0-freebsd-x86_64.tar.gz", "freebsd"),
+            ("Game-openbsd.tar.gz", "openbsd"),
+            ("Game-netbsd.tar.gz", "netbsd"),
+            ("Game-haiku.zip", "haiku"),
+            ("Game-v1.0-ps4.zip", "ps4"),
+            ("Game-PS5.zip", "ps5"),
+            ("Game-xbox.zip", "xbox"),
+            ("Game-3ds.zip", "3ds"),
+            ("Game-nds.zip", "nds"),
+            ("Game-psp.zip", "psp"),
+            ("Game-v1.0-android.zip", "android"),
+            ("Game-v1.0-android-tv.zip", "android"),
+            ("Game-androidtv.zip", "androidtv"),
+            ("Game-Wii-U.zip", "wii"),
+            ("Game-WiiU.zip", "wiiu"),
+            ("Game-switch.zip", "switch"),
+        ] {
+            assert_eq!(listing_system_token(name), Some(token), "{name}");
+        }
+        for name in [
+            "Game-v1.0-windows-x64.zip",
+            "HaikuQuest-v1.0-windows-x64.zip",
+            "Switchblade-v1.0-windows-x64.zip",
+            "Xboxer.zip",
+            "Androids-v1.0-linux-x86_64.tar.gz",
+            "Game-v1.0-macos-universal.zip",
+            "Pspan.zip",
+        ] {
+            assert_eq!(listing_system_token(name), None, "{name}");
         }
     }
 
@@ -568,29 +928,41 @@ mod tests {
     // reads must equal what Core's own rules compute for it. This needs no
     // network: names, tags, paths and machines are all in the table.
 
-    fn machine_os(machine: &str) -> &'static str {
-        if machine.starts_with("pe-") {
-            "windows"
-        } else if machine.starts_with("elf") {
-            "linux"
-        } else if machine.starts_with("macho-") {
-            "macos"
-        } else {
-            "unknown"
-        }
-    }
-
-    fn machine_arch(machine: &str) -> &'static str {
-        if machine.starts_with("macho-universal-") {
-            return "universal";
-        }
-        let arch = machine.split_once('-').map_or("", |(_, arch)| arch);
-        match arch {
-            "arm64" => "aarch64",
-            "x86-64" => "x86-64",
-            "x86" => "x86",
+    /// (target OS, architecture) of a platform-true machine name, in the
+    /// facts' vocabulary; the worker's `machineSystem` restated.
+    fn machine_system(machine: &str) -> (&'static str, &'static str) {
+        let (format, rest) = machine.split_once('-').unwrap_or(("", ""));
+        let (host, systems) = match format {
+            "pe" => ("windows", machine::PE_SYSTEMS),
+            "elf32" | "elf64" | "elf32be" | "elf64be" => ("linux", machine::ELF_SYSTEMS),
+            "macho" => ("macos", machine::MACH_O_SYSTEMS),
+            _ => ("unknown", &[][..]),
+        };
+        let (system, rest) = systems
+            .iter()
+            .find_map(|system| {
+                rest.strip_prefix(system)
+                    .and_then(|after| after.strip_prefix('-'))
+                    .map(|after| (*system, after))
+            })
+            .unwrap_or((host, rest));
+        let os = match system {
+            "windows" | "linux" | "macos" | "android" => system,
+            "ios" | "tvos" | "watchos" | "visionos" => "ios",
+            "xbox" => "console",
             _ => "unknown",
-        }
+        };
+        let arch = if rest.starts_with("universal-") {
+            "universal"
+        } else {
+            match rest {
+                "arm64" => "aarch64",
+                "x86-64" => "x86-64",
+                "x86" => "x86",
+                _ => "unknown",
+            }
+        };
+        (os, arch)
     }
 
     fn agreed(values: impl Iterator<Item = &'static str>) -> &'static str {
@@ -599,6 +971,12 @@ mod tests {
             Some(first) if values.iter().all(|value| value == first) => first,
             _ => "unknown",
         }
+    }
+
+    fn arch_agrees(named: &str, actual: &str) -> bool {
+        named == "unknown"
+            || named == actual
+            || (actual == "universal" && (named == "x86-64" || named == "aarch64"))
     }
 
     fn basename(path: &str) -> &str {
@@ -645,6 +1023,7 @@ mod tests {
                     "os": suggestion.os,
                     "arch": suggestion.arch,
                     "tool_token": suggestion.tool_token,
+                    "system_token": suggestion.system_token,
                 });
                 if artifact["name_suggestion"] != expected {
                     problems.push(format!("{at}: name suggestion differs from Core's"));
@@ -662,27 +1041,43 @@ mod tests {
                     {
                         problems.push(format!("{at}: {path} is not a player candidate path"));
                     }
+                    // A macOS machine is never recorded for an iOS-shaped path.
+                    if machine.starts_with("macho-")
+                        && machine_system(&machine).0 == "macos"
+                        && mach_o_structure(&path, None).is_some()
+                    {
+                        problems.push(format!("{at}: {path} is iOS-shaped but recorded as macOS"));
+                    }
                     let token = output.programs[index].tool_token.as_deref();
                     let recorded = player.get("token").and_then(serde_json::Value::as_str);
                     if token != recorded {
                         problems.push(format!("{at}: {path} tool token differs from Core's"));
                     }
                 }
-                let machines = players.iter().map(|player| text(&player["machine"]));
-                let machines = machines.collect::<Vec<_>>();
-                let os = agreed(machines.iter().map(|machine| machine_os(machine)));
-                let arch = agreed(machines.iter().map(|machine| machine_arch(machine)));
+                let machines = players
+                    .iter()
+                    .map(|player| text(&player["machine"]))
+                    .collect::<Vec<_>>();
+                let systems = machines
+                    .iter()
+                    .map(|machine| machine_system(machine))
+                    .collect::<Vec<_>>();
+                let os = agreed(systems.iter().map(|(os, _)| *os));
+                let arch = agreed(systems.iter().map(|(_, arch)| *arch));
                 let named_os = serde_json::to_value(suggestion.os).unwrap();
                 let named_arch = serde_json::to_value(suggestion.arch).unwrap();
                 let named_role = serde_json::to_value(suggestion.role).unwrap();
-                let arch_agrees = named_arch == "unknown"
-                    || named_arch == arch
-                    || (arch == "universal" && (named_arch == "x86-64" || named_arch == "aarch64"));
+                let named_os = named_os.as_str().unwrap_or_default();
+                let named_arch = named_arch.as_str().unwrap_or_default();
                 let contradictory = !players.is_empty()
                     && (!(named_role == "desktop-game-runtime" || named_role == "unknown")
                         || suggestion.tool_token.is_some()
-                        || (named_os != "unknown" && named_os != os)
-                        || !arch_agrees);
+                        || suggestion.system_token.is_some()
+                        || (named_os != "unknown"
+                            && !systems.iter().any(|(os, _)| *os == named_os))
+                        || !systems
+                            .iter()
+                            .any(|(_, arch)| arch_agrees(named_arch, arch)));
                 let role = if players.is_empty() {
                     "unknown"
                 } else {
@@ -747,13 +1142,15 @@ mod tests {
             }
             facts_problems(&table)
         };
-        let changes: [fn(&mut serde_json::Value); 6] = [
+        let changes: [fn(&mut serde_json::Value); 8] = [
             |artifact| artifact["name"] = "Game-dedicated-server-windows-x64.zip".into(),
             |artifact| artifact["name_suggestion"]["tool_token"] = "patcher".into(),
+            |artifact| artifact["name_suggestion"]["system_token"] = "ios".into(),
             |artifact| artifact["contradictory"] = true.into(),
             |artifact| artifact["players"][0]["machine"] = "pe-forged".into(),
             |artifact| artifact["players"][0]["path"] = "tools/game.exe".into(),
             |artifact| artifact["players"][0]["display_path"] = "Patcher.exe".into(),
+            |artifact| artifact["players"][0]["machine"] = "pe-xbox-x86-64".into(),
         ];
         for change in changes {
             assert!(!forge(&change).is_empty());
@@ -779,6 +1176,11 @@ mod tests {
             "elf32be-arm",
             "macho-arm64",
             "macho-universal-arm64+x86-64",
+            "macho-ios-arm64",
+            "macho-unplatformed-universal-arm64+x86-64",
+            "elf64-android-arm64",
+            "elf32-unknown-x86",
+            "pe-xbox-x86-64",
         ] {
             assert!(machine::is_machine_name(machine), "{machine}");
         }
@@ -790,6 +1192,11 @@ mod tests {
             "macho-universal-arm64+arm64",
             "pe-0x1",
             "macho-0x0100000C",
+            "macho-android-arm64",
+            "elf64-ios-arm64",
+            "pe-linux-x86-64",
+            "macho-ios-",
+            "elf64-freebsd",
         ] {
             assert!(!machine::is_machine_name(machine), "{machine}");
         }

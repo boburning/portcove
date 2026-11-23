@@ -1,5 +1,5 @@
 {
-  "format": 3,
+  "format": 4,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -20,6 +20,7 @@
         "assets_sha256": "6b54441dcc18620d08de40cd165d529d65f838201c67f0c12a1a9b6172d507ac"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -40,7 +41,8 @@
             "role": "desktop-game-runtime",
             "os": "windows",
             "arch": "x86-64",
-            "tool_token": null
+            "tool_token": null,
+            "system_token": null
           },
           "players": [
             {
@@ -76,7 +78,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -87,6 +89,7 @@
         "assets_sha256": "38a86ff8efa4a6d06be7e22cbca6ffaa10b383bd8dc2cd67ac7cb6bf8986000b"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -107,7 +110,8 @@
             "role": "desktop-game-runtime",
             "os": "windows",
             "arch": "x86-64",
-            "tool_token": "patcher"
+            "tool_token": "patcher",
+            "system_token": null
           },
           "players": [],
           "excluded_players": [
@@ -129,7 +133,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -140,6 +144,7 @@
         "assets_sha256": "e05932cc55de24015f906c1835500eaad2ac7744f8d9ac99d95d466680d1d0d4"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -160,7 +165,8 @@
             "role": "desktop-game-runtime",
             "os": "windows",
             "arch": "x86-64",
-            "tool_token": "patcher"
+            "tool_token": "patcher",
+            "system_token": null
           },
           "players": [
             {
@@ -181,7 +187,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -192,6 +198,7 @@
         "assets_sha256": "e6cd878f0ef82b2e4dcccabebaff2fa48dcc97baff8b8372b1a578f4401c4766"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -212,7 +219,8 @@
             "role": "desktop-game-runtime",
             "os": "windows",
             "arch": "x86-64",
-            "tool_token": null
+            "tool_token": null,
+            "system_token": null
           },
           "players": [
             {
@@ -239,7 +247,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -250,6 +258,7 @@
         "assets_sha256": "34c0269c7f1d201d7828c1ffd5f4be817127a768292d726eccad4098844b08ad"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -270,7 +279,8 @@
             "role": "desktop-game-runtime",
             "os": "windows",
             "arch": "x86-64",
-            "tool_token": null
+            "tool_token": null,
+            "system_token": null
           },
           "players": [
             {
@@ -291,7 +301,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -302,6 +312,7 @@
         "assets_sha256": "7968e05874852887b838b3b7f0d0a6124b6e3de2c7f44ca38584c2cf9be73802"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -322,7 +333,8 @@
             "role": "desktop-game-runtime",
             "os": "linux",
             "arch": "x86-64",
-            "tool_token": null
+            "tool_token": null,
+            "system_token": null
           },
           "players": [
             {
@@ -343,7 +355,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 3,
+      "parser_version": 4,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -354,6 +366,7 @@
         "assets_sha256": "56e28c7801b3b2464146dcecc7182190a17db268010c8dadd3653715ab3c907e"
       },
       "ineligible": null,
+      "unread_forms": [],
       "attempt": null,
       "artifacts": [
         {
@@ -374,7 +387,8 @@
             "role": "desktop-game-runtime",
             "os": "macos",
             "arch": "universal",
-            "tool_token": null
+            "tool_token": null,
+            "system_token": null
           },
           "players": [
             {
@@ -390,5 +404,5 @@
       ]
     }
   ],
-  "entries_sha256": "510de8387b082185c7503309d4cba745917d320dd0a0c6f83a876d1ed232c12e"
+  "entries_sha256": "60c6bb964d06f2b200aa9a6a07c7a675066b3662070a528c14ff915c3d2257ab"
 }

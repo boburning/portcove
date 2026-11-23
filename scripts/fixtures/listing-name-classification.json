@@ -65,7 +65,16 @@
       "GameRandomizer-v1.0-windows-x64.zip",
       "MarioKart64Recomp-v1.0-windows-x64.zip",
       "N64Recomp-v1.0-windows-x64.zip",
-      "PatchQuest-v1.0-windows-x64.zip"
+      "PatchQuest-v1.0-windows-x64.zip",
+      "Game-v1.0-iphone.zip",
+      "Game-v1.0-freebsd-x86_64.tar.gz",
+      "Game-v1.0-android-tv.zip",
+      "Game-v1.0-ps4.zip",
+      "HaikuQuest-v1.0-windows-x64.zip",
+      "Switchblade-v1.0-windows-x64.zip",
+      "Game-v1.0-x64.zip",
+      "Game-v1.0-win32.zip",
+      "Collection-v1.0-windows-x64.zip"
     ],
     "programs": [
       "game.exe",
@@ -90,7 +99,18 @@
       "B.exe",
       "C.exe",
       "D.exe",
-      "E.exe"
+      "E.exe",
+      "openjk.x86_64.exe",
+      "openjo.x86_64.exe",
+      "openjk.x86.exe",
+      "Helper.exe",
+      "Game32.exe",
+      "Game64.exe",
+      "Game.console.exe",
+      "Other.exe",
+      "Game.x86",
+      "openjk.x86_64",
+      "openjo.x86_64"
     ]
   },
   "output": {
@@ -148,182 +168,280 @@
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-v1.0-linux-x86_64.tar.gz",
         "role": "desktop-game-runtime",
         "os": "linux",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-v1.0-macos-universal.zip",
         "role": "desktop-game-runtime",
         "os": "macos",
         "arch": "universal",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-v1.0-macos-arm64.zip",
         "role": "desktop-game-runtime",
         "os": "macos",
         "arch": "aarch64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-v1.0.zip",
         "role": "desktop-game-runtime",
         "os": "unknown",
         "arch": "unknown",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "MyGame-dedicated-server-win64.zip",
         "role": "dedicated-server",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "server"
+        "tool_token": "server",
+        "system_token": null
       },
       {
         "name": "Game-installer-windows-x64.zip",
         "role": "installer",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "installer"
+        "tool_token": "installer",
+        "system_token": null
       },
       {
         "name": "Game-builder-windows-x64.zip",
         "role": "builder",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "builder"
+        "tool_token": "builder",
+        "system_token": null
       },
       {
         "name": "Game-compiler-windows-x64.zip",
         "role": "compiler",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "compiler"
+        "tool_token": "compiler",
+        "system_token": null
       },
       {
         "name": "Game-tools-windows-x64.zip",
         "role": "dev-tool",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "tools"
+        "tool_token": "tools",
+        "system_token": null
       },
       {
         "name": "Game-importer-windows-x64.zip",
         "role": "importer",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "importer"
+        "tool_token": "importer",
+        "system_token": null
       },
       {
         "name": "Game-android-arm64.zip",
         "role": "mobile-package",
         "os": "android",
         "arch": "aarch64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": "android"
       },
       {
         "name": "Game-switch.zip",
         "role": "console-output",
         "os": "console",
         "arch": "unknown",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": "switch"
       },
       {
         "name": "Game-notices.zip",
         "role": "documentation",
         "os": "unknown",
         "arch": "unknown",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-symbols-windows-x64.zip",
         "role": "debug-symbols",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-source.zip",
         "role": "source-archive",
         "os": "unknown",
         "arch": "unknown",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-win32.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-linux-arm64.tar.gz",
         "role": "desktop-game-runtime",
         "os": "linux",
         "arch": "aarch64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-windows-arm64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "aarch64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Game-v1.0-linux-x86_64.tar.xz",
         "role": "desktop-game-runtime",
         "os": "linux",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "Patcher-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "patcher"
+        "tool_token": "patcher",
+        "system_token": null
       },
       {
         "name": "Game-v1.1-patch.zip",
         "role": "desktop-game-runtime",
         "os": "unknown",
         "arch": "unknown",
-        "tool_token": "patch"
+        "tool_token": "patch",
+        "system_token": null
       },
       {
         "name": "GameRandomizer-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "randomizer"
+        "tool_token": "randomizer",
+        "system_token": null
       },
       {
         "name": "MarioKart64Recomp-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
       },
       {
         "name": "N64Recomp-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": "n64recomp"
+        "tool_token": "n64recomp",
+        "system_token": null
       },
       {
         "name": "PatchQuest-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
         "arch": "x86-64",
-        "tool_token": null
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-iphone.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "iphone"
+      },
+      {
+        "name": "Game-v1.0-freebsd-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": "freebsd"
+      },
+      {
+        "name": "Game-v1.0-android-tv.zip",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-v1.0-ps4.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "ps4"
+      },
+      {
+        "name": "HaikuQuest-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Switchblade-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-win32.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Collection-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
       }
     ],
     "programs": [
@@ -417,6 +535,50 @@
       },
       {
         "name": "E.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjo.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Helper.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game32.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.console.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Other.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "openjo.x86_64",
         "tool_token": null
       }
     ]

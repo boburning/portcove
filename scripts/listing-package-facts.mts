@@ -5,10 +5,11 @@
 // filename is all it knows, and a filename never authorizes a runtime. This
 // worker reads the exact bytes of the latest stable release's archives through
 // Core (`portcove --json catalog inspect-listing-artifact`, which executes
-// nothing) and records each archive's player candidates with header machine and
-// SHA-256 as an `exact-release-structured` fact. Core's filename classifier
-// (`portcove --json catalog classify-listing-names`) can only veto: an archive
-// whose name says server, installer, tool, another system or architecture is
+// nothing) and records each archive's player candidates with platform-true
+// header machine and SHA-256 as an `exact-release-structured` fact. Core's
+// filename classifier (`portcove --json catalog classify-listing-names`) can
+// only veto: an archive whose name says server, installer, tool, a non-desktop
+// system, or a system or architecture none of its players has is
 // contradictory and never enrolls. The generated registration route reads only
 // these facts (`scripts/catalog-generated-registration.mts`).
 //
@@ -16,10 +17,14 @@
 //  - Every observed identity is evaluated each run. Unchanged releases are
 //    reconfirmed from the facts already held, without reading bytes.
 //  - Permanent cases are completed as ineligible with a reason and
-//    re-evaluated only when the release changes: no stable release, no archive,
-//    an archive without a provider digest, over the per-archive or per-release
-//    limit, more bytes than one whole run may read, a permanent Core refusal,
-//    repeated transient failures, invalid facts, or a changed repository id.
+//    re-evaluated only when the release changes: no stable release, no
+//    package, only unsupported desktop forms (recorded), only non-desktop
+//    forms, an archive without a provider digest, over the per-archive or
+//    per-release limit, more bytes than one whole run may read, a permanent
+//    Core refusal, repeated transient failures, invalid facts (including a
+//    malformed or unclassifiable newer release), or a changed repository id.
+//  - Every entry records the package forms of its release it does not read
+//    (`unread_forms`), also beside a supported archive.
 //  - Each identity is evaluated alone: a name Core cannot classify, a
 //    malformed observation or any unexpected failure settles that identity as
 //    `invalid-facts` and never fails the run.
@@ -33,7 +38,9 @@
 //    and only the facts age bounds it. A complete observation that no longer
 //    fits withdraws immediately.
 //  - New facts land as one bounded batch per run (`boundFactsBatch`); the rest
-//    are held in the worker state and offered again next run.
+//    are held in the worker state and offered again next run. Held entries
+//    count in the backlog as `held_for_batch`, and a run that settles nothing
+//    while work waits reports `no_progress: true`.
 //
 //   node scripts/listing-package-facts.mts --check
 //   node scripts/listing-package-facts.mts derive --observations REPORT.json \
@@ -50,7 +57,9 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
 import {
+  archiveForms,
   boundFactsBatch,
+  compareCodePoints,
   checkFactsProvenance,
   checkListingFactsEntry,
   checkListingFactsTable,
@@ -59,8 +68,14 @@ import {
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
   fitDecision,
+  deltaBounds,
   lastGoodRetentionDays,
+  machineSystem,
+  nameContradicts,
+  nonDesktopForms,
+  packageFormOf,
   roles,
+  unreadForms,
   type ArtifactFactV2,
   type ExcludedPlayer,
   type FactsProvenance,
@@ -128,7 +143,14 @@ export type ByteInspector = (asset: ObservedAsset, readerPlatform: string) => Pr
 export interface NameClassification {
   filename_rule_version: number;
   releases: { tag: string; provider_prerelease: boolean; prerelease: boolean }[];
-  assets: { name: string; role: Role; os: string; arch: string; tool_token: string | null }[];
+  assets: {
+    name: string;
+    role: Role;
+    os: string;
+    arch: string;
+    tool_token: string | null;
+    system_token: string | null;
+  }[];
   programs: { name: string; tool_token: string | null }[];
 }
 export type NameClassifier = (input: {
@@ -137,7 +159,6 @@ export type NameClassifier = (input: {
   programs: string[];
 }) => Promise<NameClassification>;
 
-const archiveForms = [".zip", ".tar.gz", ".tgz", ".tar.xz"];
 const sha = /^[a-f0-9]{64}$/u;
 const day = 86_400_000;
 
@@ -148,6 +169,8 @@ interface Observation {
   status: string;
   observedAt: string | null;
   releases: ObservedRelease[];
+  /** Release records the observer reported in a shape the worker cannot read. */
+  malformedReleases: number;
 }
 
 /** Listing-only GitHub identities the generated route could serve: id -> listed repository. */
@@ -182,6 +205,9 @@ function observations(candidates: Map<string, string>, report: unknown) {
       status: typeof observation.status === "string" ? observation.status : "failed",
       observedAt: typeof observation.observed_at === "string" ? observation.observed_at : null,
       releases: releasesOf(observation),
+      malformedReleases:
+        (Array.isArray(observation.releases) ? observation.releases.length : 0) -
+        releasesOf(observation).length,
     });
   }
   return result;
@@ -229,52 +255,55 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
   );
 }
 
-/** The latest stable release by Core's prerelease rule: newest publication, then highest id. */
+/**
+ * The latest stable release by Core's prerelease rule: newest publication,
+ * then highest id. A newer release whose tag Core did not classify is never
+ * skipped as a prerelease: it is returned as `unclassified`, so the identity
+ * records invalid facts instead of silently falling back to an older release.
+ */
 function latestStable(
   releases: readonly ObservedRelease[],
-  prerelease: (r: ObservedRelease) => boolean,
-) {
-  return releases
-    .filter((release) => !prerelease(release))
-    .toSorted(
-      (left, right) =>
-        (Date.parse(right.published_at ?? "") || 0) - (Date.parse(left.published_at ?? "") || 0) ||
-        right.id - left.id,
-    )[0];
+  verdict: (r: ObservedRelease) => boolean | undefined,
+): { release?: ObservedRelease; unclassified?: ObservedRelease } {
+  const ordered = releases.toSorted(
+    (left, right) =>
+      (Date.parse(right.published_at ?? "") || 0) - (Date.parse(left.published_at ?? "") || 0) ||
+      right.id - left.id,
+  );
+  for (const release of ordered) {
+    const prerelease = verdict(release);
+    if (prerelease === undefined) return { unclassified: release };
+    if (!prerelease) return { release };
+  }
+  return {};
 }
 
-const isArchive = (name: string) => archiveForms.some((form) => name.toLowerCase().endsWith(form));
+const isArchive = (name: string) =>
+  (archiveForms as readonly string[]).includes(packageFormOf(name) ?? "");
+/** Sorted, unique package forms of these assets that the worker does not read. */
+const unreadFormsOf = (release: ObservedRelease | undefined) =>
+  [
+    ...new Set(
+      (release?.assets ?? []).flatMap((asset) => {
+        const form = packageFormOf(asset.name);
+        return form && !(archiveForms as readonly string[]).includes(form) ? [form] : [];
+      }),
+    ),
+  ].toSorted(compareCodePoints);
 /** Reader rules only; TAR.XZ is read by the Linux reader. */
 const readerPlatform = (name: string) =>
   name.toLowerCase().endsWith(".tar.xz") ? "linux-x86-64" : "windows-x86-64";
 
-const machineOs = (machine: string) =>
-  machine.startsWith("pe-")
-    ? "windows"
-    : machine.startsWith("elf")
-      ? "linux"
-      : machine.startsWith("macho-")
-        ? "macos"
-        : "unknown";
-function machineArch(machine: string) {
-  if (machine.startsWith("macho-universal-")) return "universal";
-  const arch = machine.replace(/^(?:pe|elf32|elf64|elf32be|elf64be|macho)-/u, "");
-  return arch === "arm64" ? "aarch64" : ["x86-64", "x86"].includes(arch) ? arch : "unknown";
-}
 const agreed = (values: string[]) =>
   values.length && values.every((value) => value === values[0]) ? values[0]! : "unknown";
-
-/** Whether a filename's architecture agrees with the players' (a universal player serves both). */
-const archAgrees = (named: string, actual: string) =>
-  named === "unknown" ||
-  named === actual ||
-  (actual === "universal" && (named === "x86-64" || named === "aarch64"));
 
 /**
  * One archive's structural fact. Native players make the structural claim
  * `desktop-game-runtime`; Core's filename classification can only veto it: a
- * name suggesting a non-runtime role, or another operating system or
- * architecture than the players' header machines, makes it contradictory.
+ * name suggesting a non-runtime role, a tool or non-desktop system, or a
+ * system or architecture that none of the players' platform-true header
+ * machines has, makes it contradictory (`nameContradicts`). `os` and `arch`
+ * summarize the kept players; the fit reads each player's own machine.
  */
 export function artifactFact(
   asset: ObservedAsset & { sha256: string },
@@ -297,14 +326,10 @@ export function artifactFact(
     if (token === null) players.push(player);
     else excluded.push({ ...player, token });
   }
-  const os = agreed(players.map(({ machine }) => machineOs(machine)));
-  const arch = agreed(players.map(({ machine }) => machineArch(machine)));
-  const contradictory =
-    players.length > 0 &&
-    (!["desktop-game-runtime", "unknown"].includes(suggestion.role) ||
-      suggestion.tool_token !== null ||
-      (suggestion.os !== "unknown" && suggestion.os !== os) ||
-      !archAgrees(suggestion.arch, arch));
+  const systems = players.map(({ machine }) => machineSystem(machine));
+  const os = agreed(systems.map((system) => system.os));
+  const arch = agreed(systems.map((system) => system.arch));
+  const contradictory = nameContradicts(suggestion, players);
   return {
     asset_id: asset.id,
     name: asset.name,
@@ -319,8 +344,8 @@ export function artifactFact(
       archive_sha256: asset.sha256,
     },
     name_suggestion: suggestion,
-    players: players.toSorted((left, right) => (left.path < right.path ? -1 : 1)),
-    excluded_players: excluded.toSorted((left, right) => (left.path < right.path ? -1 : 1)),
+    players: players.toSorted((left, right) => compareCodePoints(left.path, right.path)),
+    excluded_players: excluded.toSorted((left, right) => compareCodePoints(left.path, right.path)),
     contradictory,
   };
 }
@@ -370,6 +395,14 @@ export interface DeriveResult {
   bytes: number;
   /** The worker's own inspection backlog; never counted as an upstream attempt. */
   backlog: ReturnType<typeof backlogOf>;
+  /** Identities this run settled into the landed table: complete, or newly ineligible. */
+  settled: number;
+  /**
+   * True when work waits (pending inspection or held for the batch bound) but
+   * this run settled no identity into the landed table: the run made no
+   * progress and a person should look at why.
+   */
+  no_progress: boolean;
 }
 
 /** Display-safe placeholder for a value that failed validation. */
@@ -421,12 +454,10 @@ export class NameVerdicts {
       throw new Error("Core refused a known-good name classification; the CLI is unusable.");
     return verdicts;
   }
-  /** The reviewed prerelease verdict; a tag Core did not classify counts as a prerelease. */
+  /** The reviewed prerelease verdict, or undefined when Core did not classify the tag. */
   prerelease(release: { version: string; provider_prerelease: boolean }) {
-    return (
-      this.#prerelease.get(
-        tagKey({ tag: release.version, provider_prerelease: release.provider_prerelease }),
-      ) ?? true
+    return this.#prerelease.get(
+      tagKey({ tag: release.version, provider_prerelease: release.provider_prerelease }),
     );
   }
   /** The asset name's suggestion, or undefined when Core did not classify it. */
@@ -540,7 +571,8 @@ export class NameVerdicts {
           (roles as readonly unknown[]).includes(asset.role) &&
           typeof asset.os === "string" &&
           typeof asset.arch === "string" &&
-          token(asset.tool_token),
+          token(asset.tool_token) &&
+          token(asset.system_token),
       ) &&
       programs.every(
         (program, index) =>
@@ -557,6 +589,7 @@ export class NameVerdicts {
         os: asset.os,
         arch: asset.arch,
         tool_token: asset.tool_token,
+        system_token: asset.system_token,
       });
     for (const program of typed.programs) this.#programs.set(program.name, program.tool_token);
     return true;
@@ -621,13 +654,16 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         provider_prerelease: release.provider_prerelease,
       })),
   });
-  const latest = new Map<string, ObservedRelease | undefined>(
+  const choice = new Map(
     [...observed]
       .filter(([, observation]) => complete(observation))
       .map(([id, observation]) => [
         id,
         latestStable(observation.releases, (release) => names.prerelease(release)),
       ]),
+  );
+  const latest = new Map<string, ObservedRelease | undefined>(
+    [...choice].map(([id, chosen]) => [id, chosen.release]),
   );
   await names.add({
     assets: [...latest.values()].flatMap((release) =>
@@ -640,6 +676,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
 
   const report: ReportRow[] = [];
   const ineligibleCounts: Record<string, number> = {};
+  /** Identities whose new entry this run settled (complete or newly ineligible). */
+  const settledIds = new Set<string>();
   const row = (
     port_id: string,
     outcome: ReportRow["outcome"],
@@ -689,10 +727,19 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       ...base(id, repositoryId),
       observation,
       ineligible: { reason, detail },
+      unread_forms: release ? unreadFormsOf(release) : (entries.get(id)?.unread_forms ?? []),
       attempt: null,
       artifacts: [],
     };
     checkListingFactsEntry(entry);
+    const prior = entries.get(id);
+    // Reconfirming the same verdict for the same release is not progress.
+    if (
+      prior?.ineligible?.reason !== reason ||
+      prior.observation.release_id !== observation.release_id ||
+      prior.observation.assets_sha256 !== observation.assets_sha256
+    )
+      settledIds.add(id);
     entries.set(id, entry);
     held.delete(id);
     retry.delete(id);
@@ -780,6 +827,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       ...base(id, repositoryId),
       observation: observationOf(id, release),
       ineligible: null,
+      unread_forms: unreadFormsOf(release),
       attempt: null,
       artifacts: artifacts as ArtifactFactV2[],
     };
@@ -812,7 +860,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       const repositoryId = observed.get(id)?.repositoryId ?? entries.get(id)?.repository_id;
       try {
         if (!repositoryId) throw new Error("no repository id");
-        const release = latest.get(id);
+        const release = latest.get(id) ?? choice.get(id)?.unclassified;
         invalid(
           id,
           repositoryId,
@@ -864,6 +912,26 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           `The listed repository now resolves to id ${repositoryId}, not the bound id ${prior.repository_id}.`,
           { ...prior.observation, observed_at: observationOf(id, undefined).observed_at },
         );
+      return;
+    }
+    if (observation.malformedReleases > 0) {
+      invalid(
+        id,
+        repositoryId,
+        undefined,
+        `The observation holds ${observation.malformedReleases} release record(s) the worker cannot read, so the latest stable release is unknown.`,
+      );
+      return;
+    }
+    const unclassifiedRelease = choice.get(id)?.unclassified;
+    if (unclassifiedRelease) {
+      // Never fall back to an older release past a tag Core could not judge.
+      invalid(
+        id,
+        repositoryId,
+        unclassifiedRelease,
+        "A release newer than every stable release has a tag Core could not classify, so the latest stable release is unknown.",
+      );
       return;
     }
     const release = latest.get(id);
@@ -918,13 +986,33 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       .filter((asset) => isArchive(asset.name))
       .toSorted((left, right) => left.id - right.id);
     if (!archives.length) {
-      ineligible(
-        id,
-        repositoryId,
-        release,
-        "no-release-archive",
-        "The stable release has no ZIP, TAR.GZ or TAR.XZ archive.",
-      );
+      const forms = unreadFormsOf(release);
+      const desktop = forms.filter((form) => (unreadForms as readonly string[]).includes(form));
+      const mobile = forms.filter((form) => (nonDesktopForms as readonly string[]).includes(form));
+      if (desktop.length)
+        ineligible(
+          id,
+          repositoryId,
+          release,
+          "unsupported-archive-format",
+          `The stable release has no ZIP, TAR.GZ or TAR.XZ archive; it has ${forms.join(", ")}.`,
+        );
+      else if (mobile.length)
+        ineligible(
+          id,
+          repositoryId,
+          release,
+          "non-desktop-platform",
+          `The stable release has only non-desktop packages: ${mobile.join(", ")}.`,
+        );
+      else
+        ineligible(
+          id,
+          repositoryId,
+          release,
+          "no-release-archive",
+          "The stable release has no package file.",
+        );
       return;
     }
     // A name Core could not classify cannot be vetoed: never read its bytes.
@@ -937,7 +1025,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         id,
         repositoryId,
         release,
-        "unbound-archive",
+        "no-digest",
         "A release archive has no provider SHA-256, so its bytes cannot be bound.",
       );
       return;
@@ -947,7 +1035,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         id,
         repositoryId,
         release,
-        "archive-too-large",
+        "too-large",
         `A release archive exceeds ${budget.maxArchiveBytes} bytes.`,
       );
       return;
@@ -957,7 +1045,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         id,
         repositoryId,
         release,
-        "too-many-archives",
+        "too-many-assets",
         `The release has more than ${budget.maxArchivesPerRelease} archives.`,
       );
       return;
@@ -983,7 +1071,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     }
     needs.push({ id, repositoryId, release, archives: digestBound, reusable, cost });
   };
-  for (const id of [...observed.keys()].toSorted()) await isolated(id, () => evaluate(id));
+  for (const id of [...observed.keys()].toSorted(compareCodePoints))
+    await isolated(id, () => evaluate(id));
 
   // Pass B: inspection within one bounded budget. The cursor's next new
   // identity goes first, so a pass always advances. Offered identities whose
@@ -1012,7 +1101,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
             need.id,
             need.repositoryId,
             need.release,
-            "inspection-refused",
+            "core-refused",
             safeText(error.message, "Core refused the archive."),
           );
           return;
@@ -1045,8 +1134,10 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         need.release,
         found.map(({ asset, players }) => factFor(asset, players)),
       )
-    )
+    ) {
+      settledIds.add(need.id);
       row(need.id, "complete", undefined, inspected, reused);
+    }
   };
   const attempted = new Set<string>();
   const take = async (need: Need) => {
@@ -1090,7 +1181,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   await advance(budget.maxIdentities);
   const refreshOrder = refreshing.toSorted(
     (left, right) =>
-      pendingSince(left).localeCompare(pendingSince(right)) || left.id.localeCompare(right.id),
+      compareCodePoints(pendingSince(left), pendingSince(right)) ||
+      compareCodePoints(left.id, right.id),
   );
   let refreshed = 0;
   for (const need of refreshOrder) {
@@ -1106,7 +1198,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   let retried = 0;
   for (const item of [...retry.values()].toSorted(
     (left, right) =>
-      left.since.localeCompare(right.since) || left.port_id.localeCompare(right.port_id),
+      compareCodePoints(left.since, right.since) || compareCodePoints(left.port_id, right.port_id),
   )) {
     if (retried >= newRetryCap || inspectedIdentities >= budget.maxIdentities) break;
     const need = growing.find((candidate) => candidate.id === item.port_id);
@@ -1157,6 +1249,15 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     const existing = report.find((item) => item.port_id === entry.port_id);
     if (existing) existing.outcome = "held-for-batch";
   }
+  const deferredIds = new Set(batch.deferred.map((entry) => entry.port_id));
+  const settled = [...settledIds].filter((id) => !deferredIds.has(id)).length;
+  const backlog = backlogOf(
+    pending.filter((need) => offered.has(need.id)),
+    pending.filter((need) => !offered.has(need.id)),
+    budget,
+    inputs.cadenceHours ?? defaultCadenceHours,
+    batch.deferred.length,
+  );
   return {
     table: batch.table,
     state: {
@@ -1164,18 +1265,16 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       after: finished ? null : after,
       retry: [...retry.values()]
         .filter((item) => !entries.get(item.port_id)?.ineligible)
-        .toSorted((left, right) => left.port_id.localeCompare(right.port_id)),
+        .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
       held: batch.deferred,
     },
     report,
     ineligible: ineligibleCounts,
     bytes,
-    backlog: backlogOf(
-      pending.filter((need) => offered.has(need.id)),
-      pending.filter((need) => !offered.has(need.id)),
-      budget,
-      inputs.cadenceHours ?? defaultCadenceHours,
-    ),
+    backlog,
+    settled,
+    no_progress:
+      settled === 0 && backlog.enrolled_pending + backlog.new_pending + backlog.held_for_batch > 0,
   };
 }
 
@@ -1186,16 +1285,19 @@ export const newIdentityShare = (budget: Pick<Budget, "maxIdentities">) =>
 export const defaultCadenceHours = 24;
 
 /**
- * The worker's own inspection backlog and how long draining it takes at the
- * configured cadence. Offered identities get all but the reserved share of
- * each run; the whole backlog drains no faster than the identity and byte
- * bounds allow.
+ * The worker's own backlog and how long draining it takes at the configured
+ * cadence. Offered identities get all but the reserved share of each run; the
+ * whole backlog drains no faster than the identity and byte bounds allow.
+ * `held_for_batch` counts derived facts waiting only for the enrollment delta
+ * bound: they need no bytes, and at most the smallest delta bound of them
+ * land per run (`runs_to_land_held`).
  */
 export function backlogOf(
   enrolled: readonly { cost: number }[],
   growth: readonly { cost: number }[],
   budget: Budget,
   cadenceHours: number,
+  heldForBatch = 0,
 ) {
   const sum = (items: readonly { cost: number }[]) =>
     items.reduce((total, item) => total + item.cost, 0);
@@ -1212,6 +1314,7 @@ export function backlogOf(
     Math.ceil((sum(enrolled) + sum(growth)) / budget.maxBytes),
   );
   const days = (runs: number) => Math.round(((runs * cadenceHours) / 24) * 10) / 10;
+  const landPerRun = Math.min(deltaBounds.added, deltaBounds.withdrawn, deltaBounds.changed);
   return {
     enrolled_pending: enrolled.length,
     new_pending: growth.length,
@@ -1221,6 +1324,8 @@ export function backlogOf(
     runs_to_drain_all: allRuns,
     days_to_drain_enrolled: days(enrolledRuns),
     days_to_drain_all: days(allRuns),
+    held_for_batch: heldForBatch,
+    runs_to_land_held: Math.ceil(heldForBatch / landPerRun),
   };
 }
 
@@ -1309,7 +1414,7 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
     try {
       const file = path.join(
         directory,
-        `archive${archiveForms.find((form) => asset.name.toLowerCase().endsWith(form)) ?? ""}`,
+        `archive${isArchive(asset.name) ? packageFormOf(asset.name)! : ""}`,
       );
       let response: Response;
       try {
@@ -1469,7 +1574,7 @@ async function main(argv: string[]) {
     });
     await writeFile(output, `${JSON.stringify(result.table, null, 2)}\n`);
     if (options.state) await writeFile(options.state, `${JSON.stringify(result.state)}\n`);
-    return `${JSON.stringify({ after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, backlog: result.backlog, ineligible: result.ineligible, identities: result.report })}\n`;
+    return `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, backlog: result.backlog, ineligible: result.ineligible, identities: result.report })}\n`;
   } finally {
     await rm(work, { recursive: true, force: true });
   }

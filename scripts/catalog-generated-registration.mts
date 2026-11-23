@@ -21,9 +21,9 @@
 //  5. one facts entry exists for it, names that same repository and was written
 //     by the current facts parser version;
 //  6. the worker did not complete the entry as ineligible (no stable release,
-//     no digest-bound archive, an archive over the limits, a permanent Core
-//     refusal, a changed repository id, or upstream unknown for longer than
-//     the last-good retention);
+//     no supported or digest-bound archive, only non-desktop package forms, an
+//     archive over the limits, a permanent Core refusal, a changed repository
+//     id, or upstream unknown for longer than the last-good retention);
 //  7. that entry's observation is `complete` with a complete asset list, its
 //     facts are at most `maxFactsAgeDays` older than the table, and any run of
 //     non-complete upstream attempts since is at most `lastGoodRetentionDays`
@@ -32,14 +32,22 @@
 //  8. for at least one supported desktop platform P there is an artifact whose
 //     typed role is `desktop-game-runtime` from exact digest-bound archive
 //     bytes, which neither its asset name (Core's filename classifier and
-//     listing-only tool veto, vetoes only) nor another source contradicts,
-//     whose operating system and architecture are P's, and which holds a
-//     player candidate whose header machine runs on P and whose name carries
-//     no tool token;
-//  9. on P no acquisition restriction holds `register-external` or `launch`
+//     listing-only tool and system vetoes, vetoes only) nor another source
+//     contradicts, whose name names no other system or architecture than P's,
+//     and which holds a player candidate whose platform-true header machine
+//     runs on P and whose name carries no tool token. Each player's own
+//     machine decides where it runs; other players in the same archive (a
+//     32-bit helper, the other system of a combined archive) neither help nor
+//     block P;
+//  9. on P the players of every such artifact are one program: after tool
+//     vetoes and same-program variants (architecture, system, console and
+//     debug words) at most `maxDistinctPrograms` (1) distinct program names
+//     remain, and one artifact's players sit under one top-level directory.
+//     Anything more could be several titles and is `ambiguous-player`;
+// 10. on P no acquisition restriction holds `register-external` or `launch`
 //     (a `download` hold does not block registration; this route never offers
 //     a download).
-// The route's platforms are every P satisfying 8 and 9.
+// The route's platforms are every P satisfying 8 to 10.
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -49,11 +57,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 3;
+export const GENERATOR_VERSION = 4;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 3;
-export const FACTS_TABLE_FORMAT = 3;
+export const FACTS_PARSER_VERSION = 4;
+export const FACTS_TABLE_FORMAT = 4;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -106,11 +114,13 @@ const attemptStatuses = ["partial", "unavailable", "failed", "pending-inspection
 export const ineligibleReasons = [
   "no-stable-release",
   "no-release-archive",
-  "unbound-archive",
-  "archive-too-large",
-  "too-many-archives",
+  "unsupported-archive-format",
+  "non-desktop-platform",
+  "no-digest",
+  "too-large",
+  "too-many-assets",
   "exceeds-run-budget",
-  "inspection-refused",
+  "core-refused",
   "repeated-inspection-failure",
   "invalid-facts",
   "repository-identity-changed",
@@ -133,6 +143,8 @@ export interface NameSuggestion {
   arch: string;
   /** Core's listing-only tool token in the asset name; any token vetoes the archive. */
   tool_token: string | null;
+  /** Core's listing-only non-desktop system token in the asset name; any token vetoes the archive. */
+  system_token: string | null;
 }
 /** A native program Core's listing-only tool veto excluded from the players. */
 export interface ExcludedPlayer extends PlayerFact {
@@ -144,7 +156,9 @@ export interface ArtifactFactV2 {
   size: number;
   sha256: string;
   role: Role;
+  /** Summary of the kept players' systems (`unknown` when they differ); fit reads each player's machine. */
   os: string;
+  /** Summary of the kept players' architectures (`unknown` when they differ). */
   arch: string;
   source: { kind: typeof authorizingSource; shape_version: number; archive_sha256: string };
   /** What Core's filename classifier suggests; it can only veto. */
@@ -175,6 +189,12 @@ export interface ListingFactsEntry {
     assets_sha256: string;
   };
   ineligible: { reason: IneligibleReason; detail: string } | null;
+  /**
+   * Package forms of the release's assets the worker does not read, sorted and
+   * unique, whether or not a supported archive sits beside them: unsupported
+   * desktop forms (`unreadForms`) and non-desktop forms (`nonDesktopForms`).
+   */
+  unread_forms: string[];
   /** Consecutive non-complete attempts since `observed_at`; last-good facts stay. */
   attempt: {
     status: (typeof attemptStatuses)[number];
@@ -283,12 +303,13 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
   if (!isRecord(suggestion)) throw new Error(`${where}.name_suggestion must be an object.`);
   exact(
     suggestion,
-    ["rule_version", "role", "os", "arch", "tool_token"],
+    ["rule_version", "role", "os", "arch", "tool_token", "system_token"],
     `${where}.name_suggestion`,
   );
   if (
     !positive(suggestion.rule_version) ||
     !(suggestion.tool_token === null || toolToken(suggestion.tool_token)) ||
+    !(suggestion.system_token === null || toolToken(suggestion.system_token)) ||
     !(roles as readonly unknown[]).includes(suggestion.role) ||
     !targetOs.includes(suggestion.os as string) ||
     !targetArch.includes(suggestion.arch as string)
@@ -358,11 +379,21 @@ export function checkListingFactsEntry(
       "parser_version",
       "observation",
       "ineligible",
+      "unread_forms",
       "attempt",
       "artifacts",
     ],
     where,
   );
+  if (
+    !Array.isArray(entry.unread_forms) ||
+    entry.unread_forms.some(
+      (form: unknown, index: number, forms: unknown[]) =>
+        !(packageForms as readonly unknown[]).includes(form) ||
+        (index > 0 && compareCodePoints(String(forms[index - 1]), String(form)) >= 0),
+    )
+  )
+    throw new Error(`${where}.unread_forms must be sorted, unique known package forms.`);
   if (
     !bounded(entry.port_id, 128) ||
     entry.provider !== "github" ||
@@ -462,6 +493,68 @@ export function checkListingFactsTable(value: unknown): asserts value is Listing
   }
 }
 
+// ---------------------------------------------------------------------------
+// Package forms and deterministic ordering.
+
+/** Archive forms the worker reads through Core. */
+export const archiveForms = [".zip", ".tar.gz", ".tgz", ".tar.xz"] as const;
+/** Desktop package forms the worker does not read: never inspected, always recorded. */
+export const unreadForms = [
+  ".7z",
+  ".rar",
+  ".tar.bz2",
+  ".tbz2",
+  ".tar.zst",
+  ".tar",
+  ".exe",
+  ".msi",
+  ".dmg",
+  ".pkg",
+  ".appimage",
+  ".deb",
+  ".rpm",
+  ".flatpak",
+  ".jar",
+] as const;
+/** Package forms only non-desktop systems install (mobile and console). */
+export const nonDesktopForms = [
+  ".ipa",
+  ".apk",
+  ".aab",
+  ".vpk",
+  ".nro",
+  ".nsp",
+  ".3dsx",
+  ".cia",
+  ".wad",
+] as const;
+const packageForms = [...unreadForms, ...nonDesktopForms];
+/** The longest known package form a file name ends with, lowercase. */
+export function packageFormOf(name: string): string | undefined {
+  const lower = name.toLowerCase();
+  return [...archiveForms, ...packageForms]
+    .filter((form) => lower.endsWith(form))
+    .toSorted((left, right) => right.length - left.length)[0];
+}
+
+/**
+ * Locale-independent order by Unicode code point. `localeCompare` depends on
+ * the ICU data of the running Node, so equal inputs could order differently on
+ * different machines; generated tables never use it.
+ */
+export function compareCodePoints(left: string, right: string): number {
+  let i = 0;
+  let j = 0;
+  while (i < left.length && j < right.length) {
+    const a = left.codePointAt(i)!;
+    const b = right.codePointAt(j)!;
+    if (a !== b) return a < b ? -1 : 1;
+    i += a > 0xffff ? 2 : 1;
+    j += b > 0xffff ? 2 : 1;
+  }
+  return i < left.length ? 1 : j < right.length ? -1 : 0;
+}
+
 export const initialFactsTime = "2026-11-23T00:00:00.000Z";
 export function emptyFactsTable(generated_at = initialFactsTime): ListingFactsTable {
   return {
@@ -489,7 +582,103 @@ const hostArch: Record<string, string> = {
   "macos-aarch64": "arm64",
 };
 
-/** Whether a header machine (Core's `package_shape::machine` names) runs on P. */
+/**
+ * Systems of Core's platform-true machine names
+ * (`package_shape::machine::ExecutableImage::platform_machine`). An unqualified
+ * name is its format's desktop host; a qualifier names another system.
+ */
+const machineQualifiers: Record<string, readonly string[]> = {
+  pe: ["xbox", "efi", "unknown"],
+  elf: ["android", "freebsd", "openbsd", "netbsd", "haiku", "solaris", "unknown"],
+  macho: ["ios", "tvos", "watchos", "visionos", "other", "unplatformed", "unknown"],
+};
+const formatHost: Record<string, string> = { pe: "windows", elf: "linux", macho: "macos" };
+/** Systems no supported desktop platform is; `unknown` and `unplatformed` are unknown, not these. */
+const nonDesktopSystems = new Set([
+  "xbox",
+  "efi",
+  "android",
+  "freebsd",
+  "openbsd",
+  "netbsd",
+  "haiku",
+  "solaris",
+  "ios",
+  "tvos",
+  "watchos",
+  "visionos",
+  "other",
+]);
+export type PlayerPlatformClass = "desktop" | "non-desktop" | "unknown";
+export interface MachineSystem {
+  /** `windows`, `linux`, `macos`, a qualifier such as `android`, or `unknown`. */
+  system: string;
+  /** `x86-64`, `aarch64`, `x86`, `universal` or `unknown`. */
+  arch: string;
+  platformClass: PlayerPlatformClass;
+  /** The system in the facts' target-OS vocabulary, for summaries and name vetoes. */
+  os: string;
+}
+
+/** What a platform-true machine name says about the player's system and architecture. */
+export function machineSystem(machine: string): MachineSystem {
+  const dash = machine.indexOf("-");
+  const prefix = dash < 0 ? "" : machine.slice(0, dash);
+  const format = /^elf(?:32|64)(?:be)?$/u.test(prefix) ? "elf" : prefix;
+  let rest = dash < 0 ? "" : machine.slice(dash + 1);
+  let system = formatHost[format] ?? "unknown";
+  const qualifier = (machineQualifiers[format] ?? []).find((word) => rest.startsWith(`${word}-`));
+  if (qualifier) {
+    system = qualifier;
+    rest = rest.slice(qualifier.length + 1);
+  }
+  const arch = rest.startsWith("universal-")
+    ? "universal"
+    : rest === "arm64"
+      ? "aarch64"
+      : rest === "x86-64" || rest === "x86"
+        ? rest
+        : "unknown";
+  const platformClass: PlayerPlatformClass = ["windows", "linux", "macos"].includes(system)
+    ? "desktop"
+    : nonDesktopSystems.has(system)
+      ? "non-desktop"
+      : "unknown";
+  const os = ["windows", "linux", "macos", "android"].includes(system)
+    ? system
+    : ["ios", "tvos", "watchos", "visionos"].includes(system)
+      ? "ios"
+      : system === "xbox"
+        ? "console"
+        : "unknown";
+  return { system, arch, platformClass, os };
+}
+
+/** Whether a filename's architecture agrees with a player's (a universal player serves both). */
+export const archAgrees = (named: string, actual: string) =>
+  named === "unknown" ||
+  named === actual ||
+  (actual === "universal" && (named === "x86-64" || named === "aarch64"));
+
+/**
+ * Whether an archive's own name vetoes it as a whole: a non-runtime role, a
+ * tool or non-desktop system token, or a system or architecture that none of
+ * its kept players has. The worker records this as `contradictory`.
+ */
+export function nameContradicts(suggestion: NameSuggestion, players: readonly PlayerFact[]) {
+  const systems = players.map(({ machine }) => machineSystem(machine));
+  return (
+    players.length > 0 &&
+    (!["desktop-game-runtime", "unknown"].includes(suggestion.role) ||
+      suggestion.tool_token !== null ||
+      suggestion.system_token !== null ||
+      (suggestion.os !== "unknown" && !systems.some(({ os }) => os === suggestion.os)) ||
+      (suggestion.arch !== "unknown" &&
+        !systems.some(({ arch }) => archAgrees(suggestion.arch, arch))))
+  );
+}
+
+/** Whether a header machine (Core's platform-true `package_shape::machine` names) runs on P. */
 export function machineRunsOn(machine: string, platform: string): boolean {
   const arch = hostArch[platform];
   switch (hostOs[platform]) {
@@ -508,11 +697,75 @@ export function machineRunsOn(machine: string, platform: string): boolean {
   }
 }
 
-function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
+/** Whether an archive's name permits P: it names no other system or architecture. */
+function namePermits(artifact: ArtifactFactV2, platform: string) {
+  const named = artifact.name_suggestion;
   const wanted = platform === "macos-aarch64" ? "aarch64" : "x86-64";
   return (
-    artifact.arch === wanted || (hostOs[platform] === "macos" && artifact.arch === "universal")
+    (named.os === "unknown" || named.os === hostOs[platform]) &&
+    (named.arch === "unknown" ||
+      named.arch === wanted ||
+      (hostOs[platform] === "macos" && named.arch === "universal"))
   );
+}
+
+/**
+ * Distinct program names allowed per platform. One: after the tool veto and
+ * same-program variants, a second distinct program name cannot be told apart
+ * from a second title by name alone (`openjk` beside `openjo`, a launcher
+ * beside its game), so it is `ambiguous-player`, never enrolled.
+ */
+export const maxDistinctPrograms = 1;
+/** Words that name a build variant of the same program, not another program. */
+const variantWords = new Set([
+  "exe",
+  "bin",
+  "x86",
+  "x64",
+  "x86_64",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "arm",
+  "i386",
+  "i686",
+  "win",
+  "win32",
+  "win64",
+  "windows",
+  "linux",
+  "mac",
+  "macos",
+  "osx",
+  "universal",
+  "universal2",
+  "64",
+  "32",
+  "86",
+  "64bit",
+  "32bit",
+  "bit",
+  "console",
+  "debug",
+]);
+/**
+ * A program's name without its build-variant words: `openjk.x86_64.exe` and
+ * `openjk.x86.exe` are both `openjk`, `Game64.exe` and `Game.console.exe` are
+ * `game`, `Doom3.exe` stays `doom-3`.
+ */
+export function programStem(path: string) {
+  const name = basename(path).toLowerCase();
+  const words = name
+    .split(/[^a-z0-9]+/u)
+    .filter((word) => word && !variantWords.has(word))
+    .flatMap((word) => word.split(/(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/u))
+    .filter((word) => !variantWords.has(word));
+  return words.join("-") || name;
+}
+const topDirectory = (path: string) => (path.includes("/") ? path.slice(0, path.indexOf("/")) : "");
+
+function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
+  return namePermits(artifact, platform);
 }
 
 export interface PlatformRuntime {
@@ -524,39 +777,132 @@ export interface PlatformRuntime {
   players: PlayerFact[];
 }
 
+const toolRoles = new Set([
+  "dedicated-server",
+  "builder",
+  "installer",
+  "importer",
+  "compiler",
+  "dev-tool",
+]);
+/** Why an archive's own name vetoes it. */
+function vetoReason(artifact: ArtifactFactV2): BlockedReason {
+  const named = artifact.name_suggestion;
+  if (
+    named.system_token !== null ||
+    ["mobile-package", "console-output"].includes(named.role) ||
+    ["android", "ios", "console", "web"].includes(named.os)
+  )
+    return "non-desktop-platform";
+  if (named.tool_token !== null || toolRoles.has(named.role)) return "tool-not-game";
+  return "contradictory-role";
+}
+
+/** The players of these artifacts that run on P, by artifact in asset order, for artifacts whose name permits P. */
+function hostedPlayers(artifacts: readonly ArtifactFactV2[], platform: string) {
+  return artifacts
+    .filter((artifact) => artifactArchFits(artifact, platform))
+    .toSorted((left, right) => left.asset_id - right.asset_id)
+    .map((artifact) => ({
+      artifact,
+      players: artifact.players
+        .filter((player) => machineRunsOn(player.machine, platform))
+        .map((player) => ({ ...player }))
+        .toSorted((left, right) => compareCodePoints(left.path, right.path)),
+    }))
+    .filter(({ players }) => players.length);
+}
+
+/** Why the players one platform would get are not one program, if they are not. */
+function ambiguity(
+  hosted: ReturnType<typeof hostedPlayers>,
+): { kind: "several-programs" | "several-directories"; names: string[] } | undefined {
+  const players = hosted.flatMap((item) => item.players);
+  const programs = new Set(players.map(({ path }) => programStem(path)));
+  const names = [...new Set(players.map(({ display_path }) => basename(display_path)))].toSorted(
+    compareCodePoints,
+  );
+  if (programs.size > maxDistinctPrograms) return { kind: "several-programs", names };
+  if (hosted.some((item) => new Set(item.players.map(({ path }) => topDirectory(path))).size > 1))
+    return { kind: "several-directories", names };
+  return undefined;
+}
+
+/** The `ambiguous-player` exclusions of an entry: one per kind, from the first platform that has it. */
+function ambiguityExclusions(entry: ListingFactsEntry): Exclusion[] {
+  const usable = entry.artifacts.filter(
+    (artifact) =>
+      artifact.role === "desktop-game-runtime" &&
+      artifact.source.kind === authorizingSource &&
+      !artifact.contradictory,
+  );
+  const found = new Map<string, Exclusion>();
+  for (const platform of platforms) {
+    const ambiguous = ambiguity(hostedPlayers(usable, platform));
+    if (ambiguous && !found.has(ambiguous.kind))
+      found.set(ambiguous.kind, {
+        reason: "ambiguous-player",
+        token: ambiguous.kind,
+        name: ambiguous.names.slice(0, 4).join(" + ").slice(0, 255),
+      });
+  }
+  return [...found.values()];
+}
+
+/** Every exclusion of an entry: name-based vetoes and ambiguous players. */
+export function entryExclusions(entry: ListingFactsEntry): Exclusion[] {
+  return [...entry.artifacts.flatMap(artifactExclusions), ...ambiguityExclusions(entry)];
+}
+
 /** An artifact that establishes a runtime for P from exact bytes, or the reason none does. */
 function platformRuntime(
   entry: ListingFactsEntry,
   platform: string,
-): { runtime: PlatformRuntime } | { reason: string } {
+): { runtime: PlatformRuntime } | { reason: BlockedReason } {
   const runtimes = entry.artifacts.filter((artifact) => artifact.role === "desktop-game-runtime");
-  if (!runtimes.length) return { reason: "no-runtime-role" };
+  if (!runtimes.length)
+    return {
+      reason: entry.artifacts.some((artifact) => artifact.excluded_players.length)
+        ? "tool-not-game"
+        : "no-player",
+    };
   const authorized = runtimes.filter((artifact) => artifact.source.kind === authorizingSource);
   if (!authorized.length) return { reason: "no-authorizing-source" };
   const consistent = authorized.filter((artifact) => !artifact.contradictory);
-  if (!consistent.length) return { reason: "contradictory-role" };
-  const hosted = consistent.filter(
-    (artifact) => artifact.os === hostOs[platform] && artifactArchFits(artifact, platform),
-  );
-  if (!hosted.length) return { reason: "wrong-host" };
-  for (const artifact of hosted.toSorted((left, right) => left.asset_id - right.asset_id)) {
-    const players = artifact.players
-      .filter((player) => machineRunsOn(player.machine, platform))
-      .map((player) => ({ ...player }))
-      .toSorted((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
-    if (players.length)
-      return {
-        runtime: {
-          platform,
-          asset_id: artifact.asset_id,
-          asset_name: artifact.name,
-          archive_sha256: artifact.sha256,
-          source: artifact.source.kind,
-          players,
-        },
-      };
+  if (!consistent.length)
+    return {
+      reason:
+        (["non-desktop-platform", "tool-not-game", "contradictory-role"] as const).find((reason) =>
+          authorized.some((artifact) => vetoReason(artifact) === reason),
+        ) ?? "contradictory-role",
+    };
+  const hosted = hostedPlayers(consistent, platform);
+  if (!hosted.length) {
+    const classes = new Set(
+      consistent.flatMap((artifact) =>
+        artifact.players.map(({ machine }) => machineSystem(machine).platformClass),
+      ),
+    );
+    return {
+      reason: classes.has("desktop")
+        ? "wrong-host"
+        : classes.has("unknown")
+          ? "unknown-platform"
+          : "non-desktop-platform",
+    };
   }
-  return { reason: "no-player-for-host" };
+  if (ambiguity(hosted)) return { reason: "ambiguous-player" };
+  const [{ artifact, players }] = hosted as [(typeof hosted)[number]];
+  return {
+    runtime: {
+      platform,
+      asset_id: artifact.asset_id,
+      asset_name: artifact.name,
+      archive_sha256: artifact.sha256,
+      source: artifact.source.kind,
+      players,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -573,11 +919,13 @@ export const blockedReasons = [
   ...ineligibleReasons,
   "incomplete-coverage",
   "stale-facts",
-  "no-runtime-role",
+  "no-player",
+  "tool-not-game",
   "no-authorizing-source",
   "contradictory-role",
+  "unknown-platform",
   "wrong-host",
-  "no-player-for-host",
+  "ambiguous-player",
   "route-held",
   "guide-bound",
 ] as const;
@@ -597,12 +945,16 @@ export type FitDecision =
   | { port_id: string; fit: true; enrollment: GeneratedEnrollment }
   | { port_id: string; fit: false; reason: BlockedReason; detail: string };
 
+/** When no platform fits, the identity's reason is the first of these any platform gave. */
 const reasonPriority: BlockedReason[] = [
-  "no-player-for-host",
+  "ambiguous-player",
   "wrong-host",
+  "unknown-platform",
+  "non-desktop-platform",
   "contradictory-role",
+  "tool-not-game",
   "no-authorizing-source",
-  "no-runtime-role",
+  "no-player",
 ];
 
 /** Whether the entry's facts are too old or upstream has been unknown too long. */
@@ -676,7 +1028,7 @@ export function fitDecision(
   for (const platform of platforms) {
     const found = platformRuntime(entry, platform);
     if ("reason" in found) {
-      misses.add(found.reason as BlockedReason);
+      misses.add(found.reason);
       continue;
     }
     const hold = ["register-external", "launch"]
@@ -691,13 +1043,13 @@ export function fitDecision(
   if (!runtimes.length) {
     if (held.length)
       return blocked("route-held", `Registration or launch is held on ${held.join(", ")}.`);
-    const reason = reasonPriority.find((candidate) => misses.has(candidate)) ?? "no-runtime-role";
-    const vetoes = entry.artifacts
-      .flatMap(artifactExclusions)
-      .map((item) => `${item.reason} ${item.token} (${item.name})`);
+    const reason = reasonPriority.find((candidate) => misses.has(candidate)) ?? "no-player";
+    const vetoes = entryExclusions(entry).map(
+      (item) => `${item.reason} ${item.token} (${item.name})`,
+    );
     return blocked(
       reason,
-      `No supported desktop platform fits: ${[...misses].sort().join(", ")}.${
+      `No supported desktop platform fits: ${[...misses].toSorted(compareCodePoints).join(", ")}.${
         vetoes.length ? ` Fail-safe exclusions: ${vetoes.slice(0, 8).join(", ")}.` : ""
       }`.slice(0, 1000),
     );
@@ -728,15 +1080,18 @@ export function fitDecision(
 }
 
 // ---------------------------------------------------------------------------
-// Fail-safe exclusions: every name-based veto, so groups of wrongly excluded
-// real games can be found and the rule, not a single game, fixed.
+// Fail-safe exclusions: every name-based veto and every ambiguous player set,
+// so groups of wrongly excluded real games can be found and the rule, not a
+// single game, fixed.
 
 export const exclusionReasons = [
   "asset-tool-name",
+  "asset-system-token",
   "asset-role-name",
   "asset-system-name",
   "asset-architecture-name",
   "player-tool-name",
+  "ambiguous-player",
 ] as const;
 export interface Exclusion {
   reason: (typeof exclusionReasons)[number];
@@ -754,18 +1109,22 @@ export function artifactExclusions(artifact: ArtifactFactV2): Exclusion[] {
   if (artifact.players.length || artifact.excluded_players.length) {
     if (named.tool_token !== null)
       exclusions.push({ reason: "asset-tool-name", token: named.tool_token, name: artifact.name });
+    if (named.system_token !== null)
+      exclusions.push({
+        reason: "asset-system-token",
+        token: named.system_token,
+        name: artifact.name,
+      });
     if (named.role !== "desktop-game-runtime" && named.role !== "unknown")
       exclusions.push({ reason: "asset-role-name", token: named.role, name: artifact.name });
   }
-  // System and architecture compare with the kept players' header machines.
+  // System and architecture compare with each kept player's header machine:
+  // the name is vetoed when no player has what it names.
   if (artifact.players.length) {
-    if (named.os !== "unknown" && named.os !== artifact.os)
+    const systems = artifact.players.map(({ machine }) => machineSystem(machine));
+    if (named.os !== "unknown" && !systems.some(({ os }) => os === named.os))
       exclusions.push({ reason: "asset-system-name", token: named.os, name: artifact.name });
-    const archAgrees =
-      named.arch === "unknown" ||
-      named.arch === artifact.arch ||
-      (artifact.arch === "universal" && ["x86-64", "aarch64"].includes(named.arch));
-    if (!archAgrees)
+    if (!systems.some(({ arch }) => archAgrees(named.arch, arch)))
       exclusions.push({
         reason: "asset-architecture-name",
         token: named.arch,
@@ -802,7 +1161,7 @@ export function failSafeExclusions(generation: Generation): ExclusionGroup[] {
   const groups = new Map<string, ExclusionGroup>();
   for (const entry of generation.facts.entries) {
     const seen = new Set<string>();
-    for (const exclusion of entry.artifacts.flatMap(artifactExclusions)) {
+    for (const exclusion of entryExclusions(entry)) {
       const key = `${exclusion.reason}\u0000${exclusion.token}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -825,9 +1184,59 @@ export function failSafeExclusions(generation: Generation): ExclusionGroup[] {
   return [...groups.values()].toSorted(
     (left, right) =>
       right.count - left.count ||
-      left.reason.localeCompare(right.reason) ||
-      left.token.localeCompare(right.token),
+      compareCodePoints(left.reason, right.reason) ||
+      compareCodePoints(left.token, right.token),
   );
+}
+
+/**
+ * The owner's exception queues: every listing-only identity the generated
+ * route does not enroll, grouped by machine-readable reason, with complete
+ * identity lists in port_id order. Report output only (`catalog-route-fit.mts
+ * --json`); the committed enrollment table keeps counts and examples.
+ */
+export interface RegistrationQueues {
+  /** Every blocked reason, each with all of its identities. */
+  reasons: Record<BlockedReason, string[]>;
+  /**
+   * Identities whose observed release holds each package form the worker does
+   * not read, also when a supported archive sits beside it.
+   */
+  unread_forms: Record<string, string[]>;
+  /** Every name-based veto as `reason:token`, with all of its identities. */
+  exclusions: Record<string, string[]>;
+}
+
+export function registrationQueues(generation: Generation): RegistrationQueues {
+  const reasons = Object.fromEntries(blockedReasons.map((reason) => [reason, [] as string[]]));
+  for (const decision of generation.decisions)
+    if (!decision.fit) reasons[decision.reason]!.push(decision.port_id);
+  const grouped = (pairs: [string, string][]) => {
+    const groups: Record<string, string[]> = {};
+    for (const key of [...new Set(pairs.map(([key]) => key))].toSorted(compareCodePoints))
+      groups[key] = [
+        ...new Set(pairs.filter(([candidate]) => candidate === key).map(([, id]) => id)),
+      ].toSorted(compareCodePoints);
+    return groups;
+  };
+  return {
+    reasons: Object.fromEntries(
+      Object.entries(reasons).map(([reason, ids]) => [reason, ids.toSorted(compareCodePoints)]),
+    ) as Record<BlockedReason, string[]>,
+    unread_forms: grouped(
+      generation.facts.entries.flatMap((entry) =>
+        entry.unread_forms.map((form): [string, string] => [form, entry.port_id]),
+      ),
+    ),
+    exclusions: grouped(
+      generation.facts.entries.flatMap((entry) =>
+        entryExclusions(entry).map((item): [string, string] => [
+          `${item.reason}:${item.token}`,
+          entry.port_id,
+        ]),
+      ),
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1181,6 +1590,48 @@ const gateMachines: Record<
   "macos-aarch64": { os: "macos", arch: "aarch64", exact: ["macho-arm64"], universal: "arm64" },
 };
 const gateDay = 24 * 60 * 60 * 1000;
+/** Words the gate drops from a program name before comparing programs, restated. */
+const gateVariantWords = [
+  "exe",
+  "bin",
+  "x86",
+  "x64",
+  "x86_64",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "arm",
+  "i386",
+  "i686",
+  "win",
+  "win32",
+  "win64",
+  "windows",
+  "linux",
+  "mac",
+  "macos",
+  "osx",
+  "universal",
+  "universal2",
+  "64",
+  "32",
+  "86",
+  "64bit",
+  "32bit",
+  "bit",
+  "console",
+  "debug",
+];
+function gateProgram(path: string) {
+  const file = (path.split("/").pop() ?? path).toLowerCase();
+  const kept: string[] = [];
+  for (const word of file.split(/[^a-z0-9]+/u)) {
+    if (!word || gateVariantWords.includes(word)) continue;
+    for (const part of word.match(/[a-z]+|[0-9]+/gu) ?? [])
+      if (!gateVariantWords.includes(part)) kept.push(part);
+  }
+  return kept.length ? kept.join("-") : file;
+}
 
 function gateMachineRuns(machine: string, platform: string) {
   const host = gateMachines[platform];
@@ -1252,9 +1703,9 @@ function gateEnrollmentProblems(
     if (artifact.role !== "desktop-game-runtime" || artifact.contradictory)
       problems.push(`${where} rests on a contradicted or non-runtime artifact.`);
     const named = artifact.name_suggestion;
-    if (named.tool_token !== null)
+    if (named.tool_token !== null || named.system_token !== null)
       problems.push(
-        `${where} rests on an artifact whose name carries the tool token ${named.tool_token}.`,
+        `${where} rests on an artifact whose name carries the token ${named.tool_token ?? named.system_token}.`,
       );
     if (
       runtime.players.some((player) =>
@@ -1268,8 +1719,43 @@ function gateEnrollmentProblems(
       !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(named.arch)
     )
       problems.push(`${where} rests on an artifact its own name contradicts.`);
-    if (artifact.os !== host.os) problems.push(`${where} rests on another system's artifact.`);
     if (!runtime.players.length) problems.push(`${where} has no matching player.`);
+    // Every player of the artifact that runs here is named: none is trimmed away.
+    const running = artifact.players.filter((player) =>
+      gateMachineRuns(player.machine, runtime.platform),
+    );
+    if (
+      running.length !== runtime.players.length ||
+      running.some((player) => !runtime.players.some((named) => named.path === player.path))
+    )
+      problems.push(`${where} does not name every player of its artifact that runs there.`);
+    const topLevel = (path: string) => {
+      const parts = path.split("/");
+      return parts.length > 1 ? parts[0] : "";
+    };
+    if (new Set(running.map((player) => topLevel(player.path))).size > 1)
+      problems.push(`${where} has players under several top-level directories.`);
+    // One program on this platform across every artifact whose name allows it.
+    const programs = new Set<string>();
+    for (const candidate of entry.artifacts) {
+      const candidateName = candidate.name_suggestion;
+      if (
+        candidate.contradictory ||
+        candidate.role !== "desktop-game-runtime" ||
+        !["unknown", host.os].includes(candidateName.os) ||
+        !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
+          candidateName.arch,
+        )
+      )
+        continue;
+      for (const player of candidate.players)
+        if (gateMachineRuns(player.machine, runtime.platform))
+          programs.add(gateProgram(player.path));
+    }
+    if (programs.size !== 1)
+      problems.push(
+        `${where} rests on ${programs.size} distinct programs; only one program may enroll.`,
+      );
     for (const player of runtime.players) {
       const observed = artifact.players.find(
         (candidate) =>
