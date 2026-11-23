@@ -1060,7 +1060,14 @@ fn resolve_observed_asset(
     )
     .is_some()
     {
-        return Err(wrong_role_refusal(port, platform));
+        // The link passed the gate, so its registry file differs from it.
+        return Err(PortcoveError::verification(
+            "GitLab package filename identifies an installer, tool, debug build or source archive, not the game package",
+        )
+        .detail(
+            "route_hold",
+            crate::route_facts::RouteHold::WrongRole.as_str(),
+        ));
     }
     if port.n64_runtime_at_executable_parent
         && native_archive_score(
@@ -2493,6 +2500,7 @@ mod tests {
                 observed(file_name),
             )
             .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification, "{file_name}");
             assert_eq!(
                 error.details.get("route_hold").map(String::as_str),
                 Some("wrong-role"),
@@ -2601,7 +2609,14 @@ mod tests {
             if name == selected_name {
                 assert_eq!(result.unwrap().asset.name, selected_name);
             } else {
-                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Verification);
+                if name.ends_with("-Source.zip") {
+                    assert_eq!(
+                        error.details.get("route_hold").map(String::as_str),
+                        Some("wrong-role")
+                    );
+                }
                 assert!(provider.cache.read().await.is_empty());
             }
         }
