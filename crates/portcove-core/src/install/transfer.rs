@@ -67,8 +67,13 @@ impl From<std::io::Error> for Step {
 }
 
 fn transport(error: &reqwest::Error) -> PortcoveError {
-    PortcoveError::network(error.to_string())
-        .with_upstream(UpstreamObservation::from_reqwest(error))
+    let converted = PortcoveError::network(error.to_string())
+        .with_upstream(UpstreamObservation::from_reqwest(error));
+    if error.is_builder() || error.is_redirect() || error.is_status() {
+        converted
+    } else {
+        converted.transient_transport()
+    }
 }
 
 /// Read-idle stalls keep their existing terminal failure; only resets, early
@@ -343,6 +348,7 @@ impl Transfer<'_> {
         if self.length.is_some_and(|length| self.completed < length) {
             return Err(Step::Retry(
                 PortcoveError::network("the download ended before the complete file arrived")
+                    .transient_transport()
                     .detail("expected", self.length.unwrap_or_default().to_string())
                     .detail("actual", self.completed.to_string()),
             ));

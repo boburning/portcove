@@ -1113,7 +1113,8 @@ Portcove retries a failed setup on a later pass while the game is ready, up to
 three failed attempts for the same plan. A changed plan becomes eligible again.
 Only lasting failures count, such as a rejected download or an unsupported file.
 A temporary failure never counts: a network problem, a download site's rate
-limit or server error, a full disk or an interrupted run. Portcove records it
+limit or server error, a full disk, another task or program holding the game or
+a needed file, or an interrupted run. Portcove records it
 with a next-attempt time and runs the same plan again after that time. The wait
 starts at five minutes and doubles up to six hours. A rate limit waits at least
 until the reset the site stated, up to one day. An interruption retries on the

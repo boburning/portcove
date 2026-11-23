@@ -261,7 +261,28 @@ impl PortcoveService {
             Ok(record.payload().view.clone())
         }
         .await;
+        // A temporary transfer failure while still acquiring is not ambiguous:
+        // nothing was verified or published, and eligible received bytes stay
+        // in the partial-download store. Release the exact private reservation
+        // so a fresh review continues from them, instead of holding the game
+        // until the player discards it. Anything else keeps attention.
+        let released = match (&result, journal.as_ref()) {
+            (Err(error), Some(record))
+                if record.payload().view.phase == Phase::Acquiring
+                    && crate::TemporaryFailure::of(error).is_some() =>
+            {
+                match self.remove_private_acquisition(&store, record) {
+                    Ok(()) => true,
+                    Err(removal) => {
+                        tracing::warn!(error = %removal, "unable to release a temporarily failed acquisition; keeping it for attention");
+                        false
+                    }
+                }
+            }
+            _ => false,
+        };
         if result.is_err()
+            && !released
             && let Some(record) = journal.as_mut()
             && let Err(error) = record.advance(
                 Phase::AttentionRequired,
@@ -438,7 +459,18 @@ impl PortcoveService {
                 "acquisition belongs to another resource",
             ));
         }
-        validate_private_files(&self.library, &record)?;
+        self.remove_private_acquisition(&store, &record)
+    }
+
+    /// Removes one acquisition's owned private archives and its journal, after
+    /// rechecking that every file there belongs to it.
+    fn remove_private_acquisition(
+        &self,
+        store: &OperationStore,
+        record: &AcquisitionOperation,
+    ) -> Result<()> {
+        let acquisition_id = record.id();
+        validate_private_files(&self.library, record)?;
         let private = root(&self.library, acquisition_id)?;
         if private.exists() {
             let payload = record.payload();

@@ -1423,7 +1423,8 @@ export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelle
 /**
  * Why unattended work stopped for now.
  */
-export type TemporaryCause = "network" | "rate_limited" | "server_unavailable" | "storage_full" | "interrupted";
+export type TemporaryCause =
+  "network" | "rate_limited" | "server_unavailable" | "storage_full" | "game_busy" | "file_in_use" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];

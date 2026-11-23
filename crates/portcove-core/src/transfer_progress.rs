@@ -70,7 +70,8 @@ impl ProgressWatch {
             .detail(
                 "transfer_progress_window_seconds",
                 elapsed.as_secs().to_string(),
-            ));
+            )
+            .transient_transport());
         }
         self.window_start = now;
         self.window_bytes = 0;

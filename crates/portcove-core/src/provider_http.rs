@@ -182,10 +182,7 @@ impl ProviderHttp {
                     .header(header::ACCEPT, "application/octet-stream")
                     .header(header::CACHE_CONTROL, "no-cache");
             }
-            let response = request
-                .send()
-                .await
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            let response = request.send().await.map_err(|error| transport(&error))?;
             let status = response.status();
             if status.is_redirection() {
                 let next = response
@@ -229,7 +226,7 @@ impl ProviderHttp {
             // silent connection and the progress floor cuts a trickle.
             let mut progress = ProgressWatch::new(self.progress_floor);
             while let Some(chunk) = stream.next().await {
-                let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                let chunk = chunk.map_err(|error| transport(&error))?;
                 if let Err(error) = progress.record(chunk.len() as u64) {
                     let _ = std::fs::remove_file(destination);
                     return Err(error);
@@ -400,6 +397,18 @@ impl ProviderHttp {
     }
 }
 
+/// A download connection failure; interruptions are marked temporary, while
+/// builder and redirect failures stay lasting.
+fn transport(error: &reqwest::Error) -> PortcoveError {
+    let converted = PortcoveError::network(error.to_string())
+        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(error));
+    if error.is_builder() || error.is_redirect() || error.is_status() {
+        converted
+    } else {
+        converted.transient_transport()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,5 +497,9 @@ mod tests {
                 .contains_key(crate::transfer_progress::PROGRESS_FLOOR_DETAIL)
         );
         assert!(!destination.exists());
+        assert_eq!(
+            crate::TemporaryFailure::of(&error).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::Network)
+        );
     }
 }

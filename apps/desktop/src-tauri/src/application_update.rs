@@ -552,7 +552,9 @@ async fn download_verified(
     let observed = last_progress.clone();
     let starved = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let starving = starved.clone();
-    let mut floor = portcove_core::ProgressWatch::new(portcove_core::PROGRESS_FLOOR);
+    // The floor's first window starts with the first bytes, so connection
+    // setup and redirects are bounded by the stall watchdog alone.
+    let mut floor: Option<portcove_core::ProgressWatch> = None;
     let mut downloaded = 0_u64;
     let mut reported = 0_u64;
     let download = update.download(
@@ -560,7 +562,13 @@ async fn download_verified(
             if let Ok(mut last) = observed.lock() {
                 *last = Instant::now();
             }
-            if floor.record(chunk as u64).is_err() {
+            if floor
+                .get_or_insert_with(|| {
+                    portcove_core::ProgressWatch::new(portcove_core::PROGRESS_FLOOR)
+                })
+                .record(chunk as u64)
+                .is_err()
+            {
                 starving.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             downloaded = downloaded.saturating_add(chunk as u64);

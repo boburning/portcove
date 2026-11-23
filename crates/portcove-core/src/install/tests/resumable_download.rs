@@ -1294,6 +1294,11 @@ async fn a_starved_transfer_is_cut_and_continues_byte_identically_after_a_restar
             .details
             .contains_key(crate::transfer_progress::PROGRESS_FLOOR_DETAIL)
     );
+    // Unattended setup treats the cut as temporary, never as a lasting verdict.
+    assert_eq!(
+        crate::TemporaryFailure::of(&error).map(|failure| failure.cause),
+        Some(crate::TemporaryCause::Network)
+    );
     // The received prefix is kept, bound to its validator.
     assert_eq!(stored_entries(&store_root).len(), 2);
 

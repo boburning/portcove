@@ -6878,8 +6878,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -7964,8 +7974,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -11807,8 +11827,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -12327,8 +12357,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -14513,8 +14553,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -14708,8 +14758,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]
@@ -19746,8 +19806,18 @@
             "type": "string"
           },
           {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
             "const": "interrupted",
-            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "description": "Portcove stopped before the work finished.",
             "type": "string"
           }
         ]

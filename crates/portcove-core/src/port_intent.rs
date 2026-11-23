@@ -803,7 +803,7 @@ impl PortcoveService {
                 .as_ref()
                 .filter(|retry| retry.waiting(Library::now()))
         {
-            Some(retry.explanation())
+            Some(retry.explanation(Library::now()))
         } else {
             None
         };
@@ -1788,7 +1788,9 @@ mod tests {
                 PORT,
                 plan_sha256,
                 "connection reset",
-                crate::TemporaryFailure::of(&PortcoveError::network("connection reset")),
+                crate::TemporaryFailure::of(
+                    &PortcoveError::network("connection reset").transient_transport(),
+                ),
             );
         }
         let intent = service.library.port_intent(PORT).unwrap().unwrap();

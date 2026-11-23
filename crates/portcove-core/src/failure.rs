@@ -93,6 +93,9 @@ pub(crate) struct FailureContext {
     known_cause: Option<KnownFailureCause>,
     pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
+    /// Set where a connection was interrupted, stalled or starved: the
+    /// network failed, not the requested content.
+    transient_transport: bool,
 }
 
 /// Transport facts recorded where an upstream request failed. They classify
@@ -674,6 +677,18 @@ impl PortcoveError {
 
     pub(crate) fn upstream_observation(&self) -> Option<UpstreamObservation> {
         self.failure.upstream
+    }
+
+    /// Marks a transport interruption (reset, early close, stall or starved
+    /// connection). Temporary classification is opt-in: an unmarked
+    /// network-coded error without a status stays lasting.
+    pub(crate) fn transient_transport(mut self) -> Self {
+        self.failure.transient_transport = true;
+        self
+    }
+
+    pub(crate) fn is_transient_transport(&self) -> bool {
+        self.failure.transient_transport
     }
 
     /// Classify this failure for preserved-location failover from recorded facts

@@ -886,7 +886,7 @@ impl PortcoveService {
                 .filter(|failure| failure.port_id == port_id && failure.plan_sha256 == attempt)
                 .find_map(|failure| failure.temporary_retry.as_ref())
                 .filter(|retry| retry.waiting(Library::now()))
-                .map(crate::TemporaryRetry::explanation)
+                .map(|retry| retry.explanation(Library::now()))
         };
         let source_key = source_attempt(candidate);
         if exhausted(&source_key) {
@@ -1304,7 +1304,7 @@ mod tests {
         folder.scanned(vec![file]);
         folder.consent(RootSetupEnrollment::ExistingAndFuture);
         let plan = folder.service.plan_game_install(PORT).await.unwrap();
-        let stalled = PortcoveError::network("the download stalled");
+        let stalled = PortcoveError::network("the download stalled").transient_transport();
         for _ in 0..=crate::MAX_STANDING_SETUP_ATTEMPTS {
             folder.service.remember_root_failure(
                 &folder.root_id,
