@@ -1432,7 +1432,8 @@ export type TemporaryCause =
   | "file_in_use"
   | "time_budget"
   | "inventory_incomplete"
-  | "interrupted";
+  | "interrupted"
+  | "clean_stop";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -8235,6 +8236,12 @@ export interface OutputDesktopGameFileScanRegisteredMatches {
 }
 export interface InstallBatchRecord {
   cancel_requested: boolean;
+  /**
+   * Unix seconds Portcove recorded that it was closing, restarting or told
+   * to stop while this unattended batch ran. An item the process then left
+   * unsettled was stopped cleanly, which never counts as a crash.
+   */
+  clean_stop_at?: number | null;
   created_at: number;
   format_version: number;
   id: string;
@@ -8450,11 +8457,23 @@ export interface PortIntentSource {
  */
 export interface TemporaryRetry {
   /**
+   * Unix seconds this failure was recorded. Unattended passes take games
+   * with a pending retry after the others, oldest attempt first. Zero for
+   * records written before it was kept.
+   */
+  attempted_at?: number;
+  /**
    * Consecutive temporary failures of the same plan with the same cause;
    * sets the back-off. A different cause starts the count again.
    */
   attempts: number;
   cause: TemporaryCause;
+  /**
+   * For an unclean stop: the kept download bytes when it was recorded.
+   */
+  kept_downloads?: {
+    [k: string]: number;
+  };
   /**
    * Unix seconds before which the work is not tried again.
    */

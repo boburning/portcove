@@ -6899,7 +6899,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -6931,6 +6936,14 @@
     "properties": {
       "cancel_requested": {
         "type": "boolean"
+      },
+      "clean_stop_at": {
+        "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
       },
       "created_at": {
         "format": "int64",
@@ -7926,6 +7939,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -8005,7 +8026,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -11868,7 +11894,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -11877,6 +11908,11 @@
         "additionalProperties": false,
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
           "attempts": {
             "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
@@ -11885,6 +11921,15 @@
           },
           "cause": {
             "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
           },
           "retry_after": {
             "description": "Unix seconds before which the work is not tried again.",
@@ -12424,7 +12469,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -12433,6 +12483,11 @@
         "additionalProperties": false,
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
           "attempts": {
             "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
@@ -12441,6 +12496,15 @@
           },
           "cause": {
             "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
           },
           "retry_after": {
             "description": "Unix seconds before which the work is not tried again.",
@@ -14634,7 +14698,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -14643,6 +14712,11 @@
         "additionalProperties": false,
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
           "attempts": {
             "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
@@ -14651,6 +14725,15 @@
           },
           "cause": {
             "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
           },
           "retry_after": {
             "description": "Unix seconds before which the work is not tried again.",
@@ -14853,7 +14936,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]
@@ -14862,6 +14950,11 @@
         "additionalProperties": false,
         "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
         "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
           "attempts": {
             "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
             "format": "uint32",
@@ -14870,6 +14963,15 @@
           },
           "cause": {
             "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
           },
           "retry_after": {
             "description": "Unix seconds before which the work is not tried again.",
@@ -19495,6 +19597,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -19927,7 +20037,12 @@
           },
           {
             "const": "interrupted",
-            "description": "Portcove stopped before the work finished.",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
             "type": "string"
           }
         ]

@@ -755,15 +755,17 @@ impl PortcoveError {
     /// failures) temporary. Builder, redirect-policy and status errors stay
     /// lasting; a status is recorded separately by the caller.
     ///
-    /// A decode error stays lasting too. Portcove's client decodes no content
-    /// encoding, so reqwest reports one only for a body that arrived complete
-    /// but could not be read as what was expected (`Response::json`/`text`):
-    /// a well-formed answer that is wrong does not pass by trying again. A
-    /// truncated body is a body-stream error (`is_body`), which is temporary.
+    /// Body errors: reqwest reports a body stream that ends early as a decode
+    /// error ("error decoding response body"), so `is_decode` here is a
+    /// truncated body and stays temporary. A body that arrives complete but is
+    /// not the expected document is never converted here: Portcove reads the
+    /// bytes and parses them with its own code, whose unmarked failure stays
+    /// lasting. Do not pass errors from `Response::json`/`text` to this
+    /// conversion, which cannot tell such a malformed body from a cut-off one.
     pub(crate) fn from_transport(error: &reqwest::Error) -> Self {
         let converted = Self::network(error.to_string())
             .with_upstream(UpstreamObservation::from_reqwest(error));
-        if error.is_builder() || error.is_redirect() || error.is_status() || error.is_decode() {
+        if error.is_builder() || error.is_redirect() || error.is_status() {
             converted
         } else {
             converted.transient_transport()

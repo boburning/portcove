@@ -713,13 +713,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_truncated_body_is_an_interruption_and_an_undecodable_complete_one_is_not() {
+    async fn a_body_cut_off_mid_stream_is_an_interruption() {
+        use futures_util::StreamExt;
         let truncated = answer_once(
             "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nConnection: close\r\n\r\n".into(),
             vec![1; 10],
         )
         .await;
-        use futures_util::StreamExt;
         let response = direct().get(truncated).send().await.unwrap();
         let mut stream = response.bytes_stream();
         let error = loop {
@@ -729,29 +729,13 @@ mod tests {
                 None => panic!("a truncated body must end in an error"),
             }
         };
-        assert!(!error.is_decode());
-        assert!(PortcoveError::from_transport(&error).is_transient_transport());
-
-        let body = b"not json".to_vec();
-        let malformed = answer_once(
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                body.len()
-            ),
-            body,
-        )
-        .await;
-        let error = direct()
-            .get(malformed)
-            .send()
-            .await
-            .unwrap()
-            .json::<Value>()
-            .await
-            .unwrap_err();
-        assert!(error.is_decode());
+        // reqwest names a cut-off body stream a decode error; it is still an
+        // interruption, never a lasting verdict.
         let converted = PortcoveError::from_transport(&error);
-        assert!(!converted.is_transient_transport());
-        assert_eq!(crate::TemporaryFailure::of(&converted), None);
+        assert!(converted.is_transient_transport(), "{error:?}");
+        assert_eq!(
+            crate::TemporaryFailure::of(&converted).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::Network)
+        );
     }
 }
