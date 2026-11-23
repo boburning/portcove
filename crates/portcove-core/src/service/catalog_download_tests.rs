@@ -863,7 +863,10 @@ async fn assert_embedded_download_holds(
 
 /// Embedded listings that keep a whole download hold but permit their reviewed
 /// files (#8538, #1422): (port, [(host, release tag, SHA-256, asset name)]).
-const REVIEWED_EMBEDDED_PERMITS: &[(&str, &[(Platform, &str, &str, &str)])] = &[
+/// (host, release tag, SHA-256, asset name).
+type ReviewedHostFile = (Platform, &'static str, &'static str, &'static str);
+
+const REVIEWED_EMBEDDED_PERMITS: &[(&str, &[ReviewedHostFile])] = &[
     (
         "chameleon-twist-recompiled",
         &[(

@@ -429,6 +429,9 @@ enum Case<'a> {
     Known(&'a str, &'a str),
 }
 
+/// (release tag, SHA-256, asset name).
+type ReviewedFile = (&'static str, &'static str, &'static str);
+
 /// Listing rows that gained a reviewed download permit for exact files after
 /// the migration: (port, [(release tag, SHA-256, asset name)]). Each keeps its
 /// whole-listing hold.
@@ -437,7 +440,7 @@ enum Case<'a> {
 ///   menu-art owner exceptions for the v4.0 desktop ZIPs.
 /// - linewars-ii-sdl3: lead decision under the #6090 freeware exception and
 ///   the bundled-fonts note for the v1.0.0 desktop archives.
-const REVIEWED_LISTING_PERMITS: &[(&str, &[(&str, &str, &str)])] = &[
+const REVIEWED_LISTING_PERMITS: &[(&str, &[ReviewedFile])] = &[
     (
         "chameleon-twist-recompiled",
         &[(
