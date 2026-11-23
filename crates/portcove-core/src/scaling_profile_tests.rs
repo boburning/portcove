@@ -553,7 +553,7 @@ fn report(factor: usize, installs: usize, stages: &[Stage]) {
 }
 
 #[test]
-#[ignore = "manual scaling profile; see the module documentation"]
+#[ignore = "opt-in workspace acquisition scaling profile on generated catalogs; prints measurements only; see docs/ARCHITECTURE.md"]
 fn scaling_profile_workspace_acquisition() {
     let factors = std::env::var("PORTCOVE_SCALING_FACTORS")
         .ok()
