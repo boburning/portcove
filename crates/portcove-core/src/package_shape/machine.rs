@@ -620,9 +620,15 @@ fn fat<R: Read + Seek>(
 pub(crate) mod fixtures {
     //! Tiny synthetic headers. They are never executed.
 
-    /// A PE image for the Windows console subsystem.
+    /// A PE image with no optional header (its subsystem is unknown).
     pub(crate) fn pe(machine: u16, characteristics: u16) -> Vec<u8> {
-        pe_subsystem(machine, characteristics, 3)
+        let mut bytes = vec![0_u8; 0x80 + 24];
+        bytes[..2].copy_from_slice(b"MZ");
+        bytes[0x3c..0x40].copy_from_slice(&0x80_u32.to_le_bytes());
+        bytes[0x80..0x84].copy_from_slice(b"PE\0\0");
+        bytes[0x84..0x86].copy_from_slice(&machine.to_le_bytes());
+        bytes[0x96..0x98].copy_from_slice(&characteristics.to_le_bytes());
+        bytes
     }
 
     /// A PE32+ image with an optional header naming `subsystem`.

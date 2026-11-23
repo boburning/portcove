@@ -489,8 +489,13 @@ pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesC
 #[cfg(test)]
 mod tests {
     use super::super::machine::fixtures::{
-        LINUX_INTERPRETER, elf64, elf64_for, mach_o, mach_o_for, pe, pe_subsystem, universal_of,
+        LINUX_INTERPRETER, elf64, elf64_for, mach_o, mach_o_for, pe_subsystem, universal_of,
     };
+
+    /// A Windows console-subsystem PE image.
+    fn pe(machine: u16, characteristics: u16) -> Vec<u8> {
+        pe_subsystem(machine, characteristics, 3)
+    }
     use super::*;
     use std::io::Write as _;
 
@@ -575,6 +580,10 @@ mod tests {
         // (bytes, platform-true machine, the historical machine name).
         let cases = [
             (pe(0x8664, EXECUTABLE), "pe-x86-64"),
+            (
+                super::super::machine::fixtures::pe(0x8664, EXECUTABLE),
+                "pe-unknown-x86-64",
+            ),
             (pe_subsystem(0x8664, EXECUTABLE, 2), "pe-x86-64"),
             (pe_subsystem(0x8664, EXECUTABLE, 14), "pe-xbox-x86-64"),
             (pe_subsystem(0x8664, EXECUTABLE, 10), "pe-efi-x86-64"),
