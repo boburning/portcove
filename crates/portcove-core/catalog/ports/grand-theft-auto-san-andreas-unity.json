@@ -66,8 +66,27 @@
         "effect": "hold",
         "operations": ["download"],
         "reason": "bundled-game-data",
-        "explanation": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+        "explanation": "Portcove can download only the reviewed v4.0 Windows and Linux packages. Earlier releases and the Android debug package need separate checks. You can also register your own prepared Windows or Linux copy.",
         "tracking_issue": 6134
+      },
+      {
+        "id": "reviewed-v4-0",
+        "effect": "permit",
+        "operations": ["download"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v4.0",
+              "sha256": "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+              "asset_name": "SanAndreasUnity-4.0-windows.zip"
+            },
+            {
+              "version": "v4.0",
+              "sha256": "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+              "asset_name": "SanAndreasUnity-4.0-linux.zip"
+            }
+          ]
+        }
       }
     ]
   },

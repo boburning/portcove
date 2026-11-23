@@ -52,9 +52,23 @@
         "id": "download",
         "effect": "hold",
         "operations": ["download"],
-        "reason": "bundled-game-data",
-        "explanation": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+        "reason": "third-party-component-terms",
+        "explanation": "Portcove can download only the reviewed v0.1 Windows ZIP. Other files and releases are not yet reviewed. That ZIP includes separately authored Chiaro fonts and no game data. You supply your own Japanese Chameleon Twist ROM.",
         "tracking_issue": 125
+      },
+      {
+        "id": "approved-v0-1",
+        "effect": "permit",
+        "operations": ["download"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v0.1",
+              "sha256": "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+              "asset_name": "ChameleonTwistJPRecompiled.zip"
+            }
+          ]
+        }
       }
     ],
     "original_game": {
