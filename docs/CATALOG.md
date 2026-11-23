@@ -3217,7 +3217,8 @@ never becomes the game package. When nothing else for this host remains, the
 refusal carries `route_hold: wrong-role` and nothing is downloaded. The one
 widening is declared by adapter: an upstream-managed setup route expects an
 extractable package named for its setup or installer, because its mechanism
-runs upstream's setup from that package.
+runs upstream's setup from that package. A PSX recompilation route likewise
+expects its owned-input preparation kit, which may be named for its source.
 
 ### Qualification evidence preparation
 

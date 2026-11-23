@@ -656,9 +656,13 @@ pub(crate) fn suggest_from_filename(name: &str) -> FilenameSuggestion {
 /// own setup program and runs it as explicit preparation, so an extractable
 /// package named for its setup or installer is that route's expected game
 /// package. A self-running installer is never extractable and stays refused.
+/// A PSX recompilation route installs an owned-input preparation kit that it
+/// builds from, so a kit named for its source is that route's expected package;
+/// its own mandatory hints still choose the kit.
 fn adapter_expected_package_roles(adapter: crate::AdapterKind) -> &'static [ArtifactRole] {
     match adapter {
         crate::AdapterKind::UpstreamManagedSetup => &[ArtifactRole::Installer],
+        crate::AdapterKind::PsxRecompManaged => &[ArtifactRole::SourceArchive],
         _ => &[],
     }
 }
