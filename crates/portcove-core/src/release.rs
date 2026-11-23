@@ -158,6 +158,13 @@ pub trait ReleaseProvider: Send + Sync {
         Ok(crate::RequestCostForecast::default())
     }
 
+    /// The allowance an ordinary (unscoped) request for `port` draws from, named as
+    /// the `rate_limit_credential` failure detail names it. `None` when the provider
+    /// does not distinguish allowances by credential.
+    fn ordinary_allowance(&self, _port: &PortDefinition) -> Option<&'static str> {
+        None
+    }
+
     /// Provider request budget for a check that must enforce a reviewed package choice.
     fn forecast_saved_variant_request_cost(&self, _scoped: bool) -> crate::RequestCostForecast {
         crate::RequestCostForecast::default()
@@ -832,9 +839,10 @@ impl GithubReleaseProvider {
         let conditional = cached
             .as_ref()
             .is_some_and(|entry| entry.etag.is_some() || entry.last_modified.is_some());
-        self.request_budget
-            .admit(self.request_credential(url, token), conditional)?;
+        let credential = self.request_credential(url, token);
+        let reservation = self.request_budget.admit(credential, conditional)?;
         let response = self.metadata_request(url, token, cached.as_ref()).await?;
+        reservation.settle();
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
@@ -859,7 +867,8 @@ impl GithubReleaseProvider {
         }
         let status = response.status();
         if !status.is_success() {
-            return Err(github_http_error(status, response.headers()));
+            return Err(github_http_error(status, response.headers())
+                .detail("rate_limit_credential", credential.label()));
         }
         let etag = header_text(response.headers(), header::ETAG);
         let last_modified = header_text(response.headers(), header::LAST_MODIFIED);
@@ -907,11 +916,18 @@ impl GithubReleaseProvider {
         // managed grant. Revalidate public repository identity on the actual API.
         // The request is unconditional and anonymous, so it always draws from the
         // anonymous allowance; an allowance GitHub reported exhausted is not asked.
-        self.request_budget
+        let reservation = self
+            .request_budget
             .admit(RequestCredential::Anonymous, false)?;
         let response = self.metadata_request(url, None, None).await?;
+        reservation.settle();
         if !response.status().is_success() {
-            return Err(github_http_error(response.status(), response.headers()));
+            return Err(
+                github_http_error(response.status(), response.headers()).detail(
+                    "rate_limit_credential",
+                    RequestCredential::Anonymous.label(),
+                ),
+            );
         }
         let bytes =
             bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
@@ -1718,6 +1734,11 @@ impl ReleaseProvider for GithubReleaseProvider {
             self.ordinary_credential(),
             &cached,
         ))
+    }
+
+    fn ordinary_allowance(&self, port: &PortDefinition) -> Option<&'static str> {
+        (port.release.provider == crate::ReleaseSource::Github)
+            .then(|| self.ordinary_credential().label())
     }
 
     fn forecast_saved_variant_request_cost(&self, scoped: bool) -> crate::RequestCostForecast {
@@ -7562,6 +7583,7 @@ mod tests {
     #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
     struct SimulatedCost {
         requests: usize,
+        releases_pages: usize,
         /// Counted against the primary limit by GitHub's documented rule: every
         /// answer except an authenticated `304`.
         counted: usize,
@@ -7583,7 +7605,7 @@ mod tests {
     ) -> [SimulatedCost; 3] {
         use std::sync::{Arc, Mutex};
         let releases = github_selector_releases();
-        let log: Arc<Mutex<Vec<(bool, u16)>>> = Arc::default();
+        let log: Arc<Mutex<Vec<(bool, bool, u16)>>> = Arc::default();
         let changed: Arc<Mutex<Option<String>>> = Arc::default();
         let handler_log = Arc::clone(&log);
         let handler_changed = Arc::clone(&changed);
@@ -7614,10 +7636,11 @@ mod tests {
                 let authenticated = lowered.contains("\r\nauthorization: bearer ");
                 let conditional =
                     lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
-                handler_log
-                    .lock()
-                    .unwrap()
-                    .push((authenticated, if conditional { 304 } else { 200 }));
+                handler_log.lock().unwrap().push((
+                    authenticated,
+                    path.contains("/releases?"),
+                    if conditional { 304 } else { 200 },
+                ));
                 if conditional {
                     return format!(
                         "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
@@ -7674,9 +7697,10 @@ mod tests {
             let slice = &entries[before..];
             SimulatedCost {
                 requests: slice.len(),
+                releases_pages: slice.iter().filter(|(_, releases, _)| *releases).count(),
                 counted: slice
                     .iter()
-                    .filter(|(authenticated, status)| {
+                    .filter(|(authenticated, _, status)| {
                         crate::github_request_budget::counted_against_primary_limit(
                             if *authenticated {
                                 RequestCredential::for_token(Some("simulated"))
@@ -7687,7 +7711,7 @@ mod tests {
                         )
                     })
                     .count(),
-                not_modified: slice.iter().filter(|(_, status)| *status == 304).count(),
+                not_modified: slice.iter().filter(|(_, _, status)| *status == 304).count(),
             }
         };
         let pass = || async {
@@ -7731,8 +7755,10 @@ mod tests {
     /// `docs/ARCHITECTURE.md` (update-check request cost).
     #[tokio::test]
     async fn simulated_api_counts_library_checks_by_credential_and_shared_upstreams() {
-        let cost = |requests, counted, not_modified| SimulatedCost {
+        // Every read pair is one repository document and one `releases` page.
+        let cost = |requests: usize, counted, not_modified| SimulatedCost {
             requests,
+            releases_pages: requests / 2,
             counted,
             not_modified,
         };
@@ -7986,6 +8012,35 @@ mod tests {
         // The same warm cache does not help a managed-scope port, signed in or not.
         assert_eq!(cost(&signed_in, &port, true).await, (2, 0));
         assert_eq!(cost(&anonymous, &port, true).await, (2, 0));
+        // A curated managed-scope port adds its tag-commit lookup.
+        let evidence =
+            serde_json::json!({"url": "https://example.invalid/e", "sha256": "0".repeat(64)});
+        let record: crate::CuratedAcquisitionRecord = serde_json::from_value(serde_json::json!({
+            "record_version": 1,
+            "repository": "owner/forecast",
+            "upstream_url": "https://github.com/owner/forecast",
+            "acquisition_host": "github.com",
+            "acquisition_url": "https://github.com/owner/forecast/releases/download/v1/game.zip",
+            "release_id": 1,
+            "tag": "v1",
+            "commit_sha1": "0".repeat(40),
+            "asset_id": 1,
+            "platform": platform,
+            "route": "github-release",
+            "filename": "game.zip",
+            "size": 1,
+            "sha256": "0".repeat(64),
+            "acquisition_evidence": evidence,
+            "distribution_basis": "fixture",
+            "distribution_evidence": evidence,
+            "independent_review": evidence,
+            "protected_acceptance": evidence,
+        }))
+        .unwrap();
+        let mut curated = port.clone();
+        curated.release.curated.insert(platform, record);
+        assert_eq!(cost(&signed_in, &curated, true).await, (3, 0));
+        assert_eq!(cost(&anonymous, &curated, true).await, (3, 0));
         // Saved package choices budget the full path under the current credential.
         let saved = signed_in.forecast_saved_variant_request_cost(false);
         assert_eq!(

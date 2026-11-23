@@ -50,7 +50,7 @@ impl RequestCredential {
         matches!(self, Self::Authenticated(_))
     }
 
-    fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Anonymous => "anonymous",
             Self::Authenticated(_) => "authenticated",
@@ -195,17 +195,37 @@ impl GithubRequestBudget {
     /// Refuse a request locally when GitHub already reported the credential's
     /// allowance exhausted or asked the client to wait. Nothing is sent, and the
     /// refusal is a rate-limit failure, never an answer about the resource.
-    pub(crate) fn admit(&self, credential: RequestCredential, conditional: bool) -> Result<()> {
-        self.admit_at(credential, conditional, unix_now())
+    ///
+    /// An admitted request that is expected to count reserves one request until
+    /// GitHub answers. Dropping the returned reservation without settling it (a
+    /// transport failure, a deadline or a cancellation before any answer) returns
+    /// the request to the allowance, so an unanswered request cannot shrink it.
+    pub(crate) fn admit(
+        &self,
+        credential: RequestCredential,
+        conditional: bool,
+    ) -> Result<Reservation> {
+        let reserved = self.admit_at(credential, conditional, unix_now())?;
+        Ok(Reservation {
+            budget: self.clone(),
+            credential,
+            reserved,
+        })
     }
 
-    fn admit_at(&self, credential: RequestCredential, conditional: bool, now: u64) -> Result<()> {
+    /// Admits or refuses; returns the window of a reserved request, if any.
+    fn admit_at(
+        &self,
+        credential: RequestCredential,
+        conditional: bool,
+        now: u64,
+    ) -> Result<Option<u64>> {
         let mut allowances = self
             .0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(allowance) = allowances.get_mut(&credential) else {
-            return Ok(());
+            return Ok(None);
         };
         if let Some(until) = allowance.blocked_until {
             if until > now {
@@ -224,10 +244,11 @@ impl GithubRequestBudget {
             Some(remaining) => {
                 if expected_to_count(credential, conditional) {
                     allowance.remaining = Some(remaining - 1);
+                    return Ok(allowance.reset);
                 }
-                Ok(())
+                Ok(None)
             }
-            None => Ok(()),
+            None => Ok(None),
         }
     }
 
@@ -319,11 +340,53 @@ impl GithubRequestBudget {
                 blocked_until: allowance.blocked_until,
             })
     }
+
+    /// Return a reservation that never reached GitHub, if its window is current.
+    fn release(&self, credential: RequestCredential, window: u64) {
+        let mut allowances = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(allowance) = allowances.get_mut(&credential)
+            && allowance.reset == Some(window)
+            && let Some(remaining) = allowance.remaining
+        {
+            let restored = remaining.saturating_add(1);
+            allowance.remaining = Some(
+                allowance
+                    .limit
+                    .map_or(restored, |limit| restored.min(limit)),
+            );
+        }
+    }
+}
+
+/// One admitted request's reservation; see [`GithubRequestBudget::admit`].
+#[must_use]
+pub(crate) struct Reservation {
+    budget: GithubRequestBudget,
+    credential: RequestCredential,
+    reserved: Option<u64>,
+}
+
+impl Reservation {
+    /// GitHub answered: its headers, not the reservation, now describe the allowance.
+    pub(crate) fn settle(mut self) {
+        self.reserved = None;
+    }
+}
+
+impl Drop for Reservation {
+    fn drop(&mut self) {
+        if let Some(window) = self.reserved.take() {
+            self.budget.release(self.credential, window);
+        }
+    }
 }
 
 fn exhausted(credential: RequestCredential, resets_at: u64) -> PortcoveError {
     PortcoveError::network(
-        "GitHub already reported this client's request allowance used up, so Portcove did not send the request.",
+        "GitHub reported this client's request allowance used up, or asked it to wait, so Portcove did not send the request.",
     )
     .with_known_cause(KnownFailureCause::ProviderAllowanceExhausted {
         provider: FailureProvider::Github,
@@ -545,6 +608,16 @@ mod tests {
         assert_eq!(refused.details["rate_limit_credential"], "anonymous");
         assert_eq!(refused.details["rate_reset"], (now + 600).to_string());
         assert!(crate::failure::is_rate_limited(&refused));
+        // Never an answer about the resource: it cannot trigger preserved-location
+        // failover, which acts only on an unavailable resource.
+        assert!(matches!(
+            refused.upstream_failure(),
+            crate::failure::UpstreamFailure::Forbidden
+        ));
+        assert_eq!(
+            refused.presentation().presentation_key,
+            "provider_rate_limited"
+        );
         // The authenticated allowance is separate and unaffected.
         budget.admit_at(token, true, now).unwrap();
         budget.observe_at(token, StatusCode::NOT_MODIFIED, &rate(1, now + 600), now);
@@ -560,6 +633,24 @@ mod tests {
         // After the reported reset the allowance is unknown again and admits.
         budget.admit_at(anonymous, true, now + 600).unwrap();
         assert_eq!(budget.snapshot(anonymous).unwrap().remaining, None);
+    }
+
+    #[test]
+    fn an_unanswered_reservation_returns_to_the_allowance() {
+        let budget = GithubRequestBudget::default();
+        let anonymous = RequestCredential::Anonymous;
+        let reset = unix_now() + 3_600;
+        budget.observe_at(anonymous, StatusCode::OK, &rate(1, reset), unix_now());
+        // A request that never reached GitHub (dropped reservation) costs nothing.
+        drop(budget.admit(anonymous, true).unwrap());
+        assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(1));
+        // An answered one is settled; its headers describe the allowance.
+        budget.admit(anonymous, true).unwrap().settle();
+        assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(0));
+        assert!(budget.admit(anonymous, true).is_err());
+        // A reservation from an older window is not returned into a new one.
+        budget.release(anonymous, reset - 1);
+        assert_eq!(budget.snapshot(anonymous).unwrap().remaining, Some(0));
     }
 
     #[test]

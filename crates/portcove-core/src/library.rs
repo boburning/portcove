@@ -1947,6 +1947,43 @@ impl Library {
         rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
     }
 
+    /// When each port's update check was last attempted and finished with anything
+    /// but a provider rate limit, from the retained activity history. A rate-limited
+    /// attempt learned nothing, so it does not move the game back in the order.
+    pub(crate) fn update_check_attempted_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT target_id, started_at, failure_json FROM activity_history
+             WHERE operation='check_update' AND status != 'running' AND target_id IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?;
+        let mut attempted = HashMap::<String, i64>::new();
+        for row in rows {
+            let (port_id, started_at, failure) = row?;
+            let rate_limited = failure
+                .as_deref()
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                .is_some_and(|failure| {
+                    failure
+                        .get("presentation")
+                        .and_then(|presentation| presentation.get("presentation_key"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some("provider_rate_limited")
+                });
+            if !rate_limited {
+                let latest = attempted.entry(port_id).or_insert(started_at);
+                *latest = (*latest).max(started_at);
+            }
+        }
+        Ok(attempted)
+    }
+
     pub fn update_snapshot(&self, port_id: &str) -> Result<Option<UpdateSnapshot>> {
         let connection = self.connection()?;
         let stored: Option<(String, i64)> = connection

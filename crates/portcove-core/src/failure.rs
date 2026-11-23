@@ -266,7 +266,6 @@ pub(crate) enum KnownFailureCause {
 
 /// Whether a failure means a provider allowance or throttle stopped the request,
 /// as opposed to an answer about the requested resource.
-#[cfg(test)]
 pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
     matches!(
         error.known_cause(),
@@ -277,6 +276,23 @@ pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
             } | KnownFailureCause::ProviderAllowanceExhausted { .. }
         )
     )
+}
+
+/// The release provider whose allowance or throttle stopped this request.
+pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::ReleaseSource> {
+    let provider = match error.known_cause()? {
+        KnownFailureCause::ProviderRequest {
+            provider,
+            rate_limited: true,
+            ..
+        }
+        | KnownFailureCause::ProviderAllowanceExhausted { provider, .. } => *provider,
+        _ => return None,
+    };
+    Some(match provider {
+        FailureProvider::Github => crate::ReleaseSource::Github,
+        FailureProvider::Gitlab => crate::ReleaseSource::Gitlab,
+    })
 }
 
 /// The failure of an item that was not sent because `cause` already stopped the

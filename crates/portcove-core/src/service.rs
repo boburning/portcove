@@ -138,22 +138,34 @@ enum UpdateCheckAllowance {
     Other(ReleaseSource),
 }
 
-/// Games whose checks draw from the same allowance; one exhausted allowance defers
-/// only the games that share it.
+/// One provider allowance: the provider and, where it distinguishes them, the
+/// credential (`anonymous` or `authenticated`). An exhausted allowance defers only
+/// the games whose own checks draw from it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum UpdateCheckAllowanceKey {
-    GithubOrdinary,
-    GithubScoped,
-    Other(ReleaseSource),
+struct UpdateCheckAllowanceKey {
+    provider: ReleaseSource,
+    credential: Option<&'static str>,
 }
 
-impl UpdateCheckAllowance {
-    fn key(&self) -> UpdateCheckAllowanceKey {
-        match self {
-            Self::GithubOrdinary(_) => UpdateCheckAllowanceKey::GithubOrdinary,
-            Self::GithubScoped => UpdateCheckAllowanceKey::GithubScoped,
-            Self::Other(provider) => UpdateCheckAllowanceKey::Other(*provider),
-        }
+impl UpdateCheckAllowanceKey {
+    /// The allowance a rate-limit failure names: its provider, and the credential
+    /// GitHub failures record. A runtime lookup inside one game's check can hit a
+    /// different allowance from the game's own; this keys on the one that failed.
+    fn of_failure(error: &PortcoveError) -> Option<Self> {
+        let provider = crate::failure::rate_limited_provider(error)?;
+        let credential = match error
+            .details
+            .get("rate_limit_credential")
+            .map(String::as_str)
+        {
+            Some("anonymous") => Some("anonymous"),
+            Some("authenticated") => Some("authenticated"),
+            _ => None,
+        };
+        Some(Self {
+            provider,
+            credential,
+        })
     }
 }
 
@@ -3593,6 +3605,13 @@ impl PortcoveService {
                         let ordinary = self
                             .resolve_release(port, status.channel, Platform::current()?)
                             .await;
+                        // A rate-limited lookup is unknown, never "no newer release":
+                        // the check is not recorded and stays first for the next one.
+                        if let Err(error) = &ordinary
+                            && crate::failure::is_rate_limited(error)
+                        {
+                            return Err(ordinary.err().expect("checked above"));
+                        }
                         Ok(ordinary
                             .ok()
                             .filter(|latest| latest.release.version != release.release.version)
@@ -3640,16 +3659,30 @@ impl PortcoveService {
             .map(|port_id| {
                 let status = statuses.get(&port_id).cloned();
                 let allowance = self.update_check_allowance(&port_id);
-                (port_id, status, allowance)
+                let key = allowance
+                    .as_ref()
+                    .and_then(|allowance| self.update_check_allowance_key(&port_id, allowance));
+                (port_id, status, allowance, key)
             })
             .collect::<Vec<_>>();
-        // Read the raw durable times: a status may hide a snapshot that no longer
-        // describes its current channel, but that game was still checked then.
+        // Read raw durable times: a status may hide a snapshot that no longer
+        // describes its current channel, but that game was still checked then. A
+        // check that failed for another reason also counts as an attempt, so games
+        // that always fail cannot take every window from the rest; a rate-limited
+        // or deferred check does not, so it stays first.
         let checked_at = self.library.update_checked_at()?;
+        let attempted_at = self.library.update_check_attempted_at()?;
         let mut order = (0..jobs.len()).collect::<Vec<_>>();
-        order.sort_by_key(|&index| (checked_at.get(&jobs[index].0).copied(), index));
+        order.sort_by_key(|&index| {
+            let port_id = &jobs[index].0;
+            let latest = checked_at
+                .get(port_id)
+                .copied()
+                .max(attempted_at.get(port_id).copied());
+            (latest, index)
+        });
         let mut repository_games = std::collections::HashMap::<String, usize>::new();
-        for (_, _, allowance) in &jobs {
+        for (_, _, allowance, _) in &jobs {
             if let Some(UpdateCheckAllowance::GithubOrdinary(repository)) = allowance {
                 *repository_games
                     .entry(repository.to_ascii_lowercase())
@@ -3672,8 +3705,7 @@ impl PortcoveService {
             .scope(
                 stream::iter(order)
                     .map(|index| async move {
-                        let (port_id, status, allowance) = &jobs[index];
-                        let key = allowance.as_ref().map(UpdateCheckAllowance::key);
+                        let (port_id, status, _, key) = &jobs[index];
                         let deferred = key.as_ref().and_then(|key| {
                             exhausted
                                 .lock()
@@ -3686,7 +3718,8 @@ impl PortcoveService {
                             None => {
                                 let result =
                                     self.check_update_with_status(port_id, status.clone()).await;
-                                if let (Err(error), Some(key)) = (&result, key)
+                                if let Err(error) = &result
+                                    && let Some(key) = UpdateCheckAllowanceKey::of_failure(error)
                                     && let Some(deferral) = crate::failure::deferred_after(error)
                                 {
                                     exhausted
@@ -3734,6 +3767,30 @@ impl PortcoveService {
         })
     }
 
+    /// The allowance key of one game's own check; see `UpdateCheckAllowanceKey`.
+    fn update_check_allowance_key(
+        &self,
+        port_id: &str,
+        allowance: &UpdateCheckAllowance,
+    ) -> Option<UpdateCheckAllowanceKey> {
+        Some(match allowance {
+            UpdateCheckAllowance::GithubScoped => UpdateCheckAllowanceKey {
+                provider: ReleaseSource::Github,
+                credential: Some("anonymous"),
+            },
+            UpdateCheckAllowance::GithubOrdinary(_) => UpdateCheckAllowanceKey {
+                provider: ReleaseSource::Github,
+                credential: self
+                    .releases
+                    .ordinary_allowance(self.catalog.port(port_id).ok()?),
+            },
+            UpdateCheckAllowance::Other(provider) => UpdateCheckAllowanceKey {
+                provider: *provider,
+                credential: None,
+            },
+        })
+    }
+
     /// The expected provider cost of checking these games, from local state only (no
     /// network). A caller can compare it with the allowance it knows is left and offer
     /// sign-in before a check that would not fit; see `UpdateCheckForecast`. Counts
@@ -3772,32 +3829,47 @@ impl PortcoveService {
                 self.update_check_allowance(&port.id),
                 Some(UpdateCheckAllowance::GithubScoped)
             );
-            let mut cost = crate::RequestCostForecast::default();
+            let github = port.release.provider == ReleaseSource::Github;
+            let mut separate = crate::RequestCostForecast::default();
+            let mut add_separate = |cost: crate::RequestCostForecast| {
+                separate.counted_requests = separate
+                    .counted_requests
+                    .saturating_add(cost.counted_requests);
+                separate.sign_in_relief_requests = separate
+                    .sign_in_relief_requests
+                    .saturating_add(cost.sign_in_relief_requests);
+            };
             // The individual check reports an invalid retained manifest. That
             // failure should not prevent estimating other games in the batch.
-            if status.exact_release.is_some()
-                && !scoped
-                && port.release.provider == ReleaseSource::Github
-            {
-                cost = self.releases.forecast_explicit_variant_request_cost();
+            if status.exact_release.is_some() && !scoped && github {
+                add_separate(self.releases.forecast_explicit_variant_request_cost());
             }
-            let base = match Self::saved_package_variant(port, status.channel, platform, &status) {
-                Ok(Some(variant)) if variant.explicit_id().is_some() && !scoped => {
-                    self.releases.forecast_explicit_variant_request_cost()
+            // Saved and explicit package choices read game-specific tag and asset
+            // pages, so they are counted per game; only the ordinary path (the
+            // repository document and its release pages) is shared by repository.
+            let mut ordinary = None;
+            match Self::saved_package_variant(port, status.channel, platform, &status) {
+                Ok(Some(variant)) if github && variant.explicit_id().is_some() && !scoped => {
+                    add_separate(self.releases.forecast_explicit_variant_request_cost());
                 }
-                Ok(Some(_)) => self.releases.forecast_saved_variant_request_cost(scoped),
+                Ok(Some(_)) if github => {
+                    add_separate(self.releases.forecast_saved_variant_request_cost(scoped));
+                }
                 _ => {
-                    self.releases
+                    let cost = self
+                        .releases
                         .forecast_request_cost(port, platform, scoped)
-                        .await?
+                        .await?;
+                    if github && !scoped {
+                        ordinary = Some(cost);
+                    } else {
+                        add_separate(cost);
+                    }
                 }
-            };
-            cost.counted_requests = cost.counted_requests.saturating_add(base.counted_requests);
-            cost.sign_in_relief_requests = cost
-                .sign_in_relief_requests
-                .saturating_add(base.sign_in_relief_requests);
+            }
             forecast.games = forecast.games.saturating_add(1);
-            if port.release.provider == ReleaseSource::Github && !scoped {
+            add(&mut forecast, separate);
+            if let Some(cost) = ordinary {
                 let shared = shared_repositories
                     .entry(port.release.repository.to_ascii_lowercase())
                     .or_default();
@@ -3805,8 +3877,6 @@ impl PortcoveService {
                 shared.sign_in_relief_requests = shared
                     .sign_in_relief_requests
                     .max(cost.sign_in_relief_requests);
-            } else {
-                add(&mut forecast, cost);
             }
         }
         for cost in shared_repositories.into_values() {
@@ -10114,6 +10184,8 @@ mod tests {
     struct ExhaustibleReleaseProvider {
         allowance: AtomicUsize,
         calls: Mutex<Vec<String>>,
+        /// A game whose check always fails with an ordinary (not rate-limit) error.
+        broken: Option<String>,
     }
 
     #[async_trait::async_trait]
@@ -10129,12 +10201,15 @@ mod tests {
                 let mut calls = self.calls.lock().unwrap();
                 calls.push(port.id.clone());
                 self.allowance
-                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                    .try_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
                         left.checked_sub(1)
                     })
                     .is_ok()
             };
             tokio::task::yield_now().await;
+            if self.broken.as_deref() == Some(port.id.as_str()) {
+                return Err(PortcoveError::network("the fixture repository is gone"));
+            }
             if !admitted {
                 return Err(PortcoveError::network("GitHub API returned 403 Forbidden")
                     .with_known_cause(crate::failure::KnownFailureCause::ProviderRequest {
@@ -10169,6 +10244,7 @@ mod tests {
         let provider = Arc::new(ExhaustibleReleaseProvider {
             allowance: AtomicUsize::new(usize::MAX),
             calls: Mutex::new(Vec::new()),
+            broken: None,
         });
         // Use games whose check asks the provider about that game alone: a runtime
         // family game also resolves its shared runtime, which would spend allowance
@@ -10239,6 +10315,15 @@ mod tests {
         assert!(first_calls <= 5 + 1 + 3, "{first_calls} provider calls");
         assert_eq!(deferred, 12 - first_calls);
         assert!(deferred >= 3);
+        // A rate-limited or deferred check learned nothing: it is not an attempt.
+        let attempted = library.update_check_attempted_at().unwrap();
+        assert!(
+            outcomes
+                .iter()
+                .filter(|(_, result)| result.is_err())
+                .all(|(port_id, _)| !attempted.contains_key(port_id)),
+            "{attempted:?}"
+        );
 
         // A restart keeps the durable order: reopen the library and service.
         drop(service);
@@ -10280,6 +10365,43 @@ mod tests {
         ever_checked.sort();
         ever_checked.dedup();
         assert_eq!(ever_checked.len(), 12);
+    }
+
+    #[tokio::test]
+    async fn a_game_that_always_fails_does_not_take_every_window() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let mut ports = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.release.provider == ReleaseSource::Github)
+            .map(|port| port.id.clone());
+        let (broken, fresh) = (ports.next().unwrap(), ports.next().unwrap());
+        let provider = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(usize::MAX),
+            calls: Mutex::new(Vec::new()),
+            broken: Some(broken.clone()),
+        });
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let first = service.check_updates([broken.clone()]).await.unwrap();
+        assert!(first[0].1.is_err());
+        assert!(library.update_checked_at().unwrap().get(&broken).is_none());
+        assert!(
+            library
+                .update_check_attempted_at()
+                .unwrap()
+                .contains_key(&broken)
+        );
+        // The failed attempt is durable, so a never-attempted game goes first even
+        // though the caller lists the failing game first.
+        provider.calls.lock().unwrap().clear();
+        let second = service
+            .check_updates([broken.clone(), fresh.clone()])
+            .await
+            .unwrap();
+        assert_eq!(second[0].0, broken, "results keep the caller's order");
+        assert_eq!(provider.calls.lock().unwrap().first(), Some(&fresh));
     }
 
     fn backup_authorization(

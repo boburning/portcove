@@ -3496,8 +3496,12 @@ budget and bulk checks:
   upstream costs one more counted request each. Release pages beyond the first count when
   an earlier check persisted them. `sign_in_relief_requests` is the part signing in would
   move to the larger allowance: the anonymous ordinary reads, and none once signed in.
-  Games sharing one repository are counted once (at the costliest of them), because a bulk
-  check shares that repository's reads. It is an estimate, not a reservation.
+  The ordinary reads of games sharing one repository are counted once (at the costliest of
+  them), because a bulk check shares them; saved or explicit package choices read
+  game-specific tag and asset pages and are counted per game. It is an estimate, not a
+  reservation. The provider desktop and CLI use (`CompositeReleaseProvider`) forwards these
+  forecasts to its GitHub provider; before November 2026 it reported nothing for ordinary
+  and saved-choice GitHub games.
 - **Running budget.** Each provider (shared by clones, so one per desktop process) keeps,
   per credential (anonymous, or an in-memory fingerprint of the token), what GitHub last
   reported in `x-ratelimit-limit`, `-remaining`, `-used`, `-reset` and `-resource` (only
@@ -3505,9 +3509,10 @@ budget and bulk checks:
   exhausted allowance or `retry-after`) blocks that credential until `retry-after` (at most
   an hour), the reported reset, or a default minute. While blocked, or once the allowance
   is known to be spent, Core refuses further requests of that credential locally with a
-  `provider_rate_limited` failure and sends nothing; it reserves one request per sent
-  anonymous or unconditional request until the next answer corrects the count. Answers
-  from an older window cannot raise what is left. The budget is memory only; after a
+  `provider_rate_limited` failure and sends nothing. Each sent anonymous or unconditional
+  request reserves one request; GitHub's answer then describes the allowance, and a
+  request that never got an answer (a transport failure, deadline or cancellation) returns
+  its reservation. Answers from an older window cannot raise what is left. The budget is memory only; after a
   restart GitHub's next answer re-establishes it.
 - **Managed scoped acquisition** keeps its trust contract: unconditional, unauthenticated,
   never reading or writing the conditional cache, and never sharing observations. It draws
@@ -3550,10 +3555,13 @@ in, a cold check fits the much larger signed-in allowance and a warm one is free
 resources changed.
 
 Bulk checks retain and resume work fairly. `check_updates` starts with the game whose
-durable last check (`update_snapshots.checked_at` in the library database) is oldest,
-never-checked games first, and returns results in the caller's order. Once a check fails
-with a rate limit, games not yet started that draw from the same allowance (ordinary
-GitHub, scoped GitHub, or another provider) are not sent: each returns a
+latest durable check or attempt is oldest, never-attempted games first, and returns
+results in the caller's order. A check counts from its successful snapshot
+(`update_snapshots.checked_at`) or from a finished check activity in the retained activity
+history that failed for any reason but a provider rate limit, so games that always fail
+cannot take every window. Once a check fails with a rate limit, games not yet started whose
+own checks draw from the allowance that failed (the provider, and for GitHub the anonymous
+or signed-in credential the failure records) are not sent: each returns a
 `provider_rate_limited` failure with `update_check_deferred`, keeps its earlier snapshot
 and stays unknown, never "checked" or "up to date". The next bulk check after the reset
 starts with them, so a large library completes across allowance windows instead of
