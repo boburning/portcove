@@ -15,6 +15,11 @@ import {
   resolveExternalHint,
 } from "./discovery-leads.mts";
 import {
+  parseDecompFunProjects,
+  parseOsgcGames,
+  parsePortMasterIndex,
+  parseUnbakedAdditions,
+  externalListIds,
   externalHintSummary,
   externalListDue,
   leadPaths,
@@ -33,6 +38,21 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "nod
 import type { RoadmapConfig } from "./roadmap.mts";
 import path from "node:path";
 import os from "node:os";
+/** Lists added after a test was written are attempted, so it keeps exercising its own lists. */
+const newerLists = ["decomp-fun", "unbaked-additions", "portmaster", "osgc"];
+function withNewListsAttempted<T extends { external?: ExternalLeadState }>(
+  leads: T,
+  at: string,
+): T {
+  leads.external ??= { lists: {}, hints: {} };
+  leads.external.attempts = {
+    ...leads.external.attempts,
+    ...Object.fromEntries(
+      newerLists.map((id) => [id, { attempted_at: at, outcome: "partial" as const }]),
+    ),
+  };
+  return leads;
+}
 const now = "2026-10-23T12:56:46.011Z";
 const item = (id: number, full_name = `ports/game-${id}`) => ({
   id,
@@ -1100,7 +1120,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     inventory: { issues: [] },
     intakeRecords: [],
     journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
-    leads: parseLeadState(undefined),
+    leads: withNewListsAttempted(parseLeadState(undefined), now),
     budget,
     leadPages: 0,
     searches: 0,
@@ -1230,6 +1250,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   portsdrFails = false;
   const hints = structuredClone(session.leads.external?.hints);
   const findsClock = structuredClone(session.leads.external?.lists["decomp-buddy-finds"]);
+  withNewListsAttempted(session.leads, "2026-10-26T12:56:46.011Z");
   await rerun("2026-10-26T12:56:46.011Z", 150);
   assert.deepEqual(
     fetched.slice(4).map((u) => new URL(u).hostname),
@@ -1260,7 +1281,7 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
       now,
       "finds.json",
     );
-    for (const list of ["portsdr", "alexbeav-psx", "recompsoftware"])
+    for (const list of externalListIds.filter((id) => id !== "decomp-buddy-finds"))
       leads.external.attempts![list] = { attempted_at: now, outcome: "partial" };
     leads = parseLeadState(JSON.parse(JSON.stringify(leads)));
     const reads: string[] = [];
@@ -1374,4 +1395,189 @@ void test("a list read ended by the run deadline or cancellation stays due witho
       assert.deepEqual(attempts, {}, `${code} must not back off any list`);
     }
   }
+});
+
+void test("new structured sources yield repository hints and apply their own scope", () => {
+  const decomp = parseDecompFunProjects(
+    JSON.stringify({
+      projects: [
+        { repository: "https://github.com/one/ty-decomp", game_title: "Ty the Tasmanian Tiger" },
+        { name: "No repository" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    decomp.entries.map((e) => [e.url, e.title]),
+    [["https://github.com/one/ty-decomp", "Ty the Tasmanian Tiger"]],
+  );
+  assert.equal(decomp.unlinked, 1);
+
+  const unbaked = parseUnbakedAdditions(
+    JSON.stringify({
+      weeks: [
+        {
+          games: [
+            {
+              title: "Frontier: First Encounters",
+              projects: [
+                { url: "https://github.com/louisvarley/ffers", name: "ffe-rs" },
+                { url: "https://sourceforge.net/projects/other", name: "other" },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    unbaked.entries.map((e) => e.key),
+    ["https://github.com/louisvarley/ffers"],
+  );
+  assert.equal(unbaked.unlinked, 1, "a host Portcove cannot resolve stays an unlinked hint");
+
+  const portmaster = parsePortMasterIndex(
+    JSON.stringify({
+      ports: {
+        "a.zip": {
+          attr: {
+            title: "Engine Port",
+            desc: "Built from https://github.com/upstream/engine and https://github.com/PortsMaster/PortMaster-New",
+          },
+        },
+        "b.zip": { attr: { title: "Paid game", desc: "Buy it on Steam." } },
+      },
+    }),
+  );
+  assert.deepEqual(
+    portmaster.entries.map((e) => e.key),
+    ["https://github.com/upstream/engine"],
+    "PortMaster's own repositories are not upstreams",
+  );
+  assert.equal(portmaster.unlinked, 1);
+
+  const yaml = [
+    "- name: Remake One",
+    "  originals: [Original Game]",
+    "  type: remake",
+    "  repo: 'https://github.com/remake/one'",
+    "- name: Clone Two",
+    "  originals: [Original Game]",
+    "  type: clone",
+    "  repo: 'https://github.com/clone/two'",
+    "- name: A Tool",
+    "  originals: [Original Game]",
+    "  type: tool",
+    "  repo: 'https://github.com/tool/three'",
+    "- name: Official Four",
+    "  originals: [Another Game]",
+    "  type: official",
+  ].join("\n");
+  const osgc = parseOsgcGames(JSON.stringify({ files: { "a.yaml": yaml } }));
+  assert.deepEqual(
+    osgc.entries.map((e) => [e.key, e.title]),
+    [["https://github.com/remake/one", "Original Game"]],
+  );
+  assert.equal(osgc.excluded, 2, "clones and tools are out of native-port scope");
+  assert.equal(osgc.unlinked, 1);
+  assert.throws(
+    () => parseOsgcGames(JSON.stringify({ files: { "b.yaml": "- &x {type: remake}\n- *x" } })),
+    /Malformed Open Source Game Clones YAML/u,
+    "aliases are refused",
+  );
+  assert.throws(
+    () => parseOsgcGames(JSON.stringify({ files: { "../x.yaml": "[]" } })),
+    /Malformed/u,
+  );
+});
+
+void test("a directory source pins its repository identity on the first complete read", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-osgc-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = {
+    lists: {},
+    hints: {},
+    attempts: Object.fromEntries(
+      externalListIds
+        .filter((id) => id !== "osgc")
+        .map((id) => [id, { attempted_at: now, outcome: "partial" as const }]),
+    ),
+  };
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  let repositoryId = 72310;
+  const revision = "c".repeat(40);
+  const source = {
+    budget,
+    http: {
+      request: async (_method: string, url: string) => {
+        budget.charge("GET", url, 1, 100, "200");
+        assert.equal(
+          url,
+          `https://raw.githubusercontent.com/opengaming/osgameclones/${revision}/games/a.yaml`,
+        );
+        return {
+          requests: 1,
+          bytes: 1,
+          status: 200,
+          headers: {},
+          text: "- name: Remake One\n  originals: [Original Game]\n  type: remake\n  repo: 'https://github.com/remake/one'\n",
+        };
+      },
+    },
+    sdk: await fixtureGitHub(({ endpoint }) => {
+      budget.charge("GET", endpoint, 1, 100, "200");
+      if (endpoint === "repos/opengaming/osgameclones")
+        return { id: repositoryId, full_name: "opengaming/osgameclones", default_branch: "master" };
+      if (endpoint === "repos/opengaming/osgameclones/git/ref/heads/master")
+        return { object: { sha: revision } };
+      if (endpoint === `repos/opengaming/osgameclones/contents/games?ref=${revision}`)
+        return [
+          { type: "file", name: "a.yaml" },
+          { type: "file", name: "README.md" },
+          { type: "dir", name: "nested" },
+        ];
+      // Primary repository metadata for the resolved hint.
+      return {
+        id: 9,
+        full_name: "remake/one",
+        html_url: "https://github.com/remake/one",
+        description: "",
+      };
+    }),
+  };
+  Object.defineProperty(session, "source", { configurable: true, value: source });
+  await session.collectExternalLists();
+  const clock = session.leads.external?.lists.osgc;
+  assert.equal(clock?.entries, 1);
+  assert.equal(clock?.source?.repository_id, 72310, "the first complete read pins the repository");
+  assert.equal(clock?.source?.revision, revision);
+  assert.ok(session.leads.external?.hints["https://github.com/remake/one"]);
+
+  // The same path later names a different repository: refused, the list keeps its last good read.
+  repositoryId = 99999;
+  session.externalCollectionAttempted = false;
+  Object.assign(session, {
+    journal: { ...session.journal, started_at: "2026-11-01T00:00:00.000Z", notes: [] },
+  });
+  await session.collectExternalLists();
+  assert.equal(session.leads.external?.lists.osgc?.source?.repository_id, 72310);
+  assert.equal(session.leads.external?.attempts?.osgc?.outcome, "partial");
 });

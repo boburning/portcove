@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { parse as parseYaml } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 
@@ -27,6 +28,37 @@ export const externalLeadLists = [
     repository_id: 1418451069,
     revision_path: "data/projects/games.json",
     reviewed_revision: "e981757f31fdb58b85e546069cf303daac56cc61",
+  },
+  // decomp.fun's hourly index of matching decompilation projects.
+  {
+    id: "decomp-fun",
+    url: "https://decomp.fun/v1/projects.json",
+    format: "decomp-fun-json",
+    cap: 8 * 1024 * 1024,
+  },
+  // unbaked's weekly additions: every project the registry gained, newest week first.
+  {
+    id: "unbaked-additions",
+    url: "https://unbaked.games/api/additions.json",
+    format: "unbaked-additions-json",
+    cap: 8 * 1024 * 1024,
+  },
+  // PortMaster's package index names upstream projects only in its prose; those
+  // links are read as hints. Its handheld ARM packages say nothing about desktop builds.
+  {
+    id: "portmaster",
+    url: "https://github.com/PortsMaster/PortMaster-New/releases/latest/download/ports.json",
+    format: "portmaster-json",
+    cap: 8 * 1024 * 1024,
+  },
+  // Open Source Game Clones: one YAML file per letter under games/ at an exact
+  // revision. The repository identity is pinned on its first complete read.
+  {
+    id: "osgc",
+    format: "osgc-yaml",
+    cap: 8 * 1024 * 1024,
+    revision_repository: "opengaming/osgameclones",
+    revision_directory: "games",
   },
 ] as const;
 export type ExternalLeadListId = (typeof externalLeadLists)[number]["id"];
@@ -65,7 +97,9 @@ export interface ParsedExternalList {
   entries: ExternalListEntry[];
   /** Entries without a usable repository link: name-only hints that are not invented mappings. */
   unlinked: number;
-  source?: { url: string; revision: string; content_sha256: string };
+  /** Entries the list itself classifies outside native-port scope (clones, similar games, tools). */
+  excluded?: number;
+  source?: { url: string; revision: string; content_sha256: string; repository_id?: number };
 }
 export interface ExternalListClock {
   completed_at: string;
@@ -349,10 +383,139 @@ export function bindExternalListSource(
   };
 }
 
+const json = (text: string, label: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Never copy list bytes into notes through the parser's diagnostic.
+    throw new Error(`Malformed ${label} JSON`);
+  }
+};
+
+/** decomp.fun `projects.json`: `{ projects: [{ repository, game_title, name }] }`. */
+export function parseDecompFunProjects(text: string): ParsedExternalList {
+  bounded(text, 8 * 1024 * 1024, "decomp.fun index");
+  const value = json(text, "decomp.fun index");
+  if (!isRecord(value) || !Array.isArray(value.projects))
+    throw new Error("Unsupported decomp.fun index shape");
+  let unlinked = 0;
+  const rows: { url: string; title: string }[] = [];
+  for (const project of value.projects) {
+    if (!isRecord(project)) throw new Error("Malformed decomp.fun project");
+    const title = inert(project.game_title) || inert(project.name);
+    if (typeof project.repository === "string") rows.push({ url: project.repository, title });
+    else unlinked++;
+  }
+  return collect(rows, unlinked);
+}
+
+/** unbaked `additions.json`: `{ weeks: [{ games: [{ title, projects: [{ url, name }] }] }] }`. */
+export function parseUnbakedAdditions(text: string): ParsedExternalList {
+  bounded(text, 8 * 1024 * 1024, "unbaked additions");
+  const value = json(text, "unbaked additions");
+  if (!isRecord(value) || !Array.isArray(value.weeks))
+    throw new Error("Unsupported unbaked additions shape");
+  let unlinked = 0;
+  const rows: { url: string; title: string }[] = [];
+  for (const week of value.weeks) {
+    if (!isRecord(week) || !Array.isArray(week.games)) throw new Error("Malformed unbaked week");
+    for (const game of week.games) {
+      if (!isRecord(game) || !Array.isArray(game.projects))
+        throw new Error("Malformed unbaked game");
+      for (const project of game.projects) {
+        if (!isRecord(project)) throw new Error("Malformed unbaked project");
+        if (typeof project.url === "string")
+          rows.push({ url: project.url, title: inert(game.title) });
+        else unlinked++;
+      }
+    }
+  }
+  return collect(rows, unlinked);
+}
+
+// Repository links in prose: GitHub, GitLab and Codeberg project paths only.
+const proseLink =
+  /https?:\/\/(?:github\.com|gitlab\.com|codeberg\.org)\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+){1,4}/gu;
+
+/**
+ * PortMaster `ports.json`: `{ ports: { name: { attr: { title, desc, inst, ... } } } }`.
+ * The index has no upstream field, so only repository links its own text names
+ * are hints; links to PortMaster's own repositories are not upstreams.
+ */
+export function parsePortMasterIndex(text: string): ParsedExternalList {
+  bounded(text, 8 * 1024 * 1024, "PortMaster index");
+  const value = json(text, "PortMaster index");
+  if (!isRecord(value) || !isRecord(value.ports))
+    throw new Error("Unsupported PortMaster index shape");
+  let unlinked = 0;
+  const rows: { url: string; title: string }[] = [];
+  for (const port of Object.values(value.ports)) {
+    if (!isRecord(port) || !isRecord(port.attr)) throw new Error("Malformed PortMaster entry");
+    const attr = port.attr;
+    const prose = [attr.desc, attr.desc_md, attr.inst, attr.inst_md]
+      .filter((field): field is string => typeof field === "string")
+      .join(" ");
+    const links = [...new Set(prose.match(proseLink) ?? [])].filter(
+      (link) => !/\/\/github\.com\/(?:PortsMaster|PortsMaster-MV)\//iu.test(link),
+    );
+    if (!links.length) unlinked++;
+    for (const link of links) rows.push({ url: link, title: inert(attr.title) });
+  }
+  return collect(rows, unlinked);
+}
+
+/** Open Source Game Clones entry types that reimplement or release the original game. */
+const osgcPortTypes = new Set(["remake", "official"]);
+
+/**
+ * Open Source Game Clones `games/*.yaml`, read as `{ files: { name: yamlText } }`.
+ * Only `remake` and `official` entries are native-port leads; clones, similar
+ * games and tools are counted as excluded, never hinted.
+ */
+export function parseOsgcGames(text: string): ParsedExternalList {
+  bounded(text, 32 * 1024 * 1024, "Open Source Game Clones files");
+  const value = json(text, "Open Source Game Clones files");
+  if (!isRecord(value) || !isRecord(value.files) || !Object.keys(value.files).length)
+    throw new Error("Unsupported Open Source Game Clones file set");
+  let unlinked = 0;
+  let excluded = 0;
+  const rows: { url: string; title: string }[] = [];
+  for (const [file, body] of Object.entries(value.files)) {
+    if (typeof body !== "string" || !/^[A-Za-z0-9_-]+\.ya?ml$/u.test(file))
+      throw new Error("Malformed Open Source Game Clones file");
+    let games: unknown;
+    try {
+      // Data only: the schema-free core parser builds plain objects, never tags or code.
+      games = parseYaml(body, { schema: "core", maxAliasCount: 0 });
+    } catch {
+      throw new Error("Malformed Open Source Game Clones YAML");
+    }
+    if (games === null) continue;
+    if (!Array.isArray(games)) throw new Error("Unsupported Open Source Game Clones shape");
+    for (const game of games) {
+      if (!isRecord(game) || typeof game.type !== "string")
+        throw new Error("Malformed Open Source Game Clones entry");
+      if (!osgcPortTypes.has(game.type)) {
+        excluded++;
+        continue;
+      }
+      const originals = Array.isArray(game.originals) ? game.originals.map(inert).join(", ") : "";
+      if (typeof game.repo === "string")
+        rows.push({ url: game.repo, title: originals || inert(game.name) });
+      else unlinked++;
+    }
+  }
+  return { ...collect(rows, unlinked), excluded };
+}
+
 export function parseExternalList(id: string, text: string): ParsedExternalList {
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   if (!list) throw new Error("Unknown external lead list");
   if (list.format === "recompsoftware-json") return parseRecompSoftwareCatalog(text);
+  if (list.format === "decomp-fun-json") return parseDecompFunProjects(text);
+  if (list.format === "unbaked-additions-json") return parseUnbakedAdditions(text);
+  if (list.format === "portmaster-json") return parsePortMasterIndex(text);
+  if (list.format === "osgc-yaml") return parseOsgcGames(text);
   if (list.format === "finds-json") return parseFindsFeed(text);
   if (list.format === "portsdr-html") return parsePortsdrPage(text);
   return parseAlexbeavCatalog(text);
@@ -392,10 +555,14 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       (!isRecord(raw.source) ||
         typeof raw.source.revision !== "string" ||
         !/^[a-f0-9]{40}$/u.test(raw.source.revision) ||
-        raw.source.url !==
-          `https://raw.githubusercontent.com/andrewnakas/recompsoftware/${raw.source.revision}/data/projects/games.json` ||
+        typeof raw.source.url !== "string" ||
+        !/^https:\/\/(?:raw\.githubusercontent\.com|github\.com)\//u.test(raw.source.url) ||
+        !raw.source.url.includes(`/${raw.source.revision}/`) ||
         typeof raw.source.content_sha256 !== "string" ||
-        !/^[a-f0-9]{64}$/u.test(raw.source.content_sha256))
+        !/^[a-f0-9]{64}$/u.test(raw.source.content_sha256) ||
+        (raw.source.repository_id !== undefined &&
+          (!Number.isSafeInteger(raw.source.repository_id) ||
+            Number(raw.source.repository_id) <= 0)))
     )
       throw new Error("Invalid retained immutable external source");
   }
