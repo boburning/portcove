@@ -441,6 +441,34 @@ pub(crate) const LOADER_INJECTION_PREFIXES: &[&str] = &[
     "VK_",
     "LIBGL_",
     "MESA_LOADER_",
+    // Script runtimes, toolkits, package managers, sanitizers, overlays and
+    // XR/VR loaders that read init code, plug-in or registry locations.
+    "LUA",
+    "WEBVIEW2",
+    "TCL",
+    "TK_",
+    "BASH_",
+    "GEM_",
+    "BUNDLE_",
+    "PIP_",
+    "NPM_",
+    "OPENCL",
+    "LIBDECOR_",
+    "IBM_",
+    "OPENJ9_",
+    "ASAN_",
+    "UBSAN_",
+    "LSAN_",
+    "TSAN_",
+    "MSAN_",
+    "PROCESSOR_",
+    "OBS_",
+    "MANGOHUD",
+    "XR_",
+    "VR_",
+    "CURL_",
+    "LADSPA_",
+    "LV2_",
 ];
 
 /// Exact names outside [`LOADER_INJECTION_PREFIXES`] with the same effect.
@@ -466,6 +494,22 @@ const LOADER_INJECTION_NAMES: &[&str] = &[
     "GSETTINGS_BACKEND",
     "SSLKEYLOGFILE",
     "NO_PROXY",
+    // Windows system locations a process resolves its runtime, shell, temporary
+    // or profile files from.
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "TEMP",
+    "TMP",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "USERPROFILE",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "PUBLIC",
+    "ALLUSERSPROFILE",
 ];
 
 /// The reviewed harmless exception to the `PYTHON` prefix that existing

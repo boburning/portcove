@@ -15,8 +15,9 @@ pub struct ReviewedLaunchContractV1 {
     pub package_format: BTreeMap<Platform, PackageFormat>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub launch: BTreeMap<Platform, LaunchValues>,
-    /// The reviewed title-specific prefix, such as `DKC2_`, that every launch
-    /// environment name outside the small harmless allow-list carries.
+    /// Optional restatement of the environment name prefix derived from the
+    /// port identity (the port ID's uppercase ASCII letters and digits,
+    /// truncated to 32, followed by `_`). Any other value is refused.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment_prefix: Option<String>,
 }
@@ -165,13 +166,17 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             return Err(invalid("invalid or conflicting reviewed package format"));
         }
     }
+    let derived_prefix = derived_environment_prefix(&port.id);
+    if let Some(stated) = &contract.environment_prefix
+        && Some(stated) != derived_prefix.as_ref()
+    {
+        return Err(invalid(
+            "the reviewed environment prefix differs from the one derived from the port ID",
+        ));
+    }
     for (&platform, launch) in &contract.launch {
         let value_safe = |value: &LaunchValue| match value {
-            LaunchValue::Text(text) => {
-                !text.is_empty()
-                    && text.len() <= 4096
-                    && crate::launch_paths::is_contained_launch_text(text)
-            }
+            LaunchValue::Text(text) => crate::launch_paths::is_contract_launch_text(text),
             LaunchValue::Path(path) => {
                 path.path != crate::launch_paths::LaunchPath::Source
                     || port.source_profile.is_some()
@@ -187,7 +192,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             })
             || launch.environment.len() > 32
             || launch.environment.iter().any(|(name, value)| {
-                !contract_environment_name_allowed(name, contract.environment_prefix.as_deref())
+                !contract_environment_name_allowed(name, derived_prefix.as_deref())
                     || port.launch_environment.contains_key(name)
                     || port.source_environment.as_ref() == Some(name)
                     || port.user_data_environment.as_ref() == Some(name)
@@ -290,11 +295,33 @@ const NON_TITLE_PREFIXES: &[&str] = &[
     "COMMON",
 ];
 
+/// The bound on the stem of a derived environment prefix.
+pub(crate) const MAX_PREFIX_STEM: usize = 32;
+
+/// The environment name prefix derived from a port ID: the ID's ASCII letters
+/// and digits, uppercased, in order, truncated to [`MAX_PREFIX_STEM`] and
+/// followed by one `_` (`blacklabelhq-medievilrecomp` becomes
+/// `BLACKLABELHQMEDIEVILRECOMP_`). It is `None`, and the contract may declare
+/// no environment entry except a harmless name, when the derivation is not a
+/// [`valid_environment_prefix`]: a stem shorter than three characters, a stem
+/// starting with a digit, or one that overlaps a reserved runtime, loader or
+/// non-title prefix.
+pub(crate) fn derived_environment_prefix(port_id: &str) -> Option<String> {
+    let stem = port_id
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|character| character.to_ascii_uppercase())
+        .take(MAX_PREFIX_STEM)
+        .collect::<String>();
+    let prefix = format!("{stem}_");
+    valid_environment_prefix(&prefix).then_some(prefix)
+}
+
 /// A contract environment name is accepted only when it is title-specific by
 /// construction: it is one of [`HARMLESS_ENVIRONMENT_NAMES`], or it starts
-/// with the contract's declared `environment_prefix` and continues after it.
-/// Every accepted name also passes the shared catalog name check (uppercase
-/// syntax, no `PORTCOVE_`, credential, session or loader-injection name).
+/// with the prefix derived from the port ID and continues after it. Every
+/// accepted name also passes the shared catalog name check (uppercase syntax,
+/// no `PORTCOVE_`, credential, session or loader-injection name).
 fn contract_environment_name_allowed(name: &str, prefix: Option<&str>) -> bool {
     crate::catalog::is_safe_environment_name(name)
         && (HARMLESS_ENVIRONMENT_NAMES.contains(&name)
@@ -305,14 +332,14 @@ fn contract_environment_name_allowed(name: &str, prefix: Option<&str>) -> bool {
             }))
 }
 
-/// A declared prefix is an uppercase stem of 3 to 23 ASCII letters and digits,
-/// starting with a letter and ending in one `_`, that neither starts with nor
-/// is the start of a loader-injection prefix or a non-title prefix.
+/// A prefix is an uppercase stem of 3 to [`MAX_PREFIX_STEM`] ASCII letters and
+/// digits, starting with a letter and ending in one `_`, that neither starts
+/// with nor is the start of a loader-injection prefix or a non-title prefix.
 fn valid_environment_prefix(prefix: &str) -> bool {
     let Some(stem) = prefix.strip_suffix('_') else {
         return false;
     };
-    (3..=23).contains(&stem.len())
+    (3..=MAX_PREFIX_STEM).contains(&stem.len())
         && stem.starts_with(|character: char| character.is_ascii_uppercase())
         && stem
             .chars()
@@ -348,6 +375,7 @@ mod tests {
             .find(|port| port.release.provider == ReleaseSource::Github)
             .unwrap()
             .clone();
+        port.id = "fixture-title".into();
         port.adapter = AdapterKind::NativePortable;
         port.platforms = vec![platform];
         port.bundled_runtime.clear();
@@ -392,38 +420,162 @@ mod tests {
         LaunchValue::Text(value.into())
     }
 
-    const PREFIX: Option<&str> = Some("FIXTURE_");
+    /// The prefix derived from the fixture port ID `fixture-title`.
+    const PREFIX: Option<&str> = Some("FIXTURETITLE_");
+    const NAME: &str = "FIXTURETITLE_SETTING";
 
     #[test]
-    fn declared_title_prefix_and_harmless_names_are_the_only_accepted_names() {
+    fn derived_title_prefix_and_harmless_names_are_the_only_accepted_names() {
         for value in [
             text("1"),
             text("data"),
-            text("diagnostics/journal.jsonl"),
-            text(".;assets"),
             text("profile:fast"),
             LaunchValue::Path(LaunchPathValue {
                 path: crate::launch_paths::LaunchPath::InstallRoot,
             }),
         ] {
-            validate(&environment(PREFIX, "FIXTURE_SETTING", value.clone()))
-                .unwrap_or_else(|error| panic!("{value:?}: {error:?}"));
+            // The derived prefix applies whether the contract restates it or not.
+            for prefix in [None, PREFIX] {
+                validate(&environment(prefix, NAME, value.clone()))
+                    .unwrap_or_else(|error| panic!("{value:?}: {error:?}"));
+            }
         }
         validate(&environment(None, "PYTHONDONTWRITEBYTECODE", text("1"))).unwrap();
+        // A restated prefix must be used by a name.
         validate(&environment(PREFIX, "PYTHONDONTWRITEBYTECODE", text("1"))).unwrap_err();
-        // A title-looking name is refused without a declared prefix that covers it.
-        validate(&environment(None, "FIXTURE_SETTING", text("1"))).unwrap_err();
-        validate(&environment(Some("OTHER_"), "FIXTURE_SETTING", text("1"))).unwrap_err();
-        // The prefix alone is not a name, and a declared prefix must be used.
-        validate(&environment(PREFIX, "FIXTURE_", text("1"))).unwrap_err();
+        // Any stated prefix other than the derivation is refused, even when
+        // the names would otherwise be well formed under it.
+        for stated in ["FIXTURE_", "FIXTURETITLE2_", "OTHER_", "fixturetitle_", ""] {
+            validate(&environment(
+                Some(stated),
+                &format!("{stated}SETTING"),
+                text("1"),
+            ))
+            .unwrap_err();
+            validate(&environment(Some(stated), NAME, text("1"))).unwrap_err();
+        }
+        // A title-looking name outside the derived prefix is refused.
+        for name in ["FIXTURE_SETTING", "FIXTURETITLESETTING", "TITLE_SETTING"] {
+            validate(&environment(None, name, text("1"))).unwrap_err();
+        }
+        // The prefix alone is not a name.
+        validate(&environment(None, "FIXTURETITLE_", text("1"))).unwrap_err();
         validate(&argument("--fixture")).unwrap();
         let mut unused = argument("--fixture");
         unused
             .reviewed_launch_contract_v1
             .as_mut()
             .unwrap()
-            .environment_prefix = Some("FIXTURE_".into());
+            .environment_prefix = PREFIX.map(str::to_owned);
         validate(&unused).unwrap_err();
+    }
+
+    #[test]
+    fn the_prefix_is_derived_deterministically_from_the_port_id() {
+        for (id, expected) in [
+            (
+                "blacklabelhq-medievilrecomp",
+                Some("BLACKLABELHQMEDIEVILRECOMP_"),
+            ),
+            ("fixture-title", Some("FIXTURETITLE_")),
+            ("dkc2-recomp", Some("DKC2RECOMP_")),
+            (
+                "touhou-4-lotus-land-story-portable64",
+                Some("TOUHOU4LOTUSLANDSTORYPORTABLE64_"),
+            ),
+            // Truncated to 32 characters.
+            (
+                "abcdefghij-abcdefghij-abcdefghij-abcdefghij",
+                Some("ABCDEFGHIJABCDEFGHIJABCDEFGHIJAB_"),
+            ),
+            // Too short, digit-first or colliding with a reserved runtime,
+            // loader or non-title prefix: no environment entries.
+            ("ab", None),
+            ("a-b", None),
+            ("2ship2harkinian", None),
+            ("lua-game", None),
+            ("webview2-host", None),
+            ("tcl-game", None),
+            ("sdl-port", None),
+            ("python-game", None),
+            ("mesa-demo", Some("MESADEMO_")),
+            ("steam-title", None),
+            ("dotnet-game", Some("DOTNETGAME_")),
+            ("temple-run", None),
+            ("homebrew-game", None),
+            ("luarocks-fixture", None),
+            // A reserved prefix ending in `_` covers only names with that
+            // separator, so a longer derived stem stays distinct from it.
+            ("obs-plugin", Some("OBSPLUGIN_")),
+            ("portcove-fixture", Some("PORTCOVEFIXTURE_")),
+        ] {
+            assert_eq!(derived_environment_prefix(id).as_deref(), expected, "{id}");
+        }
+        // A port whose derivation is reserved gets no environment entries,
+        // whether or not the contract states the colliding prefix.
+        for (id, stated) in [("lua-game", "LUAGAME_"), ("sdl-port", "SDLPORT_")] {
+            let mut port = environment(None, &format!("{stated}SETTING"), text("1"));
+            port.id = id.into();
+            validate(&port).unwrap_err();
+            port.reviewed_launch_contract_v1
+                .as_mut()
+                .unwrap()
+                .environment_prefix = Some(stated.into());
+            validate(&port).unwrap_err();
+            let mut harmless = environment(None, "PYTHONDONTWRITEBYTECODE", text("1"));
+            harmless.id = id.into();
+            validate(&harmless).unwrap();
+        }
+    }
+
+    #[test]
+    fn embedded_port_ids_derive_distinct_prefixes() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut seen = BTreeMap::new();
+        let mut collisions = Vec::new();
+        for port in catalog.ports() {
+            if let Some(prefix) = derived_environment_prefix(&port.id)
+                && let Some(other) = seen.insert(prefix.clone(), port.id.clone())
+            {
+                collisions.push(format!("{other} and {}: {prefix}", port.id));
+            }
+        }
+        assert_eq!(collisions, Vec::<String>::new());
+    }
+
+    /// The previous review's accepted names are all refused now: none starts
+    /// with the prefix derived from the port ID.
+    #[test]
+    fn review_examples_outside_the_derived_prefix_are_refused() {
+        for name in [
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
+            "LUA_INIT",
+            "LUA_CPATH",
+            "LUA_PATH",
+            "TCL_LIBRARY",
+            "TK_LIBRARY",
+            "BASH_ENV",
+            "GEM_PATH",
+            "GEM_HOME",
+            "OPENCL_VENDOR_PATH",
+            "LIBDECOR_PLUGIN_DIR",
+            "IBM_JAVA_OPTIONS",
+            "OPENJ9_JAVA_OPTIONS",
+            "ASAN_OPTIONS",
+            "PIP_INDEX_URL",
+            "NPM_CONFIG_REGISTRY",
+            "OBS_VKCAPTURE",
+            "PROCESSOR_ARCHITECTURE",
+        ] {
+            validate(&environment(None, name, text("1"))).unwrap_err();
+            // Restating the name's own family as the prefix is refused too.
+            let family = format!("{}_", name.split('_').next().unwrap());
+            validate(&environment(Some(&family), name, text("1"))).unwrap_err();
+            // The shared legacy deny-list refuses them as well.
+            assert!(crate::process::is_loader_injection_variable(name), "{name}");
+            assert!(!crate::catalog::is_safe_environment_name(name), "{name}");
+        }
     }
 
     #[test]
@@ -514,6 +666,20 @@ mod tests {
             "PSMODULEPATH",
             "GSETTINGS_BACKEND",
             "SSLKEYLOGFILE",
+            "SYSTEMROOT",
+            "WINDIR",
+            "COMSPEC",
+            "TEMP",
+            "TMP",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "USERPROFILE",
+            "PROGRAMDATA",
+            "PROGRAMFILES",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "PUBLIC",
+            "ALLUSERSPROFILE",
             // Proxy variables in any case.
             "HTTP_PROXY",
             "HTTPS_PROXY",
@@ -569,6 +735,32 @@ mod tests {
             "VK_ICD_FILENAMES",
             "LIBGL_DRIVERS_PATH",
             "MESA_LOADER_DRIVER_OVERRIDE",
+            "LUA_INIT_5_4",
+            "WEBVIEW2_USER_DATA_FOLDER",
+            "TCLLIBPATH",
+            "TK_LIBRARY",
+            "BASH_ENV",
+            "GEM_HOME",
+            "BUNDLE_GEMFILE",
+            "PIP_CONFIG_FILE",
+            "NPM_CONFIG_PREFIX",
+            "OPENCL_LAYERS",
+            "LIBDECOR_PLUGIN_DIR",
+            "IBM_JAVA_OPTIONS",
+            "OPENJ9_JAVA_OPTIONS",
+            "ASAN_OPTIONS",
+            "UBSAN_OPTIONS",
+            "LSAN_OPTIONS",
+            "TSAN_OPTIONS",
+            "MSAN_OPTIONS",
+            "PROCESSOR_ARCHITECTURE",
+            "OBS_VKCAPTURE",
+            "MANGOHUD_CONFIGFILE",
+            "XR_RUNTIME_JSON",
+            "VR_OVERRIDE",
+            "CURL_HOME",
+            "LADSPA_PATH",
+            "LV2_PATH",
         ];
         for name in refused {
             assert!(
@@ -598,76 +790,104 @@ mod tests {
         ));
     }
 
+    /// Values both rules refuse: locations, expansion, control characters and
+    /// device names.
+    const REFUSED_BY_BOTH: &[&str] = &[
+        // Absolute and root-relative.
+        "/usr/lib/fixture.so",
+        "/",
+        "\\Windows\\fixture.dll",
+        // UNC and extended.
+        "\\\\server\\share\\fixture.dll",
+        "//server/share/fixture.dll",
+        "\\\\?\\C:\\fixture.dll",
+        "\\\\.\\pipe\\fixture",
+        // Drive-absolute and drive-relative.
+        "C:\\fixture\\plugin.dll",
+        "c:/fixture/plugin.dll",
+        "C:fixture.dll",
+        // Location URL schemes.
+        "file:///C:/fixture.dll",
+        "FILE://server/share/fixture.dll",
+        "file:fixture.dll",
+        "https://example.invalid/fixture",
+        // Home.
+        "~",
+        "~/fixture",
+        "~user/fixture",
+        // Parent references in either separator style.
+        "..",
+        "../fixture",
+        "..\\fixture",
+        "data/../../fixture",
+        "data\\..\\..\\fixture",
+        "... ",
+        ".. ",
+        // Path-list, key and option forms.
+        "data;C:\\fixture",
+        "data;\\\\server\\share",
+        "data:/usr/lib",
+        "data:\\fixture",
+        "data:~/fixture",
+        "data:..",
+        "--data-dir=/etc",
+        "--data-dir=..",
+        "--dirs=data,../fixture",
+        "-dir /etc",
+        // Expansion syntax.
+        "%APPDATA%",
+        "%~dp0",
+        "$HOME",
+        "${HOME}",
+        "$(id)",
+        "`id`",
+        // Control characters.
+        "a\0b",
+        "a\nb",
+        "a\tb",
+        "a\u{1b}b",
+        "a\u{85}b",
+        // Reserved device names.
+        "CON",
+        "nul.txt",
+        "data/COM1",
+        "LPT9",
+        // The previous review's table.
+        "-d\\\\host\\share\\x.dll",
+        "-d/Windows/x.dll",
+        "-I/etc",
+        "-dC:x",
+        "@\\\\host\\share\\args",
+        "@/etc/args",
+        "@args.txt",
+        "\"C:\\x\"",
+        "'/etc/x'",
+        "\"data\"",
+        "-I..",
+        "-game..",
+        "data/x..",
+        "COM\u{b9}",
+        "lpt\u{b2}.txt",
+        "\u{ff0e}\u{ff0e}",
+        "data\u{ff0f}x",
+        "data\u{2215}x",
+        "data\u{ff3c}x",
+        "\u{ff02}x\u{ff02}",
+        "%2e%2e",
+        "smb://x",
+        "http://x",
+        "data//x",
+    ];
+
     #[test]
-    fn launch_text_values_and_arguments_cannot_reach_outside_the_installation() {
-        let refused = [
-            // Absolute and root-relative.
-            "/usr/lib/fixture.so",
-            "/",
-            "\\Windows\\fixture.dll",
-            // UNC and extended.
-            "\\\\server\\share\\fixture.dll",
-            "//server/share/fixture.dll",
-            "\\\\?\\C:\\fixture.dll",
-            "\\\\.\\pipe\\fixture",
-            // Drive-absolute and drive-relative.
-            "C:\\fixture\\plugin.dll",
-            "c:/fixture/plugin.dll",
-            "C:fixture.dll",
-            // Location URL schemes.
-            "file:///C:/fixture.dll",
-            "FILE://server/share/fixture.dll",
-            "file:fixture.dll",
-            "https://example.invalid/fixture",
-            // Home.
-            "~",
-            "~/fixture",
-            "~user/fixture",
-            // Parent references in either separator style.
-            "..",
-            "../fixture",
-            "..\\fixture",
-            "data/../../fixture",
-            "data\\..\\..\\fixture",
-            "... ",
-            ".. ",
-            // Path-list, key and option forms.
-            "data;C:\\fixture",
-            "data;\\\\server\\share",
-            "data:/usr/lib",
-            "data:\\fixture",
-            "data:~/fixture",
-            "data:..",
-            "--data-dir=/etc",
-            "--data-dir=..",
-            "--dirs=data,../fixture",
-            "-dir /etc",
-            // Expansion syntax.
-            "%APPDATA%",
-            "%~dp0",
-            "$HOME",
-            "${HOME}",
-            "$(id)",
-            "`id`",
-            // Control characters.
-            "a\0b",
-            "a\nb",
-            "a\tb",
-            "a\u{1b}b",
-            // Reserved device names.
-            "CON",
-            "nul.txt",
-            "data/COM1",
-            "LPT9",
-        ];
-        for value in refused {
+    fn legacy_launch_text_cannot_reach_outside_the_installation() {
+        for value in REFUSED_BY_BOTH {
             assert!(
                 !crate::launch_paths::is_contained_launch_text(value),
                 "{value:?}"
             );
-            validate(&environment(PREFIX, "FIXTURE_SETTING", text(value))).unwrap_err();
-            validate(&argument(value)).unwrap_err();
         }
+        // Legacy fields keep relative paths and list forms that existing data uses.
         for value in [
             "data",
             "./data",
@@ -684,17 +904,211 @@ mod tests {
             "+set",
             "bios/openbios.bin",
             "build-portcove/overlay-captures/overlay_captures.json",
+            "import/disc.cue",
             "save..file",
             "COM0",
             "console",
+            "data/-x",
         ] {
             assert!(
                 crate::launch_paths::is_contained_launch_text(value),
                 "{value:?}"
             );
-            validate(&environment(PREFIX, "FIXTURE_SETTING", text(value)))
+        }
+        // An option attached to a path, and a drive after an option sigil.
+        for value in [
+            "-Idata/x",
+            "+exec/x.cfg",
+            "data/-x/y",
+            "-C:x",
+            "--C:x",
+            "+dC:x",
+        ] {
+            assert!(
+                !crate::launch_paths::is_contained_launch_text(value),
+                "{value:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn contract_text_has_no_path_character_by_construction() {
+        let contract_refused = [
+            // Relative paths and list forms are legacy-only.
+            "data/x",
+            "./data",
+            ".;assets",
+            "a;b",
+            "data\\x",
+            "bios/openbios.bin",
+            // Characters outside the class.
+            "a b",
+            "a@b",
+            "a~b",
+            "a\"b",
+            "a'b",
+            "a!b",
+            "a#b",
+            "a*b",
+            "a?b",
+            "a|b",
+            "a<b",
+            "a>b",
+            "a&b",
+            "a(b)",
+            "a[b]",
+            "a{b}",
+            "caf\u{e9}",
+            "",
+            // Parent references anywhere.
+            "save..file",
+            "a..",
+            "..a",
+            "--x=..",
+            // Drive and stream forms.
+            "C:",
+            "C:x",
+            "c:x",
+            "--dir=C:x",
+            "-C:x",
+            "--C:x",
+            "-dC:x",
+            "+dC:x",
+            "a,C:x",
+            "profile:C:x",
+            "a.txt:evil",
+            "save.dat:stream:$DATA",
+            ":x",
+            "a::b",
+            // Device names, with or without an extension, also attached.
+            "NUL",
+            "nul.txt",
+            "Com1",
+            "lpt9.log",
+            "aux",
+            "prn.x",
+            "--out=NUL",
+            "-oNUL",
+            "-ocon.txt",
+            "profile:CON",
+            // Doubled or mixed sigils.
+            "---x",
+            "+-x",
+            "-+x",
+            "++x",
+        ];
+        for value in REFUSED_BY_BOTH.iter().chain(&contract_refused) {
+            assert!(
+                !crate::launch_paths::is_contract_launch_text(value),
+                "{value:?}"
+            );
+            validate(&environment(None, NAME, text(value))).unwrap_err();
+            validate(&argument(value)).unwrap_err();
+        }
+        let long = "a".repeat(crate::launch_paths::MAX_CONTRACT_TEXT_LEN + 1);
+        assert!(!crate::launch_paths::is_contract_launch_text(&long));
+        assert!(crate::launch_paths::is_contract_launch_text(&long[1..]));
+        for value in [
+            "profile:fast",
+            "--width=1280",
+            "-windowed",
+            "+set",
+            "r_mode=4",
+            "1",
+            "false",
+            "data",
+            "assets",
+            "gold",
+            ".",
+            "COM0",
+            "console",
+            "nullable",
+            "--disable-updated",
+            "-data",
+            "-tft",
+            "--data-dir",
+            "th04.hdi",
+            "FREECG98.BMP",
+            "ym2608_adpcm_rom.bin",
+            "a,b",
+            "-",
+            "--",
+            "-1",
+            "key:value:more",
+            "fs_game",
+        ] {
+            assert!(
+                crate::launch_paths::is_contract_launch_text(value),
+                "{value:?}"
+            );
+            validate(&environment(None, NAME, text(value)))
                 .unwrap_or_else(|error| panic!("{value}: {error:?}"));
             validate(&argument(value)).unwrap_or_else(|error| panic!("{value}: {error:?}"));
+        }
+    }
+
+    /// Semantic flags that load code, open a debugger or delegate process
+    /// creation for a specific runtime. The strict class refuses the
+    /// single-sigil and `:` forms; the explicit option list refuses the rest.
+    #[test]
+    fn semantic_runtime_flags_are_refused() {
+        let by_class = [
+            "-agentlib:jdwp=transport=dt_socket,server=y,address=8000",
+            "-agentpath:/x/agent.so",
+            "-javaagent:agent.jar",
+            "-Xrunjdwp:transport=dt_socket",
+            "-XX:OnError=cmd",
+            "-XX:OnOutOfMemoryError=cmd",
+            "-Xbootclasspath/a:x.jar",
+            "--load-extension=C:\\x",
+            "--renderer-cmd-prefix=gdb --args",
+            "--inspect=0.0.0.0:9229",
+            "--remote-debugging-port=9222 --x",
+        ];
+        let by_option = [
+            "--remote-debugging-port=9222",
+            "-remote-debugging-port=9222",
+            "--remote-debugging-pipe",
+            "--remote-debugging-address=0.0.0.0",
+            "--remote-allow-origins=x",
+            "--inspect",
+            "--inspect=9229",
+            "--inspect-brk=9229",
+            "--inspect-port=9229",
+            "--INSPECT",
+            "--debug-port=5858",
+            "--load-extension=ext",
+            "--disable-extensions-except=ext",
+            "--browser-subprocess-path=x.exe",
+            "--js-flags=--allow-natives-syntax",
+            "--require=x",
+            "--import=x",
+            "--loader=x",
+            "--experimental-loader=x",
+            "--no-sandbox",
+            "--disable-web-security",
+            "--register-pepper-plugins=x.dll",
+            "--renderer-cmd-prefix=x",
+            "--utility-cmd-prefix=x",
+            "--gpu-launcher=x",
+            "--plugin-launcher=x",
+            "--ppapi-plugin-launcher=x",
+            "x=--inspect",
+        ];
+        for value in by_class.iter().chain(&by_option) {
+            assert!(
+                !crate::launch_paths::is_contract_launch_text(value),
+                "{value:?}"
+            );
+            validate(&argument(value)).unwrap_err();
+        }
+        for value in &by_option[..] {
+            assert!(
+                value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._=,+-:".contains(&byte)),
+                "{value:?} must be refused by the option list, not the class"
+            );
         }
     }
 
@@ -728,8 +1142,8 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// No accepted text, when each of its elements and segments is joined
-        /// to the working directory by a naive consumer, leaves it.
+        /// No accepted legacy text, when each of its elements and segments is
+        /// joined to the working directory by a naive consumer, leaves it.
         #[test]
         fn accepted_text_never_resolves_outside_the_working_directory(
             text in "[a.:;,=/\\\\~C %$` -]{0,12}"
@@ -739,6 +1153,29 @@ mod tests {
                     for candidate in std::iter::once(element).chain(element.split(':')) {
                         proptest::prop_assert!(naive_join_stays_inside(candidate), "{text:?}");
                     }
+                }
+            }
+        }
+
+        /// No accepted contract text, over arbitrary Unicode, has a character
+        /// outside the strict class, a `..`, or a drive form.
+        #[test]
+        fn accepted_contract_text_stays_in_the_class(text in "\\PC{0,24}|[a-zC:.,=+_ -]{0,16}") {
+            if crate::launch_paths::is_contract_launch_text(&text) {
+                proptest::prop_assert!(
+                    text.bytes().all(|byte| byte.is_ascii_alphanumeric()
+                        || b"._=,+-:".contains(&byte)),
+                    "{text:?}"
+                );
+                proptest::prop_assert!(!text.contains(".."), "{text:?}");
+                for token in text.split(['=', ',']) {
+                    let body = token.trim_start_matches(['-', '+']);
+                    let bytes = body.as_bytes();
+                    proptest::prop_assert!(
+                        !(bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'),
+                        "{text:?}"
+                    );
+                    proptest::prop_assert!(naive_join_stays_inside(token), "{text:?}");
                 }
             }
         }

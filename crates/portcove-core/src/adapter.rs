@@ -7201,9 +7201,10 @@ mod tests {
                 ));
             },
             |values: &mut LaunchValues| {
-                values
-                    .environment
-                    .insert("FIXTURE_SETTING".into(), LaunchValue::Text("1".into()));
+                values.environment.insert(
+                    "BLACKLABELHQMEDIEVILRECOMP_SETTING".into(),
+                    LaunchValue::Text("1".into()),
+                );
             },
         ] {
             let mut typed = moved.clone();
