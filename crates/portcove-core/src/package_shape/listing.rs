@@ -45,6 +45,14 @@ pub struct ListingArtifactInspection {
     pub files: usize,
     /// Player candidates in path order, each with machine and SHA-256.
     pub player_candidates: Vec<ListingPlayerCandidate>,
+    /// Every distinct lowercase path component of the regular files (each
+    /// directory name and file name, never a joined path), sorted: the
+    /// archive's listing as names only. Bounded by the inspected file bound.
+    pub names: Vec<String>,
+    /// Every distinct lowercase file name (the last path component of each
+    /// regular file, never a directory), sorted. A name can be both a file
+    /// leaf and a directory component; only this list says it is a file.
+    pub leaves: Vec<String>,
 }
 
 /// One native executable a listing archive holds.
@@ -120,11 +128,27 @@ pub fn inspect_listing_artifact_archive(
             sha256: hex::encode(sha2::Digest::finalize(digest)),
         });
     }
+    let names = files
+        .iter()
+        .flat_map(|(relative, _, _)| relative.split('/'))
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let leaves = files
+        .iter()
+        .filter_map(|(relative, _, _)| relative.rsplit('/').next())
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     Ok(ListingArtifactInspection {
         sha256: expected_sha256.to_ascii_lowercase(),
         shape_version: SHAPE_VERSION,
         files: files.len(),
         player_candidates,
+        names,
+        leaves,
     })
 }
 
@@ -327,8 +351,19 @@ pub const LISTING_TOOL_TOKENS: &[&str] = &[
     "server",
 ];
 /// Tool words matched only as whole words between separators, because as a
-/// camel-case word they also start real titles (`PatchQuest`).
-pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &["patch"];
+/// camel-case word or part of a longer word they also name real titles
+/// (`PatchFarm`, `StudioTown`, `GlueGame`). Authoring suites (`studio`,
+/// `authoring`, `workbench`) and code generators or toolchains (`codegen`,
+/// `glue`, `toolchain`) ship beside games under the game's own name.
+pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &[
+    "patch",
+    "studio",
+    "authoring",
+    "workbench",
+    "codegen",
+    "glue",
+    "toolchain",
+];
 
 /// Systems Portcove offers no desktop route for, matched only as a whole
 /// separator-delimited word or two adjacent words joined (`android-tv`,
@@ -551,6 +586,49 @@ mod tests {
                 machine: "pe-x86-64".into(),
                 sha256: hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&player)),
             }]
+        );
+        // The listing as names only: every distinct lowercase path component.
+        assert_eq!(
+            inspection.names,
+            ["data", "engine.dll", "game", "game.exe", "readme.txt"]
+        );
+        // File leaves only: no directory component.
+        assert_eq!(inspection.leaves, ["engine.dll", "game.exe", "readme.txt"]);
+    }
+
+    #[test]
+    fn the_listing_names_include_tool_directories_the_players_skip() {
+        let (_temporary, path, size, digest) = archive(&[
+            ("Game/Launcher.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/tools/Zig/zig.exe", pe(0x8664, EXECUTABLE)),
+        ]);
+        let inspection =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                .unwrap();
+        assert_eq!(
+            inspection.names,
+            ["game", "launcher.exe", "tools", "zig", "zig.exe"]
+        );
+        assert_eq!(inspection.leaves, ["launcher.exe", "zig.exe"]);
+    }
+
+    #[test]
+    fn the_file_leaves_exclude_directories_that_share_a_helper_name() {
+        let (_temporary, path, size, digest) = archive(&[
+            ("Game/Game.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/assets/link/door.png", b"png".to_vec()),
+            ("Game/levels/ld/one.map", b"map".to_vec()),
+            ("Game/Python/python.exe", pe(0x8664, EXECUTABLE)),
+            ("Game/make", b"#!/bin/sh".to_vec()),
+        ]);
+        let inspection =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                .unwrap();
+        assert!(inspection.names.contains(&"link".to_owned()));
+        assert!(inspection.names.contains(&"ld".to_owned()));
+        assert_eq!(
+            inspection.leaves,
+            ["door.png", "game.exe", "make", "one.map", "python.exe"]
         );
     }
 
@@ -948,8 +1026,33 @@ mod tests {
             ("GameSetup.exe", "setup"),
             ("GameServer.x86_64", "server"),
             ("assets_extractor.exe", "extractor"),
+            ("Game-Studio-v1.0-windows-x64.zip", "studio"),
+            ("Game Studio.exe", "studio"),
+            ("rex-glue.exe", "glue"),
+            ("rex_codegen.exe", "codegen"),
+            ("Game-toolchain-v2-linux.tar.gz", "toolchain"),
+            ("Level-Workbench.exe", "workbench"),
         ] {
             assert_eq!(listing_tool_token(name), Some(token), "{name}");
+        }
+        // Whole words only: a title that merely contains one is not vetoed.
+        for name in [
+            "Studiopolis-v1.0-windows-x64.zip",
+            "StudioQuest.exe",
+            "TextureStudio.exe",
+            "GlueBall.exe",
+            "rexglue.exe",
+            "Toolchainsaw.exe",
+            "TheForceEngine.exe",
+            "NXEngine-evo-v2.6-win64.zip",
+            // An engine reimplementation is a real game port, as a whole
+            // word too: a release offering another program is decided by the
+            // release's content (`other-package-form-beside-archive`), not a word.
+            "the-force-engine-v1.0-win.zip",
+            "Game-Engine-Windows-v1.6.0.zip",
+            "Engine.exe",
+        ] {
+            assert_eq!(listing_tool_token(name), None, "{name}");
         }
         for name in [
             "Game-v1.0-windows-x64.zip",

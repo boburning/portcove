@@ -28,7 +28,8 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   delete declaration.implementation;
   return observationHash(declaration);
 }
-const packageLimit = 32;
+/** At most this many assets of one release are observed. */
+export const listingPackageLimit = 32;
 
 /** Only already-supported public provider hosts can become observation sources. */
 export function listingProviderIdentity(
@@ -157,7 +158,7 @@ export function projectListingObservation<Listing extends Record<string, unknown
     [...selected].every((id) => covered.has(id)) &&
     observation.facts.releases
       .filter((release) => selected.has(release.id))
-      .every((release) => release.assets.length <= packageLimit);
+      .every((release) => release.assets.length <= listingPackageLimit);
   const observedAt = observation.validation_started_at ?? observation.completed_at;
   const releases = observation.facts.releases
     .filter((release) => selected.has(release.id))
@@ -167,8 +168,8 @@ export function projectListingObservation<Listing extends Record<string, unknown
       release_url: `https://github.com/${observation.facts.repository.full_name}/releases/tag/${encodeURIComponent(release.tag_name)}`,
       published_at: release.published_at,
       provider_prerelease: release.prerelease,
-      assets_complete: covered.has(release.id) && release.assets.length <= packageLimit,
-      assets: release.assets.slice(0, packageLimit).map((asset) => ({
+      assets_complete: covered.has(release.id) && release.assets.length <= listingPackageLimit,
+      assets: release.assets.slice(0, listingPackageLimit).map((asset) => ({
         // Authored literal filename hints only; these labels do not establish compatibility.
         platform_hints: platformHints(listing, asset.name),
         id: asset.id,
@@ -328,7 +329,7 @@ export function projectGitLabListingObservation<Listing extends Record<string, u
       const links =
         isRecord(release.assets) && Array.isArray(release.assets.links) ? release.assets.links : [];
       const assetsComplete =
-        assets.length <= packageLimit &&
+        assets.length <= listingPackageLimit &&
         links.every(
           (link) =>
             isRecord(link) &&
@@ -349,7 +350,7 @@ export function projectGitLabListingObservation<Listing extends Record<string, u
         release_url: `https://gitlab.com/${identity.repository}/-/releases/${encodeURIComponent(version)}`,
         provider_prerelease: false,
         assets_complete: assetsComplete,
-        assets: assets.slice(0, packageLimit),
+        assets: assets.slice(0, listingPackageLimit),
       };
     });
   return projectDescriptiveListing(

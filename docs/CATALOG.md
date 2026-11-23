@@ -3741,26 +3741,57 @@ blocked reason:
    most 14 days (`lastGoodRetentionDays`) long (`observation-unavailable`).
    The worker's own inspection backlog (`pending-inspection`) is not an
    upstream attempt; only the facts age bounds it.
-8. For a supported desktop platform, an artifact has the role
-   `desktop-game-runtime` from an `exact-release-structured` fact. That fact
-   binds the archive's provider SHA-256 and holds player candidates with their
-   own SHA-256. No other fact source is accepted. The artifact is not
-   contradictory, and its name carries no tool or system token and names no
-   other system or architecture than the platform's. It holds a player
-   candidate whose platform-true machine runs on the platform and whose name
-   carries no tool token. Each player's own machine decides where it runs:
-   another player in the same archive, such as a 32-bit helper or the other
-   system of a combined Windows and Linux archive, neither helps nor blocks
-   the platform.
-9. On that platform the players are one program
-   ([one program per platform](#one-program-per-platform)).
-10. On that platform no restriction holds `register-external` or `launch`. A
+8. The offered release belongs to this identity's product
+   ([release lines](#release-lines)). No other catalog identity names the
+   same repository, unless the listing's release URL binds this identity to a
+   release line no other identity is bound to (`shared-repository`). The
+   repository's observed stable releases form one release line, or the
+   listing binds one; the offered release is on that line; without a
+   binding, that line is the main line or names the listed product; and no
+   newer prerelease on the main line or another line naming the product
+   follows it (`ambiguous-release-line`). The offered release is stable by
+   Core's rule and its tag is not only channel words with a date, time or
+   hash (`no-stable-release`).
+9. No other package form of the release serves a platform the release also
+   offers a readable archive for, unless it is that archive's own program:
+   its provider SHA-256 equals a player those archives hold for that platform
+   ([other package forms](#other-package-forms)). One with another digest, or
+   with no provider digest (UNKNOWN), means the release offers a different
+   package than its archive where the rule would bind, such as an installer,
+   or the real game beside an archive holding only a build tool, so the whole
+   identity is excluded (`other-package-form-beside-archive`). The decision
+   rests on the bytes' digests, never on the program's name. A form serving
+   only platforms without an offered archive is ignored. Other package forms
+   are never downloaded.
+10. For a supported desktop platform, an artifact has the role
+    `desktop-game-runtime` from an `exact-release-structured` fact. That fact
+    binds the archive's provider SHA-256 and holds player candidates with
+    their own SHA-256. No other fact source is accepted. The artifact is not
+    contradictory, its name carries no tool or system token and no
+    [archive role word](#one-program-per-platform) such as `update`, and it
+    names no other system or architecture than the platform's. It holds a player
+    candidate whose platform-true machine runs on the platform and whose name
+    carries no tool token. Each player's own machine decides where it runs:
+    another player in the same archive, such as a 32-bit helper or the other
+    system of a combined Windows and Linux archive, neither helps nor blocks
+    the platform. No archive Core refused has a name that allows the platform
+    without vetoing itself (`core-refused`): a refused archive could hold the
+    platform's game or a second one, so the platform is never decided around
+    it.
+11. On that platform the players are one program, and the archives holding
+    them are one package (equal archive bytes), whatever their names say
+    ([one program per platform](#one-program-per-platform)). No such archive
+    bundles a compiler, interpreter or build helper (`bundled-toolchain`).
+12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
-11. An authored listing guide leaves room for the generated selection step and
-    ownership reference within the eight-entry guide bound.
+13. An authored listing guide leaves room for the generated selection step and
+    ownership reference within the eight-entry guide bound. That bound is
+    Core's catalog guide schema, which every client enforces; truncating
+    the authored guide would drop title-specific steps, so the identity is
+    withheld instead.
 
-The route's platforms are every platform satisfying 8 to 10. The generated
+The route's platforms are every platform satisfying 9 to 12. The generated
 record is exactly the hand-authored form: `external_registration_v1: true`, the
 `user-prepared` provider and the `staged-source-portable` adapter. Generated
 records then pass the same validation as authored ones. The listing keeps
@@ -3815,12 +3846,12 @@ one top-level directory. Anything else is `ambiguous-player`. Two program names
 are the same program when they differ only in build-variant words: an
 architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`),
 `console`, `debug` or `exe`, and a bare `64`, `32` or `86` only when it stands
-alone between separators. So `openjk.x86_64.exe` and `openjk.x86.exe` are one
+alone between separators. So `skyrun.x86_64.exe` and `skyrun.x86.exe` are one
 program, `Game.exe`, `Game-64.exe` and `Game.console.exe` are one program, and
-`openjk.x86_64.exe` beside `openjo.x86_64.exe` is two. A number glued to the
-name is part of the name: `Doom64.exe` is Doom 64, a different game from
-`Doom.exe`, and nothing in the names proves otherwise, so `Doom.exe` beside
-`Doom64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
+`skyrun.x86_64.exe` beside `skyrow.x86_64.exe` is two. A number glued to the
+name is part of the name: `Lantern64.exe` can be a different game from
+`Lantern.exe`, and nothing in the names proves otherwise, so `Lantern.exe` beside
+`Lantern64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
 `ambiguous-player`. A reviewed `route_facts_v1` enrollment can still offer
 such a release.
 
@@ -3833,6 +3864,379 @@ enrollment can still offer it. The gate checks the same rule with its own code
 and also requires an enrollment to name every player of its artifact that runs
 on the platform.
 
+One program name is not one package, and equal programs are not one package
+either. A release can carry the full game and a small update archive that
+holds the same game program (the same player SHA-256), or the game and an
+authoring-tool archive whose program has the same file name. Two archives are
+the same package only when their own bytes are (equal archive SHA-256).
+
+First, an archive whose own name holds a role word is never offered:
+`update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols` or
+`debug`. The archive name is split into words like product names are
+(separators, camel-case humps and letter/digit changes, as
+[release lines](#release-lines) split names), so a role word with a trailing
+number or glued into a camel-case name is that role word
+(`update-0.5.10.zip`, `Game-debug-win64.zip`, `Game-Windows-Update1.zip`,
+`Game-patch01.zip`, `GameUpdate-linux.tar.gz`), while `Updated-Game.zip`,
+`Deltaville-Fan.zip` and `Patchwork.zip` pass: a glued word that stays one
+word is not a role word. Every occurrence vetoes, whatever the product's or
+repository's own name: the archive name alone cannot tell a title word from a
+role suffix, and each earlier own-name exemption let an update or delta
+payload through (`Delta-Squadron-1.1-linux-delta.tar.gz` on a repository
+named `delta`). The cost is stated: a game whose own title holds a role word
+as a separate word of its archive name (`Delta-Lantern-win64.zip` for a
+listing named "Delta Lantern", or `DeltaLantern-win64.zip`, which camel case
+splits into `delta` and `lantern`) is withheld as `contradictory-role`.
+Reconsider an identity withheld this way only when a listing-declared package
+binding names this archive; the name rule itself does not change. A vetoed archive is reported as an
+`asset-role-name` exclusion with the word as its token. Then, when more than one distinct archive whose
+name allows the platform still holds players for it, the platform is
+`ambiguous-artifact`, never chosen by order, size or name. There is no
+exception for an archive that names the platform's system: a
+`Game-v1.2-windows-exe-only.zip` beside an OS-neutral full `Game-v1.2.zip`
+cannot be told apart from the full build by name, so choosing the explicit
+one would enroll a partial build. So a `Game-v1.0.zip` beside a
+`Game-v1.0.tar.gz` of the same game is ambiguous for every platform both
+allow, and `Game-v1.0-windows.zip` beside a neutral `Game-v1.0.tar.gz` that
+also holds the Windows program is ambiguous on Windows and offers the tarball
+on Linux. A neutral Linux-only tarball beside `Game-windows.zip` holds no
+Windows player, so each platform still has one archive. The one-program rule
+still counts the players of every such archive. The gate checks each part
+with its own code too.
+
+An archive that bundles a compiler, interpreter or build helper builds or
+prepares the game on the player's machine ("build on first start"), so a
+person must look at it. Core's inspection returns the archive's listing as
+names only: `names` (every distinct lowercase path component) and `leaves`
+(every distinct lowercase file name). The helpers are `zig`, `clang`, `clang++`, `gcc`,
+`g++`, `cc1`, `ld`, `lld`, `ld.lld`, `python`, `python3`, `pythonw`, `pip`,
+`node`, `cmake`,
+`ninja`, `make`, `msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta`
+and `xdelta3`. `7z` and `7za` are ordinary extraction helpers and are not on
+the list. A file leaf also names a helper when it is a versioned or renamed
+compiler or interpreter: `python`, `python3`, `pythonw`, `clang`, `clang++`,
+`gcc`, `g++`, `lld`, `ld.lld` or `zig` followed by digits and dotted digits
+(optionally after `-`) or by `-` and letters, digits or `_`, with or without
+`.exe` (`python3.11`, `clang-17`, `gcc-13`, `zig-x86_64`, `pythonw.exe`); such
+a name never counts as a directory (`gcc-libs/`), and another extension never
+matches (`python311.dll`). The worker records every listing entry naming a
+helper as the artifact's `toolchain_names`: a file leaf as is
+(`python.exe`), a directory component that is no file leaf with a trailing
+`/` (`zig/`, `link/`). The short or common helper names `cl`, `ld`, `link`,
+`make`, `node`, `python`, `python3`, `pythonw` and `pip` also name ordinary folders, so
+they count only as a file leaf: `assets/link/`, `levels/ld/` or a
+`lib/python3.11/` folder never match, while `Python/python.exe` does. The
+other helpers count as a file or a directory (`tools/zig/`). Only a whole
+name matches, so `python311.dll`, `scripts/` or `node_modules/` never do. The
+helpers the recorded entries show are the artifact's `bundled_toolchain`; the
+facts check refuses a summary the entries do not show. Any such archive among
+the platform's candidates makes the platform `bundled-toolchain`, whatever
+the program is called: a program name cannot prove the release does not
+build itself. The route-fit report lists the helper names per identity
+(`registration_queues.bundled_toolchains`). The gate re-derives the helpers
+from the recorded `toolchain_names` with its own code, never from the
+worker's summary, and refuses an enrollment decided beside such an archive.
+
+##### Release lines
+
+A repository can publish more than one product: a game and its modding tool,
+or two titles. Each release tag has a release line: its product words before
+the version, lowercase, without release-channel markers. Derivation errs toward
+one line for version and channel noise and toward different lines for
+different product words:
+
+- The version starts at a real version token: a whole word of digits,
+  optionally after one `v`, `r` or `b` (`v1`, `r14388`, `2025`). A number
+  followed by a letter is a product word (`game2x`, `game2`). A product word
+  ending in a glued `v<digits>` is cut there (`game2v0.3` is `game2`).
+- A `v`, `r` or `b` word directly followed, after a separator other than `.`,
+  by another version token is a product word: `r2-v1.0` is line `r2` and
+  `b2-v1.0` is line `b2`, while `v2.0-win`, `b5` and `r3` are the main line.
+- A bare number of one or two digits directly after a product word, not
+  before `.`, is part of the product: as the last kept word (`sm-1` and
+  `sm-2`, `game-2` and `game-3` are different lines), or before another
+  product word or a version (`lantern-64-v1` is `lantern-64`, `part-2-1.0` is
+  `part-2`, `game-2-v1.0` and `game-2-v1.1` are both `game-2`). Before
+  another bare number it is the version (`game-1-2-0` is `game`), and after a
+  dropped word or at the start it is always the version (`hotfix-1`,
+  `64-v1`). The repository's own name does not change this: on repository
+  `sm`, `sm-1` and `sm-2` are two lines (`sm-1-v1.0` is still `sm-1`), so a
+  listing for game 1 never enrolls game 2's release. The cost is plain: a
+  repository that tags its major versions `<repository>-N` (`proj-3`,
+  `proj-4` on `proj`) is `ambiguous-release-line` unless the listing binds
+  its release (`release_url`).
+- Release-channel words such as `release`, `nightly`, `beta`, `rc`, `build`
+  or `rev` are dropped, alone or glued to a number (`rc2`, `beta5`,
+  `build123`, `nightly20250101`, `release1.2`). `final` and `update` are not
+  channel words: they can name a product.
+- A commit hash (7 to 40 hex characters with at least one digit and one
+  letter `a`–`f`) is version noise after the first word: `native-only-1a2b3c4`
+  is line `native-only` and `dev-abc1234` is the main line, while
+  `deadbeef-v1` (no digit) is line `deadbeef`. As the tag's first word a
+  hex-looking word names the product: `facade1-v1.0`, `decade2-v1.0` and
+  `cafe2024-v2` are lines of their own. A tag that is only a commit hash
+  (`abc1234`, also with system or architecture words) is a channel build
+  (below), so it is never stable and never counts as a release line. `v.`
+  before digits is a version (`v.0.1.1`).
+- `test`, `testing`, `tester`, `prealpha`, `canary`, `wip`, `experimental`,
+  `fixed`, `fix`, `new` and `pr<digits>` are channel words when they stand
+  next to a version, date or hash, or when the tag holds nothing else
+  (`wip-v0.4`, `pr42`, `v1.0-fix`, `new`, `test`). Between product words they
+  stay product words: `new-game-v1` is line `new-game`, `fix-it-v1` is
+  `fix-it` and `test-orbit-v1.0` is `test-orbit`.
+- Operating-system and architecture words are dropped as whole words
+  (`windows`, `win`, `win32`, `win64`, `linux`, `linux64`, `macos`, `mac`,
+  `osx`, `darwin`, `universal`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`,
+  `aarch64`, `i386`, `i686`, and a literal `x8664`), so builds of one
+  product for several systems
+  are one line: `windows-v1.0`, `win64-1.0` and `linux` are the main line.
+  `x86_64` and `x86-64` are one word only when no letter or digit touches
+  either end, in both copies of the rule; as one word they are a build
+  target, never a number beside a conditional channel word, so
+  `sm-x86-64-fixed-mac` is line `sm-fixed`. `nightly-x86-6412` holds `x86`
+  and `6412`.
+
+A line that spells the repository's own name is the main line. So `v1.0`,
+`v2`, `2.0`, `v1.2.0p`, `2.0.0-beta`, `r14388`, `2025.01.01`, `20250101`,
+`2025-01-01-nightly`, `release-1.2`, `build-123`, `rc2`, `latest`,
+`nightly`, `continuous`, `1.0.0-windows-x64` and `<repository>-v3` are the
+main line, while `level-editor-v1.0.0`, `game2-v1.1` and `lantern-64-v1` are
+lines of their own. A tag that is not printable ASCII, or unknown, is a line
+of its own.
+
+Ambiguity excludes. A final short number cannot be told apart from a second
+title by the tag alone, so a repository that tags major versions as `game-1`
+and `game-2` has several lines and its unbound listing is
+`ambiguous-release-line`. That is an honest exclusion: the listing's
+`release_url` can bind the line, and a reviewed `route_facts_v1` enrollment
+can offer it. The same holds for version-shaped product words: `v1-2` is
+line `v1-2` and `v1-r1` is line `v1`, so a repository tagging that way beside
+`v1.3` is excluded too.
+
+A tag that consists only of rolling-channel words (`nightly`, `continuous`,
+`latest`, `dev`, `build`, `snapshot`, `canary`, `preview`, `test`, `wip`,
+`experimental` and similar) plus dates, times, hashes and system or
+architecture words is a prerelease for the newest-stable choice even when the
+provider does not flag it: `build_20261120_2250`, `nightly-2025-01-01`,
+`continuous`, `latest` and `dev-abc1234`. A commit hash counts as a channel
+word here, so a tag of only a hash (`abc1234`, `abc1234-win64`) is such a tag;
+a hex-looking word without a digit (`deadbeef`) is no hash. A year alone is a
+date, so `build-2025` is a channel build too: a repository tagging its
+releases only `build-<year>` has no stable release (`no-stable-release`) until
+it publishes a versioned tag or the listing is reviewed. Only real calendar and clock shapes
+are dates: a year `19xx` or `20xx`, a month directly after a year and a day
+directly after that month (`2025-01-01`), an eight-digit `yyyymmdd`
+(optionally with `hhmm` or `hhmmss` glued after it), and an `hhmm` or
+`hhmmss` word directly after a whole date. Any other number is a version, so
+`build-42`, `build-12`, `build-1234`, `beta-01`, `release-2025-01-01`,
+`build-123`, `nightly-1` and `2025.01.01` are not such tags. The worker
+records the combined verdict, and the fit rule and the gate each restate the
+tag rule (`channelOnlyTag`, `gateChannelOnlyTag`) for the offered release and
+every observed release.
+
+A channel-only release counts as never stable. For the newest-stable choice
+and for the planned rule for repositories that publish only prereleases, a
+repository whose releases are all channel-only (or flagged prereleases) has
+never published a stable release (`no-stable-release`).
+
+The worker records each observed release (within the observer's own bound of
+the newest releases) with its tag, its prerelease verdict, publication time
+and whether it carries a package file. Each check sees these releases:
+
+- The line count (below) sees only the stable packaged releases, plus any
+  release whose verdict Core did not give: a prerelease's tag noise never
+  makes a second line.
+- The product check sees the offered release's own line.
+- The newer-prerelease check sees every prerelease (and unknown verdict)
+  published after the offered release whose line differs from it.
+
+The fit rule and, independently, the gate refuse an identity when:
+
+- another catalog identity names the same repository through its release URL
+  or project URL (any path below the repository counts), unless the listing's
+  `release_url` names a tag on its repository
+  (`…/releases/tag/<tag>`) whose line no other identity sharing the
+  repository is bound to (`shared-repository`);
+- the stable packaged releases fall into more than one line and the listing
+  binds none, or the offered release is not on the bound line
+  (`ambiguous-release-line`);
+- the listing binds no line and the offered release's line is neither the
+  main line nor names the listed product: joined, it is at least three
+  letters and digits long and equals one whole word, or a contiguous run of
+  whole words, of the repository name or the listing's id, name or original
+  title. Words are split at separators, camel-case humps and letter/digit
+  changes (`lantern64recomp` is `lantern`, `64`, `recomp`; `OpenLanternPS1` is
+  `open`, `lantern`, `ps`, `1`), so part of a word never counts: `rec` does
+  not name `lantern64recomp`. A window of only a tool's releases
+  (`level-editor-v1.0.x`) is never taken for the game, while `part-v1.2` on a
+  `part-decomp` repository is (`ambiguous-release-line`);
+- a prerelease on the main line or on another line that names the product,
+  or a release whose verdict Core did not give or whose tag is unknown, is
+  newer than the offered stable release and on another line
+  (`ambiguous-release-line`): the offered release may be another product's
+  older release, such as a tool's stable release beside the game's newer
+  betas. A newer prerelease on a line of other product words (a tool's beta
+  beside the game) does not decide the game.
+
+A listing bound to a line is read on that line only: the worker offers that
+line's latest stable release. This uses the existing `release_url` field; no
+per-title data is added. A repository that publishes a second product on the
+main line itself (`v1.1-tools`) is not told apart by its tags; the shared
+repository, tool-token, other-package-form and one-package rules still apply.
+
+Repositories are compared by name. A listing that still names a repository's
+old `owner/name` after upstream renamed it is not counted as sharing it with
+an identity whose facts carry the canonical name. This residual is accepted:
+the worker binds each entry to its listing's repository id
+(`repository-identity-changed`), and the gate requires the recorded id, so a
+renamed repository cannot enroll for a listing that names another one.
+
+##### Other package forms
+
+A release can offer its program in a form the worker does not read beside
+the archive it does read. The classifier inverts the default: a release asset
+that is neither a readable archive nor on a closed list of non-program files
+competes with the archive. Only a read archive, a shared library, a
+non-desktop package and the closed non-program list are ever ignored; every
+other or unknown form (`.txz`, `.tar.Z`, `.zipx`, `.sit`, `.wim`, `.squashfs`,
+`.pck`, `.xyz`, …) is an unread container without being listed, so an
+unlisted form withholds the identity instead of letting a single non-game
+program enroll beside the real package. The honest cost: a release that
+carries an unusual extra file is withheld into the
+`other-package-form-beside-archive` queue, where the route-fit report lists
+the competing asset names of each withheld identity
+(`registration_queues.other_package_forms`, at most ten per identity), so the
+closed list is extended deliberately, in a reviewed change.
+
+The worker records every competing asset of the release with the provider's
+name, size and SHA-256 (never its bytes) and the platforms its form can
+serve. The lowercased name is judged in this order; the first match decides:
+
+1. A read archive (`.zip`, `.tar.gz`, `.tgz`, `.tar.xz`, including
+   `.app.zip`, `.app.tar.gz` and `.dSYM.zip`): read, never another form.
+2. A shared library (`*.so`, `*.so.<digits…>`, `*.dll`, `*.dylib`): ignored,
+   before the split-volume test, so `libgame.so.1.0.123` stays a library.
+3. The closed non-program list below: ignored.
+4. A volume of a split file: any name ending `.` and three or more digits
+   (`.7z.001`, `.zip.001`, `.exe.001`, `.iso.001`, bare `Game.001`), and
+   `.z01`, `.r00`, `.part1.rar`: a container.
+5. A single-system form, in the table below.
+6. A non-desktop package (`.apk`, `.aab`, `.ipa`, `.vpk`, `.nro`, `.nsp`,
+   `.3dsx`, `.cia`, `.wad`): its existing non-desktop treatment.
+7. Everything else, any other or unknown extension: an unread container.
+
+| Form                                                                                                                                                                        | Serves                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`, `.appinstaller` (names an MSIX package by URI, possibly hosted elsewhere)                                   | Windows                                                                                  |
+| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension  | Linux                                                                                    |
+| `.dmg`, `.pkg`                                                                                                                                                              | macOS                                                                                    |
+| a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …) | every platform its name permits; all when the name is neutral or Core cannot classify it |
+
+A file without an extension has no final `.` followed by letters and digits
+including a letter (`Game`, `Game-v1.0-linux`, `installer`). A name whose
+apparent extension is only a version (`game-v1.0`, `Game.v1.2`,
+`game.1.2.3`, `Game.v1`) is such a file, so a Linux program; a split volume
+such as `Game.exe.001` is a container, never a bare binary.
+
+The closed non-program list, in any letter case, is the only way an asset is
+ignored:
+
+- suffixes for checksums and signatures: `.sha1`, `.sha224`, `.sha256`,
+  `.sha384`, `.sha512`, `.sha1sum`, `.sha256sum`, `.sha512sum`,
+  `.sha256sums`, `.md5`, `.md5sum`, `.checksum`, `.checksums`, `.sig`,
+  `.asc`, `.minisig`, `.pem`, `.gpg`, `.sigstore`, `.intoto.jsonl`;
+- update metadata: `.blockmap`, `.zsync`, `.yml`, `.yaml`, `.json`, `.xml`,
+  `.plist`;
+- text and documents: `.txt`, `.md`, `.markdown`, `.rst`, `.pdf`, `.html`,
+  `.htm`, `.rtf`, `.nfo`, `.log`, `.csv`;
+- images and media used as release decoration: `.png`, `.jpg`, `.jpeg`,
+  `.gif`, `.webp`, `.svg`, `.ico`, `.mp4`, `.webm`, `.mov`;
+- debug symbols: `.pdb`, `.dbg`, `.debug`, `.sym` (a `.dSYM.zip` is a read
+  archive with no players);
+- patches and torrents: `.torrent`, `.patch`, `.diff`;
+- audio, fonts and subtitles: `.mp3`, `.ogg`, `.flac`, `.wav`, `.opus`,
+  `.ttf`, `.otf`, `.woff`, `.woff2`, `.srt`, `.vtt`;
+- office documents and ebooks: `.docx`, `.odt`, `.epub`;
+- signing and attestation: `.bundle` (including `.cosign.bundle`), `.p7s`,
+  `.crt`, `.cer`, `.pub`, `.sbom`, `.spdx`;
+- lockfiles, configuration, translations and metadata: `.lock`, `.toml`
+  (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
+  `.css`, `.desktop`;
+- the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
+  `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
+  `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
+  `md5sum`, `RELEASES`, `VERSION`, `manifest`, `LICENSE`, `LICENCE`,
+  `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`, `AUTHORS`,
+  `CREDITS`, `NEWS`, `TODO`, `INSTALL`, `Makefile`, `Dockerfile`, `go.sum`
+  and `go.mod`;
+- SPDX-looking license names (`gpl-3.0`, `lgpl-2.1-or-later`, `agpl-3.0`,
+  `apache-2.0`, `mpl-2.0`, `bsd-3-clause`);
+- `LICENSE`, `LICENCE`, `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`
+  or `AUTHORS` followed only by `.lesser`, or by `-`, `_` or `.` and a
+  license identifier (`mit`, `bsd`, `isc`, `zlib`, `apache`, `gpl`, `lgpl`,
+  `agpl`, `mpl`, `epl`, `ofl`, `cc0`, `cc-by`, `cc-by-sa`, `unlicense`,
+  `boost`, `bsl`, `third-party`, `thirdparty`, `3rd-party`, optionally with a
+  version and `-only`, `-or-later` or `-clause`): `LICENSE-MIT`,
+  `COPYING.LESSER`, `LICENSE-APACHE-2.0`, `NOTICE-THIRD-PARTY`.
+  `README.markdown` and `LICENSE_THIRD_PARTY.txt` are ignored by their
+  suffix. Anything else after the word is classified by the other rules, the
+  safe direction: `Changes-Game-linux`, `Notice-Me-Senpai`,
+  `Readme-Launcher`, `Authors-Cut`, `readme_first` and `installer` are bare
+  Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
+
+Nothing that can carry or launch a program is on the list: `.js`, `.bat`,
+`.cmd`, `.ps1`, `.command`, `.nupkg`, `.db`, `.dat`, `.delta` and `.diff.gz`
+keep competing as unread containers.
+
+The identity is excluded as a whole (`other-package-form-beside-archive`)
+when the release carries such an asset for a platform the release also
+offers a readable archive for (one whose name permits that platform), and the
+asset's digest is not among the SHA-256s of the players those archives hold
+for that platform. An unknown digest excludes. Such a release offers a
+different package than its archive where the rule would bind, and nothing in
+the facts tells a portable build beside its installer apart from a code
+generator beside the game's installer, so the archives' role is unknown. A
+single-file program equal to such a player is the same package and enrolls.
+A form that serves only platforms without an offered archive is ignored: a
+`.dmg` beside Windows and Linux archives leaves both enrolled.
+
+This rule has a plain cost. A project that ships both a portable archive and
+a separate installer, disk image or other package for the same platform is
+withheld until a person reviews it, in the one grouped
+`other-package-form-beside-archive` queue. Any macOS zip beside a `.dmg` or
+`.pkg` is always withheld. A neutral-named archive permits every platform, so
+`game-1.0.zip` beside `Game.AppImage` or a `.dmg` withholds the whole
+identity. A reviewed `route_facts_v1` enrollment can still offer such a
+release.
+
+Known residuals:
+
+- Ignoring a form on a platform without an offered archive leaves one wrong
+  enrollment possible. A game shipped only as a Windows installer beside a
+  Linux-named tarball whose single program is neither the game nor
+  tool-named enrolls that program on Linux; the mirror case (a Linux-only
+  form beside a Windows-named zip) is the same. It needs four things
+  together: a form only for platforms without an archive, an archive whose
+  name restricts it to the other platforms, exactly one program in it, and
+  that program not being the game while not tool-named. Every generic signal
+  against it would also withhold the common "Windows `Setup.exe` plus a Linux
+  tarball of the same game" release. So the route-fit report lists every
+  enrollment whose recorded other packages include a form on a platform
+  without an offered archive in `registration_queues`
+  (`enrolled_beside_unoffered_forms`) as a review queue, and the facts batch
+  summary prints that list.
+- The facts record the name of every release asset that is neither a recorded
+  artifact nor a refused archive (`asset_names`, within the observer's asset
+  window), and the gate classifies each with its own classifier
+  (`gateFormKind`): a form the gate sees that the worker did not record in
+  `other_packages` competes with an unknown digest on every platform its kind
+  serves (every platform for a container), so a worker classifier mistake
+  that drops an asset refuses the batch instead of enrolling. Reproduction
+  compares `asset_names` with the re-listed release. A recorded container's
+  platforms still come from Core's name verdict as recorded, widened by the
+  gate's own reading of the name, never narrowed. The classifier's tables are
+  pinned by one shared fit-and-gate test table.
+
 ##### What the player sees
 
 Upstream text reaches the guide only through a conservative name class. A name
@@ -3842,7 +4246,10 @@ zero-width and look-alike characters never pass. The selection step names the
 program only when the facts name exactly one player per platform, the same
 name everywhere, and that name passes the class. It uses the archive's own
 letter case, such as `Game.x86_64`, not Core's lowercase comparison key.
-Otherwise it says "Select the game program in your prepared copy." The working
+Otherwise it says "Select the game program in your prepared copy." It also
+says that when the one program's name contains `launcher`, `settings` or
+`config`: such a program may be the documented entry point, so it can enroll,
+but the guide never calls it the game. The working
 folder is the program's folder. The provenance reference names the repository,
 the release tag and release file when they pass the class, and the date facts
 were checked. It names at most three programs, then "and N more". Full paths,
@@ -3863,7 +4270,7 @@ and up to five examples with port id, vetoed name and outcome. The reasons are
 `asset-system-name`, `asset-architecture-name` and `player-tool-name`.
 `ambiguous-player` groups the identities whose players are not one program,
 with token `several-programs` or `several-directories` and the program names
-as the example. A group of real games
+as the example. `bundled-toolchain` groups archives by the helper they bundle. A group of real games
 excluded by one token means the rule needs fixing, not a single game.
 `facts_provenance` carries the facts table's provenance, or `null`. Generation is pure: when a fact stops holding, the next run
 omits that route. The delta records the withdrawal reason. Withdrawal removes
@@ -3880,21 +4287,33 @@ examples; `node scripts/catalog-route-fit.mts --json` adds
 from the committed catalog and facts, so any checkout reproduces them:
 `reasons` (every blocked reason with its identities), `unread_forms` (every
 release package form the worker does not read with the identities whose
-release has it, also beside a supported archive) and `exclusions` (every
-name-based veto as `reason:token`). The text summary prints the counts. The
-identity-level reasons are distinct and machine-readable. Upstream and
-release: `no-stable-release`, `no-release-archive` (no package file at all),
-`unsupported-archive-format` (only desktop forms the worker does not read, such
-as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`; the forms are
-in the detail and `unread_forms`), `non-desktop-platform`, `no-digest`,
-`too-many-assets`, `too-large`, `exceeds-run-budget`, `core-refused`,
-`repeated-inspection-failure` and `invalid-facts`. Fit: `no-player`,
-`tool-not-game` (only tool-named programs or a tool or tool-role archive name),
-`contradictory-role`, `non-desktop-platform`, `unknown-platform`,
-`wrong-host`, `ambiguous-player` and `guide-bound`. When no platform fits, the
-reason is the first of `ambiguous-player`, `wrong-host`, `unknown-platform`,
-`non-desktop-platform`, `contradictory-role`, `tool-not-game`,
-`no-authorizing-source` and `no-player` that any platform gave.
+release has it, also beside a supported archive), `exclusions` (every
+name-based veto as `reason:token`), `refusals` (every refusal class of a
+refused archive with the identities that have one), `shared_repositories`
+and `enrolled_beside_unoffered_forms` (every enrolled identity whose release
+also records another package form for a platform it offers no archive for:
+a review queue, see [Other package forms](#other-package-forms)). The text summary prints
+the counts. The identity-level reasons are distinct and machine-readable.
+Upstream and release: `no-stable-release`, `no-release-archive` (no package
+file at all), `unsupported-archive-format` (only desktop forms the worker does
+not read, such as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`;
+the forms are in the detail and `unread_forms`), `non-desktop-platform`,
+`no-digest`,
+`repeated-inspection-failure` and `invalid-facts`. Product binding:
+`shared-repository` and `ambiguous-release-line`.
+Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
+tool-role archive name), `contradictory-role`, `non-desktop-platform`,
+`unknown-platform`, `wrong-host`, `ambiguous-player`, `ambiguous-artifact`,
+`core-refused` (a refused archive's name allows the platform),
+`bundled-toolchain` and `guide-bound`. Release content: `other-package-form-beside-archive` (the
+whole identity). When no platform fits, the reason is the first of
+`ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
+`unknown-platform`, `non-desktop-platform`, `contradictory-role`,
+`tool-not-game`, `no-authorizing-source` and `no-player` that any platform
+gave. `bundled-toolchain` follows `core-refused` in that order.
+`registration_queues` also holds `bundled_toolchains` (each withheld
+identity's helper names) and `inspection_failures` (the
+`repeated-inspection-failure` identities by typed cause).
 
 The gate compares the generation with a baseline. The baseline is the
 committed table at the merge base, never the working tree, so repeated runs and
@@ -3904,30 +4323,66 @@ first parent of the checked-out merge commit, else the merge base with
 commit. Locally it is the merge base with `origin/main`. A revision without the
 table is an empty baseline. Outside a git repository the baseline is empty.
 Inside one, an unresolvable baseline is an error, so CI's catalog jobs check
-out two commits. A change of more than 64 added, 32 withdrawn or 64 changed
-routes (`deltaBounds`) is refused. Raising a bound is a reviewed change, and
-there is no bypass. The gate also re-checks every enrollment against its facts
+out two commits. The delta has no size bound: every enrollment that passes
+the checks below may land in one change, and so may every withdrawal. What
+holds a mass withdrawal a bug could cause is the facts batch job's
+`withdrawal-held` stop ([stop and wait](#stop-and-wait)), not a count. The
+gate re-checks every enrollment against its facts
 entry with its own code, independent of the fit rule. It checks the facts
 digest, complete eligible coverage, the bound repository id and release, the
 age and retention bounds, the exact archive binding, the veto, tool and system tokens,
 the name's operating system and architecture, that each player exists in the
 facts with a machine that runs on the platform and was not excluded by the
 tool veto, that every player of the artifact running there is named, and the
-one-program rule, including one top-level directory for the players of every
-artifact whose name permits the platform, as the generator checks. The facts
+one-program rule, including each such artifact's players under one top-level
+directory, for every non-contradictory desktop-runtime artifact whose name
+permits the platform, as the generator checks. It also
+restates, from the facts and the listings alone, the release-line and
+shared-repository rules, the other-package-form rule for every platform the
+release offers an archive for, whichever platforms the enrollment names
+(naming each form's platforms itself, widened but never narrowed by the
+recorded ones, and a container's or split volume's by its recorded name
+verdict), that the archives whose names permit
+the platform are one package, and that no refused archive is offered or
+could hold the platform's game. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
 because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
 refused.
 
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
-version. The same reviewed change must therefore raise the `changed` bound in
-`deltaBounds` for that change only. Generator version 5 and facts parser
-version 5 (#8569: iOS shape at any depth, glued numbers in program names, the
-gate's directory check, unreadable asset records and ARM64EC) landed with an
-empty facts table and no enrollment, so no bound changed. A curated change that adds integrations to
-more generated identities than the `withdrawn` bound must be split into
-changes within it.
+version; it lands in the reviewed change that raises it, with no bound to
+raise. Raise `GENERATOR_VERSION` when the fit rule or the generated route
+changes, `FACTS_PARSER_VERSION` when the worker's output for the same
+upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
+changes. A parser or generator behavior change requires its version bump:
+the bump is what marks the withdrawals it causes as `rule-version` and holds
+them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
+generator version from 5 to 15, the facts parser version from 5 to 16 and
+the facts table format from 4 to 12 (generator 15: the own-name role-word
+exemption is removed and every role word vetoes; generator 14 and parser 16:
+a role word was exempt only inside a run of a product name's words and
+camel-case archive names are split into words, `.appinstaller` is a Windows package form,
+versioned or renamed compiler and interpreter file leaves are toolchain
+helpers, and a hash-only tag is a channel build; generator 13, parser 15 and
+format 12: no explicit-system exception for several archives, role words with digits
+and without the product's own name words, `x86-64` as one word in both copies,
+real date shapes in channel-only tags, first-word hex words as product words,
+`test` as a conditional channel word, the wider non-program list, file-only
+short toolchain helpers with recorded `toolchain_names`, and recorded
+`asset_names` for the gate's own classifier; earlier: iOS shape at any depth, glued numbers in program names, the gate's directory
+check, unreadable asset records, ARM64EC, release lines, shared
+repositories, one package per platform, per-archive Core refusals,
+per-platform archive counts, new tool tokens, the other-package-form rule
+excluding the identity where another form competes with an offered archive,
+split-file volumes, unread compressed and disk-image forms, the
+non-program file list, the inverted default that makes every unlisted
+form compete, archive role words, one package by archive bytes, bundled
+toolchains, channel-only tags, stable-only release lines and typed
+inspection failure causes; parser 13 removed the size and count
+exclusions). It landed with an empty facts table and no enrollment. A
+curated change that adds integrations to generated identities withdraws
+their generated routes in that same change.
 
 A portcove-core test re-runs Core's own rules on every fact of the committed
 facts table, without network access. For each artifact it reclassifies the
@@ -3958,10 +4413,23 @@ release. The latest stable release follows Core's reviewed prerelease rule: the
 provider flag, or a tag such as `-alpha`, `-rc`, `-preview` or `-nightly`. It
 verifies each archive's size and SHA-256, runs
 `portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection))
-and then deletes the bytes. Core's temporary workspace is inside the worker's
+and then deletes the bytes. From the archive's listing (Core's `names`) it
+records only the bundled toolchain helpers. Core's temporary workspace is inside the worker's
 own scratch directory, and a timed-out run is killed, so nothing leaks. Each
 archive becomes an `exact-release-structured` fact with the player candidates
-Core found outside any tool, installer or server location.
+Core found outside any tool, installer or server location. A listing whose
+`release_url` names a tag is read on that tag's [release line](#release-lines)
+only. Each entry also records the observed releases and the release's
+[other package forms](#other-package-forms) with the provider's size and
+digest and the platforms each serves (never their bytes), for the
+release-line and other-package-form rules.
+
+The worker's candidates are the authored listing-only GitHub identities, read
+before catalog generation adds generated routes (`workerRecords`). An identity
+the generated route already offers is therefore still a candidate: its facts
+are kept and refreshed, and its withdrawal is classified like any other
+(`withdrawal-held`). Every generated enrollment must name such an authored identity, or the
+run fails.
 
 Core's filename classifier (`portcove --json catalog classify-listing-names`)
 can only veto. When an archive's name suggests a role other than a desktop game
@@ -4007,6 +4475,8 @@ why each is vetoed:
 | `sdk`, `devkit`, `tool`, `tools`, `toolkit`                               | Development kits and generic tools.                                               |
 | `server`                                                                  | A server is not the player's program.                                             |
 | `patch` (whole word only)                                                 | A patch archive; as a camel-case part it also starts titles such as `PatchQuest`. |
+| `studio`, `authoring`, `workbench` (whole word only)                      | Authoring suites shipped beside the game; `StudioTown` and `LevelStudio` pass.    |
+| `codegen`, `glue`, `toolchain` (whole word only)                          | Code generators and toolchains; `code-glue.exe` is vetoed, `codeglue.exe` is not. |
 
 These words stay allowed, because they also name real game programs:
 `recomp`, `recompiled` and `psxrecomp` (game ports are often named
@@ -4014,7 +4484,17 @@ These words stay allowed, because they also name real game programs:
 and `demo` (a demo is still a game). A missed tool still needs a native
 program outside every tool, installer or server location to enroll. A name
 written as one lowercase word, such as `gamepatcher`, is not split and is not
-vetoed.
+vetoed. Such a program is still caught by its release when the release also
+ships another package form for a platform it offers an archive for that is
+not the archive's player (`other-package-form-beside-archive`). `engine` is not a tool word: engine
+reimplementations are real game ports, also as a whole word in an archive
+name.
+
+Programs inside nested build trees (`target/release`, `build/`, toolchain
+directories) are not treated as tools by path. A package can ship its only
+game program there (a Cargo or CMake build directory), so such a rule could
+hide a second real game or leave the wrong program as the only player; the
+one-program rule keeps judging them.
 
 The worker binds facts to the listing's repository and the observed numeric
 repository id. A rename that keeps the id continues. A different id withdraws
@@ -4035,12 +4515,28 @@ re-evaluated only when the release or its asset list changes:
   package forms the worker does not read;
 - `non-desktop-platform`: only mobile or console package forms (`.ipa`,
   `.apk`, `.aab`, `.vpk`, `.nro`, `.nsp`, `.3dsx`, `.cia`, `.wad`);
-- `no-digest`: an archive without a provider SHA-256;
-- `too-large` (512 MiB) and `too-many-assets` (six archives);
-- `exceeds-run-budget`: more unread bytes than one whole run may read (2 GiB);
-- `core-refused`: Core refused the bytes, or they differ from the
-  provider's size or digest;
-- `repeated-inspection-failure`: three transient failures in a row;
+- `no-digest`: an archive without a provider SHA-256. This is a correctness
+  rule, not a limit: without the provider's digest the bytes the worker reads
+  cannot be bound to the release, and reproduction could not prove them;
+- no identity-level Core refusal: a permanent refusal is scoped to its
+  archive. The entry records the archive in `refused_archives` with a bounded
+  class: Core's typed error code (`core-source-invalid`, `core-unsupported`,
+  `core-verification` and so on, never Core's message text), or the worker's
+  own `digest-mismatch`, `size-exceeded` or `not-digest-bound`. A refused
+  archive is never offered; it blocks only the platforms its name allows, and
+  `core-refused` becomes the identity's reason only when no platform fits. An
+  unchanged refused archive is not read again;
+- `repeated-inspection-failure`: a transient failure that recurred on every
+  run for longer than the last-good retention bound (14 days, the same bound
+  that keeps an unavailable upstream's facts). No attempt count settles it:
+  a failure is retried every run until then. The entry records the last failure's typed `cause` (`network` for a download,
+  `over-budget` for a timeout or deadline, `unreadable-archive` when Core read
+  the bytes but returned nothing usable, `runner-time` for an identity over
+  the per-identity budget CI can reproduce in (settled at its second
+  consecutive occurrence, see [inspection order](#inspection-order-and-backlog)),
+  `runner-disk` for a Core run that ran out of runner disk, or a refusal
+  class such as `digest-mismatch` or `core-source-invalid`); every other
+  reason records a null cause;
 - `invalid-facts`: the identity's facts failed validation, such as a path with
   a control character, `:` or `\`, a release file or program name Core could
   not classify, a release record the worker cannot read, an asset record it
@@ -4060,68 +4556,95 @@ with malformed Unicode stays unclassified. An unclassified tag is never
 skipped as a prerelease: when it is newer than every stable release, the
 identity is `invalid-facts` for that release rather than silently falling back
 to an older one. An unclassified release file or program name makes its identity
-`invalid-facts` before any bytes are read. Requests are split by count and
-size below Core's 8 MiB input bound. If Core still refuses a request, it is
+`invalid-facts` before any bytes are read. Requests are split at Core's own
+request bounds (50,000 names and the CLI's 8 MiB input). If Core still refuses a request, it is
 split until the refused name is isolated. Only a refused known-good probe,
 meaning an unusable CLI, fails the whole run.
 
 ##### Inspection order and backlog
 
-Identities that need bytes share one budget per run: at most `maxIdentities`
-(24) identities and `maxBytes` (2 GiB). Let I be `maxIdentities`, R the share
-reserved for new identities (a quarter of I, at least one; 6) and Q the new
-identities' retry cap (half of R; 3). Each run inspects, in this order:
+A run has no identity, byte, archive-size or archive-count bound: it reads
+every identity that needs bytes, one archive at a time, verifying and then
+deleting each archive's bytes before the next, so disk never accumulates.
+The provider's own per-asset maximum (2 GiB for a GitHub release asset)
+bounds an archive. Several archives for one platform are judged by the fit
+rule (`ambiguous-artifact`), never by a count. Every derived entry lands in
+the worker's table in the same run: the worker has no batch bound. The
+scheduled job then lands at most one hour's reproduction share per batch and
+carries the rest ([scheduled facts batch job](#scheduled-facts-batch-job)).
 
-1. The cursor pass's next new identity, so the pass always advances.
-2. Offered identities whose release changed, oldest pending first, at most
-   I − R of them. Keeping what is already offered fresh comes before growth.
-3. New identities' transient failures, oldest first, at most Q.
-4. The cursor pass, in port_id order, with the rest of the budget. It stops
-   at the first identity that does not fit the remaining bytes and resumes
-   there next run.
-5. Offered identities again, with any budget the cursor pass did not use.
+The only limits are the runner's time and disk and the REST quota. Each
+identity's inspection has the time CI can reproduce it in
+(`identityBudgetMinutes`): the CI reproduction shard deadline
+(`reproductionDeadlineMinutes`, 85 minutes), less the quota wait CI must
+expect, divided by the entries one CI shard holds. The worker computes it for
+the entries one batch can land, the candidate count but at most
+`reproductionBatchEntries` (250, half of one hour's reproduction share of
+the quota; see [reproduction quota](#reproduction-quota)), since a batch lands
+no more and a change can name only authored listing-only identities. That
+batch fits one entry per CI shard, so each identity has the whole 85 minutes
+at about 400 or 1,100 candidates alike. The worker never settles what CI cannot reproduce: an identity over
+its budget is a transient `runner-time` failure, retried in the next run,
+and a second consecutive one settles it as `repeated-inspection-failure`
+with the `runner-time` cause, so an identity that alone cannot finish is
+never retried for ever. That ineligibility lasts until the entry changes: the
+worker reconfirms it without retrying for as long as the offered release and
+its asset list stay the same, and a new offered release or a changed asset
+list makes the next run inspect it again (a facts parser version change
+alone does not). The `repeated-inspection-failure` exception queue groups
+these identities by cause and states that condition; a person may instead
+review one for a curated route. A Core run that runs out of runner disk (about 14 GB on a
+standard Linux runner, below Core's 16 GiB extraction ceiling plus the
+archive) is a transient `runner-disk` failure, never a refusal of the
+archive; it settles only after the 14-day retention bound. A run can also
+be given a deadline (`--deadline`), the real time limit of the job it runs
+in; it is checked before each identity, and every download and Core run is
+cut at it. An identity the deadline cuts is left `pending-inspection`, not
+failed, and its id goes to the worker state's `pending` list. An unsharded
+next run inspects transient failures oldest first, then the rest in port_id
+order, and the identities a deadline cut last, in their order. A sharded run
+does not: its plan reads no bytes and returns `pending: []`, so each shard
+orders a previously cut identity like any other (transient failures oldest
+first, then port_id). There, a slow identity is bounded by its own budget
+(`identityBudgetMinutes`) instead. An identity a deadline left pending in two
+consecutive runs stops the job (`pending-repeated`, grouped by cause).
+Without a deadline nothing is cut.
 
-The worker state file (`--state`) holds the cursor, the retry queue and held
-facts. An offered identity the run did not reach keeps its last-good facts
-with an `attempt` of status `pending-inspection`. That is the worker's own
-backlog, not an upstream attempt. It starts no `observation-unavailable`
+A sharded run splits the work across a job matrix
+([scheduled facts batch job](#scheduled-facts-batch-job)):
+
+1. Plan (`derive --plan true`): every observed identity is evaluated without
+   reading bytes. Everything that needs no bytes settles; every identity
+   that needs bytes is left pending and listed in `needs`.
+2. Inspect: each shard runs the worker on the plan's table with the plan's
+   clock (`--now`), restricted to its identities (`--only`), with its
+   deadline. Shards are `identityShards`: one identity per shard, identity i
+   in port_id order in shard i mod N, N the number of identities that need
+   bytes but at most 256 (GitHub's matrix job limit).
+3. Combine (`combine`): each shard's identities are taken from that shard
+   and everything else from the plan, so a sharded run lands exactly what one
+   unsharded run would (`combineShards`). Each identity's retry record also
+   comes from its own shard only: every shard starts from the whole plan
+   state, so another shard's copy is stale.
+
+The worker state file (`--state`) holds the `pending` cursor and the retry
+queue (format 3). An offered identity a deadline cut keeps its last-good
+facts with an `attempt` of status `pending-inspection`. That is the worker's
+own backlog, not an upstream attempt. It starts no `observation-unavailable`
 clock, and the entry stays unchanged until the identity is inspected. Only
 `stale-facts` (30 days after the facts were last confirmed) withdraws it.
 
-Each run reports its `backlog`: `enrolled_pending`, `new_pending`,
-`bytes_pending`, and the runs and days to drain each at the configured
-`--cadence-hours` (default 24). Facts held for the batch bound are backlog
-too, named apart because they need no bytes: `held_for_batch` and
-`runs_to_land_held` (at most the smallest `deltaBounds` value land per run).
-Each run also reports `settled`, the identities it settled into the landed
-table (newly complete or newly ineligible), and `no_progress`, which is true
-when work waits but the run settled nothing. A run reconfirming the same
-verdict for the same release is not progress. Orders in the facts and
-enrollment tables use Unicode code points, never the running Node's locale
-data. With cadence c days, E pending offered
-identities totalling S_E bytes, and C new identities totalling S_C bytes:
-
-- Offered drain: runs_E = max(⌈E / (I − R)⌉, ⌈S_E / maxBytes⌉), or ⌈E / I⌉
-  when no new identity waits. It must stay below 30 / c runs.
-- Cursor pass: N = c × max(⌈C / I⌉, ⌈S_C / maxBytes⌉) days without an offered
-  backlog. With a saturating offered backlog it is c × ⌈C / (R − Q)⌉ days. In
-  the worst case, when each new identity needs nearly a whole run's bytes, it
-  is c × C days.
-
-The invariant is that a full cursor pass completes within N days at the
-configured cadence, and that N and the offered drain stay well within the
-30-day facts age. With the defaults and a daily cadence, 18 changed offered
-releases drain per run. An initial wave of 1,110 new identities takes about
-47 runs, so it runs at a shorter cadence, such as every 6 hours, until the
-first pass completes.
-
-Facts land as one bounded batch per run, never per game. The worker keeps new
-facts in port_id order while the enrollment delta stays within `deltaBounds`.
-The rest are held in the worker state and offered again next run without
-reading bytes. An initial wave of a few hundred candidates therefore lands as
-successive batches of at most 64. `--check` validates the committed table. An
-unattended run records provenance with `--workflow-run-id`, `--source-commit`
-and `--inputs-sha256`; the worker adds the CLI binary's SHA-256 itself.
+Each run reports its `backlog` (`enrolled_pending`, `new_pending`,
+`bytes_pending`: what deadlines cut), `needs`, `settled` (the identities it
+settled into the table, newly complete or newly ineligible), `unobserved`
+(candidates the observer report did not cover) and `no_progress`, which is
+true when a deadline left work pending but the run settled nothing. A run
+reconfirming the same verdict for the same release is not progress. Orders
+in the facts and enrollment tables use Unicode code points, never the
+running Node's locale data. `--check` validates the committed table. An
+unattended run records provenance with `--workflow-run-id`,
+`--source-commit` and `--inputs-sha256`; the worker adds the CLI binary's
+SHA-256 itself.
 
 Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
 platform, so a release with only 32-bit players stays `wrong-host`; a 32-bit
@@ -4137,11 +4660,12 @@ its checks and decisions in `scripts/listing-facts-batch.mts`. It is built
 disabled: the schedule does nothing and nothing is written until the owner
 sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`. A
 manual dispatch defaults to a dry run, which may run while disabled: it
-derives, generates and verifies one batch with read-only permissions, reports
+derives, generates and verifies the batch with read-only permissions, reports
 it in the job summary and artifacts, and saves no worker state, branch, pull
 request or issue. The job uses only the built-in workflow token, no secret,
 no paid runner and no external service other than GitHub and the upstream
-release downloads the worker already reads.
+release downloads the worker already reads. The dispatch input bypasses
+nothing: without the variable it can only dry-run.
 
 Each run, in one concurrency group (`listing-facts-batch`):
 
@@ -4162,22 +4686,39 @@ Each run, in one concurrency group (`listing-facts-batch`):
    of that run attempt; without such a run the batch still waits. The merged
    batch branch is then deleted (a failed deletion changes nothing else). A
    failed check stops the job. Missing or pending checks wait, and a batch
-   that has waited more than 3 days (`batchWaitDays`) files `batch-waiting`.
-3. Otherwise the job derives one batch from the tip of `main`: the newest
-   main observer handoff (`catalog-upstream-observations-*`) and the worker
-   state restored from the Actions cache. It retains the run's inputs (the
+   that has waited more than 15 days (`batchWaitDays`) files `batch-waiting`.
+3. Otherwise the job derives one batch from the tip of `main` over the whole
+   candidate set: the newest main observer handoff
+   (`catalog-upstream-observations-*`) and the worker state restored from the
+   Actions cache. `prepare` builds the CLI once, retains the run's inputs (the
    observations, the prior state and `inputs.json` with their digests) as the
-   `listing-facts-batch-inputs-<run id>` artifact before the worker runs,
-   then runs the worker once with `--workflow-run-id`, `--source-commit` and
-   `--inputs-sha256`, regenerates the catalog and commits locally. A batch it
-   can propose is retained with its outputs record
+   `listing-facts-batch-inputs-<run id>` artifact before the worker runs, and
+   plans the run with `--workflow-run-id`, `--source-commit` and
+   `--inputs-sha256`; `inspect` runs one matrix job per shard of the
+   identities that need bytes ([inspection order](#inspection-order-and-backlog)),
+   each with the hosted job's 6-hour limit less its other steps as its
+   deadline; `combine` requires every shard to have finished, merges them,
+   carries what one batch may not land (below), regenerates the catalog,
+   commits locally and checks the paths, the gate, both
+   [catalog capacity](#catalog-capacity) bounds and the batch once;
+   `reproduce` re-reads every added or changed eligible entry of the batch;
+   `decide` assesses the stop conditions. A batch
+   it can propose is retained with its outputs record
    (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
    of the batch patch, and whether the run was a dry run). It refuses
-   its own batch on a path outside the allowlist, a gate refusal, an entry it
-   cannot reproduce, or any stop condition, and proposes nothing when the
-   change is not material: no enrollment changed, no entry appeared,
-   disappeared or changed other than by reconfirmation, and no offered entry
-   was last confirmed more than 14 days before.
+   its own batch on a path outside the allowlist, a gate refusal, a capacity
+   bound, an entry it cannot reproduce, or any stop condition, and proposes
+   nothing when the change is not material: no enrollment changed, no entry
+   appeared, disappeared or changed other than by reconfirmation, and no
+   offered entry was last confirmed more than 15 days before
+   (`refreshAfterDays`). One batch lands at most `reproductionBatchEntries`
+   (250) entries that need reproduction, so the job's own reproduction and its
+   pull-request CI together never wait for a quota reset ([quota](#reproduction-quota)); further such entries are
+   carried (`carryOver`): each keeps its previous entry, or stays absent when
+   new, the next run derives it again, and a later batch lands it. Carried
+   identities are reported as `carried` with `carried_ids` in the worker
+   summary and counted in the pull request body, never as complete or
+   settled. Entries that need no reproduction always land.
 4. A ready batch is pushed as the one-commit branch
    `automation/listing-facts-batch-<run id>` and opened as a pull request,
    after the deliver job checks that the applied patch and facts table are
@@ -4204,53 +4745,114 @@ the facts table and exactly the outputs `scripts/generate-catalog.mts`
 rewrites from it. The allowlist is by name, so each of those paths must also
 stay a regular, non-executable file on both sides (`git diff --raw` modes
 `000000` or `100644`): a symlink, an executable bit or a gitlink at an
-allowed name is a violation. It never changes `deltaBounds`, `GENERATOR_VERSION`, a
+allowed name is a violation. It never changes `GENERATOR_VERSION`, a
 script, a workflow or an authored listing, and `generate-catalog.mts --check`
 still requires every output to equal what the facts produce.
 
 Pull-request CI (`fast-catalog`, and `catalog-full` in qualification) runs
-`listing-facts-batch.mts plan` and `verify` for every pull request, whoever
-opened it. For every eligible entry the change adds or changes against the
-gate's baseline, CI reads the release by numeric repository and release id
-from the GitHub REST API, requires those ids to name the listing's own
-repository, the recorded tag, publication time, Core's stable verdict and the
-asset-list digest, lists the repository's releases by id (one page of 100,
-the observer's page size) and re-applies the worker's `latestStable` and
+`listing-facts-batch.mts plan` and the change's checks once
+(`verify --reproduce false`) for every pull request, whoever opened it. The
+plan shards every eligible entry the change adds or changes against the
+gate's baseline (`identityShards`), and the required
+`listing-facts-reproduction` matrix runs one job per shard
+(`verify --shard I`); the `catalog` check passes only when every shard
+succeeded. Before any provider call or download, `plan` and `verify` refuse
+the whole change when any planned entry's `port_id` is not an authored
+listing-only GitHub identity, its `repository` is not the one its listing
+names, or its `repository_id` differs from the id the baseline entry bound
+that repository to (`reproductionScopeProblems`); `reproduceFacts` refuses
+such an entry again with zero calls. The authored listings and release-line
+bindings for that check come from the base revision, never from the change,
+so a listing only the head adds is out of scope. A change that edits
+reproducible facts entries together with any authored listing or catalog
+source under `crates/portcove-core/catalog/` (anything there but the four
+generated batch outputs) is refused whole before any call
+(`authoredSourceProblem`): the authored change lands first, the facts later,
+the same shape as checker separation, and a batch never touches an authored
+file. So the entries an untrusted pull request can make CI read are bounded
+by the authored catalog already on `main`, and none points at a repository
+that catalog does not name. Each reproduction shard first stops when a newer
+head superseded its pull request (`stop-if-superseded`), so repeated pushes
+do not stack matrices. For each entry, CI lists the
+repository's releases by numeric repository id once per shard (one page of
+100, the observer's page size) and reads the offered release from that list:
+one REST request per repository. It requires the list to name the listing's
+own repository, the recorded tag, publication time, Core's stable verdict and
+the asset-list digest, and re-applies the worker's `latestStable` and
 `unreadableReleases` to require the release to be still the newest stable
-one (an older release whose bytes reproduce does not enroll; a full page,
-an unclassified newer tag or an unreadable newer release refuses as
-`not-latest-stable`), requires the entry to record exactly
-the release's archives, re-downloads each digest-bound archive, re-runs
+one (an older release whose bytes reproduce does not enroll; an unclassified
+newer tag or an unreadable newer release refuses as `not-latest-stable`). A
+full page shows the 100 newest releases, so when it holds the line's newest
+stable release nothing older can displace it; a full page without one, or
+an offered release absent from the page, is refused. It requires the entry
+to record exactly the release's archives and exactly its other asset names, re-downloads each digest-bound archive, re-runs
 `inspect-listing-artifact` and Core's name classification, and requires a
-byte-equal artifact fact. Any change to an eligible entry other than its
+byte-equal artifact fact. A refused archive must be refused again with the
+same class under the same name verdict. The release's own observed-release
+record (tag, time, stable verdict) and its other package forms (names,
+sizes, digests and platforms, a container's from Core's name verdict) must
+match the provider. The observed releases must equal the observer's window
+of the release list (the newest four by publication time, each with at most
+32 assets), so an entry that leaves out another line's release, or an
+other-form asset, is refused; a release published after the run refuses
+every entry of its repository until the next run. Any change to an eligible entry other than its
 `observed_at` and the worker's `attempt` record is reproduced, including the
-parser version, coverage, repository binding and unread forms. A
-reconfirmation re-reads nothing, so whoever can merge can keep a
-reconfirmation's date moving; an ineligible entry offers nothing, and its
-withdrawals stay bounded by the gate. One change may reproduce at most 64
-entries and 4 GiB with no archive over 512 MiB (`reproductionBudget`). The
-30-minute deadline is checked before each entry and archive, and every
-download, Core inspection and name classification is cut to the time left
-(at most 10 minutes each) and not started past it, so an item that reaches
-the deadline is an `over-budget` refusal, never a step timeout. After the
-deadline only the two release reads of the entry in hand remain (30 seconds
-each). The worker's batch bound (`boundFactsBatch`) keeps every batch inside
-that budget. A change over budget, an oversized or unavailable asset or a
-changed release refuses the entry: it is never trusted. A facts change may
-not record `generated_at`, or any added or changed `observed_at`, more than
-10 minutes ahead of the clock (`clockProblems`): facts age is measured from
-those times. A push to `main` was verified on its pull request and re-reads
+parser version, coverage, repository binding and unread forms. An archive
+whose record is byte-identical to the baseline's (same asset id, SHA-256,
+players, name verdicts or refusal), in an eligible baseline entry of the same
+repository id and facts parser version, is not downloaded again: its bytes
+were reproduced when it landed, so only its provider metadata (name, size,
+digest) and Core's name verdict are re-checked (`reusedArchives`). A new
+release on another line changes only `observed_releases` or
+`other_packages`, so it re-reads no archive; a changed artifact, parser
+version or recorded fact is reproduced in full. A reconfirmation re-reads
+nothing, so whoever can merge can keep a reconfirmation's date moving; an
+ineligible entry offers nothing.
+
+Reproduction has no entry, byte or archive-size bound; it is sized from the
+real runner constraints instead. A shard holds the fewest entries the
+256-job matrix allows (one for up to 256 entries, so a table of 400 new
+entries is two per shard). Each shard reads one archive at a time and
+deletes it, so its disk holds one archive (at most the provider's 2 GiB) and
+Core's extraction of it at a time, inside the hosted runner's free disk
+(about 14 GB on a standard Linux runner). Its deadline is one shared
+constant, `reproductionDeadlineMinutes` (85 minutes: the repository's
+120-minute CI job cap less the shard's other steps), the default of `verify`
+in pull-request CI and in the batch job alike, and the worker's per-identity
+budget is derived from it, so the job never settles or proposes what CI
+cannot reproduce. The deadline is checked before each entry and archive, and
+every download, Core inspection, name classification and quota wait is cut
+to the time left and not started past it, so an item that reaches it is an
+`over-budget` refusal, never a step timeout. An unavailable asset, a changed
+release or a reached deadline refuses the entry: it is never trusted, and
+any refused entry fails its shard and the `catalog` check. A network
+failure, a provider server error (5xx), a rate limit, a quota that does not
+clear before the deadline or the runner's disk running out while Core
+extracts an archive is the provider's or the runner's condition, never a
+verdict on the facts: the entry is refused as `transient` (with
+`over-budget`, the `transientReasons`), and pull-request CI reports such a
+shard as transient, to be re-run, rather than refused.
+
+A facts change may not record
+`generated_at`, or any added or changed `observed_at`, ahead of the clock
+(`clockProblems`): facts age is measured from those times, which all come
+from earlier runs. A push to `main` was verified on its pull request and re-reads
 nothing.
 
 The pull-request check runs the pull request's own code. So `plan` and
 `verify` refuse a change that edits the facts table together with any path
 the check depends on (`checkerPaths`): the two workflows and their Rust
-setup, `Cargo.lock`, the CLI's `main.rs` and `catalog.rs`, the relative
+setup, `Cargo.lock`, the workspace `Cargo.toml` and every workspace member's
+manifest (read from its `members` list), the CLI's `main.rs` and
+`catalog.rs`, the relative
 import closure of `listing-facts-batch.mts`, `listing-package-facts.mts`,
 `catalog-generated-registration.mts`, `generate-catalog.mts` and
 `validation-plan.mts`, and Core's `package_shape` module with its
 submodules and every Core module they name directly. The two must be
-separate changes, checker first. The enrollment table alone is not refused:
+separate changes, checker first. A facts table with no entry on either side
+is not refused: it has nothing to verify, so a table-format change may
+rewrite an empty table with its checker; once either side has an entry the
+refusal holds. The enrollment table alone is not refused:
 a rule change regenerates it in the same change, from facts that change
 cannot edit. This catches accidents only. The list is derived from the
 checked-out code, Core's deeper dependencies are not in it, and a deliberate
@@ -4273,6 +4875,68 @@ built-in token (`actions: read`, a same-repository run); no credential is
 added. That read is not yet observed live: if GitHub refuses it on a batch
 pull request, the check refuses the batch, never passes it.
 
+###### Reproduction quota
+
+The REST requests use the built-in `GITHUB_TOKEN`, whose quota is 1,000
+requests an hour per repository
+(`githubTokenHourlyRequests`), shared by every workflow of the repository (an
+App installation token has its own larger quota; nothing assumes one). The
+quota is the real constraint, so reproduction plans only half of it
+(`reproductionHourlyRequests`, 500 an hour): the other workflows spend the
+same quota while reproduction runs (CI's other jobs, the upstream observer,
+discovery, the batch job's own gate, merge and issue calls), and their use is
+not measured here (UNKNOWN), so no smaller reserve is justified. Reproduction
+makes at most one request per entry (one per repository per shard), and the
+downloads are not REST requests.
+
+Every GitHub call goes through one client (`githubRequest`) and ends at its
+step's deadline: a `verify` shard's reproduction deadline, or for other
+steps `--deadline-minutes`, the step's timeout less a minute to start and
+report. It honours `retry-after` (at least a second, so `retry-after: 0`
+never spins) and `x-ratelimit-remaining` with `x-ratelimit-reset`, and
+follows GitHub's guidance for a refusal that states no wait (a secondary
+rate limit, a server error, a network failure): wait at least a minute
+(`githubFirstRetryMs`), then back off exponentially. The deadline is checked
+before every attempt and wait; a wait past it fails with
+`TransientGithubError` naming its cause (the quota's reset time, or the last
+failure). A permission refusal is no rate limit and is not retried. A
+response is read only up to `githubResponseBytes`: reading stops as soon as
+the bound is passed.
+
+The plan sets the matrix's `max-parallel` (`reproductionParallelism`): the
+shards whose requests fit one hour's share, 500 divided by the entries per
+shard. When a change plans more entries than the share, shards started once
+it is spent must wait for the reset, up to an hour
+(`quotaResetWaitMinutes`), inside their 85-minute deadline, so the expected
+wait comes out of the per-identity budget (`expectedQuotaWaitMinutes`,
+`identityBudgetMinutes`). The arithmetic:
+
+- About 400 entries: 400 requests, within one hour's share. A shard holds two
+  entries, 250 of the 256 shards run at once, nothing waits, and each entry
+  has 85 / 2 = 42.5 minutes.
+- About 1,100 entries in one change: 1,100 requests, past the share. A shard
+  holds five entries, 100 shards run at once, the later shards wait for a
+  reset, and each entry has (85 − 60) / 5 = 5 minutes. The batch job never
+  proposes such a change: it lands at most 250 entries that need
+  reproduction per batch (`reproductionBatchEntries`) and carries the rest,
+  so about 1,100 entries land as batches of 250, 250, 250, 250 and 100, each
+  with 85 minutes per entry and no quota wait. The worker's per-identity
+  budget is computed for that batch size, so it never settles what CI cannot
+  reproduce.
+
+The batch job's own reproduction and the batch's pull-request CI each
+reproduce every entry of the batch, and both can fall in the same hour, so
+both count against one hour's share (`reproductionsPerBatch`, 2): a batch
+lands at most 500 ÷ 2 = 250 entries that need reproduction, the two together
+spend at most 500 requests, and the other half of the quota stays for the
+other workflows. The carry-over is automatic and visible: the worker summary
+reports `carried` with `carried_ids`, and the batch pull request counts them. In the batch job, a reproduction whose every
+shard wrote its refusal file and refused only transiently
+(`reproductionTransient`) proposes nothing, keeps the previous worker state
+and files no stop; the next run retries. Its run history is kept, so a second
+consecutive transient reproduction files `reproduction-transient` with the
+latest causes.
+
 ###### Stop and wait
 
 Each condition files or reuses one issue titled
@@ -4284,38 +4948,77 @@ clears the stop. An unreadable issue list, or more than 1,000 open workflow
 issues, fails the run rather than reading as "not stopped"; past 1,000 closed
 workflow issues and pull requests, a recurrence may open a new issue instead
 of reopening the old one. A `reproduction-refused` issue names up to five
-refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
-`path-allowlist`, `required-check-failed` (or a job batch that is not a
+refused entries and why, as inert code text. The conditions are `gate-refused`, `catalog-capacity`
+(the batch would exceed a released-reader bound; see
+[catalog capacity](#catalog-capacity)), `reproduction-refused`,
+`reproduction-transient` (a reproduction that ended only transiently on two
+consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `batch-waiting` (an open batch whose
-required checks have not all finished more than 3 days after it was opened,
-most likely because its runs wait for approval), `no-progress` (three
-consecutive runs settled nothing while work waited), `backlog-growing` (four
-consecutive runs grew the backlog), `large-withdrawal` (more than 16 routes in
-one batch), `repository-identity-changed`, `rule-version-changed` (the facts
-parser, generator or Core filename rule version changed since the previous
-run), `observer-coverage-dropped` (a quarter fewer observed identities than
-the previous run), `drain-exceeds-facts-age` (refreshing the offered
-identities whose release changed takes 30 days or more, counting two runs per
-landed batch) and `worker-error` (also any job, the `gate` job included, that
-failed, timed out or was cancelled). A stop condition found while deriving also withholds that run's
+required checks have not all finished more than 15 days after it was opened,
+most likely because its runs wait for approval: a reconfirmation proposed at
+15 days must merge within the rest of the 30-day facts age),
+`no-progress` (the run's deadlines left work pending and it settled nothing:
+with no identity or byte bound, a whole shard could not finish one
+identity), `backlog-growing` (shard deadlines left more identities pending
+than in the previous run), `withdrawal-held` (see below),
+`repository-identity-changed`, `rule-version-changed` (the facts parser,
+generator or Core filename rule version changed since the previous run),
+`observer-coverage-dropped` (an identity the previous run's observer covered
+is a candidate this run's observer report does not cover at all),
+`pending-repeated` (an identity a shard deadline left pending in this run and
+the previous one, grouped by cause) and
+`worker-error` (also any job, the `gate` job and every shard included, that
+failed, timed out or was cancelled).
+
+`withdrawal-held` replaces a numeric withdrawal cap. It protects players
+from a bug that withdraws offered games, without a magic number: each route
+the batch withdraws is classified from the facts on both sides
+(`withdrawalCauses`). Only a definitive upstream statement proceeds: its
+facts entry changed in something other than a reconfirmation through a new
+release or an ineligible verdict from a complete observation (a repository id
+that changed under the listed name included), or its listing is no longer a
+candidate (an authored, reviewed change). It is held, and the whole batch
+with it, when the entry was rewritten by another facts parser version
+(`rule-version`); when upstream stayed incomplete past the 14-day retention
+bound (`observation-unavailable`: an observer or provider outage reads the
+same as a deleted repository, so an outage could otherwise withdraw
+everything); when the worker could not read the bytes or Core could not
+classify a name (`inspection-failure`: `repeated-inspection-failure`,
+including the `runner-time` and `runner-disk` causes, or `invalid-facts`); or
+when the entry is unchanged but for a reconfirmation (`not-reobserved`: the
+withdrawal comes from a rule change or from facts ageing out because the
+observer did not observe them completely, which is how an observer coverage
+drop shows). A parser or generator behavior change requires its version bump,
+which is what marks the withdrawals it causes as `rule-version`. A person reviews the held routes and
+clears the stop; a rule change that withdraws routes lands as a reviewed
+pull request, never as an unattended batch. Any number of upstream-explained
+withdrawals, additions or changes proceed. A stop condition found while deriving also withholds that run's
 batch. An open batch pull request that still fails stops the job again after
 its issue is closed; close that pull request too.
 
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
-open. When the table is more than 21 days old, including the empty table
-before the first batch lands, or records a time more than 10 minutes ahead
-of the clock, the job files
+open. When the table is more than 15 days old (`freshnessAlertDays`: a quiet
+catalog proposes its reconfirmation batch at 15 days, so older facts have
+not landed one), including the empty table before the first batch lands, or
+records a time ahead of the clock, the job files
 `Listing facts batch: facts are falling behind the clock`. It does not stop
 the job, whose next batch is the remedy. Every job and every step has a
 finite timeout, and each job's timeout is at least the sum of its steps', so
-a slow step fails inside the job and the stop assessment still runs: the CLI
-build 30 minutes; the worker 60 (each download and Core run stops at 10
-minutes, but the worker has no overall deadline, so a run past 60 minutes
-fails as `worker-error`); reproduction 45 (the 2-minute canonical check, the
-provenance reads of about 6 minutes in pull-request CI, the 30-minute
-deadline and about a minute of release reads); the derive job 250 and the
-deliver job 40.
+a slow step fails inside the job and the stop assessment still runs. These
+are harness budgets, not limits on what lands: the plan job 130 minutes (the
+CLI build 30, the plan 30); each `inspect` shard the hosted job's 360-minute
+limit, with the worker's deadline set to that limit less the shard's other
+steps (330 minutes); each `reproduce` shard 125 minutes, the sum of its
+steps, whose reproduction step (90) outlasts the shared
+`reproductionDeadlineMinutes` (85); `combine` 80; `decide` 80; the deliver
+job 40; `gate` 20; `notify` 30.
+
+When a stop issue cannot be filed (a spent quota, the step's deadline),
+`notify` fails with that cause and keeps the unfiled issues in the Actions
+cache (`listing-facts-batch-unfiled-v1-…`). The next run's `gate` restores
+them and holds the run (`blocked`) until its `notify` files them first, so a
+stop is never lost; an unreadable record holds as `worker-error`.
 
 ###### Exception queues
 
@@ -4362,37 +5065,119 @@ actual approval or other intervention; and whether the next ordinary
 qualifying `main` run selects and publishes the batch. Only
 that publication makes the batch delivered.
 
-###### Cadence and drain
+###### Planned App token (intent only)
 
-The schedule runs every 6 hours (`--cadence-hours 6`). A run reads at most
-I = 24 identities and 2 GiB; a batch lands at most 64 added, 32 withdrawn and
-64 changed routes and reproduces at most 64 entries and 4 GiB. A run derives
-only while no batch is open, so each landed batch costs two runs, the one
-that derives it and the one that merges it, plus the wait until a person
-approves its workflow runs.
+Not implemented here; this states the intended arrangement for when a
+GitHub App replaces the built-in token's writes. Only `deliver` (push the
+batch branch, open its pull request) and `merge` (the guarded merge) would
+ever receive a short-lived App installation token, minted in that job for
+that job. `gate` and `notify` stay on the built-in `GITHUB_TOKEN`. `prepare`,
+`inspect`, `combine`, `reproduce` and `decide` never see a write token or the
+App's private key.
 
-When this job was added, 1,110 listing-only GitHub identities had no facts
-(`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47
-deriving runs while the byte budget does not bind (an average below
-2 GiB / 24, about 85 MiB of archives per identity; identities settled without
-bytes, such as those without a release archive, need none). Almost every
-deriving run of that pass settles new identities and is therefore a batch,
-so the pass takes about 2 × 47 = 94 runs: 23.5 days at this cadence when
-each batch's runs are approved before the next run, plus every approval that
-waits longer. The pass itself has no 30-day limit: new identities are not yet
-offered. What the 30-day facts age bounds is the offered facts, which every
-landed batch reconfirms; they stay fresh while a batch lands at least every
-30 days. A quiet catalog proposes a reconfirmation batch once an offered
-entry was last confirmed 14 days earlier, and the freshness alert fires after
-21 days, above that hold and inside the 30-day age. Offered identities whose
-release changed drain at 18 per run, two runs per batch:
-`drain-exceeds-facts-age` stops the job when that alone reaches 30 days.
-Each run's `backlog` report gives the current numbers.
+###### Migration and steady state
+
+There is no drip-feed. The first enabled run is one migration: it plans
+every listing-only GitHub identity, reads every identity that needs bytes
+across the inspect matrix, and opens one pull request that enrolls every
+identity that passes the correctness rules. That pull request's CI
+reproduces every new entry across the reproduction matrix, so a table of
+several hundred new entries is verified in one pull request. Steady state
+afterwards is the same unbounded job: each run proposes one batch with every
+change that fits, whatever its size.
+
+What protects players is not a count: it is the correctness rules (the fit
+rule and the gate, each with its own code), the reproduction of every added
+or changed entry from its exact bytes, and the stop conditions, including
+`withdrawal-held`. The schedule runs every 6 hours: that decides how soon a
+new release is seen, never how much lands. A run derives only while no batch
+is open, so each landed batch costs two runs (the one that derives it and
+the one that merges it) plus the wait until a person approves its workflow
+runs. A quiet catalog proposes a reconfirmation batch once an offered entry
+was last confirmed 15 days earlier (`refreshAfterDays`, half the facts age),
+which leaves the other half of the 30-day facts age for its approval.
+
+###### Catalog capacity
+
+Two bounds of released readers limit how many generated routes the catalog
+can carry. Both are real constraints of clients already installed, not caps
+of this job, and each is guarded at Core's supported share
+(`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+
+- `MAX_CATALOG_BYTES` (16 MiB, ceiling 14,260,633 bytes). The binding measure
+  is the JSON-escaped retained installed contract (Core's
+  `catalog_growth_stays_within_supported_capacity`): 4,529,946 bytes today,
+  so about 9,730,000 bytes of headroom, or about 1,100 more routes at about
+  8.7 KB of escaped contract per generated route.
+- `MAX_LISTING_BYTES` (8 MiB, ceiling 7,130,316 bytes) for the embedded
+  listing directory `listings.json`: 6,449,993 bytes today, so 680,323 bytes
+  of headroom. Each generated route grows its listing's guide by a median of
+  about 1.5 KB, so roughly 450 to 500 more routes fit, about 300 at the 90th
+  percentile.
+
+The listing directory binds first. Before it opens a pull request the job
+checks the regenerated batch against both ceilings (`capacity`): the
+generated, compact and signed-envelope catalog measures, the escaped
+retained contract (estimated as the escaped `catalog.json` text plus
+`retainedContractReserveBytes`, 16 KiB, about four times the contract's
+3,477 bytes of other fields today) and the listing directory. A batch past
+either ceiling is not proposed, since its required check would fail; the run
+files the reused stop issue `catalog-capacity` with the exact figures.
+Raising a bound needs a compatibility analysis of released readers and is a
+separate change.
+
+###### Numeric constants
+
+Every number that remains in the worker, the generator, the gate and the job
+is a correctness rule or comes from a real constraint:
+
+| Constant                                                                     | Value                                                     | Constraint                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxFactsAgeDays`                                                            | 30 days                                                   | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                                                           |
+| `lastGoodRetentionDays`                                                      | 14 days                                                   | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                                    |
+| `maxDistinctPrograms`                                                        | 1                                                         | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                                       |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)           | 4 releases, 32 assets                                     | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                                      |
+| `coreInspectedFileBound` (players per archive)                               | 16,384                                                    | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                                               |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                               | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes            | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                                                |
+| `guideBound` (`guide-bound`)                                                 | 8 entries                                                 | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                                      |
+| `displayableName`                                                            | 120 characters, 3 programs                                | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                                                                 |
+| `matrixJobLimit`                                                             | 256                                                       | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                                                           |
+| `reproductionDeadlineMinutes`                                                | 85 of 120 minutes                                         | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                                                                 |
+| `identityBudgetMinutes`                                                      | (85 − expected quota wait) / ceil(entries / 256) minutes  | The CI deadline, less the quota reset CI must expect past one hour's reproduction share (`expectedQuotaWaitMinutes`), shared by the entries one CI shard holds. The worker passes the entries one batch can land (at most 500): 85 up to 256, 42.5 from 257 on. A hand-made change of about 1,100 entries gets (85 − 60) / 5 = 5.                  |
+| Inspect shard deadline                                                       | 330 of 360 minutes                                        | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                                                                       |
+| Runner disk                                                                  | about 14 GB free                                          | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                                                             |
+| `githubTokenHourlyRequests`, `reproductionHourlyRequests`                    | 1,000 and 500 requests an hour                            | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows (an App installation token has its own larger quota, not assumed); reproduction plans half and leaves half for the other workflows, whose use is not measured (UNKNOWN). Reproduction spends at most one request per entry.                                   |
+| `reproductionParallelism`                                                    | 500 / entries per shard                                   | The shards whose requests fit one hour's reproduction share: 250 at about 400 entries, 100 for a hand-made change of about 1,100.                                                                                                                                                                                                                  |
+| `reproductionsPerBatch`, `reproductionBatchEntries`, `quotaResetWaitMinutes` | 2 reproductions, 250 entries, 60 minutes                  | The batch job and the batch pull request's CI each reproduce every entry, possibly in one hour, so both count against one hour's share: a batch lands at most 500 ÷ 2 entries that need reproduction and carries the rest (reported as `carried`), so neither waits; GitHub resets the primary quota hourly, so a spent quota waits up to an hour. |
+| `githubFirstRetryMs`, `--deadline-minutes`                                   | 1 minute, then doubling; the step's timeout less 1 minute | GitHub's retry guidance for a refusal that states no wait; every call ends at its step's deadline with a clear transient cause.                                                                                                                                                                                                                    |
+| `githubResponseBytes`, `githubRequestMs`                                     | 8 MiB, 30 seconds                                         | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                                                        |
+| Open pull request listing                                                    | 10 pages of 100                                           | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                                                                  |
+| Observer handoff lookup                                                      | 20 newest observer runs                                   | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                                                          |
+| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`)    | 16 MiB and 8 MiB, each at 85% (16 KiB reserve)            | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                                                           |
+| Provider asset size                                                          | 2 GiB                                                     | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                                                                    |
+| `releaseListPage`                                                            | 100                                                       | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                                                                    |
+| `refreshAfterDays`, `freshnessAlertDays`                                     | 15 days                                                   | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                                                            |
+| `batchWaitDays`                                                              | 15 days                                                   | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                                                           |
+| `clockSkewMs`                                                                | 0                                                         | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                                                                      |
+| Artifact retention                                                           | 30 days                                                   | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                                                                     |
+| Retained-artifact ZIP bounds                                                 | 64 MiB compressed, 128 MiB expanded                       | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                                                                     |
+| Stop-issue reads                                                             | 1,000 issues                                              | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                                                               |
+
+The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
+512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
+the 10-minute per-download and per-Core-run cap, the 512 MiB archive bound,
+the six-per-platform and sixteen-per-release archive counts, three-failure
+retry count, the 16-route withdrawal stop, the quarter coverage share, the
+three-run and four-run stop counts, the 21-day alert, the 3-day wait, the
+10-minute clock skew, the 4,096-file and 64 MiB handoff bounds and the
+ten-name report cap are removed.
 
 ###### Switching it on
 
 The job stays disabled until the real cohort, independent review, exact
-gates, base-relative bounds and an activation decision are in place. Before
+gates and an activation decision are in place. Switching it on starts the
+migration: the first run proposes one pull request with every identity
+that fits, possibly hundreds. Before
 activation, the owner decides the path scope: the recorded direction on
 [#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
 names only the facts and enrollment tables, while a batch that enrolls also
@@ -4415,11 +5200,13 @@ batch could not offer a route. Then the owner, in the repository settings:
    requests, not only this job's. The job requests its own write permissions
    per job.
 3. Optionally dispatch the workflow once with the default dry run and read
-   its summary and artifacts.
+   its summary and artifacts: the dry run derives the same migration batch
+   and reports its size, its exception queues and its stop conditions.
 4. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true` (unset
    or any other value is off).
 5. For each batch pull request, approve its workflow runs (**Approve
-   workflows to run**). That approval is a human intervention, and it grants
+   workflows to run**), including the migration pull request, whose
+   reproduction matrix may run up to 256 jobs. That approval is a human intervention, and it grants
    CI permission only: the job merges later through the guarded route when
    the exact-head checks pass. A merged batch reaches `main` CI and catalog
    publication with the next ordinary qualifying `main` run. The pilot
