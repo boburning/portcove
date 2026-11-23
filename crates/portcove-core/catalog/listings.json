@@ -57972,34 +57972,30 @@
         "match_kind": "underlying-game"
       },
       "name": "Fable II Pub Games (MGRayd Recomp)",
-      "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
+      "summary": "Play the Fable II Pub Games recompilation with your own purchased Xbox 360 Pub Games package.",
       "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
       "original_game_title": "Fable II Pub Games",
       "issue_number": 3995,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
-            "title": "Import your own Pub Games container",
-            "instruction": "Keep the launcher, game executable, DLLs and extraction tool together. Open Fable2PubGamesLauncher.exe, choose your own Xbox 360 Pub Games container, and use Install Game Files before Play Pub Games."
+            "title": "Import your own Pub Games package",
+            "instruction": "Open Fable2PubGamesLauncher.exe, choose your own purchased Xbox 360 Fable II Pub Games LIVE, PIRS or CON container, and use Install Game Files. The launcher unpacks it into the data folder beside the program with its bundled PowerShell extractor. Keep your original container separately; if an import is interrupted, delete the leftover data.extracting folder before trying again. Then use Play Pub Games, and keep the launcher open until the game closes."
           },
           {
-            "title": "Preserve the upstream data",
-            "instruction": "The launcher creates data, saves, logs and cache in its folder. Keep the original container and preserve the creating runtime and actual save folder before replacement."
+            "title": "Use a copy you manage yourself",
+            "instruction": "Keep the launcher, game program, DLLs and extraction tool together in a writable folder, and start Fable2PubGamesLauncher.exe there. The launcher keeps its settings in launcher-settings.json and the game keeps data, saves, logs and cache in the same folder; preserve them before replacing the program."
           },
           {
             "title": "Review optional Fable II save sync separately",
-            "instruction": "The upstream Advanced Options can link the Fable II Recompiled saves folder and sync when Pub Games closes. This can update Fable2PubInfo.xml bridge records in the other game’s profile. Keep your own backups as well as the upstream pubgames-sync-backups, and close both games before any maintenance. Leave sync off for independent profiles."
+            "instruction": "The launcher's Advanced Options can link the Fable II Recompiled saves folder and sync when Pub Games closes. This copies your Fable II saves into the saves folder beside the program and can update Fable2PubInfo.xml bridge records in the other game’s profile, including changes made with the launcher's Save Editor. Keep your own backups as well as the upstream pubgames-sync-backups, and close both games before any maintenance. Leave sync off for independent profiles."
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
-          "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the launcher always starts the full game and does not grant or change an entitlement.",
+          "Re-importing game files keeps the previous data folder as data.backup-<date>, a full copy of the game data. Delete old backups when you no longer need them to save space."
         ],
         "help_url": "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
       },
@@ -58028,7 +58024,10 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mhforever-mango77x-monster-hunter-freedom-unite",

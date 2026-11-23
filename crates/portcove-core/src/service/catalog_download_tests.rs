@@ -2736,8 +2736,8 @@ async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
         "mgrayd-fable2pubgames-recomp",
         "v0.1.0",
         "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
