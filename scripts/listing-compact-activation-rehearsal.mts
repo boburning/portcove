@@ -2,8 +2,10 @@
  * preparation entry point (`prepareObservationBundle`) without signing or
  * publishing. Each step runs the real preparation code against a fixture prior
  * repository; the Core CLI it is given projects, exports and validates. Nothing
- * here reads a key, Pages or a release. The release-tools signer rules are
- * exercised separately by the release-tools tests. */
+ * here reads a key, Pages or a release: activation selects its reader through
+ * the production automatic selection over fixture Pages, release and
+ * attestation sources. The release-tools signer rules are exercised separately
+ * by the release-tools tests. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -25,6 +27,9 @@ import {
   listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
 import { prepareObservationBundle } from "./listing-observation-delivery.mts";
+import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
+import { fixtureReleasedReaderSources } from "./fixtures/released-reader-fixture.mts";
+import type { ReleasedReaderFixture } from "./fixtures/released-reader-fixture.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { fixtureListing, fixturePolicy } from "./fixtures/listing-observation-delivery-fixture.mts";
 import { checkpoint, keyOf, progress } from "./fixtures/upstream-checkpoint-fixture.mts";
@@ -107,7 +112,7 @@ function capabilityReader(file: string, formats: number[], carriers: string[]) {
         command: "capabilities",
         data: {
           product: "Portcove",
-          product_version: "rehearsal-reader",
+          product_version: "0.1.0",
           listing_formats: formats,
           listing_delivery_carriers: carriers,
         },
@@ -202,8 +207,18 @@ export interface RehearsalOptions {
   catalog: string;
   /** Empty scratch directory for fixtures and every preparation output. */
   workspace: string;
-  /** The reviewed released reader; the `cli` reports its own capabilities otherwise. */
+  /** The reader the fixture release publishes; the `cli` itself otherwise. */
   releasedReader?: string;
+}
+
+/** The version a reader reports, which its fixture release is published as. */
+function reportedVersion(reader: string) {
+  const report = JSON.parse(
+    execFileSync(reader, ["--json", "capabilities"], { encoding: "utf8", maxBuffer: 1024 * 1024 }),
+  ) as { data?: { product_version?: unknown } };
+  const version = report.data?.product_version;
+  if (typeof version !== "string") throw new Error("Rehearsal reader reports no version");
+  return version;
 }
 
 export async function rehearseCompactActivation(options: RehearsalOptions) {
@@ -223,6 +238,8 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
     throw new Error(`Rehearsal requires the canonical format-${compactActivationFormat} directory`);
   const readerPath = options.releasedReader ?? options.cli;
   const releasedReader = { cli: readerPath, sha256: hash(readFileSync(readerPath)) };
+  const readerBinary = readFileSync(readerPath);
+  const readerVersion = reportedVersion(readerPath);
   const canonicalFile = (name: string, directory: Directory) => {
     const file = path.join(fixtures, `${name}.listings.json`);
     writeFileSync(file, JSON.stringify(directory));
@@ -236,10 +253,13 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
       compact?: boolean;
       returnToLegacy?: boolean;
       reader?: { cli: string; sha256: string };
+      /** Automatic selection over these fixture release sources. */
+      official?: Omit<ReleasedReaderFixture, "version"> & { version?: string };
       observation?: UpstreamInput;
     },
   ) => {
     const output = path.join(workspace, name);
+    const official = step.official;
     await prepareObservationBundle({
       bundle: options.bundle,
       canonical: step.canonical ?? options.canonical,
@@ -252,9 +272,23 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
       offlineTargets,
       observe: step.observation !== undefined,
       ...(step.observation ? { readObservation: () => Promise.resolve(step.observation!) } : {}),
-      compact: step.compact === true,
-      returnToLegacy: step.returnToLegacy === true,
-      releasedReader: step.reader ?? releasedReader,
+      ...(official
+        ? {
+            officialReleasedReader: true,
+            acquireReleasedReader: (root: string) =>
+              acquireCatalogReleasedReader(
+                root,
+                fixtureReleasedReaderSources({
+                  ...official,
+                  version: official.version ?? readerVersion,
+                }).sources,
+              ),
+          }
+        : {
+            compact: step.compact === true,
+            returnToLegacy: step.returnToLegacy === true,
+            releasedReader: step.reader ?? releasedReader,
+          }),
     });
     const bundle = path.join(output, "bundle");
     const compactPath = path.join(bundle, compactListingDeliveryTarget);
@@ -307,7 +341,13 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
     const cli = capabilityReader(path.join(fixtures, name), formats, carriers);
     return { cli, sha256: hash(readFileSync(cli)) };
   };
-  const gate = {
+  const gate: {
+    refused: Record<
+      "without_compact_carrier" | "without_candidate_format" | "wrong_reader_digest",
+      string
+    >;
+    automatic_unverified?: Record<string, { legacy_only_unchanged: boolean; reason: string }>;
+  } = {
     refused: {
       without_compact_carrier: await refusal(() =>
         run("gate-carrier", {
@@ -333,8 +373,77 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
     },
   };
 
-  // (2) Activation: the first compact publication.
-  const activated = await run("activation", { prior: legacyRepository, compact: true });
+  // (1b) Automatic selection: a reader that cannot be verified, or does not
+  // read the candidate, leaves the legacy-only publication exactly as before.
+  const legacyOnly = (result: { legacy: Buffer; compactWire: Buffer | null }) =>
+    result.compactWire === null && result.legacy.equals(priorLegacy);
+  const unverified = {
+    withdrawn: await run("automatic-withdrawn", {
+      prior: legacyRepository,
+      official: { binary: readerBinary, withdrawn: [readerVersion] },
+    }),
+    lacks_candidate_format: await run("automatic-format-14", {
+      prior: legacyRepository,
+      official: {
+        binary: readFileSync(
+          capabilityReader(
+            path.join(fixtures, "automatic-format-14"),
+            [11, 12, 13, 14],
+            [compactListingCarrier],
+          ),
+        ),
+        version: "0.1.0",
+      },
+    }),
+    substituted_archive: await run("automatic-substituted", {
+      prior: legacyRepository,
+      official: {
+        binary: readerBinary,
+        mutate: (fixture) => {
+          fixture.archive = Buffer.concat([fixture.archive, Buffer.from("x")]);
+        },
+      },
+    }),
+    unattested_tag: await run("automatic-tag", {
+      prior: legacyRepository,
+      official: {
+        binary: readerBinary,
+        mutate: (fixture) => {
+          fixture.tagObject = "b".repeat(40);
+        },
+      },
+    }),
+    off_protected_main: await run("automatic-ancestry", {
+      prior: legacyRepository,
+      official: {
+        binary: readerBinary,
+        mutate: (fixture) => {
+          fixture.ancestor = false;
+        },
+      },
+    }),
+  };
+  const automaticGate = Object.fromEntries(
+    Object.entries(unverified).map(([name, result]) => [
+      name,
+      {
+        legacy_only_unchanged: legacyOnly(result),
+        reason:
+          typeof result.report.released_reader_unavailable === "string"
+            ? result.report.released_reader_unavailable
+            : "",
+      },
+    ]),
+  );
+  if (Object.values(automaticGate).some((entry) => !entry.legacy_only_unchanged || !entry.reason))
+    throw new Error("An unverified automatic reader changed legacy-only publication");
+  gate.automatic_unverified = automaticGate;
+
+  // (2) Activation: the first compact publication, selected automatically.
+  const activated = await run("activation", {
+    prior: legacyRepository,
+    official: { binary: readerBinary },
+  });
   if (!activated.compact) throw new Error("Activation published no compact target");
   const compact = read(activated.compact);
   if (compact.directory.format_version !== compactActivationFormat)
@@ -351,7 +460,16 @@ export async function rehearseCompactActivation(options: RehearsalOptions) {
     legacy_target_retained: activated.legacy.equals(priorLegacy),
     legacy_sha256: hash(activated.legacy),
     released_reader: activated.report.released_reader ?? null,
+    released_reader_source: activated.report.released_reader_source ?? null,
   };
+  const verifiedReader = activated.report.released_reader;
+  if (
+    typeof verifiedReader !== "object" ||
+    verifiedReader === null ||
+    !("sha256" in verifiedReader) ||
+    verifiedReader.sha256 !== hash(readerBinary)
+  )
+    throw new Error("Activation did not verify the selected released reader");
   if (!activation.legacy_target_retained)
     throw new Error("Activation changed the signed legacy target");
   const activeRepository = repository("activation", activated);

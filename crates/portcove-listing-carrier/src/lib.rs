@@ -63,6 +63,48 @@ pub fn decode(bytes: &[u8]) -> Result<(Vec<u8>, String), InvalidCarrier> {
     Ok((output, carrier.decoded_sha256))
 }
 
+/// The format-11 row a legacy reader receives for one current (format-12+)
+/// directory row, as JSON. It mirrors Core's `CatalogListingDocument::export_format(11)`
+/// field by field: typed restrictions, implementation, verified edition sources
+/// and typed IGDB scenes are format-12+ facts and are removed; a media list that
+/// held only scenes is omitted, as Core omits an empty list. Observations are
+/// never copied into a legacy row. Every other descriptive fact (name, summary,
+/// project URL, media, download hints, the legacy hold string, ...) is kept.
+/// Core's tests prove this equals its own export for every committed row.
+pub fn legacy_row_projection(row: &serde_json::Value) -> serde_json::Value {
+    let mut row = row.clone();
+    let Some(fields) = row.as_object_mut() else {
+        return row;
+    };
+    for field in ["restrictions", "implementation", "upstream_observation"] {
+        fields.remove(field);
+    }
+    if let Some(media) = fields
+        .get_mut("media")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        media.retain(|asset| {
+            !(asset.get("igdb").is_some_and(|igdb| !igdb.is_null())
+                && matches!(asset["role"].as_str(), Some("header" | "screenshot")))
+        });
+        if media.is_empty() {
+            fields.remove("media");
+        }
+    }
+    if let Some(editions) = fields
+        .get_mut("original_game")
+        .and_then(|game| game.get_mut("source_editions"))
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for edition in editions {
+            if let Some(edition) = edition.as_object_mut() {
+                edition.remove("verified_sources");
+            }
+        }
+    }
+    row
+}
+
 pub fn bounded_entries<'de, D, T>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
