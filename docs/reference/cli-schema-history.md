@@ -65,7 +65,9 @@ at schema 4 and events stay at schema 3. Optional background framing on
 asset and framing; `artwork unhide` shows that selection again. Its `suppressed`
 field is present when true, and a hidden choice reports the generated fallback.
 Writers use library schema 77 and exports that carry hidden choices use metadata
-format 16. The managed definition publication
+format 16. Library schema 78 widens the stored setup revision bound from 256 KiB
+to 16 MiB for the [supported setup contract](../ARCHITECTURE.md#supported-setup-contract);
+older clients refuse a schema-78 library before reading it. The managed definition publication
 inspection uses its fixed API 100 envelope for publication report schema 1.
 
 API 100 extends the exact recipe review with format 3 originals, typed setup

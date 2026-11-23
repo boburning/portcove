@@ -1773,7 +1773,8 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
-  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
+  desktop_recipe_acquisition_step: OutputDesktopRecipeAcquisitionStep;
+  desktop_recipe_import_review: RecipeImportReview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
@@ -8467,11 +8468,35 @@ export interface PortMaintenance {
   [k: string]: unknown;
 }
 /**
+ * One bounded step of staging a recipe's missing packages.
+ */
+export interface OutputDesktopRecipeAcquisitionStep {
+  /**
+   * Packages this step staged, in order.
+   */
+  acquired: string[];
+  /**
+   * Set when the step stopped at a package it could not stage; earlier
+   * steps stay staged and are resumed by the next review of this recipe.
+   */
+  failure?: RecipeAcquisitionFailure | null;
+  review: RecipeImportReview;
+  [k: string]: unknown;
+}
+/**
+ * The package an acquisition batch stopped at, and why.
+ */
+export interface RecipeAcquisitionFailure {
+  message: string;
+  native_id: string;
+  [k: string]: unknown;
+}
+/**
  * A recipe review's display data and its exact Core-owned import plan.
  * JavaScript numbers cannot preserve every JSON number representation, so
  * only the unchanged serialized plan is sent back for Core to verify and use.
  */
-export interface OutputDesktopRecipeImportReview {
+export interface RecipeImportReview {
   plan: RecipeImportPlan;
   serialized_plan: string;
   /**

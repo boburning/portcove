@@ -21,7 +21,7 @@ use crate::{
     AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
     ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, ProviderProject,
     ProviderRequirement, RecompExecution, Result, asset_conflicts, inspect_asset_archive,
-    mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
+    mod_package::{MAX_EXTRACTED_BYTES, extract_provider_packages},
     profile,
     profile_deploy::{
         CodePolicy, Layout, inspect_for_port, require_reviewed_or_reordered, sha256_file,
@@ -29,7 +29,12 @@ use crate::{
     provider_client::ProviderClient,
 };
 
+/// One provider file's download budget. Each file of a closure has its own;
+/// what the whole closure may occupy is admitted by free space.
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// Packages one plan may stage: every member of a complete closure, which is
+/// at most what one setup can hold.
+const MAX_MEMBERS: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
 const MAX_REPORTED_CONFLICTS: usize = 100;
 pub(crate) const RECOMP_REVIEW_BINDING: &str = "recomp_review_binding";
 const STAGED_RETENTION_SECONDS: u64 = 24 * 60 * 60;
@@ -128,13 +133,12 @@ pub(crate) enum ProviderInstallMode<'a> {
     Automatic,
     Recipe {
         identity: &'a str,
-        byte_budget: u64,
         install_id: Option<&'a str>,
     },
 }
 
 impl ProviderInstallMode<'_> {
-    fn staging_root(self, layout: &Layout) -> PathBuf {
+    pub(crate) fn staging_root(self, layout: &Layout) -> PathBuf {
         let store = layout.store();
         match self {
             Self::Reviewed | Self::Workspace => store.join("staged"),
@@ -281,7 +285,6 @@ fn retained_dependencies(
     let mut pending = root.provider_requires.iter().collect::<Vec<_>>();
     let mut reviewed = BTreeMap::<&str, &ProviderRequirement>::new();
     let mut remaining_members = MAX_MEMBERS;
-    let mut remaining_bytes = MAX_EXTRACTED_BYTES;
     while let Some(required) = pending.pop() {
         if required.provider.provider != crate::thunderstore::PROVIDER
             || required.provider.binding.as_ref() != binding
@@ -317,9 +320,6 @@ fn retained_dependencies(
             .checked_sub(packages.len())
             .ok_or_else(changed)?;
         for package in packages {
-            remaining_bytes = remaining_bytes
-                .checked_sub(package.size)
-                .ok_or_else(changed)?;
             if !package.enabled
                 || package.provider_requires != primary.provider_requires
                 || required.members.get(&package.native_id) != Some(&package.sha256)
@@ -655,14 +655,17 @@ impl PortcoveService {
         let mut source_indices = Vec::new();
         let mut wrappers = Vec::new();
         let mut ignored = 0usize;
-        let mut combined_budget = match mode {
-            ProviderInstallMode::Recipe { byte_budget, .. } => byte_budget,
-            _ => u64::MAX,
-        };
-        let mut download_budget = MAX_DOWNLOAD_BYTES;
-        let mut extraction_budget = MAX_EXTRACTED_BYTES;
         for (index, (project, file)) in projects.iter().enumerate() {
             validate_offer(client, project, file)?;
+            // Files are staged one at a time with their own budgets. The
+            // claimed size is admitted against free space for the download and
+            // its extraction; the download itself stops at the per-file budget.
+            crate::setup_capacity::require_staging_space(
+                staging.path(),
+                file.size.min(MAX_DOWNLOAD_BYTES).saturating_mul(2),
+            )?;
+            let download_budget = MAX_DOWNLOAD_BYTES;
+            let extraction_budget = MAX_EXTRACTED_BYTES;
             let extension = file
                 .file_name
                 .rsplit_once('.')
@@ -679,25 +682,16 @@ impl PortcoveService {
             fs::create_dir(&directory)?;
             let download = directory.join("download.bin");
             let (download_sha256, download_size) = client
-                .download(
-                    &project.project_id,
-                    file,
-                    &download,
-                    download_budget.min(combined_budget),
-                )
+                .download(&project.project_id, file, &download, download_budget)
                 .await?;
-            download_budget -= download_size;
-            combined_budget -= download_size;
             let members_dir = directory.join("members");
             fs::create_dir(&members_dir)?;
             let paths = if direct {
-                if download_size > extraction_budget.min(combined_budget) {
+                if download_size > extraction_budget {
                     return Err(PortcoveError::unsupported(
                         "the package set exceeds its size limit",
                     ));
                 }
-                extraction_budget -= download_size;
-                combined_budget -= download_size;
                 if member_paths.len() == MAX_MEMBERS {
                     return Err(PortcoveError::unsupported(
                         "the package set has too many members",
@@ -711,14 +705,13 @@ impl PortcoveService {
                     &download,
                     &members_dir,
                     extensions,
-                    extraction_budget.min(combined_budget),
+                    extraction_budget,
                     MAX_MEMBERS - member_paths.len(),
-                    projects.len(),
                     matches!(client, ProviderClient::Thunderstore { .. })
                         .then_some((project.project_id.as_str(), file)),
                 )?;
-                extraction_budget -= extracted.extracted_bytes;
-                combined_budget -= extracted.extracted_bytes;
+                // The archive is no longer needed once its packages are out.
+                let _ = fs::remove_file(&download);
                 ignored += extracted.ignored;
                 extracted.files
             };
@@ -1468,8 +1461,20 @@ impl PortcoveService {
         edits: &crate::ModSetupEdits,
         allow_code: Option<bool>,
     ) -> Result<PreparedModSetupDraft> {
-        if plans.len() + edits.local_files.len() > 16 || edits.packages.len() > 1024 {
-            return Err(PortcoveError::usage("the setup draft is too large"));
+        // The draft becomes one revision; that revision's validation applies
+        // the shared setup capacity. Here only the edit lists themselves are
+        // bounded by it, before any staged byte is read.
+        if plans.len() + edits.local_files.len() > crate::setup_capacity::MAX_SETUP_PACKAGES
+            || edits.packages.len() > crate::setup_capacity::MAX_SETUP_PACKAGES
+            || edits
+                .order
+                .as_ref()
+                .is_some_and(|order| order.len() > crate::setup_capacity::MAX_SETUP_PACKAGES)
+        {
+            return Err(PortcoveError::usage(format!(
+                "a setup holds at most {} mods",
+                crate::setup_capacity::MAX_SETUP_PACKAGES
+            )));
         }
         if plans.is_empty()
             && edits.packages.is_empty()
@@ -1551,6 +1556,20 @@ impl PortcoveService {
                 );
             }
             local_staging.push(directory);
+        }
+        // Applying copies each new package into the package store before the
+        // revision is written; admit that whole copy up front so a full disk
+        // stops the review, not the middle of the change.
+        let incoming = staged
+            .values()
+            .filter(|item| {
+                !layout
+                    .package(&item.inspection.sha256, &item.inspection.file_name)
+                    .exists()
+            })
+            .fold(0u64, |sum, item| sum.saturating_add(item.inspection.size));
+        if incoming > 0 {
+            crate::setup_capacity::require_staging_space(&layout.store(), incoming)?;
         }
         Ok(PreparedModSetupDraft {
             packages: staged.into_values().collect(),

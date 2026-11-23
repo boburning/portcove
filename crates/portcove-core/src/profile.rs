@@ -28,16 +28,23 @@ mod tests;
 
 pub(crate) const MAX_PROFILES: usize = 64;
 const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
-const MAX_PACKAGES: usize = 512;
+/// The shared setup capacity; see `setup_capacity` for the contract.
+const MAX_PACKAGES: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
 /// Settings per revision, shared by captured mod options and recipes. The
 /// serialized revision byte bound is the binding resource limit; this count only
 /// rejects pathological shapes. It is sized from package capacity so a few
 /// option-rich mods cannot exhaust it (eight options per possible package).
 pub(crate) const MAX_SETTINGS: usize = MAX_PACKAGES * 8;
 const MAX_LIMITS: usize = 64;
-const MAX_TEXT: usize = 1024;
+pub(crate) const MAX_TEXT: usize = 1024;
+/// A profile record holds a name, policy and requested intent; the stored
+/// table's check is this bound. Packages live in revisions, not here.
 const MAX_PROFILE_BYTES: usize = 64 * 1024;
-const MAX_REVISION_BYTES: usize = 256 * 1024;
+const MAX_REVISION_BYTES: usize = crate::setup_capacity::MAX_SETUP_DOCUMENT_BYTES;
+/// The revision bound migration 78 wrote. Frozen: recorded migrations are
+/// re-verified on every open, so a later raise needs its own rebuild.
+pub(crate) const REVISION_BOUND_V78: usize = 16 * 1024 * 1024;
+const _: () = assert!(MAX_REVISION_BYTES <= REVISION_BOUND_V78);
 
 /// How a profile follows newer eligible releases. Stored as intent; unattended
 /// application is owned by the provider/standing-policy work, not this module.
@@ -1027,12 +1034,13 @@ pub(crate) fn validate_provider_requirements(
     requirements: &[ProviderRequirement],
     mut contains: impl FnMut(&ProviderPackageRef, &str, &str) -> bool,
 ) -> Result<()> {
-    if requirements.len() > crate::mod_package::MAX_MEMBERS
+    // Direct requirements and their members are packages of the same setup.
+    if requirements.len() > MAX_PACKAGES
         || requirements
             .iter()
             .map(|requirement| requirement.members.len())
             .sum::<usize>()
-            > crate::mod_package::MAX_MEMBERS
+            > MAX_PACKAGES
     {
         return Err(PortcoveError::verification(
             "too many provider requirements",
@@ -1463,6 +1471,53 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
             PRIMARY KEY(profile_id, revision)
         );",
     )?;
+    Ok(())
+}
+
+/// Migration 78: widen the stored revision check from 256 KiB to the setup
+/// contract's revision bound. SQLite cannot alter a CHECK in place; nothing
+/// references `profile_revisions`, so rows are copied unchanged into a rebuilt
+/// table inside the migration transaction.
+pub(crate) fn migrate_revision_bound(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "CREATE TABLE profile_revisions_rebuild (
+            profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
+            revision INTEGER NOT NULL,
+            digest TEXT NOT NULL,
+            revision_json TEXT NOT NULL CHECK(length(revision_json) <= {REVISION_BOUND_V78}),
+            PRIMARY KEY(profile_id, revision)
+        );
+        INSERT INTO profile_revisions_rebuild(profile_id, revision, digest, revision_json)
+            SELECT profile_id, revision, digest, revision_json FROM profile_revisions;
+        DROP TABLE profile_revisions;
+        ALTER TABLE profile_revisions_rebuild RENAME TO profile_revisions;"
+    ))?;
+    verify_revision_bound(transaction)
+}
+
+/// Schema 78 holds while the revision check admits at least its bound.
+pub(crate) fn verify_revision_bound(connection: &Connection) -> Result<()> {
+    verify_migration(connection)?;
+    let schema: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='profile_revisions'",
+        [],
+        |row| row.get(0),
+    )?;
+    let prefix = "length(revision_json) <= ";
+    let bound = schema
+        .find(prefix)
+        .map(|start| {
+            schema[start + prefix.len()..]
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>()
+        })
+        .and_then(|digits| digits.parse::<usize>().ok());
+    if bound.is_none_or(|bound| bound < REVISION_BOUND_V78) {
+        return Err(PortcoveError::state(
+            "setup revisions do not admit the schema-78 revision bound",
+        ));
+    }
     Ok(())
 }
 

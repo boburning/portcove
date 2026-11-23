@@ -3549,6 +3549,36 @@ before selecting an executable until the selected setup finishes materializing.
 Runtime rollback still owns the active executable for Default. A customized
 setup can recover an offered exact runtime without changing that pointer.
 
+### Supported setup contract
+
+One contract (Core `setup_capacity`) bounds what a setup may contain at every
+stage: draft review, provider closure staging, recipe export, recipe
+acquisition and import, revision persistence and reload, deployment and
+recovery. A state one stage can create passes every later stage; no stage keeps
+a smaller count of its own.
+
+- A setup holds at most 4,096 distinct packages. A revision is validated
+  (identity, dependency closure, provider requirement proofs, conflicts) and
+  written in one transaction under the port lock; this bounds that operation's
+  work. Drafts, recipes, provider plans and Thunderstore closures and direct
+  requirements use the same number.
+- A stored revision or profile record is parsed whole on every reload, so its
+  serialized form is bounded to 16 MiB when it is written. A recipe document has
+  twice that budget, because it also names each shared setting's exact package.
+  Import review holds a recipe whose setup would not fit one stored revision.
+- Staging is bounded per unit of work: each provider file has its own download
+  and extraction budget and is staged one at a time, admitted against free space
+  on the staging volume with a reserve. A setup draft admits the package-store
+  copy it will make before anything changes.
+- Recipe acquisition stages missing packages in bounded steps. Each staged step
+  is recorded beside its private staging, so reopening the recipe resumes. Steps
+  are rechecked by identity and size between steps; apply reads every byte and
+  releases a step whose bytes no longer match, so the next review shows it as
+  missing rather than ready.
+- Thunderstore closures resolve completely and iteratively, with cycle and
+  version-conflict detection. A requirement the listing does not offer is an
+  explicit failure naming it.
+
 ### Runtime diagnostic writer
 
 Desktop and CLI use `portcove-diagnostics` for structured JSONL records, approved

@@ -6,8 +6,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, desktop_contract::RecipeImportReview,
-    game_settings_commands::read_at_generation, service_at_generation,
+    DesktopResult, DesktopState, blocking_worker,
+    desktop_contract::{RecipeAcquisitionStep, RecipeImportReview},
+    game_settings_commands::read_at_generation,
+    service_at_generation,
 };
 use portcove_core::{
     ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
@@ -334,6 +336,33 @@ pub(crate) async fn acquire_mod_recipe_package(
                     Err(error.into())
                 }
             }
+        },
+    )
+    .await
+}
+
+/// Stages the next missing recipe packages in one bounded step. The app
+/// repeats it until no package is left to check or a step stops at a failure.
+#[tauri::command]
+pub(crate) async fn acquire_mod_recipe_packages(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    serialized_plan: String,
+) -> DesktopResult<RecipeAcquisitionStep> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let plan = RecipeImportReview::decode(&serialized_plan)?;
+            require_recipe_port(&port_id, &plan.recipe)?;
+            let batch = service.acquire_recipe_packages(&plan, &profile_id).await?;
+            Ok(RecipeAcquisitionStep {
+                review: RecipeImportReview::new(batch.plan)?,
+                acquired: batch.acquired,
+                failure: batch.failure,
+            })
         },
     )
     .await

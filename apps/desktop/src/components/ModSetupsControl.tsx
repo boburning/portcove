@@ -29,8 +29,10 @@ import { ChoiceSelect } from "./ChoiceSelect";
 import { ExternalLink } from "./ExternalLink";
 import {
   changeModEdit,
+  draftHasRoom,
   draftSize,
   emptyModDraft,
+  MOD_SETUP_CAPACITY,
   useModDraft,
   type LocalModSelection,
   type ModDraft,
@@ -582,7 +584,10 @@ function BoundModSetupsControl({
                       variant="outline"
                       disabled={
                         changing ||
-                        draft.additions.length + recoverable.length + localFiles.length > 16
+                        !draftHasRoom(
+                          draft.additions.length + localFiles.length,
+                          recoverable.length,
+                        )
                       }
                       onClick={() => {
                         const saved = setDraft((current) => ({
@@ -769,8 +774,10 @@ function BoundModSetupsControl({
                   review={applicableReview.review}
                   locked={locked || blocked}
                   add={() => {
-                    if (localFiles.length + draft.additions.length >= 16) {
-                      setFailure({ text: t("mods.workspace.draftLimit") });
+                    if (!draftHasRoom(localFiles.length + draft.additions.length)) {
+                      setFailure({
+                        text: t("mods.workspace.draftLimit", { limit: MOD_SETUP_CAPACITY }),
+                      });
                       return;
                     }
                     const { path, review } = applicableReview;

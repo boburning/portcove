@@ -304,3 +304,94 @@ fn thunderstore_flags_distinguish_absent_null_malformed_and_boolean() {
         assert_eq!(parsed.files[0].archived, !flag);
     }
 }
+
+fn closure_listing(packages: &[(String, Vec<String>)]) -> Vec<ProviderProject> {
+    let source = packages
+        .iter()
+        .map(|(name, dependencies)| {
+            let mut file = version(WEB, "Owner", name, "1.0.0", "2026-11-01T00:00:00Z", true);
+            file["dependencies"] = json!(
+                dependencies
+                    .iter()
+                    .map(|dependency| format!("Owner-{dependency}-1.0.0"))
+                    .collect::<Vec<_>>()
+            );
+            package(WEB, "Owner", name, vec![file])
+        })
+        .collect::<Vec<_>>();
+    parse_listing(&json!(source), "c", WEB).unwrap()
+}
+
+#[test]
+fn closures_past_the_former_sixty_four_package_bound_resolve_completely() {
+    for size in [65, 500] {
+        // A modpack naming every package directly, past the former per-version
+        // limit of 128 direct requirements when large enough.
+        let mut packages = (0..size)
+            .map(|index| (format!("Dep{index}"), Vec::new()))
+            .collect::<Vec<_>>();
+        packages.push((
+            "Pack".into(),
+            (0..size).map(|index| format!("Dep{index}")).collect(),
+        ));
+        let listing = closure_listing(&packages);
+        let files = resolve_dependencies(&listing, "Owner-Pack", "1.0.0").unwrap();
+        assert_eq!(files.len(), size + 1);
+        assert_eq!(files.last().unwrap().0.project_id, "Owner-Pack");
+
+        // A chain as deep as the closure is wide: requirements come first.
+        let chain = (0..size)
+            .map(|index| {
+                let requires = (index + 1 < size)
+                    .then(|| format!("Link{}", index + 1))
+                    .into_iter()
+                    .collect();
+                (format!("Link{index}"), requires)
+            })
+            .collect::<Vec<_>>();
+        let listing = closure_listing(&chain);
+        let files = resolve_dependencies(&listing, "Owner-Link0", "1.0.0").unwrap();
+        assert_eq!(files.len(), size);
+        assert_eq!(files[0].0.project_id, format!("Owner-Link{}", size - 1));
+        assert_eq!(files.last().unwrap().0.project_id, "Owner-Link0");
+
+        // A cycle closing at the far end is still found.
+        let mut cyclic = chain.clone();
+        cyclic.last_mut().unwrap().1 = vec!["Link0".into()];
+        let listing = closure_listing(&cyclic);
+        assert_eq!(
+            resolve_dependencies(&listing, "Owner-Link0", "1.0.0")
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+
+        // A requirement the listing does not offer is an explicit failure that
+        // names it, never an empty remainder of the closure.
+        let mut incomplete = chain.clone();
+        incomplete.pop();
+        let listing = closure_listing(&incomplete);
+        let missing = resolve_dependencies(&listing, "Owner-Link0", "1.0.0").unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::NotFound);
+        assert_eq!(
+            missing.details["project"],
+            format!("Owner-Link{}", size - 1)
+        );
+    }
+}
+
+#[test]
+fn a_closure_larger_than_one_setup_is_refused_with_the_setup_capacity() {
+    let capacity = crate::setup_capacity::MAX_SETUP_PACKAGES;
+    let mut packages = (0..capacity)
+        .map(|index| (format!("Dep{index}"), Vec::new()))
+        .collect::<Vec<_>>();
+    packages.push((
+        "Pack".into(),
+        (0..capacity).map(|index| format!("Dep{index}")).collect(),
+    ));
+    let listing = closure_listing(&packages);
+    let refused = resolve_dependencies(&listing, "Owner-Pack", "1.0.0").unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Unsupported);
+    assert_eq!(refused.details["setup_capacity"], capacity.to_string());
+}

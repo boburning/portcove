@@ -164,6 +164,7 @@ mod runtime_data_policy;
 pub mod runtime_diagnostics;
 mod runtime_path_policy;
 mod service;
+mod setup_capacity;
 mod signed_catalog;
 mod source;
 mod source_assessment;
@@ -452,7 +453,8 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
+    ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT, RecipeAcquisitionBatch,
+    RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
     RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
     RecipeRuntime,
 };

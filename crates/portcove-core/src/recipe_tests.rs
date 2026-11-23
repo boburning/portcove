@@ -431,7 +431,7 @@ fn constructed_recipes_are_held_to_the_same_rules_as_inspected_ones() {
     assert!(ProfileRecipe::inspect(&bytes(&sealed(aliased))).is_err());
     // Oversized identity text is refused.
     let mut long = recipe;
-    long.runtime.artifact.asset_name = "x".repeat(300);
+    long.runtime.artifact.asset_name = "x".repeat(MAX_TEXT + 1);
     assert!(ProfileRecipe::inspect(&bytes(&sealed(long))).is_err());
 }
 
@@ -775,7 +775,6 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
     provider_plan.plan_sha256 = digest(&provider_plan).unwrap();
     let stage = ProviderInstallMode::Recipe {
         identity: &recipe.identity_sha256,
-        byte_budget: 0,
         install_id: None,
     }
     .staging(&layout, &provider_plan.plan_sha256);
@@ -831,12 +830,15 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
         .unwrap_err();
     assert_eq!(changed.code, ErrorCode::Conflict);
     assert!(!stored.exists());
+    // A step whose bytes no longer match leaves the review, so the next plan
+    // shows the package as missing instead of offering it as ready again.
+    assert!(!stage.exists());
+    fs::create_dir_all(&stage).unwrap();
 
     #[cfg(unix)]
     {
         let replacement = w._temporary.path().join("otherwise-matching.o2r");
         fs::write(&replacement, &original).unwrap();
-        fs::remove_file(&staged).unwrap();
         std::os::unix::fs::symlink(&replacement, &staged).unwrap();
         assert!(
             w.service
@@ -844,7 +846,8 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
                 .is_err()
         );
         assert!(!stored.exists());
-        fs::remove_file(&staged).unwrap();
+        assert!(!stage.exists());
+        fs::create_dir_all(&stage).unwrap();
         assert_eq!(fs::read(replacement).unwrap(), original);
     }
     fs::write(&staged, &original).unwrap();
@@ -1027,7 +1030,6 @@ fn consented_staged_nrm_import_uses_the_exact_recipe_runtime_while_an_older_buil
     let layout = service.layout_for_install(&modern).unwrap().unwrap();
     let directory = ProviderInstallMode::Recipe {
         identity: &recipe.identity_sha256,
-        byte_budget: size,
         install_id: Some(&modern.id),
     }
     .staging(&layout, &provider_plan.plan_sha256);
@@ -1168,7 +1170,6 @@ async fn recipe_acquisition_uses_the_recipes_runtime_instead_of_the_reference_se
             "2",
             ProviderInstallMode::Recipe {
                 identity: &recipe.identity_sha256,
-                byte_budget: MAX_ACQUISITION_BYTES,
                 install_id: waiting.install_id.as_deref(),
             },
         )
@@ -1238,4 +1239,255 @@ fn authorizing_code_rejects_an_edited_approval_list_with_the_original_digest() {
         .authorize_recipe_import_allowing_code(&plan, "Shared")
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
+}
+
+/// Adds `count` more packages to the world's default setup in one draft.
+fn grow_setup(w: &World, count: usize) {
+    let port = "starship";
+    let connection = w.service.library().connection().unwrap();
+    let current = profile::current_revision(&connection, port, &w.profile).unwrap();
+    drop(connection);
+    let scratch = w._temporary.path().join(format!("grow-{count}"));
+    fs::create_dir_all(&scratch).unwrap();
+    let local_files = (0..count)
+        .map(|index| {
+            let name = format!("grown-{index:04}.o2r");
+            let asset = format!("objects/grown/{index:04}");
+            let path = o2r(&scratch, &name, &[(asset.as_str(), b"grown")]);
+            let review = w
+                .service
+                .plan_local_mod_package(port, &w.profile, &path, current.revision)
+                .unwrap();
+            crate::profile_deploy::LocalModDraftFile {
+                path,
+                expected_plan_sha256: review.plan_sha256,
+            }
+        })
+        .collect();
+    let edits = crate::ModSetupEdits {
+        packages: vec![],
+        order: None,
+        local_files,
+    };
+    w.service
+        .apply_mod_setup_draft(port, &w.profile, current.revision, &[], &edits, false)
+        .unwrap();
+}
+
+/// A recipe whose packages after the first `stored` are all missing locally
+/// and each staged privately as its own reviewed provider file.
+fn staged_recipe(w: &World, stored: usize) -> (ProfileRecipe, Vec<RecipeAcquisitionPlan>) {
+    use crate::provider_install::{ProviderInstallMode, digest};
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    for (index, package) in recipe.packages.iter_mut().enumerate().skip(stored) {
+        package.provider = Some(label(&(1000 + index).to_string(), "2"));
+    }
+    let recipe = sealed(recipe);
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let acquisitions = recipe
+        .packages
+        .iter()
+        .skip(stored)
+        .map(|input| {
+            let stored = layout.package(&input.sha256, &input.native_id);
+            let bytes = fs::read(&stored).unwrap();
+            fs::remove_file(&stored).unwrap();
+            let provider = input.provider.clone().unwrap();
+            let mut provider_plan = crate::ProviderInstallPlan {
+                port_id: "starship".into(),
+                profile_id: w.profile.clone(),
+                expected_revision: 2,
+                review_nonce: None,
+                provider,
+                project_name: "Reviewed fixture".into(),
+                file: crate::ProviderFileCandidate {
+                    file_id: "2".into(),
+                    file_name: "fixture.zip".into(),
+                    size: input.size,
+                    added_at: 1,
+                    download_url: "https://gamebanana.com/dl/2".into(),
+                    claimed_md5: None,
+                    archived: false,
+                    status_unknown: None,
+                    claimed_scan: None,
+                    thunderstore_dependencies: None,
+                },
+                download_sha256: input.sha256.clone(),
+                download_size: input.size,
+                members: vec![crate::PlanMember {
+                    file_name: input.native_id.clone(),
+                    sha256: input.sha256.clone(),
+                    size: input.size,
+                    asset_count: 1,
+                    runs_code: Vec::new(),
+                }],
+                wrappers: Vec::new(),
+                ignored_entries: 0,
+                replaces: Vec::new(),
+                conflicts: Vec::new(),
+                conflicts_truncated: false,
+                unverified_claims: Vec::new(),
+                plan_sha256: String::new(),
+            };
+            provider_plan.plan_sha256 = digest(&provider_plan).unwrap();
+            let stage = ProviderInstallMode::Recipe {
+                identity: &recipe.identity_sha256,
+                install_id: None,
+            }
+            .staging(&layout, &provider_plan.plan_sha256);
+            fs::create_dir_all(&stage).unwrap();
+            fs::write(stage.join(&input.native_id), bytes).unwrap();
+            RecipeAcquisitionPlan {
+                recipe_identity_sha256: recipe.identity_sha256.clone(),
+                native_id: input.native_id.clone(),
+                provider_plan,
+            }
+        })
+        .collect();
+    (recipe, acquisitions)
+}
+
+#[test]
+fn recipe_acquisitions_past_the_former_thirty_two_file_bound_resume_and_apply() {
+    for missing in [33, 512] {
+        let w = world();
+        grow_setup(&w, missing);
+        let (recipe, acquisitions) = staged_recipe(&w, 1);
+        assert_eq!(acquisitions.len(), missing);
+        let waiting = w.service.plan_recipe_import(&recipe).unwrap();
+        assert_eq!(waiting.provider_checks.len(), missing);
+        assert!(!waiting.can_apply);
+
+        // Interrupted after the first half was staged and recorded: reopening
+        // the recipe resumes with exactly those steps instead of the prefix again.
+        let (done, rest) = acquisitions.split_at(missing / 2);
+        w.service.record_recipe_acquisitions(&recipe, done).unwrap();
+        let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+        assert_eq!(resumed.acquisitions.len(), done.len());
+        assert_eq!(resumed.provider_checks.len(), rest.len());
+        assert_eq!(
+            resumed.provider_checks,
+            rest.iter()
+                .map(|item| item.native_id.clone())
+                .collect::<Vec<_>>()
+        );
+
+        w.service.record_recipe_acquisitions(&recipe, rest).unwrap();
+        let ready = w.service.plan_recipe_import(&recipe).unwrap();
+        assert!(ready.can_apply, "{:?}", ready.holds);
+        assert_eq!(ready.acquisitions.len(), missing);
+        let token = w
+            .service
+            .authorize_recipe_import(&ready, "Shared")
+            .unwrap()
+            .token;
+        let imported = w
+            .service
+            .apply_recipe_import(&ready, "Shared", &token)
+            .unwrap();
+        let history = w
+            .service
+            .profile_revisions("starship", &imported.id)
+            .unwrap();
+        assert_eq!(history[0].packages.len(), missing + 1);
+        // The completed review leaves no record to resume.
+        assert!(
+            w.service
+                .recorded_recipe_acquisitions(&recipe)
+                .unwrap()
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn a_staged_step_that_changed_leaves_the_review_instead_of_repeating_as_ready() {
+    let w = world();
+    grow_setup(&w, 3);
+    let (recipe, acquisitions) = staged_recipe(&w, 1);
+    w.service
+        .record_recipe_acquisitions(&recipe, &acquisitions)
+        .unwrap();
+    let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(reviewed.can_apply, "{:?}", reviewed.holds);
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let changed = &acquisitions[1];
+    let staged = crate::provider_install::ProviderInstallMode::Recipe {
+        identity: &recipe.identity_sha256,
+        install_id: None,
+    }
+    .staging(&layout, &changed.provider_plan.plan_sha256)
+    .join(&changed.native_id);
+    // Same size, different bytes: only the full check at apply can see it.
+    let size = fs::metadata(&staged).unwrap().len() as usize;
+    fs::write(&staged, vec![0u8; size]).unwrap();
+    let token = w
+        .service
+        .authorize_recipe_import(&reviewed, "Shared")
+        .unwrap()
+        .token;
+    let refused = w
+        .service
+        .apply_recipe_import(&reviewed, "Shared", &token)
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    // The next review shows that one package as missing; the others stay ready.
+    let next = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(next.provider_checks, [changed.native_id.clone()]);
+    assert_eq!(next.acquisitions.len(), acquisitions.len() - 1);
+}
+
+#[test]
+fn a_setup_past_the_former_package_bounds_round_trips_through_recipe_import() {
+    for extra in [512, 1999] {
+        let w = world();
+        grow_setup(&w, extra);
+        let source = w
+            .service
+            .profile_revisions("starship", &w.profile)
+            .unwrap()
+            .pop()
+            .unwrap();
+        assert_eq!(source.packages.len(), extra + 1);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("setup.json");
+        w.service
+            .write_profile_recipe("starship", &w.profile, &path)
+            .unwrap();
+        let recipe = ProfileRecipe::read_file(&path).unwrap();
+        assert_eq!(recipe.packages.len(), extra + 1);
+        let (_, imported) = import(&w, recipe, "Copy");
+        let copied = w
+            .service
+            .profile_revisions("starship", &imported.id)
+            .unwrap();
+        assert_eq!(copied[0].packages, source.packages);
+        assert_eq!(copied[0].orderings, source.orderings);
+    }
+}
+
+#[test]
+fn a_recipe_beyond_the_shared_capacity_is_refused_on_inspection() {
+    let w = world();
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    let template = recipe.packages[0].clone();
+    recipe.packages = (0..=crate::setup_capacity::MAX_SETUP_PACKAGES)
+        .map(|index| RecipePackage {
+            native_id: format!("mod-{index}.o2r"),
+            enabled: false,
+            ..template.clone()
+        })
+        .collect();
+    recipe.orderings.clear();
+    let recipe = sealed(recipe);
+    assert_eq!(
+        ProfileRecipe::inspect(&bytes(&recipe)).unwrap_err().code,
+        ErrorCode::Verification
+    );
 }
