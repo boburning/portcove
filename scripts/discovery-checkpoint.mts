@@ -1,7 +1,23 @@
 import { isRecord, errorCode, errorMessage } from "./runtime-values.mts";
 export const discoveryCheckpointBytes = 32 * 1024 * 1024;
+let checkpointEnvelope = discoveryCheckpointBytes;
+/** The current checkpoint and research-progress byte envelope. */
+export const discoveryCheckpointEnvelope = () => checkpointEnvelope;
+/**
+ * Replace the checkpoint and research-progress envelope. The interactive runner
+ * keeps the default, which also bounds its local journal; unattended collection
+ * stores them in the database and uses a physical bound. Returns a restore.
+ */
+export function replaceCheckpointEnvelope(bytes: number) {
+  if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("Invalid checkpoint envelope");
+  const prior = checkpointEnvelope;
+  checkpointEnvelope = bytes;
+  return () => {
+    checkpointEnvelope = prior;
+  };
+}
 function boundCheckpoint<T>(value: T): T {
-  if (Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes)
+  if (Buffer.byteLength(JSON.stringify(value)) > checkpointEnvelope)
     throw new Error("Discovery checkpoint byte envelope exceeded; preserve prior progress");
   return value;
 }

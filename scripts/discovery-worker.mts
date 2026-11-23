@@ -16,6 +16,7 @@ import {
   advanceDiscovery,
   emptyCheckpoint,
   parseDiscoveryCheckpoint,
+  replaceCheckpointEnvelope,
 } from "./discovery-checkpoint.mts";
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { collectDiscoveryRun } from "./discovery-collection.mts";
@@ -301,7 +302,21 @@ export async function runDiscoveryWorker(
   // Lead records live in rows; the state document carries everything else.
   // Records still embedded in an older document are kept and move into rows
   // with the first commit.
-  const loaded = options.store.loadLeadRecords(scope);
+  let loaded: { records: unknown[]; bytes: number };
+  try {
+    loaded = options.store.loadLeadRecords(scope);
+  } catch (error) {
+    // Close the attempt and release the lease rather than leaving them held.
+    const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
+    const failed = result("failed", { reason, attempt_id: lease.attempt });
+    try {
+      const { notes: _notes, ...summary } = failed;
+      options.store.finish(lease, "failed", summary);
+    } catch (finishError) {
+      if (!(finishError instanceof DiscoveryStoreRefused)) throw finishError;
+    }
+    return failed;
+  }
   const recordDigests = new Map<string, string>();
   const storedRecords: Record<string, unknown> = {};
   for (const raw of loaded.records)
@@ -612,25 +627,29 @@ const cancellableSleep = (milliseconds: number, signal?: AbortSignal) =>
   });
 
 /**
- * Collect until a physical limit stops the run. Each pass holds its own database
- * admission, lease and attempt; between passes the worker holds nothing while it
- * waits for an exhausted provider quota to reset. A pass that changed nothing is
- * not repeated.
- */
-/**
- * The retained lead envelope for unattended collection: a quarter of the
- * runner's memory, within the longest string the runtime can serialize.
+ * The retained lead and checkpoint envelope for unattended collection: a quarter
+ * of the runner's memory, within the longest string the runtime can serialize
+ * (the collector validates its state as one serialized document).
  */
 export function physicalLeadEnvelope(memory = os.totalmem()) {
   return Math.min(Math.floor(memory / 4), 2 ** 29 - 24);
 }
 
+/**
+ * Collect until a physical limit stops the run. Each pass holds its own database
+ * admission, lease and attempt; between passes the worker holds nothing while it
+ * waits for an exhausted provider quota to reset. A pass that changed nothing is
+ * not repeated.
+ */
 export async function runDiscoveryPasses(options: DiscoveryPassOptions) {
-  const restoreEnvelope = replaceLeadStateEnvelope(physicalLeadEnvelope());
+  const envelope = physicalLeadEnvelope();
+  const restoreLeads = replaceLeadStateEnvelope(envelope);
+  const restoreCheckpoint = replaceCheckpointEnvelope(envelope);
   try {
     return await collectPasses(options);
   } finally {
-    restoreEnvelope();
+    restoreCheckpoint();
+    restoreLeads();
   }
 }
 

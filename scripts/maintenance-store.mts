@@ -43,7 +43,8 @@ export const maintenanceSchemas = ["portcove_maintenance", "portcove_maintenance
 const migrationLockKey = 4129_0001;
 const toolTimeoutMs = 120_000;
 export const dumpTimeoutMs = 600_000;
-const outputLimitBytes = 64 * 1024 * 1024;
+/** The largest output one client command may return. */
+export const outputLimitBytes = 64 * 1024 * 1024;
 
 /** Ordered tables and their deterministic, collation-independent row order. */
 export const storeTables = [

@@ -931,7 +931,25 @@ void test(
       leadRecords: [record],
     });
     assert.deepEqual(store.loadLeadRecords("primary").records, [record]);
+    // Many records read back completely across small pages, in key order.
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      id: 1000 + index,
+      padding: "x".repeat(200),
+    }));
     store.commit(owner, 1, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords: many,
+    });
+    const paged = postgresDiscoveryStore(environment, 1024).loadLeadRecords("primary");
+    assert.deepEqual(
+      (paged.records as { id: number }[]).map((r) => r.id),
+      [77, ...many.map((r) => r.id)],
+    );
+    store.commit(owner, 2, {
       definition: hex("d"),
       leaseSeconds: 600,
       state: {},
@@ -953,3 +971,25 @@ void test(
     );
   },
 );
+
+void test("a failed lead-record load finishes the attempt instead of holding the lease", async () => {
+  const memory = memoryStore();
+  memory.store.loadLeadRecords = () => {
+    throw new Error("psql exited 2: out of memory");
+  };
+  const at = "2026-11-01T05:00:00.000Z";
+  const result = await runDiscoveryWorker({
+    store: memory.store,
+    runDir: os.tmpdir(),
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    now: () => Date.parse(at),
+    connect: async () => {
+      throw new Error("not reached");
+    },
+  });
+  assert.equal(result.outcome, "failed");
+  assert.match(result.reason ?? "", /lead records could not be loaded/u);
+  assert.deepEqual(memory.finished, ["failed"]);
+});
