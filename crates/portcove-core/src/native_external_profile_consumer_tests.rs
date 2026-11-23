@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     AdapterKind, Catalog, ExternalProfilePolicy, LaunchSpec, Library, Platform,
-    adapter::LaunchSpecRequest, catalog::EMBEDDED_CATALOG,
+    adapter::{Adapter, LaunchSpecRequest},
+    catalog::EMBEDDED_CATALOG,
 };
 
 /// Prefix of every fixture identity below; production sources never name it.
