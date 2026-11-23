@@ -57,6 +57,7 @@ import {
   gateProduct,
   gateStatement,
   bodyFirstLine,
+  listingWords,
   listingCounts,
   productIdentity,
   releaseStatement,
@@ -228,6 +229,7 @@ function entry(
     provider: "github",
     repository: `fixture-owner/${id}`,
     repository_id: 4242,
+    listing_words: listingWords(listing(id).listing),
     parser: FACTS_PARSER,
     parser_version: FACTS_PARSER_VERSION,
     observation: {
@@ -3428,7 +3430,10 @@ void test("an unbound named release line enrolls only when it names the listed p
   const own = window(decomp, ["zz-sotn-decomp-v1.2"]);
   assert.ok(decide(listing(decomp), own).fit);
   // A line the listing's name holds enrolls too.
-  assert.ok(decide(listing(remaster, { name: "Texture Studio" }), tools).fit);
+  const studio = listing(remaster, { name: "Texture Studio" });
+  assert.ok(decide(studio, { ...tools, listing_words: listingWords(studio.listing) }).fit);
+  // Facts judged with another listing's words are not this listing's.
+  assert.equal(reasonOf(decide(studio, tools)), "repository-mismatch");
   // The gate restates the rule from the listing alone.
   const generation = generateRegistrations([listing(decomp)], table(named));
   assert.equal(gateGeneration(null, generation).added.length, 1);
@@ -3677,7 +3682,9 @@ void test("an update archive holding the game's program is never chosen over the
   for (const [title, fields] of ownNames) {
     const id = typeof fields.id === "string" ? fields.id : unseen;
     const record = listing(id, fields);
-    const facts = entry([named(title, [game], 12)], {}, id);
+    const facts = entry([named(title, [game], 12)], {}, id, {
+      listing_words: listingWords(record.listing),
+    });
     assert.equal(reasonOf(decide(record, facts)), "contradictory-role", title);
     assert.ok(
       artifactExclusions(facts.artifacts[0]!).some((item) => item.reason === "asset-role-name"),
@@ -3791,7 +3798,7 @@ void test("a role word vetoes its archive whatever the product's or repository's
       [named(windowsName, [windows], 11, "windows"), named(linuxName, [linux], 12, "linux")],
       {},
       unseen,
-      { repository },
+      { repository, listing_words: listingWords(record.listing) },
     );
     // Linux never enrolls from the role archive; Windows only from a name
     // without a role word.
@@ -3805,7 +3812,10 @@ void test("a role word vetoes its archive whatever the product's or repository's
       assert.match(forcedGate(both, 11, record), /role-named/u, repository);
     }
     // The role archive alone ends `contradictory-role`.
-    const alone = entry([named(linuxName, [linux], 12, "linux")], {}, unseen, { repository });
+    const alone = entry([named(linuxName, [linux], 12, "linux")], {}, unseen, {
+      repository,
+      listing_words: listingWords(record.listing),
+    });
     assert.equal(reasonOf(decide(record, alone)), "contradictory-role", repository);
     // A forged Linux enrollment from the role archive is refused by the gate.
     assert.match(forcedGate(both, 12, record, "linux-x86-64"), /role-named/u, repository);
@@ -3813,11 +3823,23 @@ void test("a role word vetoes its archive whatever the product's or repository's
   // A title holding a role word as its own word is withheld until
   // attribution data vouches for the archive; a glued word is not vetoed.
   const titled = listing(unseen, { name: "Delta Squadron" });
-  const only = entry([named("Delta-Squadron-1.1-win64.zip", [windows], 11, "windows")]);
+  const only = entry(
+    [named("Delta-Squadron-1.1-win64.zip", [windows], 11, "windows")],
+    {},
+    unseen,
+    {
+      listing_words: listingWords(titled.listing),
+    },
+  );
   assert.equal(reasonOf(decide(titled, only)), "contradictory-role");
   assert.match(forcedGate(only, 11, titled), /role-named/u);
   const glued = listing(unseen, { name: "Deltaforce" });
-  const gluedOnly = entry([named("Deltaforce-1.1-win64.zip", [windows], 11, "windows")]);
+  const gluedOnly = entry(
+    [named("Deltaforce-1.1-win64.zip", [windows], 11, "windows")],
+    {},
+    unseen,
+    { listing_words: listingWords(glued.listing) },
+  );
   assert.ok(decide(glued, gluedOnly).fit);
   assert.equal(forcedGate(gluedOnly, 11, glued), "accepted");
 });
@@ -5432,10 +5454,10 @@ void test("a toolchain in any runtime archive withholds every platform of the id
   assert.ok(decision.fit);
   assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64", "linux-x86-64"]);
   assert.equal(forcedGate(clean, 12, both, "linux-x86-64"), "accepted");
-  // A source archive, even one holding a program, never counts.
+  // A source archive (no program in its listing) never counts.
   const source = named(
     "Game-src-v1.0.zip",
-    [player("build/Game.exe", "pe-x86-64", "built")],
+    [],
     13,
     "unknown",
     toolchainNames(["make", "cmake"], ["make"]),
@@ -5443,6 +5465,21 @@ void test("a toolchain in any runtime archive withholds every platform of the id
   const withSource = entry([...clean.artifacts, source]);
   assert.ok(decide(both, withSource).fit);
   assert.equal(forcedGate(withSource, 12, both, "linux-x86-64"), "accepted");
+  // A source-named archive that holds a program is an ordinary candidate
+  // (F3): its toolchain withholds every platform, in fit and gate.
+  const built = named(
+    "Game-src-v1.0.zip",
+    [player("build/Game.exe", "pe-x86-64", "built")],
+    13,
+    "unknown",
+    toolchainNames(["make", "cmake"], ["make"]),
+  );
+  const withBuilt = entry([...clean.artifacts, built]);
+  assert.equal(reasonOf(decide(both, withBuilt)), "bundled-toolchain");
+  assert.match(
+    forcedGate(withBuilt, 12, both, "linux-x86-64"),
+    /Game-src-v1.0.zip bundles cmake, make/u,
+  );
   // A vetoed archive (a role word) does not count either.
   const update = named(
     "Game-update-v1.0.zip",
@@ -5590,11 +5627,13 @@ void test("names are classified by system and checksum words before the bare-bin
     ["checksums-linux", undefined, []],
     ["game_sha512sums", undefined, []],
     ["sha256sums-of-game.txt", undefined, []],
-    ["Game.rtz", undefined, []],
-    ["Game.vbmod", undefined, []],
-    ["base.pk4", undefined, []],
-    ["helper.py", undefined, []],
-    ["Game.dll.aot", undefined, []],
+    // Game data packs for a host engine, scripts and ahead-of-time images
+    // can be or launch the program: they keep competing (F4).
+    ["Game.rtz", "container", []],
+    ["Game.vbmod", "container", []],
+    ["base.pk4", "container", []],
+    ["helper.py", "container", []],
+    ["Game.dll.aot", "container", []],
     ["settings.ini", undefined, []],
     ["run.bat", "container", []],
     ["run.cmd", "container", []],
@@ -5646,14 +5685,40 @@ void test("source and third-party source archives are never offered and never of
     assert.match(forcedGate(facts, 11, both), /another package for linux-x86-64/u, data.name);
     assert.equal(sourceArchive(data, `fixture-owner/${unseen}`), false, data.name);
   }
-  // A source-named archive holding the program is never one of the
-  // platform's competing archives: the binary zip enrolls alone.
+  // A source-named archive holding a program is no source archive (F3): it
+  // stays one of the platform's archives, so the binary zip is not chosen
+  // by dropping it, and it is never itself offered.
   const built = named("Unseen-src-1.0.zip", [player("Unseen/Unseen.exe")], 12);
-  const decision = decide(listing(), entry([zip, built]));
-  assert.ok(decision.fit);
-  assert.equal(decision.enrollment.runtimes[0]!.asset_id, 11);
-  assert.equal(forcedGate(entry([zip, built]), 11), "accepted");
+  assert.equal(sourceArchive(built, `fixture-owner/${unseen}`), false);
+  assert.equal(reasonOf(decide(listing(), entry([zip, built]))), "ambiguous-artifact");
+  assert.match(forcedGate(entry([zip, built]), 11), /one of 2 different archives/u);
   assert.match(forcedGate(entry([zip, built]), 12), /source or non-runtime artifact/u);
+  // Alone, it is still never offered: its own name contradicts it.
+  assert.equal(reasonOf(decide(listing(), entry([built]))), "contradictory-role");
+  assert.match(forcedGate(entry([built]), 12), /source or non-runtime artifact/u);
+  // F3: a source-named archive holding another program keeps the platform
+  // ambiguous; the game's zip never enrolls by dropping it.
+  const game = named("Game-1.0-win64.zip", [player("Game/Game.exe")], 11, "windows");
+  const other = named("Game-1.0-win64-source.zip", [player("Other/Other.exe")], 12, "windows");
+  assert.equal(other.contradictory, false, "the fixture's name verdict is not a source role");
+  const coreSource: ArtifactFactV2 = {
+    ...other,
+    name_suggestion: { ...other.name_suggestion, role: "source-archive" },
+    contradictory: true,
+  };
+  for (const second of [other, coreSource]) {
+    const facts = entry([game, second]);
+    assert.equal(
+      reasonOf(decide(listing(), facts)),
+      "ambiguous-player",
+      second.name_suggestion.role,
+    );
+    assert.match(forcedGate(facts, 11), /2 distinct programs/u, second.name_suggestion.role);
+  }
+  // Without programs the same name is a source archive and is ignored.
+  const empty = named("Game-1.0-win64-source.zip", [], 12, "windows");
+  assert.ok(decide(listing(), entry([game, empty])).fit);
+  assert.equal(forcedGate(entry([game, empty]), 11), "accepted");
   // The listing counts are recorded by the worker and checked as facts.
   assert.deepEqual(listingCounts(["main.c", "Main.C", "util.h", "readme.txt", "Makefile"]), {
     leaves: 4,

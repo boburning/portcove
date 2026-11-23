@@ -29,6 +29,7 @@ import {
   emptyFactsTable,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
+  listingWords,
   needsReproduction,
   reproductionPlan,
   reusedArchives,
@@ -204,6 +205,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
     provider: "github",
     repository: `fixture-owner/${id}`,
     repository_id: 4242,
+    listing_words: listingWords({ id, name: "Fixture Game" }),
     parser: FACTS_PARSER,
     parser_version: FACTS_PARSER_VERSION,
     observation: {

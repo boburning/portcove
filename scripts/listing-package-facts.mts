@@ -95,6 +95,7 @@ import {
   toolchainNames,
   channelOnlyTag,
   listingCounts,
+  listingWords,
   textStatement,
   failureCauses,
   compareCodePoints,
@@ -520,6 +521,7 @@ export const observedReleaseFacts = (
   releases: readonly ObservedRelease[],
   prerelease: (release: ObservedRelease) => boolean | undefined,
   repository: string,
+  listing: readonly string[] = [],
 ): ObservedReleaseFact[] =>
   releases
     .toSorted((left, right) => left.id - right.id)
@@ -531,25 +533,27 @@ export const observedReleaseFacts = (
         prerelease: prerelease(release) ?? null,
         published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
         packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
-        ...releaseTextFacts(release, repository),
+        ...releaseTextFacts(release, repository, listing),
       };
     });
 /**
  * What the facts record of a release's own text: whether the observer
  * reported it, the title when it is bounded printable text (`recordedTag`'s
  * class), and the prerelease statement the title or the body's first line
- * makes (`textStatement`). The body is never recorded.
+ * makes (`textStatement`, with the listing's own words, `listingWords`).
+ * The body is never recorded.
  */
 export const releaseTextFacts = (
   release: ObservedRelease,
   repository: string,
+  listing: readonly string[] = [],
 ): Pick<ObservedReleaseFact, "text" | "title" | "statement"> =>
   release.text === null
     ? { text: "unobserved", title: null, statement: null }
     : {
         text: "observed",
         title: release.text.title === null ? null : recordedTag(release.text.title),
-        statement: textStatement(release.text.title, release.text.body, repository),
+        statement: textStatement(release.text.title, release.text.body, repository, listing),
       };
 /**
  * The releases a listing observation keeps from a provider list: the newest
@@ -939,6 +943,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const state = sanitizeState(inputs.state ?? initialState());
   const candidates = listingOnly(inputs.records);
   const recordById = new Map(inputs.records.map((record) => [record.listing.id, record]));
+  /** The listing's own words, which release text is judged with (`listingWords`). */
+  const wordsOf = (id: string) => {
+    const record = recordById.get(id);
+    return record ? listingWords(record.listing) : [];
+  };
   const context = fitContext(inputs.records);
   // Facts bind to the repository the listing names; a re-pointed listing rebinds.
   const bound = (entry: ListingFactsEntry) =>
@@ -983,7 +992,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     const verdict = names.prerelease(release);
     return verdict === undefined
       ? undefined
-      : verdict || releaseTextFacts(release, candidates.get(id)!).statement !== null;
+      : verdict || releaseTextFacts(release, candidates.get(id)!, wordsOf(id)).statement !== null;
   };
   // A listing whose release URL names a tag binds the identity to that tag's
   // release line: only that line's releases can be offered.
@@ -1056,12 +1065,18 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   };
   /** The observed releases, for the release-line rule; null fields are unknown. */
   const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
-    observedReleaseFacts(observed.get(id)!.releases, verdictOf(id), candidates.get(id)!);
+    observedReleaseFacts(
+      observed.get(id)!.releases,
+      verdictOf(id),
+      candidates.get(id)!,
+      wordsOf(id),
+    );
   const base = (id: string, repositoryId: number) => ({
     port_id: id,
     provider: "github" as const,
     repository: candidates.get(id)!,
     repository_id: repositoryId,
+    listing_words: wordsOf(id),
     parser: FACTS_PARSER,
     parser_version: FACTS_PARSER_VERSION,
   });

@@ -98,11 +98,11 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 16;
+export const GENERATOR_VERSION = 17;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 17;
-export const FACTS_TABLE_FORMAT = 13;
+export const FACTS_PARSER_VERSION = 18;
+export const FACTS_TABLE_FORMAT = 14;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -335,45 +335,208 @@ export interface ReleaseStatement {
   token: StatementToken;
 }
 /**
- * The prerelease statement one line of release text makes, or null: a
- * `prerelease` or `pre release` word pair (`pre-release`), `release
- * candidate` or a standalone `rc` (also glued to digits: `rc2`, `1.0rc1`),
- * `beta` or `alpha` (also with digits). Words are split at separators and
- * letter/digit changes, never inside a word, so `Arc`, `Alphabet` and
- * `BetaQuest` state nothing. A status word that is also a word of the
- * repository's own name (`nameWords`) names the product, not a stage, so it
- * states nothing either. Only the release title and the body's first line
+ * The words a listing's own names supply (its id, name and original game
+ * title, `nameWords`), sorted and unique: with the repository name's words
+ * they are the product's own words, which a release title or first body line
+ * uses as a name, not as a status (`releaseStatement`). The facts record them
+ * per entry (`listing_words`), so the facts check, the fit rule and the gate
+ * judge release text with the same words.
+ */
+export function listingWords(listing: Record<string, unknown>): string[] {
+  return [
+    ...new Set(
+      [listing.id, listing.name, listing.original_game_title]
+        .filter((value): value is string => typeof value === "string")
+        .flatMap(nameWords)
+        .filter((word) => word.length <= 64),
+    ),
+  ]
+    .toSorted(compareCodePoints)
+    .slice(0, maxListingWords);
+}
+/** At most this many listing words (each at most 64 characters) are recorded per entry. */
+export const maxListingWords = 64;
+/**
+ * Release text with what never states anything about the release removed:
+ * image references (`![alt](beta.png)`), HTML tags, link targets (the link
+ * text stays), URLs, compare ranges (`v0.9-beta...v1.0`, as in a generated
+ * "Full Changelog" line) and image file names.
+ */
+export function statementText(line: string): string {
+  return line
+    .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/gu, "$1")
+    .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
+    .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
+    .replace(/(?<![A-Za-z0-9])www\.\S*/giu, " ")
+    .replace(/\S+\.{2,3}\S+/gu, " ")
+    .replace(/\S+\.(?:png|jpe?g|gif|webp|svg|ico|bmp)(?![A-Za-z0-9])/giu, " ");
+}
+/** Words between a status word and its version that keep them adjacent (`Beta build 7`). */
+export const statementConnectors = ["build", "version", "ver", "v", "no", "number"] as const;
+/**
+ * Words that, before a status word (skipping `statementFillers`), make it a
+ * negation or a past transition, never the release's own status: `Out of
+ * beta`, `No longer a release candidate`, `Changes since the last beta`.
+ */
+export const statementNegators = [
+  "not",
+  "no",
+  "longer",
+  "since",
+  "after",
+  "from",
+  "post",
+  "past",
+  "former",
+  "formerly",
+  "previously",
+  "was",
+  "were",
+  "leaving",
+  "left",
+  "leaves",
+  "exits",
+  "exited",
+  "ended",
+  "ends",
+  "graduated",
+  "graduates",
+  "than",
+  "over",
+  "beyond",
+] as const;
+/** Articles and ordinal adjectives skipped when looking for a negation. */
+export const statementFillers = [
+  "a",
+  "an",
+  "the",
+  "last",
+  "latest",
+  "previous",
+  "final",
+  "first",
+] as const;
+interface StatementWord {
+  word: string;
+  numeric: boolean;
+  /** The index of the glued token (letters and digits joined by single `.` or `_`). */
+  group: number;
+  parenthesised: boolean;
+}
+function statementWords(line: string): StatementWord[] {
+  const words: StatementWord[] = [];
+  let depth = 0;
+  let group = 0;
+  for (const [token] of statementText(line)
+    .toLowerCase()
+    .matchAll(/[a-z0-9]+(?:[._][a-z0-9]+)*|[([{]|[)\]}]/gu)) {
+    if ("([{".includes(token)) depth++;
+    else if (")]}".includes(token)) depth = Math.max(0, depth - 1);
+    else {
+      group++;
+      for (const chunk of token.split(/[._]/u))
+        for (const word of chunk.split(/(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/u))
+          words.push({ word, numeric: /^[0-9]+$/u.test(word), group, parenthesised: depth > 0 });
+    }
+  }
+  return words;
+}
+/**
+ * The prerelease statement one line of release text makes, or null. The
+ * statements are a `prerelease` or `pre release` word pair (`pre-release`),
+ * `release candidate` or a standalone `rc`, and `beta` or `alpha`. Words are
+ * split at separators and letter/digit changes, never inside a word, so
+ * `Arc`, `Alphabet` and `BetaQuest` state nothing. URLs, link targets, image
+ * references and compare ranges are removed first (`statementText`).
+ *
+ * A status word states the release's status only where a status stands: glued
+ * to digits (`rc2`, `1.0rc1`, `beta.2`), directly before a version (`Beta 3`,
+ * `Pre-release build 7`, past a connector word, `statementConnectors`) or
+ * directly after one (`v1.0 Beta`), as the line's last word (`v1.0 Beta`,
+ * `Release candidate`), or inside parentheses or brackets (`(beta)`); never
+ * anywhere in a sentence. A negation or past transition before it
+ * (`statementNegators`, or `out of`) states nothing. The product's own words
+ * (the repository name's words and `listingWords`) before the line's first
+ * number name the product, not a status (`Beta Squadron 1.2`, `Alpha Quest
+ * 1.0`), while the same word after a version still states one (`Beta
+ * Squadron 1.3 Beta 2`). Only the release title and the body's first line
  * are ever judged: a project-level remark further down ("pre-release
  * quality") never is.
  */
-export function releaseStatement(line: string, repository: string): StatementToken | null {
-  const own = new Set(nameWords(repository.split("/")[1] ?? ""));
-  const words = line
-    .toLowerCase()
-    .split(/[^a-z0-9]+/u)
-    .flatMap((word) => word.split(/(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/u))
-    .filter(Boolean);
-  const stated = (word: string) => !own.has(word);
-  for (const [index, word] of words.entries()) {
-    const next = words[index + 1];
-    if ((word === "prerelease" && stated(word)) || (word === "pre" && next === "release"))
-      return "prerelease";
-    if ((word === "release" && next === "candidate") || (word === "rc" && stated(word)))
-      return "release-candidate";
-    if (word === "beta" && stated(word)) return "beta";
-    if (word === "alpha" && stated(word)) return "alpha";
+export function releaseStatement(
+  line: string,
+  repository: string,
+  listing: readonly string[] = [],
+): StatementToken | null {
+  const own = new Set([...nameWords(repository.split("/")[1] ?? ""), ...listing]);
+  const words = statementWords(line);
+  const firstNumber = words.findIndex((item) => item.numeric);
+  const named = (index: number) =>
+    own.has(words[index]!.word) && (firstNumber < 0 || index < firstNumber);
+  const negated = (index: number) => {
+    let back = index - 1;
+    while (back >= 0 && (statementFillers as readonly string[]).includes(words[back]!.word)) back--;
+    const previous = words[back]?.word;
+    if (previous === undefined) return false;
+    return (
+      (statementNegators as readonly string[]).includes(previous) ||
+      (previous === "of" && words[back - 1]?.word === "out")
+    );
+  };
+  const stands = (first: number, last: number) => {
+    // Glued to digits: a number in the status words' own tokens.
+    const glued = words.some(
+      (item) =>
+        item.numeric && item.group >= words[first]!.group && item.group <= words[last]!.group,
+    );
+    if (glued) return true;
+    let after = last + 1;
+    while (
+      after < words.length &&
+      (statementConnectors as readonly string[]).includes(words[after]!.word)
+    )
+      after++;
+    return (
+      words[after]?.numeric === true ||
+      words[first - 1]?.numeric === true ||
+      last === words.length - 1 ||
+      words[first]!.parenthesised
+    );
+  };
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index]!.word;
+    const next = words[index + 1]?.word;
+    let token: StatementToken | null = null;
+    let last = index;
+    if (word === "pre" && next === "release") {
+      token = "prerelease";
+      last = index + 1;
+    } else if (word === "release" && next === "candidate") {
+      token = "release-candidate";
+      last = index + 1;
+    } else if (!named(index)) {
+      if (word === "prerelease") token = "prerelease";
+      else if (word === "rc") token = "release-candidate";
+      else if (word === "beta" || word === "alpha") token = word;
+    }
+    if (token !== null && !negated(index) && stands(index, last)) return token;
   }
   return null;
 }
 /**
  * The line of a release body that is judged: the first line, within the
- * first 4,096 characters, that holds a letter or digit once leading
- * Markdown heading, quote, list and emphasis marks are removed, bounded to
- * 256 characters; null when there is none.
+ * first 4,096 characters, that holds a letter or digit once what states
+ * nothing is removed (`statementText`) and leading Markdown heading, quote,
+ * list and emphasis marks are removed, bounded to 256 characters; null when
+ * there is none. A banner image or a bare link line is skipped.
  */
 export function bodyFirstLine(body: string): string | null {
   for (const raw of body.slice(0, 4096).split(/\r?\n/u)) {
-    const line = raw.replace(/^[\s#>*_=~`-]+/u, "").trim();
+    const line = statementText(raw)
+      .replace(/^[\s#>*_=~`-]+/u, "")
+      .trim();
     if (/[A-Za-z0-9]/u.test(line)) return line.slice(0, 256);
   }
   return null;
@@ -386,21 +549,27 @@ export function textStatement(
   title: string | null,
   body: string | null,
   repository: string,
+  listing: readonly string[] = [],
 ): ReleaseStatement | null {
-  const titled = title === null ? null : releaseStatement(title, repository);
+  const titled = title === null ? null : releaseStatement(title, repository, listing);
   if (titled !== null) return { field: "title", token: titled };
   const first = body === null ? null : bodyFirstLine(body);
-  const bodied = first === null ? null : releaseStatement(first, repository);
+  const bodied = first === null ? null : releaseStatement(first, repository, listing);
   return bodied === null ? null : { field: "body-first-line", token: bodied };
 }
 /**
  * Whether a recorded release states a prerelease in its own text: its
- * recorded title re-derived here, or the recorded body statement.
+ * recorded title re-derived here with the listing's words, or the recorded
+ * body statement.
  */
-export function statesPrerelease(release: ObservedReleaseFact, repository: string): boolean {
+export function statesPrerelease(
+  release: ObservedReleaseFact,
+  repository: string,
+  listing: readonly string[],
+): boolean {
   return (
     release.statement !== null ||
-    (release.title !== null && releaseStatement(release.title, repository) !== null)
+    (release.title !== null && releaseStatement(release.title, repository, listing) !== null)
   );
 }
 /** Why Core (or the worker's byte binding) refused one archive. */
@@ -560,6 +729,12 @@ export interface ListingFactsEntry {
   /** The repository the listing names; facts bind to it and to `repository_id`. */
   repository: string;
   repository_id: number;
+  /**
+   * The listing's own words (`listingWords`) the worker judged release text
+   * with; the fit rule and the gate re-derive them from the listing and
+   * refuse facts judged with other words.
+   */
+  listing_words: string[];
   parser: string;
   parser_version: number;
   observation: {
@@ -841,7 +1016,11 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
     }
     const titled =
       typeof release.title === "string" && typeof entry.repository === "string"
-        ? releaseStatement(release.title, entry.repository)
+        ? releaseStatement(
+            release.title,
+            entry.repository,
+            Array.isArray(entry.listing_words) ? (entry.listing_words as string[]) : [],
+          )
         : null;
     if (
       !(release.text === "observed" || release.text === "unobserved") ||
@@ -953,6 +1132,7 @@ export function checkListingFactsEntry(
       "provider",
       "repository",
       "repository_id",
+      "listing_words",
       "parser",
       "parser_version",
       "observation",
@@ -978,6 +1158,17 @@ export function checkListingFactsEntry(
     throw new Error(
       `${where}.asset_names must be a bounded list of the release's other asset names, holding every other package form.`,
     );
+  if (
+    !Array.isArray(entry.listing_words) ||
+    entry.listing_words.length > maxListingWords ||
+    entry.listing_words.some(
+      (word: unknown, index: number, words: unknown[]) =>
+        typeof word !== "string" ||
+        !/^[a-z0-9]{1,64}$/u.test(word) ||
+        (index > 0 && compareCodePoints(String(words[index - 1]), word) >= 0),
+    )
+  )
+    throw new Error(`${where}.listing_words must be the listing's sorted, unique own words.`);
   checkReleaseFacts(entry, where);
   if (
     !Array.isArray(entry.unread_forms) ||
@@ -1855,7 +2046,8 @@ function releaseLineProblem(
       detail:
         "The offered release is a prerelease: its tag names only a release channel and a date, time or hash.",
     };
-  if (statesPrerelease(chosen, entry.repository))
+  const own = listingWords(record.listing);
+  if (statesPrerelease(chosen, entry.repository, own))
     return {
       reason: "no-stable-release",
       detail:
@@ -1868,7 +2060,7 @@ function releaseLineProblem(
     release.prerelease === null ||
     (release.prerelease === false &&
       !channelOnlyTag(release.tag) &&
-      !statesPrerelease(release, entry.repository));
+      !statesPrerelease(release, entry.repository, own));
   const lines = new Set([
     chosenLine,
     ...entry.observed_releases
@@ -1903,7 +2095,7 @@ function releaseLineProblem(
       return (
         (release.prerelease !== false ||
           channelOnlyTag(release.tag) ||
-          statesPrerelease(release, entry.repository)) &&
+          statesPrerelease(release, entry.repository, own)) &&
         line !== chosenLine &&
         !(Date.parse(release.published_at ?? "") <= published) &&
         (release.prerelease === null ||
@@ -2048,14 +2240,9 @@ export const nonProgramSuffixes = [
   ".po",
   ".css",
   ".desktop",
-  // Data, configuration and mod payloads measured beside real releases that
-  // cannot be the desktop package: route data, mod and game data packs, a
-  // script and an ahead-of-time compiled assembly cache.
-  ".rtz",
-  ".vbmod",
-  ".pk4",
-  ".py",
-  ".aot",
+  // Game data packs for a host engine (`.pk4`, `.vbmod`, `.rtz`), scripts
+  // (`.py`) and ahead-of-time images (`.aot`) are deliberately absent: such
+  // a file can be, or launch, the program, so it keeps competing.
 ] as const;
 /** Exact whole names, any letter case, that are never a program. */
 export const nonProgramNames = [
@@ -2332,8 +2519,13 @@ const productTargetWords = new Set(["universal2", "64bit", "32bit"]);
 export function productIdentity(name: string): { words: string[]; version: string[] } {
   let base = name;
   const form = packageFormOf(name);
-  if (form !== undefined) base = base.slice(0, base.length - form.length);
-  else {
+  if (form !== undefined) {
+    base = base.slice(0, base.length - form.length);
+    // A Debian revision after the upstream version (`game_1.0-1_amd64.deb`)
+    // is packaging, not the product's version.
+    if (form.toLowerCase() === ".deb")
+      base = base.replace(/(?<=[0-9])-[0-9]+(?=_[A-Za-z0-9]+$|$)/u, "");
+  } else {
     const extension = /\.[A-Za-z0-9]+$/u.exec(base)?.[0];
     if (extension !== undefined && /[A-Za-z]/u.test(extension) && !/^\.v[0-9]+$/iu.test(extension))
       base = base.slice(0, base.length - extension.length);
@@ -2385,7 +2577,7 @@ export function sameProductForm(
       return (
         own.words.length > 0 &&
         own.words.join("-") === other.words.join("-") &&
-        own.version.join(".") === other.version.join(".") &&
+        sameVersion(own.version, other.version, name) &&
         archive.players
           .filter((player) => machineRunsOn(player.machine, platform))
           .every((player) => programNamesProduct(player.path, own.words))
@@ -2394,24 +2586,43 @@ export function sameProductForm(
   );
 }
 /**
- * Whether a player program's name is attributable to product words: the
- * program's words (`programStem`, without build-variant words) share a whole
- * word of at least three characters with them, or one joined spelling
- * contains the other and the shorter has at least four characters
- * (`supertux2` and `supertux`). An archive named for the game that holds
- * only another program (`rexglue.exe` in `TableTennis-v1.7.0.zip`) is not
- * the same product as an installer named for the game.
+ * Whether a player program is named exactly for the product: the program's
+ * words without build-variant words (`programStem`: architecture, bitness,
+ * platform and console words), joined, equal the product words joined, also
+ * once trailing digits are removed from the program (`supergame2.exe` for
+ * product `super-game`). A shared word, a prefix or a containment in either
+ * direction never is: `GameCodegen.exe` or `GameRecomp.exe` for `game`,
+ * `the-mapper.exe` for `the-game`, and `Table.exe` for `table-game` are other
+ * programs.
  */
 export function programNamesProduct(path: string, product: readonly string[]): boolean {
-  const program = programStem(path).split("-").filter(Boolean);
-  const joinedProgram = program.join("");
   const joinedProduct = product.join("");
-  const shorter = Math.min(joinedProgram.length, joinedProduct.length);
-  return (
-    program.some((word) => word.length >= 3 && product.includes(word)) ||
-    (shorter >= 4 &&
-      (joinedProgram.includes(joinedProduct) || joinedProduct.includes(joinedProgram)))
-  );
+  if (!joinedProduct) return false;
+  const program = programStem(path).split("-").filter(Boolean);
+  if (program.join("") === joinedProduct) return true;
+  while (program.length > 1 && /^[0-9]+$/u.test(program.at(-1)!)) program.pop();
+  return program.join("") === joinedProduct;
+}
+/**
+ * Whether two asset versions are the same version for `sameProductForm`:
+ * equal once trailing zero components are removed (`1.0.0` is `1.0`), or the
+ * other form is an AppImage that names no version at all (an unversioned
+ * `Game.AppImage` beside `Game-1.0-linux.tar.gz`, a common rolling name).
+ * Both unversioned are the same version; any other unversioned form beside
+ * a versioned archive, a container above all, keeps competing.
+ */
+export function sameVersion(
+  archive: readonly string[],
+  other: readonly string[],
+  otherName = "",
+): boolean {
+  if (!other.length) return !archive.length || /\.appimage$/iu.test(otherName);
+  const trimmed = (version: readonly string[]) => {
+    const parts = [...version];
+    while (parts.length > 1 && /^0+$/u.test(parts.at(-1)!)) parts.pop();
+    return parts.join(".");
+  };
+  return archive.length > 0 && trimmed(archive) === trimmed(other);
 }
 /**
  * The archives that could be offered for P: runtime facts from exact bytes
@@ -2439,19 +2650,25 @@ function sourceNamed(artifact: { name: string; name_suggestion: NameSuggestion }
       .some((word) => (sourceArchiveWords as readonly string[]).includes(word))
   );
 }
+/** Whether an archive's listing shows an executable program: a kept or a tool-vetoed player. */
+const holdsProgram = (artifact: ArtifactFactV2) =>
+  artifact.players.length > 0 || artifact.excluded_players.length > 0;
 /**
- * Whether an archive is a source or compliance archive: its name says so
- * (`sourceNamed`), or it is a third-party source dump: it holds no native
- * program at all, at least three quarters of its listing's file names are
- * source or build files (`listing_counts`), and its product words
- * (`productIdentity`) share no word with the repository's name. A source
- * archive is never offered, offers no platform to another package form, is
- * never one of a platform's competing archives and never counts for the
- * toolchain rule.
+ * Whether an archive is a source or compliance archive. Only an archive whose
+ * listing shows no executable program can be one: its name says so
+ * (`sourceNamed`), or it is a third-party source dump: at least three
+ * quarters of its listing's file names are source or build files
+ * (`listing_counts`), and its product words (`productIdentity`) share no
+ * word with the repository's name. A source archive is never offered, offers
+ * no platform to another package form, is never one of a platform's
+ * competing archives and never counts for the toolchain rule. A source-named
+ * archive that holds programs is no source archive: it stays in every
+ * ambiguity, package and competition count (`countedArchive`), and is never
+ * itself offered, because its own name contradicts it.
  */
 export function sourceArchive(artifact: ArtifactFactV2, repository: string): boolean {
+  if (holdsProgram(artifact)) return false;
   if (sourceNamed(artifact)) return true;
-  if (artifact.players.length || artifact.excluded_players.length) return false;
   const { leaves, source_leaves } = artifact.listing_counts;
   if (leaves === 0 || source_leaves * 4 < leaves * 3) return false;
   const own = new Set(nameWords(repository.split("/")[1] ?? ""));
@@ -2504,9 +2721,21 @@ export function archiveRoleToken(name: string): string | null {
   const words = new Set(nameWords(name));
   return archiveRoleTokens.find((token) => words.has(token)) ?? null;
 }
-/** Whether an artifact is vetoed by its own name or its contradiction flag. */
+/** Whether an artifact is vetoed by its own name or its contradiction flag: it is never offered. */
 const vetoed = (artifact: ArtifactFactV2) =>
   artifact.contradictory || archiveRoleToken(artifact.name) !== null || sourceNamed(artifact);
+/**
+ * Whether an archive counts as one that could be a platform's game in the
+ * ambiguity, one-package and toolchain rules: a runtime archive from exact
+ * bytes whose name holds no role word and that is either not vetoed, or
+ * source-named while holding programs (a source-named archive with players
+ * is an ordinary candidate for counting, never dropped from the count).
+ */
+const countedArchive = (artifact: ArtifactFactV2) =>
+  artifact.role === "desktop-game-runtime" &&
+  artifact.source.kind === authorizingSource &&
+  archiveRoleToken(artifact.name) === null &&
+  (sourceNamed(artifact) ? artifact.players.length > 0 : !artifact.contradictory);
 
 /**
  * Words that make a program a launcher, settings or setup step rather than
@@ -2584,12 +2813,7 @@ function ambiguity(
 
 /** The `ambiguous-player` exclusions of an entry: one per kind, from the first platform that has it. */
 function ambiguityExclusions(entry: ListingFactsEntry): Exclusion[] {
-  const usable = entry.artifacts.filter(
-    (artifact) =>
-      artifact.role === "desktop-game-runtime" &&
-      artifact.source.kind === authorizingSource &&
-      !vetoed(artifact),
-  );
+  const usable = entry.artifacts.filter(countedArchive);
   const found = new Map<string, Exclusion>();
   for (const platform of platforms) {
     const ambiguous = ambiguity(hostedPlayers(usable, platform));
@@ -2634,8 +2858,10 @@ function platformRuntime(
     };
   const authorized = runtimes.filter((artifact) => artifact.source.kind === authorizingSource);
   if (!authorized.length) return { reason: "no-authorizing-source" };
-  const consistent = authorized.filter((artifact) => !vetoed(artifact));
-  if (!consistent.length)
+  // A source-named archive holding programs counts here as an ordinary
+  // candidate (it can make P ambiguous) but is never the one offered.
+  const consistent = authorized.filter(countedArchive);
+  if (!consistent.some((artifact) => !vetoed(artifact)))
     return {
       reason:
         (["non-desktop-platform", "tool-not-game", "contradictory-role"] as const).find((reason) =>
@@ -2664,6 +2890,7 @@ function platformRuntime(
     return { reason: "bundled-toolchain" };
   const chosen = onePackage(hosted);
   if (!chosen) return { reason: "ambiguous-artifact" };
+  if (vetoed(chosen.artifact)) return { reason: vetoReason(chosen.artifact) };
   const { artifact, players } = chosen;
   return {
     runtime: {
@@ -2797,6 +3024,13 @@ export function fitDecision(
     );
   if (entry.parser !== FACTS_PARSER || entry.parser_version !== FACTS_PARSER_VERSION)
     return blocked("stale-parser", `Facts come from ${entry.parser} v${entry.parser_version}.`);
+  // Release text was judged with the listing's own words: facts judged with
+  // other words (the listing was renamed since) are not this listing's.
+  if (entry.listing_words.join(" ") !== listingWords(record.listing).join(" "))
+    return blocked(
+      "repository-mismatch",
+      "Facts judged the release text with the words of another listing name; UNKNOWN until observed again.",
+    );
   if (entry.ineligible) return blocked(entry.ineligible.reason, entry.ineligible.detail);
   if (entry.observation.coverage !== "complete" || !entry.observation.assets_complete)
     return blocked(
@@ -2833,9 +3067,7 @@ export function fitDecision(
       entry.artifacts
         .filter(
           (artifact) =>
-            artifact.role === "desktop-game-runtime" &&
-            artifact.source.kind === authorizingSource &&
-            !vetoed(artifact) &&
+            countedArchive(artifact) &&
             !sourceArchive(artifact, entry.repository) &&
             platforms.some((platform) => namePermits(artifact, platform)),
         )
@@ -3235,11 +3467,11 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
     ),
     release_statements: perEntry(generation, (entry) =>
       entry.observed_releases
-        .filter((release) => statesPrerelease(release, entry.repository))
+        .filter((release) => statesPrerelease(release, entry.repository, entry.listing_words))
         .map((release) => {
           const statement = release.statement ?? {
             field: "title",
-            token: releaseStatement(release.title!, entry.repository)!,
+            token: releaseStatement(release.title!, entry.repository, entry.listing_words)!,
           };
           return `${release.tag ?? `#${release.release_id}`}: ${statement.field} ${statement.token}`;
         }),
@@ -4264,11 +4496,6 @@ export function gateFormKind(
     "po",
     "css",
     "desktop",
-    "rtz",
-    "vbmod",
-    "pk4",
-    "py",
-    "aot",
   ]);
   const dot = lower.lastIndexOf(".");
   const last = dot < 0 ? "" : lower.slice(dot + 1);
@@ -4416,30 +4643,143 @@ export function gateFormPlatforms(name: string): string[] {
 }
 
 /**
- * The prerelease statement token class a line of release text makes,
- * restated: see `releaseStatement`. Exported for its unit table only.
+ * The listing's own words, restated: see `listingWords`. Exported for its
+ * unit table only.
  */
-export function gateStatement(line: string, repository: string): string | null {
-  const own = gateNameWords(repository.split("/")[1] ?? "");
-  const words: string[] = [];
-  for (const chunk of line.toLowerCase().split(/[^a-z0-9]+/u))
-    for (const part of chunk.match(/[a-z]+|[0-9]+/gu) ?? []) words.push(part);
+export function gateListingWords(listing: Record<string, unknown>): string[] {
+  const words = new Set<string>();
+  for (const value of [listing.id, listing.name, listing.original_game_title])
+    if (typeof value === "string")
+      for (const word of gateNameWords(value)) if (word.length <= 64) words.add(word);
+  return [...words].sort().slice(0, 64);
+}
+/**
+ * The prerelease statement token class a line of release text makes,
+ * restated: see `releaseStatement` and `statementText`. Exported for its
+ * unit table only.
+ */
+export function gateStatement(
+  line: string,
+  repository: string,
+  listing: readonly string[] = [],
+): string | null {
+  const own = [...gateNameWords(repository.split("/")[1] ?? ""), ...listing];
+  // Image references, tags, link targets, URLs, compare ranges and image
+  // file names never state anything.
+  const text = line
+    .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/gu, "$1")
+    .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
+    .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
+    .replace(/(?<![A-Za-z0-9])www\.\S*/giu, " ")
+    .replace(/\S+\.{2,3}\S+/gu, " ")
+    .replace(/\S+\.(?:png|jpe?g|gif|webp|svg|ico|bmp)(?![A-Za-z0-9])/giu, " ")
+    .toLowerCase();
+  const words: { text: string; number: boolean; token: number; inside: boolean }[] = [];
+  let depth = 0;
+  let token = 0;
+  let run = "";
+  const flush = () => {
+    // Letters and digits joined by one `.` or `_` are one glued token.
+    for (const piece of run.split(/[._]{2,}/u)) {
+      const parts = piece.split(/[._]/u).flatMap((part) => part.match(/[a-z]+|[0-9]+/gu) ?? []);
+      if (!parts.length) continue;
+      token++;
+      for (const part of parts)
+        words.push({ text: part, number: /^[0-9]/u.test(part), token, inside: depth > 0 });
+    }
+    run = "";
+  };
+  for (const character of text) {
+    if (/[a-z0-9._]/u.test(character)) {
+      run += character;
+      continue;
+    }
+    flush();
+    if ("([{".includes(character)) depth++;
+    else if (")]}".includes(character)) depth = depth > 0 ? depth - 1 : 0;
+  }
+  flush();
+  const fillers = ["a", "an", "the", "last", "latest", "previous", "final", "first"];
+  const negators = [
+    "not",
+    "no",
+    "longer",
+    "since",
+    "after",
+    "from",
+    "post",
+    "past",
+    "former",
+    "formerly",
+    "previously",
+    "was",
+    "were",
+    "leaving",
+    "left",
+    "leaves",
+    "exits",
+    "exited",
+    "ended",
+    "ends",
+    "graduated",
+    "graduates",
+    "than",
+    "over",
+    "beyond",
+  ];
+  const connectors = ["build", "version", "ver", "v", "no", "number"];
+  let firstNumber = -1;
+  for (let index = 0; index < words.length && firstNumber < 0; index++)
+    if (words[index]!.number) firstNumber = index;
   for (let index = 0; index < words.length; index++) {
-    const word = words[index]!;
-    const next = words[index + 1];
-    const free = !own.includes(word);
-    if (word === "pre" && next === "release") return "prerelease";
-    if (word === "prerelease" && free) return "prerelease";
-    if (word === "release" && next === "candidate") return "release-candidate";
-    if (word === "rc" && free) return "release-candidate";
-    if ((word === "beta" || word === "alpha") && free) return word;
+    const here = words[index]!.text;
+    const next = words[index + 1]?.text;
+    let found: string | null = null;
+    let end = index;
+    if (here === "pre" && next === "release") {
+      found = "prerelease";
+      end = index + 1;
+    } else if (here === "release" && next === "candidate") {
+      found = "release-candidate";
+      end = index + 1;
+    } else if (!(own.includes(here) && (firstNumber < 0 || index < firstNumber))) {
+      if (here === "prerelease") found = "prerelease";
+      else if (here === "rc") found = "release-candidate";
+      else if (here === "beta" || here === "alpha") found = here;
+    }
+    if (found === null) continue;
+    let back = index - 1;
+    while (back >= 0 && fillers.includes(words[back]!.text)) back--;
+    if (
+      back >= 0 &&
+      (negators.includes(words[back]!.text) ||
+        (words[back]!.text === "of" && words[back - 1]?.text === "out"))
+    )
+      continue;
+    let after = end + 1;
+    while (after < words.length && connectors.includes(words[after]!.text)) after++;
+    const glued = words.some(
+      (word) => word.number && word.token >= words[index]!.token && word.token <= words[end]!.token,
+    );
+    if (
+      glued ||
+      words[after]?.number === true ||
+      words[index - 1]?.number === true ||
+      end === words.length - 1 ||
+      words[index]!.inside
+    )
+      return found;
   }
   return null;
 }
 /** Whether a recorded release states a prerelease in its own text, restated. */
-function gateStates(release: ObservedReleaseFact, repository: string) {
+function gateStates(release: ObservedReleaseFact, repository: string, listing: readonly string[]) {
   if (release.statement !== null) return true;
-  return typeof release.title === "string" && gateStatement(release.title, repository) !== null;
+  return (
+    typeof release.title === "string" && gateStatement(release.title, repository, listing) !== null
+  );
 }
 /**
  * A release asset name's product words and version, restated: see
@@ -4494,8 +4834,14 @@ export function gateProduct(name: string): { words: string[]; version: string[] 
   ].toSorted((left, right) => right.length - left.length);
   let base = name;
   const form = forms.find((suffix) => lower.endsWith(suffix));
-  if (form) base = name.slice(0, name.length - form.length);
-  else {
+  if (form) {
+    base = name.slice(0, name.length - form.length);
+    // A Debian package's revision (`_1.0-1_amd64`) is not the version.
+    if (form === ".deb") {
+      const revision = /([0-9])-[0-9]+(_[A-Za-z0-9]+)?$/u.exec(base);
+      if (revision) base = base.slice(0, revision.index) + revision[1]! + (revision[2] ?? "");
+    }
+  } else {
     const dot = name.lastIndexOf(".");
     const tail = dot < 0 ? "" : name.slice(dot + 1);
     if (/^[A-Za-z0-9]+$/u.test(tail) && /[A-Za-z]/u.test(tail) && !/^[vV]\d+$/u.test(tail))
@@ -4577,31 +4923,42 @@ export function gateProduct(name: string): { words: string[]; version: string[] 
 }
 /**
  * Whether another package form names the same product and version as every
- * given archive, and each archive's players for the platform are named for
- * that product, restated: see `sameProductForm` and `programNamesProduct`.
+ * given archive, and each archive's players for the platform are named
+ * exactly for that product, restated: see `sameProductForm`, `sameVersion`
+ * and `programNamesProduct`.
  */
 function gateSameProduct(name: string, archives: readonly ArtifactFactV2[], platform: string) {
   const other = gateProduct(name);
   if (!other.words.length || !archives.length) return false;
+  const versionKey = (version: readonly string[]) => {
+    let end = version.length;
+    while (end > 1 && /^0+$/u.test(version[end - 1]!)) end--;
+    return version.slice(0, end).join(" ");
+  };
   for (const archive of archives) {
     const own = gateProduct(archive.name);
     if (
       !own.words.length ||
       own.words.join(" ") !== other.words.join(" ") ||
-      own.version.join(" ") !== other.version.join(" ")
+      !(
+        (other.version.length === 0 &&
+          (own.version.length === 0 || name.toLowerCase().endsWith(".appimage"))) ||
+        (own.version.length > 0 && versionKey(own.version) === versionKey(other.version))
+      )
     )
       return false;
+    const productJoined = own.words.join("");
     for (const player of archive.players) {
       if (!gateMachineRuns(player.machine, platform)) continue;
-      const program = gateProgram(player.path).split("-");
-      const programJoined = program.join("");
-      const productJoined = own.words.join("");
-      const shorter = Math.min(programJoined.length, productJoined.length);
-      const shared = program.some((word) => word.length >= 3 && own.words.includes(word));
-      const contained =
-        shorter >= 4 &&
-        (programJoined.includes(productJoined) || productJoined.includes(programJoined));
-      if (!shared && !contained) return false;
+      const program = gateProgram(player.path)
+        .split("-")
+        .filter((word) => word !== "");
+      let joined = program.join("");
+      if (joined === productJoined) continue;
+      let last = program.length;
+      while (last > 1 && /^\d+$/u.test(program[last - 1]!)) last--;
+      joined = program.slice(0, last).join("");
+      if (joined !== productJoined) return false;
     }
   }
   return true;
@@ -4616,8 +4973,9 @@ function gateSourceNamed(artifact: ArtifactFactV2) {
 }
 /** Whether an archive is a source or third-party source archive, restated: see `sourceArchive`. */
 function gateSource(artifact: ArtifactFactV2, repository: string) {
-  if (gateSourceNamed(artifact)) return true;
+  // An archive whose listing shows a program is never a source archive.
   if (artifact.players.length > 0 || artifact.excluded_players.length > 0) return false;
+  if (gateSourceNamed(artifact)) return true;
   const counts = artifact.listing_counts;
   if (!counts || counts.leaves < 1 || counts.source_leaves * 4 < counts.leaves * 3) return false;
   const own = gateNameWords(repository.split("/")[1] ?? "");
@@ -4631,6 +4989,20 @@ function gateArchiveVetoed(artifact: ArtifactFactV2) {
     gateSourceNamed(artifact) ||
     artifact.role !== "desktop-game-runtime"
   );
+}
+/**
+ * Whether an archive counts in the gate's program, package and toolchain
+ * counts, restated: see `countedArchive`. A source-named archive counts
+ * when it holds players, whatever its contradiction flag.
+ */
+function gateCounted(artifact: ArtifactFactV2) {
+  if (
+    artifact.role !== "desktop-game-runtime" ||
+    artifact.source.kind !== "exact-release-structured" ||
+    gateRoleWord(artifact.name)
+  )
+    return false;
+  return gateSourceNamed(artifact) ? artifact.players.length > 0 : !artifact.contradictory;
 }
 /** Whether a program's file name names a launcher, settings or setup step, restated. */
 export function gateLauncher(path: string) {
@@ -4656,6 +5028,11 @@ function gateEnrollmentProblems(
   // prerelease of another line follows the offered release.
   const own = listings.find((listing) => listing.id === id) ?? {};
   const bound = gateBoundLine(own);
+  // Release text is judged with the listing's own words: facts judged with
+  // other words are not this listing's.
+  const ownWords = gateListingWords(own);
+  if (!Array.isArray(entry.listing_words) || entry.listing_words.join(" ") !== ownWords.join(" "))
+    problems.push(`${id} rests on facts that judged release text with other listing words.`);
   const repository = entry.repository.toLowerCase();
   const others = listings.filter(
     (listing) => listing.id !== id && gateRepositories(listing).has(repository),
@@ -4669,7 +5046,7 @@ function gateEnrollmentProblems(
     !offered ||
     offered.prerelease !== false ||
     gateChannelOnlyTag(offered.tag) ||
-    gateStates(offered, entry.repository)
+    gateStates(offered, entry.repository, ownWords)
   )
     problems.push(`${id} offers a release its facts do not record as stable.`);
   else {
@@ -4682,7 +5059,7 @@ function gateEnrollmentProblems(
         (release.prerelease === null ||
           (release.prerelease === false &&
             !gateChannelOnlyTag(release.tag) &&
-            !gateStates(release, entry.repository)))
+            !gateStates(release, entry.repository, ownWords)))
       )
         lines.add(gateLine(release.tag, release.release_id, entry.repository));
     if (bound !== null ? bound !== line : lines.size !== 1)
@@ -4695,7 +5072,7 @@ function gateEnrollmentProblems(
       if (
         (release.prerelease !== false ||
           gateChannelOnlyTag(release.tag) ||
-          gateStates(release, entry.repository)) &&
+          gateStates(release, entry.repository, ownWords)) &&
         other !== line &&
         !(Date.parse(release.published_at ?? "") <= at) &&
         (release.prerelease === null ||
@@ -4768,12 +5145,7 @@ function gateEnrollmentProblems(
   // A toolchain in any archive that could be the game is a property of the
   // project: no platform enrolls beside it.
   for (const candidate of entry.artifacts) {
-    if (
-      gateArchiveVetoed(candidate) ||
-      candidate.source.kind !== "exact-release-structured" ||
-      gateSource(candidate, entry.repository)
-    )
-      continue;
+    if (!gateCounted(candidate) || gateSource(candidate, entry.repository)) continue;
     const permitsSome = Object.values(gateMachines).some(
       (host) =>
         ["unknown", host.os].includes(candidate.name_suggestion.os) &&
@@ -4794,6 +5166,50 @@ function gateEnrollmentProblems(
     if (helpers.size)
       problems.push(
         `${id} rests on a release whose archive ${candidate.name} bundles ${[...helpers].toSorted().join(", ")}.`,
+      );
+  }
+  // A platform whose only program, in one archive, is named for a launcher,
+  // settings or setup step withholds the whole identity, whichever platforms
+  // the enrollment names: the same candidates as the one-program check below,
+  // where exactly one archive (by SHA-256) holds the platform's players, they
+  // are one program under one top-level directory, the archive is offerable,
+  // and no refused archive's name permits the platform.
+  for (const [platform, host] of Object.entries(gateMachines)) {
+    const permits = (named: NameSuggestion) =>
+      ["unknown", host.os].includes(named.os) &&
+      ["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(named.arch);
+    if (
+      entry.refused_archives.some(
+        (refused) => !gateNameVetoes(refused.name_suggestion) && permits(refused.name_suggestion),
+      )
+    )
+      continue;
+    const runs = (player: PlayerFact) => gateMachineRuns(player.machine, platform);
+    const holding = entry.artifacts
+      .filter(
+        (candidate) =>
+          gateCounted(candidate) &&
+          permits(candidate.name_suggestion) &&
+          candidate.players.some(runs),
+      )
+      .toSorted((left, right) => left.asset_id - right.asset_id);
+    if (new Set(holding.map((candidate) => candidate.sha256)).size !== 1) continue;
+    const players = holding.flatMap((candidate) => candidate.players.filter(runs));
+    if (new Set(players.map((player) => gateProgram(player.path))).size !== 1) continue;
+    const topOf = (path: string) => (path.includes("/") ? path.slice(0, path.indexOf("/")) : "");
+    if (
+      holding.some(
+        (candidate) =>
+          new Set(candidate.players.filter(runs).map((player) => topOf(player.path))).size > 1,
+      )
+    )
+      continue;
+    const offered = holding.at(-1)!;
+    if (offered.contradictory || gateSourceNamed(offered)) continue;
+    const launcher = players.find((player) => gateLauncher(player.display_path));
+    if (launcher)
+      problems.push(
+        `${id} has a launcher, settings or setup program (${launcher.display_path.slice(launcher.display_path.lastIndexOf("/") + 1)}) as the only program on ${platform}, so no platform of the identity may enroll.`,
       );
   }
   if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
@@ -4846,6 +5262,7 @@ function gateEnrollmentProblems(
       artifact.role !== "desktop-game-runtime" ||
       artifact.contradictory ||
       gateRoleWord(artifact.name) ||
+      gateSourceNamed(artifact) ||
       gateSource(artifact, entry.repository)
     )
       problems.push(
@@ -4891,10 +5308,7 @@ function gateEnrollmentProblems(
     for (const candidate of entry.artifacts) {
       const candidateName = candidate.name_suggestion;
       if (
-        candidate.contradictory ||
-        gateRoleWord(candidate.name) ||
-        gateSourceNamed(candidate) ||
-        candidate.role !== "desktop-game-runtime" ||
+        !gateCounted(candidate) ||
         !["unknown", host.os].includes(candidateName.os) ||
         !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
           candidateName.arch,
@@ -4923,10 +5337,7 @@ function gateEnrollmentProblems(
     for (const candidate of entry.artifacts) {
       const candidateName = candidate.name_suggestion;
       if (
-        candidate.contradictory ||
-        gateRoleWord(candidate.name) ||
-        gateSourceNamed(candidate) ||
-        candidate.role !== "desktop-game-runtime" ||
+        !gateCounted(candidate) ||
         !["unknown", host.os].includes(candidateName.os) ||
         !["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
           candidateName.arch,

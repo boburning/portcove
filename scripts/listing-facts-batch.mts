@@ -790,7 +790,7 @@ export async function reproduceFacts(inputs: {
       const core = names.prerelease(item);
       return core === undefined
         ? undefined
-        : core || releaseTextFacts(item, entry.repository).statement !== null;
+        : core || releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
     };
     const observed: ObservedRelease = asRecorded({
       id: release.id,
@@ -883,8 +883,9 @@ export async function reproduceFacts(inputs: {
       })),
     });
     if (
-      JSON.stringify(observedReleaseFacts(window, verdict, entry.repository)) !==
-      JSON.stringify(entry.observed_releases)
+      JSON.stringify(
+        observedReleaseFacts(window, verdict, entry.repository, entry.listing_words),
+      ) !== JSON.stringify(entry.observed_releases)
     )
       return {
         reason: "mismatch",

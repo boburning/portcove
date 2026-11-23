@@ -1,5 +1,5 @@
 {
-  "format": 13,
+  "format": 14,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -8,8 +8,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
+      "listing_words": ["a", "observed", "runtime", "sample", "unseen", "windows", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -98,8 +99,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
+      "listing_words": ["b", "observed", "only", "patcher", "runtime", "sample", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -174,8 +176,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
+      "listing_words": ["archive", "c", "observed", "patcher", "runtime", "sample", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -249,8 +252,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
+      "listing_words": ["d", "observed", "runtime", "sample", "several", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -330,8 +334,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
+      "listing_words": ["e", "observed", "recomp", "runtime", "sample", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -405,8 +410,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
+      "listing_words": ["f", "linux", "observed", "runtime", "sample", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -480,8 +486,9 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
+      "listing_words": ["g", "mac", "observed", "runtime", "sample", "unseen", "zz"],
       "parser": "listing-package-facts",
-      "parser_version": 17,
+      "parser_version": 18,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -551,5 +558,5 @@
       ]
     }
   ],
-  "entries_sha256": "4de29b147d4c9f5626fe829546acab1dabc8f7361e746b7a6c16c8109b3b73fe"
+  "entries_sha256": "7943d4e9fedb0f787dfa8952687c6f231357a12346bf772b49ab73f4927d698b"
 }
