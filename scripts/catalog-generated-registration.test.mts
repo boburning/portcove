@@ -24,6 +24,7 @@ import {
   archiveRoleToken,
   artifactExclusions,
   bundledToolchain,
+  fileOnlyHelpers,
   toolchainNames,
   channelOnlyTag,
   gateChannelOnlyTag,
@@ -54,7 +55,8 @@ import {
   gateLine,
   gateLineNamesProduct,
   gateRoleWord,
-  productNameWords,
+  gateHelper,
+  productNames,
   otherPackageForm,
   otherPackagePlatforms,
   listedRepositories,
@@ -3046,8 +3048,9 @@ void test("release lines err toward one line for version noise and different lin
     // `v.` before digits, and conditional channel words beside a version,
     // date or hash, or alone.
     ["native-only-1a2b3c4", "owner/spider-game", "native-only"],
-    // As the tag's first word a hex-looking word names the product (R6): it
-    // is never read as a hash, so a hash-only tag is a line of its own.
+    // As the tag's first word a hex-looking word names the product (R6). A
+    // hash-only tag keeps a line of its own here, but it is channel-only
+    // (R-F4), so it never counts as a stable line and is never offered.
     ["abc1234", "owner/spider-game", "abc1234"],
     ["facade1-v1.0", "owner/spider-game", "facade1"],
     ["decade2-v1.0", "owner/spider-game", "decade2"],
@@ -3119,6 +3122,17 @@ void test("a tag of only channel words with a date, time or hash is a prerelease
     ["build-2026", true],
     ["nightly-2025-01-01-2250", true],
     ["build-202611202250", true],
+    // A year alone is a date, so `build-2025` is a channel build too.
+    ["build-2025", true],
+    // A tag that is only a commit hash is a channel build (R-F4), also with
+    // build targets; a hex-looking word without a digit is no hash.
+    ["abc1234", true],
+    ["1a2b3c4d5e6f7a8b", true],
+    ["abc1234-win64", true],
+    ["deadbeef", false],
+    ["1234567", false],
+    ["facade1-v1.0", false],
+    ["cafe2024-v2", false],
     // Only real date and time shapes are dates (R5): these are versions.
     ["build-42", false],
     ["build-12", false],
@@ -3165,6 +3179,9 @@ void test("a tag of only channel words with a date, time or hash is a prerelease
   forged.observation.tag = "nightly-2025-01-01";
   forged.observed_releases.find((release) => release.release_id === 1)!.tag = "nightly-2025-01-01";
   assert.equal(reasonOf(decide(listing(id), forged)), "no-stable-release");
+  // A release tagged only with a commit hash is no stable release (R-F4).
+  const hashOnly = entry([artifact()], { tag: "abc1234" });
+  assert.equal(reasonOf(decide(listing(), hashOnly)), "no-stable-release");
   const generation = generateRegistrations([listing(id)], result.table);
   generation.facts = table(forged);
   generation.enrollments[0]!.facts_sha256 = digestOf(forged);
@@ -3530,13 +3547,19 @@ function named(
   );
 }
 /** The gate's verdict on an enrollment forced onto these facts for Windows. */
-function forcedGate(facts: ListingFactsEntry, assetId: number, record = listing()) {
+function forcedGate(
+  facts: ListingFactsEntry,
+  assetId: number,
+  record = listing(),
+  platform: "windows-x86-64" | "linux-x86-64" = "windows-x86-64",
+) {
   const offered = facts.artifacts.find((item) => item.asset_id === assetId)!;
+  const machine = platform === "windows-x86-64" ? "pe-x86-64" : "elf64-x86-64";
   const generation = generateRegistrations([record], table(facts));
   generation.enrollments = [
     {
-      port_id: unseen,
-      platforms: ["windows-x86-64"],
+      port_id: record.listing.id,
+      platforms: [platform],
       generator_version: 0,
       facts_sha256: digestOf(facts),
       repository: facts.repository,
@@ -3544,12 +3567,12 @@ function forcedGate(facts: ListingFactsEntry, assetId: number, record = listing(
       release: { id: 7, tag: "v1.0", observed_at: facts.observation.observed_at },
       runtimes: [
         {
-          platform: "windows-x86-64",
+          platform,
           asset_id: assetId,
           asset_name: offered.name,
           archive_sha256: offered.sha256,
           source: "exact-release-structured",
-          players: offered.players.filter((item) => item.machine === "pe-x86-64"),
+          players: offered.players.filter((item) => item.machine === machine),
         },
       ],
     },
@@ -3625,7 +3648,7 @@ void test("an update archive holding the game's program is never chosen over the
     const facts = entry([named(title, [game], 12)], {}, id);
     assert.ok(decide(record, facts).fit, title);
     assert.ok(
-      !artifactExclusions(facts.artifacts[0]!, productNameWords(facts.repository, record.listing))
+      !artifactExclusions(facts.artifacts[0]!, productNames(facts.repository, record.listing))
         .length,
       title,
     );
@@ -3660,12 +3683,92 @@ void test("an update archive holding the game's program is never chosen over the
     ["DeltaForce.zip", listing(unseen, { name: "DeltaForce" }), "o/game"],
     ["Patch-Patch.zip", listing(unseen, { name: "Patch" }), "o/game"],
   ] as const) {
-    const fit = archiveRoleToken(name, productNameWords(repository, record.listing)) !== null;
+    const fit = archiveRoleToken(name, productNames(repository, record.listing)) !== null;
     assert.equal(gateRoleWord(name, record.listing, repository), fit, name);
+  }
+  // Only an occurrence inside a run of the product's own name is exempt
+  // (R-B1), and camel-case archive names are split into words (R-F1). Each
+  // row: archive name, listing fields, repository, whether it is vetoed.
+  const occurrenceRows: [string, Record<string, unknown>, string, boolean][] = [
+    ["Delta-Force-win64.zip", { name: "Delta Force" }, "o/game", false],
+    ["DeltaForce-win64.zip", { name: "Delta Force" }, "o/game", false],
+    ["Mega-Update-Edition-v1.zip", { name: "Mega Update Edition" }, "o/game", false],
+    ["Update-Edition-v1.zip", { name: "Mega Update Edition" }, "o/game", false],
+    ["update-0.5.10.zip", { name: "Mega Update Edition" }, "o/game", true],
+    ["Mega-Update-Edition-update2.zip", { name: "Mega Update Edition" }, "o/game", true],
+    ["DeltaSquadron-1.1-win64.zip", { name: "Delta Squadron" }, "o/delta-squadron", false],
+    ["Delta-Squadron-1.1-linux-delta.tar.gz", { name: "Delta Squadron" }, "o/delta-squadron", true],
+    ["Delta-Squadron-1.1-linux-delta.tar.gz", { name: "Delta Squadron" }, "o/game", true],
+    ["Squadron-Delta-1.1.zip", { name: "Delta Squadron" }, "o/game", true],
+    ["Game-1.1-linux-update1.tar.gz", { name: "Game" }, "o/update-tools", true],
+    ["Update-Tools-1.1-win64.zip", { name: "Game" }, "o/update-tools", false],
+    ["Game-1.1-win64.zip", { name: "Game" }, "o/update-tools", false],
+    ["Patch-1.0.zip", { name: "Patch" }, "o/game", false],
+    ["Patch-1.0-patch.zip", { name: "Patch" }, "o/game", false],
+    ["GameUpdate-linux.tar.gz", { name: "Game" }, "o/game", true],
+    ["GameDebug-win64.zip", { name: "Game" }, "o/game", true],
+    ["Game-Win64-Hotfix3.zip", { name: "Game" }, "o/game", true],
+    ["PatchWork-v1.zip", { name: "Game" }, "o/game", true],
+    ["Patchwork-v1.zip", { name: "Game" }, "o/game", false],
+    ["Updated-Game.zip", { name: "Game" }, "o/game", false],
+    ["Debug-Quest-v1.zip", {}, "o/debug-quest", false],
+    ["DebugQuest-v1.zip", {}, "o/debug-quest", false],
+    ["Debug-v1.zip", {}, "o/debug-quest", true],
+  ];
+  for (const [name, fields, repository, expected] of occurrenceRows) {
+    const record = listing(unseen, fields);
+    const fit = archiveRoleToken(name, productNames(repository, record.listing)) !== null;
+    assert.equal(fit, expected, `fit ${name} on ${repository}`);
+    assert.equal(gateRoleWord(name, record.listing, repository), expected, `gate ${name}`);
   }
   // The gate refuses the update archive independently.
   assert.match(forcedGate(both, 12), /role-named/u);
   assert.equal(forcedGate(both, 11), "accepted");
+});
+
+void test("a role word after the product's name still vetoes its archive end to end (R-B1)", () => {
+  const windows = player("Game/Game.exe", "pe-x86-64", "scenario-game");
+  const linux = player("Game/Game", "elf64-x86-64", "scenario-game-linux");
+  const scenarios: [string, string, Record<string, unknown>, string, string][] = [
+    [
+      "fixture-owner/delta-squadron",
+      "Delta Squadron",
+      {},
+      "DeltaSquadron-1.1-win64.zip",
+      "Delta-Squadron-1.1-linux-delta.tar.gz",
+    ],
+    [
+      "fixture-owner/update-tools",
+      "Game",
+      {},
+      "Game-1.1-win64.zip",
+      "Game-1.1-linux-update1.tar.gz",
+    ],
+  ];
+  for (const [repository, name, fields, windowsName, linuxName] of scenarios) {
+    const record = listing(unseen, {
+      name,
+      project_url: `https://github.com/${repository}`,
+      platforms: ["windows-x86-64", "linux-x86-64"],
+      ...fields,
+    });
+    const both = entry(
+      [named(windowsName, [windows], 11, "windows"), named(linuxName, [linux], 12, "linux")],
+      {},
+      unseen,
+      { repository },
+    );
+    // Windows enrolls from its own archive; Linux never from the role archive.
+    const decision = decide(record, both);
+    assert.ok(decision.fit, repository);
+    assert.deepEqual(decision.enrollment.platforms, ["windows-x86-64"], repository);
+    // The role archive alone ends `contradictory-role`.
+    const alone = entry([named(linuxName, [linux], 12, "linux")], {}, unseen, { repository });
+    assert.equal(reasonOf(decide(record, alone)), "contradictory-role", repository);
+    // A forged Linux enrollment from the role archive is refused by the gate.
+    assert.match(forcedGate(both, 12, record, "linux-x86-64"), /role-named/u, repository);
+    assert.equal(forcedGate(both, 11, record), "accepted", repository);
+  }
 });
 
 void test("several archives for a platform are ambiguous, whatever their names say (A1, R1)", () => {
@@ -3785,6 +3888,24 @@ void test("an archive bundling a compiler or interpreter toolchain is withheld (
     [["tools", "link.exe"], ["link.exe"], ["link"]],
     [["make"], ["make"], ["make"]],
     [["zig", "lib"], ["readme.txt"], ["zig"]],
+    // Versioned or renamed compiler and interpreter file leaves (R-F3);
+    // never a directory, and never another extension.
+    [["bin", "python3.11"], ["python3.11"], ["python"]],
+    [["bin", "python3.12.exe"], ["python3.12.exe"], ["python"]],
+    [["bin", "python3-config"], ["python3-config"], ["python3"]],
+    [["bin", "clang-17"], ["clang-17"], ["clang"]],
+    [["bin", "clang++-17"], ["clang++-17"], ["clang++"]],
+    [["bin", "gcc-13"], ["gcc-13"], ["gcc"]],
+    [["bin", "g++-13.exe"], ["g++-13.exe"], ["g++"]],
+    [["bin", "ld.lld"], ["ld.lld"], ["ld.lld"]],
+    [["zig-x86_64"], ["zig-x86_64"], ["zig"]],
+    [["pythonw.exe"], ["pythonw.exe"], ["pythonw"]],
+    [["python311.dll"], ["python311.dll"], []],
+    [["gcc-libs", "readme.txt"], ["readme.txt"], []],
+    [["clang-17", "readme.txt"], ["readme.txt"], []],
+    [["pythonw", "readme.txt"], ["readme.txt"], []],
+    [["python-license.txt"], ["python-license.txt"], []],
+    [["gccgo"], ["gccgo"], []],
   ];
   for (const [names, leaves, helpers] of rows) {
     const recorded = toolchainNames(names, leaves);
@@ -3801,6 +3922,35 @@ void test("an archive bundling a compiler or interpreter toolchain is withheld (
       helpers.length === 0,
       names.join("/"),
     );
+  }
+  // The fit's and the gate's helper derivations agree entry by entry (R-F3).
+  for (const recorded of [
+    "python3.11",
+    "python3.11.exe",
+    "python311",
+    "python-3",
+    "pythonw3",
+    "python3-config",
+    "clang-17",
+    "clang++17",
+    "gcc-13",
+    "gcc-libs",
+    "gcc-libs/",
+    "zig-x86_64",
+    "zig-x86_64/",
+    "zig/",
+    "python3.11/",
+    "ld.lld",
+    "lld-link",
+    "python311.dll",
+    "gcc.13",
+    "gcc-",
+    "python3..1",
+  ]) {
+    const fit = bundledToolchain([recorded]);
+    const gate = gateHelper(recorded);
+    const folderOnly = recorded.endsWith("/") && gate !== null && fileOnlyHelpers.includes(gate);
+    assert.deepEqual(fit, gate === null || folderOnly ? [] : [gate], recorded);
   }
   // A normal game shipping python311.dll and a scripts/ folder is not withheld.
   const normal = named(
@@ -4395,6 +4545,9 @@ void test("release file names are classified as other package forms by fit and g
     ["Game.appx", "windows", W],
     ["Game.msixbundle", "windows", W],
     ["Game.appxbundle", "windows", W],
+    // An App Installer file names an MSIX package by URI (R-F2).
+    ["Game.appinstaller", "windows", W],
+    ["Game-x64.AppInstaller", "windows", W],
     // Linux forms, self-extracting installers and bare binaries.
     ["Game.AppImage", "linux", L],
     ["Game.deb", "linux", L],
@@ -4492,7 +4645,6 @@ void test("release file names are classified as other package forms by fit and g
       "de.po",
       "style.css",
       "game.desktop",
-      "Game.appinstaller",
     ].map((name): [string, undefined, string[]] => [name, undefined, []]),
     // Anything that can carry or launch a program keeps competing.
     ["game.js", "container", []],

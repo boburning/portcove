@@ -46,6 +46,9 @@ import {
 import {
   batchAllowlist,
   batchBranchPrefix,
+  batchCapacity,
+  capacityDetail,
+  retainedContractReserveBytes,
   derivedBatchPaths,
   batchInputs,
   batchPullBody,
@@ -2435,4 +2438,99 @@ void test("an identity that stays pending across consecutive runs stops the job,
     () => parseWorkerSummary(JSON.stringify({ ...summary(), pending_ids: [1] })),
     /malformed/u,
   );
+});
+
+void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", () => {
+  const signedCatalogSource = readFileSync(
+    join(root, "crates/portcove-core/src/signed_catalog.rs"),
+    "utf8",
+  );
+  const listingSource = readFileSync(
+    join(root, "crates/portcove-core/src/catalog/listings.rs"),
+    "utf8",
+  );
+  const catalogText = readFileSync(join(root, "crates/portcove-core/catalog/catalog.json"), "utf8");
+  const listingBytes = statSync(join(root, "crates/portcove-core/catalog/listings.json")).size;
+  // Today's catalog fits both bounds.
+  const today = batchCapacity({ catalogText, listingBytes, signedCatalogSource, listingSource });
+  assert.equal(today.ok, true);
+  assert.equal(capacityDetail(today), undefined);
+  assert.equal(today.percent, 85);
+  const retained = today.rows.find((row) => row.name.startsWith("JSON-escaped retained"))!;
+  assert.equal(
+    retained.bytes,
+    Buffer.byteLength(JSON.stringify(catalogText)) + retainedContractReserveBytes,
+  );
+  assert.equal(retained.ceiling, Math.floor((16 * 1024 * 1024 * 85) / 100));
+  const listing = today.rows.find((row) => row.name === "generated listings.json bytes")!;
+  assert.equal(listing.bound, 8 * 1024 * 1024);
+  assert.equal(listing.ceiling, Math.floor((8 * 1024 * 1024 * 85) / 100));
+  // A listing directory past its ceiling, or a catalog whose escaped text is,
+  // is refused with the exact figures.
+  const listings = batchCapacity({
+    catalogText,
+    listingBytes: listing.ceiling + 1,
+    signedCatalogSource,
+    listingSource,
+  });
+  assert.equal(listings.ok, false);
+  assert.match(
+    capacityDetail(listings)!,
+    new RegExp(
+      `generated listings.json bytes ${listing.ceiling + 1} bytes against a ceiling of ${listing.ceiling} \\(85% of 8388608\\), 1 bytes over`,
+      "u",
+    ),
+  );
+  // Escaping grows the text (each structural quote takes two bytes), so the
+  // escaped contract binds while the raw text still fits.
+  const quoted = JSON.stringify({
+    ports: [{ id: "one", tags: Array.from({ length: 2_500_000 }, () => "a") }],
+  });
+  const escaped = batchCapacity({
+    catalogText: quoted,
+    listingBytes: 0,
+    signedCatalogSource,
+    listingSource,
+  });
+  assert.equal(escaped.rows[0]!.ok, true);
+  assert.equal(escaped.rows.find((row) => row.name.startsWith("JSON-escaped retained"))!.ok, false);
+  // The stop carries the figures; no other condition is invented.
+  const stop = stopConditions({
+    runId: "9",
+    now: "2026-11-21T00:00:00.000Z",
+    summary: summary(),
+    history: [record()],
+    versions: "v",
+    gate: "ok",
+    paths: "ok",
+    reproduction: "ok",
+    capacity: capacityDetail(listings)!,
+  });
+  assert.deepEqual(
+    stop.conditions.map((condition) => condition.name),
+    ["catalog-capacity"],
+  );
+  assert.match(stop.conditions[0]!.detail, /no pull request was opened/u);
+  assert.ok(stopConditionNames.includes("catalog-capacity"));
+  // The job checks capacity before any pull request: `combine` records it,
+  // and `decide` proposes nothing unless it is within both bounds.
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<
+      string,
+      {
+        outputs?: Record<string, string>;
+        steps: { id?: string; run?: string; env?: Record<string, string> }[];
+      }
+    >;
+  };
+  const combine = workflow.jobs.combine!;
+  const step = combine.steps.find((item) => item.id === "capacity")!;
+  assert.match(step.run!, /listing-facts-batch\.mts capacity --output/u);
+  assert.equal(combine.outputs!.capacity, "${{ steps.capacity.outputs.capacity }}");
+  const decide = workflow.jobs.decide!;
+  const ready = decide.steps.find((item) => item.id === "ready")!;
+  assert.equal(ready.env!.CAPACITY, "${{ needs.combine.outputs.capacity }}");
+  assert.match(ready.run!, /\[ "\$CAPACITY" = ok \]/u);
+  const assess = decide.steps.find((item) => item.id === "assess")!;
+  assert.match(assess.run!, /--capacity "\$WORK\/capacity\.json"/u);
 });

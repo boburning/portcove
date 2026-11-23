@@ -65,6 +65,7 @@ import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
+import { capacityConstant, catalogSizeBounds, catalogSizeGuard } from "./catalog-capacity.mts";
 import {
   checkListingFactsTable,
   compareCodePoints,
@@ -1536,10 +1537,96 @@ export function batchPullBody(input: {
 }
 
 // ---------------------------------------------------------------------------
+// Catalog capacity: what released readers accept.
+
+/**
+ * The bytes Core's retained installed contract adds to the JSON-escaped
+ * `catalog.json` text: its other fields, which do not grow with routes. Core's
+ * growth test (`catalog_growth_stays_within_supported_capacity`) measured
+ * 4,529,946 escaped contract bytes beside 4,526,469 escaped catalog bytes, so
+ * 3,477 bytes; the reserve is about four times that.
+ */
+export const retainedContractReserveBytes = 16 * 1024;
+
+/** One measured capacity guard: bytes against 85% of a released reader's bound. */
+export interface CapacityRow {
+  name: string;
+  bytes: number;
+  bound: number;
+  ceiling: number;
+  headroom: number;
+  ok: boolean;
+}
+
+/**
+ * The batch against both released-reader bounds, at Core's supported share
+ * (`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+ *  - `MAX_CATALOG_BYTES` (16 MiB): the generated catalog, its compact and
+ *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
+ *    JSON-escaped retained installed contract, estimated as the escaped
+ *    `catalog.json` text plus `retainedContractReserveBytes`;
+ *  - `MAX_LISTING_BYTES` (8 MiB): the embedded listing directory.
+ * Released readers refuse more than the bound, so a batch past a ceiling is
+ * never proposed: its required check would fail.
+ */
+export function batchCapacity(input: {
+  catalogText: string;
+  listingBytes: number;
+  signedCatalogSource: string;
+  listingSource: string;
+}): { ok: boolean; percent: number; rows: CapacityRow[] } {
+  const bounds = catalogSizeBounds(input.signedCatalogSource);
+  const listingBound = capacityConstant(input.listingSource, "MAX_LISTING_BYTES");
+  const guard = catalogSizeGuard(
+    Buffer.byteLength(input.catalogText),
+    JSON.parse(input.catalogText) as unknown,
+    bounds,
+    { bytes: input.listingBytes, bound: listingBound },
+  );
+  const ceiling = Math.floor((bounds.current * bounds.percent) / 100);
+  const retained =
+    Buffer.byteLength(JSON.stringify(input.catalogText)) + retainedContractReserveBytes;
+  const rows: CapacityRow[] = [
+    ...guard.rows.map(({ name, bytes, bound, ceiling: limit, headroom, ok }) => ({
+      name,
+      bytes,
+      bound,
+      ceiling: limit,
+      headroom,
+      ok,
+    })),
+    {
+      name: "JSON-escaped retained installed contract bytes (estimate)",
+      bytes: retained,
+      bound: bounds.current,
+      ceiling,
+      headroom: ceiling - retained,
+      ok: retained <= ceiling,
+    },
+  ];
+  return { ok: rows.every((row) => row.ok), percent: bounds.percent, rows };
+}
+
+/** The `catalog-capacity` stop's detail: every exceeded guard with its exact figures. */
+export function capacityDetail(result: ReturnType<typeof batchCapacity>): string | undefined {
+  const over = result.rows.filter((row) => !row.ok);
+  if (!over.length) return undefined;
+  return `This batch would exceed what released readers accept, so no pull request was opened (its required check would fail): ${over
+    .map(
+      (row) =>
+        `${row.name} ${row.bytes} bytes against a ceiling of ${row.ceiling} (${result.percent}% of ${row.bound}), ${-row.headroom} bytes over`,
+    )
+    .join(
+      "; ",
+    )}. Raising a bound needs a compatibility analysis of released readers; until then the batch stays unproposed.`;
+}
+
+// ---------------------------------------------------------------------------
 // Stop and wait: conditions only a person clears.
 
 export const stopConditionNames = [
   "gate-refused",
+  "catalog-capacity",
   "reproduction-refused",
   "path-allowlist",
   "required-check-failed",
@@ -1654,6 +1741,8 @@ export function stopConditions(input: {
   delta?: { added: number; withdrawn: number; changed: number };
   /** Withdrawals no upstream fact explains (`withdrawalCauses`). */
   held?: readonly { port_id: string; cause: string }[];
+  /** The exceeded capacity guards (`capacityDetail`), when the batch would exceed one. */
+  capacity?: string;
   details?: Partial<Record<StopConditionName, string>>;
 }): { conditions: StopCondition[]; record: RunRecord | undefined } {
   const conditions: StopCondition[] = [];
@@ -1661,6 +1750,7 @@ export function stopConditions(input: {
     conditions.push({ name, detail: input.details?.[name] ?? detail });
   if (input.gate === "refused")
     add("gate-refused", "The generated registration gate refused this run's generation.");
+  if (input.capacity) add("catalog-capacity", input.capacity);
   if (input.paths === "violated")
     add("path-allowlist", "The batch changed a path outside the generated-file allowlist.");
   if (input.reproduction === "refused")
@@ -2571,6 +2661,7 @@ async function main(argv: string[]): Promise<string> {
             ? "transient"
             : ((option.reproduction as "ok" | "refused" | "skipped") ?? "skipped"),
         ...(delta ? { delta, held: delta.held ?? [] } : {}),
+        ...capacityInput(option.capacity),
         details: reproductionDetails(option.refusals),
       });
       if (record)
@@ -2599,6 +2690,38 @@ async function main(argv: string[]): Promise<string> {
           : "No stop condition.",
       );
       return `${JSON.stringify({ conditions, freshness: behind ?? null })}\n`;
+    }
+    case "capacity": {
+      // The regenerated catalog against both released-reader bounds, before
+      // any pull request exists. Records the result; the stop is `assess`'s.
+      if (!option.output) throw new Error("capacity needs --output.");
+      const result = batchCapacity({
+        catalogText: readFileSync(
+          path.join(root, "crates/portcove-core/catalog/catalog.json"),
+          "utf8",
+        ),
+        listingBytes: statSync(path.join(root, "crates/portcove-core/catalog/listings.json")).size,
+        signedCatalogSource: readFileSync(
+          path.join(root, "crates/portcove-core/src/signed_catalog.rs"),
+          "utf8",
+        ),
+        listingSource: readFileSync(
+          path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
+          "utf8",
+        ),
+      });
+      const detail = capacityDetail(result) ?? null;
+      writeFileSync(option.output, `${JSON.stringify({ ...result, detail })}\n`);
+      output("capacity", result.ok ? "ok" : "exceeded");
+      summary(
+        result.rows
+          .map(
+            (row) =>
+              `- ${row.ok ? "ok" : "**over**"} ${row.name}: ${row.bytes} of ${row.ceiling}; headroom ${row.headroom}`,
+          )
+          .join("\n"),
+      );
+      return `${JSON.stringify({ ok: result.ok, detail })}\n`;
     }
     case "issues": {
       if (!option.conditions || !option["run-url"])
@@ -2860,6 +2983,21 @@ async function main(argv: string[]): Promise<string> {
         `Unknown command ${command ?? "(none)"}; see the header of scripts/listing-facts-batch.mts.`,
       );
   }
+}
+
+/** The `capacity` record `assess` reads: a detail only when a guard is exceeded; unreadable fails closed. */
+function capacityInput(file: string | undefined): { capacity?: string } {
+  if (!file) return {};
+  try {
+    const value: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (isRecord(value) && value.ok === true) return {};
+    if (isRecord(value) && typeof value.detail === "string") return { capacity: value.detail };
+  } catch {
+    // Fall through: an unreadable record never reads as within capacity.
+  }
+  return {
+    capacity: "The batch's capacity record is missing or unreadable; no batch is proposed.",
+  };
 }
 
 /** Provenance of a facts table that claims to be a batch, against its run and inputs artifact. */

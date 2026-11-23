@@ -407,6 +407,7 @@ jobs:
       paths: ${{ steps.paths.outcome }}
       gate: ${{ steps.gate.outcome }}
       checks: ${{ steps.checks.outcome }}
+      capacity: ${{ steps.capacity.outputs.capacity }}
       shards: ${{ steps.plan.outputs.shards }}
       max_parallel: ${{ steps.plan.outputs.max_parallel }}
       reproduce: ${{ steps.plan.outputs.reproduce }}
@@ -465,6 +466,12 @@ jobs:
         timeout-minutes: 10
         # Compared with the previous commit: the main tip this batch starts from.
         run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+      # Released readers refuse a catalog or listing directory past Core's
+      # bounds: a batch over 85% of either is never proposed (`catalog-capacity`).
+      - name: Check the batch against the catalog capacity guards
+        id: capacity
+        timeout-minutes: 3
+        run: node scripts/listing-facts-batch.mts capacity --output "$WORK/out/capacity.json"
       - name: Check the batch once and shard its reproduction
         id: plan
         timeout-minutes: 5
@@ -630,12 +637,14 @@ jobs:
           if [ -f "$WORK/delta.json" ]; then delta=(--delta "$WORK/delta.json"); fi
           report=()
           if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
+          capacity=()
+          if [ -f "$WORK/capacity.json" ]; then capacity=(--capacity "$WORK/capacity.json"); fi
           mkdir -p "$WORK/refusals"
           # Every reproduction shard writes one refusal file; only when all of
           # them did, and each refused only for the runner's time, is the
           # refusal transient (no stop; the next run retries).
           shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
-          node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
+          node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" "${capacity[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
             --shard-count "$shard_count" --output "$WORK/conditions.json" > /dev/null
@@ -648,6 +657,7 @@ jobs:
           PATHS: ${{ needs.combine.outputs.paths }}
           GATE: ${{ needs.combine.outputs.gate }}
           CHECKS: ${{ needs.combine.outputs.checks }}
+          CAPACITY: ${{ needs.combine.outputs.capacity }}
           REPRODUCE: ${{ needs.reproduce.result }}
           STOP: ${{ steps.assess.outputs.stop }}
           MATERIAL: ${{ needs.combine.outputs.material }}
@@ -655,6 +665,7 @@ jobs:
           set -euo pipefail
           ready=false
           if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$CHECKS" = success ] \
+            && [ "$CAPACITY" = ok ] \
             && { [ "$REPRODUCE" = success ] || [ "$REPRODUCE" = skipped ]; } \
             && [ "$STOP" = false ] && [ "$MATERIAL" = true ]; then ready=true; fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
@@ -683,6 +694,7 @@ jobs:
             ${{ env.WORK }}/delta.json
             ${{ env.WORK }}/worker-report.json
             ${{ env.WORK }}/conditions.json
+            ${{ env.WORK }}/capacity.json
             ${{ env.WORK }}/queue-counts.json
           if-no-files-found: warn
           retention-days: 30

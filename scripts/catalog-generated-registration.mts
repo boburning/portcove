@@ -89,10 +89,10 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 13;
+export const GENERATOR_VERSION = 14;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 15;
+export const FACTS_PARSER_VERSION = 16;
 export const FACTS_TABLE_FORMAT = 12;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -282,18 +282,22 @@ export type FailureCause = (typeof failureCauses)[number];
  * registration. Matched only as a whole path component, case-insensitive,
  * with or without `.exe`, so `python311.dll` or a `scripts/` folder never
  * match. `7z`/`7za` are extraction helpers that ordinary games ship and are
- * not on the list.
+ * not on the list. A file leaf also matches a versioned or renamed copy of
+ * a compiler or interpreter (`versionedHelper`).
  */
 export const toolchainHelpers = [
   "zig",
   "clang",
+  "clang++",
   "gcc",
   "g++",
   "cc1",
   "ld",
   "lld",
+  "ld.lld",
   "python",
   "python3",
+  "pythonw",
   "pip",
   "node",
   "cmake",
@@ -312,22 +316,47 @@ export const toolchainHelpers = [
  * (`assets/link/`, `levels/ld/`, `make/`, `node/`, `Python/`): they match only
  * as a file leaf, with or without `.exe`, never as a directory.
  */
-export const fileOnlyHelpers = ["cl", "ld", "link", "make", "node", "python", "python3", "pip"];
-const helperName = (name: string) =>
-  toolchainHelpers.includes(name.endsWith(".exe") ? name.slice(0, -4) : name);
+export const fileOnlyHelpers = [
+  "cl",
+  "ld",
+  "link",
+  "make",
+  "node",
+  "python",
+  "python3",
+  "pythonw",
+  "pip",
+];
+/**
+ * A versioned or renamed compiler or interpreter file leaf, never a
+ * directory: `python3.11`, `clang-17`, `gcc-13`, `zig-x86_64`,
+ * `pythonw.exe`. Its first group is the helper. `python311.dll` (another
+ * extension) and a `gcc-libs/` folder never match.
+ */
+const versionedHelper =
+  /^(python3?|pythonw|clang(?:\+\+)?|gcc|g\+\+|lld|ld\.lld|zig)(?:-?[0-9]+(?:\.[0-9]+)*|-[a-z0-9_]+)?(?:\.exe)?$/u;
+/**
+ * The helper an archive listing entry names, or null: an exact helper name
+ * with or without `.exe`; a file leaf (`file`) also by `versionedHelper`.
+ */
+function helperOf(name: string, file: boolean): string | null {
+  const stem = name.endsWith(".exe") ? name.slice(0, -4) : name;
+  if (toolchainHelpers.includes(stem)) return stem;
+  return file ? (versionedHelper.exec(name)?.[1] ?? null) : null;
+}
 /**
  * The helper-named entries of an archive listing: Core's `names` (every path
  * component) and `leaves` (every file name). A file leaf is recorded as is
- * (`python.exe`), a component that is no file leaf with a trailing `/`
- * (`zig/`). Sorted and unique.
+ * (`python.exe`, `python3.11`), a component that is no file leaf with a
+ * trailing `/` (`zig/`). Sorted and unique.
  */
 export function toolchainNames(names: readonly string[], leaves: readonly string[]): string[] {
   const files = new Set(leaves.map((leaf) => leaf.toLowerCase()));
   const found = new Set<string>();
-  for (const leaf of files) if (helperName(leaf)) found.add(leaf);
+  for (const leaf of files) if (helperOf(leaf, true) !== null) found.add(leaf);
   for (const name of names) {
     const lower = name.toLowerCase();
-    if (helperName(lower) && !files.has(lower)) found.add(`${lower}/`);
+    if (helperOf(lower, false) !== null && !files.has(lower)) found.add(`${lower}/`);
   }
   return [...found].toSorted(compareCodePoints);
 }
@@ -340,11 +369,10 @@ export function bundledToolchain(entries: readonly string[]): string[] {
   const found = new Set<string>();
   for (const entry of entries) {
     const directory = entry.endsWith("/");
-    const name = directory ? entry.slice(0, -1) : entry;
-    const stem = name.endsWith(".exe") ? name.slice(0, -4) : name;
-    if (!toolchainHelpers.includes(stem)) continue;
-    if (directory && fileOnlyHelpers.includes(stem)) continue;
-    found.add(stem);
+    const helper = helperOf(directory ? entry.slice(0, -1) : entry, !directory);
+    if (helper === null) continue;
+    if (directory && fileOnlyHelpers.includes(helper)) continue;
+    found.add(helper);
   }
   return [...found].toSorted(compareCodePoints);
 }
@@ -566,7 +594,7 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
     value.toolchain_names.some(
       (name: unknown, index: number, names: unknown[]) =>
         typeof name !== "string" ||
-        !helperName(name.endsWith("/") ? name.slice(0, -1) : name) ||
+        (name.endsWith("/") ? helperOf(name.slice(0, -1), false) : helperOf(name, true)) === null ||
         (index > 0 && compareCodePoints(String(names[index - 1]), name) >= 0),
     ) ||
     JSON.stringify(bundledToolchain(value.toolchain_names)) !==
@@ -889,6 +917,7 @@ export const unreadForms = [
   ".appx",
   ".msixbundle",
   ".appxbundle",
+  ".appinstaller",
   ".snap",
   ".bin",
   ".sh",
@@ -1108,16 +1137,16 @@ function namePermitsName(named: NameSuggestion, platform: string) {
 /**
  * Distinct program names allowed per platform. One: after the tool veto and
  * same-program variants, a second distinct program name cannot be told apart
- * from a second title by name alone (`openjk` beside `openjo`, a launcher
+ * from a second title by name alone (`skyrun` beside `skyrow`, a launcher
  * beside its game), so it is `ambiguous-player`, never enrolled.
  */
 export const maxDistinctPrograms = 1;
 /**
  * Words that name a build variant of the same program, not another program,
  * when they stand alone between separators. A bare `64`, `32` or `86` is
- * dropped only in that position (`Game-64.exe`, `openjk.x86_64.exe`), never
- * when it is glued to the name: `Doom64.exe` is Doom 64, a different game
- * from `Doom.exe`, and `Game64.exe` cannot be told apart from it by name, so
+ * dropped only in that position (`Game-64.exe`, `skyrun.x86_64.exe`), never
+ * when it is glued to the name: `Quest64.exe` can be a different game
+ * from `Quest.exe`, and `Game64.exe` cannot be told apart from it by name, so
  * such a pair stays two programs (`ambiguous-player`).
  */
 const variantWords = new Set([
@@ -1154,9 +1183,9 @@ const variantWords = new Set([
 /** Variant words that may also be split off a glued word: never bare numbers. */
 const gluedVariantWords = new Set([...variantWords].filter((word) => !/^[0-9]+$/u.test(word)));
 /**
- * A program's name without its build-variant words: `openjk.x86_64.exe` and
- * `openjk.x86.exe` are both `openjk`, `Game.console.exe` and `Game-64.exe`
- * are `game`, `Doom3.exe` stays `doom-3` and `Doom64.exe` stays `doom-64`.
+ * A program's name without its build-variant words: `skyrun.x86_64.exe` and
+ * `skyrun.x86.exe` are both `skyrun`, `Game.console.exe` and `Game-64.exe`
+ * are `game`, `Quest3.exe` stays `quest-3` and `Quest64.exe` stays `quest-64`.
  */
 export function programStem(path: string) {
   const name = basename(path).toLowerCase();
@@ -1253,7 +1282,7 @@ export const hashToken = (word: string) =>
 /**
  * Channel words a line drops only when they stand next to a version, date or
  * hash, or when the tag holds nothing else: they also start product names
- * (`new-game`, `fix-it-felix`, `test-drive`), so alone among product words
+ * (`new-game`, `fix-it-fast`, `test-orbit`), so alone among product words
  * they stay.
  */
 const conditionalChannelWords = new Set([
@@ -1356,8 +1385,10 @@ export function channelOnlyTag(tag: string | null): boolean {
       continue;
     }
     part = "";
-    if (hashToken(word) || buildTargetWords.has(word)) continue;
-    if (rollingChannelWords.has(word)) {
+    if (buildTargetWords.has(word)) continue;
+    // A commit hash marks a channel build: a tag of only a hash (`abc1234`)
+    // names no stable release and no release line of its own.
+    if (hashToken(word) || rollingChannelWords.has(word)) {
       channel = true;
       continue;
     }
@@ -1792,7 +1823,6 @@ export const nonProgramSuffixes = [
   ".po",
   ".css",
   ".desktop",
-  ".appinstaller",
 ] as const;
 /** Exact whole names, any letter case, that are never a program. */
 export const nonProgramNames = [
@@ -1876,7 +1906,9 @@ export const splitVolume = (name: string) =>
  *  2. a shared library (`*.so`, `*.so.<n>…`, `*.dll`, `*.dylib`): undefined;
  *  3. a file on the closed non-program list (`nonProgramFile`): undefined;
  *  4. a volume of a split file (`splitVolume`): `container`;
- *  5. `windows`: `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`;
+ *  5. `windows`: `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`,
+ *     `.appinstaller` (an App Installer file names an MSIX package by URI,
+ *     possibly hosted elsewhere, so it offers a Windows package);
  *     `linux`: `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`,
  *     `.bin`, `.sh`, `.linux`, `.x86`, `.x86_64`, `.arm64`, `.aarch64`, or a
  *     bare binary: a name with no file extension (no final `.` followed by
@@ -1916,6 +1948,7 @@ const windowsForms: readonly string[] = [
   ".appx",
   ".msixbundle",
   ".appxbundle",
+  ".appinstaller",
 ];
 const linuxForms: readonly string[] = [
   ".appimage",
@@ -1997,14 +2030,20 @@ const toolRoles = new Set([
   "dev-tool",
 ]);
 /**
- * Whole words of an archive's own name that make it another role than the
- * game package: an update or patch payload, a delta, or symbols and debug
- * builds, also with a trailing number (`update2`, `patch01`). An archive
- * holding the game's own program under such a name (an update archive beside
- * the full game) is never offered. A role word that is also a name word of
- * the repository or of the listing's id, name or original title
- * (`productNameWords`) names the product, not a role, and is not matched:
- * `Delta-Force-win64.zip` for a listing named "Delta Force".
+ * Words of an archive's own name that make it another role than the game
+ * package: an update or patch payload, a delta, or symbols and debug builds,
+ * also with a trailing number (`update2`, `patch01`). The archive name is
+ * split into words like product names are (`nameWords`: separators,
+ * camel-case humps, letter/digit changes), so `GameUpdate-linux.tar.gz` holds
+ * `update`. An archive holding the game's own program under such a name (an
+ * update archive beside the full game) is never offered. One occurrence of a
+ * role word names the product instead, and is not matched, only when it sits
+ * inside a contiguous run of the archive name's words that equals a
+ * contiguous run of at least two words of one product name, or the whole of a
+ * one-word product name (`productNames`): `Mega-Update-Edition-v1.zip` for a
+ * listing named "Mega Update Edition". Every other occurrence still vetoes:
+ * `update-0.5.10.zip` for that listing, or a trailing `-delta` after the
+ * product's name.
  */
 export const archiveRoleTokens = [
   "update",
@@ -2017,39 +2056,69 @@ export const archiveRoleTokens = [
   "debug",
 ] as const;
 /**
- * The name words of an identity's product: the words (`nameWords`) of its
- * repository's name and of the listing's id, name and original title.
+ * The names of an identity's product, each as its words (`nameWords`): its
+ * repository's name and the listing's id, name and original title.
  */
-export function productNameWords(
+export function productNames(
   repository: string,
   listing: Record<string, unknown> | undefined,
-): ReadonlySet<string> {
+): readonly (readonly string[])[] {
   const values = [
     repository.split("/")[1],
     listing?.id,
     listing?.name,
     listing?.original_game_title,
   ];
-  return new Set(values.flatMap((value) => (typeof value === "string" ? nameWords(value) : [])));
+  return values
+    .map((value) => (typeof value === "string" ? nameWords(value) : []))
+    .filter((words) => words.length > 0);
 }
 /**
- * The first role token among the separator-delimited words of an archive
- * name, or null. A word matches as a whole word, optionally followed by
- * digits; a role word the product's own name holds is dropped first.
+ * Whether the archive word at `index` lies inside a contiguous run of
+ * `words` that equals a contiguous run of one product name's words: at least
+ * two words, or the whole of a one-word product name.
+ */
+function inProductRun(
+  words: readonly string[],
+  index: number,
+  names: readonly (readonly string[])[],
+): boolean {
+  for (const name of names) {
+    const shortest = Math.min(2, name.length);
+    for (let start = 0; start < name.length; start++)
+      for (let end = start + shortest; end <= name.length; end++)
+        for (let at = start; at < end; at++) {
+          // Align the run's word at `at` with the archive word at `index`.
+          const first = index - (at - start);
+          if (name[at] !== words[index] || first < 0 || first + end - start > words.length)
+            continue;
+          if (name.slice(start, end).every((word, offset) => words[first + offset] === word))
+            return true;
+        }
+  }
+  return false;
+}
+/**
+ * The first role token among an archive name's words, or null. A role word
+ * occurrence inside the product's own name (`inProductRun`) does not match.
  */
 export function archiveRoleToken(
   name: string,
-  productWords: ReadonlySet<string> = new Set(),
+  names: readonly (readonly string[])[] = [],
 ): string | null {
+  const words = nameWords(name);
   const found = new Set<string>();
-  for (const word of name.toLowerCase().split(/[^a-z0-9]+/u)) {
-    const match = /^([a-z]+)[0-9]*$/u.exec(word);
-    if (match && !productWords.has(match[1]!)) found.add(match[1]!);
-  }
+  words.forEach((word, index) => {
+    if (
+      (archiveRoleTokens as readonly string[]).includes(word) &&
+      !inProductRun(words, index, names)
+    )
+      found.add(word);
+  });
   return archiveRoleTokens.find((token) => found.has(token)) ?? null;
 }
 /** Whether an artifact is vetoed by its own name or its contradiction flag. */
-const vetoed = (artifact: ArtifactFactV2, productWords: ReadonlySet<string>) =>
+const vetoed = (artifact: ArtifactFactV2, productWords: readonly (readonly string[])[]) =>
   artifact.contradictory || archiveRoleToken(artifact.name, productWords) !== null;
 
 /** Why an archive's own name vetoes it. */
@@ -2115,7 +2184,7 @@ function ambiguity(
 /** The `ambiguous-player` exclusions of an entry: one per kind, from the first platform that has it. */
 function ambiguityExclusions(
   entry: ListingFactsEntry,
-  productWords: ReadonlySet<string>,
+  productWords: readonly (readonly string[])[],
 ): Exclusion[] {
   const usable = entry.artifacts.filter(
     (artifact) =>
@@ -2144,7 +2213,7 @@ export function entryExclusions(
   entry: ListingFactsEntry,
   listing?: Record<string, unknown>,
 ): Exclusion[] {
-  const productWords = productNameWords(entry.repository, listing);
+  const productWords = productNames(entry.repository, listing);
   return [
     ...entry.artifacts.flatMap((artifact) => artifactExclusions(artifact, productWords)),
     ...ambiguityExclusions(entry, productWords),
@@ -2155,7 +2224,7 @@ export function entryExclusions(
 function platformRuntime(
   entry: ListingFactsEntry,
   platform: string,
-  productWords: ReadonlySet<string>,
+  productWords: readonly (readonly string[])[],
 ): { runtime: PlatformRuntime } | { reason: BlockedReason } {
   // A refused archive whose own name allows P could be P's game or a second
   // one: P is never decided around it.
@@ -2367,7 +2436,7 @@ export function fitDecision(
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
-  const productWords = productNameWords(entry.repository, record.listing);
+  const productWords = productNames(entry.repository, record.listing);
   for (const platform of platforms) {
     const found = platformRuntime(entry, platform, productWords);
     if ("reason" in found) {
@@ -2448,7 +2517,7 @@ export interface Exclusion {
 /** The name-based vetoes that excluded a native runtime or player of one artifact. */
 export function artifactExclusions(
   artifact: ArtifactFactV2,
-  productWords: ReadonlySet<string> = new Set(),
+  productWords: readonly (readonly string[])[] = [],
 ): Exclusion[] {
   const named = artifact.name_suggestion;
   const exclusions: Exclusion[] = [];
@@ -3110,7 +3179,7 @@ function gateProgram(path: string) {
   const kept: string[] = [];
   for (const word of file.split(/[^a-z0-9]+/u)) {
     if (!word || gateVariantWords.includes(word)) continue;
-    // A number glued to a name is part of it (`doom64`): only a separate
+    // A number glued to a name is part of it (`quest64`): only a separate
     // `64`, `32` or `86` is a build variant.
     for (const part of word.match(/[a-z]+|[0-9]+/gu) ?? [])
       if (/^[0-9]+$/u.test(part) || !gateVariantWords.includes(part)) kept.push(part);
@@ -3407,8 +3476,8 @@ export function gateChannelOnlyTag(tag: string | null): boolean {
   for (const word of words) {
     const kind = dateKind(word, before);
     before = kind;
-    if (kind || hash(word) || systems.has(word)) continue;
-    if (rolling.has(word)) {
+    if (kind || systems.has(word)) continue;
+    if (hash(word) || rolling.has(word)) {
       sawChannel = true;
       continue;
     }
@@ -3500,19 +3569,13 @@ function gateBoundLine(listing: Record<string, unknown>): string | null {
 }
 /**
  * Whether an archive's own name holds a role word, restated: see
- * `archiveRoleToken`. A whole word, optionally with trailing digits, that is
- * not also a word of the repository's or the listing's own names. Exported
- * for its unit table only.
+ * `archiveRoleToken`. The archive name is split into whole words like product
+ * names are (`gateNameWords`). An occurrence is exempt only when a common run
+ * of the archive's words and one product name's words (repository name,
+ * listing id, name or original title) covers it, the run being at least two
+ * words long or the whole one-word name. Exported for its unit table only.
  */
 export function gateRoleWord(name: string, listing: Record<string, unknown>, repository: string) {
-  const own = new Set<string>();
-  for (const value of [
-    repository.split("/")[1],
-    listing.id,
-    listing.name,
-    listing.original_game_title,
-  ])
-    if (typeof value === "string") for (const word of gateNameWords(value)) own.add(word);
   const roleWords = [
     "update",
     "updater",
@@ -3523,26 +3586,53 @@ export function gateRoleWord(name: string, listing: Record<string, unknown>, rep
     "symbols",
     "debug",
   ];
-  return name
-    .toLowerCase()
-    .split(/[^a-z0-9]+/u)
-    .some((word) => {
-      const letters = word.replace(/[0-9]+$/u, "");
-      return /^[a-z]+$/u.test(letters) && roleWords.includes(letters) && !own.has(letters);
-    });
+  const words = gateNameWords(name);
+  const exempt = new Set<number>();
+  for (const value of [
+    repository.split("/")[1],
+    listing.id,
+    listing.name,
+    listing.original_game_title,
+  ]) {
+    if (typeof value !== "string") continue;
+    const own = gateNameWords(value);
+    if (own.length === 0) continue;
+    const needed = own.length === 1 ? 1 : 2;
+    // Every maximal common run starting at archive word `i` and name word `j`.
+    for (let i = 0; i < words.length; i++)
+      for (let j = 0; j < own.length; j++) {
+        let length = 0;
+        while (
+          i + length < words.length &&
+          j + length < own.length &&
+          words[i + length] === own[j + length]
+        )
+          length++;
+        if (length >= needed) for (let k = i; k < i + length; k++) exempt.add(k);
+      }
+  }
+  return words.some((word, index) => roleWords.includes(word) && !exempt.has(index));
 }
-/** Toolchain helper names, restated: see `toolchainHelpers` and `fileOnlyHelpers`. */
+/**
+ * Toolchain helper names, restated: see `toolchainHelpers`, `fileOnlyHelpers`
+ * and `versionedHelper`. `versioned` lists the compilers and interpreters a
+ * file leaf may also name with a version or a `-` suffix, longest first where
+ * one is a prefix of another.
+ */
 const gateToolchain = {
   all: [
     "zig",
     "clang",
+    "clang++",
     "gcc",
     "g++",
     "cc1",
     "ld",
     "lld",
+    "ld.lld",
     "python",
     "python3",
+    "pythonw",
     "pip",
     "node",
     "cmake",
@@ -3556,8 +3646,44 @@ const gateToolchain = {
     "xdelta",
     "xdelta3",
   ],
-  fileOnly: ["cl", "ld", "link", "make", "node", "python", "python3", "pip"],
+  fileOnly: ["cl", "ld", "link", "make", "node", "python", "python3", "pythonw", "pip"],
+  versioned: [
+    "python3",
+    "python",
+    "pythonw",
+    "clang++",
+    "clang",
+    "gcc",
+    "g++",
+    "ld.lld",
+    "lld",
+    "zig",
+  ],
 };
+/**
+ * The helper a recorded listing entry names, restated: an exact helper name
+ * with or without `.exe`, or, for a file leaf only, a versioned helper: the
+ * base name followed by nothing, by digits and dotted digits with an optional
+ * leading `-`, or by `-` and letters, digits and `_`; then an optional `.exe`.
+ * Exported for its unit table only.
+ */
+export function gateHelper(recorded: string): string | null {
+  const folder = recorded.endsWith("/");
+  let stem = folder ? recorded.slice(0, -1) : recorded;
+  if (stem.endsWith(".exe")) stem = stem.slice(0, -4);
+  if (gateToolchain.all.includes(stem)) return stem;
+  if (folder) return null;
+  for (const base of gateToolchain.versioned) {
+    if (!stem.startsWith(base)) continue;
+    const rest = stem.slice(base.length);
+    const numbered = rest.startsWith("-") ? rest.slice(1) : rest;
+    const dotted =
+      numbered !== "" && numbered.split(".").every((part) => part !== "" && /^[0-9]+$/u.test(part));
+    const suffixed = rest.length > 1 && rest[0] === "-" && /^[a-z0-9_]+$/u.test(rest.slice(1));
+    if (dotted || suffixed) return base;
+  }
+  return null;
+}
 /** Name words that veto an archive whatever it holds, restated. */
 function gateNameVetoes(named: NameSuggestion) {
   return (
@@ -3668,7 +3794,6 @@ export function gateFormKind(
     "po",
     "css",
     "desktop",
-    "appinstaller",
   ]);
   const dot = lower.lastIndexOf(".");
   const last = dot < 0 ? "" : lower.slice(dot + 1);
@@ -3733,7 +3858,8 @@ export function gateFormKind(
   if (/\.\d\d\d+$/u.test(lower) || /\.[zr]\d\d$/u.test(lower) || /\.part\d+\.rar$/u.test(lower))
     return "container";
   // 5. Single-system forms and bare binaries.
-  if (["exe", "msi", "msix", "appx", "msixbundle", "appxbundle"].includes(last)) return "windows";
+  if (["exe", "msi", "msix", "appx", "msixbundle", "appxbundle", "appinstaller"].includes(last))
+    return "windows";
   if (
     [
       "appimage",
@@ -4020,12 +4146,10 @@ function gateEnrollmentProblems(
       for (const recorded of Array.isArray(candidate.toolchain_names)
         ? candidate.toolchain_names
         : []) {
-        const folder = recorded.endsWith("/");
-        let stem = folder ? recorded.slice(0, -1) : recorded;
-        if (stem.endsWith(".exe")) stem = stem.slice(0, -4);
-        if (!gateToolchain.all.includes(stem)) continue;
-        if (folder && gateToolchain.fileOnly.includes(stem)) continue;
-        helpers.add(stem);
+        const helper = gateHelper(recorded);
+        if (helper === null) continue;
+        if (recorded.endsWith("/") && gateToolchain.fileOnly.includes(helper)) continue;
+        helpers.add(helper);
       }
       if (helpers.size)
         problems.push(

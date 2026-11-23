@@ -3846,9 +3846,9 @@ one top-level directory. Anything else is `ambiguous-player`. Two program names
 are the same program when they differ only in build-variant words: an
 architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`),
 `console`, `debug` or `exe`, and a bare `64`, `32` or `86` only when it stands
-alone between separators. So `openjk.x86_64.exe` and `openjk.x86.exe` are one
+alone between separators. So `skyrun.x86_64.exe` and `skyrun.x86.exe` are one
 program, `Game.exe`, `Game-64.exe` and `Game.console.exe` are one program, and
-`openjk.x86_64.exe` beside `openjo.x86_64.exe` is two. A number glued to the
+`skyrun.x86_64.exe` beside `skyrow.x86_64.exe` is two. A number glued to the
 name is part of the name: `Quest64.exe` can be a different game from
 `Quest.exe`, and nothing in the names proves otherwise, so `Quest.exe` beside
 `Quest64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
@@ -3870,18 +3870,26 @@ holds the same game program (the same player SHA-256), or the game and an
 authoring-tool archive whose program has the same file name. Two archives are
 the same package only when their own bytes are (equal archive SHA-256).
 
-First, an archive whose own name holds a role word as a whole
-separator-delimited word, optionally followed by digits, is never offered:
+First, an archive whose own name holds a role word is never offered:
 `update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols` or
-`debug` (`update-0.5.10.zip`, `Game-debug-win64.zip`,
-`Game-Windows-Update1.zip`, `Game-patch01.zip`; `Updated-Game.zip`,
-`Deltarune-Fan.zip` and `Patchwork.zip` pass). A role word that is also a
-whole name word of the repository's name or of the listing's id, name or
-original title (split like [release lines](#release-lines) split names) names
-the product, not a role, and is dropped before matching: `Delta-Force-win64.zip`
-for a listing named "Delta Force", or `Debug-Quest-v1.zip` on a `debug-quest`
-repository, is not vetoed. It is reported as an `asset-role-name` exclusion
-with the word as its token. Then, when more than one distinct archive whose
+`debug`. The archive name is split into words like product names are
+(separators, camel-case humps and letter/digit changes, as
+[release lines](#release-lines) split names), so a role word with a trailing
+number or glued into a camel-case name is that role word
+(`update-0.5.10.zip`, `Game-debug-win64.zip`, `Game-Windows-Update1.zip`,
+`Game-patch01.zip`, `GameUpdate-linux.tar.gz`), while `Updated-Game.zip`,
+`Deltaville-Fan.zip` and `Patchwork.zip` pass. One occurrence of a role word
+names the product instead, and is not matched, only when it sits inside a
+contiguous run of the archive name's words that equals a contiguous run of
+one product name's words: at least two words of the repository's name or the
+listing's id, name or original title, or the whole of a one-word product
+name. So `Delta-Lantern-win64.zip` for a listing named "Delta Lantern" and
+`Mega-Update-Edition-v1.zip` for "Mega Update Edition" pass, while
+`Delta-Lantern-1.1-linux-delta.tar.gz` (the trailing `delta` is outside the
+name), `update-0.5.10.zip` for "Mega Update Edition" (one word of a
+multi-word name is not the name) and `Game-1.1-linux-update1.tar.gz` on a
+repository named `update-tools` are vetoed. A vetoed archive is reported as an
+`asset-role-name` exclusion with the word as its token. Then, when more than one distinct archive whose
 name allows the platform still holds players for it, the platform is
 `ambiguous-artifact`, never chosen by order, size or name. There is no
 exception for an archive that names the platform's system: a
@@ -3900,15 +3908,22 @@ An archive that bundles a compiler, interpreter or build helper builds or
 prepares the game on the player's machine ("build on first start"), so a
 person must look at it. Core's inspection returns the archive's listing as
 names only: `names` (every distinct lowercase path component) and `leaves`
-(every distinct lowercase file name). The helpers are `zig`, `clang`, `gcc`,
-`g++`, `cc1`, `ld`, `lld`, `python`, `python3`, `pip`, `node`, `cmake`,
+(every distinct lowercase file name). The helpers are `zig`, `clang`, `clang++`, `gcc`,
+`g++`, `cc1`, `ld`, `lld`, `ld.lld`, `python`, `python3`, `pythonw`, `pip`,
+`node`, `cmake`,
 `ninja`, `make`, `msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta`
 and `xdelta3`. `7z` and `7za` are ordinary extraction helpers and are not on
-the list. The worker records every listing entry equal to a helper name, with
-or without `.exe`, as the artifact's `toolchain_names`: a file leaf as is
+the list. A file leaf also names a helper when it is a versioned or renamed
+compiler or interpreter: `python`, `python3`, `pythonw`, `clang`, `clang++`,
+`gcc`, `g++`, `lld`, `ld.lld` or `zig` followed by digits and dotted digits
+(optionally after `-`) or by `-` and letters, digits or `_`, with or without
+`.exe` (`python3.11`, `clang-17`, `gcc-13`, `zig-x86_64`, `pythonw.exe`); such
+a name never counts as a directory (`gcc-libs/`), and another extension never
+matches (`python311.dll`). The worker records every listing entry naming a
+helper as the artifact's `toolchain_names`: a file leaf as is
 (`python.exe`), a directory component that is no file leaf with a trailing
 `/` (`zig/`, `link/`). The short or common helper names `cl`, `ld`, `link`,
-`make`, `node`, `python`, `python3` and `pip` also name ordinary folders, so
+`make`, `node`, `python`, `python3`, `pythonw` and `pip` also name ordinary folders, so
 they count only as a file leaf: `assets/link/`, `levels/ld/` or a
 `lib/python3.11/` folder never match, while `Python/python.exe` does. The
 other helpers count as a file or a directory (`tools/zig/`). Only a whole
@@ -3959,15 +3974,16 @@ different product words:
   is line `native-only` and `dev-abc1234` is the main line, while
   `deadbeef-v1` (no digit) is line `deadbeef`. As the tag's first word a
   hex-looking word names the product: `facade1-v1.0`, `decade2-v1.0` and
-  `cafe2024-v2` are lines of their own, and a hash-only tag such as
-  `abc1234` is a line of its own too (excluded unless bound). `v.` before
-  digits is a version (`v.0.1.1`).
+  `cafe2024-v2` are lines of their own. A tag that is only a commit hash
+  (`abc1234`, also with system or architecture words) is a channel build
+  (below), so it is never stable and never counts as a release line. `v.`
+  before digits is a version (`v.0.1.1`).
 - `test`, `testing`, `tester`, `prealpha`, `canary`, `wip`, `experimental`,
   `fixed`, `fix`, `new` and `pr<digits>` are channel words when they stand
   next to a version, date or hash, or when the tag holds nothing else
   (`wip-v0.4`, `pr42`, `v1.0-fix`, `new`, `test`). Between product words they
   stay product words: `new-game-v1` is line `new-game`, `fix-it-v1` is
-  `fix-it` and `test-drive-v1.0` is `test-drive`.
+  `fix-it` and `test-orbit-v1.0` is `test-orbit`.
 - Operating-system and architecture words are dropped as whole words
   (`windows`, `win`, `win32`, `win64`, `linux`, `linux64`, `macos`, `mac`,
   `osx`, `darwin`, `universal`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`,
@@ -4002,7 +4018,12 @@ A tag that consists only of rolling-channel words (`nightly`, `continuous`,
 `experimental` and similar) plus dates, times, hashes and system or
 architecture words is a prerelease for the newest-stable choice even when the
 provider does not flag it: `build_20261120_2250`, `nightly-2025-01-01`,
-`continuous`, `latest` and `dev-abc1234`. Only real calendar and clock shapes
+`continuous`, `latest` and `dev-abc1234`. A commit hash counts as a channel
+word here, so a tag of only a hash (`abc1234`, `abc1234-win64`) is such a tag;
+a hex-looking word without a digit (`deadbeef`) is no hash. A year alone is a
+date, so `build-2025` is a channel build too: a repository tagging its
+releases only `build-<year>` has no stable release (`no-stable-release`) until
+it publishes a versioned tag or the listing is reviewed. Only real calendar and clock shapes
 are dates: a year `19xx` or `20xx`, a month directly after a year and a day
 directly after that month (`2025-01-01`), an eight-digit `yyyymmdd`
 (optionally with `hhmm` or `hhmmss` glued after it), and an `hhmm` or
@@ -4106,7 +4127,7 @@ serve. The lowercased name is judged in this order; the first match decides:
 
 | Form                                                                                                                                                                        | Serves                                                                                   |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`                                                                                                              | Windows                                                                                  |
+| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`, `.appinstaller` (names an MSIX package by URI, possibly hosted elsewhere)                                   | Windows                                                                                  |
 | `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension  | Linux                                                                                    |
 | `.dmg`, `.pkg`                                                                                                                                                              | macOS                                                                                    |
 | a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …) | every platform its name permits; all when the name is neutral or Core cannot classify it |
@@ -4140,8 +4161,7 @@ ignored:
   `.crt`, `.cer`, `.pub`, `.sbom`, `.spdx`;
 - lockfiles, configuration, translations and metadata: `.lock`, `.toml`
   (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
-  `.css`, `.desktop`, `.appinstaller` (an App Installer file is metadata that
-  points at a package; the package itself is listed separately);
+  `.css`, `.desktop`;
 - the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
   `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
   `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
@@ -4338,9 +4358,13 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 13, the facts parser version from 5 to 14 and
-the facts table format from 4 to 12 (generator 13, parser 14 and format 12:
-no explicit-system exception for several archives, role words with digits
+generator version from 5 to 14, the facts parser version from 5 to 16 and
+the facts table format from 4 to 12 (generator 14 and parser 16: a role word
+is exempt only inside a run of a product name's words and camel-case archive
+names are split into words, `.appinstaller` is a Windows package form,
+versioned or renamed compiler and interpreter file leaves are toolchain
+helpers, and a hash-only tag is a channel build; generator 13, parser 15 and
+format 12: no explicit-system exception for several archives, role words with digits
 and without the product's own name words, `x86-64` as one word in both copies,
 real date shapes in channel-only tags, first-word hex words as product words,
 `test` as a conditional channel word, the wider non-program list, file-only
@@ -4830,7 +4854,9 @@ clears the stop. An unreadable issue list, or more than 1,000 open workflow
 issues, fails the run rather than reading as "not stopped"; past 1,000 closed
 workflow issues and pull requests, a recurrence may open a new issue instead
 of reopening the old one. A `reproduction-refused` issue names up to five
-refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
+refused entries and why, as inert code text. The conditions are `gate-refused`, `catalog-capacity`
+(the batch would exceed a released-reader bound; see
+[catalog capacity](#catalog-capacity)), `reproduction-refused`,
 `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `batch-waiting` (an open batch whose
 required checks have not all finished more than 15 days after it was opened,
@@ -4960,41 +4986,69 @@ runs. A quiet catalog proposes a reconfirmation batch once an offered entry
 was last confirmed 15 days earlier (`refreshAfterDays`, half the facts age),
 which leaves the other half of the 30-day facts age for its approval.
 
+###### Catalog capacity
+
+Two bounds of released readers limit how many generated routes the catalog
+can carry. Both are real constraints of clients already installed, not caps
+of this job, and each is guarded at Core's supported share
+(`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+
+- `MAX_CATALOG_BYTES` (16 MiB, ceiling 14,260,633 bytes). The binding measure
+  is the JSON-escaped retained installed contract (Core's
+  `catalog_growth_stays_within_supported_capacity`): 4,529,946 bytes today,
+  so about 9,730,000 bytes of headroom, or about 1,100 more routes at about
+  8.7 KB of escaped contract per generated route.
+- `MAX_LISTING_BYTES` (8 MiB, ceiling 7,130,316 bytes) for the embedded
+  listing directory `listings.json`: 6,449,993 bytes today, so 680,323 bytes
+  of headroom. Each generated route grows its listing's guide by a median of
+  about 1.5 KB, so roughly 450 to 500 more routes fit, about 300 at the 90th
+  percentile.
+
+The listing directory binds first. Before it opens a pull request the job
+checks the regenerated batch against both ceilings (`capacity`): the
+generated, compact and signed-envelope catalog measures, the escaped
+retained contract (estimated as the escaped `catalog.json` text plus
+`retainedContractReserveBytes`, 16 KiB, about four times the contract's
+3,477 bytes of other fields today) and the listing directory. A batch past
+either ceiling is not proposed, since its required check would fail; the run
+files the reused stop issue `catalog-capacity` with the exact figures.
+Raising a bound needs a compatibility analysis of released readers and is a
+separate change.
+
 ###### Numeric constants
 
 Every number that remains in the worker, the generator, the gate and the job
 is a correctness rule or comes from a real constraint:
 
-| Constant                                                           | Value                               | Constraint                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `maxFactsAgeDays`                                                  | 30 days                             | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                   |
-| `lastGoodRetentionDays`                                            | 14 days                             | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                            |
-| `maxDistinctPrograms`                                              | 1                                   | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                               |
-| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds) | 4 releases, 32 assets               | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                              |
-| `coreInspectedFileBound` (players per archive)                     | 16,384                              | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                       |
-| `maximumNameBytes`, `chunkNames`, `chunkBytes`                     | 1,024 bytes, 50,000 names, 8 MiB    | Core's classification request bounds and the CLI's input bound.                                                                                                                                                                                                                                            |
-| `guideBound` (`guide-bound`)                                       | 8 entries                           | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                              |
-| `displayableName`                                                  | 120 characters, 3 programs          | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                         |
-| `matrixJobLimit`                                                   | 256                                 | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                   |
-| `reproductionDeadlineMinutes`                                      | 85 of 120 minutes                   | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                         |
-| `identityBudgetMinutes`                                            | 85 / ceil(candidates / 256) minutes | The CI deadline shared by the entries one CI shard holds: 85 up to 256 candidates, 42.5 at about 400, 17 at about 1,100. The worker never settles what CI cannot reproduce.                                                                                                                                |
-| Inspect shard deadline                                             | 330 of 360 minutes                  | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                               |
-| Runner disk                                                        | about 14 GB free                    | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                     |
-| `githubTokenHourlyRequests`                                        | 1,000 requests an hour              | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows; an App installation token has its own larger quota, not assumed. Reproduction spends at most one request per entry: about 400 requests for 400 entries, 1,100 for 1,100, once in the job and once in the batch's CI. |
-| `reproductionParallelism`                                          | 1,000 / entries per shard           | The shards whose requests fit one hour's quota: all 256 at about 400 entries, 200 at about 1,100; the rest wait for the reset inside their deadline.                                                                                                                                                       |
-| `githubResponseBytes`, `githubRequestMs`                           | 8 MiB, 30 seconds                   | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                |
-| Open pull request listing                                          | 10 pages of 100                     | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                          |
-| Observer handoff lookup                                            | 20 newest observer runs             | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                  |
-| `chunkBytes`                                                       | 8 MiB − 1,024 bytes                 | The CLI's 8 MiB input bound, less room for the request's own JSON framing.                                                                                                                                                                                                                                 |
-| `MAX_CATALOG_BYTES`                                                | 16 MiB                              | Core's signed catalog bound (85% supported capacity). `catalog.json` is about 4.3 MB today and a user-prepared registration record about 8 KB (3 to 11 KB), so roughly 1,100 to 1,200 generated routes approach the supported capacity; a batch past it fails Core's catalog checks.                       |
-| Provider asset size                                                | 2 GiB                               | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                            |
-| `releaseListPage`                                                  | 100                                 | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                            |
-| `refreshAfterDays`, `freshnessAlertDays`                           | 15 days                             | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                    |
-| `batchWaitDays`                                                    | 15 days                             | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                   |
-| `clockSkewMs`                                                      | 0                                   | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                              |
-| Artifact retention                                                 | 30 days                             | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                             |
-| Retained-artifact ZIP bounds                                       | 64 MiB compressed, 128 MiB expanded | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                             |
-| Stop-issue reads                                                   | 1,000 issues                        | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                       |
+| Constant                                                                  | Value                                          | Constraint                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxFactsAgeDays`                                                         | 30 days                                        | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                   |
+| `lastGoodRetentionDays`                                                   | 14 days                                        | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                            |
+| `maxDistinctPrograms`                                                     | 1                                              | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                               |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)        | 4 releases, 32 assets                          | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                              |
+| `coreInspectedFileBound` (players per archive)                            | 16,384                                         | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                       |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                            | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                        |
+| `guideBound` (`guide-bound`)                                              | 8 entries                                      | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                              |
+| `displayableName`                                                         | 120 characters, 3 programs                     | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                         |
+| `matrixJobLimit`                                                          | 256                                            | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                   |
+| `reproductionDeadlineMinutes`                                             | 85 of 120 minutes                              | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                         |
+| `identityBudgetMinutes`                                                   | 85 / ceil(candidates / 256) minutes            | The CI deadline shared by the entries one CI shard holds: 85 up to 256 candidates, 42.5 at about 400, 17 at about 1,100. The worker never settles what CI cannot reproduce.                                                                                                                                |
+| Inspect shard deadline                                                    | 330 of 360 minutes                             | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                               |
+| Runner disk                                                               | about 14 GB free                               | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                     |
+| `githubTokenHourlyRequests`                                               | 1,000 requests an hour                         | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows; an App installation token has its own larger quota, not assumed. Reproduction spends at most one request per entry: about 400 requests for 400 entries, 1,100 for 1,100, once in the job and once in the batch's CI. |
+| `reproductionParallelism`                                                 | 1,000 / entries per shard                      | The shards whose requests fit one hour's quota: all 256 at about 400 entries, 200 at about 1,100; the rest wait for the reset inside their deadline.                                                                                                                                                       |
+| `githubResponseBytes`, `githubRequestMs`                                  | 8 MiB, 30 seconds                              | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                |
+| Open pull request listing                                                 | 10 pages of 100                                | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                          |
+| Observer handoff lookup                                                   | 20 newest observer runs                        | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                  |
+| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`) | 16 MiB and 8 MiB, each at 85% (16 KiB reserve) | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                   |
+| Provider asset size                                                       | 2 GiB                                          | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                            |
+| `releaseListPage`                                                         | 100                                            | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                            |
+| `refreshAfterDays`, `freshnessAlertDays`                                  | 15 days                                        | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                    |
+| `batchWaitDays`                                                           | 15 days                                        | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                   |
+| `clockSkewMs`                                                             | 0                                              | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                              |
+| Artifact retention                                                        | 30 days                                        | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                             |
+| Retained-artifact ZIP bounds                                              | 64 MiB compressed, 128 MiB expanded            | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                             |
+| Stop-issue reads                                                          | 1,000 issues                                   | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                       |
 
 The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
 512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
