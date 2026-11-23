@@ -382,7 +382,9 @@ to have succeeded, from the GitHub Actions app, in a completed
 `pull_request_target` run of `.github/workflows/closing-inventory.yml` whose
 `pull_requests` lists exactly this pull request
 (`GET /repos/{owner}/{repo}/actions/runs?check_suite_id={suite}&per_page=1`);
-fork pull requests list none and refuse;
+fork pull requests list none and refuse. After a merge GitHub empties that
+list, so the merge readback accepts an empty list only for the exact suite
+verified immediately before the merge;
 see the [closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge). Issue bodies and REST issue reads cannot
 establish live Project fields. An unavailable or partial inventory remains
 unknown, with the exact missing observation recorded; do not silently

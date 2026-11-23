@@ -239,7 +239,10 @@ and refuses any visible manual link. It also requires a successful
 `closing-inventory` check run for this pull request on its exact head: a
 trusted `pull_request_target` workflow that reads GitHub's GraphQL inventory
 and fails on any relationship the body's closing keywords do not name or that
-the inventory's count shows is hidden from the workflow token. Whether that
+the inventory's count shows is hidden from the workflow token. GitHub clears that run's pull request
+list once the pull request merges, so the post-merge readback accepts an empty
+list only for the exact check suite the helper verified immediately before the
+merge. Whether that
 count includes issues in repositories the token cannot read is not documented
 by GitHub, so a manual link to such an issue remains UNKNOWN to REST. A manual
 link added, or a body changed by a workflow token, after the check last ran can
