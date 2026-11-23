@@ -140,6 +140,15 @@ async function optional(file: string) {
   }
 }
 export async function dailyDiscoveryMain(args: string[]) {
+  // The maintenance store's URL and meter credential are taken out of the
+  // environment before any child process (Git included) starts; only the
+  // session receives them.
+  const sharedStore = {
+    url: process.env.PORTCOVE_MAINTENANCE_DATABASE_URL?.trim() || undefined,
+    meterToken: process.env.PORTCOVE_NEON_METER_TOKEN || undefined,
+  };
+  delete process.env.PORTCOVE_MAINTENANCE_DATABASE_URL;
+  delete process.env.PORTCOVE_NEON_METER_TOKEN;
   const command = args[0];
   if (
     !["plan", "run", "status"].includes(command ?? "") ||
@@ -175,9 +184,8 @@ export async function dailyDiscoveryMain(args: string[]) {
         lock: await optional(path.join(state, "investigation.lock")),
         journal_file: path.join(state, "active-run.json"),
         // A configured maintenance store owns lead collection for this runner.
-        lead_collection: process.env.PORTCOVE_MAINTENANCE_DATABASE_URL?.trim()
-          ? "shared-store"
-          : "local",
+        // The run falls back to local collection if the store is empty or unavailable.
+        lead_collection: sharedStore.url ? "shared-store" : "local",
         launch: { tty: true, login: false, keep_session_open_until: "explicit finish" },
       }),
     );
@@ -244,7 +252,7 @@ export async function dailyDiscoveryMain(args: string[]) {
       if (git(["rev-parse", "HEAD"]) !== head)
         throw new Error("Discovery source changed during dependency preparation");
       const { runDiscoverySession } = await import("./daily-discovery-session.mts");
-      await runDiscoverySession(state, root, head, startedAt);
+      await runDiscoverySession(state, root, head, startedAt, sharedStore);
     });
   } catch (error) {
     const receipt = {

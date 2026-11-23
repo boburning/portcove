@@ -231,10 +231,13 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
       const root=path.dirname(path.dirname(new URL(entry).pathname));
       let fetched=false,checkedOut=false,installed=false,sessions=0;const reads=new Map();
       process.env.GH_TOKEN="synthetic-install-secret";process.env.GITHUB_TOKEN="synthetic-other-secret";
+      process.env.PORTCOVE_MAINTENANCE_DATABASE_URL="postgres://synthetic-store";process.env.PORTCOVE_NEON_METER_TOKEN="synthetic-meter";
       const clean=environment=>{assert.equal(environment.GH_TOKEN,undefined);assert.equal(environment.GITHUB_TOKEN,undefined);assert.equal(environment.NODE_OPTIONS,undefined);};
       Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});
       mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
         assert.equal(command,'git');
+        assert.equal(process.env.PORTCOVE_MAINTENANCE_DATABASE_URL,undefined,'Git must not inherit the store URL');
+        assert.equal(process.env.PORTCOVE_NEON_METER_TOKEN,undefined,'Git must not inherit the meter credential');
         if(args[0]==='status'||args[0]==='branch')return '';
         if(args[0]==='fetch'){
           assert.deepEqual(args,['fetch','--no-write-commit-graph','--no-auto-maintenance','--no-tags','--no-recurse-submodules','origin','main']);
@@ -266,7 +269,8 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
         clean(options.environment);assert.deepEqual(options.exclusive,['fixture-output']);assert.equal(options.executionTimeoutMilliseconds,600000);
         installed=true;return variant==='failed-install'?1:0;
       }}});
-      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head)=>{
+      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head,started,store)=>{
+        assert.deepEqual(store,{url:'postgres://synthetic-store',meterToken:'synthetic-meter'});
         assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut&&installed);
         for(const name of expected)assert.equal(reads.get(name),name==='package.json'||name==='.node-version'?4:3);sessions++;
       }}});
@@ -1352,9 +1356,14 @@ void test("a configured shared store owns lead collection and keeps local resear
           },
         },
       },
-      journal: { notes: [], collection_done: false },
+      journal: { notes: [], collection_done: false, started_at: "2026-11-23T00:00:00.000Z" },
+      inventory: { issues: [], items: [], archivedItems: [] },
       externalCollectionAttempted: false,
       leadCollectionAttempted: false,
+      leadPages: 0,
+      leadFamilies: new Set(),
+      deferredLeadFamilies: new Set(),
+      researchedLeads: new Set([1, 2]),
       persist: () => {},
     });
     return session;
@@ -1384,6 +1393,13 @@ void test("a configured shared store owns lead collection and keeps local resear
     bytes: 100,
   });
   assert.deepEqual(stored.journal.notes, [], "coverage is not marked partial");
+  assert.ok(
+    stored.leadWorkComplete(),
+    "the store's searches satisfy the run's search requirement, so finish and recheck can complete",
+  );
+  const summary = stored.leadSummary();
+  assert.deepEqual(summary.pending_families, [], "no family is reported as pending locally");
+  assert.equal(summary.collection?.owner, "shared-store");
 
   const empty = make();
   await empty.leadsFromSharedStore(async () => ({ outcome: "empty", bytes: 1 }));
@@ -1395,6 +1411,7 @@ void test("a configured shared store owns lead collection and keeps local resear
   });
   assert.ok(!unavailable.leadCollectionAttempted, "an unavailable store falls back to local");
   assert.equal(unavailable.journal.notes.length, 1, "and the fallback is recorded");
+  assert.ok(!unavailable.leadWorkComplete(), "local collection must then do its own searches");
 
   const broken = make();
   await assert.rejects(

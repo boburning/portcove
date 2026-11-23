@@ -1860,3 +1860,26 @@ void test("local research survives only on the same repository and revision as t
   assert.equal(merged.next_family, 4, "the store owns the continuation");
   assert.equal(stored.records["1"].status, "pending", "the stored copy is not changed");
 });
+
+void test("a local lead whose path the store holds under another provider ID is left out", () => {
+  const lead = (id: number, repository: string) => ({
+    id,
+    repository,
+    url: `https://github.com/${repository}`,
+    description: "",
+    revision: "r",
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const merged = overlayLocalResearch(
+    { format: 1, next_family: 0, slices: {}, records: { "9": lead(9, "ports/recreated") } },
+    {
+      format: 1,
+      next_family: 0,
+      slices: {},
+      records: { "5": lead(5, "Ports/Recreated"), "6": lead(6, "ports/local-only") },
+    },
+  );
+  assert.deepEqual(Object.keys(merged.records).sort(), ["6", "9"]);
+});

@@ -883,17 +883,28 @@ store owns lead collection for that runner, and `plan` reports
    its status, research, disposition and review clock only while it names the
    same repository at the same revision. A changed upstream takes the stored
    record, which queues it for review again. Leads from the session's own
-   `search` operations stay local.
+   `search` operations stay local, unless the store holds the same path under
+   another provider ID.
 3. Skips the curated lists and lead searches, which the store has already
    collected and backfilled. The reviewed sources are still collected locally,
    because their checkpoint carries this runner's research queue.
 
-The journal records the stored revision, record count and bytes read
-(`lead_collection`). If the store is empty, local collection runs as before. If
-the store is unavailable or its admission is deferred, local collection also
-runs as before, and a partial note records why.
+The journal and the lead summary record the stored revision, record count and
+bytes read (`lead_collection`). The store's searches satisfy the run's search
+requirement, so `recheck` and `finish` can complete without local searches. If
+the store is empty, local collection runs as before. If the store is
+unavailable or its admission is deferred, local collection also runs as before,
+and a partial note records why. `plan` reports the configured mode; a fallback
+shows only in the run.
 
-The store URL and the Neon meter credential stay out of every child process. In
+Each read reserves its whole payload: the admission meters 70% of a
+reservation, so the reservation is the stored state and records divided by 0.7,
+plus 1 MiB. A read that sees a commit is repeated, each time under its own
+admission.
+
+`daily-discovery.mts` removes the store URL and the Neon meter credential from
+its environment before its first Git command and hands them to the session
+alone, so no child process receives them. In
 this mode the local lead copy is bounded by the machine's memory rather than by
 the 32 MiB local envelope. A `leads.json` written this way may then exceed the
 envelope of a later run without the store; set the variable again to continue.

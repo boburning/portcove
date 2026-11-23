@@ -752,9 +752,12 @@ export class DiscoverySession {
     // Startup can fail before the first validated inventory. Retain the saved
     // queue without interpreting a stale cache as current canonical overlap.
     const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
+    const stored = this.journal.lead_collection;
     return {
+      ...(stored ? { collection: stored } : {}),
       searched_pages: this.leadPages,
-      pending_families: leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
+      // Store-owned families are searched by the shared collector, not here.
+      pending_families: stored ? [] : leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
       observed_families: [...(this.leadFamilies ?? [])],
       deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
@@ -1442,11 +1445,13 @@ export class DiscoverySession {
       2,
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
-    return (
-      (this.leadPages >= 4 ||
-        (this.leadFamilies?.size ?? 0) >= Math.min(6, leadSearchFamilyCount)) &&
-      this.researchedLeads.size >= required
-    );
+    // When the shared store owns lead collection, its collector has searched;
+    // this runner's own searches are not required.
+    const searched =
+      this.journal.lead_collection?.owner === "shared-store" ||
+      this.leadPages >= 4 ||
+      (this.leadFamilies?.size ?? 0) >= Math.min(6, leadSearchFamilyCount);
+    return searched && this.researchedLeads.size >= required;
   }
   async apply() {
     const delivered: { id: string; issue: number | undefined; readback: string | undefined }[] = [];
@@ -1929,6 +1934,7 @@ export async function runDiscoverySession(
   root: string,
   head: string,
   startedAt: string,
+  store: { url?: string | undefined; meterToken?: string | undefined } = {},
 ) {
   const runDir = await assertOwnedUnlinkedPath(
     path.join(root, "work"),
@@ -1936,15 +1942,17 @@ export async function runDiscoverySession(
     "discovery run",
   );
   await mkdir(runDir, { recursive: true });
-  // A configured maintenance store owns lead collection. Only its libpq
-  // translation is kept; no child process receives the URL.
-  const sharedStore = process.env[sharedStoreVariable]?.trim()
-    ? (await import("./maintenance-store.mts")).connectionFromEnvironment(sharedStoreVariable)
+  // A configured maintenance store owns lead collection. The caller removed its
+  // URL and meter credential from the process environment before any child
+  // process started; only the store's own copied environment holds them.
+  const sharedStore = store.url
+    ? (await import("./maintenance-store.mts")).connectionFromEnvironment(sharedStoreVariable, {
+        ...process.env,
+        [sharedStoreVariable]: store.url,
+        ...(store.meterToken ? { PORTCOVE_NEON_METER_TOKEN: store.meterToken } : {}),
+      })
     : undefined;
-  delete process.env[sharedStoreVariable];
-  // The store's meter credential travels in its copied environment only.
   if (sharedStore) {
-    delete process.env.PORTCOVE_NEON_METER_TOKEN;
     // Stored leads are bounded by the store, so the local copy is bounded by this
     // machine's memory, as it is for the unattended collector.
     const { physicalLeadEnvelope } = await import("./discovery-worker.mts");

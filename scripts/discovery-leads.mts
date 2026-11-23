@@ -719,14 +719,18 @@ export function skipBackfillWindow(
  * research, disposition and status only while it still describes the same
  * repository at the same revision; a changed upstream takes the stored record,
  * which requeues it. Local records the store does not hold, such as leads from
- * the session's own searches, stay as they are.
+ * the session's own searches, stay as they are unless the store holds their
+ * path under another provider ID.
  */
 export function overlayLocalResearch(stored: LeadState, local: LeadState): LeadState {
   const next = structuredClone(stored);
+  const storedPaths = new Set(Object.values(stored.records).map((r) => r.repository.toLowerCase()));
   for (const [id, mine] of Object.entries(local.records)) {
     const theirs = next.records[id];
     if (!theirs) {
-      next.records[id] = structuredClone(mine);
+      // A path the store holds under another provider ID is a recreated or
+      // transferred repository; the store's identity wins.
+      if (!storedPaths.has(mine.repository.toLowerCase())) next.records[id] = structuredClone(mine);
       continue;
     }
     if (

@@ -848,6 +848,17 @@ export function importLocalState(
 }
 
 /**
+ * Transfer to reserve for one read of the stored leads. The admission meters 70%
+ * of a reservation as payload, and the read returns the state document and
+ * every record once.
+ */
+export function storedLeadsReservation(forecast: { state_bytes: number; record_bytes: number }) {
+  return Math.ceil(
+    (Number(forecast.state_bytes) + Number(forecast.record_bytes)) / 0.7 + 1024 * 1024,
+  );
+}
+
+/**
  * The shared store's collected leads for a local runner, read without a lease.
  * Each read holds its own transfer admission sized from the stored state; a
  * commit during the read makes it read again, each time admitted.
@@ -871,10 +882,7 @@ export async function readStoredLeads(
       environment,
       "inspect",
       () => readDiscoverySnapshot(environment, scope),
-      {
-        reservationBytes: Number(forecast.state_bytes) + Number(forecast.record_bytes) + 1048576,
-        estimate: (value) => value.bytes,
-      },
+      { reservationBytes: storedLeadsReservation(forecast) },
     );
     bytes += snapshot.bytes;
     if (snapshot.outcome === "moved") continue;

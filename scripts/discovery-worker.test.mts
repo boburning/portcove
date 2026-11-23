@@ -33,6 +33,7 @@ import {
   renderDiscoveryStatus,
   readStoredLeads,
   runDiscoveryWorker,
+  storedLeadsReservation,
 } from "./discovery-worker.mts";
 import { overlayLocalResearch } from "./discovery-leads.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
@@ -1070,4 +1071,16 @@ void test("a failed lead-record load finishes the attempt instead of holding the
   assert.equal(result.outcome, "failed");
   assert.match(result.reason ?? "", /lead records could not be loaded/u);
   assert.deepEqual(memory.finished, ["failed"]);
+});
+
+void test("a stored-lead read reserves enough metered payload for the whole state", () => {
+  for (const [state, records] of [
+    [0, 0],
+    [2_000_000, 500_000],
+    [8 * 1024 * 1024, 64 * 1024 * 1024],
+  ] as const) {
+    const reservation = storedLeadsReservation({ state_bytes: state, record_bytes: records });
+    // withMaintenanceAdmission meters floor(reservation * 0.7) as payload.
+    assert.ok(Math.floor(reservation * 0.7) >= state + records + 700_000);
+  }
 });
