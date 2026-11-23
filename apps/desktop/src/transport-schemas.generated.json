@@ -59635,6 +59635,13 @@
           }
         ]
       },
+      "retires": {
+        "description": "Offered recovery builds this binding retires under the retention policy.\nThe installations stay registered; only the offer ends.",
+        "items": {
+          "$ref": "#/$defs/RetainedBuildRevision"
+        },
+        "type": "array"
+      },
       "setup_id": {
         "type": "string"
       }

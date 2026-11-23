@@ -7494,6 +7494,11 @@ export interface OutputRetainedBuildBindingPreview {
   build: RetainedBuildIdentity;
   preview_sha256: string;
   previous: RetainedBuildReference | null;
+  /**
+   * Offered recovery builds this binding retires under the retention policy.
+   * The installations stay registered; only the offer ends.
+   */
+  retires?: RetainedBuildRevision[];
   setup_id: string;
   [k: string]: unknown;
 }
