@@ -1425,6 +1425,59 @@ including null; unknown versions fail closed. A schema-4 grant binds a nonempty
 curated record map to the exact independently authenticated definition. Record
 claims or a first client download cannot create this grant or install its root.
 
+#### Decision binding schemas
+
+The `policy_schema` number above selects the grant's scope. A separate
+top-level `decision_schema` selects how a positive decision (`availability`,
+`managed_github`, `managed_forge_v1`) names the exact definition it authorizes.
+
+- **Decision schema 1** is expressed by omitting `decision_schema`. The decision
+  names `definition_revision`, `definition_sha256` (the exact indexed entry
+  bytes), `template` and the global definitions `index_sha256`.
+- **Decision schema 2** is `"decision_schema": 2`. The decision names the same
+  fields except `index_sha256`, which it must omit.
+
+Readers interpret both. A decision with `decision_schema: 1`, a non-integer, or
+schema 2 with `index_sha256` is invalid. A larger number is refused before typed
+parsing as needing a newer Portcove for that one subject
+(`engine_capability_required` on refresh). Siblings and that subject's retained
+last-good admission are unaffected. A `revoked` decision binds nothing and
+must omit `decision_schema`, so every released reader can read a revocation.
+The binding form is not authority. Changing it keeps retained launch continuity,
+just as a schema-1 rebind at a higher `policy_revision` does. Readers that list
+`catalog.policy-decision-v2` in `capabilities.definition_features` accept
+schema 2. Earlier readers refuse the unknown field for that subject and keep
+their last-good decision.
+
+**What the global index binding protects.** Each property of decision
+schema 1 and the mechanism that also enforces it:
+
+| Property                                                                 | Also enforced by                                                                                                                                     | Schema 2                                                                                                                                                                            |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A decision is paired only with the entry its publisher reviewed          | `namespace`, `stable_id`, `definition_revision`, `definition_sha256` and `template`, all compared on every use                                       | Unchanged                                                                                                                                                                           |
+| A removed subject's decision stops being honored                         | The reader resolves a subject only through the verified index it is using; a removed subject has no entry, so nothing can be interpreted or admitted | Unchanged: no entry, no projection, no admission                                                                                                                                    |
+| A revised subject's old decision stops being honored                     | A revision has a new entry digest, which the index names and verifies                                                                                | Unchanged: the entry digest differs                                                                                                                                                 |
+| The entry's contracts are the reviewed ones                              | The entry names its contract leaves by content-addressed targets the index verifies, so the entry digest binds them                                  | Unchanged                                                                                                                                                                           |
+| A decision is not combined with a definition from another index          | The projection is interpreted from one verified index                                                                                                | Each use requires the projection's own index digest to equal the index the caller relies on (a fresh candidate or the retained selection), and that index to name this entry digest |
+| A revoked subject stays revoked                                          | Revocation is a higher `policy_revision` under the per-subject policy revision floor; it carries no index binding                                    | Unchanged                                                                                                                                                                           |
+| An older index or metadata cannot replace a newer one (replay, rollback) | The definitions-role replay floor on selection, the policy-role replay floor on admission, and authenticated expiry                                  | Unchanged; tested with an unchanged decision presented with an older index                                                                                                          |
+| Concurrent publications are ordered                                      | Monotonic role versions; an equal version with a different signed body is equivocation                                                               | Unchanged; tested with identical decision bytes from two racing bodies                                                                                                              |
+| Freshness                                                                | Earliest authenticated metadata expiry on the candidate, the selection and the policy                                                                | Unchanged                                                                                                                                                                           |
+| An unrelated index change invalidates the decision                       | Nothing else; this is the only additional effect of the global binding                                                                               | Removed: an addition or change of another subject leaves this decision valid, so the publisher re-signs only the changed subject's targets                                          |
+
+No property depends only on the global digest, so no case keeps the
+conservative binding. Decision schema 1 keeps its existing behavior, including
+stored admissions and selections that libraries already hold.
+
+**Rollout.** A publisher emits schema 2 only after the
+[released-reader gate](design/CATALOG-DISTRIBUTION-SCALING.md#4-definitions-policy-decision-schema-2)
+verifies a released build that lists `catalog.policy-decision-v2`. That
+build becomes the minimum supported generation for new decisions. Older
+previews keep their last-good decisions and installs and update the
+application. The cutover re-signs every subject once at a higher
+`policy_revision`. After that, an addition or change re-signs only that
+subject's policy and launch targets.
+
 Curated resolution freshly observes the numeric GitHub repository, release and
 asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.
 They must match the accepted record. A present publisher digest must agree; an

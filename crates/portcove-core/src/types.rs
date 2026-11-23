@@ -2908,6 +2908,10 @@ pub struct CapabilityDocument {
     /// Independently negotiated signed-directory transport representations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub listing_delivery_carriers: Vec<String>,
+    /// Named definition-delivery features, such as `catalog.policy-decision-v2`.
+    /// A publisher emits a newer form only after a released reader lists it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub definition_features: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
@@ -2939,6 +2943,7 @@ impl CapabilityDocument {
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER
                     .into(),
             ],
+            definition_features: crate::definition_capabilities::supported_definition_features(),
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

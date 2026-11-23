@@ -458,6 +458,10 @@ reports the independently authenticated carrier digest. The optional compact dir
 legacy record share one transaction and authority floor. Older releases with a
 compatible library schema can continue to read and renew their genuine legacy
 record. The higher admitted directory revision governs a capable reader.
+`definition_features` lists the named definition-delivery features this client
+implements, including `catalog.policy-decision-v2` for
+[entry-bound policy decisions](DEFINITION-DELIVERY.md#decision-binding-schemas).
+A publisher's released-reader gate reads it.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
