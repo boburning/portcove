@@ -413,6 +413,7 @@ const SCOPED: &[(&str, &[&str])] = &[
             "\\\\.\\pipe\\fixture",
             "C:\\fixture\\plugin.dll",
             "c:/fixture/plugin.dll",
+            "\\\\.\\pipe\\fixture",
         ],
     ),
 ];
