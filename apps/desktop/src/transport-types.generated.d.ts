@@ -3304,8 +3304,10 @@ export interface ReviewedLaunchContractV1 {
     "windows-x86-64"?: AssetRules;
   };
   /**
-   * The reviewed title-specific prefix, such as `DKC2_`, that every launch
-   * environment name outside the small harmless allow-list carries.
+   * Optional restatement of the environment name prefix derived from the
+   * port ID: its uppercase ASCII letters and digits (a stem over 32
+   * characters keeps 24 and eight SHA-256 hex digits of the ID), followed by
+   * `_`. Any other value is refused.
    */
   environment_prefix?: string | null;
   launch?: {

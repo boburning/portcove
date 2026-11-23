@@ -8471,7 +8471,7 @@
             "type": "object"
           },
           "environment_prefix": {
-            "description": "The reviewed title-specific prefix, such as `DKC2_`, that every launch\nenvironment name outside the small harmless allow-list carries.",
+            "description": "Optional restatement of the environment name prefix derived from the\nport ID: its uppercase ASCII letters and digits (a stem over 32\ncharacters keeps 24 and eight SHA-256 hex digits of the ID), followed by\n`_`. Any other value is refused.",
             "type": [
               "string",
               "null"
@@ -43176,7 +43176,7 @@
             "type": "object"
           },
           "environment_prefix": {
-            "description": "The reviewed title-specific prefix, such as `DKC2_`, that every launch\nenvironment name outside the small harmless allow-list carries.",
+            "description": "Optional restatement of the environment name prefix derived from the\nport ID: its uppercase ASCII letters and digits (a stem over 32\ncharacters keeps 24 and eight SHA-256 hex digits of the ID), followed by\n`_`. Any other value is refused.",
             "type": [
               "string",
               "null"
@@ -63939,7 +63939,7 @@
             "type": "object"
           },
           "environment_prefix": {
-            "description": "The reviewed title-specific prefix, such as `DKC2_`, that every launch\nenvironment name outside the small harmless allow-list carries.",
+            "description": "Optional restatement of the environment name prefix derived from the\nport ID: its uppercase ASCII letters and digits (a stem over 32\ncharacters keeps 24 and eight SHA-256 hex digits of the ID), followed by\n`_`. Any other value is refused.",
             "type": [
               "string",
               "null"

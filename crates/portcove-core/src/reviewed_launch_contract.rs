@@ -16,8 +16,9 @@ pub struct ReviewedLaunchContractV1 {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub launch: BTreeMap<Platform, LaunchValues>,
     /// Optional restatement of the environment name prefix derived from the
-    /// port identity (the port ID's uppercase ASCII letters and digits,
-    /// truncated to 32, followed by `_`). Any other value is refused.
+    /// port ID: its uppercase ASCII letters and digits (a stem over 32
+    /// characters keeps 24 and eight SHA-256 hex digits of the ID), followed by
+    /// `_`. Any other value is refused.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment_prefix: Option<String>,
 }
