@@ -8,6 +8,7 @@ import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import {
   collectDiscoverySources,
   resolveDiscoveryDefaultRevision,
+  resolveDiscoveryRevision,
   repoName,
 } from "./daily-discovery-sources.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
@@ -25,6 +26,7 @@ import {
   retainLeadResults,
 } from "./discovery-leads.mts";
 import type { ExternalResolution, LeadState } from "./discovery-leads.mts";
+import type { ParsedExternalList } from "./discovery-external-lists.mts";
 import {
   bindExternalListSource,
   externalHintSummary,
@@ -92,6 +94,54 @@ const object = (v: unknown): Record<string, unknown> => {
 /** Curated community lists add lead hints only. Each due list is read once per run
  * and a bounded number of uncovered GitHub hints is bound to primary repository IDs.
  */
+/**
+ * Every YAML file directly in one directory of a repository at an exact revision:
+ * one listing read, then one bounded raw read per file at that revision.
+ */
+async function readRevisionDirectory(
+  host: DiscoveryCollectionHost,
+  repository: string,
+  revision: string,
+  directory: string,
+  cap: number,
+) {
+  const listing = await host.source.sdk.request({
+    method: "GET",
+    url: new URL(
+      `repos/${repository}/contents/${directory}?ref=${revision}`,
+      "https://api.github.com/",
+    ).href,
+  });
+  if (!Array.isArray(listing.data)) throw new Error("External source directory unavailable");
+  const files: Record<string, string> = {};
+  for (const raw of listing.data as unknown[]) {
+    const entry = object(raw);
+    if (entry.type !== "file" || typeof entry.name !== "string") continue;
+    if (!/^[A-Za-z0-9_-]+\.ya?ml$/u.test(entry.name)) continue;
+    // Each file is one more request: keep the research reserve intact, and stop
+    // as a budget boundary (the list stays due) rather than eating into it.
+    const reserve = researchReserve(host, 22);
+    const left = host.budget.remaining();
+    if (left.requests <= reserve.requests || left.bytes < cap + reserve.bytes)
+      throw new GitHubApiError(
+        "budget_exhausted",
+        "External source directory does not fit the remaining run budget",
+      );
+    const response = await host.source.http.request(
+      "GET",
+      `https://raw.githubusercontent.com/${repository}/${revision}/${directory}/${entry.name}`,
+      undefined,
+      false,
+      cap,
+    );
+    if (response.status !== 200)
+      throw new Error(`External source file returned HTTP ${String(response.status)}`);
+    files[entry.name] = response.text;
+  }
+  if (!Object.keys(files).length) throw new Error("External source directory has no files");
+  return files;
+}
+
 export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
   if (host.externalCollectionAttempted) return host.leadSummary().external;
   host.externalCollectionAttempted = true;
@@ -139,22 +189,63 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
     try {
       let sourceUrl: string;
       let revision: string | undefined;
-      if ("revision_repository" in list) {
-        revision = await resolveDiscoveryDefaultRevision(
+      let parsed: ParsedExternalList;
+      let responseText: string;
+      if ("revision_directory" in list) {
+        // A directory of files at one exact revision. The repository identity is
+        // pinned on the first complete read and must match on every later read.
+        const pinned = host.leads.external?.lists[list.id]?.source?.repository_id;
+        const resolved = await resolveDiscoveryRevision(
           host.source,
           list.revision_repository,
-          list.repository_id,
+          pinned,
         );
-        sourceUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`;
+        revision = resolved.revision;
+        sourceUrl = `https://github.com/${list.revision_repository}/tree/${revision}/${list.revision_directory}`;
+        responseText = JSON.stringify({
+          files: await readRevisionDirectory(
+            host,
+            list.revision_repository,
+            revision,
+            list.revision_directory,
+            list.cap,
+          ),
+        });
+        host.save(name, { url: sourceUrl, revision, text: responseText });
+        parsed = {
+          ...parseExternalList(list.id, responseText),
+          source: {
+            url: sourceUrl,
+            revision,
+            content_sha256: observationHash(responseText),
+            repository_id: resolved.id,
+          },
+        };
       } else {
-        sourceUrl = list.url;
+        if ("revision_repository" in list) {
+          revision = await resolveDiscoveryDefaultRevision(
+            host.source,
+            list.revision_repository,
+            list.repository_id,
+          );
+          sourceUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`;
+        } else {
+          sourceUrl = list.url;
+        }
+        const response = await host.source.http.request(
+          "GET",
+          sourceUrl,
+          undefined,
+          false,
+          list.cap,
+        );
+        host.save(name, { url: sourceUrl, revision, ...response });
+        if (response.status !== 200)
+          throw new Error(`External list returned HTTP ${String(response.status)}`);
+        responseText = response.text;
+        parsed = parseExternalList(list.id, response.text);
+        if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
       }
-      const response = await host.source.http.request("GET", sourceUrl, undefined, false, list.cap);
-      host.save(name, { url: sourceUrl, revision, ...response });
-      if (response.status !== 200)
-        throw new Error(`External list returned HTTP ${String(response.status)}`);
-      let parsed = parseExternalList(list.id, response.text);
-      if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
       if (
         "reviewed_revision" in list &&
         revision !== list.reviewed_revision &&

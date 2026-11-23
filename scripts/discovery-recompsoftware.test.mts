@@ -124,10 +124,15 @@ void test("scheduled collection compares the consumed baseline before handing ch
     lists: {},
     hints: {},
     attempts: Object.fromEntries(
-      ["decomp-buddy-finds", "portsdr", "alexbeav-psx"].map((id) => [
-        id,
-        { attempted_at: at, outcome: "partial" as const },
-      ]),
+      [
+        "decomp-buddy-finds",
+        "portsdr",
+        "alexbeav-psx",
+        "decomp-fun",
+        "unbaked-additions",
+        "portmaster",
+        "osgc",
+      ].map((id) => [id, { attempted_at: at, outcome: "partial" as const }]),
     ),
   };
   const budget = new DiscoveryBudget("ordinary");

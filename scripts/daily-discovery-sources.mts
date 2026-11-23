@@ -162,9 +162,24 @@ export async function resolveDiscoveryDefaultRevision(
   repository: string,
   repositoryId: number,
 ): Promise<string> {
+  return (await resolveDiscoveryRevision(context, repository, repositoryId)).revision;
+}
+
+/**
+ * The default-branch revision of an external source repository and its provider
+ * ID. With a pinned ID the repository must still be that one; without one the
+ * caller pins the returned ID once its read completes.
+ */
+export async function resolveDiscoveryRevision(
+  context: SourceContext,
+  repository: string,
+  repositoryId: number | undefined,
+): Promise<{ revision: string; id: number }> {
   const meta = await metadata(context, repository);
   if (
-    meta.id !== repositoryId ||
+    !Number.isSafeInteger(meta.id) ||
+    Number(meta.id) <= 0 ||
+    (repositoryId !== undefined && meta.id !== repositoryId) ||
     repoName(meta.full_name).toLowerCase() !== repository.toLowerCase() ||
     typeof meta.default_branch !== "string" ||
     meta.default_branch.length === 0
@@ -172,7 +187,7 @@ export async function resolveDiscoveryDefaultRevision(
     throw new Error("External source repository identity or default branch unavailable");
   const revision = await commit(context, meta);
   if (!/^[a-f0-9]{40}$/u.test(revision)) throw new Error("External source revision unavailable");
-  return revision;
+  return { revision, id: meta.id as number };
 }
 async function content(c: SourceContext, repo: string, file: string, ref: string) {
   const parts = file.split("/");

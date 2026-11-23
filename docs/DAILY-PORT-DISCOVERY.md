@@ -514,7 +514,27 @@ transport: the Decomp Buddy finds feed
 an immutable commit, then reads that exact revision; its successful clock retains
 the source URL, revision and SHA-256 of received content. Decomp Buddy's
 aggregated catalog is not read; its finds feed plus the two original lists
-cover it. Each list is read at most once per run, again seven days after its
+cover it.
+
+Four structured sources follow the same contract:
+
+- decomp.fun's hourly `v1/projects.json` (repository per matching decompilation).
+- unbaked's weekly `api/additions.json` (every project the registry gained in its
+  published weeks). The registry's full per-game baseline belongs to the
+  historical backfill.
+- PortMaster's `ports.json`. Its index names no upstream field, so only GitHub,
+  GitLab and Codeberg links in its own descriptions and instructions are hints;
+  links to PortMaster's own repositories are not upstreams, and its handheld ARM
+  packages say nothing about desktop builds.
+- Open Source Game Clones' `games/*.yaml` at one exact revision, read through one
+  directory listing and one raw read per file and parsed as plain data without
+  aliases. Only `remake` and `official` entries are native-port leads; clones,
+  similar games and tools are counted as excluded and never hinted. The source
+  repository's provider ID is pinned on the first complete read and must match
+  on every later read; a different repository at that path is a failed read
+  that keeps the last good clock.
+
+Each list is read at most once per run, again seven days after its
 last complete collection, and only while twenty-two requests (the research
 reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
 malformed, oversized, count-mismatched or failed list keeps its prior complete
