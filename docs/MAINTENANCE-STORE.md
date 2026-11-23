@@ -47,6 +47,49 @@ unconfirmed writes. The schema owner can then set the singleton
 `portcove_maintenance_meta.discovery_intake_activation.active` to true. An
 executor login has read-only access to that flag.
 
+### Discovery collection
+
+Migration `0007` stores [unattended discovery collection](DAILY-PORT-DISCOVERY.md#unattended-collection).
+It adds the concepts the history tables cannot represent:
+
+- `discovery_collection_state`: one fenced collector state per scope (`primary`),
+  with its revision, the digest of the source and query definitions that wrote
+  it, and the current lease.
+- `discovery_collection_attempts`: each run's acquisition ticket (from
+  `acquire_collection()`), activation generation, Portcove revision, runner,
+  committed pages, outcome and bounded result. A run whose lease is taken over
+  closes as `expired`; its committed pages remain.
+- `discovery_observations` (append-only): positive provider evidence keyed by
+  provider, provider-issued repository ID, parser version and normalized content
+  digest. An observation exists before any canonical identity. The path at the
+  time is retained, and a reused path never inherits another repository's ID.
+- `discovery_watches` and `discovery_watch_transitions` (append-only): the
+  current typed waiting condition per provider subject and one row per episode.
+  Changed evidence or status opens a new generation, so A to B to A remains three
+  episodes; unchanged evidence is quiet.
+
+Writes go only through `discovery_acquire`, `discovery_commit` and
+`discovery_finish`. They check collection activation, the lease token and the
+lease generation; commits also check expiry and the expected revision. They then commit state, observations
+and watch changes in one transaction. The collector role may execute them; the
+report role reads.
+
+The stored state is limited to 8 MiB of JSON so acquire and status reads fit one
+bounded client transfer; a commit beyond it fails visibly and keeps the prior
+position. `definition_sha256` records the collector definitions (state format,
+parser version, search families and curated lists). A worker whose definitions
+differ resends its observations; cursor compatibility itself comes from each
+search slice's recorded query contract. Discovery tables are ordinary backup
+tables: each recovery export copies them in full, so their growth adds to the
+daily recovery transfer until they join the history-prefix reuse.
+
+Collection has its own activation (`collection_active`) and
+`collection_generation` on the activation singleton. Portable restore clears
+both activation flags and advances the generation, so a lease taken before the
+backup cannot commit after reactivation. Reactivate collection only after
+deciding that the restored store is the single active writer; the worker resumes
+from the restored revision.
+
 ## Canonical identities
 
 `subject_key` is `<kind>:<identity>` using an existing canonical identity:
@@ -232,11 +275,11 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
 `scripts/maintenance-store/roles.sql` is idempotent and is applied after every
 migration and every restore. It defines three `NOLOGIN` group roles:
 
-| Role                             | May write                                                                            |
-| -------------------------------- | ------------------------------------------------------------------------------------ |
-| `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications |
-| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                       |
-| `portcove_maintenance_report`    | Nothing; read-only                                                                   |
+| Role                             | May write                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications; discovery collection through its fenced functions |
+| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                                                                          |
+| `portcove_maintenance_report`    | Nothing; read-only                                                                                                                      |
 
 All three can read. None owns or alters the schema. Operators grant membership
 to their own login roles outside the repository; the migrating role owns the

@@ -17,7 +17,10 @@ Hosted discovery remains the primary investigator when that is the owner's
 selected schedule. Use the [hosted intake bridge](../../../docs/DAILY-PORT-DISCOVERY.md#hosted-investigation-and-actions-intake)
 for its proposal and Actions receipt. A hosted chat submits
 candidate data on #177; the maintained executor owns canonical creation, neutral
-Project fields and doctor. Keep unvalidated candidates pending. The interactive
+Project fields and doctor. Keep unvalidated candidates pending. Start from the
+latest [unattended collection](../../../docs/DAILY-PORT-DISCOVERY.md#unattended-collection)
+status export: its source coverage, new observations and due watches. Do not
+rebuild that coverage from first-page searches; research its gaps and due subjects. The interactive
 runner instructions below apply to local investigation, not hosted scheduling.
 Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
 clean, detached dedicated metadata checkout. Start `run` with `exec_command`

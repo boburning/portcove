@@ -312,6 +312,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "recover",
     "verify-recovery",
     "recovery-full",
+    "discover",
   ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
@@ -319,9 +320,25 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.deepEqual(Object.keys(workflow.jobs), [
     "reconcile-intake-receipts",
     "collect",
+    "discover",
     "resume-intake-audits",
     "restore-proof",
   ]);
+  // Discovery collection is read-only toward GitHub, isolated on its own runner and
+  // holds no Roadmap or intake credential.
+  const discover = workflow.jobs.discover!;
+  assert.deepEqual(discover.permissions, { contents: "read" });
+  assert.match(discover.if!, /github.event_name == 'schedule' \|\| inputs.purpose == 'discover'/u);
+  assert.ok(discover["timeout-minutes"]! > 0);
+  assert.doesNotMatch(
+    JSON.stringify(discover),
+    /PORTCOVE_ROADMAP_TOKEN|PORTCOVE_DISCOVERY_DATABASE_URL/u,
+  );
+  for (const step of discover.steps) assert.doesNotMatch(step.run ?? "", /secrets\./u);
+  const discoveryStep = discover.steps.find((step) =>
+    step.run?.includes("discovery-worker.mts collect"),
+  )!;
+  assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
   const resume = workflow.jobs["resume-intake-audits"]!;
   assert.match(resume.if!, /github.event_name == 'schedule'/u);
   assert.match(resume.if!, /audit_continuations != '\[\]'/u);
