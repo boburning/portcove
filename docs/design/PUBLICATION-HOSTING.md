@@ -1,6 +1,6 @@
 # Publication hosting without history growth (design, November 23, 2026)
 
-Proposed design, revision 2. Nothing here is implemented or activated, and no
+Proposed design, revision 3. Nothing here is implemented or activated, and no
 repository setting has changed. The [signed catalog contract](../SIGNED-CATALOG.md),
 [RELEASING](../RELEASING.md) and the adopted
 [catalog distribution scaling design](CATALOG-DISTRIBUTION-SCALING.md) stay the
@@ -12,7 +12,20 @@ where marked, an owner decision. Work belongs to
 (2026-11-23T17:24:26Z), the repository's public deployment and artifact
 listings, and anonymous Pages `HEAD` requests on the same day.
 
-**Revision 2** applies the independent review of revision 1:
+**Revision 3** applies the lead's check of revision 2:
+
+- A restore or rollback is one forward generation. It carries the copied
+  files plus a renewal signed above the chain's metadata versions, and it
+  always takes `updates/` from the tip (5.6).
+- Restore sources are limited to pin-store entries merged to `main`. Feed
+  versions move only forward, except by withdrawal (4.3).
+- The pointer carries each generation's header, so the walk is a cheap Git
+  read with no stalling bound. A deploy receipt is the persisted checkpoint,
+  and a genesis rule covers M1 (4.3).
+- `source_commit` is bound to the uploading run.
+- The conditional flip-back is listed as owner action O-H4r (6).
+
+**Revision 2** applied the independent review of revision 1:
 
 - The pointer is trusted only after a chain-linkage and monotonicity check, and
   rollback never re-points at an old generation (4.3, 5.6).
@@ -353,8 +366,8 @@ files any other way.
 
 ### 4.2 Generation
 
-A generation is the complete set of served files. Its manifest is canonical
-JSON:
+A generation is the complete set of served files. It has two canonical JSON
+parts: a small **header** and the **file list**.
 
 ```json
 {
@@ -375,21 +388,32 @@ JSON:
         "official-policy": 0
       }
     },
-    "updates": { "inventory_sha256": "…", "producer_run": 0, "source_commit": "…" }
+    "updates": {
+      "inventory_sha256": "…",
+      "producer_run": 0,
+      "source_commit": "…",
+      "feed_versions": { "preview": "0.1.0-preview.15" },
+      "withdrawn": ["…"]
+    }
   },
-  "files": [["catalog/metadata/timestamp.json", 618, "…"]]
+  "files_sha256": "<SHA-256 of the canonical file list>"
 }
 ```
 
-- **Generation ID.** The SHA-256 of the canonical manifest. `previous` is
-  inside the digest, so a generation commits to the one it was built from.
+The file list is `[[path, length, sha256], …]` for every served file.
+
+- **Generation ID.** The SHA-256 of the canonical header. The header includes
+  `previous` and `files_sha256`. So a generation commits to the generation it
+  was built from, to every file's bytes, and to the component facts that 4.3
+  checks.
+- **Manifest.** The header plus the file list, about 206 KB.
 - **Generation artifact.** `site-generation-<id>` holds the manifest and every
   file. It is uploaded with `retention-days: 90` and is 3.8–11 MB compressed.
 - **Served markers.**
-  - `site-generation.json` holds `{generation, previous, components}`.
-    Readback and late readback use it in place of a commit SHA.
-  - `site-manifest.json` is the full manifest, about 206 KB. It is the
-    verifiable fallback for rebuilding a generation from the served site.
+  - `site-generation.json` holds the header and the generation ID. Readback
+    and late readback use it in place of a commit SHA.
+  - `site-manifest.json` is the full manifest. It is the verifiable fallback
+    for rebuilding a generation from the served site.
 - **Artifact storage.** 8–10 generations a day for 90 days is 720–900
   artifacts. At 3.8–11 MB each, that is **≈2.7–9.9 GB retained**. The
   repository keeps 2.49 GB of `catalog-work` artifacts today. If billing ever
@@ -398,30 +422,25 @@ JSON:
 
 ### 4.3 Pointer branch `pages-state` and how it is verified
 
-`current.json` on `pages-state`:
+`current.json` on `pages-state` carries the generation's **full header**,
+about 1 KB, so every check below is a Git read:
 
 ```json
 {
   "schema_version": 1,
   "kind": "advance",
   "generation": "<id>",
+  "header": { "…": "the generation header from 4.2" },
   "artifact": { "run_id": 0, "artifact_id": 0, "sha256": "…", "bytes": 0 },
   "component": "catalog",
-  "producer_run": 0,
-  "source_commit": "<main commit>",
-  "catalog_metadata_versions": {
-    "root": 1,
-    "timestamp": 0,
-    "snapshot": 0,
-    "targets": 0,
-    "official-definitions": 0,
-    "official-policy": 0
-  }
+  "restore_pin": null
 }
 ```
 
-`kind` is `advance` (a new generation) or `refresh` (the same generation with a
-re-uploaded artifact, 4.7).
+- `kind` is `advance` (a new generation), `refresh` (the same generation with
+  a re-uploaded artifact, 4.7) or `genesis` (the first commit only).
+- `restore_pin` names the pin-store entry when the generation is a restore
+  (5.6).
 
 **Compare-and-swap.** A producer commits a new `current.json` whose parent is
 the pointer commit it composed from. It pushes without force. If a concurrent
@@ -436,44 +455,99 @@ until it passes every check below. Otherwise a pushed `current.json` naming an
 older genuine generation could re-serve a withdrawn application version.
 `updates/` has no TUF floor.
 
-1. **Linkage.** Walk from the tip back to the **anchor**, the generation that
-   is verifiably serving: the served `site-generation.json`, read with a
-   cache-busting query, which must appear in the chain.
-   - For each `advance` commit, the named generation's manifest `previous`
-     must equal the parent commit's `generation`. That value is fixed by the
-     generation ID's digest.
-   - A `refresh` commit must keep its parent's generation and change only
+**The walk.** The checks walk from the tip back to the **verified
+checkpoint**, the newer of two records:
+
+- the generation the site serves now: `site-generation.json`, read with a
+  cache-busting query;
+- the newest **deploy receipt**: an artifact `pages-deployed-<id>` that
+  `pages-deploy.yml` uploads after a deployment it read back.
+
+Only a `main` run in the `github-pages` environment can produce either record.
+The receipt is checked like any other artifact, under rule 3.
+
+A Git ref is not used for the checkpoint. GitHub cannot restrict a ref to one
+workflow without a ruleset bypass, and this design adds none.
+
+1. **Linkage.** For each commit after the checkpoint:
+   - the SHA-256 of `header` must equal `generation`;
+   - for `advance`, `header.previous` must equal the parent commit's
+     `generation`;
+   - `refresh` keeps its parent's generation and header, and changes only
      `artifact`.
-   - A tip that names an older generation fails: its `previous` points at
-     that generation's own predecessor, not at the tip's parent.
-2. **Monotonic components.** Along the walk, each component's `producer_run`
-   never decreases. Each `source_commit` equals its predecessor or descends
-   from it, which is checked with `git merge-base --is-ancestor` on `main`.
-   Catalog `metadata_versions` never decrease, and the
-   `updates/withdrawn.json` superset rule holds.
-3. **Provenance.** Each artifact used was uploaded by a run whose `head_sha`
-   is reachable from `refs/heads/main`, and whose workflow path is on a fixed
-   allowlist: the three producers and `pages-deploy.yml`. This is checked
-   through the Actions runs API with `actions: read`. The artifact's digest
-   must equal `current.json`.
-   - Runs of **superseded workflow code** qualify as long as the code was on
-     `main`, because each generation is re-verified by content: manifest,
-     linkage, monotonicity, and for the catalog the full TUF history check.
-   - A generation whose `composer_schema` is below the composer's
-     `MINIMUM_COMPOSER_SCHEMA` constant is refused. A later reviewed change
-     can raise it to retire generations built by code found faulty.
-4. **Bounds** (4.1) and the full manifest digest of every file.
+
+   A tip that names an older generation fails, because its `previous` points
+   at that generation's own predecessor, not at the tip's parent. So does a
+   replayed pair of older generations stacked on a newer tip: the first
+   replayed commit's `previous` does not match.
+
+2. **Monotonic components.** Between consecutive headers:
+   - `producer_run` never decreases.
+   - `source_commit` equals its predecessor or descends from it, checked with
+     `git merge-base --is-ancestor` on `main`.
+   - Catalog `metadata_versions` never decrease.
+   - `updates.withdrawn` is a superset of its predecessor.
+   - Each channel's `feed_versions` entry never decreases. The only exception
+     is a channel whose previous version is added to `withdrawn` in the same
+     generation. That channel may move to the newest eligible lower version,
+     or be removed, which is RELEASING's withdrawal rule.
+3. **Tip content and provenance.** These checks run on the tip only. Every
+   earlier generation in the walk was checked the same way when a producer
+   built on it.
+   - **Artifact provenance.** The artifact was uploaded by a run whose
+     `head_sha` is reachable from `refs/heads/main`, and whose workflow path
+     is on a fixed allowlist: the three producers and `pages-deploy.yml`. This
+     is checked through the Actions runs API with `actions: read`, and the
+     artifact's digest must equal `current.json`.
+   - **Source binding.** Each component that the generation changes must have
+     `source_commit` equal to that run's `head_sha`.
+   - **Manifest.** The manifest's header must equal `current.json`'s, the file
+     list must hash to `files_sha256`, and every file must match its digest.
+   - **Superseded code.** Runs of superseded workflow code qualify as long as
+     the code was on `main`, because each generation is re-verified by
+     content, and for the catalog by the full TUF history check.
+   - **Composer schema.** A generation whose `composer_schema` is below the
+     composer's `MINIMUM_COMPOSER_SCHEMA` constant is refused. A later
+     reviewed change can raise it to retire generations built by code found
+     faulty.
+   - A `restore_pin` must name an entry in the pin store at the run's
+     `head_sha` on `main` (5.6).
+4. **Bounds** (4.1).
+
+**Genesis (M1).** The first generation has `previous: null`. It is accepted
+only as follows:
+
+- as the root commit of `pages-state`, with `kind: genesis`;
+- while the site serves no `site-generation.json`, as a branch-built site does;
+- only when its files equal the `gh-pages` tree byte for byte (T-PARITY).
+
+The genesis commit is then the checkpoint until the first deploy receipt
+exists. Every later `previous: null` is refused.
 
 **A failed check refuses the tip and stops publication** with a named reason.
-The reconciler fails visibly. The deploy job and the reconciler never deploy
-an unverified tip.
+The reconciler fails visibly, and the deploy job and the reconciler never
+deploy an unverified tip.
 
-The most a writer can do through `pages-state` is stop publication, which they
-can already do today by pushing a broken `gh-pages`. A writer can also dispatch
-the producers on `main`, but that only causes legitimate publications.
+**What a writer can still do:**
 
-The walk is short: from the tip to the served anchor is normally 0–2 commits.
-It is bounded by 64 commits, and the run refuses beyond that.
+- **Stop publication.** A writer can push to `pages-state` and so stop
+  publication. They can already do that today by pushing a broken `gh-pages`.
+- **Dispatch producers on `main`.** A dispatched run executes reviewed `main`
+  code on current `main` inputs. That code accepts only forward changes
+  (rule 2), and restore sources only from pin-store entries merged to `main`
+  (5.6). A dispatch can therefore cause only a publication that `main` would
+  make anyway, such as an early renewal. It cannot select an older feed,
+  catalog or generation.
+
+**The walk has no stalling bound.** Each step reads one 1 KB Git object. Only
+the tip's artifact is downloaded. A walk of 10,000 steps (about 3 years of
+publications with no successful deployment) still costs seconds. There is
+one sanity bound: a walk longer than 100,000 commits (about 27 years of
+publications) refuses with `POINTER_WALK_BOUND`. That is a classified alarm,
+not a recovery state, and it cannot be reached while deployments succeed.
+Publications that pile up while deployments fail therefore never stall the
+walk. The next successful deployment, or deploy receipt, advances the
+checkpoint.
 
 ### 4.4 Measured history growth of the pointer branch
 
@@ -483,13 +557,17 @@ It is bounded by 64 commits, and the run refuses beyond that.
   because nearly every `browse/` file changes each publication. At 10
   publications a day it would reach 2 GiB in about 16 years: slow, but
   unbounded and pointless.
-- **Pointer only** (chosen). 2,000 simulated commits of a 476-byte
-  `current.json`, with fresh random digests in every commit (the worst case
-  for delta compression), packed to 1,690 KiB. That is about
-  **0.85 KiB a publication**. At 10 a day it is about 3 MiB a year, so 2 GiB
-  is about 680 years away. The catalog version fields add a few bytes. Nothing
-  ever needs compaction, and the per-run report still records the packed size
-  (8).
+- **Pointer only** (chosen). Two simulations, each of 2,000 commits:
+  - a 476-byte `current.json` on one line, with fresh random digests in
+    every commit (the worst case for delta compression): 1,690 KiB, about
+    **0.85 KiB a publication**;
+  - the revision-2 shape, a 1,446-byte pretty-printed `current.json` with the
+    full header, random digests and the catalog changing every commit:
+    1,213 KiB, about 0.61 KiB a publication.
+
+  At the conservative 0.85 KiB and 10 publications a day, growth is about
+  3 MiB a year, so 2 GiB is about 680 years away. Nothing ever needs
+  compaction. The per-run report still records the packed size (8).
 
 ### 4.5 One publication
 
@@ -618,7 +696,7 @@ Owner actions (O-H…) are defined in section 6. The order is binding.
 | Step | What                                                                                                                                                                                                                                                                                                                                      | Authority                                   | Rehearsal                                                                                            | Rollback                                                                                                                                  |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | P    | Owner pre-checks: O-H0 (rehearsal repository), O-H3 (protect `pages-state`), O-H6 (retention and billing), O-H7 (read the environment policy)                                                                                                                                                                                             | **Owner**                                   | —                                                                                                    | —                                                                                                                                         |
-| M0   | The composer module and `pages-deploy.yml` as inert code, with the verification logic in 4.3. Tests T-SIM, T-CONCURRENT, T-INTERRUPT, T-RESTORE, T-PROVENANCE and T-POISON run against a local bare remote and a fake deploy. Also the test that release-inventory consumers ignore `pages-pin-` releases.                                | Lead: ordinary reviewed PR                  | Offline tests                                                                                        | Revert                                                                                                                                    |
+| M0   | The composer module and `pages-deploy.yml` as inert code, with the verification logic in 4.3. Tests T-SIM, T-CONCURRENT, T-INTERRUPT, T-RESTORE, T-PROVENANCE, T-POISON and T-STALL run against a local bare remote and a fake deploy. Also the test that release-inventory consumers ignore `pages-pin-` releases.                       | Lead: ordinary reviewed PR                  | Offline tests                                                                                        | Revert                                                                                                                                    |
 | M1   | **Shadow mode, after O-H3.** Each of the three producers also composes a generation, uploads the artifact and advances `pages-state`, then pushes `gh-pages` as today. A parity check requires the generation's files to equal the `gh-pages` tree byte for byte. No Pages permission is added and no pin is created.                     | Lead: reviewed PR                           | At least 14 days and 100 publications of parity in production; T-READER parity                       | Revert; `pages-state` is ignored                                                                                                          |
 | M2   | Add the deploy job and reconciler: `pages: write`, `id-token: write`, environment `github-pages`. They are gated on the Pages API reporting `build_type: workflow`, so they are no-ops while the source is the branch. Switch released-reader selection and late readback to the verified pointer, with `gh-pages` kept as a cross-check. | **Owner approves the merge (O-H1)**         | In the O-H0 repository: T-ATOMIC, T-FLIP, T-INTERRUPT, T-CLIENT and a ≈20-deploys-an-hour rate probe | Revert                                                                                                                                    |
 | M3   | O-H2a, then O-H4. Verify that the first workflow deployment serves the verified tip, and the lead merges the stop-`gh-pages`-writes change the same day. Then O-H2b. **This is the last regular `gh-pages` write.**                                                                                                                       | **Owner** (settings), lead (stop-writes PR) | First deployment read back; `site-generation.json` equals the tip                                    | Flip back (below)                                                                                                                         |
@@ -710,42 +788,58 @@ After M3 a compact change costs one 90-day artifact and nothing permanent.
 - **Unpinning.** The publisher deletes the release. Immutable releases allow
   deleting a release, but not reusing its tag. Tags are content-addressed, so
   none is reused.
-- **Restore from a pin.**
-  1. Compose a **new** generation whose `previous` is the current tip, copying
-     the pinned content-addressed files.
-  2. Verify it and publish it normally.
-  3. Dispatch an ordinary renewal, which plans versions above the chain's
-     `catalog_metadata_versions`.
+- **Who may choose a restore source.** Only a pin-store entry merged to
+  `main` through a reviewed PR. That covers chosen pins, and a rolling pin
+  once a PR names it. The `catalog-publish.yml` restore input takes a
+  pin-store entry name, never a generation ID, artifact or URL. The run
+  checks that the name exists in the pin store at its own `head_sha`, and
+  records it as `restore_pin` (4.3 rule 3). A writer without merge rights to
+  `main` cannot pick an older generation to re-serve.
+- **A restore or rollback is one forward generation.** Copied older catalog
+  files carry lower metadata versions, so 4.3 rule 2 and every client refuse
+  them on their own. So one run composes, as a single generation:
+  1. `previous` set to the current tip;
+  2. the restored content-addressed files from the pinned generation:
+     catalog bodies and targets, and `browse/` when needed;
+  3. **new signed catalog metadata**: the ordinary renewal, signed by the
+     existing role jobs. Its versions are above the maximum
+     `metadata_versions` in the chain and in the pinned generation, and it
+     names the restored targets;
+  4. **`updates/` from the current tip, always**, including
+     `updates/withdrawn.json` and every feed. They are never taken from the
+     restored generation. A withdrawal therefore always survives a restore.
 
-  Lead authority, as today.
+  The result passes rule 2, and clients accept it as an ordinary newer
+  publication. This is the existing restore runbook and the renewal merged
+  into one publication run.
 
-- **Rollback of a bad deployment is always forward.** The rule is
-  **never push a pointer that names an old generation.** Linkage refuses it,
-  and re-serving older catalog metadata would be refused by clients that saw
-  newer metadata. Instead, compose a new `advance` generation, with `previous`
-  equal to the current tip, that copies the last good files:
-  - **`updates/` or `browse/` broken:** that component's files from the last
-    good generation;
-  - **catalog broken:** the last good catalog files, followed at once by an
-    ordinary renewal above the chain's metadata versions;
-  - **whole site broken** (for example a composer bug): every file from the
-    last good generation, then the renewal.
+- **`updates/` rollback.** Feeds move only forward (4.3 rule 2). Replacing a
+  broken feed file with a newer or equal, correct file is an ordinary feed
+  publication. Moving a channel to a lower version is a withdrawal, which
+  stays the owner's `withdraw-release.yml`, and the composer accepts it
+  through the withdrawal exception.
+- **Never point at an old generation.** No route pushes a pointer naming an
+  old generation, because linkage refuses it.
+- **Who acts.** The lead, under existing delegation: a reviewed pin-store PR,
+  then a dispatch of the restore run. Owner authority is needed only for a
+  withdrawal, as today.
 
 ## 6. Owner actions
 
 Each action is one-time, and none recurs. Do them in this order:
 
-| ID        | When          | Exact action                                                                                                                                                                                          | Consequence in plain language                                                                                                                                                                                                                                     | Undo                                          |
-| --------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| **O-H6**  | Before M1     | Settings → Actions → General → **Artifact and log retention: confirm 90 days**. Read the account's billing page for Actions storage.                                                                  | Generations stay available for 90 days. Shows whether artifact storage is billed for a public repository (it is expected to be free).                                                                                                                             | —                                             |
-| **O-H7**  | Before M1     | Settings → Environments → `github-pages`: **read and report** the current deployment branch and tag rules, reviewers and administrator bypass.                                                        | Lets the lead write M2 against the actual policy, including any rule kept for the held application controller.                                                                                                                                                    | —                                             |
-| **O-H0**  | Before M2     | Create a **throwaway public repository**. Grant the lead write access for the rehearsal, then delete the repository afterwards.                                                                       | A safe place to test atomic replacement, a source flip, an interrupted deployment and about 20 deployments an hour, without touching the real site. If declined, the first production deployment is the rehearsal, and only if the owner accepts that explicitly. | Delete the repository                         |
-| **O-H3**  | Before M1     | Settings → Rules → new branch ruleset for `pages-state`: **block force pushes**, **restrict deletions**. No bypass list.                                                                              | The pointer history cannot be rewritten or removed. Publishers still advance it with normal pushes. Content is checked by verification (4.3), not by this rule.                                                                                                   | Disable the ruleset                           |
-| **O-H1**  | M2            | **Approve the merge** of M2, which gives the reusable `pages-deploy.yml` job `pages: write` and `id-token: write` in the `github-pages` environment.                                                  | Workflow code on `main` gains the ability to publish the website. It replaces today's route, in which anyone with write access can push `gh-pages`. Nothing is signed differently.                                                                                | Revert the PR                                 |
-| **O-H2a** | M3, first     | Settings → Environments → `github-pages` → Deployment branches and tags: **add a branch rule for `main`**. **Keep `gh-pages`** for now. Keep administrator bypass off.                                | Both the old branch build and the new workflow can deploy during the switch.                                                                                                                                                                                      | Remove the `main` rule                        |
-| **O-H4**  | M3, second    | Settings → Pages → Build and deployment → Source: change **"Deploy from a branch" (`gh-pages`) to "GitHub Actions"**. Then confirm that the first workflow deployment serves the expected generation. | Pushes to `gh-pages` stop publishing. The site keeps serving the last branch deployment until the first workflow deployment, which usually runs within the hour. The 10-builds-an-hour soft limit stops applying.                                                 | Switch back after the lead's sync commit (M4) |
-| **O-H2b** | M3, third     | Same environment page: **remove the `gh-pages` rule**, leaving only `main`.                                                                                                                           | Only workflows running from `main` can deploy the site. A branch or pull request cannot.                                                                                                                                                                          | Re-add `gh-pages`                             |
-| **O-H5**  | After M5 (M6) | Either freeze `gh-pages` with a ruleset that **restricts updates** (recommended), or archive it as one or two `git bundle` release assets and delete the branch.                                      | The old history stops changing, or moves into archive files. No force-push, ever.                                                                                                                                                                                 | Lift the rule; push the bundle back           |
+| ID        | When                   | Exact action                                                                                                                                                                                                 | Consequence in plain language                                                                                                                                                                                                                                     | Undo                                          |
+| --------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| **O-H6**  | Before M1              | Settings → Actions → General → **Artifact and log retention: confirm 90 days**. Read the account's billing page for Actions storage.                                                                         | Generations stay available for 90 days. Shows whether artifact storage is billed for a public repository (it is expected to be free).                                                                                                                             | —                                             |
+| **O-H7**  | Before M1              | Settings → Environments → `github-pages`: **read and report** the current deployment branch and tag rules, reviewers and administrator bypass.                                                               | Lets the lead write M2 against the actual policy, including any rule kept for the held application controller.                                                                                                                                                    | —                                             |
+| **O-H0**  | Before M2              | Create a **throwaway public repository**. Grant the lead write access for the rehearsal, then delete the repository afterwards.                                                                              | A safe place to test atomic replacement, a source flip, an interrupted deployment and about 20 deployments an hour, without touching the real site. If declined, the first production deployment is the rehearsal, and only if the owner accepts that explicitly. | Delete the repository                         |
+| **O-H3**  | Before M1              | Settings → Rules → new branch ruleset for `pages-state`: **block force pushes**, **restrict deletions**. No bypass list.                                                                                     | The pointer history cannot be rewritten or removed. Publishers still advance it with normal pushes. Content is checked by verification (4.3), not by this rule.                                                                                                   | Disable the ruleset                           |
+| **O-H1**  | M2                     | **Approve the merge** of M2, which gives the reusable `pages-deploy.yml` job `pages: write` and `id-token: write` in the `github-pages` environment.                                                         | Workflow code on `main` gains the ability to publish the website. It replaces today's route, in which anyone with write access can push `gh-pages`. Nothing is signed differently.                                                                                | Revert the PR                                 |
+| **O-H2a** | M3, first              | Settings → Environments → `github-pages` → Deployment branches and tags: **add a branch rule for `main`**. **Keep `gh-pages`** for now. Keep administrator bypass off.                                       | Both the old branch build and the new workflow can deploy during the switch. Until O-H2b, today's exposure remains: a writer can still deploy from `gh-pages`. Do O-H4 and O-H2b on the same day to keep that window short.                                       | Remove the `main` rule                        |
+| **O-H4**  | M3, second             | Settings → Pages → Build and deployment → Source: change **"Deploy from a branch" (`gh-pages`) to "GitHub Actions"**. Then confirm that the first workflow deployment serves the expected generation.        | Pushes to `gh-pages` stop publishing. The site keeps serving the last branch deployment until the first workflow deployment, which usually runs within the hour. The 10-builds-an-hour soft limit stops applying.                                                 | Switch back after the lead's sync commit (M4) |
+| **O-H2b** | M3, third              | Same environment page: **remove the `gh-pages` rule**, leaving only `main`.                                                                                                                                  | Only workflows running from `main` can deploy the site. A branch or pull request cannot.                                                                                                                                                                          | Re-add `gh-pages`                             |
+| **O-H4r** | Only if M4 or M5 fails | **Flip back:** after the lead's sync commit of the verified tip to `gh-pages`, reverse O-H4 (Source → "Deploy from a branch", `gh-pages`, root), and re-add `gh-pages` to the environment if O-H2b was done. | The site is served from `gh-pages` again, exactly as before the switch. Producers resume their `gh-pages` writes through a reverted PR.                                                                                                                           | Repeat O-H4                                   |
+| **O-H5**  | After M5 (M6)          | Either freeze `gh-pages` with a ruleset that **restricts updates** (recommended), or archive it as one or two `git bundle` release assets and delete the branch.                                             | The old history stops changing, or moves into archive files. No force-push, ever.                                                                                                                                                                                 | Lift the rule; push the bundle back           |
 
 No ruleset bypass, new secret, credential, signing role or key is needed.
 
@@ -755,7 +849,8 @@ No ruleset bypass, new secret, credential, signing role or key is needed.
   the merge);
 - the stop-writes change at M3, probation monitoring, and any flip-back sync
   commit;
-- pin-store PRs, restores and forward rollbacks.
+- pin-store PRs, restores from pin-store entries, and forward rollbacks;
+- the sync commit before any O-H4r.
 
 ## 7. Compatibility
 
@@ -851,20 +946,21 @@ O3 left.
 
 ## 10. Test plan
 
-| ID           | What                                                                                                                                                                                                                                                                                                                                                                      | Where                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| T-SIM        | 5,000 simulated publications of both components through the composer. Assert deterministic generation IDs, window bounds and artifact size, and that the `pages-state` packed size matches the projection in 4.4.                                                                                                                                                         | M0, offline                                |
-| T-CONCURRENT | Catalog and feed producers race on a local bare `pages-state`. Assert CAS retries, no lost files and component isolation. Run deploy jobs out of order and drop a pending deploy. Assert the final served generation is the tip, contains both changes, and the readback job still reports.                                                                               | M0, offline                                |
-| T-POISON     | Fast-forward `pages-state` to a commit naming an older genuine generation, a generation with a lower `producer_run`, a `source_commit` that does not descend from its predecessor, lower catalog versions, or a shrunken `withdrawn.json`. Assert every one is refused, and that nothing is deployed or composed from it.                                                 | M0, offline                                |
-| T-INTERRUPT  | Kill the run after each step in 4.5. Assert convergence through the next deploy or the reconciler, and that orphan artifacts are never deployed. In the rehearsal repository, cancel `deploy-pages` mid-run and observe what is served.                                                                                                                                   | M0 offline; M2 rehearsal                   |
-| T-RESTORE    | Restore from a chosen pin and from a rolling pin. **Delete the tip's artifact and rebuild it from the served site over HTTPS, verified against the pointer digest.** Refresh an artifact older than 60 days. Run `verify-definition-repository`, then plan a renewal: versions must exceed the chain's maximum. Also restore a `pages_commit` pin from the frozen branch. | M0, M5                                     |
-| T-PROVENANCE | A pointer to an artifact from a run whose `head_sha` is not reachable from `main`, from a workflow path not on the allowlist, with a wrong digest, or with a `composer_schema` below the minimum, is refused before composition.                                                                                                                                          | M0                                         |
-| T-READER     | Released-reader selection from the verified pointer equals selection from `gh-pages`, for every M1 publication. Release inventory ignores `pages-pin-` prereleases.                                                                                                                                                                                                       | M0, M1                                     |
-| T-PARITY     | Each shadow generation's files equal the `gh-pages` tree byte for byte.                                                                                                                                                                                                                                                                                                   | M1, production shadow                      |
-| T-ATOMIC     | During an Actions-source deployment, poll 50 files at the origin with cache-busting queries. Assert no mixed generation at the origin, and measure the CDN window.                                                                                                                                                                                                        | M2, rehearsal repository                   |
-| T-FLIP       | Change the source from branch to Actions and back, including the sync commit. Measure the serving gap, and assert no 404 for the site's files.                                                                                                                                                                                                                            | M2, rehearsal repository                   |
-| T-RATE       | About 20 deployments in one hour. Record any 429 or refusal, and the deploy durations.                                                                                                                                                                                                                                                                                    | M2, rehearsal repository                   |
-| T-CLIENT     | The released Preview 15 CLI runs `catalog listing-refresh` and `listing-status` repeatedly, across one deployment and across two deployments within 600 seconds. Assert a verified success or a clean keep-last-verified, and never a lowered revision.                                                                                                                   | M2 rehearsal (fixture root); M3 production |
+| ID           | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Where                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| T-SIM        | 5,000 simulated publications of both components through the composer. Assert deterministic generation IDs, window bounds and artifact size, and that the `pages-state` packed size matches the projection in 4.4.                                                                                                                                                                                                                                                                                                                                                                    | M0, offline                                |
+| T-CONCURRENT | Catalog and feed producers race on a local bare `pages-state`. Assert CAS retries, no lost files and component isolation. Run deploy jobs out of order and drop a pending deploy. Assert the final served generation is the tip, contains both changes, and the readback job still reports.                                                                                                                                                                                                                                                                                          | M0, offline                                |
+| T-POISON     | Fast-forward `pages-state` to a commit naming an older genuine generation, a generation with a lower `producer_run`, a `source_commit` that does not descend from its predecessor, lower catalog versions, a shrunken `withdrawn.json`, a lowered feed version without a withdrawal, a replayed pair of older generations stacked on the tip, a header whose digest does not match its `generation`, a second `previous: null`, or a `restore_pin` absent from the pin store at the run's `head_sha`. Assert every one is refused, and that nothing is deployed or composed from it. | M0, offline                                |
+| T-INTERRUPT  | Kill the run after each step in 4.5. Assert convergence through the next deploy or the reconciler, and that orphan artifacts are never deployed. In the rehearsal repository, cancel `deploy-pages` mid-run and observe what is served.                                                                                                                                                                                                                                                                                                                                              | M0 offline; M2 rehearsal                   |
+| T-RESTORE    | Restore from a chosen pin and from a rolling pin. Restore as one generation with renewed metadata, with `updates/` taken from the tip across an intervening withdrawal. **Delete the tip's artifact and rebuild it from the served site over HTTPS, verified against the pointer digest.** Refresh an artifact older than 60 days. Run `verify-definition-repository`, then plan a renewal: versions must exceed the chain's maximum. Also restore a `pages_commit` pin from the frozen branch.                                                                                      | M0, M5                                     |
+| T-STALL      | 1,000 publications with every deployment failing, then one successful deployment. Assert that producers kept publishing, that the walk stayed fast, and that the deploy receipt advanced the checkpoint.                                                                                                                                                                                                                                                                                                                                                                             | M0, offline                                |
+| T-PROVENANCE | A pointer to an artifact from a run whose `head_sha` is not reachable from `main`, whose changed component's `source_commit` differs from the run's `head_sha`, from a workflow path not on the allowlist, with a wrong digest, or with a `composer_schema` below the minimum, is refused before composition.                                                                                                                                                                                                                                                                        | M0                                         |
+| T-READER     | Released-reader selection from the verified pointer equals selection from `gh-pages`, for every M1 publication. Release inventory ignores `pages-pin-` prereleases.                                                                                                                                                                                                                                                                                                                                                                                                                  | M0, M1                                     |
+| T-PARITY     | Each shadow generation's files equal the `gh-pages` tree byte for byte.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | M1, production shadow                      |
+| T-ATOMIC     | During an Actions-source deployment, poll 50 files at the origin with cache-busting queries. Assert no mixed generation at the origin, and measure the CDN window.                                                                                                                                                                                                                                                                                                                                                                                                                   | M2, rehearsal repository                   |
+| T-FLIP       | Change the source from branch to Actions and back, including the sync commit. Measure the serving gap, and assert no 404 for the site's files.                                                                                                                                                                                                                                                                                                                                                                                                                                       | M2, rehearsal repository                   |
+| T-RATE       | About 20 deployments in one hour. Record any 429 or refusal, and the deploy durations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | M2, rehearsal repository                   |
+| T-CLIENT     | The released Preview 15 CLI runs `catalog listing-refresh` and `listing-status` repeatedly, across one deployment and across two deployments within 600 seconds. Assert a verified success or a clean keep-last-verified, and never a lowered revision.                                                                                                                                                                                                                                                                                                                              | M2 rehearsal (fixture root); M3 production |
 
 ## 11. Open risks and UNKNOWNs
 
@@ -928,6 +1024,10 @@ never force-pushed.
 8. **O-H2b:** remove `gh-pages` from the environment.
 9. **O-H5:** freeze, or archive and delete, the old `gh-pages` branch.
 
+Only if the 14-day trial or the cleanup fails: **O-H4r**, switch the Pages
+source back to `gh-pages` after the lead syncs it, and re-allow `gh-pages` in
+the environment.
+
 After these, owner maintenance is **none**.
 
 ## Appendix: measurement method
@@ -943,8 +1043,10 @@ After these, owner maintenance is **none**.
   order, I committed a manifest line per file (`blob-id(40 hex)+24 hex`,
   length, path) to a scratch repository, then ran `git gc` and
   `git count-objects -v`.
-- **Pointer growth.** 2,000 commits of a 476-byte `current.json` with fresh
-  random digests each time, then `git gc`.
+- **Pointer growth.** 2,000 commits of a 476-byte one-line `current.json`,
+  and separately (through `git fast-import`) 2,000 commits of a 1,446-byte
+  header-carrying `current.json`. Fresh random digests each time, then
+  `git gc`.
 - **Deployments and artifacts.** Read-only listings of the repository's
   `github-pages` deployments, deployment statuses, `pages-build-deployment`
   runs, and `catalog-work` artifacts.
