@@ -686,8 +686,20 @@ pub(crate) fn package_role_hold(
         return Some(RouteHold::WrongRole);
     }
     let expected = suggestion.role == ArtifactRole::DesktopGameRuntime
-        || (can_extract && adapter_expected_package_roles(adapter).contains(&suggestion.role));
+        || (can_extract
+            && adapter_expected_package_roles(adapter).contains(&suggestion.role)
+            && (suggestion.role != ArtifactRole::Installer || names_only_setup(name)));
     (!expected).then_some(RouteHold::WrongRole)
+}
+
+/// The widened installer role covers a package named for its setup or
+/// installer only. An uninstaller or a runtime redistributable is never the
+/// game package, even for an upstream-managed setup route.
+fn names_only_setup(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    let tokens = tokens(&name);
+    let has = |values: &[&str]| values.iter().any(|value| tokens.contains(value));
+    has(&["setup", "installer"]) && !has(&["uninstall", "unins000", "vcredist", "redist"])
 }
 
 /// Programs in a reviewed package listing that may be the game's player.
