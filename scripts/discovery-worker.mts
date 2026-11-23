@@ -987,7 +987,7 @@ export async function discoveryWorkerMain(argv: string[]) {
       sourceRevision: process.env.GITHUB_SHA ?? "local",
       runner: run
         ? `github-actions:${run}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
-        : `local:${os.hostname()}`,
+        : `local:${os.hostname()}:${randomUUID()}`,
       // The job's own deadline, less time to commit the final state.
       deadline: Number.isFinite(deadlineEpoch)
         ? deadlineEpoch * 1000 - finalizationMs
