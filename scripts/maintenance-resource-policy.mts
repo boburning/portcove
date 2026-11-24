@@ -21,6 +21,12 @@ const neonOrganization = "org-polished-frog-23199890";
  * A provider message fit for retained evidence: one line, at most 200
  * characters, with the credential removed should a provider ever echo it.
  */
+/**
+ * How long after an operation finishes the provider counter is assumed to include
+ * its transfer. Neon refreshes usage roughly every 15 minutes; this is a wide margin.
+ */
+const meterSettleInterval = "interval '2 hours'";
+
 export function neonDiagnostic(message: string, token: string) {
   const line = message.replace(/[\r\n\t]+/gu, " ").trim();
   return (token ? line.split(token).join("[credential]") : line).slice(0, 200);
@@ -355,7 +361,12 @@ export function acquireMaintenanceReservation(
     WITH balance AS (
       SELECT coalesce(sum(
         CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
-          THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
+          -- The cumulative project counter already includes a completed
+          -- operation's transfer once the sample was taken well after it
+          -- finished, whichever client caused it. Only recent completions are
+          -- still charged on top of the counter.
+          THEN CASE WHEN finished_at <= ${sampled}::timestamptz - ${meterSettleInterval}
+            THEN 0 ELSE greatest(estimate_bytes, least(reserved_bytes, 500000)) END
           ELSE reserved_bytes END), 0) AS unresolved,
         max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
         min(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS initial
