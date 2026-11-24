@@ -932,6 +932,76 @@ void test(
 );
 
 void test(
+  "a completed charge leaves the ledger once the provider counter has settled past it",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner } = fixture.start("settled-charge");
+    migrate(owner);
+    const meter = testMeter(1_000_000_000);
+    const take = (request: string) =>
+      acquireMaintenanceReservation(owner, {
+        meter,
+        request,
+        operation: "collect",
+        reason: "test",
+      });
+    const first = take("first").attempt_id;
+    assert.ok(first);
+    const finish = (ago: string) =>
+      runSql(
+        owner,
+        `UPDATE portcove_maintenance_meta.resource_admissions
+          SET outcome = 'completed', estimate_bytes = 3000000000,
+              finished_at = clock_timestamp() - interval '${ago}'
+          WHERE attempt_id = '${first}';`,
+      );
+    finish("1 hour");
+    assert.equal(
+      take("recent").attempt_id,
+      null,
+      "a recent completion may not be in the counter yet, so it is still charged",
+    );
+    finish("3 hours");
+    assert.ok(
+      take("settled").attempt_id,
+      "a completion the counter already includes is not charged a second time",
+    );
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET outcome = 'failed', finished_at = clock_timestamp() - interval '3 hours',
+            reserved_bytes = 3000000000, estimate_bytes = NULL
+        WHERE attempt_id = '${first}';`,
+    );
+    assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    // The fixed cutover sample predates the completion, so it never settles.
+    const cutover = {
+      ...meter,
+      sampleOrigin: "november-cutover" as const,
+      sampledAt: new Date(Date.now() - 7_200_000).toISOString(),
+    };
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET outcome = 'completed', estimate_bytes = 3000000000,
+            finished_at = clock_timestamp() - interval '3 hours'
+        WHERE attempt_id = '${first}';`,
+    );
+    assert.equal(
+      acquireMaintenanceReservation(owner, {
+        meter: cutover,
+        request: "cutover-unsettled",
+        operation: "collect",
+        reason: "test",
+      }).attempt_id,
+      null,
+      "a completion after the fixed cutover sample never settles",
+    );
+  },
+);
+
+void test(
   "recovery reconstruction reuses history and restores current state and sequences",
   {
     skip: server.skip ?? false,
