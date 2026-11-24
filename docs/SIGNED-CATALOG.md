@@ -155,13 +155,19 @@ the field. Listing formats and bounds by released reader (from each tag's
 | `nightly-0.1.0-preview.13`                                  | 5–13            | No              | 8 MiB         | —                       | 10,000 each                |
 | `nightly-0.1.0-preview.14`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
 | `nightly-0.1.0-preview.15`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
+| `nightly-0.1.0-preview.16`, `.17`                           | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 40 MiB element budget      |
 
-Every one of them also refuses more than 4,096 indexed definitions and keeps
-the 4 MiB definition index. Which of them are still supported is decided by
-`updates/withdrawn.json` and the released-reader gate; no version is withdrawn
-on November 23, 2026.
+Preview 16 is the first released reader with the element budget, and
+Preview 17 keeps its listing bounds unchanged: they charge listings and
+withdrawals against the element budget instead of counting them, advertise
+`listing_delivery_limits`, and keep the 4 MiB definition index without a
+definition count. Every earlier reader refuses more than 4,096 indexed
+definitions and keeps the 4 MiB definition index. Which of them are still
+supported is decided by `updates/withdrawn.json` and the released-reader gate.
+The file is written by the first withdrawal; until then it is absent and no
+version is withdrawn.
 
-| Bound                                                | Released readers         | Current generation        | Why it stays or changed                                                                                                                |
+| Bound                                                | Preview 15 and earlier   | Current generation        | Why it stays or changed                                                                                                                |
 | ---------------------------------------------------- | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Listing target body, either carrier                  | 8 MiB                    | 8 MiB                     | Whole-target read before its digest check; the frozen `listing_delivery` SQLite check.                                                 |
 | Decoded compact directory                            | 32 MiB                   | 32 MiB                    | Decompression-ratio and working-memory bound, allocated before inflation; the `compact_listing_delivery` SQLite check. Measured below. |
@@ -172,12 +178,14 @@ on November 23, 2026.
 | Bundled listing directory                            | 8 MiB, 10,000 listings   | No bound                  | Compiled into the binary; no untrusted input or allocation to protect.                                                                 |
 | Listing text inspected by `catalog inspect-listings` | 8 MiB                    | 64 MiB                    | Twice the largest decoded directory a reader admits, so authored formatting never binds before delivery.                               |
 
-The legacy target is already at its bound. Signed revision 47 is 8,388,398
-bytes, 210 bytes below 8 MiB, and carries 1,193 of the 1,649 listings: the
-publisher fills it and leaves the remaining rows to each reader's bundled
+The legacy target is already at its bound. Its frozen bytes, signed revision
+49, are 8,388,496 bytes, 112 bytes below 8 MiB, and carry 1,193 of the 1,649
+listings (observed November 24, 2026; see
+[Compact listing activation evidence](#compact-listing-activation-evidence-november-24-2026)):
+the publisher filled it and left the remaining rows to each reader's bundled
 copy. A complete legacy target with today's signed observations would need
 9,778,469 bytes. Format-11 readers therefore already receive a partial
-directory. The legacy target is frozen at revision 47 by the compact cutover
+directory. The legacy target is frozen at its last pre-cutover revision by the compact cutover
 (see [Compact listing delivery](#compact-listing-delivery-and-the-minimum-supported-preview)),
 so this size is reported as information, never as a CI ceiling. The canonical
 read in `scripts/listing-observation-delivery.mts` is publisher input, not a
@@ -186,9 +194,10 @@ wire format, so it follows Core's 64 MiB inspection bound
 constraints are the compact carrier's released-reader bounds and the element
 budget below.
 
-With the signed observations of revision 47, the compact carrier measures
-9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370 wire bytes (33% of
-8 MiB). Only 933 listings carry an observation, about 4,790 bytes each.
+On November 23, 2026, with the signed observations of legacy revision 47, the
+compact carrier measured 9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370
+wire bytes (33% of 8 MiB). Only 933 listings carried an observation, about
+4,790 bytes each.
 
 On November 23, 2026 the committed directory, deterministic 5x and 10x copies
 with fresh identities, and two worst-case element shapes at the 32 MiB decoded
@@ -379,14 +388,18 @@ compact carrier `policy/official/catalog.listings.compact.json`
 (`gzip-base64-json-v1`, listing format 15) is the only listing target that
 changes. **Preview 14 (`0.1.0-preview.14`) is the minimum supported preview
 for live listing updates**: it is the first release whose reader selects the
-compact carrier, and Preview 15 reads it too. The publisher states it as
+compact carrier, and later previews read it too. The publisher states it as
 `minimumLiveListingReader` in `scripts/listing-observation-delivery.mts` and
 in each preparation report. It is raised when a later reader generation
 replaces the compact carrier.
 
 The legacy format-11 target `policy/official/catalog.listings.json` stays
-named in the official-policy role with its last signed bytes (revision 47,
-SHA-256 `0d20ba97…`, 8,388,398 bytes) and never changes again. Preparation
+named in the official-policy role with its last signed pre-cutover bytes and
+never changes again. Those bytes are revision 49, SHA-256 `9a025755…`,
+8,388,496 bytes, first signed in official-policy version 62 and unchanged in
+version 63, the cutover (observed November 24, 2026; see
+[Compact listing activation evidence](#compact-listing-activation-evidence-november-24-2026)).
+Preparation
 republishes those exact authenticated bytes beside every compact target; it
 has no legacy projection, byte-budget fitting, hold successor or legacy-only
 return. Each compact revision is above the legacy revision.
@@ -401,7 +414,7 @@ capability report lists formats 5–13 and no carrier). Read from the
   (`listing_delivery.rs`, `acquire_admissible`). It is still signed in every
   new policy role version with the same bytes. An equal revision with equal
   bytes is admitted, so the stored directory stays selected and its signed
-  provenance stays fresh. The player keeps the revision-47 directory, with no
+  provenance stays fresh. The player keeps the frozen legacy directory, with no
   error and no fallback, and receives no further listing changes.
 - **Unknown target name.** Definition refresh walks the policy role's targets
   and skips any name that is not a stable definition ID. The compact name
@@ -413,7 +426,8 @@ capability report lists formats 5–13 and no carrier). Read from the
   `updates/{beta,preview}/latest.json` with its own minisign key, separately
   from the TUF catalog (`application_update.rs`); it does not read listing
   targets or catalog freshness. `application_update.rs` is identical at
-  Preview 13, Preview 15 and current `main`, and the channel defaults to Beta.
+  Preview 13, Preview 15 and `main` (read November 23, 2026), and the channel
+  defaults to Beta.
   No Beta release exists yet, so each preview publication also writes
   `updates/beta/latest.json` as a byte-identical copy of the Preview feed
   ([interim Beta alias](RELEASING.md#interim-beta-alias)). A default-configured
@@ -422,11 +436,11 @@ capability report lists formats 5–13 and no carrier). Read from the
   manual check in Settings; no channel change is needed.
 
 **What a Preview 13 player sees after cutover.** The game list stays on the
-revision-47 directory with no error, and installed games, saves and settings
+frozen legacy directory with no error, and installed games, saves and settings
 are unchanged. The application offers the update to the current preview.
 After updating, the next listing refresh selects the compact target and the
-listing changes since revision 47 appear. A player who declines the update
-keeps the revision-47 directory and receives no listing changes.
+listing changes since the frozen legacy revision appear. A player who declines
+the update keeps the frozen legacy directory and receives no listing changes.
 
 The cutover is sequenced after the alias: `Catalog publish` must not publish
 the first compact target until the first alias publication has been confirmed
@@ -440,7 +454,7 @@ Alternatives considered:
 - **Remove the legacy target from the policy role.** The old reader's refresh
   then fails on a missing target. When the stored provenance expires the
   directory falls back to the build's bundled listings with
-  `ListingDirectoryUnavailable`, losing the delivered revision 47. The signer
+  `ListingDirectoryUnavailable`, losing the delivered frozen directory. The signer
   also refuses a compact target without its legacy target, so this needs a
   signer rule change.
 - **Signed metadata the old reader cannot parse.** It would stop all catalog
@@ -451,7 +465,7 @@ on a valid, fresh, unchanging directory.
 
 **Accepted consequence.** Older previews no longer receive listing changes,
 including new or changed download holds, withdrawals and typed restrictions
-added after revision 47. Their bundled holds and the frozen revision-47 holds
+added after the frozen legacy revision. Their bundled holds and the frozen legacy holds
 remain. Operational definition and policy holds still reach them. The
 mitigation is the application update to Preview 14 or later.
 
@@ -468,7 +482,8 @@ pointer is read from the commit checked out in the Pages worktree that holds
 `--prior`, the same commit the prior catalog comes from, never from a
 remote-tracking ref:
 
-- The version must not be listed in `updates/withdrawn.json`.
+- The version must not be listed in `updates/withdrawn.json`. An absent file
+  lists no version.
 - The tag's object and peeled commit come from an anonymous `git ls-remote`,
   and the commit must be an ancestor of protected `main`.
 - `SHA256SUMS` and the Linux x86-64 CLI archive come from the public release
@@ -584,7 +599,7 @@ signer's existing rules hold unchanged: compact withdrawals include the legacy
 target's withdrawals (`listing_targets` in `bundle.rs`), and history
 verification refuses any publication that forgets a withdrawal
 (`history_checkpoint.rs`). The frozen legacy target keeps its own withdrawals,
-none at revision 47, so older previews never see later withdrawals.
+so older previews never see later withdrawals.
 
 ### Cutover runbook
 
@@ -610,20 +625,29 @@ none at revision 47, so older previews never see later withdrawals.
 publish the compact carrier, if its reader verifies.
 
 **First-publication readback.** The lead follows these numbered steps after
-the first `Catalog publish` run that publishes the compact target. Record each
-result, with the date, on the owning issue.
+the first `Catalog publish` run that publishes the compact target. The steps
+are the contract; they name no
+expected revision, digest or count, because those change with every
+publication. Take the expected values from the run itself: the frozen legacy
+entry is the `policy/official/catalog.listings.json` entry of the last
+official-policy version before the run, and the current Preview is the version
+in `updates/preview/latest.json` when the run prepared. Record each result,
+with the date, on the owning issue, and add the observed figures to this
+document as dated evidence, as in
+[Compact listing activation evidence](#compact-listing-activation-evidence-november-24-2026).
+Report each client kind separately: a step not run on a client kind is
+recorded as not observed, never as passed.
 
 1. In the prepare job's `catalog-work` artifact, open
    `observation-projection.json` and check:
    - `carrier` is `compact` and `listing_format` is 15.
-   - `revision` is at least 48, above `legacy_target.revision` (47).
-   - `delivered_records` equals `canonical_records` (1,649 on November 23,
-     2026), and `not_projected_records` equals `withdrawn_records`.
-   - `legacy_target.sha256` is
-     `0d20ba97babda1b10a06d2b1e1c968895afb33d6fb135c3594bb3c1d9e303c33` and
-     `legacy_target.bytes` is 8,388,398.
-   - `released_reader` and `released_reader_source` name Preview 15 (the
-     current Preview), and `released_reader_activation` is present.
+   - `revision` is above `legacy_target.revision`.
+   - `delivered_records` equals `canonical_records`, and
+     `not_projected_records` equals `withdrawn_records`.
+   - `legacy_target.sha256` and `legacy_target.bytes` equal the frozen legacy
+     entry.
+   - `released_reader` and `released_reader_source` name the current Preview,
+     and `released_reader_activation` is present.
    - `target_bytes` is at most 8 MiB and `decoded_bytes` at most 32 MiB.
    - `listing_publication_stopped`, `listing_activation_pending` and
      `listing_prior_unverified` are all absent, and no `diagnostics` line
@@ -634,34 +658,42 @@ result, with the date, on the owning issue.
    In the same artifact, `capacity-guard.json` has `status` 0.
 
 2. On Pages, follow `catalog/metadata/timestamp.json` to its snapshot, then to
-   `official-policy`. The policy role names
+   `official-policy`, checking each hash and length. The policy role names
    `policy/official/catalog.listings.compact.json` with the report's
    `target_sha256` and `target_bytes`. It still names
-   `policy/official/catalog.listings.json` with the unchanged SHA-256 and
-   length.
+   `policy/official/catalog.listings.json` with the frozen legacy entry's
+   SHA-256 and length.
 3. Fetch the served compact target and decode it. Its `decoded_bytes` and
    `decoded_sha256` match the report, and it holds format 15, the reported
    revision, every canonical row and the typed `restrictions`.
 4. The frozen legacy target
-   `catalog/targets/0d20ba97babda1b10a06d2b1e1c968895afb33d6fb135c3594bb3c1d9e303c33.policy/official/catalog.listings.json`
-   still serves the same 8,388,398 bytes.
+   `catalog/targets/<legacy SHA-256>.policy/official/catalog.listings.json`
+   still serves the frozen legacy entry's bytes. Earlier legacy targets named
+   by older signed versions are still served.
 5. `updates/preview/latest.json` names the version recorded in
    `released_reader_activation`, and `updates/beta/latest.json` names the same
    version.
-6. Real clients. This is the first time a released client consumes the signed
-   compact publication: before signing, the compact path was verified only
-   with offline inspectors, from-tag simulations and fixture tests (see
-   [Cutover evidence](#cutover-evidence-november-23-2026)). A defect found here
-   can only be fixed forward. With each released CLI, in a fresh library, run
+6. Real clients. A defect found here can only be fixed forward. With each
+   released CLI, in a fresh library, run
    `catalog definition-authority --apply`, then
    `catalog listing-refresh --metadata-base-url https://boburning.github.io/portcove/catalog/metadata --targets-base-url https://boburning.github.io/portcove/catalog/targets`,
    then `catalog listing-status`:
-   - Preview 15 and Preview 14: `selected` true, `revision` and
-     `target_sha256` from the report, every canonical listing, no fallback.
-   - Preview 13: `selected` true, revision 47, target `0d20ba97…`, 1,193
-     listings, `fallback_reason` null.
-   - One **Windows desktop client** on Preview 15 shows the compact revision's
-     listings after its listing refresh, including a held row.
+   - The current Preview and every released preview down to the minimum
+     supported preview: `selected` true, `revision` and `target_sha256` from
+     the report, every canonical listing, no fallback.
+   - The newest released preview below the minimum supported preview:
+     `selected` true, the frozen legacy revision and target, the legacy
+     listing count, `fallback_reason` null.
+   - One **Windows desktop client** on the current Preview shows the compact
+     revision's listings after its listing refresh, including a held row.
+
+   A released-client observation runs the published binary: the CLI archive
+   from the release, or the desktop application installed from the signed
+   release installer. A local build of the release tag, such as a
+   desktop-verify run, is a distinct and weaker kind of evidence: its bytes
+   differ from the released binary. Record it as a local-build observation,
+   and record the released binary as not observed.
+
 7. Record the retained catalog tree size (at most 805,306,368 bytes, 768 MiB)
    and the Pages tree size (at most 900,000,000 bytes).
 
@@ -671,7 +703,7 @@ Older previews keep the frozen legacy target either way.
 
 Reverting the merge restores the dual-carrier publisher. That publisher keeps
 the compact target, but it fails preparation as soon as a catalog hold needs
-a legacy successor that does not fit the 8,388,398-byte legacy target. Treat
+a legacy successor that does not fit the 8 MiB legacy target. Treat
 a revert as a stop-gap and fix publisher defects forward. No release-tools
 rule changes in either direction. History bootstrap is not part of the
 cutover or its rollback and stays with the owner.
@@ -686,7 +718,7 @@ cutover or its rollback and stays with the owner.
   `check_legacy_successor`, the legacy-only return in `check_listings`, and
   the legacy body kept in `HistoricalRevisionFloors`. Remove them with that
   same reviewed change, after the retained legacy bodies are pruned.
-- **Retained legacy bodies.** The 47 retained legacy listing bodies are no
+- **Retained legacy bodies.** The retained legacy listing bodies are no
   longer read by any client except the frozen one, but historical
   verification still reads each referenced body. Pruning needs a retained
   listing-floor ledger: a signed or checkpointed record of each historical
@@ -803,7 +835,9 @@ that run, 400 identities grew `listings.json` to 7,036,903 bytes, 93,413 below
 the 85% guard. That guard, not the compact carrier, is the next limit; the
 compact target stayed under 2.8 MB wire and 10.1 MB decoded.
 
-**Storage runway.** The retained catalog tree measured 404,914,714 of
+**Storage runway, measured November 23, 2026.** These are pre-cutover
+figures; the activation evidence below has later ones. The retained catalog
+tree measured 404,914,714 of
 805,306,368 bytes (768 MiB), and the Pages tree 404,922,011 of 900,000,000.
 The 47 retained legacy listing bodies make up 390,631,685 bytes.
 
@@ -816,6 +850,74 @@ The 47 retained legacy listing bodies make up 390,631,685 bytes.
   three weeks at the same pace) and about 180 before the Pages bound.
 - **Pruning.** Pruning the 46 superseded legacy bodies would free 382,243,287
   bytes, but it needs the listing-floor ledger above.
+
+### Compact listing activation evidence, November 24, 2026
+
+The first signed compact publication and its readback, recorded in three #1422
+comments:
+[Compact listing: activated](https://github.com/boburning/portcove/issues/1422#issuecomment-7137198571);
+[Compact listing: released-client readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7137500145)
+(command-line clients observed 16:11–16:20 UTC; comment posted 16:20 UTC); and
+[Compact listing: Windows desktop readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7138279401)
+(run 16:44–16:47 UTC; listing selected 16:46:14 UTC; comment posted 16:50 UTC;
+the comment's "~17:40 UTC" header time is inaccurate). These are dated
+observations, not expected values for later publications.
+
+- **Publication.** Scheduled `Catalog publish` run 45430469470, source commit
+  `8a3ae155`, published signed versions 63 at 16:06 UTC. Reader activation:
+  `0.1.0-preview.16`, the current released reader at activation (not Preview
+  15). Preview 14 remains the minimum supported preview.
+- **Frozen legacy target.** Two legacy-only publications happened before the
+  cutover merged, so the frozen bytes are revision 49, not revision 47:
+  SHA-256 `9a025755756b60acf4ee911295b339a8cfccfeb932ded981ee6ade441e80e6e6`,
+  8,388,496 bytes, format 11, 1,193 listings. The legacy entry by
+  official-policy version: 60, revision 47 (`0d20ba97…`, 8,388,398 bytes); 61,
+  revision 48 (`4224a495…`, 8,388,578 bytes); 62, revision 49 (`9a025755…`);
+  63, the same revision-49 entry beside the compact target. The older targets
+  are still served.
+- **Compact target.** `policy/official/catalog.listings.compact.json`,
+  SHA-256 `5a2d3bd1e349472b3bb2ddaf7cac4a306c481f5b592dafb03c097932d1cc1d7e`,
+  3,505,447 bytes, 12,267,447 decoded, format 15, revision 50, 1,649 rows, 152
+  held rows.
+
+| Readback step                                            | Result                                                                                                                                                                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Publisher report and capacity guard                   | Carrier compact, format 15, revision 50, 1,649 of 1,649 rows delivered; no stop, pending or unverified marker; capacity guard `status` 0.                                                                                                  |
+| 2. Signed metadata on Pages                              | The chain was verified from the root that hashes to the clients' built-in anchor; official-policy version 63 names the compact target above and the frozen revision-49 legacy target.                                                      |
+| 3. Served compact target                                 | Fetched and decoded anonymously: SHA-256 and length match the policy entry; decoded length and `decoded_sha256` match the carrier; format 15, revision 50, 1,649 listings, 0 withdrawn identities, 152 rows with 155 typed `restrictions`. |
+| 4. Legacy targets                                        | The revision-49, 48 and 47 legacy targets each serve their signed length.                                                                                                                                                                  |
+| 5. Update feeds                                          | `updates/preview/latest.json` and `updates/beta/latest.json` are byte-identical and name `0.1.0-preview.16`.                                                                                                                               |
+| 6. Released CLIs, Linux x86-64, fresh isolated libraries | Previews 16, 15 and 14 select the compact target: format 15, 1,649 listings, revision 50. Preview 13, below the minimum supported preview, keeps the frozen legacy target: format 11, 1,193 listings, revision 49, no error. All exit 0.   |
+| 6. Windows desktop client, local build of the tag        | Passed, as a local-build observation (below). The signed released installer binary was not run.                                                                                                                                            |
+| 7. Retained sizes                                        | Catalog tree 411,430,525 of 805,306,368 bytes; Pages tree 425,230,684 of 900,000,000.                                                                                                                                                      |
+
+**Windows desktop, local build of the release tag.** Releases ship only an
+installer, and installing it on the available host would have changed its
+registered player install, so the released binary was not run. Instead a local
+debug build of release tag `nightly-0.1.0-preview.16` (commit
+`cb29b0b83259f80015238b4fe69563707a7f880d`) was built through the
+repository's desktop-verify route with an uncommitted observe-only scenario
+and run in a fresh isolated library against live Pages. It selected listing
+revision 50 from the compact transport target `5a2d3bd1…`, format 15, 1,649
+listings (152 restricted), about 21 s after launch. The held row
+`abuse-abuse-2025` showed its hold explanation and offered no download. No
+error and no fallback. This build's bytes differ from the signed released
+binary, so it is evidence about the tag's source on Windows, not a
+released-binary observation.
+
+**Retained legacy bodies.** On November 24, 2026 the served tree held 49
+retained legacy listing bodies, 407,408,759 bytes.
+
+**Not observed.** The signed released Windows installer binary, the Windows
+and macOS CLIs, and an in-place upgrade of a library written by an older
+preview. The Linux CLI results and the local desktop build do not stand in for
+them.
+
+Steps 3 and 4 and the version history above were also read anonymously from
+Pages on November 24, 2026 for this record. `updates/withdrawn.json` returned
+404 and is absent from the Pages tree: no preview has been withdrawn, so the owner-only
+[withdrawal workflow](RELEASING.md#current-release-process) has never written
+it, and the released-reader selection reads an absent file as no withdrawals.
 
 ### Compact carrier capacity guard
 
