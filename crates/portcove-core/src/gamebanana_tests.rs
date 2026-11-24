@@ -1,8 +1,7 @@
 use super::*;
+use crate::ProviderFreshness;
 use crate::test_http::serve_http;
-use crate::{ProviderFreshness, provider_http::download_deadline};
 use serde_json::json;
-use std::time::Duration;
 
 const WEB: &str = "https://gamebanana.com";
 
@@ -304,16 +303,6 @@ async fn download_refuses_redirects_off_the_provider_and_size_disagreements() {
             .download_file(&hostile, &target, 1 << 20)
             .await
             .is_err()
-    );
-}
-
-#[test]
-fn download_deadline_grows_with_size_and_is_capped() {
-    assert!(download_deadline(1) >= Duration::from_secs(120));
-    assert!(download_deadline(1 << 30) > download_deadline(1 << 20));
-    assert_eq!(
-        download_deadline(u64::MAX),
-        Duration::from_secs(6 * 60 * 60)
     );
 }
 

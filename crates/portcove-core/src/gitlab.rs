@@ -136,7 +136,7 @@ impl GitlabReleaseProvider {
                 crate::test_http::ResponseTestPhase::Headers,
                 error.is_timeout(),
             ));
-            PortcoveError::network(error.to_string())
+            PortcoveError::from_transport(&error)
         })?;
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
@@ -176,8 +176,9 @@ impl GitlabReleaseProvider {
             .get(header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let body =
-            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitLab response").await?;
+        let body = bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitLab response")
+            .await
+            .map_err(PortcoveError::mark_interrupted_body)?;
         let parsed = serde_json::from_slice(&body)
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         let body = std::str::from_utf8(&body)

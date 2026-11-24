@@ -228,9 +228,12 @@ fn cancelled(id: &str) -> PortcoveError {
 
 impl PortcoveService {
     /// Host signal handlers affect only work started by this service instance.
+    /// Unattended setup this process runs is stopped cleanly first, so the
+    /// stop never counts against the game as a crash.
     pub fn request_owned_cancellations(&self) -> Result<(usize, usize)> {
         self.cancellation_requested
             .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.stop_unattended_setups();
         let connection = database::connect(self.library().root())?;
         let mut statement = connection.prepare("SELECT id FROM activity_history WHERE status='running' AND cancellation_phase IS NOT NULL AND cancellation_owner=?1")?;
         let ids = statement
@@ -239,7 +242,7 @@ impl PortcoveService {
         let mut requested = 0;
         let mut finishing = 0;
         for id in ids {
-            match self.request_cancellation(&id) {
+            match self.request_activity_cancellation(&id) {
                 Ok(_) => requested += 1,
                 Err(error) if error.code == ErrorCode::Conflict => finishing += 1,
                 Err(error) => return Err(error),
@@ -248,7 +251,21 @@ impl PortcoveService {
         Ok((requested, finishing))
     }
 
+    /// The player's (or a tool's) request to cancel one activity. An unattended
+    /// setup run it belongs to is then recorded as cancelled, not as a spent
+    /// time budget or a clean stop.
     pub fn request_cancellation(&self, operation_id: &str) -> Result<CancellationState> {
+        let state = self.request_activity_cancellation(operation_id)?;
+        crate::service::unattended_player_cancelled_activity(operation_id);
+        Ok(state)
+    }
+
+    /// Cancels one activity on Portcove's own behalf (a host stop or a time
+    /// budget); the same cooperative boundary as a player's request.
+    pub(crate) fn request_activity_cancellation(
+        &self,
+        operation_id: &str,
+    ) -> Result<CancellationState> {
         uuid::Uuid::parse_str(operation_id)
             .map_err(|_| PortcoveError::usage("cancellation requires an activity UUID"))?;
         let changed = database::connect(self.library().root())?.execute(
