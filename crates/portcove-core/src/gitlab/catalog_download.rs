@@ -311,9 +311,11 @@ impl GitlabReleaseProvider {
         let mut links = Vec::new();
         let mut pages = GitlabPages::new("release links");
         while let Some(current) = self
-            .next_page::<GitlabReleaseLink>(&mut pages, |page| {
-                paginated_url(base.as_str(), "links", page, PROVIDER_PAGE_SIZE)
-            })
+            .next_page::<GitlabReleaseLink>(
+                &mut pages,
+                |page| paginated_url(base.as_str(), "links", page, PROVIDER_PAGE_SIZE),
+                |link| format!("{:?}\n{}\n{}", link.id, link.name, link.url),
+            )
             .await?
         {
             links.extend(current);
@@ -399,9 +401,11 @@ impl GitlabReleaseProvider {
             );
             let mut pages = GitlabPages::new("package files");
             while let Some(files) = self
-                .next_page::<GitlabPackageFile>(&mut pages, |page| {
-                    paginated_url(&base, "package_files", page, PROVIDER_PAGE_SIZE)
-                })
+                .next_page::<GitlabPackageFile>(
+                    &mut pages,
+                    |page| paginated_url(&base, "package_files", page, PROVIDER_PAGE_SIZE),
+                    |file| file.id.to_string(),
+                )
                 .await?
             {
                 for file in files {

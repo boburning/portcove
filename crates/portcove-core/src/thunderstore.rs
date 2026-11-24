@@ -45,8 +45,16 @@ const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024;
 /// store still completes in one uninterrupted read; only continuation after
 /// an interruption re-reads chunks the store could not keep.
 const CHUNK_STORE_MAX_BYTES: u64 = 512 * 1024 * 1024;
-/// Parsed communities kept in memory, keyed by their chunk lists.
+/// Parsed communities kept in memory, keyed by their chunk lists, at most
+/// this many communities.
 const SNAPSHOT_COMMUNITIES: usize = 4;
+/// And at most this much listing JSON (decompressed source bytes, an upper
+/// bound on what the parsed subset holds) across kept communities. The most
+/// recently read community is always kept, whatever its size, so one large
+/// community is never re-parsed on every read; older ones leave first. The
+/// largest community observed on November 23, 2026 was about 26 chunks of
+/// 14 MiB of JSON (about 364 MiB).
+const SNAPSHOT_MAX_SOURCE_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_DEPENDENCIES: usize = 128;
 
 /// Reviewed port → Thunderstore community bindings. A community's own listing is
@@ -68,6 +76,8 @@ pub(crate) fn thunderstore_community(port_id: &str) -> Option<&'static str> {
 pub struct ThunderstoreClient {
     http: ProviderHttp,
     web_root: String,
+    /// Bytes the chunk store may keep; [`CHUNK_STORE_MAX_BYTES`] outside tests.
+    chunk_store_max: u64,
 }
 
 impl ThunderstoreClient {
@@ -79,7 +89,14 @@ impl ThunderstoreClient {
         Ok(Self {
             http: ProviderHttp::new(library, "Thunderstore", "thunderstore.io")?,
             web_root: web_root.trim_end_matches('/').into(),
+            chunk_store_max: CHUNK_STORE_MAX_BYTES,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_chunk_store_max(mut self, max_bytes: u64) -> Self {
+        self.chunk_store_max = max_bytes;
+        self
     }
 
     #[cfg(test)]
@@ -91,7 +108,7 @@ impl ThunderstoreClient {
     pub async fn community(&self, community: &str) -> Result<Observed<Vec<ProviderProject>>> {
         let observed = self.community_catalog(community).await?;
         Ok(Observed {
-            value: observed.value.0,
+            value: observed.value.0.clone(),
             observed_at: observed.observed_at,
             freshness: observed.freshness,
         })
@@ -106,10 +123,7 @@ impl ThunderstoreClient {
     /// chunk list, so browsing pages and checking many installed packages parse
     /// it once. The second value is the number of package records listed,
     /// readable or not.
-    pub(crate) async fn community_catalog(
-        &self,
-        community: &str,
-    ) -> Result<Observed<(Vec<ProviderProject>, usize)>> {
+    pub(crate) async fn community_catalog(&self, community: &str) -> Result<Observed<Snapshot>> {
         if !plain_name(community, true) {
             return Err(PortcoveError::usage(
                 "a Thunderstore community name is a plain slug",
@@ -126,10 +140,7 @@ impl ThunderstoreClient {
         })
     }
 
-    async fn read_community(
-        &self,
-        community: &str,
-    ) -> Result<Observed<(Vec<ProviderProject>, usize)>> {
+    async fn read_community(&self, community: &str) -> Result<Observed<Snapshot>> {
         let index_url = reqwest::Url::parse(&format!(
             "{}/c/{community}/api/v1/package-listing-index/",
             self.web_root
@@ -146,13 +157,14 @@ impl ThunderstoreClient {
             .map(|library| &library.thunderstore_listings);
         if let Some(snapshot) = snapshots.and_then(|snapshots| snapshots.get(community, &key)) {
             return Ok(Observed {
-                value: (*snapshot).clone(),
+                value: snapshot,
                 observed_at,
                 freshness,
             });
         }
         let mut projects = Vec::new();
         let mut total = 0usize;
+        let mut source_bytes = 0u64;
         for (position, chunk) in chunks.iter().enumerate() {
             let incomplete = |error: PortcoveError| {
                 // Only a failed transfer leaves the listing incomplete; a
@@ -215,14 +227,15 @@ impl ThunderstoreClient {
                 }
             };
             total += read.records;
+            source_bytes += read.source_bytes;
             projects.extend(read.projects);
         }
         let snapshot = std::sync::Arc::new((projects, total));
         if let Some(snapshots) = snapshots {
-            snapshots.put(community, key, snapshot.clone());
+            snapshots.put(community, key, snapshot.clone(), source_bytes);
         }
         Ok(Observed {
-            value: (*snapshot).clone(),
+            value: snapshot,
             observed_at,
             freshness,
         })
@@ -289,7 +302,7 @@ impl ThunderstoreClient {
             tracing::warn!(%error, "could not keep a Thunderstore listing chunk");
             return;
         }
-        prune_chunk_store(&directory, CHUNK_STORE_MAX_BYTES);
+        prune_chunk_store(&directory, self.chunk_store_max);
     }
 
     /// The community's current chunk list. When Thunderstore cannot be read,
@@ -356,9 +369,9 @@ impl ThunderstoreClient {
         page: u32,
         per_page: u32,
     ) -> Result<Observed<ProviderPage>> {
-        let observed = self.community(community).await?;
+        let observed = self.community_catalog(community).await?;
         Ok(Observed {
-            value: page_of(observed.value, page, per_page),
+            value: page_of(&observed.value.0, page, per_page),
             observed_at: observed.observed_at,
             freshness: observed.freshness,
         })
@@ -380,11 +393,13 @@ impl ThunderstoreClient {
                 "a Thunderstore package is named NAMESPACE-NAME",
             ));
         }
-        let observed = self.community(community).await?;
+        let observed = self.community_catalog(community).await?;
         let project = observed
             .value
-            .into_iter()
+            .0
+            .iter()
             .find(|project| project.project_id == package)
+            .cloned()
             .ok_or_else(|| PortcoveError::not_found("the community has no such package"))?;
         Ok(Observed {
             value: project,
@@ -413,15 +428,16 @@ impl ThunderstoreClient {
 }
 
 /// One page of a listing, in the provider's order; `per_page` is clamped to 50.
-pub(crate) fn page_of(projects: Vec<ProviderProject>, page: u32, per_page: u32) -> ProviderPage {
+pub(crate) fn page_of(projects: &[ProviderProject], page: u32, per_page: u32) -> ProviderPage {
     let per_page = per_page.clamp(1, 50) as usize;
     let page = page.max(1);
     let total = projects.len();
     let start = (page as usize - 1).saturating_mul(per_page);
     let projects = projects
-        .into_iter()
+        .iter()
         .skip(start)
         .take(per_page)
+        .cloned()
         .collect::<Vec<_>>();
     ProviderPage {
         complete: start + projects.len() >= total,
@@ -702,12 +718,15 @@ pub(crate) struct ListingSnapshots(std::sync::Arc<std::sync::Mutex<SnapshotState
 
 #[derive(Default)]
 struct SnapshotState {
-    /// Most recently used last: (community, chunk list, parsed listing).
-    entries: Vec<(String, Vec<String>, Snapshot)>,
+    /// Most recently used last: (community, chunk list, parsed listing,
+    /// source JSON bytes charged against `SNAPSHOT_MAX_SOURCE_BYTES`).
+    entries: Vec<(String, Vec<String>, Snapshot, u64)>,
     parses: usize,
 }
 
-type Snapshot = std::sync::Arc<(Vec<ProviderProject>, usize)>;
+/// One parsed community: its readable packages and the number of package
+/// records listed, readable or not. Shared, never copied per read.
+pub(crate) type Snapshot = std::sync::Arc<(Vec<ProviderProject>, usize)>;
 
 impl std::fmt::Debug for ListingSnapshots {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -721,22 +740,54 @@ impl ListingSnapshots {
         let position = state
             .entries
             .iter()
-            .position(|(name, key, _)| name == community && key == chunks)?;
+            .position(|(name, key, _, _)| name == community && key == chunks)?;
         let entry = state.entries.remove(position);
         let snapshot = entry.2.clone();
         state.entries.push(entry);
         Some(snapshot)
     }
 
-    fn put(&self, community: &str, chunks: Vec<String>, snapshot: Snapshot) {
+    fn put(&self, community: &str, chunks: Vec<String>, snapshot: Snapshot, source_bytes: u64) {
+        self.put_within(
+            community,
+            chunks,
+            snapshot,
+            source_bytes,
+            SNAPSHOT_MAX_SOURCE_BYTES,
+        );
+    }
+
+    fn put_within(
+        &self,
+        community: &str,
+        chunks: Vec<String>,
+        snapshot: Snapshot,
+        source_bytes: u64,
+        max_source_bytes: u64,
+    ) {
         let Ok(mut state) = self.0.lock() else {
             return;
         };
-        state.entries.retain(|(name, _, _)| name != community);
-        state.entries.push((community.to_owned(), chunks, snapshot));
-        while state.entries.len() > SNAPSHOT_COMMUNITIES {
+        state.entries.retain(|(name, _, _, _)| name != community);
+        state
+            .entries
+            .push((community.to_owned(), chunks, snapshot, source_bytes));
+        // Oldest out until within both bounds; the newest always stays.
+        while state.entries.len() > 1
+            && (state.entries.len() > SNAPSHOT_COMMUNITIES
+                || state.entries.iter().map(|entry| entry.3).sum::<u64>() > max_source_bytes)
+        {
             state.entries.remove(0);
         }
+    }
+
+    /// Communities currently kept, oldest first.
+    #[cfg(test)]
+    fn kept(&self) -> Vec<String> {
+        self.0
+            .lock()
+            .map(|state| state.entries.iter().map(|entry| entry.0.clone()).collect())
+            .unwrap_or_default()
     }
 
     fn count_parse(&self) {
@@ -757,6 +808,8 @@ struct ChunkRead {
     projects: Vec<ProviderProject>,
     /// Package records in the chunk, readable or not.
     records: usize,
+    /// Decompressed JSON bytes the chunk held.
+    source_bytes: u64,
 }
 
 /// Decompresses at most `MAX_DECOMPRESSED_BYTES` of gzip data.
@@ -834,6 +887,7 @@ fn parse_chunk(bytes: &[u8], community: &str, web_root: &str) -> Result<ChunkRea
             let mut read = ChunkRead {
                 projects: Vec::new(),
                 records: 0,
+                source_bytes: 0,
             };
             while let Some(package) = packages.next_element::<Value>()? {
                 read.records += 1;
@@ -843,9 +897,19 @@ fn parse_chunk(bytes: &[u8], community: &str, web_root: &str) -> Result<ChunkRea
             Ok(read)
         }
     }
+    struct Counted<R>(R, std::rc::Rc<std::cell::Cell<u64>>);
+    impl<R: std::io::Read> std::io::Read for Counted<R> {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            let read = self.0.read(buffer)?;
+            self.1.set(self.1.get() + read as u64);
+            Ok(read)
+        }
+    }
     use serde::de::DeserializeSeed;
-    let mut deserializer = serde_json::Deserializer::from_reader(gunzip(bytes));
-    let read = Packages {
+    let counted = std::rc::Rc::new(std::cell::Cell::new(0));
+    let mut deserializer =
+        serde_json::Deserializer::from_reader(Counted(gunzip(bytes), counted.clone()));
+    let mut read = Packages {
         community,
         web_root,
     }
@@ -856,6 +920,7 @@ fn parse_chunk(bytes: &[u8], community: &str, web_root: &str) -> Result<ChunkRea
             "a Thunderstore listing chunk is unreadable: {error}"
         ))
     })?;
+    read.source_bytes = counted.get();
     Ok(read)
 }
 

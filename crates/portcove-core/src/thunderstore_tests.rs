@@ -213,15 +213,15 @@ fn browsing_pages_the_listing_without_claiming_a_page_is_everything() {
             .collect::<Vec<_>>()
     );
     let projects = parse_listing(&listing, "c", WEB).unwrap();
-    let first = page_of(projects.clone(), 1, 20);
+    let first = page_of(&projects, 1, 20);
     assert_eq!(first.projects.len(), 20);
     assert_eq!(first.total, 45);
     assert!(!first.complete);
-    let last = page_of(projects.clone(), 3, 20);
+    let last = page_of(&projects, 3, 20);
     assert_eq!(last.projects.len(), 5);
     assert_eq!(last.projects[0].project_id, "A-Mod40");
     assert!(last.complete);
-    assert!(page_of(projects, 9, 20).projects.is_empty());
+    assert!(page_of(&projects, 9, 20).projects.is_empty());
 }
 
 fn simple_package(owner: &str, name: &str) -> Value {
@@ -397,7 +397,7 @@ async fn a_community_past_the_old_package_ceiling_is_read_completely_through_red
     let client = ThunderstoreClient::with_root(&root, None).unwrap();
     let observed = client.community_catalog("big").await.unwrap();
     server.join().unwrap();
-    let (projects, total) = observed.value;
+    let (projects, total) = (&observed.value.0, observed.value.1);
     assert_eq!(total, chunks * per_chunk);
     assert!(total > OLD_PACKAGE_CEILING);
     assert_eq!(projects.len(), total);
@@ -456,7 +456,7 @@ async fn an_interrupted_listing_is_incomplete_and_the_next_read_continues_with_n
     assert!(error.details.contains_key("provider_browse_url"));
     let observed = client.community_catalog("growing").await.unwrap();
     server.join().unwrap();
-    let (projects, total) = observed.value;
+    let (projects, total) = (&observed.value.0, observed.value.1);
     assert_eq!(total, 10);
     assert!(
         projects
@@ -756,4 +756,66 @@ fn thunderstore_flags_distinguish_absent_null_malformed_and_boolean() {
         assert_eq!(parsed.files[0].status_unknown, expected);
         assert_eq!(parsed.files[0].archived, !flag);
     }
+}
+
+#[tokio::test]
+async fn a_community_larger_than_the_chunk_store_still_completes() {
+    // The store keeps nothing here (a zero budget), as for a community larger
+    // than the 512 MiB store. An uninterrupted read still completes; after an
+    // interruption the next read re-reads the chunks the store could not keep
+    // and completes, at the cost of those requests only.
+    let chunk_requests = Arc::new(Mutex::new(0usize));
+    let state = chunk_requests.clone();
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(8, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        if path.contains("listing-chunk/") {
+            let mut count = state.lock().unwrap();
+            *count += 1;
+            if *count == 3 {
+                return MISSING.to_vec();
+            }
+        }
+        listing_fixture(&path, &web, "large", &three_chunks(&web)).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library.clone()))
+        .unwrap()
+        .with_chunk_store_max(0);
+    let error = client.community_catalog("large").await.unwrap_err();
+    assert!(error.is_inventory_incomplete());
+    let observed = client.community_catalog("large").await.unwrap();
+    server.join().unwrap();
+    assert_eq!(observed.value.0.len(), 9);
+    let chunk_reads = requests
+        .try_iter()
+        .filter(|request| path_of(request).contains("listing-chunk/"))
+        .count();
+    // Three (the third failing), then all three again.
+    assert_eq!(chunk_reads, 6);
+    let kept = std::fs::read_dir(chunk_store(&library))
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert_eq!(kept, 0);
+}
+
+#[test]
+fn parsed_communities_are_kept_within_a_byte_budget_and_the_newest_always_stays() {
+    let snapshots = ListingSnapshots::default();
+    let snapshot = || std::sync::Arc::new((Vec::new(), 0));
+    snapshots.put_within("a", vec!["1".into()], snapshot(), 40, 100);
+    snapshots.put_within("b", vec!["2".into()], snapshot(), 40, 100);
+    assert_eq!(snapshots.kept(), ["a", "b"]);
+    // Over the budget: the oldest leaves first.
+    snapshots.put_within("c", vec!["3".into()], snapshot(), 40, 100);
+    assert_eq!(snapshots.kept(), ["b", "c"]);
+    // A community larger than the whole budget is still kept alone, so it is
+    // not re-parsed on every read.
+    snapshots.put_within("huge", vec!["4".into()], snapshot(), 500, 100);
+    assert_eq!(snapshots.kept(), ["huge"]);
+    // Reuse is shared, not copied.
+    let first = snapshots.get("huge", &["4".into()]).unwrap();
+    let second = snapshots.get("huge", &["4".into()]).unwrap();
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
 }

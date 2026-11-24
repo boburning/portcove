@@ -51,6 +51,10 @@ const GITLAB_PACKAGE_LOOKUP_CONCURRENCY: usize = 4;
 struct GitlabPages {
     label: &'static str,
     next_page: Option<usize>,
+    /// Identities listed so far, so a page that lists nothing new is seen.
+    seen: HashSet<String>,
+    /// Pages the list can have by the latest `X-Total`, when GitLab sent one.
+    total_pages: Option<usize>,
 }
 
 impl GitlabPages {
@@ -58,8 +62,40 @@ impl GitlabPages {
         Self {
             label,
             next_page: Some(1),
+            seen: HashSet::new(),
+            total_pages: None,
         }
     }
+}
+
+/// Pages an honest list of `total` rows can need: its full pages plus the
+/// empty page that proves a list ending on a page boundary is complete.
+fn pages_for_total(total: u64) -> usize {
+    usize::try_from(total.div_ceil(PROVIDER_PAGE_SIZE as u64))
+        .unwrap_or(usize::MAX)
+        .saturating_add(1)
+}
+
+/// A list that does not advance: a full page after the first that lists
+/// nothing new (a short page ends the list anyway), or a page past what
+/// `X-Total` allows. This is what a host or proxy
+/// that ignores `page` returns; an honest list of any length never does. The
+/// read stops as incomplete (never as absent) instead of requesting forever.
+fn list_not_advancing(
+    label: &'static str,
+    page: usize,
+    total_pages: Option<usize>,
+) -> PortcoveError {
+    crate::failure::inventory_incomplete(
+        crate::failure::FailureProvider::Gitlab,
+        label,
+        page.saturating_sub(1) as u64,
+        total_pages.map(|pages| pages as u64),
+    )
+    .detail(
+        "cause",
+        format!("GitLab page {page} of the {label} did not advance the list"),
+    )
 }
 
 /// What a list page response says about the list beyond its rows.
@@ -74,9 +110,11 @@ struct PageMeta {
 
 /// Saved progress of a release-history walk, so the next check continues at
 /// `next_page` instead of re-reading the prefix. It is kept in the library's
-/// conditional-request cache table and is valid only for the same project,
+/// conditional-request cache table under a `portcove-continuation:` key, which
+/// response traffic never evicts, and is valid only for the same project,
 /// channel, rolling tag and unchanged first page and row count; anything else
-/// restarts the walk. Losing it (cache pruning) only costs a restart.
+/// restarts the walk. Losing it (seven days without a check) only costs a
+/// restart.
 #[derive(Debug, Clone, serde::Serialize, Deserialize, PartialEq)]
 struct ReleaseWalkCheckpoint {
     first_page_sha256: String,
@@ -264,16 +302,38 @@ impl GitlabReleaseProvider {
     /// provider has listed everything. A short page ends the list; a full page
     /// is followed by another read, so a list that ends exactly on a page
     /// boundary is proven complete by the following empty page.
+    ///
+    /// A full page after the first that lists no identity not already listed,
+    /// or a page beyond what the latest `X-Total` allows, stops the read as
+    /// incomplete (see [`list_not_advancing`]).
     async fn next_page<T: DeserializeOwned>(
         &self,
         pages: &mut GitlabPages,
         url: impl FnOnce(usize) -> Result<String>,
+        identity: impl Fn(&T) -> String,
     ) -> Result<Option<Vec<T>>> {
         let Some(page) = pages.next_page else {
             return Ok(None);
         };
-        let current: Vec<T> = self.get_json(&url(page)?).await?;
+        if pages.total_pages.is_some_and(|limit| page > limit) {
+            return Err(list_not_advancing(pages.label, page, pages.total_pages));
+        }
+        let url = url(page)?;
+        let (current, meta): (Vec<T>, PageMeta) =
+            self.get_optional_json_meta(&url).await?.ok_or_else(|| {
+                PortcoveError::not_found(format!("GitLab resource was not found: {url}"))
+            })?;
         check_page_size(&current, pages.label)?;
+        if let Some(total) = meta.total {
+            pages.total_pages = Some(pages_for_total(total));
+        }
+        let mut advanced = false;
+        for item in &current {
+            advanced |= pages.seen.insert(identity(item));
+        }
+        if page > 1 && current.len() == PROVIDER_PAGE_SIZE && !advanced {
+            return Err(list_not_advancing(pages.label, page, pages.total_pages));
+        }
         pages.next_page = (current.len() == PROVIDER_PAGE_SIZE).then_some(page + 1);
         Ok(Some(current))
     }
@@ -299,9 +359,11 @@ impl GitlabReleaseProvider {
         let mut releases: Vec<GitlabRelease> = Vec::new();
         let mut tags = HashSet::new();
         while let Some(current) = self
-            .next_page::<GitlabRelease>(&mut pages, |page| {
-                paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)
-            })
+            .next_page::<GitlabRelease>(
+                &mut pages,
+                |page| paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE),
+                |release| release.tag_name.clone(),
+            )
             .await?
         {
             releases.extend(
@@ -380,13 +442,15 @@ impl GitlabReleaseProvider {
     /// stable release only at the end of the history.
     ///
     /// No page count or whole-walk deadline bounds the walk; each request has
-    /// its own bounds. Progress is saved after every page, so a walk that
-    /// fails or is interrupted reports an incomplete history (never an absent
-    /// release) and the next check continues from the saved page. The first
-    /// page is always re-read (conditionally) to confirm the history is the
-    /// one the progress belongs to; a changed first page or row count, also
-    /// during a walk, restarts it so a release published or deleted meanwhile
-    /// cannot shift an entry past the walk.
+    /// its own bounds. Progress is saved after every page, so a walk stopped by
+    /// a temporary failure reports an incomplete history (never an absent
+    /// release) and the next check continues from the saved page; a lasting
+    /// failure is returned unchanged. Each check re-reads the first page
+    /// (conditionally) and restarts when it or `X-Total` changed since the
+    /// progress was saved; during a walk only `X-Total` is compared, and a
+    /// change restarts the walk, so a release published or deleted meanwhile
+    /// cannot shift an entry past it. A full page that lists no new tag, or one
+    /// past what `X-Total` allows, stops the walk as incomplete.
     async fn walk_release_history(
         &self,
         project_url: &str,
@@ -421,11 +485,27 @@ impl GitlabReleaseProvider {
                     beta_fallback: fallback,
                 },
             };
+            // Tags listed in this walk, so a page that lists nothing new (a
+            // host or proxy ignoring `page`) stops the walk instead of
+            // requesting forever.
+            let mut seen: HashSet<String> = first
+                .iter()
+                .map(|release| release.tag_name.clone())
+                .collect();
             loop {
                 let page = checkpoint.next_page;
+                let total_pages = checkpoint.total.map(pages_for_total);
+                if total_pages.is_some_and(|limit| page > limit) {
+                    self.clear_walk(&key);
+                    return Err(list_not_advancing("release history", page, total_pages));
+                }
                 let (releases, current) = match self.release_page(project_url, page).await {
                     Ok(read) => read,
-                    Err(error) if error.code == crate::ErrorCode::Network => {
+                    // Only a temporary failure (throttling, a server error, a
+                    // transport or body interruption) leaves the history
+                    // incomplete; a lasting refusal such as a 403 without a
+                    // stated wait stays lasting and spends attempts.
+                    Err(error) if error.temporary_cause().is_some() => {
                         // The page was not read: keep the progress and say the
                         // history is incomplete, with the request's own facts
                         // (such as a rate-limit reset) as details.
@@ -452,6 +532,14 @@ impl GitlabReleaseProvider {
                     // Rows were added or removed during the walk.
                     self.clear_walk(&key);
                     continue 'restart;
+                }
+                let mut advanced = false;
+                for release in &releases {
+                    advanced |= seen.insert(release.tag_name.clone());
+                }
+                if releases.len() == PROVIDER_PAGE_SIZE && !advanced {
+                    self.clear_walk(&key);
+                    return Err(list_not_advancing("release history", page, total_pages));
                 }
                 if let Some(chosen) = consider_releases(
                     &releases,
@@ -500,17 +588,21 @@ impl GitlabReleaseProvider {
         for version in versions {
             let mut pages = GitlabPages::new("package registry");
             while let Some(current) = self
-                .next_page::<GitlabPackage>(&mut pages, |page| {
-                    let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
-                    let mut url = reqwest::Url::parse(&url)
-                        .map_err(|error| PortcoveError::state(error.to_string()))?;
-                    url.query_pairs_mut()
-                        .append_pair("package_type", "generic")
-                        .append_pair("package_version", version)
-                        .append_pair("order_by", "created_at")
-                        .append_pair("sort", "desc");
-                    Ok(url.into())
-                })
+                .next_page::<GitlabPackage>(
+                    &mut pages,
+                    |page| {
+                        let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
+                        let mut url = reqwest::Url::parse(&url)
+                            .map_err(|error| PortcoveError::state(error.to_string()))?;
+                        url.query_pairs_mut()
+                            .append_pair("package_type", "generic")
+                            .append_pair("package_version", version)
+                            .append_pair("order_by", "created_at")
+                            .append_pair("sort", "desc");
+                        Ok(url.into())
+                    },
+                    |package| package.id.to_string(),
+                )
                 .await?
             {
                 // A package published during the read shifts older ones onto the
@@ -580,9 +672,11 @@ impl GitlabReleaseProvider {
         );
         let mut pages = GitlabPages::new("package files");
         while let Some(files) = self
-            .next_page::<GitlabPackageFile>(&mut pages, |page| {
-                paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
-            })
+            .next_page::<GitlabPackageFile>(
+                &mut pages,
+                |page| paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE),
+                |file| file.id.to_string(),
+            )
             .await?
         {
             if let Some(file) = files.into_iter().find(|file| file.id == file_id) {
@@ -708,9 +802,11 @@ impl GitlabReleaseProvider {
         let mut identities = HashSet::new();
         let mut pages = GitlabPages::new("package files");
         while let Some(files) = self
-            .next_page::<GitlabPackageFile>(&mut pages, |page| {
-                paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
-            })
+            .next_page::<GitlabPackageFile>(
+                &mut pages,
+                |page| paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE),
+                |file| file.id.to_string(),
+            )
             .await?
         {
             for file in files {
@@ -3446,6 +3542,124 @@ mod tests {
             ))
             .unwrap();
         assert_eq!(saved.next_page, 2);
+    }
+
+    /// A full page of 100 prerelease tags, the same whatever `page` asks for:
+    /// what a host or proxy that ignores `page` returns.
+    fn page_ignored(_request: &str) -> String {
+        let rows = (1..=PROVIDER_PAGE_SIZE)
+            .map(|index| release_row(&format!("v9.0.{index}-beta")))
+            .collect::<Vec<_>>();
+        ok_json(&serde_json::to_string(&rows).unwrap(), "")
+    }
+
+    #[tokio::test]
+    async fn a_list_whose_host_ignores_the_page_stops_as_incomplete_instead_of_requesting_forever()
+    {
+        // Not a ceiling on honest lists (the 10,001-release test reads every
+        // page): only a page that lists nothing new stops the read.
+        let (root, requests, server) = serve_routed_http(2, page_ignored);
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let error = provider
+            .releases(&provider.project_url("group/project").unwrap())
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert!(error.is_inventory_incomplete(), "{error:?}");
+        assert_eq!(requests.try_iter().count(), 2);
+
+        // The release walk stops the same way and keeps no progress to resume
+        // into the same loop.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let (root, requests, server) = serve_routed_http(2, page_ignored);
+        let provider =
+            GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
+                .unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let error = provider
+            .channel_release(&project_url, ReleaseChannel::Stable, None)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert!(error.is_inventory_incomplete(), "{error:?}");
+        assert_eq!(
+            crate::TemporaryFailure::of(&error).map(|failure| failure.cause),
+            Some(crate::TemporaryCause::InventoryIncomplete)
+        );
+        assert_eq!(requests.try_iter().count(), 2);
+        assert!(
+            provider
+                .load_walk(&GitlabReleaseProvider::walk_key(
+                    &project_url,
+                    ReleaseChannel::Stable,
+                    None,
+                ))
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_list_that_keeps_going_past_its_stated_total_stops_as_incomplete() {
+        // `X-Total: 150` allows two pages plus the proving page; a host that
+        // keeps returning new full pages is stopped before a fourth request.
+        for walk in [false, true] {
+            let (root, requests, server) = serve_routed_http(3, |request| {
+                let page = query_number(request, "page");
+                let rows = (1..=PROVIDER_PAGE_SIZE)
+                    .map(|index| release_row(&format!("v9.{page}.{index}-beta")))
+                    .collect::<Vec<_>>();
+                ok_json(&serde_json::to_string(&rows).unwrap(), "X-Total: 150\r\n")
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let project_url = provider.project_url("group/project").unwrap();
+            let error = if walk {
+                provider
+                    .channel_release(&project_url, ReleaseChannel::Stable, None)
+                    .await
+                    .unwrap_err()
+            } else {
+                provider.releases(&project_url).await.unwrap_err()
+            };
+            server.join().unwrap();
+            assert!(error.is_inventory_incomplete(), "walk {walk}: {error:?}");
+            assert_eq!(requests.try_iter().count(), 3, "walk {walk}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_lasting_refusal_inside_a_walk_stays_lasting() {
+        // A 403 without a stated wait is not throttling: it is not an
+        // incomplete history and spends the normal attempts. (A 429 or 503
+        // keeps progress as incomplete: see the rate-limit and interrupted
+        // walk tests.)
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let (root, _requests, server) = serve_routed_http(2, |request| {
+            if query_number(request, "page") == 2 {
+                return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .into();
+            }
+            release_history_page(request, 300, |index| format!("v9.0.{index}-beta"))
+        });
+        let provider =
+            GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
+                .unwrap();
+        let error = provider
+            .channel_release(
+                &provider.project_url("group/project").unwrap(),
+                ReleaseChannel::Stable,
+                None,
+            )
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert!(!error.is_inventory_incomplete(), "{error:?}");
+        assert_eq!(crate::TemporaryFailure::of(&error), None, "{error:?}");
+        assert_eq!(
+            error.upstream_observation(),
+            Some(crate::failure::UpstreamObservation::Status(403))
+        );
     }
 
     #[tokio::test]
