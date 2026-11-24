@@ -725,6 +725,23 @@ limit; the 15 exact overrides above 120 seconds keep their budgets and order.
 Product deadlines, assertions and cleanup are unchanged; a pass under the
 larger budget proves completion under that budget.
 
+Hosted Windows run 45270048531 (job 138089076789, partition 1) cut
+`profile::tests::a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them`
+at the 120-second default on both tries. It created 499 setups one at a time
+through `copy_profile`. Measurement on Linux found one product defect. With
+the per-port `LIMIT 65` gone, looking up one setup decoded every setup of the
+port, so each create grew with library size. Before the fix, one create decoded
+2 records at 2 setups and 1,003 at 1,002. The lookup now reads the indexed row:
+a create decodes 2 records, prepares 59 statements and runs 3,088 SQLite steps
+at both sizes. A create still costs about 135 milliseconds on Linux and about
+240 milliseconds or more on Windows. That cost is constant: each create is its
+own durable transaction. The case now creates 65 and then 200 setups through
+that path. It then bulk-seeds the library to 1,000 setups and creates one more
+through the same path, so it reaches 1,001 instead of 500. The 120-second
+budget is unchanged. Every export, reference, validation, edit and revision
+assertion remains. The deterministic per-create work is pinned separately by
+`creating_a_setup_does_the_same_work_however_many_setups_the_port_has`.
+
 Automatic saved-data snapshots before update, activation and rollback (#4879)
 added one verified snapshot to each version change in the generated managed
 native-route lifecycles. Hosted Windows run 42840655073 timed out

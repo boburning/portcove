@@ -26,8 +26,6 @@ use crate::{
 #[path = "profile_tests.rs"]
 mod tests;
 
-pub(crate) const MAX_PROFILES: usize = 64;
-const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
 /// Settings per revision, shared by captured mod options and recipes. The
 /// serialized revision byte bound is the binding resource limit; this count only
@@ -285,7 +283,7 @@ impl PortcoveService {
                     "the active installation changed; try again",
                 ));
             }
-            follow_active_install(&transaction, &install)?;
+            follow_active_install(&self.library, &transaction, &install)?;
             let updated = profile_from(&transaction, port_id, &existing.id)?;
             transaction.commit()?;
             return Ok(updated);
@@ -345,11 +343,6 @@ impl PortcoveService {
         if clean_revision.is_some_and(|expected| expected != revision.revision) {
             return Err(PortcoveError::conflict(
                 "the source setup changed; review the clean setup again",
-            ));
-        }
-        if profiles_from(&connection, port_id)?.len() >= MAX_PROFILES_PER_PORT {
-            return Err(PortcoveError::state(
-                "this port has the maximum number of profiles",
             ));
         }
         let install_id = if onto_current_build {
@@ -664,9 +657,26 @@ impl PortcoveService {
     }
 
     pub fn profile_inventory(&self, port_id: &str) -> Result<ProfileInventory> {
+        // Many setups share a few exact builds; verify each build once per
+        // inventory instead of once per setup, so the work follows the number
+        // of installations rather than the number of setups.
+        let verified = std::cell::RefCell::new(BTreeMap::new());
         self.profile_inventory_with(port_id, |profile| {
-            let resolved = self.resolve_retained_build(port_id, &profile.id)?;
-            Ok((resolved.availability, resolved.install))
+            let reference = crate::retained_build::reference_from(
+                &self.library.connection()?,
+                port_id,
+                &profile.id,
+            )?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+            let key = serde_json::to_string(&reference.build)?;
+            if let Some(cached) = verified.borrow().get(&key) {
+                return Ok(Clone::clone(cached));
+            }
+            let (availability, install, _) = self.resolve_build_identity(&reference.build)?;
+            verified
+                .borrow_mut()
+                .insert(key, (availability, install.clone()));
+            Ok((availability, install))
         })
     }
 
@@ -813,7 +823,12 @@ impl PortcoveService {
     }
 }
 
-pub(crate) fn require_default_recovery_capacity(
+/// Refuses an activating publication before its payload moves when Default's
+/// next binding could not apply the retention policy (an interrupted setup
+/// switch must finish first). Otherwise the policy retires an offer inside the
+/// activation transaction and this check passes.
+pub(crate) fn require_default_retention_ready(
+    library: &Library,
     connection: &Connection,
     port_id: &str,
     install_id: &str,
@@ -822,7 +837,9 @@ pub(crate) fn require_default_recovery_capacity(
         && let Some(reference) =
             crate::retained_build::reference_from(connection, port_id, &profile.id)?
     {
-        crate::retained_build::require_binding_history_capacity(&reference, install_id)?;
+        let pins =
+            crate::retained_build::RetentionPins::read(library, connection, port_id, &profile.id)?;
+        crate::retained_build::successor_history(Some(&reference), install_id, 0, &pins)?;
     }
     Ok(())
 }
@@ -859,6 +876,7 @@ pub(crate) fn require_active_default_revision(
 /// change, after the lifecycle has validated the target. Replaying publication
 /// of the same install does not append another revision.
 pub(crate) fn follow_active_install(
+    library: &Library,
     transaction: &rusqlite::Transaction<'_>,
     install: &InstallRecord,
 ) -> Result<()> {
@@ -897,6 +915,7 @@ pub(crate) fn follow_active_install(
     next.created_at = Library::now();
     seal(&mut next)?;
     crate::retained_build::write_successor_reference(
+        library,
         transaction,
         &profile.id,
         next.build.clone(),
@@ -1216,8 +1235,6 @@ pub struct LibraryProfile {
     pub selected_revision: Option<u64>,
 }
 
-pub(crate) const MAX_EXPORTED_PROFILES: usize = 1024;
-
 pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
     let mut statement =
         connection.prepare("SELECT DISTINCT port_id FROM profiles ORDER BY port_id")?;
@@ -1245,11 +1262,6 @@ pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
             });
         }
     }
-    if exported.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::state(
-            "library has more profiles than metadata can carry",
-        ));
-    }
     exported.sort_by(|a, b| {
         (&a.profile.port_id, &a.profile.id).cmp(&(&b.profile.port_id, &b.profile.id))
     });
@@ -1266,13 +1278,10 @@ pub(crate) fn has_retired_history(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
 ) -> bool {
+    let references = references_by_setup(references);
     profiles.iter().any(|entry| {
         references
-            .iter()
-            .find(|reference| {
-                reference.setup_id == entry.profile.id
-                    && reference.build.port_id == entry.profile.port_id
-            })
+            .get(&(entry.profile.port_id.as_str(), entry.profile.id.as_str()))
             .is_some_and(|reference| {
                 entry.revisions.iter().any(|revision| {
                     !reference
@@ -1283,16 +1292,31 @@ pub(crate) fn has_retired_history(
     })
 }
 
+/// Indexes references by (port, setup) so validation stays linear in library size.
+fn references_by_setup(
+    references: &[crate::RetainedBuildReference],
+) -> BTreeMap<(&str, &str), &crate::RetainedBuildReference> {
+    let mut indexed = BTreeMap::new();
+    for reference in references {
+        indexed
+            .entry((
+                reference.build.port_id.as_str(),
+                reference.setup_id.as_str(),
+            ))
+            .or_insert(reference);
+    }
+    indexed
+}
+
+/// The profile count follows the exporting library: creation has no count
+/// ceiling, so neither does the exchange contract. Each profile and revision
+/// keeps its own byte bound.
 pub(crate) fn validate_export(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
     allow_retired_history: bool,
 ) -> Result<()> {
-    if profiles.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::verification(
-            "library metadata exceeds the profile limit",
-        ));
-    }
+    let indexed = references_by_setup(references);
     let mut ids = BTreeSet::new();
     let mut defaults = BTreeSet::new();
     let mut selected_ports = BTreeSet::new();
@@ -1308,9 +1332,9 @@ pub(crate) fn validate_export(
                 "library metadata has a repeated, malformed or incomplete profile",
             ));
         }
-        let reference = references
-            .iter()
-            .find(|r| r.setup_id == profile.id && r.build.port_id == profile.port_id)
+        let reference = indexed
+            .get(&(profile.port_id.as_str(), profile.id.as_str()))
+            .copied()
             .ok_or_else(|| {
                 PortcoveError::verification("a profile has no retained build reference")
                     .detail("profile_id", &profile.id)
@@ -1507,7 +1531,20 @@ pub(crate) fn active_install_id(connection: &Connection, port_id: &str) -> Resul
         .flatten())
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Stored setup and revision records decoded on this thread: a
+    /// deterministic measure of per-operation work for scaling tests.
+    pub(crate) static DECODED_RECORDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn count_decoded_record() {
+    #[cfg(test)]
+    DECODED_RECORDS.with(|count| count.set(count.get() + 1));
+}
+
 fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Profile> {
+    count_decoded_record();
     if json.len() > MAX_PROFILE_BYTES {
         return Err(PortcoveError::state("stored profile exceeds its bound"));
     }
@@ -1523,7 +1560,7 @@ fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Pro
 fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>> {
     let mut statement = connection.prepare(
         "SELECT id, port_id, current_revision, profile_json FROM profiles
-         WHERE port_id=?1 ORDER BY is_default DESC, id LIMIT 65",
+         WHERE port_id=?1 ORDER BY is_default DESC, id",
     )?;
     let rows = statement.query_map([port_id], |row| {
         Ok((
@@ -1605,20 +1642,48 @@ pub(crate) fn provider_evidence(
 }
 
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {
-    Ok(profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.is_default))
+    // `profiles_one_default` keeps at most one row per port.
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE port_id=?1 AND is_default=1",
+        params![port_id],
+    )
 }
 
+/// One setup by its primary key. Reads only that row, so operating on one
+/// setup costs the same however many setups the port has.
 pub(crate) fn profile_from(
     connection: &Connection,
     port_id: &str,
     profile_id: &str,
 ) -> Result<Profile> {
-    profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.id == profile_id)
-        .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE id=?1 AND port_id=?2",
+        params![profile_id, port_id],
+    )?
+    .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+}
+
+fn profile_row(
+    connection: &Connection,
+    sql: &str,
+    parameters: impl rusqlite::Params,
+) -> Result<Option<Profile>> {
+    connection
+        .query_row(sql, parameters, |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .optional()?
+        .map(|(id, port, current, json)| read_profile(&json, &id, &port, current))
+        .transpose()
 }
 
 fn revision_from(
@@ -1634,6 +1699,7 @@ fn revision_from(
         )
         .optional()?
         .ok_or_else(|| PortcoveError::not_found("profile revision is missing"))?;
+    count_decoded_record();
     if json.len() > MAX_REVISION_BYTES {
         return Err(PortcoveError::state(
             "stored profile revision exceeds its bound",
@@ -1721,6 +1787,7 @@ pub(crate) fn current_revision(
     revision_from(connection, profile_id, profile.current_revision)
 }
 
+#[cfg(test)]
 pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
     Ok(profiles_from(connection, port_id)?.len())
 }

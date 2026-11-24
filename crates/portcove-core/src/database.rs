@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 77;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 78;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -486,6 +486,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "explicit artwork suppression",
         apply: crate::artwork_store::migrate_suppression,
         verify: crate::artwork_store::verify_suppression,
+    },
+    Migration {
+        version: 78,
+        name: "retained-build retirement records",
+        apply: crate::retained_build::migrate_retirements,
+        verify: crate::retained_build::verify_retirements,
     },
 ];
 
@@ -4569,6 +4575,7 @@ mod tests {
         schema_74: 74,
         schema_75: 75,
         schema_76: 76,
+        schema_77: 77,
     }
 
     #[test]

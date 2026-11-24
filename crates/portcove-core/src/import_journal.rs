@@ -13,7 +13,6 @@ use crate::{
 };
 
 const JOURNAL: &str = ".portcove-import.json";
-const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -201,16 +200,15 @@ impl ImportJournal {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error.into()),
         };
-        if !metadata.is_file()
-            || metadata.file_type().is_symlink()
-            || metadata.len() > MAX_BYTES as u64
-        {
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(PortcoveError::verification(
-                "import journal is not a bounded regular file",
+                "import journal is not a regular file",
             ));
         }
-        let journal: Self =
-            serde_json::from_slice(&crate::path::read_bounded_regular(path, MAX_BYTES as u64)?)?;
+        // The journal carries the reviewed plan: metadata plus the content
+        // inventory. Its size follows the library being imported, so it has no
+        // whole-document ceiling; validation below checks it against the root.
+        let journal: Self = crate::path::read_regular_json(path, "import journal")?;
         journal.validate(root)?;
         Ok(Some(journal))
     }
@@ -322,11 +320,6 @@ impl ImportJournal {
     }
 
     pub fn write(&self, replace: bool) -> Result<()> {
-        if serde_json::to_vec_pretty(self)?.len() > MAX_BYTES - 4096 {
-            return Err(PortcoveError::unsupported(
-                "import inventory exceeds the recoverable journal limit",
-            ));
-        }
         crate::durability::write_json_atomically(
             &self.plan.destination_root.join(JOURNAL),
             self,

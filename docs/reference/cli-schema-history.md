@@ -56,6 +56,12 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+Additive, within the current API: `installation.reference-plan` results add an
+optional `retires` list (offers the binding retires under the 16-offer retention
+policy), and `installation.reference` adds an optional `retired` list of
+recorded retirements with their reason. Library writer schema 78 stores those
+records. No existing field changes meaning.
+
 API 101 adds the `logo` slot to artwork choices and the `logo` role to
 SteamGridDB candidates, attribution and listing reports. Logo changes can require
 library metadata format 14 and writer schema 75. Destination artwork handoff stays

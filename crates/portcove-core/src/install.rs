@@ -2020,7 +2020,8 @@ impl Installer {
             &install.path,
         )?;
         if request.activate {
-            crate::profile::require_default_recovery_capacity(
+            crate::profile::require_default_retention_ready(
+                &self.library,
                 &self.library.connection()?,
                 &install.port_id,
                 &install.id,

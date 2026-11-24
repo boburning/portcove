@@ -5177,7 +5177,8 @@ impl PortcoveService {
         self.managed_install_root(port_id, &staged.path)?;
         crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
-        crate::profile::require_default_recovery_capacity(
+        crate::profile::require_default_retention_ready(
+            &self.library,
             &self.library.connection()?,
             port_id,
             &staged.id,
