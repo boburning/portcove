@@ -8809,6 +8809,9 @@ void test("random archive names: any token outside product subsequence, initiali
       ["Gears", "of", "War", "2"],
       ["gow"],
       ["War", "2"],
+      // A descriptor before an initialism.
+      ["recomp", "gow2"],
+      ["Native", "gow2", "usa"],
     ],
     "Star Wars: Shadows of the Empire": [
       ["Shadows"],
@@ -8817,7 +8820,7 @@ void test("random archive names: any token outside product subsequence, initiali
       ["sote"],
       ["The", "Empire"],
     ],
-    "Digimon World 2": [["dw2"], ["Digimon", "World", "2"], ["Digimon"], ["dw"]],
+    "Digimon World 2": [["dw2"], ["Digimon", "World", "2"], ["Digimon"], ["dw"], ["port", "dw2"]],
   };
   const tails = [
     "v1.0",
@@ -8975,9 +8978,33 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
     ["Static Shock", "ss-port", "Shock-1.0-win64.zip"],
     ["Native Hunter", "nh-port", "Hunter-1.0-win64.zip"],
     ["Pal Game Party", "pgp-port", "Game-Party-1.0-win64.zip"],
-    // F3: only `p` is a patch letter.
+    // F3: only `p` is a patch letter; glued channel markers withhold.
     ["Lantern", "lantern", "Lantern-1.0d-win64.zip"],
     ["Lantern", "lantern", "Lantern-1.2.0x-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0s-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0t-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0e-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0x-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0b2-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0rc1-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0a1-win64.zip"],
+    // B1 across names: an initialism or partial name of a repository name
+    // that lacks the title's sequel number, or omits its final words, never
+    // stands for a numbered entry of the series (also an exact spelling of
+    // such a repository name).
+    ...["Gears of War 2", "Gears of War 3", "Gears of War 4"].flatMap(
+      (title): [string, string, string][] => [
+        [title, "gears-of-war-port", "gow-1.0-win64.zip"],
+        [title, "gow-recomp", "gow-1.0-win64.zip"],
+        [title, "gow-recomp", "GOW-Recomp-1.0-win64.zip"],
+        [title, "gears-of-war-port", "Native-gow-1.0-win64.zip"],
+      ],
+    ),
+    ["Need for Speed Underground 2", "nfs-recomp", "nfs-1.0-win64.zip"],
+    ["Need for Speed Underground", "nfs-recomp", "nfs-1.0-win64.zip"],
+    ["Tony Hawk's Pro Skater 2", "thps-port", "thps-1.0-win64.zip"],
+    ["Monster Hunter Generations Ultimate", "mh-port", "mh-1.0-win64.zip"],
+    ["SSX 3", "ssx-recomp", "SSX-Recomp-1.0-win64.zip"],
   ];
   for (const [name, repository, archive] of withheld) {
     const fit = reliefAccount(name, repository, archive);
@@ -9008,6 +9035,18 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
     ["Digimon World 2", "world-port", "dw2-1.0-win64.zip"],
     ["Dead or Alive 3", "alive-port", "doa3-1.0-win64.zip"],
     ["Monster Hunter Generations Ultimate", "ultimate-port", "mhgu-1.0-win64.zip"],
+    // B1: the whole series name keeps its repository initialism, and a
+    // numbered entry its own.
+    ["Gears of War", "gears-of-war-port", "gow-1.0-win64.zip"],
+    ["Gears of War", "gow-recomp", "GOW-Recomp-1.0-win64.zip"],
+    ["Gears of War 2", "gears-of-war-port", "gow2-1.0-win64.zip"],
+    ["Tony Hawk's Pro Skater", "thps-port", "thps-1.0-win64.zip"],
+    ["Earthworm Jim", "ewj-port", "ewj-1.0-win64.zip"],
+    ["Sega Superstars Tennis", "tennis-port", "sst-1.0-win64.zip"],
+    ["RalliSport Challenge", "challenge-port", "rsc-1.0-win64.zip"],
+    ["God Hand Rearmed", "rearmed-port", "ghr-1.0-win64.zip"],
+    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip"],
+    ["Killer Instinct", "instinct-port", "ki-1.0-win64.zip"],
   ];
   for (const [name, repository, archive] of enrolled)
     assert.ok("product" in reliefAccount(name, repository, archive), `${archive} for ${name}`);
@@ -9024,6 +9063,7 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
   // B3: the fit and the gate agree on descriptors before an initialism.
   for (const [name, repository, archive] of [
     ["Super Contra", "contra-port", "recomp-sc-1.0-win64.zip"],
+    ["Super Contra", "contra-port", "usa-sc-1.0-win64.zip"],
     ["Gears of War 2", "gears-port", "Native_Gow2.zip"],
   ] as const)
     assert.ok("product" in reliefAccount(name, repository, archive), archive);
@@ -9037,6 +9077,27 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
     null,
   );
   assert.ok(gateProgramAccounted("port-ki-win64/ki.exe", ["kiport"], [], false, kiForms));
+  // B1 across names for programs and folders: `gow` through a repository
+  // name without the `2` withholds; `gow2` stays accounted.
+  const gowForms = reliefForms(
+    reliefRecord("gow", "Gears of War 2", "gears-of-war-port").listing,
+    "fixture-owner/gears-of-war-port",
+    "",
+  );
+  const gowNames = new Set(["gearsofwarport"]);
+  for (const path of [
+    "gow.exe",
+    "gowrecomp.exe",
+    "gow-win64/gow2.exe",
+    "native-gow-v1.0/gow2.exe",
+  ]) {
+    assert.notEqual(programNameUnaccounted(path, gowNames, new Set(), false, gowForms), null, path);
+    assert.equal(gateProgramAccounted(path, [...gowNames], [], false, gowForms), false, path);
+  }
+  for (const path of ["gow2.exe", "gow2-win64/gow2.exe"]) {
+    assert.equal(programNameUnaccounted(path, gowNames, new Set(), false, gowForms), null, path);
+    assert.ok(gateProgramAccounted(path, [...gowNames], [], false, gowForms), path);
+  }
 });
 
 void test("random titles: no dropped segment tail, dropped or re-attached number, or initialism omitting a later number enrolls; fit and gate agree (second-review property)", () => {
@@ -9112,4 +9173,35 @@ void test("random titles: no dropped segment tail, dropped or re-attached number
     withheld++;
   }
   assert.ok(parity > 300 && withheld > 200, `${parity} parity, ${withheld} withheld`);
+  // Across names: a numbered title whose repository name lacks the number
+  // never enrolls the repository's initialism or its exact spelling.
+  let series = 0;
+  for (let round = 0; round < 600; round++) {
+    const words = [
+      ...new Set(Array.from({ length: 2 + Math.floor(random() * 3) }, () => pick(vocabulary))),
+    ];
+    if (words.length < 2) continue;
+    const number = String(2 + Math.floor(random() * 7));
+    const title = `${words.join(" ")} ${number}`;
+    const repository = `${words.join("-")}${pick(["", "-port", "-recomp"])}`;
+    const initials = words.map((word) => word[0]).join("");
+    const descriptor = pick(["", "recomp-", "native-"]);
+    const archive = pick([
+      `${descriptor}${initials}-v1.0-win64.zip`,
+      `${repository}-v1.0-win64.zip`,
+      `${initials}-${pick(["port", "recomp"])}-1.0-win64.zip`,
+    ]);
+    const record = reliefRecord("s", title, repository);
+    const fit = archiveNameAccount(archive, record.listing, `fixture-owner/${repository}`);
+    const gate = gateArchiveAccount(archive, record.listing, `fixture-owner/${repository}`);
+    assert.equal("product" in fit ? fit.product : null, gate, `parity ${archive} for ${title}`);
+    assert.ok(!("product" in fit), `${archive} must withhold for ${title} [${repository}]`);
+    // Keeping the number enrolls the initialism again, in fit and gate.
+    const kept = `${initials}${number}-v1.0-win64.zip`;
+    const keptFit = archiveNameAccount(kept, record.listing, `fixture-owner/${repository}`);
+    const keptGate = gateArchiveAccount(kept, record.listing, `fixture-owner/${repository}`);
+    assert.equal("product" in keptFit ? keptFit.product : null, keptGate, `parity ${kept}`);
+    series++;
+  }
+  assert.ok(series > 400, `${series} series titles`);
 });

@@ -125,7 +125,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 24;
+export const GENERATOR_VERSION = 25;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 23;
@@ -4182,6 +4182,80 @@ export function nameInitialisms(form: readonly NameFormWord[]): Set<string> {
   }
   return initialisms;
 }
+/**
+ * The initials of every leading run of an accepted name's first title
+ * segment that ends where `nameInitialisms` never lets a run end: inside a
+ * glued chunk, while a number remains later in the segment, or before the
+ * segment's end other than just after a chunk holding a number. Each has two
+ * or more letters. `gow` for "Gears of War 2", `thps` for "Tony Hawk's Pro
+ * Skater 2", `mh` and `mhg` for "Monster Hunter Generations Ultimate". A
+ * spelling that is also a whole run is none.
+ */
+export function truncatedInitialisms(form: readonly NameFormWord[]): Set<string> {
+  const segment = form.filter((word) => word.segment === form[0]?.segment && !word.optional);
+  const truncated = new Set<string>();
+  const ending = new Set<string>();
+  let options = new Set<string>([""]);
+  let chunkNumber = false;
+  for (let index = 0; index < segment.length; index++) {
+    const word = segment[index]!;
+    if (!word.glued) chunkNumber = false;
+    if (word.ordinal) chunkNumber = true;
+    if (word.possessive) continue;
+    const initials = word.ordinal
+      ? [word.word]
+      : word.acronym
+        ? [word.word[0]!, word.word]
+        : [word.word[0]!];
+    const next = new Set<string>();
+    for (const option of options)
+      for (const initial of initials)
+        if (option.length + initial.length <= 12) next.add(option + initial);
+    options = next;
+    const following = segment[index + 1];
+    const ends =
+      following?.glued !== true &&
+      !segment.slice(index + 1).some((later) => later.ordinal) &&
+      (following === undefined || chunkNumber);
+    for (const option of options)
+      if (option.replace(/[0-9]/gu, "").length >= 2) (ends ? ending : truncated).add(option);
+  }
+  for (const option of ending) truncated.delete(option);
+  return truncated;
+}
+/**
+ * Whether a literal is, with descriptors around it, a truncated initialism
+ * (`truncatedInitialisms`) of one of the forms: it drops a later number or
+ * the final words of that name's first title segment, so it names another
+ * game of the series. Placed as `reliefSpelling` places an initialism.
+ */
+function spellsTruncatedInitialism(
+  literal: string,
+  forms: readonly NameFormWord[][],
+  cuts: ReadonlySet<number> | null,
+): boolean {
+  for (const form of forms)
+    for (const initialism of truncatedInitialisms(form))
+      for (
+        let at = literal.indexOf(initialism);
+        at >= 0;
+        at = literal.indexOf(initialism, at + 1)
+      ) {
+        const before = literal.slice(0, at);
+        const after = literal.slice(at + initialism.length);
+        if (/^[0-9]/u.test(after) || /[0-9]$/u.test(before)) continue;
+        if (cuts !== null && !(cuts.has(at) && cuts.has(at + initialism.length))) continue;
+        if (cuts === null && before !== "") continue;
+        if (
+          descriptorRun(before) &&
+          descriptorRun(after) &&
+          wholeDescriptors(before, 0, cuts) &&
+          wholeDescriptors(after, at + initialism.length, cuts)
+        )
+          return true;
+      }
+  return false;
+}
 /** Whether a mask is a spelling the partial-name rule accepts. */
 const validMask = (mask: number) =>
   (mask & keptBit) !== 0 && (!(mask & omittedBit) || (mask & distinctBit) !== 0);
@@ -4234,7 +4308,10 @@ export function reliefSpelling(
  * spells the id but drops the name's `2`, and `Sims1-…` drops the `2` of "The
  * Sims 2". A name the literal spells under the reliefs is no contradiction,
  * nor is a number the literal carries elsewhere (`DOA3` for "Dead or Alive 3
- * (DOA3 Recomp)").
+ * (DOA3 Recomp)"). A truncated initialism of any of the names
+ * (`spellsTruncatedInitialism`) is one too, whichever name it spells: `gow`
+ * spells the repository name `gears-of-war-port` (or `gow-recomp`) of "Gears
+ * of War 2" but drops its `2`.
  */
 export function dropsLinkedNumber(
   literal: string,
@@ -4242,6 +4319,7 @@ export function dropsLinkedNumber(
   forms: readonly NameFormWord[][],
   cuts: ReadonlySet<number> | null = null,
 ): boolean {
+  if (spellsTruncatedInitialism(literal, forms, cuts)) return true;
   const carried = new Set(
     [...digits].map(([start, length]) => literal.slice(start, start + length)),
   );
@@ -7740,6 +7818,7 @@ function gateDropsNumberForms(
   forms: readonly GateFormWord[][],
   cuts: ReadonlySet<number> | null = null,
 ): boolean {
+  if (gateTruncatedSpelled(literal, forms, cuts)) return true;
   const acceptable = (outcome: string) =>
     outcome.includes("k") && (!outcome.includes("o") || outcome.includes("d"));
   for (const form of forms) {
@@ -7753,6 +7832,71 @@ function gateDropsNumberForms(
     )
       return true;
   }
+  return false;
+}
+/** The truncated initialisms of a name, restated: see `truncatedInitialisms`. */
+function gateTruncatedInitialisms(form: readonly GateFormWord[]): string[] {
+  const firstSegment = form.length ? form[0]!.segment : 0;
+  const words = form.filter((word) => word.segment === firstSegment && !word.trailing);
+  const short: string[] = [];
+  const whole: string[] = [];
+  let spellings = [""];
+  let numberInChunk = false;
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index]!;
+    if (!word.glued) numberInChunk = false;
+    if (word.number) numberInChunk = true;
+    if (word.possessive) continue;
+    let initials = [word.text.slice(0, 1)];
+    if (word.number) initials = [word.text];
+    else if (word.capitals) initials = [word.text.slice(0, 1), word.text];
+    const grown: string[] = [];
+    for (const spelling of spellings)
+      for (const initial of initials)
+        if ((spelling + initial).length <= 12 && !grown.includes(spelling + initial))
+          grown.push(spelling + initial);
+    spellings = grown;
+    const next = words[index + 1];
+    let laterNumber = false;
+    for (const later of words.slice(index + 1)) if (later.number) laterNumber = true;
+    let ends = !laterNumber;
+    if (next !== undefined && (next.glued || !numberInChunk)) ends = false;
+    for (const spelling of spellings) {
+      if (spelling.replace(/\d/gu, "").length < 2) continue;
+      const list = ends ? whole : short;
+      if (!list.includes(spelling)) list.push(spelling);
+    }
+  }
+  return short.filter((spelling) => !whole.includes(spelling));
+}
+/**
+ * Whether a literal is a truncated initialism of one of the forms with
+ * descriptors around it, restated: see `spellsTruncatedInitialism`.
+ */
+function gateTruncatedSpelled(
+  literal: string,
+  forms: readonly GateFormWord[][],
+  cuts: ReadonlySet<number> | null,
+): boolean {
+  for (const form of forms)
+    for (const initialism of gateTruncatedInitialisms(form)) {
+      let at = literal.indexOf(initialism);
+      while (at >= 0) {
+        const end = at + initialism.length;
+        const head = literal.slice(0, at);
+        const tail = literal.slice(end);
+        const digitBeside = /^\d/u.test(tail) || /\d$/u.test(head);
+        const onTokens = cuts === null || (cuts.has(at) && cuts.has(end));
+        if (
+          !digitBeside &&
+          onTokens &&
+          gateDescriptorTokens(head, 0, cuts) &&
+          gateDescriptorTokens(tail, end, cuts)
+        )
+          return true;
+        at = literal.indexOf(initialism, at + 1);
+      }
+    }
   return false;
 }
 /**

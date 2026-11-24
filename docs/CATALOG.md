@@ -4170,16 +4170,27 @@ relief for a person to hand-check first.
   inside a glued chunk, and never while a number remains later in the
   segment: `dw2`, `doa3`, `wg3d` and `mhgu`, never `dw`, `doa`, `wg3`, `mhg`
   for "Monster Hunter Generations Ultimate" or `nfs` for "Need for Speed
-  Underground 2". Measured: `mm`, `sst`, `rsc`, `ghr`, `gow`, `mhgu`, `dw2`,
-  `wg3d`, `doa3`, `itc`, `ki`, `thps`, `otesa`. An initialism that is a
+  Underground 2". The same holds across the listing's names: a product that
+  is, with descriptors around it, the initials of a run of any accepted
+  name's first title segment that ends where no initialism may end (a
+  truncated initialism, `truncatedInitialisms`) is unaccounted, also when it
+  spells the id or repository name exactly. So `gow`, `gow-recomp` or
+  `Native-gow` never stands for "Gears of War 2", 3 or 4, even in a
+  repository named `gears-of-war-port` or `gow-recomp`, while `gow2` does;
+  `nfs` never stands for "Need for Speed Underground" through a repository
+  named `nfs-recomp`, `thps` never for "Tony Hawk's Pro Skater 2" through
+  `thps-port`, and `SSX-Recomp` never for "SSX 3". Measured: `mm`, `sst`,
+  `rsc`, `ghr`, `gow`, `mhgu`, `dw2`, `wg3d`, `doa3`, `itc`, `ki`, `thps`,
+  `otesa`. An initialism that is a
   deny-list, neutral, descriptor, channel, variant, layout or package-form
   word, a roman number, or a short edition, medium or bonus word (`ds`, `sv`,
   `svr`, `cl`, `ed`, `me`, `dlc`, `ost`, `bgm`, `hd`, `sd`, `uhd`, `dx`, `cd`,
   `dvd`, `ex`, `se`, `ce`, `le`, `re`, `mp`, `sp`, `vr`, `xl`), is never one
   (`initialismVetoWords`), even where it really is the initials; `sc` for
-  "Super Contra" is one. `ewj` for "Earthworm Jim" is not recovered:
-  `earthworm` is one word in every accepted name, and the rules split no
-  compound words.
+  "Super Contra" is one. `ewj` for "Earthworm Jim" is not recovered as an
+  initialism: `earthworm` is one word in every accepted name, and the rules
+  split no compound words; it is accounted only where the repository name
+  spells it (`ewj-port`).
 - **Port descriptor** (`descriptor`). A closed list of words that say how a
   port was made, not which game it is, may stand in the archive or program
   name without being in the accepted name, and may be absent where the
@@ -5025,13 +5036,15 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 24, the facts parser version from 5 to 23 and
+generator version from 5 to 25, the facts parser version from 5 to 23 and
 the facts table format from 4 to 17 (generator 23: the measured name
 reliefs, `archive-names-another-listing` and the `enrollment_reliefs` and
 `relieved_enrollments` queues; generator 24: title segments for partial names
 and initialisms, title descriptors kept, only `p` as a patch letter, the
 first-segment and number-suffix cross-listing checks and the
-`franchise_only_partial` queue; generator 22 and parser 23: the
+`franchise_only_partial` queue; generator 25: truncated initialisms across
+the listing's names, so a repository name without the sequel number never
+accounts for a numbered entry; generator 22 and parser 23: the
 ordered archive grammar, folder numbers by the same grammar, relief only for
 recognised forms and the listing's own names, a `.wad` as a competing
 container, `release` before a status word's number, and the
