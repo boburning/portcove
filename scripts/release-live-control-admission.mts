@@ -20,6 +20,7 @@ import {
   requireFixedClassificationStoragePolicy,
   requireCatalogMaintenancePolicy,
   requireReleaseImmutabilityPolicy,
+  requireReceiptTagProtectionPolicy,
 } from "./release-input-protections.mts";
 import {
   createFixedControlReadAllowance,
@@ -490,6 +491,14 @@ async function authenticateControlSource(
         : {}),
     };
   };
+  // Release consumers rely on receipt pair identities without re-reading each
+  // historical raw receipt commit only while both receipt namespaces are
+  // immutable for everyone and creatable only by the release state writer
+  // (#1422). A missing or weaker policy, or an unratified namespace, refuses.
+  const receiptProtection = (namespace: string) => {
+    guard();
+    return requireReceiptTagProtectionPolicy(handoff.observation, namespace, now());
+  };
   let sdkDeadline: number | undefined;
   let readSdkProducer: ((deadline?: number) => Promise<string>) | undefined;
   let producerIdentity: string;
@@ -664,6 +673,7 @@ async function authenticateControlSource(
       options.observedArtifact?.evidence_scope === "injected-provider"
         ? "injected-provider"
         : "github.com",
+    receiptProtection,
     readMaintenance(api: CoordinatorRemoteApi) {
       const protection = beginMaintenance();
       const pause = readPublicationPause(api);

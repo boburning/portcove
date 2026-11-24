@@ -42,6 +42,15 @@ import {
 } from "./maintenance-reconsiderations.mts";
 import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
+  assessmentScope,
+  boundVisible,
+  loadedCollectorIdentity,
+  listingsPath,
+  mechanismOf,
+  type AssessmentScope,
+  type SubjectScope,
+} from "./maintenance-assessment-scope.mts";
+import {
   attentionConditions,
   readReleaseHealth,
   releaseHealthFacts,
@@ -206,6 +215,30 @@ function git(args: string[]) {
   return result.stdout;
 }
 
+/** Every tracked blob's object ID at a revision, by repository path. */
+function committedBlobs(revision: string) {
+  const blobs = new Map<string, string>();
+  for (const entry of git(["ls-tree", "-r", "-z", "--full-tree", revision]).split("\0")) {
+    const match = /^[0-7]{6} blob ([0-9a-f]{40,64})\t(.+)$/su.exec(entry);
+    if (match) blobs.set(match[2]!, match[1]!);
+  }
+  return blobs;
+}
+
+/** Paths that differ from `HEAD` in the checkout, tracked or not. */
+function dirtyPaths() {
+  const paths = new Set<string>();
+  const entries = git(["status", "--porcelain=v1", "-z", "--untracked-files=all"]).split("\0");
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]!;
+    if (entry.length < 4) continue;
+    paths.add(entry.slice(3));
+    // A rename or copy is followed by its original path.
+    if (entry[0] === "R" || entry[0] === "C") paths.add(entries[++index] ?? "");
+  }
+  return paths;
+}
+
 /** A file's exact bytes at a commit; fails when the commit or path is unavailable locally. */
 function committedBytes(revision: string, file: string) {
   if (!/^[a-f0-9]{40}$/u.test(revision)) throw new MaintenanceStoreError("Invalid commit identity");
@@ -272,7 +305,40 @@ export const isolationScope = "fresh-empty-library-preferences-diagnostics-lock"
  * lock (the CLI's maintained isolation overrides), so a collection never
  * touches or rotates the maintainer's real Portcove state.
  */
-async function isolatedCli(cli: string, args: string[]) {
+/** A Core process exceeded its time or output budget; the read said nothing about its ports. */
+export class CoreBudgetExceeded extends MaintenanceStoreError {
+  readonly budget: "time" | "output";
+  constructor(budget: "time" | "output", command: string) {
+    super(`portcove ${command} exceeded its ${budget} budget`);
+    this.budget = budget;
+  }
+}
+
+/** Per-process budgets for an isolated Core read. */
+export interface CoreBudget {
+  timeoutMs: number;
+  maxBufferBytes: number;
+}
+/**
+ * The whole Core read's deadline. Splitting can run up to 2n-1 processes for an
+ * n-port chunk, so the read as a whole is bounded too: no process starts after
+ * the deadline, each process's time budget is cut to what remains, and ports
+ * not read by then are gaps. With the 15-minute collection transaction this
+ * stays inside the hosted step's 40 minutes.
+ */
+export const coreReadDeadlineMs = 15 * 60_000;
+
+export const defaultCoreBudget: CoreBudget = {
+  timeoutMs: 120_000,
+  maxBufferBytes: 16 * 1024 * 1024,
+};
+
+async function isolatedCli(
+  cli: string,
+  args: string[],
+  budget: CoreBudget = defaultCoreBudget,
+  onOutputBytes?: (bytes: number) => void,
+) {
   // Core refuses paths below a symlink (macOS /var, a linked TMPDIR) and diagnostics
   // would then fall back to the platform directory, so the root is a resolved real path.
   const root = mkdtempSync(path.join(realpathSync(os.tmpdir()), "portcove-inventory-"));
@@ -286,8 +352,8 @@ async function isolatedCli(cli: string, args: string[]) {
           ["--library", library, "--json", ...args],
           {
             encoding: "utf8",
-            timeout: 120_000,
-            maxBuffer: 16 * 1024 * 1024,
+            timeout: budget.timeoutMs,
+            maxBuffer: budget.maxBufferBytes,
             windowsHide: true,
             env: {
               ...process.env,
@@ -307,9 +373,15 @@ async function isolatedCli(cli: string, args: string[]) {
             },
           },
           (error, stdout, stderr) => {
-            if (error && (error.killed || error.signal || typeof error.code !== "number"))
+            if ((error?.code as unknown) === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+              reject(new CoreBudgetExceeded("output", args[0] ?? "command"));
+            else if (error?.killed) reject(new CoreBudgetExceeded("time", args[0] ?? "command"));
+            else if (error && (error.signal || typeof error.code !== "number"))
               reject(new MaintenanceStoreError(`portcove ${args[0]} did not finish`));
-            else resolve({ status: error ? (error.code as number) : 0, stdout, stderr });
+            else {
+              onOutputBytes?.(Buffer.byteLength(stdout));
+              resolve({ status: error ? (error.code as number) : 0, stdout, stderr });
+            }
           },
         );
       },
@@ -333,6 +405,158 @@ async function isolatedCli(cli: string, args: string[]) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+/** Ports per Core process when the CLI offers the batch read; bounds each process's output. */
+export const coreBatchSize = 200;
+/** Argument characters per batch process, well under the Windows command-line limit. */
+export const coreBatchArgumentChars = 24_000;
+
+/**
+ * Core assessments for many ports. With `port-capabilities-batch` one process
+ * loads the catalog once per chunk of at most `coreBatchSize` ports and
+ * `coreBatchArgumentChars` argument characters; each port's report, or its
+ * refusal code and message, is what the single-port command returns. A
+ * refused envelope records every port of its chunk as that failure, as the
+ * single-port command would for each; output that is not a valid envelope
+ * stops the collection, which then records nothing. Without the batch
+ * command, one process per port.
+ */
+export async function coreCapabilitiesMany(
+  cli: string,
+  ids: readonly string[],
+  options: {
+    batch: boolean;
+    concurrency: number;
+    onProcess?: () => void;
+    /** Per-process budgets; the defaults otherwise. */
+    budget?: CoreBudget;
+    /** Each batch process's output size, and each split of a chunk that exceeded a budget. */
+    onOutputBytes?: (bytes: number) => void;
+    onSplit?: (ports: number) => void;
+    /** Milliseconds the whole read may take; `coreReadDeadlineMs` otherwise. */
+    deadlineMs?: number;
+  },
+): Promise<Map<string, CapabilityObservation>> {
+  const deadline = performance.now() + (options.deadlineMs ?? coreReadDeadlineMs);
+  const results = new Map<string, CapabilityObservation>();
+  if (!options.batch) {
+    const read = await mapBounded(ids, options.concurrency, async (id) => {
+      // An older CLI reads one port per process; no process starts after the deadline.
+      if (performance.now() >= deadline)
+        return [
+          id,
+          {
+            ok: false,
+            error: {
+              code: "core-read-deadline",
+              message: "The Core read reached its deadline before this port",
+            },
+          },
+        ] as const;
+      options.onProcess?.();
+      return [id, await coreCapabilities(cli, id)] as const;
+    });
+    for (const [id, observation] of read) results.set(id, observation);
+    return results;
+  }
+  const chunks: string[][] = [];
+  let chars = 0;
+  for (const id of ids) {
+    const cost = id.length + " --port ".length;
+    const last = chunks.at(-1);
+    if (!last || last.length >= coreBatchSize || chars + cost > coreBatchArgumentChars) {
+      chunks.push([id]);
+      chars = cost;
+    } else {
+      last.push(id);
+      chars += cost;
+    }
+  }
+  const failure = (code: unknown, message: unknown): CapabilityObservation => ({
+    ok: false,
+    error: {
+      code: typeof code === "string" ? code : "unknown",
+      message: typeof message === "string" ? message : "",
+    },
+  });
+  // A chunk that exceeds its time or output budget is split in half, down to
+  // single ports, so one slow or oversized port cannot fail every scheduled run.
+  // A single port that still exceeds it is a gap: the run is partial and the
+  // next one reads everything again.
+  const read = async (chunk: string[]): Promise<void> => {
+    const remaining = Math.floor(deadline - performance.now());
+    if (remaining <= 0) {
+      for (const id of chunk)
+        results.set(
+          id,
+          failure("core-read-deadline", "The Core read reached its deadline before this port"),
+        );
+      return;
+    }
+    options.onProcess?.();
+    const budget = options.budget ?? defaultCoreBudget;
+    let envelope: Awaited<ReturnType<typeof isolatedCli>>;
+    try {
+      envelope = await isolatedCli(
+        cli,
+        ["port-capabilities-batch", ...chunk.flatMap((id) => ["--port", id])],
+        { ...budget, timeoutMs: Math.min(budget.timeoutMs, remaining) },
+        options.onOutputBytes,
+      );
+    } catch (error) {
+      if (!(error instanceof CoreBudgetExceeded)) throw error;
+      if (performance.now() >= deadline) {
+        for (const id of chunk)
+          results.set(
+            id,
+            failure("core-read-deadline", "The Core read reached its deadline before this port"),
+          );
+        return;
+      }
+      if (chunk.length === 1) {
+        results.set(
+          chunk[0]!,
+          failure(
+            `batch-${error.budget}-budget`,
+            `Core exceeded its ${error.budget} budget for this port`,
+          ),
+        );
+        return;
+      }
+      options.onSplit?.(chunk.length);
+      const half = Math.ceil(chunk.length / 2);
+      await read(chunk.slice(0, half));
+      await read(chunk.slice(half));
+      return;
+    }
+    if (!envelope.ok) {
+      for (const id of chunk)
+        results.set(id, failure(envelope.error?.code, envelope.error?.message));
+      return;
+    }
+    const reports = (envelope.data as { reports?: unknown } | undefined)?.reports;
+    if (
+      !Array.isArray(reports) ||
+      reports.length !== chunk.length ||
+      reports.some((entry, index) => !isRecord(entry) || entry.port_id !== chunk[index])
+    )
+      throw new MaintenanceStoreError("portcove port-capabilities-batch returned other ports");
+    for (const entry of reports as {
+      port_id: string;
+      ok: boolean;
+      report?: unknown;
+      error?: { code?: unknown; message?: unknown };
+    }[])
+      results.set(
+        entry.port_id,
+        entry.ok === true
+          ? { ok: true, report: entry.report }
+          : failure(entry.error?.code, entry.error?.message),
+      );
+  };
+  await mapBounded(chunks, options.concurrency, read);
+  return results;
 }
 
 /** The maintained Core assessment, read with fully isolated host state. */
@@ -424,6 +648,8 @@ export interface CollectedSubject {
   curatedPlatforms?: string[] | undefined;
   /** Null when a selective run reused the subject's unchanged Core result without calling Core. */
   capabilities: CapabilityObservation | null;
+  /** The subject's scoped reuse key; a read under it records the subject's reuse binding. */
+  scope?: SubjectScope | undefined;
 }
 
 /**
@@ -462,34 +688,6 @@ export const coreSemanticPaths = [
 ];
 
 /**
- * The Core semantics a run reads under: the Git object IDs of everything the
- * binary is built from, the producer's compiled catalog identity and
- * features, the API schema, projection, platform and isolation. Equal keys
- * mean the same code and data; the binary digest is deliberately excluded,
- * because every rebuild changes it.
- */
-export function coreReuseKey(input: {
-  trees: Readonly<Record<string, string>>;
-  producer: Pick<CoreProducer, "features" | "embedded_catalog_sha256" | "embedded_listings_sha256">;
-  apiSchema: number;
-  platform: string;
-}) {
-  return sha256(
-    canonicalJson({
-      trees: input.trees,
-      features: [...input.producer.features].sort(),
-      embedded_catalog_sha256: input.producer.embedded_catalog_sha256,
-      embedded_listings_sha256: input.producer.embedded_listings_sha256,
-      api: input.apiSchema,
-      projection: capabilityProjectionVersion,
-      platform: input.platform,
-      platform_identity: "cli-doctor-platform-v1",
-      isolation: isolationScope,
-    }),
-  );
-}
-
-/**
  * Whether a catalog observation became visible between two times: Core shows
  * clock-dated observations only once their `observed_at` (seconds) has passed,
  * so its output can change with no input changing. Any such value in the
@@ -516,23 +714,29 @@ export function clockWindowCrossed(
   return documents.some(visit);
 }
 
-/** The latest Core run of a source and the latest full read under a key, as the store holds them. */
+/** The latest Core run of a source and its latest complete full read, as the store holds them. */
 export interface ReuseHistory {
   latest: { coverage: string; reuse_key: string | null } | null;
   full_started_at: string | null;
 }
 
 /**
- * Plans a Core run. Selective reuse needs every condition; otherwise the run
- * is full and says why. A subject is reused only when its Core result and its
- * catalog fact are unchanged members of the decided baselines.
+ * Plans a Core run. Selective reuse needs a verified build, a complete latest
+ * run, a complete full read within `fullReassessmentDays` (the periodic full
+ * reconciliation) and the store's due selection; otherwise the run is full and
+ * says why. A subject is reused only when the store did not select it (same
+ * scoped key, catalog fact and result, no clock value visible since its read)
+ * and its Core result and catalog fact are unchanged members of the decided
+ * baselines.
  */
 export function planReassessment(input: {
   requested: "full" | "changed";
+  /** The run's base key (mechanism, shared data and policy); null when the build is unverified. */
   reuseKey: string | null;
   history: ReuseHistory | null;
   now: Date;
-  clockCrossed: (afterSeconds: number) => boolean;
+  /** Subjects the store selected for a Core read, with its reason; null when not asked. */
+  due: ReadonlyMap<string, string> | null;
   subjects: readonly { key: string; catalogDigest: string }[];
   catalogMembers: ReadonlyMap<string, string>;
   coreMembers: ReadonlyMap<string, string>;
@@ -548,18 +752,20 @@ export function planReassessment(input: {
       "the Core build's source binding is not verified, so its semantics cannot be keyed",
     );
   const latest = input.history?.latest;
-  if (!latest || latest.coverage !== "complete" || latest.reuse_key !== input.reuseKey)
-    return full("the latest Core run is not a complete read under the same key");
+  if (!latest || latest.coverage !== "complete")
+    return full("the latest Core run is not a complete read");
   const fullAt = input.history?.full_started_at ? Date.parse(input.history.full_started_at) : NaN;
   if (!Number.isFinite(fullAt) || input.now.getTime() - fullAt > fullReassessmentDays * 86_400_000)
-    return full(`no full read under this key within ${fullReassessmentDays} days`);
-  if (input.clockCrossed(Math.floor(fullAt / 1000)))
-    return full("a clock-dated catalog observation became visible since the last full read");
+    return full(`no complete full read within ${fullReassessmentDays} days`);
+  if (input.due === null) return full("the store's due selection is unavailable");
+  const due = input.due;
   const reused = new Set(
     input.subjects
       .filter(
         ({ key, catalogDigest }) =>
-          input.coreMembers.has(key) && input.catalogMembers.get(key) === catalogDigest,
+          !due.has(key) &&
+          input.coreMembers.has(key) &&
+          input.catalogMembers.get(key) === catalogDigest,
       )
       .map(({ key }) => key),
   );
@@ -567,9 +773,16 @@ export function planReassessment(input: {
     ? {
         reassessment: { mode: "selective", reuseKey: input.reuseKey },
         reused,
-        reason: `${reused.size} unchanged subjects reused under the same Core semantics`,
+        reason: `${reused.size} subjects reused under unchanged scoped dependencies; ${input.subjects.length - reused.size} read`,
       }
-    : full("no subject is unchanged under the same key");
+    : full("every subject's scoped dependencies changed or are due");
+}
+
+/** Counts of the store's due reasons, for the collection result. */
+export function dueReasons(due: ReadonlyMap<string, string>) {
+  const counts: Record<string, number> = {};
+  for (const reason of due.values()) counts[reason] = (counts[reason] ?? 0) + 1;
+  return counts;
 }
 
 /** The authored catalog fact of one subject, as stored by `catalog-records`. */
@@ -1146,8 +1359,8 @@ export interface SourceBaseline {
   members: ReadonlyMap<string, string>;
 }
 
-/** The latest Core run of a source and its latest full read under one reuse key. */
-function reuseHistory(environment: NodeJS.ProcessEnv, source: string, key: string): ReuseHistory {
+/** The latest Core run of a source and its latest complete full read. */
+function reuseHistory(environment: NodeJS.ProcessEnv, source: string): ReuseHistory {
   return parseJson(
     runSql(
       environment,
@@ -1157,11 +1370,39 @@ function reuseHistory(environment: NodeJS.ProcessEnv, source: string, key: strin
                      WHERE run_id = portcove_maintenance.latest_run(${literal(source)})),
          'full_started_at', (SELECT started_at FROM portcove_maintenance.collection_runs
                               WHERE source = ${literal(source)} AND coverage = 'complete'
-                                AND reassessment = 'full' AND reuse_key = ${literal(key)}
+                                AND reassessment = 'full'
                               ORDER BY acquisition DESC LIMIT 1));`,
     ).trim(),
     "maintenance reuse history",
   ) as ReuseHistory;
+}
+
+/** One subject's desired reuse binding, as `core_reassessment_due` reads it. */
+export interface DesiredBinding {
+  s: string;
+  k: string;
+  c: string;
+  v: number | null;
+}
+
+/**
+ * The subjects the store selects for a Core read, with their reasons. The
+ * store compares bindings and members itself and returns only these rows.
+ */
+export function reassessmentDue(
+  environment: NodeJS.ProcessEnv,
+  source: string,
+  desired: readonly DesiredBinding[],
+) {
+  const rows = parseJson(
+    runSql(
+      environment,
+      `SELECT coalesce(json_agg(json_build_array(subject_key, reason)), '[]')
+         FROM portcove_maintenance.core_reassessment_due(${literal(source)}, ${jsonLiteral(desired)});`,
+    ).trim(),
+    "maintenance reassessment selection",
+  ) as [string, string][];
+  return new Map(rows);
 }
 
 /** Latest present content digest per subject, as of the source's latest finished run. */
@@ -1431,6 +1672,23 @@ export function collectionSql(input: {
       revision: coreRevision,
       payload: capabilityFact,
     });
+    if (subject.scope && input.mode === "all" && input.reassessment?.reuseKey)
+      // The read binds the subject's scoped key and the newest clock value it
+      // saw. An unchanged binding is left alone.
+      lines.push(
+        `INSERT INTO portcove_maintenance.core_reuse_bindings AS b
+           (source, subject_key, scope_key, catalog_digest, content_sha256, run_id, read_at, visible_until)
+         VALUES (${literal(coreSource)}, ${literal(key)}, ${literal(subject.scope.key)}, ${literal(catalogDigest)},
+           ${literal(capabilityDigest)}, ${literal(coreRun)}, ${literal(input.startedAt)},
+           ${subject.scope.visibleUntil ?? "NULL"})
+         ON CONFLICT (source, subject_key) DO UPDATE SET
+           scope_key = EXCLUDED.scope_key, catalog_digest = EXCLUDED.catalog_digest,
+           content_sha256 = EXCLUDED.content_sha256, run_id = EXCLUDED.run_id, read_at = EXCLUDED.read_at,
+           visible_until = EXCLUDED.visible_until
+         WHERE (b.scope_key, b.catalog_digest, b.content_sha256, b.visible_until)
+                 IS DISTINCT FROM (EXCLUDED.scope_key, EXCLUDED.catalog_digest, EXCLUDED.content_sha256,
+                                   EXCLUDED.visible_until);`,
+      );
     // Core results are per host platform, so is the assessment history.
     const assessed = assessmentSubject(subject.id, input.platform);
     const result = capabilityResult(capabilityFact);
@@ -1980,7 +2238,12 @@ export async function collect(options: {
   const cliSha256 = sha256(readFileSync(options.cli));
   const envelope = await isolatedCli(options.cli, ["capabilities"]);
   const capabilities = envelope.data as
-    | { schema_version?: unknown; port_capability_schema?: unknown; platforms?: unknown }
+    | {
+        schema_version?: unknown;
+        port_capability_schema?: unknown;
+        platforms?: unknown;
+        commands?: unknown;
+      }
     | undefined;
   if (
     !envelope.ok ||
@@ -2040,28 +2303,51 @@ export async function collect(options: {
       : undefined,
     curatedPlatforms: definitions.curated.get(id),
   }));
-  const reuseKey =
-    producer && bindingVerified
-      ? coreReuseKey({
-          trees: Object.fromEntries(
-            coreSemanticPaths.map((entry) => {
-              const object = spawnSync(
-                "git",
-                ["rev-parse", "--verify", "--quiet", `${revision}:${entry}`],
-                {
-                  cwd: repositoryRoot,
-                  encoding: "utf8",
-                },
-              );
-              return [entry, object.status === 0 ? object.stdout.trim() : "absent"];
-            }),
-          ),
-          producer,
-          apiSchema,
-          platform,
+  const coreSource = coreSourceName(platform);
+  const coreTrees = Object.fromEntries(
+    coreSemanticPaths.map((entry) => {
+      const object = spawnSync(
+        "git",
+        ["rev-parse", "--verify", "--quiet", `${revision}:${entry}`],
+        {
+          cwd: repositoryRoot,
+          encoding: "utf8",
+        },
+      );
+      return [entry, object.status === 0 ? object.stdout.trim() : "absent"];
+    }),
+  );
+  const reviewedListingsBytes = bindingVerified ? committedBytes(revision, listingsPath) : null;
+  const listingsBytesVerified =
+    reviewedListingsBytes !== null &&
+    sha256(reviewedListingsBytes) === producer?.embedded_listings_sha256;
+  // Scoped reuse keys need the reviewed catalog and listings to be exactly what
+  // the binary embeds; otherwise every Core result is read again.
+  const scope: AssessmentScope | null =
+    producer && bindingVerified && catalogBytesVerified && listingsBytesVerified
+      ? assessmentScope({
+          mechanism: mechanismOf({
+            repositoryRoot,
+            cli: options.cli,
+            blobs: committedBlobs(revision),
+            trees: coreTrees,
+            dirty: dirtyPaths(),
+          }),
+          catalog: JSON.parse(reviewedCatalogBytes.toString("utf8")) as Record<string, unknown>,
+          listings: JSON.parse(reviewedListingsBytes.toString("utf8")) as Record<string, unknown>,
+          ids,
+          policy: {
+            features: producer.features,
+            apiSchema,
+            projection: capabilityProjectionVersion,
+            platform: `${platform};cli-doctor-platform-v1`,
+            isolation: isolationScope,
+          },
+          collector: loadedCollectorIdentity,
+          nowSeconds: Math.floor(Date.now() / 1000),
         })
       : null;
-  const coreSource = coreSourceName(platform);
+  const reuseKey = scope?.baseKey ?? null;
   const decidedBaseline =
     requested === "changed"
       ? {
@@ -2069,39 +2355,70 @@ export async function collect(options: {
           core: latestMembers(options.environment, coreSource),
         }
       : undefined;
+  const subjectDigests = authored.map((subject) => ({
+    key: `port:${subject.id}`,
+    catalogDigest: sha256(canonicalJson(catalogFactOf(subject))),
+  }));
+  const history =
+    reuseKey === null || requested === "full"
+      ? null
+      : reuseHistory(options.environment, coreSource);
+  const due =
+    scope && history?.latest?.coverage === "complete"
+      ? reassessmentDue(
+          options.environment,
+          coreSource,
+          authored.map((subject, index) => {
+            const subjectScope = scope.subjects.get(subject.id)!;
+            return {
+              s: subjectDigests[index]!.key,
+              k: subjectScope.key,
+              c: subjectDigests[index]!.catalogDigest,
+              v: subjectScope.visibleUntil,
+            };
+          }),
+        )
+      : null;
   const plan = planReassessment({
     requested,
     reuseKey,
-    history:
-      reuseKey === null || requested === "full"
-        ? null
-        : reuseHistory(options.environment, coreSource, reuseKey),
+    history,
     now: new Date(),
-    clockCrossed: (afterSeconds) =>
-      clockWindowCrossed(
-        ["catalog.json", "listings.json"].map((file): unknown =>
-          JSON.parse(git(["show", `${revision}:crates/portcove-core/catalog/${file}`])),
-        ),
-        afterSeconds,
-        Math.floor(Date.now() / 1000),
-      ),
-    subjects: authored.map((subject) => ({
-      key: `port:${subject.id}`,
-      catalogDigest: sha256(canonicalJson(catalogFactOf(subject))),
-    })),
+    due,
+    subjects: subjectDigests,
     catalogMembers: decidedBaseline?.catalog.members ?? new Map(),
     coreMembers: decidedBaseline?.core.members ?? new Map(),
   });
-  const subjects: CollectedSubject[] = await mapBounded(
-    authored,
-    options.concurrency ?? 4,
-    async (subject) => ({
+  const toRead = authored.filter(({ id }) => !plan.reused.has(`port:${id}`)).map(({ id }) => id);
+  const coreBatch =
+    Array.isArray(capabilities.commands) &&
+    capabilities.commands.includes("port-capabilities-batch");
+  let coreProcesses = 0;
+  let coreLargestOutput = 0;
+  let coreSplits = 0;
+  const coreReadStarted = performance.now();
+  const coreRead = await coreCapabilitiesMany(options.cli, toRead, {
+    batch: coreBatch,
+    concurrency: options.concurrency ?? 4,
+    onProcess: () => coreProcesses++,
+    onOutputBytes: (bytes) => (coreLargestOutput = Math.max(coreLargestOutput, bytes)),
+    onSplit: () => coreSplits++,
+  });
+  const coreReadSeconds = (performance.now() - coreReadStarted) / 1000;
+  // A clock value that became visible while Core read is unknown to the plan;
+  // such a binding records -1, so the next run reads the subject again.
+  const afterReadSeconds = Math.floor(Date.now() / 1000);
+  const subjects: CollectedSubject[] = authored.map((subject) => {
+    const subjectScope = scope?.subjects.get(subject.id);
+    return {
       ...subject,
-      capabilities: plan.reused.has(`port:${subject.id}`)
-        ? null
-        : await coreCapabilities(options.cli, subject.id),
-    }),
-  );
+      capabilities: plan.reused.has(`port:${subject.id}`) ? null : coreRead.get(subject.id)!,
+      scope: subjectScope && {
+        ...subjectScope,
+        visibleUntil: boundVisible(subjectScope, afterReadSeconds),
+      },
+    };
+  });
   const mode = options.all ? "all" : "sample";
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");
@@ -2370,6 +2687,17 @@ export async function collect(options: {
       reuse_key: plan.reassessment.reuseKey,
       reused: plan.reused.size,
       reason: plan.reason,
+      mechanism: scope?.mechanism.mode ?? null,
+      ...(scope?.mechanism.reason ? { mechanism_reason: scope.mechanism.reason } : {}),
+      due: due ? dueReasons(due) : null,
+    },
+    core_read: {
+      subjects: toRead.length,
+      batch: coreBatch,
+      processes: coreProcesses,
+      seconds: Math.round(coreReadSeconds * 10) / 10,
+      largest_output_bytes: coreLargestOutput,
+      splits: coreSplits,
     },
     cli_sha256: cliSha256,
     subjects: subjects.length,

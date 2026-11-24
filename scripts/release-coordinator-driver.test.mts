@@ -20,6 +20,7 @@ import {
   materializeCoordinatorPublishedSite,
   selectCoordinatorMetadataBootstrap,
   requireActualCoordinatorBootstrapPreparation,
+  readDecisionAllocations,
 } from "./release-coordinator-driver.mts";
 import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
@@ -1400,14 +1401,17 @@ void test("actual neutral review entry awaits fixed SDK source and complete inve
             calls.push("releases");
             return releases;
           },
-          async readAllocations(rows: unknown, namespace: string) {
+          async readAllocations(rows: unknown, namespace: string, verify: unknown) {
             assert.equal(rows, tags);
             assert.equal(namespace, "fixed");
+            // No active reservation: no raw receipt commit is a decision input.
+            assert.deepEqual(verify, []);
             calls.push("allocations");
-            return { allocations: [] };
+            return { receipts: [], allocations: [] };
           },
         };
       },
+      readDecisionAllocations,
       deriveCoordinatorPublication: () => ({ published_versions: ["1.2.3"] }),
       isApplicationReviewReleaseTag,
       selectCoordinatorPublicationBaseline: () => ({ release: releases[0], version: "1.2.3" }),
@@ -2037,4 +2041,106 @@ void test("retained renewal admits only the exact live resource policy rebind", 
     retained.controller.capacity_attempt.boundary.resource_policy_sha256,
     originalPolicy,
   );
+});
+
+/** Published history of `count` versions with its published tags and bare
+ * receipt pairs, as the coordinator reads it without raw-commit reads. */
+function publishedHistoryFixture(count: number) {
+  const oidOf = (value: number) => value.toString(16).padStart(40, "0");
+  const tags = [];
+  const releases = [];
+  const receipts = [];
+  for (let i = 0; i < count; i++) {
+    const version = `1.${Math.floor(i / 1000)}.${i % 1000}`;
+    const prepared = oidOf(0x1000000 + 2 * i);
+    tags.push(ref(`v${version}`, prepared, `published-${i}`));
+    releases.push(release(version, "2026-10-01T00:00:00Z", false, i + 1));
+    receipts.push({ version, source_commit: oidOf(0x1000001 + 2 * i), prepared_commit: prepared });
+  }
+  return { tags, releases, receipts };
+}
+
+for (const count of [256, 257, 1600, 1601, 20000])
+  void test(`coordinator publication derives exact published facts and conflicts from ${count} receipt pairs`, () => {
+    const { tags, releases, receipts } = publishedHistoryFixture(count);
+    const now = "2026-10-20T00:00:00.000Z";
+    const active = {
+      version: "2.0.0",
+      source_commit: "a".repeat(40),
+      source_tree: "b".repeat(40),
+      prepared_commit: "c".repeat(40),
+      prepared_tree: "d".repeat(40),
+      intent_sha256: "e".repeat(64),
+    };
+    const publication = deriveCoordinatorPublication(tags, releases, [...receipts, active], now, {
+      ...active,
+      phase: "building",
+    });
+    assert.equal(publication.published_versions.length, count);
+    assert.equal(publication.published_sources.length, count);
+    assert.ok(publication.published_sources.includes(receipts.at(-1)!.source_commit));
+    assert.deepEqual(publication.reserved_versions, ["2.0.0"]);
+    // The active reservation must be its verified allocation; a bare receipt
+    // pair carries no trees or intent to compare.
+    assert.throws(
+      () =>
+        deriveCoordinatorPublication(
+          tags,
+          releases,
+          [
+            ...receipts,
+            {
+              version: active.version,
+              source_commit: active.source_commit,
+              prepared_commit: active.prepared_commit,
+            },
+          ],
+          now,
+          { ...active, phase: "building" },
+        ),
+      /allocation receipts/u,
+    );
+    // A published Release whose tag differs from its receipt, past every
+    // former bound, is still a conflict.
+    const drifted = structuredClone(tags);
+    drifted.at(-1)!.target.oid = "f".repeat(40);
+    assert.throws(
+      () => deriveCoordinatorPublication(drifted, releases, receipts, now),
+      /differs from immutable preparation receipt/u,
+    );
+    const duplicated = [...releases, { ...releases.at(-1)!, id: count + 1 }];
+    assert.throws(
+      () => deriveCoordinatorPublication(tags, duplicated, receipts, now),
+      /duplicate published application version/u,
+    );
+  });
+
+void test("coordinator decision allocations verify only the active receipt", async () => {
+  const requested: unknown[] = [];
+  const receipts = [
+    { version: "1.0.0", source_commit: "1".repeat(40), prepared_commit: "2".repeat(40) },
+    { version: "1.0.1", source_commit: "3".repeat(40), prepared_commit: "4".repeat(40) },
+  ];
+  const verified = {
+    ...receipts[1]!,
+    source_tree: "5".repeat(40),
+    prepared_tree: "6".repeat(40),
+    intent_sha256: "7".repeat(64),
+  };
+  const inventory = {
+    readAllocations: async (_tags: unknown, _namespace: string, verify: unknown) => {
+      requested.push(verify);
+      return {
+        receipts,
+        allocations: Array.isArray(verify) && verify.includes("1.0.1") ? [verified] : [],
+        intents: new Map<string, string>(),
+      };
+    },
+  };
+  assert.deepEqual(
+    await readDecisionAllocations(inventory as never, [], "fixed", { version: "1.0.1" }),
+    [receipts[0], verified],
+  );
+  assert.deepEqual(await readDecisionAllocations(inventory as never, [], "fixed", null), receipts);
+  assert.deepEqual(requested, [["1.0.1"], []]);
 });

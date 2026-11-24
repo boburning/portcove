@@ -46,6 +46,8 @@ type Preparation = {
   version: string;
   intent_sha256: string;
   classification: ReturnType<typeof parseVersionClassification>;
+  /** The published versions the allocation was decided against: complete
+   * history in earlier records, its allocation basis in later ones. */
   published_versions: string[];
   qualification?: ReturnType<typeof inspectApplicationQualificationIdentity>;
 };
@@ -751,7 +753,11 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     );
     const classification = parseVersionClassification(value.classification);
     assert.equal(classification.source_commit, raw.source);
-    assert.ok(Array.isArray(value.published_versions) && value.published_versions.length <= 1600);
+    // Records written before allocation bases carry the complete published
+    // history they were decided against; later records carry its basis (see
+    // publishedAllocationBasis). Either form is read unchanged. The record's
+    // size is governed by the Release-body byte bound, not an entry count.
+    assert.ok(Array.isArray(value.published_versions));
     const published_versions = value.published_versions.map((version: unknown) => {
       assert.ok(typeof version === "string");
       classifyApplicationVersion(version);

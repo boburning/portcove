@@ -1727,6 +1727,30 @@ void test("release operations accept only a fresh observed inventory with receip
     () => requireReceiptTagProtectionPolicy(tampered, "portcove-production", now),
     /unproven/u,
   );
+  // Every observer coverage carries the complete ruleset inventory, so the
+  // catalog coordinator's observation proves receipt protection too.
+  const catalog = {
+    ...observation(protectedRulesets),
+    coverage: "current-repository-catalog-maintenance-only",
+  };
+  assert.equal(
+    requireReceiptTagProtectionPolicy(catalog, "portcove-production", now).authorization,
+    "release-receipt-tag-immutability-only",
+  );
+  assert.throws(
+    () =>
+      requireReceiptTagProtectionPolicy(
+        { ...catalog, coverage: "current-repository-unknown" },
+        "portcove-production",
+        now,
+      ),
+    /unproven/u,
+  );
+  assert.throws(
+    () =>
+      requireReceiptTagProtectionPolicy(observation(protectedRulesets), "portcove-fixture", now),
+    /ratified coordinator namespaces/u,
+  );
 });
 
 void test("coordinator checkpoints only create receipts or re-assert them at the same object", async () => {

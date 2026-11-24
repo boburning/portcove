@@ -701,3 +701,26 @@ void test("catalog-only initialization stays inert, retains holds and needs no a
     /explicit initial|initialization identity/,
   );
 });
+
+for (const count of [256, 257, 1600, 1601, 20000])
+  void test(`planner allocates and detects republication from ${count} published versions`, () => {
+    // Complete history below the reviewed base, sorted as the planner requires.
+    const history = Array.from({ length: count - 1 }, (_, index) => `0.0.${index + 1}`);
+    const versions = [...history, "0.1.0-alpha.2"].sort();
+    const sources = Array.from({ length: count }, (_, index) =>
+      (0x1000000 + index).toString(16).padStart(40, "0"),
+    ).sort();
+    const input = fixture({
+      publication: { published_versions: versions, published_sources: sources },
+    });
+    const plan = planReleaseOpportunity(input) as unknown as {
+      action: string;
+      proposal: { version: string };
+    };
+    assert.equal(plan.action, "prepare");
+    assert.equal(plan.proposal.version, "0.1.0-alpha.3");
+    const published = structuredClone(input);
+    assert.ok(isRecord(published.opportunity) && isRecord(published.publication));
+    published.publication.published_sources = [...sources, commit].sort();
+    assert.equal(planReleaseOpportunity(published).action, "skip");
+  });
