@@ -554,8 +554,9 @@ workflow without a ruleset bypass, and this design adds none.
 
      `head_branch` alone does not tell a branch from a tag of the same name.
      So the branch condition holds only together with the O-H3 tag ruleset,
-     which blocks creating a tag named `main`. The run is also refused if
-     `refs/tags/main` exists when it is verified.
+     which blocks creating a tag named `main` and has no bypass list. If
+     `refs/tags/main` exists when a run is verified, its evidence is UNKNOWN
+     (a stall with `POINTER_EVIDENCE_MISSING`), never a known failure.
 
      The two conditions stop a writer from running old `main` producer code on
      their own branch, or from a tag, and passing it off as a run from `main`.
@@ -639,7 +640,7 @@ The walk accepts a `repair` commit only under all of these conditions:
   skipped commits, and not in the verified prefix up to V:
   - **the served generation.** That is, a skipped commit that carries the
     generation `site-generation.json` names and is not a known failure;
-  - **a pointer commit that a deploy receipt names.**
+  - **a pointer commit that a deploy receipt names as deployed.**
 
   A skipped commit that is a known failure under rules 1–3 is **never
   protected by the marker**. So a writer who copies the served generation's
@@ -975,7 +976,7 @@ Each action is one-time, and none recurs. Do them in this order:
 | --------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | **O-H6**  | Before M1              | Settings → Actions → General → **Artifact and log retention: confirm 90 days**. Read the account's billing page for Actions storage.                                                                         | Generations stay available for 90 days. Shows whether artifact storage is billed for a public repository (it is expected to be free).                                                                                                                             | Read-only; nothing to undo                    |
 | **O-H7**  | Before M1              | Settings → Environments → `github-pages`: **read and report** the current deployment branch and tag rules, reviewers and administrator bypass.                                                               | Lets the lead write M2 against the actual policy, including any rule kept for the held application controller.                                                                                                                                                    | Read-only; nothing to undo                    |
-| **O-H3**  | Before M1              | Settings → Rules → new branch ruleset for `pages-state`: **block force pushes**, **restrict deletions**. No bypass list. Also add a **tag ruleset for `main`** that restricts creation.                      | The pointer history cannot be rewritten or removed. Publishers still advance it with normal pushes. Content is checked by verification (4.3), not by this rule. No tag can pose as the `main` branch in provenance checks.                                        | Disable the ruleset                           |
+| **O-H3**  | Before M1              | Settings → Rules → new branch ruleset for `pages-state`: **block force pushes**, **restrict deletions**. No bypass list. Also add a **tag ruleset for `main`** that restricts creation, with no bypass list. | The pointer history cannot be rewritten or removed. Publishers still advance it with normal pushes. Content is checked by verification (4.3), not by this rule. No tag can pose as the `main` branch in provenance checks.                                        | Disable the ruleset                           |
 | **O-H0**  | Before M2              | Create a **throwaway public repository**. Grant the lead write access for the rehearsal, then delete the repository afterwards.                                                                              | A safe place to test atomic replacement, a source flip, an interrupted deployment and about 20 deployments an hour, without touching the real site. If declined, the first production deployment is the rehearsal, and only if the owner accepts that explicitly. | Delete the repository                         |
 | **O-H1**  | M2                     | **Approve the merge** of M2, which gives the reusable `pages-deploy.yml` job `pages: write` and `id-token: write` in the `github-pages` environment.                                                         | Workflow code on `main` gains the ability to publish the website. It replaces today's route, in which anyone with write access can push `gh-pages`. Nothing is signed differently.                                                                                | Revert the PR                                 |
 | **O-H2a** | M3, first              | Settings → Environments → `github-pages` → Deployment branches and tags: **add a branch rule for `main`**. **Keep `gh-pages`** for now. Keep administrator bypass off.                                       | Both the old branch build and the new workflow can deploy during the switch. Until O-H2b, today's exposure remains: a writer can still deploy from `gh-pages`. Do O-H4 and O-H2b on the same day to keep that window short.                                       | Remove the `main` rule                        |
