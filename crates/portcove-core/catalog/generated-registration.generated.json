@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 20,
+  "generator_version": 21,
   "facts_provenance": null,
   "enrollments": [],
   "blocked": {
@@ -37,6 +37,7 @@
     "ambiguous-artifact": 0,
     "bundled-toolchain": 0,
     "launcher-entry": 0,
+    "split-package": 0,
     "role-program": 0,
     "non-ascii-name": 0,
     "archive-name-unaccounted": 0,

@@ -259,7 +259,15 @@
       "SuperGame64.exe",
       "supergame-cli.exe",
       "supergameserver64.exe",
-      "engine.exe"
+      "engine.exe",
+      "HaikuQuest.exe",
+      "Switchblade.exe",
+      "UpdatedGame.exe",
+      "DeltaruneFan.exe",
+      "Patchwork.exe",
+      "Doom2.exe",
+      "doom2.exe",
+      "Deltaforce.exe"
     ]
   },
   "output": {
@@ -1323,6 +1331,38 @@
       },
       {
         "name": "engine.exe",
+        "tool_token": null
+      },
+      {
+        "name": "HaikuQuest.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Switchblade.exe",
+        "tool_token": null
+      },
+      {
+        "name": "UpdatedGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "DeltaruneFan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Patchwork.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Deltaforce.exe",
         "tool_token": null
       }
     ]

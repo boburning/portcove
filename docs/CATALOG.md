@@ -3946,37 +3946,70 @@ names are parsed against a closed vocabulary instead: a name enrolls only
 when every token is accounted for, and any unaccounted token withholds with
 that token as evidence.
 
-An archive name is tokenised (`archiveNameTokens`): the package form or
-another file extension is removed, `x86_64`, `x86-64` and `64-bit` are one
-word, and the rest is split at separators into chunks. A chunk that is a
-neutral word (`neutralArchiveWords`: the platform and operating-system
-words `windows`, `win`, `win32`, `win64`, `linux`, `linux32`, `linux64`,
-`macos`, `mac`, `osx`, `darwin`, the architecture words `universal`,
-`universal2`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`, `aarch64`, `i386`,
-`i686`, `64bit`, `32bit`, and the packaging words `portable`, `bin`,
-`release`, `appimage`) is neutral. A chunk of digits after `v`, `r` or `b`
-is a version. A chunk of digits only is a version or a product word,
-whichever makes the names equal. Every other chunk is split into whole
-words (camel-case humps and letter/digit changes), each a neutral word or
-a product word, numbers included. The product words in order, joined, must
-equal one of the listing's id, name or original title words joined, or the
-repository name's words joined (`archiveNameAccount`), else the whole
-identity is withheld as `archive-name-unaccounted`. So:
+An archive name is tokenised (`archiveNameTokens`):
+
+- the package form or another file extension (and an `.app` suffix) is
+  removed;
+- `x86_64`, `x86-64` and `64-bit` are one word;
+- a run of digit groups joined by dots (`1.0.2`, `v2.1.0`) is a version,
+  never a product word;
+- the rest is split at separators into chunks:
+  - A chunk that is a neutral word (`neutralArchiveWords`) is neutral. These
+    are the platform and operating-system words `windows`, `win`, `win32`,
+    `win64`, `linux`, `linux32`, `linux64`, `macos`, `mac`, `osx`, `darwin`;
+    the architecture words `universal`, `universal2`, `x64`, `x86`, `x86_64`,
+    `amd64`, `arm64`, `aarch64`, `i386`, `i686`, `64bit`, `32bit`; and the
+    packaging words `portable`, `release` and `appimage`. `bin` is not one:
+    `Game-bin-…` names one part of a split package.
+  - A chunk of digits after `v` or `r` is a version. A `b` prefix is not
+    one: `b2` usually says beta 2.
+  - A chunk of digits only is an integer. It counts as a product word only
+    where the matched name has that number at that position; otherwise it
+    withholds (`number:<n>`). From four digits on (a date or build number) it
+    may instead be a version.
+  - Every other chunk is split into whole words (camel-case humps and
+    letter/digit changes), each a neutral word or a product word, glued
+    digits included.
+
+The product tokens in order must spell one of the listing's id or name, or
+the repository name (`accountNames`, `archiveNameAccount`), else the whole
+identity is withheld as `archive-name-unaccounted`. The original game's title
+(`original_game_title`) is not an accepted name: a remake's listing must not
+enroll an archive named only for the original. So:
 
 - for a listing named `Super Game`, `supergame-1.0-win64.zip`,
   `Super-Game-v1.0-windows-x64.zip` and `SuperGame-portable-x86_64.zip`
   enroll;
-- for `Doom 2`, `Doom-2-1.0-win64.zip` and `Doom2-win64.zip` enroll, and for
-  `2048`, `2048-win64.zip` does;
+- for `Doom 2`, `doom2-1.0-win64.zip`, `doom-2-1.0-win64.zip` and
+  `Doom-2-win64.zip` enroll, and for `2048`, `2048-win64.zip` does;
 - these withhold, with the leftover token as evidence:
-  - `SuperGame2-…` (`2`), `Super-Other-…` (`other`), `SuperGame-Trial-…`
-    (`trial`), `SuperGame-beta-…` (`beta`), `SuperGame-rc1-…` (`rc`, `1`) and
-    `SuperGame-Lite-…` (`lite`) for `Super Game`;
-  - `Doom3-win64.zip` (`3`) and `Doom-1.0-win64.zip` (`missing:2`) for
-    `Doom 2`;
-  - `Space-Invaders-…` (`invaders`) for `Space Game`;
-  - `The-Other-…` (`other`) for `The Game`;
+  - `SuperGame2-…` (`2`), `Super-Game-2-1.0-…` (`number:2`), `Super-Other-…`
+    (`other`), `SuperGame-Trial-…` (`trial`), `SuperGame-beta-…` (`beta`),
+    `SuperGame-rc1-…` (`rc`, `1`) and `SuperGame-Lite-…` (`lite`) for
+    `Super Game`;
+  - `Doom3-win64.zip` (`3`), `doom-2.1.0-…` (Doom at version 2.1.0,
+    `missing:2`) and `Doom-1.0-win64.zip` (`missing:2`) for `Doom 2`;
+  - `Doom-2-win64.zip` (`number:2`) for `Doom`;
+  - `Game-1.0.2-win64.zip` (`missing:2`) for `Game 2`;
+  - `Game-b2-…` (`b2`), `Game-bin-…` (`bin`) and `Game-1-…` (`number:1`) for
+    `Game`;
+  - `Space-Invaders-…` (`invaders`) for `Space Game`, and `The-Other-…`
+    (`other`) for `The Game`;
   - a platform-only name such as `win64.zip` (`no-product`).
+
+An archive accepted only by the repository's name (not the listing's id or
+name) is a common legitimate shape (a port's archive named after its own
+repository). It enrolls, but `registration_queues.accepted_by_repository_name_only`
+lists it for a person to check that group first. `numbered_products` lists
+every enrollment that depended on a number counted as a product word.
+
+A release may split the game across archives. When another archive of the
+release holds no program, is no source archive, and has a name that allows
+the offered platform (`Game-data-1.0.zip` or `Game-assets-1.0.zip` beside
+`Game-1.0-win64.zip`), the offered archive alone may not be the whole game,
+and the whole identity is withheld as `split-package`. A part named for
+another platform (`Game-data-1.0-linux.tar.gz` beside a Windows zip) does not
+split it.
 
 A program enrolls only when its literal name (the file name lowercased,
 without `.exe`, letters and digits only) equals the listing's, repository's
@@ -3987,7 +4020,12 @@ other package form may architecture words follow it (`programArchitectureWords`:
 literal. Every folder on its path must be made of product words, versions,
 neutral words and the layout words `bin`, `game`, `app`, `contents`, `x64`
 and `win64` (`programLayoutWords`, which accounts for a macOS bundle's
-`Game.app/Contents/MacOS/`). Anything else withholds the whole identity as
+`Game.app/Contents/MacOS/`). A number glued to letters in a folder counts
+only as a whole accounted name (`Doom2/` for `Doom 2`, never for `Doom`), and
+`b2/` is no version. Exactly one player may survive the platform selection:
+two product-named programs on one platform (`Game/bin/Game.exe` beside
+`Game/x64/Game.exe`, or `Game.exe` beside `Game-x64.exe`) are
+`ambiguous-player`. Anything else withholds the whole identity as
 `program-name-unaccounted`, with the leftover as evidence:
 `supergameserver64`, `SUPERGAMELAUNCHER`, `SGSERVER`, `SGEDIT`,
 `supergame-cli`, `Other.exe` in an archive named for the game, engine or
@@ -4270,7 +4308,11 @@ with digits), `early-access` (`early` followed by `access`), `unstable`,
 `development-snapshot` (`development` followed by `snapshot`), `dev`,
 `prototype` and `playtest` only with a number (glued, `dev2`, or directly
 before one, `Playtest 2`), and `not-for-production` (`not for production`,
-wherever it stands).
+wherever it stands). A status word also stands when only connector words
+(`build`, `version`, `ver`, `v`, `no`, `number`) and `release` follow it to
+the end of the line: `Demo version`, `Beta build`, `Canary release`,
+`Release candidate build` and `Super Game - Demo Version` state a status,
+while `Beta release notes` and `Demolition release` do not.
 Words are split at separators and letter/digit changes, never inside a word,
 so `Arc`, `Alphabet`, `Betamax` and `Publicity` state nothing.
 
@@ -4677,7 +4719,9 @@ metadata declares the launcher as the game's runtime entry), `role-program`
 trial or test role), `non-ascii-name` (an archive or program name outside
 ASCII), `archive-name-unaccounted` (the offered archive's name holds a token
 that is neither the listing's or repository's name, a version nor a neutral
-word) and `program-name-unaccounted` (the offered program is not that name,
+word), `split-package` (another archive without programs whose name allows
+the platform may hold the rest of the game) and `program-name-unaccounted`
+(the offered program is not that name,
 or sits in a folder of unaccounted words). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
@@ -4685,9 +4729,11 @@ or sits in a folder of unaccounted words). When no platform fits, the reason is 
 gave. `bundled-toolchain` follows `core-refused` in that order.
 `registration_queues` also holds `reason_evidence` (per reason among
 `role-program`, `launcher-entry`, `non-ascii-name`,
-`archive-name-unaccounted` and `program-name-unaccounted`, per withheld
+`archive-name-unaccounted`, `program-name-unaccounted` and `split-package`, per withheld
 identity, the matched word with the program path, or the platform with the
-archive name and program path), `unaccounted_tokens` (per closed-vocabulary
+archive name and program path), `accepted_by_repository_name_only` and
+`numbered_products` (enrolled identities accepted only by the repository's
+name, or by counting a number as a product word), `unaccounted_tokens` (per closed-vocabulary
 reason, each unaccounted token with the number of identities it withholds and
 those identities, most frequent first: the evidence a person reads before a
 token joins a neutral list), `bundled_toolchains` (each withheld
@@ -4762,8 +4808,14 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 20, the facts parser version from 5 to 21 and
-the facts table format from 4 to 17 (generator 20, parser 21 and format 17:
+generator version from 5 to 21, the facts parser version from 5 to 22 and
+the facts table format from 4 to 17 (generator 21 and parser 22: dotted
+digit runs as versions only, integers only at the name's own number,
+no `b<N>` versions and no neutral `bin`, `split-package`, no original title
+as an accepted name, exactly one player per platform, the
+`accepted_by_repository_name_only` and `numbered_products` queues, and
+status words standing before only connector words; generator 20, parser 21
+and format 17:
 closed-vocabulary archive and program names (`archive-name-unaccounted`,
 `program-name-unaccounted`) replacing the shared-word relation, the
 `unaccounted_tokens` queue, the gate's exact repository identity, and

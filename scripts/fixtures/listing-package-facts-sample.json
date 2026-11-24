@@ -12,12 +12,11 @@
         "a",
         "game",
         "sample",
-        "unseen",
         "windows",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -112,11 +111,10 @@
         "only",
         "patcher",
         "sample",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -197,11 +195,10 @@
         "game",
         "patcher",
         "sample",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -280,11 +277,10 @@
         "game",
         "sample",
         "several",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -369,11 +365,10 @@
         "game",
         "recomp",
         "sample",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -452,11 +447,10 @@
         "game",
         "linux",
         "sample",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -535,11 +529,10 @@
         "game",
         "mac",
         "sample",
-        "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 21,
+      "parser_version": 22,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -591,10 +584,10 @@
           },
           "players": [
             {
-              "path": "unseen.app/contents/macos/unseen",
-              "display_path": "Unseen.app/Contents/MacOS/Unseen",
+              "path": "game.app/contents/macos/game",
+              "display_path": "Game.app/Contents/MacOS/Game",
               "machine": "macho-universal-arm64+x86-64",
-              "sha256": "73f4ffd4877d1d651e1dc3c5463b30abc2f7869793023ce4ae3e1ccfb06c7047"
+              "sha256": "54b7c060bf61626dde587b74e0699a289c749aa168d89b48c48ccead7e56e770"
             }
           ],
           "excluded_players": [],
@@ -609,5 +602,5 @@
       ]
     }
   ],
-  "entries_sha256": "933daf3bcb3449742c913ecea69e86e64c07e457430f81c35b5b5894a9f738a2"
+  "entries_sha256": "5967a90683799db6ac471741889b6a227a05cf0aa817f75b9f60a080be917449"
 }

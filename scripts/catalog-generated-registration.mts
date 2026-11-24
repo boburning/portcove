@@ -120,10 +120,10 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 20;
+export const GENERATOR_VERSION = 21;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 21;
+export const FACTS_PARSER_VERSION = 22;
 export const FACTS_TABLE_FORMAT = 17;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -572,7 +572,15 @@ export function releaseStatement(
     return (
       words[after]?.numeric === true ||
       words[first - 1]?.numeric === true ||
-      last === words.length - 1 ||
+      // Last in the line, or followed only by connector words and
+      // `release` (`Demo version`, `Beta build`, `Canary release`).
+      words
+        .slice(last + 1)
+        .every((item) =>
+          [...statementConnectors, "release"].includes(
+            item.word as (typeof statementConnectors)[number],
+          ),
+        ) ||
       words[first]!.parenthesised ||
       (statementQualifiers as readonly string[]).includes(words[first - 1]?.word ?? "")
     );
@@ -2720,12 +2728,21 @@ export function listingProductNames(listing: Record<string, unknown>): Set<strin
       .filter(Boolean),
   );
 }
-/** The listing's and repository's names joined (`listingProductNames` and the repository name). */
+/**
+ * The names an archive or program may equal: the listing's id and name and
+ * the repository name, each as whole words (`nameWords`). The original
+ * game's title is not one: a remake's listing must not enroll an archive
+ * named only for the original.
+ */
+export function accountNames(listing: Record<string, unknown>, repository: string): string[][] {
+  return [listing.id, listing.name, repository.split("/")[1]]
+    .filter((value): value is string => typeof value === "string")
+    .map(nameWords)
+    .filter((words) => words.length > 0);
+}
+/** The account names joined (`accountNames`). */
 function ownJoinedNames(listing: Record<string, unknown>, repository: string): Set<string> {
-  const names = listingProductNames(listing);
-  const repositoryName = nameWords(repository.split("/")[1] ?? "").join("");
-  if (repositoryName) names.add(repositoryName);
-  return names;
+  return new Set(accountNames(listing, repository).map((words) => words.join("")));
 }
 /**
  * The closed list of words an archive name may carry besides its product
@@ -2758,7 +2775,6 @@ export const neutralArchiveWords = [
   "64bit",
   "32bit",
   "portable",
-  "bin",
   "release",
   "appimage",
 ] as const;
@@ -2793,97 +2809,141 @@ export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win
 /**
  * An archive name's tokens: the package form or another file extension is
  * removed (as `productIdentity` does), `x86_64`, `x86-64` and `64-bit` are
- * one word, and the rest is split at separators into chunks. A chunk that is
- * a neutral word (`neutralArchiveWords`) is neutral; a chunk of digits,
- * optionally after `v`, `r` or `b`, is a version, and one of digits only may
- * instead be a product word (`Doom-2-1.0.zip` for `Doom 2`, `2048-win64.zip`
- * for `2048`); every other chunk is split into whole words (`nameWords`),
- * each a neutral word or a product word, numbers included (`Doom3` is
- * `doom`, `3`).
+ * one word, and a run of digit groups joined by dots (`1.0.2`, `v2.1.0`) is a
+ * version, never a product word. The rest is split at separators into
+ * chunks. A chunk that is a neutral word (`neutralArchiveWords`) is neutral;
+ * one of digits after `v` or `r` is a version (a `b` prefix is not: `b2`
+ * usually says beta 2); a chunk of digits only is an `integer` token, which
+ * counts as a product word only where the matched name has that number at
+ * that position, and which, from four digits on (a date or build number),
+ * may instead be a version; every other chunk is split into whole words
+ * (`nameWords`), each a neutral word or a `word` token, digits glued to
+ * letters included (`Doom3` is `doom`, `3`). `chunk` names the chunk a token
+ * came from, for evidence.
  */
 export function archiveNameTokens(name: string): {
-  product: { word: string; numeric: boolean }[];
+  product: { word: string; kind: "word" | "integer"; chunk: string }[];
 } {
   let base = name;
   const form = packageFormOf(name);
   if (form !== undefined) base = base.slice(0, base.length - form.length);
   else {
     const extension = /\.[A-Za-z0-9]+$/u.exec(base)?.[0];
-    if (extension !== undefined && /[A-Za-z]/u.test(extension))
+    if (extension !== undefined && /[A-Za-z]/u.test(extension) && !/^\.v[0-9]+$/iu.test(extension))
       base = base.slice(0, -extension.length);
   }
+  if (/\.app$/iu.test(base)) base = base.slice(0, -4);
   const normalized = base
     .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
-    .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit");
+    .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit")
+    .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-");
   const neutral = neutralArchiveWords as readonly string[];
-  const product: { word: string; numeric: boolean }[] = [];
+  const product: { word: string; kind: "word" | "integer"; chunk: string }[] = [];
   for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean)) {
     const lower = chunk.toLowerCase();
     if (neutral.includes(lower)) continue;
     if (/^[0-9]+$/u.test(lower)) {
-      product.push({ word: lower, numeric: true });
+      product.push({ word: lower, kind: "integer", chunk: lower });
       continue;
     }
-    if (/^[vrb][0-9]+$/u.test(lower)) continue;
+    if (/^[vr][0-9]+$/u.test(lower)) continue;
     for (const word of nameWords(chunk))
-      if (!neutral.includes(word)) product.push({ word, numeric: false });
+      if (!neutral.includes(word)) product.push({ word, kind: "word", chunk: lower });
   }
   return { product };
 }
 /**
+ * Whether archive tokens spell one account name (`accountNames`) exactly:
+ * the tokens joined equal the name's words joined, and every integer token
+ * is exactly one whole word of the name at that position. Integer tokens
+ * of four or more digits not in `kept` are left out (versions).
+ */
+function spellsName(
+  tokens: readonly { word: string; kind: "word" | "integer" }[],
+  name: readonly string[],
+): boolean {
+  if (tokens.map((token) => token.word).join("") !== name.join("")) return false;
+  const starts = new Map<number, string>();
+  let offset = 0;
+  for (const word of name) {
+    starts.set(offset, word);
+    offset += word.length;
+  }
+  offset = 0;
+  for (const token of tokens) {
+    if (token.kind === "integer" && starts.get(offset) !== token.word) return false;
+    offset += token.word.length;
+  }
+  return true;
+}
+/**
  * How an archive name is accounted for against the listing: every token is a
  * product word, a version or a neutral word (`archiveNameTokens`), and the
- * product words in order, joined, equal one of the listing's id, name or
- * original title words joined, or the repository name's words joined. A
- * chunk of digits only counts as a product word where that makes the names
- * equal, else as a version. The result is the accepted product (joined), or
- * the unaccounted tokens: the product words that are no word of those names,
- * else the name's words the archive lacks (`missing:<word>`). Any leftover
- * withholds (`archive-name-unaccounted`): `Doom3` for `Doom 2`, `SuperGame2`,
- * `Super-Other`, `SuperGame-Trial`, `SuperGame-beta` or `SuperGame-Lite` for
- * `Super Game`, `Space-Invaders` for `Space Game`.
+ * product tokens in order spell one of the listing's id or name, or the
+ * repository name (`spellsName`); an integer of one to three digits must be a
+ * number of that name at that position, and one of four or more digits is
+ * a product word only where it is, else a version. The result is the
+ * accepted product (joined) and whether only the repository name accounts
+ * for it, or the unaccounted tokens: the product words that are no word of
+ * those names (a single letter glued to digits as its chunk, `b2`), else the
+ * integers no name has there (`number:<n>`), else the name's words the
+ * archive lacks (`missing:<word>`). Any leftover withholds
+ * (`archive-name-unaccounted`): `Doom3` or `doom-2.1.0` for `Doom 2`,
+ * `Doom-2` for `Doom`, `Super-Game-2`, `SuperGame2`, `Super-Other`,
+ * `SuperGame-Trial`, `SuperGame-beta` or `SuperGame-Lite` for `Super Game`,
+ * `Space-Invaders` for `Space Game`, `Game-b2`.
  */
 export function archiveNameAccount(
   name: string,
   listing: Record<string, unknown>,
   repository: string,
-): { product: string } | { unaccounted: string[] } {
-  const names = ownJoinedNames(listing, repository);
+): { product: string; repositoryOnly: boolean; numbered: boolean } | { unaccounted: string[] } {
+  const names = accountNames(listing, repository);
+  const repositoryWords = nameWords(repository.split("/")[1] ?? "").join("");
+  const listingNames = accountNames(listing, "").map((words) => words.join(""));
   const { product } = archiveNameTokens(name);
-  const numeric = product.flatMap((token, index) => (token.numeric ? [index] : []));
-  const subsets = numeric.length <= 8 ? 2 ** numeric.length : 1;
-  for (let mask = 0; mask < subsets; mask++) {
-    const joined = product
-      .filter((token, index) => !token.numeric || (mask >> numeric.indexOf(index)) % 2 === 1)
-      .map((token) => token.word)
-      .join("");
-    if (joined && names.has(joined)) return { product: joined };
-  }
-  const nameWordSet = new Set(
-    [listing.id, listing.name, listing.original_game_title, repository.split("/")[1] ?? ""].flatMap(
-      (value) => (typeof value === "string" ? nameWords(value) : []),
-    ),
+  const optional = product.flatMap((token, index) =>
+    token.kind === "integer" && token.word.length >= 4 ? [index] : [],
   );
+  const choices = optional.length <= 8 ? 2 ** optional.length : 1;
+  for (let mask = 0; mask < choices; mask++) {
+    const kept = product.filter(
+      (token, index) => !optional.includes(index) || (mask >> optional.indexOf(index)) % 2 === 1,
+    );
+    if (!kept.length) continue;
+    const matched = names.find((words) => spellsName(kept, words));
+    if (matched) {
+      const joined = matched.join("");
+      return {
+        product: joined,
+        repositoryOnly: joined === repositoryWords && !listingNames.includes(joined),
+        numbered: kept.some((token) => token.kind === "integer"),
+      };
+    }
+  }
+  const nameWordSet = new Set(names.flat());
   const extra = product
-    .filter((token) => !token.numeric && !nameWordSet.has(token.word))
-    .map((token) => token.word);
+    .filter((token) => token.kind === "word" && !nameWordSet.has(token.word))
+    .map((token) => (/^[a-z][0-9]+$/u.test(token.chunk) ? token.chunk : token.word));
   if (extra.length) return { unaccounted: [...new Set(extra)] };
+  const numbers = product
+    .filter((token) => token.kind === "integer" && token.word.length < 4)
+    .map((token) => `number:${token.word}`);
+  if (numbers.length) return { unaccounted: [...new Set(numbers)] };
   const present = new Set(product.map((token) => token.word));
-  // The name sharing the most words with the archive, its title first.
-  const closest = [listing.name, listing.original_game_title, repository.split("/")[1], listing.id]
+  // The name sharing the most words with the archive: the listing's name,
+  // then the repository's, then the id.
+  const ordered = [listing.name, repository.split("/")[1], listing.id]
     .filter((value): value is string => typeof value === "string")
-    .map(nameWords)
-    .reduce<string[] | undefined>((best, words) => {
-      const overlap = words.filter((word) => present.has(word)).length;
-      const bestOverlap = best?.filter((word) => present.has(word)).length ?? 0;
-      return overlap > bestOverlap ? words : best;
-    }, undefined);
+    .map(nameWords);
+  const closest = ordered.reduce<string[] | undefined>((best, words) => {
+    const overlap = words.filter((word) => present.has(word)).length;
+    const bestOverlap = best?.filter((word) => present.has(word)).length ?? 0;
+    return overlap > bestOverlap ? words : best;
+  }, undefined);
   const missing = (closest ?? []).filter((word) => !present.has(word));
-  return {
-    unaccounted: missing.length
-      ? missing.map((word) => `missing:${word}`)
-      : [product.map((token) => token.word).join("-") || "no-product"],
-  };
+  if (missing.length) return { unaccounted: missing.map((word) => `missing:${word}`) };
+  return { unaccounted: [product.map((token) => token.word).join("-") || "no-product"] };
 }
 /**
  * How a program is accounted for: its literal name (`literalProgramName`)
@@ -2919,12 +2979,18 @@ export function programNameUnaccounted(
     ...(neutralArchiveWords as readonly string[]),
     ...(programLayoutWords as readonly string[]),
   ]);
-  const accounted = (word: string) => allowed.has(word) || /^[vrb]?[0-9]+$/u.test(word);
+  // A whole chunk (`MacOS`, `x64`, `15`, an accounted name such as
+  // `Doom2`) is checked before its camel-case words; digits glued to letters
+  // in a chunk that is no accounted name (`Doom2/` for `Doom`) are not.
+  const wholeChunk = (chunk: string) =>
+    allowed.has(chunk) || names.has(chunk) || /^[vr]?[0-9]+$/u.test(chunk);
   for (const segment of path.split("/").slice(0, -1)) {
     const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
-    // A whole chunk (`MacOS`, `x64`) is checked before its camel-case words.
     for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean))
-      if (!accounted(chunk.toLowerCase()) && !nameWords(chunk).every(accounted))
+      if (
+        !wholeChunk(chunk.toLowerCase()) &&
+        !nameWords(chunk).every((word) => !/^[0-9]+$/u.test(word) && allowed.has(word))
+      )
         return `${segment}/`;
   }
   return null;
@@ -3153,6 +3219,23 @@ export function programRoleWord(path: string, names: Iterable<string> = []): str
   return null;
 }
 
+/**
+ * The other archives of a release that may be parts of the game offered on a
+ * platform: every archive but the offered one whose listing shows no
+ * program (no kept or tool-vetoed player), that is no source archive
+ * (`sourceArchive`), and whose own name allows the platform
+ * (`Game-data-1.0.zip` or `Game-assets-1.0.zip` beside `Game-1.0-win64.zip`;
+ * `Game-data-1.0-linux.tar.gz` ties itself to another platform and is none).
+ */
+export function splitParts(entry: ListingFactsEntry, platform: string, offered: number) {
+  return entry.artifacts.filter(
+    (artifact) =>
+      artifact.asset_id !== offered &&
+      !holdsProgram(artifact) &&
+      !sourceArchive(artifact, entry.repository) &&
+      namePermits(artifact, platform),
+  );
+}
 /** Why an archive's own name vetoes it. */
 function vetoReason(artifact: ArtifactFactV2): BlockedReason {
   const named = artifact.name_suggestion;
@@ -3201,7 +3284,9 @@ function onePackage(hosted: ReturnType<typeof hostedPlayers>) {
 /** Why the players one platform would get are not one program, if they are not. */
 function ambiguity(
   hosted: ReturnType<typeof hostedPlayers>,
-): { kind: "several-programs" | "several-directories"; names: string[] } | undefined {
+):
+  | { kind: "several-programs" | "several-players" | "several-directories"; names: string[] }
+  | undefined {
   const players = hosted.flatMap((item) => item.players);
   const programs = new Set(players.map(({ path }) => programStem(path)));
   const names = [...new Set(players.map(({ display_path }) => basename(display_path)))].toSorted(
@@ -3210,6 +3295,10 @@ function ambiguity(
   if (programs.size > maxDistinctPrograms) return { kind: "several-programs", names };
   if (hosted.some((item) => new Set(item.players.map(({ path }) => topDirectory(path))).size > 1))
     return { kind: "several-directories", names };
+  // Two players of one program on the platform (`Game/bin/Game.exe` beside
+  // `Game/x64/Game.exe`, or `Game.exe` beside `Game-x64.exe`) cannot be told
+  // apart by name: exactly one must survive the platform selection.
+  if (new Set(players.map(({ path }) => path)).size > 1) return { kind: "several-players", names };
   return undefined;
 }
 
@@ -3334,6 +3423,7 @@ export const blockedReasons = [
   "ambiguous-artifact",
   "bundled-toolchain",
   "launcher-entry",
+  "split-package",
   "role-program",
   "non-ascii-name",
   "archive-name-unaccounted",
@@ -3358,6 +3448,7 @@ export const gateExemptions: Partial<Record<BlockedReason, string>> = {
 export const evidenceReasons = [
   "role-program",
   "launcher-entry",
+  "split-package",
   "non-ascii-name",
   "archive-name-unaccounted",
   "program-name-unaccounted",
@@ -3578,6 +3669,7 @@ export function fitDecision(
   const archiveTokens: string[] = [];
   const unaccountedPrograms: string[] = [];
   const programTokens: string[] = [];
+  const splitPackages: string[] = [];
   // Beside another package form the program name stays strictly literal.
   const strict = entry.other_packages.length > 0;
   for (const platform of platforms) {
@@ -3588,6 +3680,11 @@ export function fitDecision(
     }
     const launcher = found.runtime.players.find((item) => launcherProgram(item.display_path));
     if (launcher) launchers.push(`${platform}: ${launcher.display_path}`);
+    // Another archive whose name allows the platform, holds no program and
+    // is no source archive may be the rest of the game: the offered archive
+    // alone may not be the whole game.
+    for (const other of splitParts(entry, platform, found.runtime.asset_id))
+      splitPackages.push(`${platform}: ${found.runtime.asset_name} + ${other.name}`);
     const account = archiveNameAccount(found.runtime.asset_name, record.listing, entry.repository);
     if ("unaccounted" in account) {
       unaccountedArchives.push(
@@ -3598,10 +3695,7 @@ export function fitDecision(
       const names = new Set([...ownJoinedNames(record.listing, entry.repository), account.product]);
       const words = new Set([
         ...nameWords(found.runtime.asset_name),
-        ...[record.listing.id, record.listing.name, record.listing.original_game_title]
-          .filter((value): value is string => typeof value === "string")
-          .flatMap(nameWords),
-        ...nameWords(entry.repository.split("/")[1] ?? ""),
+        ...accountNames(record.listing, entry.repository).flat(),
       ]);
       for (const item of found.runtime.players) {
         const leftover = programNameUnaccounted(item.display_path, names, words, strict);
@@ -3630,6 +3724,15 @@ export function fitDecision(
         1000,
       ),
       launchers,
+    );
+  if (splitPackages.length)
+    return blocked(
+      "split-package",
+      `The release splits the game across archives on ${splitPackages.join(", ")}: an archive without programs whose name allows the platform may hold the rest of the game.`.slice(
+        0,
+        1000,
+      ),
+      splitPackages,
     );
   // Every token of the offered archive's name is a product word, a version
   // or a neutral word, and the product is the listing's or repository's
@@ -3841,6 +3944,18 @@ export interface RegistrationQueues {
    * person decides from this queue, with a recorded example, whether a token
    * deserves a neutral list; the lists never grow speculatively.
    */
+  /**
+   * Every enrolled identity whose offered archive, on some platform, is
+   * accounted for only by the repository's name (not the listing's id or
+   * name), in port_id order: the group a person hand-checks first.
+   */
+  accepted_by_repository_name_only: string[];
+  /**
+   * Every enrolled identity whose offered archive name, on some platform,
+   * was accounted for only by counting a number as a product word
+   * (`Doom-2-1.0-win64.zip` for `Doom 2`), in port_id order.
+   */
+  numbered_products: string[];
   unaccounted_tokens: Record<
     "archive-name-unaccounted" | "program-name-unaccounted",
     { token: string; count: number; identities: string[] }[]
@@ -3963,6 +4078,8 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       Object.entries(reasons).map(([reason, ids]) => [reason, ids.toSorted(compareCodePoints)]),
     ) as Record<BlockedReason, string[]>,
     reason_evidence: reasonEvidence,
+    accepted_by_repository_name_only: enrolledAccounts(generation, "repositoryOnly"),
+    numbered_products: enrolledAccounts(generation, "numbered"),
     unaccounted_tokens: unaccountedTokens,
     unread_forms: grouped(
       generation.facts.entries.flatMap((entry) =>
@@ -4101,6 +4218,22 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
   };
 }
 /** A per-identity name list for every facts entry that has one, in port_id order. */
+/** The enrolled identities whose offered archive name was accounted for in this way. */
+function enrolledAccounts(generation: Generation, flag: "repositoryOnly" | "numbered"): string[] {
+  return generation.enrollments
+    .filter((enrollment) =>
+      enrollment.runtimes.some((runtime) => {
+        const account = archiveNameAccount(
+          runtime.asset_name,
+          listingOf(generation, enrollment.port_id),
+          enrollment.repository,
+        );
+        return "product" in account && account[flag];
+      }),
+    )
+    .map((enrollment) => enrollment.port_id)
+    .toSorted(compareCodePoints);
+}
 /** The listing record of an identity in a generation, or an empty record. */
 function listingOf(generation: Generation, id: string): Record<string, unknown> {
   return (
@@ -5430,7 +5563,7 @@ export function gateStatement(
       glued ||
       words[after]?.number === true ||
       words[index - 1]?.number === true ||
-      end === words.length - 1 ||
+      words.slice(end + 1).every((word) => [...connectors, "release"].includes(word.text)) ||
       words[index]!.inside ||
       (index > 0 && qualifiers.includes(words[index - 1]!.text))
     )
@@ -5755,11 +5888,20 @@ export function gateNonAscii(name: string) {
 }
 /** The listing's id, name, original title and repository name, each as whole words joined. */
 function gateJoinedNames(listing: Record<string, unknown>, repository: string) {
-  const names: string[] = [];
-  for (const value of [listing.id, listing.name, listing.original_game_title])
-    if (typeof value === "string") names.push(gateNameWords(value).join(""));
-  names.push(gateNameWords(repository.split("/")[1] ?? "").join(""));
-  return names.filter((name) => name !== "");
+  return gateNameLists(listing, repository).map((words) => words.join(""));
+}
+/**
+ * The listing's id and name and the repository name as whole words,
+ * restated: see `accountNames`. The original game's title is not one.
+ */
+function gateNameLists(listing: Record<string, unknown>, repository: string) {
+  const lists: string[][] = [];
+  for (const value of [listing.id, listing.name, repository.split("/")[1]])
+    if (typeof value === "string") {
+      const words = gateNameWords(value);
+      if (words.length > 0) lists.push(words);
+    }
+  return lists;
 }
 /** The neutral archive words, restated: see `neutralArchiveWords`. */
 const gateNeutral = [
@@ -5768,7 +5910,6 @@ const gateNeutral = [
   "32bit",
   "universal2",
   "portable",
-  "bin",
   "release",
   "appimage",
 ];
@@ -5782,49 +5923,57 @@ export function gateArchiveAccount(
   listing: Record<string, unknown>,
   repository: string,
 ): string | null {
-  const required: string[] = [];
-  const optional: { at: number; word: string }[] = [];
-  const sequence: { word: string; optional: boolean }[] = [];
-  for (const chunk of gateNameBase(name).split(/[^A-Za-z0-9]+/u)) {
+  // Dotted digit runs (`1.0.2`, `v2.1.0`) are versions, never product words.
+  let base = gateNameBase(name);
+  base = base.replace(/(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-");
+  const tokens: { word: string; integer: boolean }[] = [];
+  for (const chunk of base.split(/[^A-Za-z0-9]+/u)) {
     if (chunk === "") continue;
     const low = chunk.toLowerCase();
     if (gateNeutral.includes(low)) continue;
     if (/^\d+$/u.test(low)) {
-      optional.push({ at: sequence.length, word: low });
-      sequence.push({ word: low, optional: true });
+      tokens.push({ word: low, integer: true });
       continue;
     }
-    if (/^[vrb]\d+$/u.test(low)) continue;
+    if (/^[vr]\d+$/u.test(low)) continue;
     for (const word of gateNameWords(chunk))
-      if (!gateNeutral.includes(word)) {
-        required.push(word);
-        sequence.push({ word, optional: false });
-      }
+      if (!gateNeutral.includes(word)) tokens.push({ word, integer: false });
   }
-  const names = gateJoinedNames(listing, repository);
-  // Each digits-only chunk is either a version or a product word: try every
-  // choice when there are few, else only versions.
-  const choices = optional.length <= 8 ? 1 << optional.length : 1;
+  // Integers of four or more digits may be versions: try leaving each out.
+  const long = tokens.flatMap((token, index) =>
+    token.integer && token.word.length >= 4 ? [index] : [],
+  );
+  const choices = long.length <= 8 ? 1 << long.length : 1;
   for (let choice = 0; choice < choices; choice++) {
-    let joined = "";
-    let next = 0;
-    for (const item of sequence) {
-      if (!item.optional) joined += item.word;
-      else {
-        if (choice & (1 << next)) joined += item.word;
-        next++;
+    const kept = tokens.filter((token, index) => {
+      const at = long.indexOf(index);
+      return at < 0 || (choice & (1 << at)) !== 0;
+    });
+    if (kept.length === 0) continue;
+    for (const words of gateNameLists(listing, repository)) {
+      // The same letters, with each integer exactly one word of the name.
+      if (kept.map((token) => token.word).join("") !== words.join("")) continue;
+      let position = 0;
+      let wordAt = 0;
+      let wordStart = 0;
+      let aligned = true;
+      for (const token of kept) {
+        while (wordAt < words.length && wordStart + words[wordAt]!.length <= position) {
+          wordStart += words[wordAt]!.length;
+          wordAt++;
+        }
+        if (token.integer && !(wordStart === position && words[wordAt] === token.word))
+          aligned = false;
+        position += token.word.length;
       }
+      if (aligned) return words.join("");
     }
-    if (joined !== "" && names.includes(joined)) return joined;
   }
   return null;
 }
 /** The words a program's folders may use besides neutral, layout and version words, restated. */
 function gateAccountWords(archive: string, listing: Record<string, unknown>, repository: string) {
-  const words = [...gateNameWords(archive), ...gateNameWords(repository.split("/")[1] ?? "")];
-  for (const value of [listing.id, listing.name, listing.original_game_title])
-    if (typeof value === "string") words.push(...gateNameWords(value));
-  return words;
+  return [...gateNameWords(archive), ...gateNameLists(listing, repository).flat()];
 }
 /**
  * Whether a program is accounted for, restated: see `programNameUnaccounted`.
@@ -5874,15 +6023,16 @@ export function gateProgramAccounted(
   const segments = path.split("/");
   segments.pop();
   const known = (word: string) =>
-    words.includes(word) ||
-    gateNeutral.includes(word) ||
-    layout.includes(word) ||
-    /^[vrb]?\d+$/u.test(word);
+    words.includes(word) || gateNeutral.includes(word) || layout.includes(word);
   for (const segment of segments) {
     const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
     for (const chunk of normalized.split(/[^A-Za-z0-9]+/u)) {
-      if (chunk === "" || known(chunk.toLowerCase())) continue;
-      if (!gateNameWords(chunk).every(known)) return false;
+      const low = chunk.toLowerCase();
+      // A whole chunk: a known word, an accounted name, or a version.
+      if (low === "" || known(low) || names.includes(low) || /^[vr]?\d+$/u.test(low)) continue;
+      // Otherwise every word of it is a known word, never a glued number.
+      for (const word of gateNameWords(chunk))
+        if (/^\d+$/u.test(word) || !known(word)) return false;
     }
   }
   return true;
@@ -6204,6 +6354,18 @@ function gateEnrollmentProblems(
       problems.push(
         `${id} has a launcher, settings or setup program (${launcher.display_path.slice(launcher.display_path.lastIndexOf("/") + 1)}) as the only program on ${platform}, so no platform of the identity may enroll.`,
       );
+    const part = entry.artifacts.find(
+      (candidate) =>
+        candidate.asset_id !== offered.asset_id &&
+        candidate.players.length === 0 &&
+        candidate.excluded_players.length === 0 &&
+        !gateSource(candidate, entry.repository) &&
+        permits(candidate.name_suggestion),
+    );
+    if (part)
+      problems.push(
+        `${id} offers ${offered.name} on ${platform} beside ${part.name}, an archive without programs that may hold the rest of the game, so no platform of the identity may enroll.`,
+      );
     const accepted = gateArchiveAccount(offered.name, own, entry.repository);
     if (accepted === null)
       problems.push(
@@ -6287,6 +6449,21 @@ function gateEnrollmentProblems(
       runtimeNames.push(gateProduct(artifact.name).words.join(""));
     if (runtime.players.some((player) => gateRoleProgram(player.display_path, runtimeNames)))
       problems.push(`${where} offers a program named or placed for another role than the game.`);
+    // A split package: another archive without programs whose name allows
+    // the platform may hold the rest of the game.
+    const splitPart = entry.artifacts.find(
+      (candidate) =>
+        candidate.asset_id !== artifact.asset_id &&
+        candidate.players.length === 0 &&
+        candidate.excluded_players.length === 0 &&
+        !gateSource(candidate, entry.repository) &&
+        ["unknown", host.os].includes(candidate.name_suggestion.os) &&
+        ["unknown", host.arch, ...(host.os === "macos" ? ["universal"] : [])].includes(
+          candidate.name_suggestion.arch,
+        ),
+    );
+    if (splitPart)
+      problems.push(`${where} rests on a release that splits the game into ${splitPart.name}.`);
     const runtimeAccepted = gateArchiveAccount(artifact.name, own, entry.repository);
     if (runtimeAccepted === null)
       problems.push(
@@ -6331,6 +6508,9 @@ function gateEnrollmentProblems(
       running.some((player) => !runtime.players.some((named) => named.path === player.path))
     )
       problems.push(`${where} does not name every player of its artifact that runs there.`);
+    // Exactly one player survives the platform selection.
+    if (new Set(running.map((player) => player.path)).size > 1)
+      problems.push(`${where} offers more than one player of its program; none is chosen by name.`);
     const topLevel = (path: string) => {
       const parts = path.split("/");
       return parts.length > 1 ? (parts[0] ?? "") : "";
