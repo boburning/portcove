@@ -432,7 +432,6 @@ void test("listing directory guard measures every delivery consumer, not an embe
     record: 1048576,
     entries: 10000,
     text: 67108864,
-    publisherText: 8388608,
     elementBudget: 41943040,
     listingCharge: 4027,
     withdrawalCharge: 68,
@@ -451,7 +450,6 @@ void test("listing directory guard measures every delivery consumer, not an embe
     measures.map(([name, , bound]) => [name, bound]),
     [
       ["generated listings.json bytes", 67108864],
-      ["canonical listings.json read by listing-observation-delivery", 8388608],
       ["complete legacy listing target bytes (without observations)", 8388608],
       ["compact listing directory decoded bytes (without observations)", 33554432],
       ["compact listing carrier bytes (without observations)", 8388608],
@@ -461,8 +459,7 @@ void test("listing directory guard measures every delivery consumer, not an embe
     ],
   );
   assert.equal(measures[0]![1], text.length);
-  assert.equal(measures[1]![1], text.length);
-  assert.equal(measures[6]![1], 2);
+  assert.equal(measures[5]![1], 2);
   // Observations from a signed target enlarge both carriers.
   const observation = { provider: "github", repository: "owner/repo", payload: "x".repeat(4096) };
   const observed = listingDirectoryMeasures(
@@ -472,8 +469,8 @@ void test("listing directory guard measures every delivery consumer, not an embe
       directory: { listings: [{ id: "one", upstream_observation: observation }, { id: "x" }] },
     }),
   );
-  assert.match(observed[2]![0], /with signed observations/u);
-  for (const index of [2, 3, 4]) assert.ok(observed[index]![1] > measures[index]![1]);
+  assert.match(observed[1]![0], /with signed observations/u);
+  for (const index of [1, 2, 3]) assert.ok(observed[index]![1] > measures[index]![1]);
   // The format-11 projection drops only format-12+ facts.
   assert.deepEqual(
     legacyRowProjection({
@@ -519,7 +516,6 @@ void test("listing directory guard measures every delivery consumer, not an embe
       ["compact catalog bytes", true],
       ["escaped signed envelope bytes (unsigned placeholder)", true],
       ["generated listings.json bytes", true],
-      ["canonical listings.json read by listing-observation-delivery", true],
       ["complete legacy listing target bytes (without observations)", true],
       ["compact listing directory decoded bytes (without observations)", true],
       ["compact listing carrier bytes (without observations)", true],

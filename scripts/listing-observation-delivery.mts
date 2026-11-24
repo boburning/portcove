@@ -40,6 +40,7 @@ import {
   encodeCompactListing,
   listingDeliveryMaximum as maximum,
   listingDeliveryTarget,
+  listingDirectoryTextMaximum,
 } from "./listing-directory-carrier.mts";
 
 export { listingDeliveryTarget };
@@ -932,7 +933,12 @@ export async function prepareObservationBundle(options: {
   mkdirSync(workspace);
   const environment = isolatedEnvironment(workspace);
   const diagnostics: string[] = [];
-  const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
+  // The canonical directory is publisher input, not a wire format: it follows
+  // Core's listing directory text bound; each target keeps its delivery bound.
+  const canonicalBytes = await readControllerToolFile(
+    options.canonical,
+    listingDirectoryTextMaximum,
+  );
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
   const canonical = directory(parseCatalogSource(canonicalBytes.toString("utf8")));
   const current = parseCatalogSource(catalogBytes.toString("utf8"));
@@ -1317,7 +1323,8 @@ export async function prepareObservationBundle(options: {
     }
   }
   if (
-    hash(await readControllerToolFile(options.canonical, maximum)) !== hash(canonicalBytes) ||
+    hash(await readControllerToolFile(options.canonical, listingDirectoryTextMaximum)) !==
+      hash(canonicalBytes) ||
     hash(await readControllerToolFile(options.catalog, 32 * 1024 * 1024)) !== hash(catalogBytes)
   )
     throw new Error("Canonical inputs changed during observation projection");

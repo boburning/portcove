@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { gzipSync } from "node:zlib";
-import { compactListingCarrier, listingDeliveryMaximum } from "./listing-directory-carrier.mts";
+import { compactListingCarrier } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export function capacityConstant(source: string, name: string) {
@@ -156,10 +156,9 @@ export interface ListingDeliveryBounds {
   record: number;
   /** Records and withdrawals; enforced by released readers only. */
   entries: number;
-  /** Authored directory text the current Core inspects. */
+  /** Authored directory text the current Core inspects and the listing
+   * publisher reads as its canonical input (one bound for both). */
   text: number;
-  /** Canonical `listings.json` read by the listing publisher. */
-  publisherText: number;
   /** Current generation's per-admission element budget and charges. */
   elementBudget: number;
   listingCharge: number;
@@ -177,7 +176,6 @@ export function listingDeliveryBounds(
     record: capacityConstant(carrierSource, "MAX_COMPACT_RECORD_BYTES"),
     entries: capacityConstant(carrierSource, "MAX_LISTING_ENTRIES"),
     text: capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
-    publisherText: listingDeliveryMaximum,
     elementBudget: capacityConstant(deliverySource, "ELEMENT_WORKING_BUDGET"),
     listingCharge: capacityConstant(deliverySource, "LISTING_WORKING_BYTES"),
     withdrawalCharge: capacityConstant(deliverySource, "WITHDRAWAL_WORKING_BYTES"),
@@ -230,8 +228,8 @@ export function signedObservations(target: unknown) {
 
 /**
  * The listing directory against every consumer that can stop its delivery:
- * Core's inspection of the authored text, the listing publisher's canonical
- * read, the legacy target (still the only live carrier) and the compact
+ * Core's text bound, which its inspection of the authored text and the listing
+ * publisher's canonical read both follow, the legacy target (still the only live carrier) and the compact
  * carrier bounds released readers enforce, which the publisher honors until
  * they are no longer supported. Without `observations` the carrier rows omit
  * observer enrichment and are lower bounds; pass the observations of a signed
@@ -285,12 +283,11 @@ export function listingDirectoryMeasures(
     ...listings.map((row) => Buffer.byteLength(JSON.stringify(row))),
   );
   return [
-    ["generated listings.json bytes", text.length, bounds.text, "Core listing inspection bound"],
     [
-      "canonical listings.json read by listing-observation-delivery",
+      "generated listings.json bytes",
       text.length,
-      bounds.publisherText,
-      "listing publisher canonical read bound",
+      bounds.text,
+      "Core listing directory text bound",
     ],
     [
       `complete legacy listing target bytes (${scope})`,

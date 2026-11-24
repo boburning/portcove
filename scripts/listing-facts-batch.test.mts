@@ -3061,7 +3061,9 @@ void test("an identity that stays pending across consecutive runs stops the job,
   );
 });
 
-void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", () => {
+void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", async () => {
+  const { capacityConstant } = await import("./catalog-capacity.mts");
+  const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
   const signedCatalogSource = readFileSync(
     join(root, "crates/portcove-core/src/signed_catalog.rs"),
     "utf8",
@@ -3070,10 +3072,19 @@ void test("a batch past either released-reader bound is never proposed; it stops
     join(root, "crates/portcove-core/src/catalog/listings.rs"),
     "utf8",
   );
+  // The listing row's one bound is Core's listing directory text bound.
+  assert.equal(
+    listingDirectoryTextMaximum,
+    capacityConstant(listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+  );
   const catalogText = readFileSync(join(root, "crates/portcove-core/catalog/catalog.json"), "utf8");
   const listingBytes = statSync(join(root, "crates/portcove-core/catalog/listings.json")).size;
   // Today's catalog fits both bounds.
-  const today = batchCapacity({ catalogText, listingBytes, signedCatalogSource, listingSource });
+  const today = batchCapacity({
+    catalogText,
+    listingBytes,
+    signedCatalogSource,
+  });
   assert.equal(today.ok, true);
   assert.equal(capacityDetail(today), undefined);
   assert.equal(today.percent, 85);
@@ -3083,22 +3094,44 @@ void test("a batch past either released-reader bound is never proposed; it stops
     Buffer.byteLength(JSON.stringify(catalogText)) + retainedContractReserveBytes,
   );
   assert.equal(retained.ceiling, Math.floor((16 * 1024 * 1024 * 85) / 100));
-  const listing = today.rows.find((row) => row.name === "generated listings.json bytes")!;
-  assert.equal(listing.bound, 8 * 1024 * 1024);
-  assert.equal(listing.ceiling, Math.floor((8 * 1024 * 1024 * 85) / 100));
-  // A listing directory past its ceiling, or a catalog whose escaped text is,
-  // is refused with the exact figures.
+  const listingRows = today.rows.filter((row) => row.name.includes("listings.json"));
+  assert.equal(listingRows.length, 1, "one listing row, against one bound");
+  const listing = listingRows[0]!;
+  assert.equal(listing.bound, listingDirectoryTextMaximum);
+  assert.equal(listing.ceiling, Math.floor((listingDirectoryTextMaximum * 85) / 100));
+  // The former 8 MiB canonical read no longer binds the directory.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes: 8 * 1024 * 1024 + 1,
+      signedCatalogSource,
+    }).ok,
+    true,
+  );
+  // At the ceiling the batch is proposed; one byte past it, it is refused
+  // with the exact figures.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes: listing.ceiling,
+      signedCatalogSource,
+    }).ok,
+    true,
+  );
   const listings = batchCapacity({
     catalogText,
     listingBytes: listing.ceiling + 1,
     signedCatalogSource,
-    listingSource,
   });
   assert.equal(listings.ok, false);
+  assert.deepEqual(
+    listings.rows.filter((row) => !row.ok).map((row) => row.name),
+    ["generated listings.json bytes"],
+  );
   assert.match(
     capacityDetail(listings)!,
     new RegExp(
-      `generated listings.json bytes ${listing.ceiling + 1} bytes against a ceiling of ${listing.ceiling} \\(85% of 8388608\\), 1 bytes over`,
+      `generated listings.json bytes ${listing.ceiling + 1} bytes against a ceiling of ${listing.ceiling} \\(85% of ${listingDirectoryTextMaximum}\\), 1 bytes over`,
       "u",
     ),
   );
@@ -3111,7 +3144,6 @@ void test("a batch past either released-reader bound is never proposed; it stops
     catalogText: quoted,
     listingBytes: 0,
     signedCatalogSource,
-    listingSource,
   });
   assert.equal(escaped.rows[0]!.ok, true);
   assert.equal(escaped.rows.find((row) => row.name.startsWith("JSON-escaped retained"))!.ok, false);

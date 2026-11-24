@@ -85,7 +85,7 @@ import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
-import { capacityConstant, catalogSizeBounds, catalogSizeGuard } from "./catalog-capacity.mts";
+import { catalogSizeBounds, catalogSizeGuard } from "./catalog-capacity.mts";
 import {
   checkListingFactsTable,
   compareCodePoints,
@@ -141,7 +141,7 @@ import {
   type ObservedRelease,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
-import { listingDeliveryMaximum } from "./listing-directory-carrier.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -1924,17 +1924,18 @@ export interface CapacityRow {
  *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
  *    JSON-escaped retained installed contract, estimated as the escaped
  *    `catalog.json` text plus `retainedContractReserveBytes`;
- *  - the canonical `listings.json` against the listing publisher's 8 MiB
- *    canonical read (`listingDeliveryMaximum`) and Core's inspection text
- *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`).
- * Released readers refuse more than the bound, so a batch past a ceiling is
- * never proposed: its required check would fail.
+ *  - the canonical `listings.json` against Core's listing directory text
+ *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`, `listingDirectoryTextMaximum`),
+ *    the one bound every tool that reads the canonical text follows (Core's
+ *    inspection, the listing publisher's canonical read and this job). A test
+ *    pins the constant to Core; no delivery bound applies to this text.
+ * The required `catalog-capacity --check` refuses more than either ceiling, so
+ * a batch past one is never proposed: its required check would fail.
  */
 export function batchCapacity(input: {
   catalogText: string;
   listingBytes: number;
   signedCatalogSource: string;
-  listingSource: string;
 }): { ok: boolean; percent: number; rows: CapacityRow[] } {
   const bounds = catalogSizeBounds(input.signedCatalogSource);
   const guard = catalogSizeGuard(
@@ -1945,14 +1946,8 @@ export function batchCapacity(input: {
       [
         "generated listings.json bytes",
         input.listingBytes,
-        listingDeliveryMaximum,
-        "listing publisher canonical read bound",
-      ],
-      [
-        "generated listings.json inspection bytes",
-        input.listingBytes,
-        capacityConstant(input.listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
-        "Core listing inspection bound",
+        listingDirectoryTextMaximum,
+        "Core listing directory text bound",
       ],
     ],
   );
@@ -3289,10 +3284,6 @@ async function main(argv: string[]): Promise<string> {
         listingBytes: statSync(path.join(root, "crates/portcove-core/catalog/listings.json")).size,
         signedCatalogSource: readFileSync(
           path.join(root, "crates/portcove-core/src/signed_catalog.rs"),
-          "utf8",
-        ),
-        listingSource: readFileSync(
-          path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
           "utf8",
         ),
       });

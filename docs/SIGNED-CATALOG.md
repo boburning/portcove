@@ -120,9 +120,9 @@ once compatible application packages are available on the affected channels.
 `node scripts/catalog-capacity.mts --check` reports generated and compact
 operational bytes, a representative escaped signed envelope, the listing
 directory against each consumer that can stop its delivery and the committed
-definition index. The listing rows cover Core's inspection of the authored
-text, the 8 MiB canonical read in `scripts/listing-observation-delivery.mts`,
-a complete legacy target, and the compact carrier's decoded, wire, per-record
+definition index. The listing rows cover Core's 64 MiB listing directory
+text bound, which both Core's inspection and the canonical read in
+`scripts/listing-observation-delivery.mts` follow, a complete legacy target, and the compact carrier's decoded, wire, per-record
 and entry-count bounds that released readers enforce. Without
 `--observed-target FILE` the carrier rows omit observer enrichment and are
 lower bounds; with a delivered target they include its signed observations.
@@ -174,11 +174,13 @@ bytes, 210 bytes below 8 MiB, and carries 1,193 of the 1,649 listings: the
 publisher fills it and leaves the remaining rows to each reader's bundled
 copy. A complete legacy target with today's signed observations would need
 9,778,469 bytes. Format-11 readers therefore already receive a partial
-directory. The next constraints are the 8 MiB canonical read in
-`scripts/listing-observation-delivery.mts`, which leaves 680,323 bytes, about
-400 generated listings, and then the element budget below. The canonical read
-is publisher input, not a wire format, so it can follow Core's 64 MiB
-inspection bound without a new reader generation.
+directory. The canonical read in `scripts/listing-observation-delivery.mts`
+is publisher input, not a wire format, so since November 24, 2026 it follows
+Core's 64 MiB listing directory text bound
+(`MAX_LISTING_DIRECTORY_TEXT_BYTES`) without a new reader generation; it had
+been 8 MiB, with 680,323 bytes, about 400 generated listings, to spare. The
+next constraints are the complete legacy target row of `catalog-capacity`
+and then the element budget below.
 
 With the signed observations of revision 47, the compact carrier measures
 9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370 wire bytes (33% of
