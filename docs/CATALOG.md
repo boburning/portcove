@@ -4776,22 +4776,26 @@ anywhere in a sentence:
   URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
   "Full Changelog" line: a run of two or three dots with a digit both before
   and after it, so `Beta...` and `Beta... finally` keep their status word) and
-  image file names. HTML comments are removed, and so are tags of the
-  elements GitHub renders in release notes (`renderedElements`, its
-  sanitizer's allowlist), also where one spans a single line break (an
-  `<img` whose attributes continue on the next line); a block element
-  (`<br>`, `<p>`, `<div>`, list items, headings, table rows and the like)
-  ends a line. Any other angle bracket is text, as GitHub shows it:
-  `v1 <- Beta 2`, `Windows < 10 Beta 3` and `<Beta 3>` state _beta_, and a
-  span that reaches another `<` or a blank line before its `>` is no tag.
-  Every removal reads the text once, so a body of any length is read in
-  time linear in its length;
+  image file names. Raw HTML is removed in CommonMark's grammar, whether or
+  not GitHub renders the element (it strips what it does not render, and
+  shows neither as text): comments, declarations (`<!DOCTYPE html>`),
+  processing instructions, and any open or closing tag, so `<html>`,
+  `<body>`, `<center>` and `<font color=red>` never become the judged line; a
+  tag's whitespace may hold one line break (an `<img` whose attributes
+  continue on the next line), and a `<script>` or `<style>` element is
+  removed with its contents. A block element (`<br>`, `<p>`, `<div>`, list
+  items, headings, table rows and the like) ends a line. Anything else in
+  angle brackets is text, as GitHub shows it: `v1 <- Beta 2`,
+  `Windows < 10 Beta 3` and `<Beta 3>` (an attribute cannot start with a
+  digit) state _beta_. Every removal reads the text once, so a body of any
+  length is read in time linear in its length;
 - the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
   before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
   or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
   line's last word (`Final Beta`, `Release candidate`), inside parentheses
-  or brackets (`Game 1.0 (Beta)`, `Early access 0.3 (unstable)`), or directly
-  after `public`, `open`, `closed`, `developer`, `technical` or `early`
+  or brackets (`Game 1.0 (Beta)`, `Early access 0.3 (unstable)`), directly
+  before an ellipsis (`..`, `...` or `…`: `Beta... finally`, `Beta… out now`),
+  or directly after `public`, `open`, `closed`, `developer`, `technical` or `early`
   (`Public beta test`, `Open alpha`, `Developer preview`);
   `This is beta software for testing`, `Open the beta menu with F1` and `Now
   in early access for everyone` state nothing;

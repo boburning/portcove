@@ -125,21 +125,15 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
-import {
-  bodyFirstLine,
-  compareRange,
-  renderedElements,
-  statementText,
-  withoutTags,
-} from "./release-text.mts";
+import { bodyFirstLine, compareRange, statementText, withoutTags } from "./release-text.mts";
 
 export { bodyFirstLine, compareRange, statementText, withoutTags };
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 31;
+export const GENERATOR_VERSION = 32;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 25;
+export const FACTS_PARSER_VERSION = 26;
 export const FACTS_TABLE_FORMAT = 18;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -502,6 +496,8 @@ interface StatementWord {
   parenthesised: boolean;
   /** The next word follows a single hyphen directly after this one (`alpha-testing`). */
   hyphenated: boolean;
+  /** An ellipsis (`..`, `...`, `…`) directly follows this word (`Beta... finally`). */
+  ellipsis: boolean;
 }
 function statementWords(line: string): StatementWord[] {
   const words: StatementWord[] = [];
@@ -533,7 +529,11 @@ function statementWords(line: string): StatementWord[] {
             group,
             parenthesised: depth > 0,
             hyphenated: false,
+            ellipsis: false,
           });
+      words[words.length - 1]!.ellipsis = /^(?:\.\.|\u2026)/u.test(
+        text.slice(start + token.length, start + token.length + 2),
+      );
     }
     end = start + token.length;
   }
@@ -553,7 +553,8 @@ function statementWords(line: string): StatementWord[] {
  * `Pre-release build 7`, `Early access 0.3`, past a connector word,
  * `statementConnectors`) or directly after one (`v1.0 Beta`), as the line's
  * last word (`v1.0 Beta`, `Release candidate`), inside parentheses or
- * brackets (`(beta)`, `(unstable)`), or directly after a qualifier
+ * brackets (`(beta)`, `(unstable)`), directly before an ellipsis
+ * (`Beta... finally`, `Beta… finally`), or directly after a qualifier
  * (`statementQualifiers`: `Public beta test`); never anywhere in a sentence. A negation or past transition before it
  * (`statementNegators`, or `out of`) states nothing. The product's own words
  * (the repository name's words and `listingWords`) before the line's first
@@ -615,6 +616,8 @@ export function releaseStatement(
           ),
         ) ||
       words[first]!.parenthesised ||
+      // Trailing off into an ellipsis (`Beta... finally`).
+      words[last]!.ellipsis ||
       (statementQualifiers as readonly string[]).includes(words[first - 1]?.word ?? "")
     );
   };
@@ -7965,17 +7968,33 @@ export function gateListingWords(listing: Record<string, unknown>): string[] {
       for (const word of gateNameWords(value)) if (word.length <= 64) words.add(word);
   return [...words].sort().slice(0, 64);
 }
+/** Whitespace inside a raw HTML tag: spaces and tabs, at most one line ending. */
+const gateTagSpace = "[ \\t]*(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?";
+/** The same whitespace, not empty. */
+const gateTagSpaced = "(?:[ \\t]+(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?|(?:\\r\\n|\\r|\\n)[ \\t]*)";
+/** One attribute of a raw HTML open tag, with its leading whitespace. */
+const gateAttribute = `${gateTagSpaced}[A-Za-z_:][A-Za-z0-9_.:-]*(?:${gateTagSpace}=${gateTagSpace}(?:[^ \\t\\r\\n"'=<>\`]+|'[^']*'|"[^"]*"))?`;
+/** A `script` or `style` element with its contents, up to its closing tag. */
+const gateRawText = (name: string) => {
+  const letters = name.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`);
+  return `<${letters}(?![A-Za-z0-9-])(?:${gateAttribute})*${gateTagSpace}\\/?>[\\s\\S]*?<\\/${letters}${gateTagSpace}>`;
+};
 /**
- * An HTML comment, or a tag of an element GitHub renders (any ASCII case)
- * whose span holds no `<` and no blank line; restated from `withoutMarkup`.
- * Names are matched letter by letter in ASCII, never by Unicode case folding
- * (the Kelvin sign is no `k`, `ſ` no `s`).
+ * Raw HTML, restated from `withoutMarkup` in CommonMark's grammar: a
+ * comment, a declaration, a processing instruction, a `script` or `style`
+ * element with its contents, a closing tag, or an open tag, whether or not
+ * GitHub renders the element.
  */
 const gateMarkup = new RegExp(
-  `<!--[\\s\\S]*?-->|<\\/?(?:${[...renderedElements]
-    .toSorted((left, right) => right.length - left.length)
-    .map((name) => name.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`))
-    .join("|")})(?=[\\s/>])(?:(?!(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*(?:\\r\\n|\\r|\\n))[^<>])*>`,
+  [
+    "<!--[\\s\\S]*?-->",
+    "<![A-Za-z][^>]*>",
+    "<\\?[\\s\\S]*?\\?>",
+    gateRawText("script"),
+    gateRawText("style"),
+    `<\\/[A-Za-z][A-Za-z0-9-]*${gateTagSpace}>`,
+    `<[A-Za-z][A-Za-z0-9-]*(?:${gateAttribute})*${gateTagSpace}\\/?>`,
+  ].join("|"),
   "gu",
 );
 /**
@@ -7989,7 +8008,7 @@ export function gateStatement(
   listing: readonly string[] = [],
 ): string | null {
   const own = [...gateNameWords(repository.split("/")[1] ?? ""), ...listing];
-  // Image references, HTML comments and tags of rendered elements, link
+  // Image references, raw HTML (comments, declarations and tags), link
   // targets, URLs, compare ranges and image file names never state anything.
   const text = line
     .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
@@ -8019,6 +8038,8 @@ export function gateStatement(
     token: number;
     inside: boolean;
     dash: boolean;
+    /** Two dots or `…` come right after the word. */
+    trail: boolean;
   }[] = [];
   let depth = 0;
   let token = 0;
@@ -8029,8 +8050,11 @@ export function gateStatement(
     // A hyphen joins only a word that starts this run right after it.
     let joins = (between === "-" || between === "\u2013") && /^[a-z0-9]/u.test(run);
     let pushed = false;
-    // Letters and digits joined by one `.` or `_` are one glued token.
-    for (const piece of run.split(/[._]{2,}/u)) {
+    // Letters and digits joined by one `.` or `_` are one glued token; the
+    // runs of two or more between them are kept to see an ellipsis.
+    const split = run.split(/([._]{2,})/u);
+    for (let at = 0; at < split.length; at += 2) {
+      const piece = split[at]!;
       const parts = piece.split(/[._]/u).flatMap((part) => part.match(/[a-z]+|[0-9]+/gu) ?? []);
       if (parts.length) {
         if (joins && words.length) words[words.length - 1]!.dash = true;
@@ -8043,20 +8067,24 @@ export function gateStatement(
             token,
             inside: depth > 0,
             dash: false,
+            trail: false,
           });
+        if ((split[at + 1] ?? "").startsWith("..")) words[words.length - 1]!.trail = true;
       }
       joins = false;
     }
     // The dots and underscores a run ends with stand between it and the next.
     between = pushed ? /[._]*$/u.exec(run)![0] : between + run;
     run = "";
+    return pushed;
   };
   for (const character of text) {
     if (/[a-z0-9._]/u.test(character)) {
       run += character;
       continue;
     }
-    flush();
+    // A run ending in a word, then `…`: the word trails off.
+    if (flush() && between === "" && character === "\u2026") words[words.length - 1]!.trail = true;
     between += character;
     if ("([{".includes(character)) depth++;
     else if (")]}".includes(character)) depth = depth > 0 ? depth - 1 : 0;
@@ -8176,6 +8204,7 @@ export function gateStatement(
       words[index - 1]?.number === true ||
       words.slice(end + 1).every((word) => [...connectors, "release"].includes(word.text)) ||
       words[index]!.inside ||
+      words[end]!.trail ||
       (index > 0 && qualifiers.includes(words[index - 1]!.text))
     )
       return found;

@@ -31,79 +31,6 @@ export function compareRange(token: string): boolean {
 }
 
 /**
- * The HTML elements GitHub renders in release notes (its sanitizer's
- * allowlist). Anything else written in angle brackets (`v1 <- Beta 2`,
- * `Windows < 10 Beta 3`, `<Beta 3>`) is shown as text, so it is read as text.
- */
-export const renderedElements: ReadonlySet<string> = new Set([
-  "a",
-  "abbr",
-  "b",
-  "bdo",
-  "blockquote",
-  "br",
-  "caption",
-  "cite",
-  "code",
-  "dd",
-  "del",
-  "details",
-  "dfn",
-  "div",
-  "dl",
-  "dt",
-  "em",
-  "figcaption",
-  "figure",
-  "g-emoji",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "hr",
-  "i",
-  "img",
-  "input",
-  "ins",
-  "kbd",
-  "li",
-  "mark",
-  "ol",
-  "p",
-  "picture",
-  "pre",
-  "q",
-  "rp",
-  "rt",
-  "ruby",
-  "s",
-  "samp",
-  "small",
-  "source",
-  "span",
-  "strike",
-  "strong",
-  "sub",
-  "summary",
-  "sup",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "time",
-  "tr",
-  "tt",
-  "ul",
-  "var",
-  "video",
-  "wbr",
-]);
-
-/**
  * HTML elements that end a line where they open or close (`<br>`, `<p>`,
  * `</div>`, list items, headings, table rows, block quotes, preformatted
  * blocks and rules): pasted HTML notes break lines with these, not with line
@@ -129,57 +56,134 @@ const lineBreakingElements = new Set([
   "hr",
 ]);
 
-/**
- * A blank line: a line break, optional spaces or tabs, and another line
- * break (a lone CRLF is one line break).
- */
-export const blankLine = /(?:\r\n|\r(?!\n)|\n)[ \t]*(?:\r\n|\r|\n)/u;
+/** Elements whose contents are never shown as text: removed with them. */
+const rawTextElements = ["script", "style"] as const;
 
 /**
- * The text with HTML comments and tags removed. A comment is `<!--` to the
- * next `-->`. A tag is `<`, an optional `/`, a rendered element's name
- * (`renderedElements`, any case) followed by a space, `/` or `>`, then any
- * characters but `<` and `>` holding no blank line, then `>`; so a tag whose
- * attributes continue on the next line is one tag. Anything else stays text:
- * an unclosed comment, a `<` with no rendered name after it, or a span that
- * reaches another `<` or a blank line first. A line-breaking element
- * (`lineBreakingElements`) becomes `blockBreak`, anything else removed a
- * space. Linear in the text.
+ * The end of the whitespace at `at` in a tag: spaces and tabs with at most
+ * one line ending among them (CommonMark's raw HTML whitespace).
+ */
+function tagSpace(text: string, at: number): number {
+  while (text[at] === " " || text[at] === "\t") at++;
+  if (text[at] === "\r" || text[at] === "\n") {
+    at += text.startsWith("\r\n", at) ? 2 : 1;
+    while (text[at] === " " || text[at] === "\t") at++;
+  }
+  return at;
+}
+
+/** The end of the run at `at` of characters `pattern` accepts. */
+function runEnd(text: string, at: number, pattern: RegExp): number {
+  while (at < text.length && pattern.test(text[at]!)) at++;
+  return at;
+}
+
+/**
+ * The end (after its `>`) of a raw HTML open or closing tag starting with
+ * the `<` at `open`, and its lowercase name, or undefined. The grammar is
+ * CommonMark's: a tag name (an ASCII letter, then letters, digits and `-`);
+ * for an open tag, attributes (whitespace, a name of letters, digits, `_`,
+ * `.`, `:` and `-` starting with a letter, `_` or `:`, optionally `=` and an
+ * unquoted, single-quoted or double-quoted value), optional whitespace and an
+ * optional `/`; then `>`. Whether GitHub renders the element does not matter:
+ * it removes what it does not render, and shows neither as text.
+ */
+function rawTag(text: string, open: number): { end: number; name: string } | undefined {
+  const closing = text[open + 1] === "/";
+  const nameStart = open + (closing ? 2 : 1);
+  if (!/[A-Za-z]/u.test(text[nameStart] ?? "")) return undefined;
+  const nameEnd = runEnd(text, nameStart, /[A-Za-z0-9-]/u);
+  const name = text.slice(nameStart, nameEnd).toLowerCase();
+  let at = nameEnd;
+  if (!closing)
+    for (;;) {
+      const space = tagSpace(text, at);
+      if (space === at || !/[A-Za-z_:]/u.test(text[space] ?? "")) break;
+      const attributeEnd = runEnd(text, space, /[A-Za-z0-9_.:-]/u);
+      const equals = tagSpace(text, attributeEnd);
+      at = attributeEnd;
+      if (text[equals] !== "=") continue;
+      const value = tagSpace(text, equals + 1);
+      const quote = text[value];
+      if (quote === '"' || quote === "'") {
+        const end = text.indexOf(quote, value + 1);
+        if (end < 0) return undefined;
+        at = end + 1;
+      } else {
+        at = runEnd(text, value, /[^ \t\r\n"'=<>`]/u);
+        if (at === value) return undefined;
+      }
+    }
+  at = tagSpace(text, at);
+  if (!closing && text[at] === "/") at++;
+  return text[at] === ">" ? { end: at + 1, name } : undefined;
+}
+
+/**
+ * The text with raw HTML removed, scanning left to right: a comment (`<!--`
+ * to the next `-->`), a declaration (`<!` and a letter to the next `>`), a
+ * processing instruction (`<?` to the next `?>`) and any open or closing tag
+ * (`rawTag`); a `script` or `style` element is removed with its contents up
+ * to its closing tag when there is one. Anything else stays text: an
+ * unclosed comment, `v1 <- Beta 2`, `Windows < 10 Beta 3`, `<Beta 3>`. A
+ * line-breaking element (`lineBreakingElements`) becomes `blockBreak`,
+ * anything else removed a space. Linear in the text: every search for a
+ * closing sequence is remembered, so no stretch is searched twice for it.
  */
 function withoutMarkup(text: string, blockBreak: string): string {
+  const found = new Map<string, number>();
+  // The next index of `pattern` at or after `from`, remembered: -1 once
+  // there is none.
+  const next = (key: string, pattern: RegExp, from: number) => {
+    const known = found.get(key);
+    if (known !== undefined && (known < 0 || known >= from)) return known;
+    pattern.lastIndex = from;
+    const index = pattern.exec(text)?.index ?? -1;
+    found.set(key, index);
+    return index;
+  };
   let result = "";
   let at = 0;
-  let commentEnd = -2;
-  let close = -2;
   for (let open = text.indexOf("<"); open >= 0; open = text.indexOf("<", open + 1)) {
     if (open < at) continue;
+    let end = -1;
+    let replacement = " ";
     if (text.startsWith("<!--", open)) {
-      if (commentEnd !== -1 && commentEnd < open + 4) commentEnd = text.indexOf("-->", open + 4);
-      if (commentEnd < 0) continue;
-      result += `${text.slice(at, open)} `;
-      at = commentEnd + 3;
-      continue;
+      const close = next("comment", /-->/gu, open + 4);
+      if (close >= 0) end = close + 3;
+    } else if (text[open + 1] === "!" && /[A-Za-z]/u.test(text[open + 2] ?? "")) {
+      const close = next("declaration", />/gu, open + 2);
+      if (close >= 0) end = close + 1;
+    } else if (text[open + 1] === "?") {
+      const close = next("instruction", /\?>/gu, open + 2);
+      if (close >= 0) end = close + 2;
+    } else {
+      const tag = rawTag(text, open);
+      if (tag !== undefined) {
+        end = tag.end;
+        if (lineBreakingElements.has(tag.name)) replacement = blockBreak;
+        const raw = rawTextElements.find((name) => name === tag.name);
+        if (raw !== undefined && text[open + 1] !== "/") {
+          const letters = raw.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`);
+          const close = next(
+            raw,
+            new RegExp(`<\\/${letters}[ \\t]*(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?>`, "gu"),
+            end,
+          );
+          if (close >= 0) end = text.indexOf(">", close) + 1;
+        }
+      }
     }
-    const name = /^\/?([A-Za-z][A-Za-z0-9-]*)/u.exec(text.slice(open + 1, open + 20))?.[1];
-    if (name === undefined || !renderedElements.has(name.toLowerCase())) continue;
-    const after = open + 1 + (text[open + 1] === "/" ? 1 : 0) + name.length;
-    if (after >= text.length || !/[\s/>]/u.test(text[after]!)) continue;
-    if (close !== -1 && close < after) close = text.indexOf(">", after);
-    if (close < 0) continue;
-    // Another `<` first: this is no tag. Checked before the blank line, so
-    // no text is searched for a blank line twice.
-    const next = text.indexOf("<", after);
-    if ((next >= 0 && next < close) || blankLine.test(text.slice(after, close))) continue;
-    result +=
-      text.slice(at, open) + (lineBreakingElements.has(name.toLowerCase()) ? blockBreak : " ");
-    at = close + 1;
+    if (end < 0) continue;
+    result += text.slice(at, open) + replacement;
+    at = end;
   }
   return result + text.slice(at);
 }
 
 /**
- * The body with HTML comments and tags removed (`withoutMarkup`), a
- * line-breaking element becoming a line break.
+ * The body with raw HTML removed (`withoutMarkup`), a line-breaking element
+ * becoming a line break.
  */
 export function withoutTags(body: string): string {
   return withoutMarkup(body, "\n");
@@ -266,8 +270,7 @@ const eachToken = (text: string, replace: (token: string) => string) =>
 
 /**
  * Release text with what never states anything about the release removed:
- * image references (`![alt](beta.png)`), HTML comments and tags
- * (`withoutMarkup`), link targets (the link text stays), URLs, compare ranges
+ * image references (`![alt](beta.png)`), raw HTML (`withoutMarkup`), link targets (the link text stays), URLs, compare ranges
  * (`compareRange`) and image file names.
  */
 export function statementText(line: string): string {

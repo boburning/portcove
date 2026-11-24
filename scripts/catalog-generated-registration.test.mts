@@ -6705,6 +6705,16 @@ void test("fit and gate read release text alike over generated lines (F1)", () =
     ":",
     "<b>",
     "[link](https://x.io/rc1)",
+    "...",
+    "..",
+    "…",
+    "....",
+    "finally",
+    "<html>",
+    "</body>",
+    "<font color=red>",
+    "<style>x</style>",
+    "<Beta 3>",
   ];
   const repositories = ["fixture-owner/beta-squadron", "fixture-owner/game", "fixture-owner/rc"];
   const listings = [[], ["beta", "squadron"], ["game"], ["alpha"]];
@@ -11244,10 +11254,10 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
-// Re-pinned for generator 31: only each enrollment's recorded
+// Re-pinned for generator 32: only each enrollment's recorded
 // `generator_version` and facts digest changed.
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "20a74b5aacfda3f4b0572d7fde14f7767efbc1c1b4710176aba83d7673a3353f";
+  "e1ec132da7e3596e93b4fcf02fecc7731855904752ba5beec84820eb837328ac";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };
@@ -11537,7 +11547,7 @@ void test("the whole judged line of the whole body is read; text not kept is nev
   });
 });
 
-void test("only markup GitHub renders is removed; other angle brackets are text (#1422)", () => {
+void test("raw HTML is removed whether or not GitHub renders it; other angle brackets are text (#1422)", () => {
   const repository = "fixture-owner/game";
   // Found in review: a `<` with no rendered element after it reached a later
   // blockquote `>` and erased the status between them.
@@ -11546,13 +11556,32 @@ void test("only markup GitHub renders is removed; other angle brackets are text 
     "Build 5 (2 < 3, Beta)\n> quote",
     "Requires Windows < 10 Beta 3\n\n- item\n> x",
     "<Beta 3>",
+    // Found in review: wrapper tags GitHub strips without rendering them
+    // once became the judged line, so a beta read as stating nothing.
+    "<html>\r\n<body>\r\nBeta 2 of the game\r\n</body></html>",
+    "<html>\n<body>\nBeta 2",
+    "<center>\nBeta 2",
+    "<font color=red>\nBeta 2",
+    "<style>p { color: red }</style>\nBeta 2",
+    "<script>var beta;</script>\nBeta 2",
+    "<!DOCTYPE html>\nBeta 2",
   ])
     assert.deepEqual(
       observedTextStatement("v1", body, false, repository),
       { observed: true, statement: { field: "body-first-line", token: "beta" } },
       JSON.stringify(body),
     );
-  // Comments and rendered tags, also across one line break, state nothing.
+  // Measured: brankomatija/BustAGrooveRecompiled-Releases v0.1.0 notes open
+  // with this shape; their first readable line is the game's name.
+  assert.equal(
+    bodyFirstLine(
+      '<html>\r\n<body>\r\n<!--StartFragment--><div style="text-align: center;"><h1>Bust A Groove Recompiled</h1><p>Beta 2</p></div>',
+    ),
+    "Bust A Groove Recompiled",
+  );
+  // A quoted attribute value may hold `>`.
+  assert.equal(bodyFirstLine('<a title="a>b">\nBeta 5'), "Beta 5");
+  // Comments and tags, also across one line break, state nothing.
   assert.equal(
     bodyFirstLine("<!-- Release notes generated using configuration -->\n## Beta 2"),
     "Beta 2",
@@ -11568,7 +11597,10 @@ void test("only markup GitHub renders is removed; other angle brackets are text 
     ["Game <b>1.0</b>", null],
     ["Game 1.0 <sup>beta</sup>", "beta"],
     ["Game <!-- beta --> 1.0", null],
-    ["Game <beta> 1.0", "beta"],
+    // `<beta>` is a tag (GitHub removes it), `<Beta 3>` is not.
+    ["Game <beta> 1.0", null],
+    ["Game <Beta 3> 1.0", "beta"],
+    ["Game <center>1.0</center>", null],
     ["Game <b class=x\n>1.0", null],
     // Found in review: `İ` lowercases to two characters, which once shifted
     // the `www.` removal; and names match in ASCII only, never by Unicode
@@ -11611,8 +11643,15 @@ void test("an ellipsis never erases a status word; only a range between two vers
     ["v0.9-beta...v1.0", null],
     ["1.0-beta...1.0", null],
     ["**Full Changelog**: https://github.com/o/r/compare/v0.9-beta...v1.0", null],
-    // "Beta... finally" reads as "Beta finally": the word does not stand.
-    ["Beta... finally", null],
+    // A status word trailing off into an ellipsis stands wherever it is.
+    ["Beta... finally", "beta"],
+    ["Beta… finally", "beta"],
+    ["Beta.. finally", "beta"],
+    ["Beta.... finally", "beta"],
+    ["Alpha-Test... soon", "alpha"],
+    // Known limit: without the ellipsis the word does not stand.
+    ["Beta finally", null],
+    ["Beta. finally", null],
     // An en dash joins a compound like a hyphen.
     ["Beta–Test 3", "beta"],
   ] as const) {
