@@ -729,6 +729,9 @@ export function providerWake(budget: DiscoveryBudget, now: number) {
     const needed = resource === "graphql" ? budget.graphqlPointHeadroom : 1;
     const reset = Date.parse(quota.resetAt);
     if (quota.remaining < needed && Number.isFinite(reset) && reset > now) times.push(reset);
+    // A quota window that has rolled over leaves the pass's observation stale,
+    // and the pass stops admitting requests; a new pass observes it afresh now.
+    else if (resource === "core" && Number.isFinite(reset) && reset <= now) times.push(now);
   }
   // Wake just after the latest blocking reset, so every exhausted resource has lifted.
   return times.length ? Math.max(...times) + 1000 : undefined;

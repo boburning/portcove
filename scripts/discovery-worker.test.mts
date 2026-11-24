@@ -887,6 +887,19 @@ void test("provider wake reports only a blocking quota or backoff", () => {
   assert.equal(providerWake(budget, at), undefined);
   budget.observeProvider({ resource: "search", remaining: 0, resetAt: "2026-11-01T05:10:00.000Z" });
   assert.equal(providerWake(budget, at), Date.parse("2026-11-01T05:10:01.000Z"));
+
+  // Once the core window has rolled over, the pass's observation is stale and it
+  // admits nothing more; the next pass starts at once and observes it afresh.
+  const fresh = new DiscoveryBudget(
+    "hosted",
+    () => {},
+    () => at,
+    new Date(at).toISOString(),
+  );
+  fresh.observeProvider({ resource: "core", remaining: 2737, resetAt: "2026-11-01T05:00:00.000Z" });
+  assert.equal(providerWake(fresh, at), at + 1000);
+  fresh.observeProvider({ resource: "core", remaining: 2737, resetAt: "2026-11-01T06:00:00.000Z" });
+  assert.equal(providerWake(fresh, at), undefined, "a current window with capacity needs no wake");
 });
 
 void test("a pass that only restamps observation clocks has learned nothing", () => {

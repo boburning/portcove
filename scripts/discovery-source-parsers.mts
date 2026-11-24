@@ -39,7 +39,9 @@ function group(
     }
     entries.set(location.key, entry);
   }
-  if (!entries.size && !unlinked) throw new Error("External list has no entries");
+  // A read whose every row the source itself places outside scope is complete.
+  if (!entries.size && !unlinked && !extra.excluded)
+    throw new Error("External list has no entries");
   return {
     entries: [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)),
     unlinked,
