@@ -457,6 +457,8 @@ mitigation is the application update to Preview 14 or later.
 
 ### Released-reader gate
 
+After the cutover the released reader is consulted only for a compact format
+raise; an ordinary compact publication does not select or probe it.
 The compact carrier is published first, or raised to a newer listing format,
 only after preparation verifies that the current released preview reads it.
 `--official-released-reader` selects that reader from the protected
@@ -498,7 +500,14 @@ first compact publication, or a compact format raise, is pending, any run
 that renews the prior targets instead records `listing_activation_pending`
 (prior carrier and format, candidate format, reason). Like a listing stop,
 it fails the run after the Pages push and readback, so a deferred cutover is
-never silent. The publish job reruns
+never silent.
+
+When the prior signed repository cannot be verified (for example, an expired
+timestamp after a missed day, or a release-tools fault), preparation renews
+the exact prior listing targets without projecting. After the cutover no
+activation is pending, so the report records `listing_prior_unverified`
+(prior carrier and reason) instead, and the run likewise fails after the
+Pages push and readback: canonical listing changes are unpublished. The publish job reruns
 `node scripts/catalog-released-reader.mts site` on each fresh Pages base and
 stops that push if the selected reader was withdrawn or replaced.
 `node scripts/catalog-released-reader.mts select DIR [PAGES]` is a read-only
@@ -600,49 +609,61 @@ none at revision 47, so older previews never see later withdrawals.
 **The merge.** Merging this change makes the next `Catalog publish` run
 publish the compact carrier, if its reader verifies.
 
-**First-publication readback.**
+**First-publication readback.** The lead follows these numbered steps after
+the first `Catalog publish` run that publishes the compact target. Record each
+result, with the date, on the owning issue.
 
-1. In the prepare job's `observation-projection.json`, check these fields:
+1. In the prepare job's `catalog-work` artifact, open
+   `observation-projection.json` and check:
    - `carrier` is `compact` and `listing_format` is 15.
-   - `revision` is above `legacy_target.revision` (47).
+   - `revision` is at least 48, above `legacy_target.revision` (47).
    - `delivered_records` equals `canonical_records` (1,649 on November 23,
      2026), and `not_projected_records` equals `withdrawn_records`.
-   - `legacy_target.sha256` and `bytes` equal the served legacy target.
-   - `released_reader` and `released_reader_source` name the current Preview.
-   - `target_bytes` is within 8 MiB, `decoded_bytes` within 32 MiB, and
+   - `legacy_target.sha256` is
+     `0d20ba97babda1b10a06d2b1e1c968895afb33d6fb135c3594bb3c1d9e303c33` and
+     `legacy_target.bytes` is 8,388,398.
+   - `released_reader` and `released_reader_source` name Preview 15 (the
+     current Preview), and `released_reader_activation` is present.
+   - `target_bytes` is at most 8 MiB and `decoded_bytes` at most 32 MiB.
+   - `listing_publication_stopped`, `listing_activation_pending` and
+     `listing_prior_unverified` are all absent, and no `diagnostics` line
+     says `prior unavailable`.
+   - `withdrawal_record` names the committed record's SHA-256 and count;
      `excluded_candidates` and `diagnostics` are reviewed.
-   - `listing_publication_stopped` is absent, and `withdrawal_record` names
-     the committed record's SHA-256 and count.
+
+   In the same artifact, `capacity-guard.json` has `status` 0.
+
 2. On Pages, follow `catalog/metadata/timestamp.json` to its snapshot, then to
    `official-policy`. The policy role names
    `policy/official/catalog.listings.compact.json` with the report's
    `target_sha256` and `target_bytes`. It still names
    `policy/official/catalog.listings.json` with the unchanged SHA-256 and
    length.
-3. Decode the served compact target. Its `decoded_bytes` and `decoded_sha256`
-   match, and it holds format 15, the reported revision, all canonical rows
-   and the typed `restrictions`.
+3. Fetch the served compact target and decode it. Its `decoded_bytes` and
+   `decoded_sha256` match the report, and it holds format 15, the reported
+   revision, every canonical row and the typed `restrictions`.
 4. The frozen legacy target
    `catalog/targets/0d20ba97babda1b10a06d2b1e1c968895afb33d6fb135c3594bb3c1d9e303c33.policy/official/catalog.listings.json`
    still serves the same 8,388,398 bytes.
-5. `updates/preview/latest.json` still names the version recorded in
+5. `updates/preview/latest.json` names the version recorded in
    `released_reader_activation`, and `updates/beta/latest.json` names the same
    version.
 6. Real clients. This is the first time a released client consumes the signed
    compact publication: before signing, the compact path was verified only
    with offline inspectors, from-tag simulations and fixture tests (see
    [Cutover evidence](#cutover-evidence-november-23-2026)). A defect found here
-   can only be fixed forward. In a fresh library, run
-   `catalog definition-authority --apply`, `catalog listing-refresh` and
-   `catalog listing-status` with each CLI:
-   - Preview 15 and Preview 14 select the compact target: its revision and
+   can only be fixed forward. With each released CLI, in a fresh library, run
+   `catalog definition-authority --apply`, then
+   `catalog listing-refresh --metadata-base-url https://boburning.github.io/portcove/catalog/metadata --targets-base-url https://boburning.github.io/portcove/catalog/targets`,
+   then `catalog listing-status`:
+   - Preview 15 and Preview 14: `selected` true, `revision` and
      `target_sha256` from the report, every canonical listing, no fallback.
-   - Preview 13 keeps revision 47 (`0d20ba97…`, 1,193 listings) selected and
-     reports no error.
+   - Preview 13: `selected` true, revision 47, target `0d20ba97…`, 1,193
+     listings, `fallback_reason` null.
    - One **Windows desktop client** on Preview 15 shows the compact revision's
      listings after its listing refresh, including a held row.
-7. The retained catalog tree is within 768 MiB, and the Pages tree within
-   900,000,000 bytes.
+7. Record the retained catalog tree size (at most 805,306,368 bytes, 768 MiB)
+   and the Pages tree size (at most 900,000,000 bytes).
 
 **Rollback.** Clients cannot be rolled back. Compact readers keep their
 replay floor, so the signer refuses any return to a lower compact revision.
@@ -733,7 +754,7 @@ All offline; nothing was signed or uploaded. Inputs:
 
 A live client refresh against the staged bundle cannot run offline: the
 bundle is unsigned, and clients trust only the compiled root. After the first
-signed cutover publication, a person runs readback steps 4 and 5 against Pages.
+signed cutover publication, a person runs readback steps 3 to 6 against Pages.
 
 **Rerun with listing publication stops and the withdrawal record.** Same
 day, Pages commit `7585833` (timestamp 60), release-built `portcove` and
@@ -758,7 +779,7 @@ policy-file cap.
 No real client can refresh from the staged bundle. `listing-refresh` accepts
 only HTTPS bases and only the compiled-in root, and the staged bundle carries
 no role signatures; producing them needs the official online keys. Readback
-steps 4 and 5 therefore run against Pages after the first signed cutover
+steps 3 to 6 therefore run against Pages after the first signed cutover
 publication.
 
 **Migration simulation (not committed).** The simulation gives 200 and 400

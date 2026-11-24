@@ -1097,7 +1097,7 @@ void test("a stopped listing publication, pending activation or capacity guard f
   const stop = steps.findIndex(
     ({ name }) =>
       name ===
-      "Fail the run when listing publication stopped, activation is pending or the capacity guard failed",
+      "Fail the run when listing publication stopped or is pending, or the capacity guard failed",
   );
   const push = steps.findIndex(({ run }) => run?.includes("git -C site push"));
   const readback = steps.findIndex(({ id }) => id === "readback");
@@ -1170,6 +1170,19 @@ void test("a stopped listing publication, pending activation or capacity guard f
     );
     // After cutover, a renewal without a pending activation stays green.
     assert.equal(run({ carrier: "compact", changed: false }).status, 0);
+    // An unverifiable prior after cutover renews the compact target exactly
+    // with no activation pending; listing changes are unpublished, so it fails.
+    const unverified = run({
+      carrier: "compact",
+      changed: false,
+      listing_prior_unverified: { prior_carrier: "compact", reason: "timestamp expired" },
+    });
+    assert.equal(unverified.status, 1);
+    assert.equal(unverified.summary, true);
+    assert.match(
+      unverified.stdout,
+      /^::error title=Prior catalog unverified::The prior signed catalog could not be verified \(compact carrier\): timestamp expired; prior listing targets renewed and listing changes not published\.$/mu,
+    );
     // The capacity guard measured on the staged target fails the run after
     // readback; a passing guard does not.
     const capacity = path.join(work, "capacity-guard.json");

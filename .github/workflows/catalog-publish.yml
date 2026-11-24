@@ -489,10 +489,11 @@ jobs:
           if-no-files-found: error
       # Freshness, definitions and policy are already published. A stopped
       # listing publication, or a compact activation (first publication or
-      # format raise) deferred for any reason, or a capacity guard failure
+      # format raise) deferred for any reason, an unverifiable prior that left
+      # listing changes unpublished, or a capacity guard failure
       # measured on the staged target, still fails the run so a person
       # resolves it instead of it repeating silently.
-      - name: Fail the run when listing publication stopped, activation is pending or the capacity guard failed
+      - name: Fail the run when listing publication stopped or is pending, or the capacity guard failed
         run: |
           set -euo pipefail
           node --input-type=module -e '
@@ -511,6 +512,11 @@ jobs:
             if (stopped)
               lines.push(["Listing publication stopped", "Listing publication stopped (" + stopped.code + "): " +
                 stopped.reason + "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures)]);
+            const unverified = report.listing_prior_unverified;
+            if (unverified)
+              lines.push(["Prior catalog unverified", "The prior signed catalog could not be verified (" +
+                unverified.prior_carrier + " carrier): " + unverified.reason +
+                "; prior listing targets renewed and listing changes not published."]);
             const pending = report.listing_activation_pending;
             if (pending)
               lines.push(["Compact listing activation pending", "Compact listing activation pending (" +

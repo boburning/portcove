@@ -893,6 +893,8 @@ export async function prepareObservationBundle(options: {
   let previous: Buffer;
   let renewal: ReturnType<typeof retainedListingRenewal> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
+  // Why the prior signed repository could not be verified, when it could not.
+  let priorUnverified: string | undefined;
   try {
     const prior = path.join(workspace, "verified-prior");
     copyPriorRepository(options.prior, prior);
@@ -939,8 +941,9 @@ export async function prepareObservationBundle(options: {
       : renewal.wire;
     compactWire = priorCompact ? renewal.wire : null;
     previous = renewal.bytes;
+    priorUnverified = error instanceof Error ? error.message.slice(0, 300) : "verification failed";
     diagnostics.push(
-      `retained exact previous listing bytes for historical signer verification; prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
+      `retained exact previous listing bytes for historical signer verification; prior unavailable: ${priorUnverified}`,
     );
   }
   const legacyDocument = delivery(parseCatalogSource(legacyWire.toString("utf8")));
@@ -1213,6 +1216,17 @@ export async function prepareObservationBundle(options: {
                 ? "the prior signed repository could not be verified"
                 : "not published")
             ).slice(0, 600),
+          },
+        }
+      : {}),
+    ...(priorUnverified !== undefined
+      ? {
+          // Projection was skipped and the exact prior listing targets renewed,
+          // so canonical listing changes are unpublished. Like a stop, the run
+          // publishes everything else and fails after readback.
+          listing_prior_unverified: {
+            prior_carrier: priorCompact ? "compact" : "legacy",
+            reason: priorUnverified,
           },
         }
       : {}),

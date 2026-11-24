@@ -884,6 +884,66 @@ void test("a post-cutover decoded-bound breach renews the exact compact carrier"
   );
 });
 
+void test("an unverifiable prior after cutover renews the compact carrier and is reported", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const { prior, decoded } = compactPrior(fixture.root, canonical.listings);
+  // A verifier fault (an expired timestamp, a release-tools error) after cutover.
+  const failing = path.join(fixture.root, "tools", "failing-verifier");
+  writeFileSync(
+    failing,
+    `#!${process.execPath}\nprocess.stderr.write("timestamp expired");\nprocess.exit(1);\n`,
+  );
+  chmodSync(failing, 0o755);
+  const grown = fixture.write("grown.json", {
+    ...canonical,
+    listings: [...canonical.listings, row("unpublished-change")],
+  });
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: grown,
+    catalog: fixture.catalog,
+    prior,
+    output: path.join(fixture.root, "out"),
+    cli: fixture.cli,
+    tools: failing,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+  });
+  // No activation is pending after cutover, so only this entry fails the run.
+  assert.equal(report.listing_activation_pending, undefined);
+  assert.equal(report.listing_publication_stopped, undefined);
+  const unverified = report.listing_prior_unverified as { prior_carrier: string; reason: string };
+  assert.equal(unverified.prior_carrier, "compact");
+  assert.match(unverified.reason, /verify-definition-repository|Command failed/u);
+  assert.equal(report.changed, false);
+  // The exact prior targets are renewed byte for byte.
+  const out = path.join(fixture.root, "out", "bundle");
+  assert.deepEqual(readFileSync(path.join(out, listingDeliveryTarget)), legacyTarget);
+  assert.deepEqual(
+    readFileSync(path.join(out, compactListingDeliveryTarget)),
+    encodeCompactListing(decoded),
+  );
+  assert.equal(report.carrier, "compact");
+  assert.equal(report.transport_changed, false);
+  assert.ok(report.diagnostics.some((line) => line.includes("prior unavailable")));
+  // A verified prior carries no such entry.
+  const verified = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: grown,
+    catalog: fixture.catalog,
+    prior,
+    output: path.join(fixture.root, "out-verified"),
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+  });
+  assert.equal(verified.listing_prior_unverified, undefined);
+  assert.equal(verified.changed, true);
+});
+
 void test("canonical input changes and tool crashes stay fatal", async (t) => {
   const fixture = fixtureWorkspace(t);
   const prior = compactPrior15(fixture.root);
