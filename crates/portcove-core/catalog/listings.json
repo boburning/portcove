@@ -6607,6 +6607,34 @@
       "availability": "unknown"
     },
     {
+      "id": "007-agent-under-fire-hk21x",
+      "project_url": "https://github.com/hk21x/007-agentunderfire-recomp",
+      "name": "007: Agent Under Fire / hk21x",
+      "summary": "007 Agent Under Fire recomp from Xbox to PC Port.",
+      "issue_number": 5630,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "007-agent-under-fire",
+        "evidence_urls": [
+          "https://github.com/hk21x/007-agentunderfire-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "007-agent-under-fire-xbox",
+            "title": "007: Agent Under Fire (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hk21x/007-agentunderfire-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "007: Agent Under Fire",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "007frwl-xberecomp-tgp482-007-from-russia-with-love",
       "name": "007: From Russia with Love — 007FRWL-XBERecomp (TGP482)",
       "original_game_title": "007: From Russia with Love",
@@ -7836,6 +7864,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "adriadam10-mario-kart-world-switch2-1-0-0-aarch64-vulkan",
+      "project_url": "https://github.com/adriadam10/mkw-recomp",
+      "name": "Mario Kart World (Nintendo Switch 2, 1.0.0) / adriadam10 mkw-recomp",
+      "summary": "Static recompilation of Mario Kart World (Nintendo Switch 2) to a native PC program",
+      "issue_number": 4931,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-kart-world",
+        "evidence_urls": [
+          "https://github.com/adriadam10/mkw-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-kart-world-nintendo-switch",
+            "title": "Mario Kart World (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/adriadam10/mkw-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Mario Kart World",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "advance-wars-recompiled",
@@ -16353,6 +16409,25 @@
       }
     },
     {
+      "id": "aliens-versus-predator-classic-2000-nakedavp",
+      "project_url": "https://github.com/atsb/NakedAVP",
+      "name": "Aliens versus Predator Classic 2000 / NakedAVP",
+      "summary": "NakedAVP is a port of Aliens vs Predator Classic (2000) to modern systems, based on the icculus port for Linux, macOS and Windows using SDL3",
+      "issue_number": 5759,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "aliens-versus-predator-classic-2000",
+        "evidence_urls": [
+          "https://github.com/atsb/NakedAVP"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Aliens versus Predator Classic 2000",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "alisiadragoonrecomp-ohackercego-alisia-dragoon",
       "name": "Alisia Dragoon — AlisiaDragoonRecomp (ohackercego)",
       "original_game_title": "Alisia Dragoon",
@@ -16516,6 +16591,53 @@
           }
         ]
       }
+    },
+    {
+      "id": "almost-drowned-rat-orta-recompiled-xbox-pal",
+      "project_url": "https://github.com/almost-drowned-rat/Orta-Recompiled",
+      "name": "Panzer Dragoon Orta (original Xbox Europe PAL) / almost-drowned-rat Orta Recompiled",
+      "summary": "Static recompilation of Panzer Dragoon Orta (Xbox, Europe/PAL) to native PC code with a Vulkan renderer",
+      "issue_number": 4579,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "panzer-dragoon-orta",
+        "evidence_urls": [
+          "https://github.com/almost-drowned-rat/Orta-Recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "panzer-dragoon-orta-xbox",
+            "title": "Panzer Dragoon Orta (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/almost-drowned-rat/Orta-Recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Panzer Dragoon Orta",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "alone-in-the-dark-classic-reborn",
+      "project_url": "https://github.com/nayo186/AloneInTheDarkClassicReborn",
+      "name": "Alone in the Dark: Classic Reborn",
+      "summary": "A source port of the Alone in the Dark trilogy and Jack in the Dark for modern PCs (Windows and Linux): fixes, HD options and its own launcher. Built on FITD by yaz0r, with parts of Re-Haunted",
+      "issue_number": 5469,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "alone-in-the-dark-classic-reborn",
+        "evidence_urls": [
+          "https://github.com/nayo186/AloneInTheDarkClassicReborn"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Alone in the Dark: Classic Reborn",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "alter-echo-recomp-wnbdev-alter-echo",
@@ -16770,6 +16892,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "andrewnakas-gtav-xbox360-tu27-rexglue",
+      "project_url": "https://github.com/andrewnakas/gtav-recomp",
+      "name": "Grand Theft Auto V (Xbox 360 TU27) / andrewnakas ReXGlue recomp",
+      "summary": "GTA V (Xbox 360, TU27) static recompilation with ReXGlue",
+      "issue_number": 4267,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "grand-theft-auto-v",
+        "evidence_urls": [
+          "https://github.com/andrewnakas/gtav-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-v-xbox-360",
+            "title": "Grand Theft Auto V (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/andrewnakas/gtav-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Grand Theft Auto V",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "andreyvelsk-com-mobilerpgpack-phone",
@@ -17036,6 +17186,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "anishchandra24-juiced2-recompiled",
+      "project_url": "https://github.com/anishchandra24/Juiced2-Recompiled",
+      "name": "Juiced 2: Hot Import Nights (Xbox 360) / Juiced2-Recompiled (anishchandra24)",
+      "summary": "Unofficial native Windows port of Juiced 2: Hot Import Nights for the Xbox 360, made with static recompilation via the ReXGlue SDK. Early preview. Contains no game files.",
+      "issue_number": 3993,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "juiced-2-hot-import-nights",
+        "evidence_urls": [
+          "https://github.com/anishchandra24/Juiced2-Recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "juiced-2-hot-import-nights-xbox-360",
+            "title": "Juiced 2: Hot Import Nights (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/anishchandra24/Juiced2-Recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Juiced 2: Hot Import Nights",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "apollo-justice-ace-attorney-trilogy-nxnative-aa-port",
@@ -17663,6 +17841,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "asura-s-wrath-asuras-wrath-recomp",
+      "project_url": "https://github.com/PauloUbirajara/asuras-wrath-recomp",
+      "name": "Asura's Wrath / Asura's Wrath Recompiled (PauloUbirajara)",
+      "summary": "Recomp of Asura's Wrath using RexGlue for PC (playable, wip)",
+      "issue_number": 7011,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "asuras-wrath",
+        "evidence_urls": [
+          "https://github.com/PauloUbirajara/asuras-wrath-recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Asura's Wrath",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "ata-recomp-ryah-aero-the-acro-bat",
@@ -18994,6 +19191,34 @@
       }
     },
     {
+      "id": "battle-stadium-don-dvilelaf",
+      "project_url": "https://github.com/dvilelaf/battlestadium-don",
+      "name": "Battle Stadium D.O.N / dvilelaf",
+      "summary": "PC port (Linux, Windows) of Battle Stadium D.O.N (PS2) by static recompilation. No game material included: bring your own disc.",
+      "issue_number": 5518,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "battle-stadium-d-o-n",
+        "evidence_urls": [
+          "https://github.com/dvilelaf/battlestadium-don"
+        ],
+        "source_editions": [
+          {
+            "id": "battle-stadium-d-o-n-playstation-2",
+            "title": "Battle Stadium D.O.N (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/dvilelaf/battlestadium-don"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Battle Stadium D.O.N",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "battletanx-global-assault-pc-port",
       "name": "BattleTanx: Global Assault PC Port",
       "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
@@ -19096,6 +19321,44 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "bayonetta-3-b3-express",
+      "project_url": "https://github.com/LuvAbyss/B3-Express",
+      "name": "Bayonetta 3 / B3-Express (LuvAbyss)",
+      "summary": "Bayonetta 3 v1.2.0 running natively on Windows through ScarletNX static recompilation, with an NVN renderer on Vulkan and a friendly launcher. Aiming for butter-smooth 60 FPS. No game files included: bring your own dump.",
+      "issue_number": 7250,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "bayonetta-3",
+        "evidence_urls": [
+          "https://github.com/LuvAbyss/B3-Express"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Bayonetta 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "bayonetta-3-bayo3-recomp",
+      "project_url": "https://github.com/aoxzh/bayo3-recomp",
+      "name": "Bayonetta 3 / Bayonetta 3 Recomp (aoxzh)",
+      "summary": "Bayonetta 3 PC, Steam Deck and Android native port: static ARM-to-C++ recompiler, Horizon/NVN runtime and Vulkan backend. No emulator; bring your own 1.2.0 game files.",
+      "issue_number": 7251,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "bayonetta-3",
+        "evidence_urls": [
+          "https://github.com/aoxzh/bayo3-recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Bayonetta 3",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "bc160201983-uncharted-1",
@@ -19334,6 +19597,25 @@
       }
     },
     {
+      "id": "big-red-racing-big-red-report",
+      "project_url": "https://github.com/BigRedReport/bigredreport",
+      "name": "Big Red Racing / Big Red Report",
+      "summary": "Big Red Racing PC Port",
+      "issue_number": 5762,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "big-red-racing",
+        "evidence_urls": [
+          "https://github.com/BigRedReport/bigredreport"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Big Red Racing",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "bighead-0-ladxhd-updated",
       "name": "The Legend of Zelda: Link's Awakening DX [HD Updated] / LADXHD Updated (bighead.0)",
       "summary": "Explore The Legend of Zelda: Link's Awakening DX [HD Updated] / LADXHD Updated (bighead.0) and follow the upstream project for requirements, downloads and setup.",
@@ -19441,6 +19723,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "billyfrontier-jorio",
+      "project_url": "https://github.com/jorio/BillyFrontier",
+      "name": "Billy Frontier",
+      "summary": "Pangea Software’s Billy Frontier for modern systems",
+      "issue_number": 5641,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "billy-frontier",
+        "evidence_urls": [
+          "https://github.com/jorio/BillyFrontier"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Billy Frontier",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "bio-menace-reflectionhle",
@@ -21223,6 +21524,34 @@
       ]
     },
     {
+      "id": "body-harvest-lunarlaurus",
+      "project_url": "https://github.com/LunarLaurus/adams-ant-farm-recomp",
+      "name": "Body Harvest / LunarLaurus",
+      "summary": "Adam's Ant Farm (Body Harvest): a native PC port of Body Harvest (N64), built on the decompilation.",
+      "issue_number": 5904,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "body-harvest",
+        "evidence_urls": [
+          "https://github.com/LunarLaurus/adams-ant-farm-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "body-harvest-nintendo-64",
+            "title": "Body Harvest (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/LunarLaurus/adams-ant-farm-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Body Harvest",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "body-harvest-recompiled",
       "name": "Body Harvest: Recompiled",
       "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows or Linux x86-64 runtime or launch a copy you prepared.",
@@ -22137,6 +22466,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "bugdom2-jorio",
+      "project_url": "https://github.com/jorio/Bugdom2",
+      "name": "Bugdom 2",
+      "summary": "Pangea Software’s Bugdom 2 for modern systems 🦗",
+      "issue_number": 5643,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "bugdom-2",
+        "evidence_urls": [
+          "https://github.com/jorio/Bugdom2"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Bugdom 2",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "bugsbunnylostintimerecomp-periblugaming-bugs-bunny-lost-in-time",
@@ -23070,6 +23418,34 @@
       }
     },
     {
+      "id": "caiuscodes-perfect-dark-xbla-2010-rexglue",
+      "project_url": "https://github.com/CaiusCodes/Perfect-Dark-XBLA-PC-Recomp",
+      "name": "Perfect Dark 2010 Xbox Live Arcade / CaiusCodes ReXGlue recomp",
+      "summary": "Native Windows PC recompilation of the Perfect Dark Xbox 360/XBLA remaster using ReXGlue. Requires your own copy.",
+      "issue_number": 6278,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "perfect-dark",
+        "evidence_urls": [
+          "https://github.com/CaiusCodes/Perfect-Dark-XBLA-PC-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "perfect-dark-xbox-360",
+            "title": "Perfect Dark 2010 Xbox Live Arcade (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/CaiusCodes/Perfect-Dark-XBLA-PC-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Perfect Dark 2010 Xbox Live Arcade",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "call-of-duty-3-cod3recomp",
       "artwork": {
         "game_id": 949,
@@ -23161,6 +23537,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "call-of-duty-black-ops-ii-bo2-mac",
+      "project_url": "https://github.com/adrbn/bo2-mac",
+      "name": "Call of Duty: Black Ops II / bo2-mac",
+      "summary": "Call of Duty: Black Ops II statically recompiled from 32-bit x86 Windows to native ARM64 macOS: Remill → LLVM IR, a hand-written Win32 runtime, Direct3D 11 drawn by Metal. No Wine, no game files.",
+      "issue_number": 6728,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "call-of-duty-black-ops-ii",
+        "evidence_urls": [
+          "https://github.com/adrbn/bo2-mac"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Call of Duty: Black Ops II",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
@@ -23302,6 +23697,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "candycrisis-jorio",
+      "project_url": "https://github.com/jorio/CandyCrisis",
+      "name": "Candy Crisis",
+      "summary": "Candy Crisis source port for modern operating systems",
+      "issue_number": 5644,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "candy-crisis",
+        "evidence_urls": [
+          "https://github.com/jorio/CandyCrisis"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Candy Crisis",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "cannon-fodder-2-open-fodder",
@@ -24323,6 +24737,34 @@
       }
     },
     {
+      "id": "cdetv-conker-live-recompiled-original-xbox",
+      "project_url": "https://github.com/cdetv/conker-live-recompiled",
+      "name": "Conker: Live & Reloaded (original Xbox USA/PAL) / cdetv Live & Recompiled",
+      "summary": "A native Windows PC version of Conker: Live & Reloaded, made by statically recompiling the original Xbox game. No game files included. Playable on Linux (via Proton)",
+      "issue_number": 4342,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "conker-live-reloaded",
+        "evidence_urls": [
+          "https://github.com/cdetv/conker-live-recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "conker-live-reloaded-xbox",
+            "title": "Conker: Live & Reloaded (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/cdetv/conker-live-recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Conker: Live & Reloaded",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "cdlewis-snowboardkids-recomp",
       "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
       "summary": "Use the Snowboard Kids player and select your own North American or Japanese cartridge dump on first Play.",
@@ -24711,6 +25153,44 @@
           }
         ]
       }
+    },
+    {
+      "id": "cheviman-outrunners-arcade-world-dual-screen-native-c",
+      "project_url": "https://github.com/cheviman/outrunners-port",
+      "name": "OutRunners Arcade (Sega System Multi 32 World) / cheviman arcade-faithful port",
+      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "issue_number": 4683,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "outrunners",
+        "evidence_urls": [
+          "https://github.com/cheviman/outrunners-port"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "OutRunners Arcade",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "cheviman-outrunners-console-style-home-native-c",
+      "project_url": "https://github.com/cheviman/outrunners-port",
+      "name": "OutRunners (1992 arcade-derived home variant) / cheviman console-style native game",
+      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "issue_number": 4684,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "outrunners",
+        "evidence_urls": [
+          "https://github.com/cheviman/outrunners-port"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "OutRunners",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "chibi-recomp-xxjsonderuloxx-xxjsonderuloxx-chibi-robo-plug-into-adventure",
@@ -25384,6 +25864,25 @@
       }
     },
     {
+      "id": "clickingmaster-ssrecomp",
+      "project_url": "https://github.com/ClickingMaster/ssrecomp",
+      "name": "Pokémon SoulSilver (ssrecomp)",
+      "summary": "A recomp of Pokemon Soul Silver for single screen devices. macOS support thanks to DarthMDev.",
+      "issue_number": 2761,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-soulsilver",
+        "evidence_urls": [
+          "https://github.com/ClickingMaster/ssrecomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Pokémon SoulSilver",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "cod3pc-call-of-duty-3-native-windows-port-alekszverr-jpg-call-of-duty-3",
       "name": "Call of Duty 3 — cod3pc — Call of Duty 3 native Windows port (alekszverr-jpg)",
       "original_game_title": "Call of Duty 3",
@@ -25538,6 +26037,25 @@
         "linux-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "colin-mcrae-rally-2005-mcrae05-xbe-recomp",
+      "project_url": "https://github.com/projectedan/McRae05-XBE-Recomp",
+      "name": "Colin McRae Rally 2005 / Colin McRae Rally 2005 - XBE Recomp (projectedan)",
+      "summary": "Colin McRae Rally 2005 Native Port for Windows",
+      "issue_number": 7207,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "colin-mcrae-rally-2005",
+        "evidence_urls": [
+          "https://github.com/projectedan/McRae05-XBE-Recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Colin McRae Rally 2005",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "colobot",
@@ -26178,6 +26696,62 @@
       "original_game_title": "Condemned 2: Bloodshot"
     },
     {
+      "id": "conker-live-recompiled-giacomozama",
+      "project_url": "https://github.com/giacomozama/live-and-recompiled",
+      "name": "Conker: Live & Reloaded (original Xbox) / Live & Recompiled (giacomozama)",
+      "summary": "An unofficial Conker: Live & Reloaded native recompilation and enhancement project.",
+      "issue_number": 4385,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "conker-live-reloaded",
+        "evidence_urls": [
+          "https://github.com/giacomozama/live-and-recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "conker-live-reloaded-xbox",
+            "title": "Conker: Live & Reloaded (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/giacomozama/live-and-recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Conker: Live & Reloaded",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "conker-recomped-reloaded-mabec-distribution",
+      "project_url": "https://github.com/Mabec-games/Conker-Recomped-and-Reloaded",
+      "name": "Conker: Live & Reloaded / Recomped & Reloaded (Mabec maintained distribution)",
+      "summary": "Conker: Live & Reloaded (Xbox) on Windows & Linux: a native recompilation with a launcher that builds it from your own disc, widescreen up to 240 FPS, enhancements, and online play with room codes.",
+      "issue_number": 4386,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "conker-live-reloaded",
+        "evidence_urls": [
+          "https://github.com/Mabec-games/Conker-Recomped-and-Reloaded"
+        ],
+        "source_editions": [
+          {
+            "id": "conker-live-reloaded-xbox",
+            "title": "Conker: Live & Reloaded (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Mabec-games/Conker-Recomped-and-Reloaded"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Conker: Live & Reloaded",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "conker64-recompiled",
       "name": "Conker64: Recompiled",
       "summary": "Follow Conker64’s scene prototype and preserve an already registered development copy.",
@@ -26505,6 +27079,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "cortex-command-community-project",
+      "project_url": "https://github.com/cortex-command-community/Cortex-Command-Community-Project",
+      "name": "Cortex Command / Community Project",
+      "summary": "Cortex Command - Open Source under GNU AGPL v3",
+      "issue_number": 6049,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "cortex-command",
+        "evidence_urls": [
+          "https://github.com/cortex-command-community/Cortex-Command-Community-Project"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Cortex Command",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "cosmic-recomp-extremestonegg-ben-10-ultimate-alien-cosmic-destruction",
@@ -27929,6 +28522,34 @@
       }
     },
     {
+      "id": "crash-twinsanity-giopixelgh-windows-and-linux-fork",
+      "project_url": "https://github.com/GioPixelGH/Crash-Twinsanity-Windows",
+      "name": "Crash Twinsanity / GioPixelGH Windows and Linux fork",
+      "summary": "Crash Twinsanity (PS2, PAL) running natively on Windows, played through to the credits: a Windows port of HAB3X's Mac port of Smartkin's C++ decompilation. No game data included: bring your own disc image.",
+      "issue_number": 5444,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "crash-twinsanity",
+        "evidence_urls": [
+          "https://github.com/GioPixelGH/Crash-Twinsanity-Windows"
+        ],
+        "source_editions": [
+          {
+            "id": "crash-twinsanity-playstation-2",
+            "title": "Crash Twinsanity (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/GioPixelGH/Crash-Twinsanity-Windows"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Crash Twinsanity",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "crash-twinsanity-native-smartkin-hab3x-hab3x-crash-twinsanity",
       "name": "Crash Twinsanity — Crash Twinsanity native (Smartkin/HAB3X) (HAB3X)",
       "original_game_title": "Crash Twinsanity",
@@ -28294,6 +28915,25 @@
       }
     },
     {
+      "id": "cromagrally-jorio",
+      "project_url": "https://github.com/jorio/CroMagRally",
+      "name": "Cro-Mag Rally",
+      "summary": "The wildest racing game since man invented the wheel!",
+      "issue_number": 5645,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "cro-mag-rally",
+        "evidence_urls": [
+          "https://github.com/jorio/CroMagRally"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Cro-Mag Rally",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "crownpark-xbox360-native-ports-collection",
       "project_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports",
       "name": "CrownPark Xbox 360 Native Ports Collection",
@@ -28450,6 +29090,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "crystal-caves-opencrystalcaves",
+      "project_url": "https://github.com/OpenCrystalCaves/OpenCrystalCaves",
+      "name": "Crystal Caves / OpenCrystalCaves",
+      "summary": "OCC is an unofficial open source engine reimplementation of the game trilogy Crystal Caves",
+      "issue_number": 5659,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "crystal-caves",
+        "evidence_urls": [
+          "https://github.com/OpenCrystalCaves/OpenCrystalCaves"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Crystal Caves",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "ctrnativeported-guzuold-crash-team-racing-nitro-fueled",
@@ -30348,6 +31007,34 @@
       }
     },
     {
+      "id": "dead-or-alive-2-ultimate-norain211",
+      "project_url": "https://github.com/NoRain211/doa2u-re",
+      "name": "Dead or Alive 2 Ultimate / NoRain211",
+      "summary": "Native Windows port of Dead or Alive 2 Ultimate (Xbox), built by static recompilation with a hand-written runtime. Requires your own copy of the game.",
+      "issue_number": 6555,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "dead-or-alive-2-ultimate",
+        "evidence_urls": [
+          "https://github.com/NoRain211/doa2u-re"
+        ],
+        "source_editions": [
+          {
+            "id": "dead-or-alive-2-ultimate-xbox",
+            "title": "Dead or Alive 2 Ultimate (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/NoRain211/doa2u-re"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Dead or Alive 2 Ultimate",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "dead-or-alive-3-doa3-recomp",
       "name": "Dead or Alive 3 (DOA3 Recomp)",
       "summary": "Register a completed USA DOA3 Recomp Windows player and preserve its separate settings, extracted game data and saves.",
@@ -31586,6 +32273,35 @@
       }
     },
     {
+      "id": "descent-3-official-source-release-project",
+      "project_url": "https://github.com/DescentDevelopers/Descent3",
+      "name": "Descent 3 / Official source release project",
+      "summary": "Descent 3 by Outrage Entertainment",
+      "issue_number": 5716,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent-3",
+        "evidence_urls": [
+          "https://github.com/DescentDevelopers/Descent3"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Descent 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "descent-and-descent-ii-dxx-redux",
+      "project_url": "https://github.com/dxx-redux/dxx-redux",
+      "name": "Descent and Descent II / DXX Redux",
+      "summary": "Descent 1&2 source port based on DXX-Retro",
+      "issue_number": 5662,
+      "listed_at": "2026-11-24",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "descent-dxx-rebirth",
       "artwork": {
         "game_id": 1872,
@@ -31672,6 +32388,25 @@
       }
     },
     {
+      "id": "descent-dxx-retro",
+      "project_url": "https://github.com/CDarrow/DXX-Retro",
+      "name": "Descent / DXX-Retro (CDarrow)",
+      "summary": "A source port of Descent 1 and 2, focused on quality competitive play.  Uncompromising commitment to original gameplay (except where the original sucked).  Based on the Rebirth project.",
+      "issue_number": 7009,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent",
+        "evidence_urls": [
+          "https://github.com/CDarrow/DXX-Retro"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Descent",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "descent-ii-dxx-rebirth",
       "artwork": {
         "game_id": 668,
@@ -31756,6 +32491,53 @@
           }
         ]
       }
+    },
+    {
+      "id": "descent-ii-dxx-retro",
+      "project_url": "https://github.com/CDarrow/DXX-Retro",
+      "name": "Descent II / DXX-Retro (CDarrow)",
+      "summary": "A source port of Descent 1 and 2, focused on quality competitive play.  Uncompromising commitment to original gameplay (except where the original sucked).  Based on the Rebirth project.",
+      "issue_number": 7008,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent-ii",
+        "evidence_urls": [
+          "https://github.com/CDarrow/DXX-Retro"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Descent II",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "despiria-goodshepherd23-dreamrecomp",
+      "project_url": "https://github.com/goodshepherd23/despiria-dreamrecomp",
+      "name": "deSPIRIA / goodshepherd23 DreamRecomp",
+      "summary": "Play deSPIRIA (Dreamcast, English fan translation) natively on Windows with dream-recomp. Build-from-source kit: bring your own patched disc.",
+      "issue_number": 5529,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "despiria",
+        "evidence_urls": [
+          "https://github.com/goodshepherd23/despiria-dreamrecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "despiria-dreamcast",
+            "title": "deSPIRIA (Dreamcast)",
+            "system": "dreamcast",
+            "evidence_urls": [
+              "https://github.com/goodshepherd23/despiria-dreamrecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "deSPIRIA",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
@@ -33015,6 +33797,34 @@
       }
     },
     {
+      "id": "divxplays-forza-motorsport-xbox-redline-recompiled",
+      "project_url": "https://github.com/DivxPlays/redline-recompiled",
+      "name": "Forza Motorsport (original Xbox USA revision 1) / DivxPlays Redline Recompiled",
+      "summary": "A PC port of Forza Motorsport (Xbox, 2005) by static recompilation: up to 144 fps, 4x resolution, ultrawide, DLSS and FSR. Bring your own disc. Early version: performance may be unstable; expect bugs and crashes. MADE WITH THE HELP OF AI.",
+      "issue_number": 4572,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "forza-motorsport",
+        "evidence_urls": [
+          "https://github.com/DivxPlays/redline-recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "forza-motorsport-xbox",
+            "title": "Forza Motorsport (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/DivxPlays/redline-recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Forza Motorsport",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "djultra64-blocksphere",
       "name": "Tetrisphere / Blocksphere (djultra64)",
       "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
@@ -33548,6 +34358,53 @@
       }
     },
     {
+      "id": "donkey-kong-bananza-dkb-recomp",
+      "project_url": "https://github.com/Lucas-blip-png/dkb-pc-recomp",
+      "name": "Donkey Kong Bananza / DKB Recomp (Lucas-blip-png)",
+      "summary": "Static recompilation of Donkey Kong Bananza (Switch 2) to native Windows and Linux with Vulkan. 0.5.2 out: TOTK to DKB rename, Feast Layer muck fix, 4 GB cards, Switch 2 controllers on USB; one-file Windows launcher. Requirements: docs/requirements.md. Roadmap: #10. No game files included.",
+      "issue_number": 7206,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "donkey-kong-bananza",
+        "evidence_urls": [
+          "https://github.com/Lucas-blip-png/dkb-pc-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "donkey-kong-bananza-nintendo-switch",
+            "title": "Donkey Kong Bananza (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/Lucas-blip-png/dkb-pc-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Donkey Kong Bananza",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "donpachi-capslock4284",
+      "project_url": "https://github.com/CapsLock4284/DonPachi-Recomp",
+      "name": "DonPachi / CapsLock4284",
+      "summary": "A recomp of the original DonPachi",
+      "issue_number": 5919,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "donpachi",
+        "evidence_urls": [
+          "https://github.com/CapsLock4284/DonPachi-Recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "DonPachi",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "doom-3-classic-dhewm3",
       "artwork": {
         "game_id": 280,
@@ -34046,6 +34903,25 @@
           "tracking_issue": 5665
         }
       ]
+    },
+    {
+      "id": "doom-edge-classic",
+      "project_url": "https://github.com/edge-classic/EDGE-classic",
+      "name": "Doom / EDGE Classic",
+      "summary": "Cross-Platform OpenGL Doom Source Port with powerful modding features",
+      "issue_number": 5666,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom",
+        "evidence_urls": [
+          "https://github.com/edge-classic/EDGE-classic"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Doom",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -34889,6 +35765,34 @@
       }
     },
     {
+      "id": "downhill-domination-downhill-revived",
+      "project_url": "https://github.com/skuza-oss/downhill-revived",
+      "name": "Downhill Domination / Downhill Revived (skuza-oss)",
+      "summary": "A PC port of Downhill Domination (PS2), built on a matching decompilation. Bring your own disc.",
+      "issue_number": 7205,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "downhill-domination",
+        "evidence_urls": [
+          "https://github.com/skuza-oss/downhill-revived"
+        ],
+        "source_editions": [
+          {
+            "id": "downhill-domination-playstation-2",
+            "title": "Downhill Domination (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/skuza-oss/downhill-revived"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Downhill Domination",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "downhill-domination-recomp-ekansh28-ekansh28-downhill-domination",
       "name": "Downhill Domination — Downhill Domination Recomp (ekansh28) (ekansh28)",
       "original_game_title": "Downhill Domination",
@@ -35608,6 +36512,34 @@
       }
     },
     {
+      "id": "dreaxer-40winks-dreamcompiled-n64-europe-n4wz",
+      "project_url": "https://github.com/DreaXer/40WinksRecomp",
+      "name": "40 Winks (N64 Europe Piko N4WZ) / DreaXer Dreamcompiled",
+      "summary": "Native PC build of 40 Winks (Nintendo 64, Europe) made by static recompilation. Bring your own copy of the game.",
+      "issue_number": 5316,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "40-winks",
+        "evidence_urls": [
+          "https://github.com/DreaXer/40WinksRecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "40-winks-nintendo-64",
+            "title": "40 Winks (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/DreaXer/40WinksRecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "40 Winks",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "driver-2-redriver2",
       "name": "Driver 2 / REDRIVER2",
       "summary": "Play Driver 2 with the native REDRIVER2 player and both of your original discs.",
@@ -36297,6 +37229,25 @@
       ]
     },
     {
+      "id": "dungeon-keeper-2-glkeeper",
+      "project_url": "https://github.com/codenamecpp/GLKeeper",
+      "name": "Dungeon Keeper 2 / Grim Lands Keeper (codenamecpp)",
+      "summary": "Open Source Dungeon Keeper 2 Reimplementation",
+      "issue_number": 7039,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "dungeon-keeper-2",
+        "evidence_urls": [
+          "https://github.com/codenamecpp/GLKeeper"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Dungeon Keeper 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "dungeon-keeper-keeperfx-tux-edition",
       "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
       "name": "Dungeon Keeper / KeeperFX Tux Edition",
@@ -36929,6 +37880,25 @@
       }
     },
     {
+      "id": "earth-2140-opene2140",
+      "project_url": "https://github.com/OpenE2140/OpenE2140",
+      "name": "Earth 2140 / OpenE2140",
+      "summary": "Remake of Earth 2140 using OpenRA.",
+      "issue_number": 5770,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "earth-2140",
+        "evidence_urls": [
+          "https://github.com/OpenE2140/OpenE2140"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Earth 2140",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
       "name": "Earthworm Jim HD — Earthworm Jim HD PC port (devEx780)",
       "original_game_title": "Earthworm Jim HD",
@@ -37531,6 +38501,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "elguslml-ghmetalrecomp-xbox360-windows",
+      "project_url": "https://github.com/ElGuslml/GHMetalRecomp",
+      "name": "Guitar Hero: Metallica (Xbox 360 USA/Europe) / ElGuslml GHMetalRecomp",
+      "summary": "Guitar Hero: Metallica (Xbox 360) recompiled to run natively on PC. Xbox 360 guitars, singing with any PC microphone, up to 240 FPS, ultrawide, achievements, and a launcher that installs the game from your own ISO.",
+      "issue_number": 4571,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "guitar-hero-metallica",
+        "evidence_urls": [
+          "https://github.com/ElGuslml/GHMetalRecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "guitar-hero-metallica-xbox-360",
+            "title": "Guitar Hero: Metallica (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ElGuslml/GHMetalRecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Guitar Hero: Metallica",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "elite-force-holomatch-lilium-voyager",
@@ -40983,6 +41981,25 @@
       }
     },
     {
+      "id": "forza-motorsport-4-forza-motorsport-4-recomp",
+      "project_url": "https://github.com/0herculabs/hl360-forza4",
+      "name": "Forza Motorsport 4 / Forza Motorsport 4 Native PC (0herculabs)",
+      "summary": "Forza Motorsport 4 native on PC",
+      "issue_number": 7171,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "forza-motorsport-4",
+        "evidence_urls": [
+          "https://github.com/0herculabs/hl360-forza4"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Forza Motorsport 4",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "forza-motorsport-4-forza-motorsport-4-recompiled",
       "name": "Forza Motorsport 4 (Forza Motorsport 4 Recompiled)",
       "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
@@ -41049,6 +42066,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "fracture-fracture-recomp",
+      "project_url": "https://github.com/ASarafanov/fracturerecomp",
+      "name": "Fracture / Fracture Recomp (ASarafanov)",
+      "summary": "Native recompilation of the Xbox 360 game - Fracture (Day 1 Studios / LucasArts, 2008)",
+      "issue_number": 7197,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "fracture",
+        "evidence_urls": [
+          "https://github.com/ASarafanov/fracturerecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "fracture-xbox-360",
+            "title": "Fracture (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ASarafanov/fracturerecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Fracture",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "fragglet-sdl-sopwith",
@@ -41683,6 +42728,34 @@
       }
     },
     {
+      "id": "futurama-hiburn8",
+      "project_url": "https://github.com/hiburn8/Futurama-The-Game-The-Recomp",
+      "name": "Futurama / hiburn8",
+      "summary": "The 2003 Futurama Xbox game, rebuilt to run natively on Windows. Bring your own disc!",
+      "issue_number": 6606,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "futurama",
+        "evidence_urls": [
+          "https://github.com/hiburn8/Futurama-The-Game-The-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "futurama-xbox",
+            "title": "Futurama (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hiburn8/Futurama-The-Game-The-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Futurama",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "fzerogx-recomp-ethannicholas-ethannicholas-f-zero-gx",
       "name": "F-Zero GX — fzerogx-recomp (ethannicholas) (ethannicholas)",
       "original_game_title": "F-Zero GX",
@@ -42169,6 +43242,34 @@
       ]
     },
     {
+      "id": "gears-of-war-2-cogbox-shagg88",
+      "project_url": "https://github.com/Shagg88/COGBox",
+      "name": "Gears of War 2 (Xbox 360) / COGBox",
+      "summary": "This is an open source, all-in-one, static recompilation project that I built from the ground up for the Xbox 360 Gears of War series. All 4 games have been personally recompiled for use with a fully native renderer by me.",
+      "issue_number": 4381,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gears-of-war-2",
+        "evidence_urls": [
+          "https://github.com/Shagg88/COGBox"
+        ],
+        "source_editions": [
+          {
+            "id": "gears-of-war-2-xbox-360",
+            "title": "Gears of War 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Shagg88/COGBox"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Gears of War 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
       "name": "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
       "original_game_title": "Gears of War 2",
@@ -42223,6 +43324,90 @@
           }
         ]
       }
+    },
+    {
+      "id": "gears-of-war-2006-cogbox-shagg88",
+      "project_url": "https://github.com/Shagg88/COGBox",
+      "name": "Gears of War (Xbox 360) / COGBox",
+      "summary": "This is an open source, all-in-one, static recompilation project that I built from the ground up for the Xbox 360 Gears of War series. All 4 games have been personally recompiled for use with a fully native renderer by me.",
+      "issue_number": 4384,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gears-of-war",
+        "evidence_urls": [
+          "https://github.com/Shagg88/COGBox"
+        ],
+        "source_editions": [
+          {
+            "id": "gears-of-war-xbox-360",
+            "title": "Gears of War (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Shagg88/COGBox"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Gears of War",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "gears-of-war-3-cogbox-shagg88",
+      "project_url": "https://github.com/Shagg88/COGBox",
+      "name": "Gears of War 3 (Xbox 360) / COGBox",
+      "summary": "This is an open source, all-in-one, static recompilation project that I built from the ground up for the Xbox 360 Gears of War series. All 4 games have been personally recompiled for use with a fully native renderer by me.",
+      "issue_number": 4382,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gears-of-war-3",
+        "evidence_urls": [
+          "https://github.com/Shagg88/COGBox"
+        ],
+        "source_editions": [
+          {
+            "id": "gears-of-war-3-xbox-360",
+            "title": "Gears of War 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Shagg88/COGBox"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Gears of War 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "gears-of-war-judgment-cogbox-shagg88",
+      "project_url": "https://github.com/Shagg88/COGBox",
+      "name": "Gears of War: Judgment (Xbox 360) / COGBox",
+      "summary": "This is an open source, all-in-one, static recompilation project that I built from the ground up for the Xbox 360 Gears of War series. All 4 games have been personally recompiled for use with a fully native renderer by me.",
+      "issue_number": 4383,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gears-of-war-judgment",
+        "evidence_urls": [
+          "https://github.com/Shagg88/COGBox"
+        ],
+        "source_editions": [
+          {
+            "id": "gears-of-war-judgment-xbox-360",
+            "title": "Gears of War: Judgment (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Shagg88/COGBox"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Gears of War: Judgment",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "gears3-azura-carolux97-gears-of-war-3",
@@ -43227,6 +44412,62 @@
       }
     },
     {
+      "id": "god-of-war-ascension-ascension-r",
+      "project_url": "https://github.com/rigaz29/Ascension-R",
+      "name": "God of War: Ascension / Ascension-R",
+      "summary": "God of War: Ascension PC port: an unofficial, native Windows port of the PS3 game by static recompilation, no emulator. No game files included: you build it from your own copy.",
+      "issue_number": 6686,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-war-ascension",
+        "evidence_urls": [
+          "https://github.com/rigaz29/Ascension-R"
+        ],
+        "source_editions": [
+          {
+            "id": "god-of-war-ascension-playstation-3",
+            "title": "God of War: Ascension (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/rigaz29/Ascension-R"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "God of War: Ascension",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "god-of-war-danielalves96-pc-port",
+      "project_url": "https://github.com/danielalves96/gow-pc-port",
+      "name": "God of War / God of War PC Port / danielalves96",
+      "summary": "Unofficial native PC port of God of War (2005, PS2) for Windows, with experimental Linux support. Statically recompiled to C++, not an emulator. OpenGL renderer, launcher, cheat menu, widescreen, 60 FPS. Bring your own game dump: no game files included.",
+      "issue_number": 6705,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-war",
+        "evidence_urls": [
+          "https://github.com/danielalves96/gow-pc-port"
+        ],
+        "source_editions": [
+          {
+            "id": "god-of-war-playstation-2",
+            "title": "God of War (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/danielalves96/gow-pc-port"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "God of War",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "god-of-war-kiexster",
       "name": "God of War Recomp (KIexster)",
       "summary": "God of War native source route using your own NTSC-U SCUS-97399 files from both DVD layers. Upstream preparation also needs the required IRX/.disc_layout files beside the ELF and the prepared launch context. The documented save/load and full-completion work remains unfinished.",
@@ -44207,6 +45448,25 @@
       }
     },
     {
+      "id": "gran-turismo-3-revisited",
+      "project_url": "https://github.com/matt-pulsipher/gt3-revisited",
+      "name": "Gran Turismo 3: A-Spec / GT3 Revisited",
+      "summary": "Gran Turismo 3 A-Spec engine reimplementation for modern platforms (bring your own disc)",
+      "issue_number": 5513,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gran-turismo-3-a-spec",
+        "evidence_urls": [
+          "https://github.com/matt-pulsipher/gt3-revisited"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Gran Turismo 3: A-Spec",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "gran-turismo-4-playstation-2-gt4recomp",
       "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
       "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup.",
@@ -44292,6 +45552,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "gran-turismo-5-prologue-tourline",
+      "project_url": "https://github.com/mathewdouglas/Tourline-Prologue",
+      "name": "Gran Turismo 5 Prologue / mathewdouglas Tourline Prologue",
+      "summary": "Tourline Prologue — native Windows recompilation of Gran Turismo 5 Prologue (BCUS98158 v03.00).",
+      "issue_number": 6037,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "gran-turismo-5-prologue",
+        "evidence_urls": [
+          "https://github.com/mathewdouglas/Tourline-Prologue"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Gran Turismo 5 Prologue",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "grand-theft-auto-san-andreas-unity",
@@ -44397,6 +45676,34 @@
         "windows-x86-64",
         "linux-x86-64"
       ]
+    },
+    {
+      "id": "grand-theft-auto-vice-city-stories-gta-vcs-recomp",
+      "project_url": "https://github.com/gothamor/gta-vcs-recomp",
+      "name": "Grand Theft Auto: Vice City Stories / VCS Recomp (gothamor)",
+      "summary": "A native Windows and Linux port of Grand Theft Auto: Vice City Stories (PS2, USA, SLUS-21590), made by recompiling the game's PS2 executable into C++",
+      "issue_number": 7200,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "grand-theft-auto-vice-city-stories",
+        "evidence_urls": [
+          "https://github.com/gothamor/gta-vcs-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-vice-city-stories-playstation-2",
+            "title": "Grand Theft Auto: Vice City Stories (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/gothamor/gta-vcs-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Grand Theft Auto: Vice City Stories",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -45925,6 +47232,25 @@
       }
     },
     {
+      "id": "halo-combat-evolved-chupathingyce",
+      "project_url": "https://github.com/ChupathingyCE/chupathingyce",
+      "name": "Halo: Combat Evolved / ChupathingyCE (ChupathingyCE)",
+      "summary": "Halo CE: Ported for Everyone. Windows, Mac, Linux, Steam Deck, Android and FreeBSD, with online play and stats. Bring your own copy of the game.",
+      "issue_number": 6981,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "halo-combat-evolved",
+        "evidence_urls": [
+          "https://github.com/ChupathingyCE/chupathingyce"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Halo: Combat Evolved",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "halogen-0xjjjjjj-champions-of-norrath",
       "name": "Champions of Norrath — halogen (0xjjjjjj)",
       "original_game_title": "Champions of Norrath: Realms of EverQuest",
@@ -46223,6 +47549,36 @@
           }
         ]
       }
+    },
+    {
+      "id": "harry-potter-and-the-chamber-of-secrets-hp2-recompiled",
+      "project_url": "https://github.com/Barthes-Recompiled/HP2-Recompiled",
+      "name": "Harry Potter and the Chamber of Secrets / HP2 Recompiled (Chamber of Secrets) (Barthes-Recompiled)",
+      "summary": "Native PC recompilation of Harry Potter and the Chamber of Secrets. Bring your own copy of the game.",
+      "issue_number": 7234,
+      "listed_at": "2026-11-24",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "harry-potter-and-the-philosopher-s-stone-hp1-recompiled",
+      "project_url": "https://github.com/Barthes-Recompiled/HP1-Recompiled",
+      "name": "Harry Potter and the Philosopher's Stone / HP1 Recompiled (Philosopher's Stone) (Barthes-Recompiled)",
+      "summary": "Native PC recompilation of Harry Potter and the Philosopher's Stone. Bring your own copy of the game.",
+      "issue_number": 7231,
+      "listed_at": "2026-11-24",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "harry-potter-and-the-prisoner-of-azkaban-hp3-recompiled",
+      "project_url": "https://github.com/Barthes-Recompiled/HP3-Recompiled",
+      "name": "Harry Potter and the Prisoner of Azkaban / HP3 Recompiled (Prisoner of Azkaban) (Barthes-Recompiled)",
+      "summary": "Native PC recompilation of Harry Potter and the Prisoner of Azkaban. Bring your own copy of the game.",
+      "issue_number": 7232,
+      "listed_at": "2026-11-24",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "harvest-moon-btn-psx-recomp-jorgenachtigall-harvest-moon-back-to-nature",
@@ -47198,6 +48554,34 @@
       }
     },
     {
+      "id": "hk21x-007eon-recomp",
+      "project_url": "https://github.com/hk21x/007eon-recomp",
+      "name": "007: Everything or Nothing (Xbox) / 007eon-recomp (hk21x)",
+      "summary": "007 Everything or Nothing recompilation for a native PC port.",
+      "issue_number": 3852,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "007-everything-or-nothing",
+        "evidence_urls": [
+          "https://github.com/hk21x/007eon-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "007-everything-or-nothing-xbox",
+            "title": "007: Everything or Nothing (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hk21x/007eon-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "007: Everything or Nothing",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
       "name": "Hogs of War / Frontschweine (PlayStation German PAL) (Frontschweine Recompiled)",
       "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
@@ -47416,6 +48800,62 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "hpcos-original-xbox-native",
+      "project_url": "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp",
+      "name": "Harry Potter and the Chamber of Secrets / original Xbox native port",
+      "summary": "Recompilation of Harry Potter and the Chamber of Secrets (Xbox) for PC",
+      "issue_number": 6566,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-chamber-of-secrets-console-2002",
+        "evidence_urls": [
+          "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-chamber-of-secrets-console-2002-xbox",
+            "title": "Harry Potter and the Chamber of Secrets (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Chamber of Secrets",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "hpps-original-xbox-native",
+      "project_url": "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp",
+      "name": "Harry Potter and the Philosopher's Stone / original Xbox native port",
+      "summary": "Recompilation of Harry Potter and the Philosopher's Stone (Xbox) for PC",
+      "issue_number": 6567,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-philosophers-stone-console-2003",
+        "evidence_urls": [
+          "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-philosophers-stone-console-2003-xbox",
+            "title": "Harry Potter and the Philosopher's Stone (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Philosopher's Stone",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "hybrid-heaven-ogdanimal",
@@ -48053,6 +49493,25 @@
       }
     },
     {
+      "id": "inazuma-eleven-3-the-ogre-matheus2x",
+      "project_url": "https://github.com/matheus2x/ie3ogre-nds-recomp",
+      "name": "Inazuma Eleven 3: The Ogre / matheus2x",
+      "summary": "Port nativo para Windows de Inazuma Eleven 3: Sekai heno Chousen!! The Ogre",
+      "issue_number": 5972,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "inazuma-eleven-3-the-ogre",
+        "evidence_urls": [
+          "https://github.com/matheus2x/ie3ogre-nds-recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Inazuma Eleven 3: The Ogre",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "infamous-2009-ps3-infamousreborn",
       "name": "inFamous (2009 PS3) (inFAMOUSreborn)",
       "summary": "An early inFamous PS3 recompilation with setup 1.1. The Windows 10/11 x86-64 Direct3D 12 setup EXE checks or installs build tools, imports your own European BCES00220 ISO or game folder, then generates and compiles locally. Encrypted ISOs need their matching .dkey. A launch announcement does not establish playable progress; Portcove has not confirmed setup or gameplay.",
@@ -48119,6 +49578,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "infamous-second-son-liondarkz-issn",
+      "project_url": "https://github.com/Liondarkz/issn_pc",
+      "name": "inFAMOUS Second Son / Liondarkz issn_pc",
+      "summary": "Port nativo de inFAMOUS Second Son para PC (Windows, Vulkan), com FSR 4, DLSS, mouse 1:1 e suporte a controle. Não inclui arquivos do jogo: use seu próprio dump. / Native PC port of inFAMOUS Second Son (Windows, Vulkan). No game files included.",
+      "issue_number": 6725,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "infamous-second-son",
+        "evidence_urls": [
+          "https://github.com/Liondarkz/issn_pc"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "inFAMOUS Second Son",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "infamous-second-son-pc-edition-kam0n4ik-infamous-second-son",
@@ -48604,6 +50082,62 @@
           }
         ]
       }
+    },
+    {
+      "id": "international-superstar-soccer-2000-mabecs",
+      "project_url": "https://github.com/Mabec-games/ISS2000-RECOMP",
+      "name": "International Superstar Soccer 2000",
+      "summary": "Native Windows & Linux widescreen port of International Superstar Soccer 2000 (N64) via static recompilation",
+      "issue_number": 5506,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "international-superstar-soccer-2000",
+        "evidence_urls": [
+          "https://github.com/Mabec-games/ISS2000-RECOMP"
+        ],
+        "source_editions": [
+          {
+            "id": "international-superstar-soccer-2000-nintendo-64",
+            "title": "International Superstar Soccer 2000 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Mabec-games/ISS2000-RECOMP"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "International Superstar Soccer 2000",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "international-superstar-soccer-deluxe-issd-native",
+      "project_url": "https://github.com/sergiomanzur/issd-native",
+      "name": "International Superstar Soccer Deluxe / ISSD Native (sergiomanzur)",
+      "summary": "AI-driven native recompilation project for ISS Deluxe on SNES",
+      "issue_number": 7174,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "international-superstar-soccer-deluxe",
+        "evidence_urls": [
+          "https://github.com/sergiomanzur/issd-native"
+        ],
+        "source_editions": [
+          {
+            "id": "international-superstar-soccer-deluxe-super-nintendo",
+            "title": "International Superstar Soccer Deluxe (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/sergiomanzur/issd-native"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "International Superstar Soccer Deluxe",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "iqrecomp-thiccboi2-intelligent-qube",
@@ -49492,6 +51026,25 @@
       "original_game_title": "Hollow Knight: Silksong"
     },
     {
+      "id": "james-pond-2-codename-robocod-jamespond2robocodrecomp",
+      "project_url": "https://github.com/griches/JamesPond2RobocodRecomp",
+      "name": "James Pond 2: Codename RoboCod / JamesPond2RobocodRecomp",
+      "summary": "Static recompilation of James Pond 2: Codename RoboCod (Amiga) to C++ with SDL3: widescreen, smooth motion, Amiga 500 sound, pause menu. Bring your own disk image.",
+      "issue_number": 5488,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "james-pond-2-codename-robocod",
+        "evidence_urls": [
+          "https://github.com/griches/JamesPond2RobocodRecomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "James Pond 2: Codename RoboCod",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "james2doyle-ffta-recomp",
       "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
       "summary": "Final Fantasy Tactics Advance recompiled for Windows and Linux, using your own USA GBA ROM.",
@@ -50125,6 +51678,34 @@
       }
     },
     {
+      "id": "jmars125-xcx-recomp",
+      "project_url": "https://github.com/jmars125/xcx-recomp",
+      "name": "Xenoblade Chronicles X: Definitive Edition (Switch) / XCX Recomp (jmars125)",
+      "summary": "Static recompilation of Xenoblade Chronicles X : Definitive Edition to native Windows x86-64, with a Vulkan renderer. Game files not included.",
+      "issue_number": 4175,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "xenoblade-chronicles-x-definitive-edition",
+        "evidence_urls": [
+          "https://github.com/jmars125/xcx-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "xenoblade-chronicles-x-definitive-edition-nintendo-switch",
+            "title": "Xenoblade Chronicles X: Definitive Edition (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/jmars125/xcx-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Xenoblade Chronicles X: Definitive Edition",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "jojo-hftf-native-menuutux-jojo-s-bizarre-adventure-heritage-for-the-future",
       "name": "JoJo's Bizarre Adventure: Heritage for the Future — jojo-hftf-native (MenuuTUX)",
       "original_game_title": "JoJo's Bizarre Adventure: Heritage for the Future",
@@ -50405,6 +51986,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "josiahg2502-glitch-tomodachilife-recomp",
+      "project_url": "https://github.com/josiahg2502-glitch/TomodachiLife-recomp",
+      "name": "Tomodachi Life: Living the Dream (Switch) / TomodachiLife-recomp (josiahg2502-glitch)",
+      "summary": "Static recompilation of Tomodachi Life: Living the Dream to a native Windows program: tools and runtime only, bring your own dump",
+      "issue_number": 4073,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "tomodachi-life-living-the-dream",
+        "evidence_urls": [
+          "https://github.com/josiahg2502-glitch/TomodachiLife-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "tomodachi-life-living-the-dream-nintendo-switch",
+            "title": "Tomodachi Life: Living the Dream (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/TomodachiLife-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Tomodachi Life: Living the Dream",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "jsrf-pal-recomp-yacineolivier-maker-jet-set-radio-future-pal",
@@ -51645,6 +53254,34 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "killer-instinct-gold-geno55",
+      "project_url": "https://github.com/geno55/kigold-recomp",
+      "name": "Killer Instinct Gold / geno55",
+      "summary": "Static recompilation of Killer Instinct Gold (N64) for Windows, built on N64Recomp, N64ModernRuntime and RT64",
+      "issue_number": 5555,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "killer-instinct-gold",
+        "evidence_urls": [
+          "https://github.com/geno55/kigold-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "killer-instinct-gold-nintendo-64",
+            "title": "Killer Instinct Gold (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/geno55/kigold-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Killer Instinct Gold",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "killzone-shadow-fall-for-pc-lesca-191204-killzone-shadow-fall",
@@ -52912,6 +54549,34 @@
       "original_game_title": "Sonic and the Secret Rings"
     },
     {
+      "id": "kuraeow-ultratears-totk",
+      "project_url": "https://github.com/kuraeow/ultratears",
+      "name": "The Legend of Zelda: Tears of the Kingdom (Switch) / UltraTears (kuraeow)",
+      "summary": "Unofficial native PC and Steam Deck port of Tears of the Kingdom 1.4.3 using static recompilation. Builds locally from the player's own extracted game dump; no game files included.",
+      "issue_number": 4069,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-tears-of-the-kingdom",
+        "evidence_urls": [
+          "https://github.com/kuraeow/ultratears"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+            "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/kuraeow/ultratears"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "la-pingvino-the-puzzle-pits",
       "project_url": "https://github.com/LaPingvino/The-Puzzle-Pits",
       "artwork": {
@@ -53854,6 +55519,34 @@
       "original_game_title": "The Legend of Zelda: Majora's Mask"
     },
     {
+      "id": "linuxopt-mp4-recomp-switch-prime4-beyond-linux",
+      "project_url": "https://github.com/linuxopt/mp4-recomp",
+      "name": "Metroid Prime 4: Beyond (Switch updated 010019A01E2F2000) / linuxopt SwitchRecomp",
+      "summary": "Metroid Prime 4 Beyond for Linux as a self-contained AppImage —  MP4 Recomp's static recompilation, built from your own game files. No game files included.",
+      "issue_number": 4818,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "metroid-prime-4-beyond",
+        "evidence_urls": [
+          "https://github.com/linuxopt/mp4-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "metroid-prime-4-beyond-nintendo-switch",
+            "title": "Metroid Prime 4: Beyond (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/linuxopt/mp4-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Metroid Prime 4: Beyond",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "little-big-adventure-2-lba2-classic-community",
       "name": "Little Big Adventure 2 / LBA2 Classic Community",
       "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
@@ -54244,6 +55937,34 @@
         ]
       },
       "original_game_title": "Lollipop Chainsaw"
+    },
+    {
+      "id": "looney-tunes-b-ball-slippygetbackhere",
+      "project_url": "https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp",
+      "name": "Looney Tunes B-Ball / SlippyGetBackHere",
+      "summary": "A native PC recompilation of the Looney Tunes B-Ball for the SNES",
+      "issue_number": 6588,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "looney-tunes-b-ball",
+        "evidence_urls": [
+          "https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "looney-tunes-b-ball-super-nintendo",
+            "title": "Looney Tunes B-Ball (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Looney Tunes B-Ball",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "lords-of-the-realm-ii-open-lords2",
@@ -55182,6 +56903,34 @@
       }
     },
     {
+      "id": "magical-blocks-rac08241988",
+      "project_url": "https://github.com/rac08241988/MagicalBlocks",
+      "name": "Magical Tetris Challenge / Magical Blocks",
+      "summary": "Windows PC port of Magical Tetris Challenge (Nintendo 64), made with N64Recomp. Bring your own ROM. No game files included.",
+      "issue_number": 5967,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "magical-tetris-challenge",
+        "evidence_urls": [
+          "https://github.com/rac08241988/MagicalBlocks"
+        ],
+        "source_editions": [
+          {
+            "id": "magical-tetris-challenge-nintendo-64",
+            "title": "Magical Tetris Challenge (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/rac08241988/MagicalBlocks"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Magical Tetris Challenge",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "magical-charming-openbgi",
       "name": "Magical Charming! (OpenBGI)",
       "original_game_title": "Magical Charming!",
@@ -55823,6 +57572,44 @@
       }
     },
     {
+      "id": "mario-kart-arcade-opengp",
+      "project_url": "https://github.com/OpenGP-dev/OpenGP",
+      "name": "Mario Kart Arcade GP and GP 2 / OpenGP",
+      "summary": "A native PC port of Mario Kart Arcade GP and GP 2 by static recompilation. Builds the games from your own disc images.",
+      "issue_number": 5499,
+      "listed_at": "2026-11-24",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "mario-kart-ds-alonsotlol-recompiled",
+      "project_url": "https://github.com/AlonsoTlol/DS-Kart-Recompiled",
+      "name": "Mario Kart DS / DS Kart Recompiled",
+      "summary": "Native PC port of Mario Kart DS by static recompilation. Port nativo para PC de Mario Kart DS.",
+      "issue_number": 5501,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-kart-ds",
+        "evidence_urls": [
+          "https://github.com/AlonsoTlol/DS-Kart-Recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-kart-ds-nintendo-ds",
+            "title": "Mario Kart DS (Nintendo DS)",
+            "system": "nintendo-ds",
+            "evidence_urls": [
+              "https://github.com/AlonsoTlol/DS-Kart-Recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Mario Kart DS",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "mario-kart-super-circuit-recomp",
       "name": "Mario Kart: Super Circuit Recomp",
       "summary": "Play Mario Kart: Super Circuit with your own matching GBA game and BIOS.",
@@ -55969,6 +57756,62 @@
       ]
     },
     {
+      "id": "mario-party-2-n64hub-recompiled",
+      "project_url": "https://github.com/n64hub/mario-party-2-recomp",
+      "name": "Mario Party 2",
+      "summary": "AI-written static recompilation of Mario Party 2 (N64, USA) for PC and the web. Bring your own ROM.",
+      "issue_number": 5496,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-party-2",
+        "evidence_urls": [
+          "https://github.com/n64hub/mario-party-2-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-party-2-nintendo-64",
+            "title": "Mario Party 2 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/mario-party-2-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Mario Party 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "mario-party-3-n64hub-recompiled",
+      "project_url": "https://github.com/n64hub/mario-party-3-recomp",
+      "name": "Mario Party 3",
+      "summary": "AI-written static recompilation of Mario Party 3 (N64, USA) for PC and the web. Bring your own ROM.",
+      "issue_number": 5497,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-party-3",
+        "evidence_urls": [
+          "https://github.com/n64hub/mario-party-3-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-party-3-nintendo-64",
+            "title": "Mario Party 3 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/mario-party-3-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Mario Party 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "mario-party-4-party-board",
       "name": "Mario Party 4 Party Board",
       "summary": "Register an independently permitted Party Board alpha Windows copy for your own USA revision-0 Mario Party 4 image. Preserve its controller requirement, external profile and known crash limits.",
@@ -56040,6 +57883,34 @@
         ]
       },
       "original_game_title": "Mario Party 4"
+    },
+    {
+      "id": "mario-party-n64hub-recompiled",
+      "project_url": "https://github.com/n64hub/mario-party-recomp",
+      "name": "Mario Party",
+      "summary": "AI-written static recompilation of Mario Party (N64, USA) for PC and the web. Bring your own ROM.",
+      "issue_number": 5494,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-party",
+        "evidence_urls": [
+          "https://github.com/n64hub/mario-party-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-party-nintendo-64",
+            "title": "Mario Party (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/mario-party-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Mario Party",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "mariokartdd-recomp-ethannicholas-ethannicholas-mario-kart-double-dash",
@@ -56168,6 +58039,63 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "marvel-ultimate-alliance-2-mua-bundle-recompiled",
+      "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
+      "name": "Marvel: Ultimate Alliance 2 / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
+      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "issue_number": 7192,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "marvel-ultimate-alliance-2",
+        "evidence_urls": [
+          "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Marvel: Ultimate Alliance 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "marvel-ultimate-alliance-gold-edition-mua-bundle-recompiled",
+      "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
+      "name": "Marvel: Ultimate Alliance — Gold Edition / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
+      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "issue_number": 7189,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "marvel-ultimate-alliance",
+        "evidence_urls": [
+          "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Marvel: Ultimate Alliance — Gold Edition",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "marvel-ultimate-alliance-mua-bundle-recompiled",
+      "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
+      "name": "Marvel: Ultimate Alliance / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
+      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "issue_number": 7190,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "marvel-ultimate-alliance",
+        "evidence_urls": [
+          "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Marvel: Ultimate Alliance",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "marvel-vs-capcom-cps2-recomp",
@@ -58758,6 +60686,25 @@
       }
     },
     {
+      "id": "mightymike-jorio",
+      "project_url": "https://github.com/jorio/MightyMike",
+      "name": "Mighty Mike",
+      "summary": "Pangea Software's Mighty Mike (Power Pete) for modern systems",
+      "issue_number": 5646,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mighty-mike",
+        "evidence_urls": [
+          "https://github.com/jorio/MightyMike"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Mighty Mike",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "mind-over-recomp-maxilure-crash-mind-over-mutant",
       "name": "Crash: Mind over Mutant — Mind over Recomp (Maxilure)",
       "original_game_title": "Crash: Mind over Mutant",
@@ -59042,6 +60989,53 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "minimalice92-bloodwake-recomp",
+      "project_url": "https://github.com/minimalice92/bloodwake-recomp",
+      "name": "Blood Wake (original Xbox) / bloodwake-recomp (minimalice92)",
+      "summary": "Blood Wake (Xbox, 2001) as a native Windows game: a static recompilation you build from your own disc. Original + Remastered (4K, ultrawide, high frame rate, 17 original bugs fixed).",
+      "issue_number": 3984,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "blood-wake",
+        "evidence_urls": [
+          "https://github.com/minimalice92/bloodwake-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "blood-wake-xbox",
+            "title": "Blood Wake (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/minimalice92/bloodwake-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Blood Wake",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "mirror-s-edge-ipad-glassline",
+      "project_url": "https://github.com/MoonCellar-Team/Glassline",
+      "name": "Mirror's Edge (iPad) / Glassline (MoonCellar-Team)",
+      "summary": "Unofficial port of Mirror's Edge (iPad, 2010) to Linux, Windows, Steam Deck and Android",
+      "issue_number": 7213,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mirrors-edge-ios",
+        "evidence_urls": [
+          "https://github.com/MoonCellar-Team/Glassline"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Mirror's Edge",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "mka-sp00nznet-mario-kart-arcade-gp",
@@ -61341,6 +63335,34 @@
       }
     },
     {
+      "id": "mvp-baseball-2005-mvp-baseball-2005-xbe-recomp",
+      "project_url": "https://github.com/maddog847/MVP-Baseball-2005-XBERecomp",
+      "name": "MVP Baseball 2005 / MVP Baseball 2005 XBE Recomp (maddog847)",
+      "summary": "Unofficial native Windows recompilation of MVP Baseball 2005 for Xbox, built with XboxXBERecomp. Public beta; original game files required.",
+      "issue_number": 7194,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "mvp-baseball-2005",
+        "evidence_urls": [
+          "https://github.com/maddog847/MVP-Baseball-2005-XBERecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "mvp-baseball-2005-xbox",
+            "title": "MVP Baseball 2005 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/maddog847/MVP-Baseball-2005-XBERecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "MVP Baseball 2005",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "mx-vs-atv-alive-native-windows-recompilation-gw1337x-mx-vs-atv-alive",
       "name": "MX vs. ATV Alive — MX vs. ATV Alive — Native Windows Recompilation (gw1337x)",
       "original_game_title": "MX vs. ATV Alive",
@@ -62302,6 +64324,165 @@
       }
     },
     {
+      "id": "nanosaur2-jorio",
+      "project_url": "https://github.com/jorio/Nanosaur2",
+      "name": "Nanosaur 2: Hatchling",
+      "summary": "Pangea Software’s Nanosaur II for modern systems",
+      "issue_number": 5648,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "nanosaur-2-hatchling",
+        "evidence_urls": [
+          "https://github.com/jorio/Nanosaur2"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Nanosaur 2: Hatchling",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "naruto-clash-of-ninja-2-clash-of-ninja-recomp",
+      "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+      "name": "Naruto: Clash of Ninja 2 / Naruto: Clash of Ninja recomp (mapleleafjack)",
+      "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+      "issue_number": 7196,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "naruto-clash-of-ninja-2",
+        "evidence_urls": [
+          "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "naruto-clash-of-ninja-2-nintendo-gamecube",
+            "title": "Naruto: Clash of Ninja 2 (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Naruto: Clash of Ninja 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "naruto-clash-of-ninja-clash-of-ninja-recomp",
+      "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+      "name": "Naruto: Clash of Ninja / Naruto: Clash of Ninja recomp (mapleleafjack)",
+      "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+      "issue_number": 7198,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "naruto-clash-of-ninja",
+        "evidence_urls": [
+          "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "naruto-clash-of-ninja-nintendo-gamecube",
+            "title": "Naruto: Clash of Ninja (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Naruto: Clash of Ninja",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "naruto-gekitou-ninja-taisen-2-clash-of-ninja-recomp",
+      "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+      "name": "Naruto: Gekitou Ninja Taisen! 2 / Naruto: Clash of Ninja recomp (mapleleafjack)",
+      "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+      "issue_number": 7199,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "naruto-gekitou-ninja-taisen-2",
+        "evidence_urls": [
+          "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "naruto-gekitou-ninja-taisen-2-nintendo-gamecube",
+            "title": "Naruto: Gekitou Ninja Taisen! 2 (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Naruto: Gekitou Ninja Taisen! 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "naruto-gekitou-ninja-taisen-3-clash-of-ninja-recomp",
+      "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+      "name": "Naruto: Gekitou Ninja Taisen! 3 / Naruto: Clash of Ninja recomp (mapleleafjack)",
+      "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+      "issue_number": 7202,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "naruto-gekitou-ninja-taisen-3",
+        "evidence_urls": [
+          "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "naruto-gekitou-ninja-taisen-3-nintendo-gamecube",
+            "title": "Naruto: Gekitou Ninja Taisen! 3 (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Naruto: Gekitou Ninja Taisen! 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "naruto-gekitou-ninja-taisen-4-clash-of-ninja-recomp",
+      "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+      "name": "Naruto: Gekitou Ninja Taisen! 4 / Naruto: Clash of Ninja recomp (mapleleafjack)",
+      "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+      "issue_number": 7201,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "naruto-gekitou-ninja-taisen-4",
+        "evidence_urls": [
+          "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "naruto-gekitou-ninja-taisen-4-nintendo-gamecube",
+            "title": "Naruto: Gekitou Ninja Taisen! 4 (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mapleleafjack/ClashOfNinja-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Naruto: Gekitou Ninja Taisen! 4",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "naruto-rise-of-a-ninja-naruto-rise-recomp",
       "name": "Naruto: Rise of a Ninja (Naruto Rise Recomp)",
       "summary": "Attach an independently permitted, prepared Naruto: Rise of a Ninja Windows ZIP player directly after upstream setup. Preserve the selected data descriptor, guest saves/content and migration journals; this release offers update notices rather than replacing itself.",
@@ -62571,6 +64752,53 @@
         ]
       },
       "original_game_title": "Naughty Bear"
+    },
+    {
+      "id": "nba-hangtime-8bitninja64",
+      "project_url": "https://github.com/8bitninja64/HangtimeRecomp",
+      "name": "NBA Hangtime / 8bitninja64",
+      "summary": "Unofficial native PC port of NBA Hangtime (N64) by static recompilation. Bring your own ROM; no game data included.",
+      "issue_number": 5968,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "nba-hangtime",
+        "evidence_urls": [
+          "https://github.com/8bitninja64/HangtimeRecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "nba-hangtime-nintendo-64",
+            "title": "NBA Hangtime (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/8bitninja64/HangtimeRecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "NBA Hangtime",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "nba-street-vol-2-streetball-revival",
+      "project_url": "https://github.com/luckvj/streetball-revival",
+      "name": "NBA Street Vol. 2 / Streetball Revival",
+      "summary": "Complete NBA Street Vol. 2 Rust Remake",
+      "issue_number": 5598,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "nba-street-vol-2",
+        "evidence_urls": [
+          "https://github.com/luckvj/streetball-revival"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "NBA Street Vol. 2",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "nbl-97-recomp-schulerj89-nba-live-97",
@@ -62910,6 +65138,34 @@
       }
     },
     {
+      "id": "need-for-speed-most-wanted-2005-speedbreaker",
+      "project_url": "https://github.com/SpeedBreakerProject/speedbreaker",
+      "name": "Need for Speed: Most Wanted (2005, Xbox 360) / SpeedBreaker",
+      "summary": "Unofficial static recompilation of the Xbox 360 version of Need for Speed: Most Wanted (2005): a native port for Steam Deck, Steam Machine, Steam Frame, Linux and Mac (iPhone/iPad: sideload the experimental IPA or build it yourself). Bring your own disc: no game files included. Not affiliated with EA or Valve.",
+      "issue_number": 8273,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "need-for-speed-most-wanted",
+        "evidence_urls": [
+          "https://github.com/SpeedBreakerProject/speedbreaker"
+        ],
+        "source_editions": [
+          {
+            "id": "need-for-speed-most-wanted-xbox-360",
+            "title": "Need for Speed: Most Wanted (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/SpeedBreakerProject/speedbreaker"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Need for Speed: Most Wanted",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
       "name": "Need for Speed: Most Wanted (2005 Xbox 360 Recompiled)",
       "summary": "Use the native Xbox 360 Most Wanted player with your own game, integrated setup and upstream save tools.",
@@ -63205,6 +65461,34 @@
       }
     },
     {
+      "id": "nfl-blitz-2003-native",
+      "project_url": "https://github.com/8bitninja64/NFLBlitz2003-PC",
+      "name": "NFL Blitz 2003 / native recomp",
+      "summary": "Native Windows/Linux PC port of NFL Blitz 2003 (GameCube) by static recompilation. Bring your own disc; no game data included.",
+      "issue_number": 6548,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "nfl-blitz-2003",
+        "evidence_urls": [
+          "https://github.com/8bitninja64/NFLBlitz2003-PC"
+        ],
+        "source_editions": [
+          {
+            "id": "nfl-blitz-2003-nintendo-gamecube",
+            "title": "NFL Blitz 2003 (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/8bitninja64/NFLBlitz2003-PC"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "NFL Blitz 2003",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
       "name": "NFL Head Coach 09 (NFL Head Coach 09 Static Recomp)",
       "summary": "Prepare NFL Head Coach 09 on Windows x86-64 from your own Xbox 360 disc image. The upstream setup compiles the player locally, and the player reads the ISO during play.",
@@ -63337,6 +65621,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "nfs-most-wanted-2005-elforeign-macos",
+      "project_url": "https://github.com/elforeign/nfs-most-wanted-mac",
+      "name": "Need for Speed: Most Wanted (2005 PC) / Apple Silicon static recompilation",
+      "summary": "Need for Speed: Most Wanted (2005), native on Apple Silicon Macs by static recompilation. Bring your own PC game.",
+      "issue_number": 4388,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "need-for-speed-most-wanted",
+        "evidence_urls": [
+          "https://github.com/elforeign/nfs-most-wanted-mac"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Need for Speed: Most Wanted",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "nhaar-waddle-forever",
@@ -63824,6 +66127,34 @@
       }
     },
     {
+      "id": "nightfire-original-xbox-hk21x",
+      "project_url": "https://github.com/hk21x/nightfire-recomp",
+      "name": "007: NightFire (original Xbox) / hk21x nightfire-recomp",
+      "summary": "007 Nightfire recompilation for a native PC port.",
+      "issue_number": 4379,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "007-nightfire",
+        "evidence_urls": [
+          "https://github.com/hk21x/nightfire-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "007-nightfire-xbox",
+            "title": "007: NightFire (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hk21x/nightfire-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "007: NightFire",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
       "name": "Ninja Gaiden Black (Ninja Gaiden Black Recompiled)",
       "summary": "Attach an independently permitted, prepared Ninja Gaiden Black Windows player using your own supported original Xbox data. Preserve separate Local/Roaming roots and matching arcade companions; arcade handoffs and VM/Proton reports do not qualify a whole native Windows journey.",
@@ -63906,6 +66237,34 @@
       }
     },
     {
+      "id": "ninja-gaiden-ii-gamboozino-recompiled",
+      "project_url": "https://github.com/gamboozino/ng2recomp",
+      "name": "Ninja Gaiden II / gamboozino",
+      "summary": "Ninja Gaiden II (Xbox 360, 2008) statically recompiled into native Linux and Windows builds, drawn by its own Vulkan renderer. A steady 60 fps, up to 8x render scale, widescreen and ultrawide, keyboard and mouse, mods, Steam Deck ready. Bring your own copy of the game.",
+      "issue_number": 5500,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ninja-gaiden-ii",
+        "evidence_urls": [
+          "https://github.com/gamboozino/ng2recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "ninja-gaiden-ii-xbox-360",
+            "title": "Ninja Gaiden II (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/gamboozino/ng2recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Ninja Gaiden II",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "ninja-gaiden-ii-ninjas-dawn",
       "name": "Ninja Gaiden II Ninjas Dawn",
       "summary": "Explore Ninja Gaiden II Ninjas Dawn and follow the upstream project for requirements, downloads and setup.",
@@ -63923,6 +66282,34 @@
         "game_slug": "ninja-gaiden-ii",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "ninja-gaiden-ii-openng2",
+      "project_url": "https://github.com/KamiTK2/openNG2",
+      "name": "Ninja Gaiden II / openNG2 (KamiTK2)",
+      "summary": "Native PC port of Ninja Gaiden II (Xbox 360) via ReXGlue static recompilation. No game data: bring your own copy.",
+      "issue_number": 7226,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ninja-gaiden-ii",
+        "evidence_urls": [
+          "https://github.com/KamiTK2/openNG2"
+        ],
+        "source_editions": [
+          {
+            "id": "ninja-gaiden-ii-xbox-360",
+            "title": "Ninja Gaiden II (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/KamiTK2/openNG2"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Ninja Gaiden II",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "njh-1001-wipeout2k97xl",
@@ -64612,6 +66999,25 @@
       }
     },
     {
+      "id": "ocarina-of-time-3d-retuned",
+      "project_url": "https://github.com/OTPR26/Ocarina-ReTuned",
+      "name": "The Legend of Zelda: Ocarina of Time 3D / Ocarina ReTuned",
+      "summary": "OOT3D, recompiled for Windows, Mac, Linux, Android, iOS and Apple TV. A substantially modified TriAevum fork with the Ocarina ReFramed single-screen HUD, HD dialogue fonts and controller-friendly menus.",
+      "issue_number": 6597,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-ocarina-of-time-3d",
+        "evidence_urls": [
+          "https://github.com/OTPR26/Ocarina-ReTuned"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The Legend of Zelda: Ocarina of Time 3D",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "oceancrab-santiagoarce-rgb-spongebob-truth-or-square",
       "name": "SpongeBob: Truth or Square — OceanCrab (santiagoarce-rgb)",
       "original_game_title": "SpongeBob: Truth or Square",
@@ -64769,6 +67175,34 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "odin-sphere-leifthrasir-saulob",
+      "project_url": "https://github.com/saulob/odin-sphere-leifthrasir-pc",
+      "name": "Odin Sphere Leifthrasir / saulob native port",
+      "summary": "Odin Sphere Leifthrasir native PC port for Windows, with direct PS4 PKG installation, TRG launcher and modern graphics options",
+      "issue_number": 6032,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "odin-sphere-leifthrasir",
+        "evidence_urls": [
+          "https://github.com/saulob/odin-sphere-leifthrasir-pc"
+        ],
+        "source_editions": [
+          {
+            "id": "odin-sphere-leifthrasir-playstation-4",
+            "title": "Odin Sphere Leifthrasir (PlayStation 4)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/saulob/odin-sphere-leifthrasir-pc"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Odin Sphere Leifthrasir",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "odrannnn-metroidprimeport",
@@ -66695,6 +69129,25 @@
       }
     },
     {
+      "id": "ottomatic-jorio",
+      "project_url": "https://github.com/jorio/OttoMatic",
+      "name": "Otto Matic",
+      "summary": "Pangea Software’s Otto Matic 🤖",
+      "issue_number": 5649,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "otto-matic",
+        "evidence_urls": [
+          "https://github.com/jorio/OttoMatic"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Otto Matic",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
       "artwork": {
         "game_id": 21204,
@@ -67413,6 +69866,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "panzer-dragoon-orta-orta-pc-recomp",
+      "project_url": "https://github.com/SeveerJ/Orta_PC_Recomp",
+      "name": "Panzer Dragoon Orta / Orta PC Recomp (SeveerJ)",
+      "summary": "Static Recompilation of Panzer Dragoon Orta, fully AI powered",
+      "issue_number": 7264,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "panzer-dragoon-orta",
+        "evidence_urls": [
+          "https://github.com/SeveerJ/Orta_PC_Recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Panzer Dragoon Orta",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "panzer-dragoon-saga-azel",
@@ -71166,6 +73638,34 @@
       }
     },
     {
+      "id": "pokepark-wii-wiicompiled",
+      "project_url": "https://github.com/MildRain479/PokePark-Wiicompiled",
+      "name": "PokéPark Wii: Pikachu's Adventure / WiiCompiled",
+      "summary": "A native PC port of PokePark Wii: Pikachu's Adventure by static recompilation (open beta). No game data included.",
+      "issue_number": 6554,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokepark-wii-pikachus-adventure",
+        "evidence_urls": [
+          "https://github.com/MildRain479/PokePark-Wiicompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "pokepark-wii-pikachus-adventure-wii",
+            "title": "PokéPark Wii: Pikachu's Adventure (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/MildRain479/PokePark-Wiicompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "PokéPark Wii: Pikachu's Adventure",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "populous-the-beginning-openpoptb",
       "artwork": {
         "game_id": 5525,
@@ -71693,6 +74193,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "predator-concrete-jungle-concrete-jungle-pc",
+      "project_url": "https://github.com/Adolini1715/Concrete-Jungle-PC",
+      "name": "Predator: Concrete Jungle / Predator: Concrete Jungle, PC port (Adolini1715)",
+      "summary": "Native PC port of Predator: Concrete Jungle (Xbox, 2005) by static recompilation. Build it from your own disc with Install.bat. No game data included.",
+      "issue_number": 7208,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "predator-concrete-jungle",
+        "evidence_urls": [
+          "https://github.com/Adolini1715/Concrete-Jungle-PC"
+        ],
+        "source_editions": [
+          {
+            "id": "predator-concrete-jungle-xbox",
+            "title": "Predator: Concrete Jungle (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Adolini1715/Concrete-Jungle-PC"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Predator: Concrete Jungle",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "prehistorik-2-pre2-port",
@@ -72327,6 +74855,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "project-gotham-racing-4-pgr4-native",
+      "project_url": "https://github.com/shaunsingh/pgr4-native",
+      "name": "Project Gotham Racing 4 / pgr4-native (shaunsingh)",
+      "summary": "Native Direct3D 12 renderer for the Project Gotham Racing 4 static recompilation",
+      "issue_number": 7191,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "project-gotham-racing-4",
+        "evidence_urls": [
+          "https://github.com/shaunsingh/pgr4-native"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Project Gotham Racing 4",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "project-gotham-racing-4-pgr4-recomp",
@@ -73673,6 +76220,25 @@
       }
     },
     {
+      "id": "quake-chocolate-quake",
+      "project_url": "https://github.com/Henrique194/chocolate-quake",
+      "name": "Quake / Chocolate Quake",
+      "summary": "A purist Quake source port that restores the original look and feel of v1.09 and earlier.",
+      "issue_number": 5778,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake",
+        "evidence_urls": [
+          "https://github.com/Henrique194/chocolate-quake"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Quake",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "quake-ii-q2repro",
       "project_url": "https://github.com/Paril/q2repro",
       "name": "Quake II / Q2rePRO",
@@ -73886,6 +76452,25 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "quake-iii-arena-quake3e",
+      "project_url": "https://github.com/ec-/Quake3e",
+      "name": "Quake III Arena / Quake3e",
+      "summary": "Improved Quake III Arena engine",
+      "issue_number": 5679,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-iii-arena",
+        "evidence_urls": [
+          "https://github.com/ec-/Quake3e"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Quake III Arena",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "quake-iii-team-arena-ioquake3",
@@ -74387,6 +76972,25 @@
       }
     },
     {
+      "id": "radix-beyond-the-void-rad-x",
+      "project_url": "https://github.com/jval1972/Rad-X",
+      "name": "Radix: Beyond the Void / RAD (Radix remake) (jval1972)",
+      "summary": "RAD: Remake of the game \"Radix - Beyond the void\"",
+      "issue_number": 6908,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "radix-beyond-the-void",
+        "evidence_urls": [
+          "https://github.com/jval1972/Rad-X"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Radix: Beyond the Void",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "rage-racer-rage-racer-pc",
       "name": "Rage Racer / rage-racer-pc",
       "summary": "Register an already permitted Rage Racer 0.6.13-alpha Windows player for your PAL disc, preserving actual profile/cards/config/mod paths; fresh acquisition remains held.",
@@ -74672,6 +77276,25 @@
       }
     },
     {
+      "id": "raptor-call-of-the-shadows-raptor-port",
+      "project_url": "https://github.com/skynettx/raptor",
+      "name": "Raptor: Call of the Shadows / Raptor port",
+      "summary": "Reversed-engineered source port from Raptor Call Of The Shadows",
+      "issue_number": 5741,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "raptor-call-of-the-shadows",
+        "evidence_urls": [
+          "https://github.com/skynettx/raptor"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Raptor: Call of the Shadows",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
       "name": "Ratchet & Clank: Up Your Arsenal — ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile (MASELKO-95)",
       "original_game_title": "Ratchet & Clank: Up Your Arsenal",
@@ -74777,6 +77400,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "ratchet-clank-a-crack-in-time-racit",
+      "project_url": "https://github.com/HighDrexler/RACiT",
+      "name": "Ratchet & Clank Future: A Crack in Time / RACiT",
+      "summary": "RACiT.",
+      "issue_number": 6709,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ratchet-and-clank-future-a-crack-in-time",
+        "evidence_urls": [
+          "https://github.com/HighDrexler/RACiT"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Ratchet & Clank Future: A Crack in Time",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "ratchet-clank-pc-btsouth-ratchet-clank-2016",
@@ -74909,6 +77551,62 @@
       }
     },
     {
+      "id": "ravencaio-tlou-remastered-cusa00552-ps4-native",
+      "project_url": "https://github.com/ravencaio/tlou-remastered-pc",
+      "name": "The Last of Us Remastered (PS4 CUSA00552 update 1.11) / ravencaio PS4 host port",
+      "summary": "Unnoficial Native Windows PC port of The Last of Us Remastered (PS4, CUSA00552). Runs the game’s own x86-64 code on a custom runtime, with PS4 system libraries reimplemented and a Vulkan renderer based on shadPS4. Includes a launcher. No game files included: you need your own copy.",
+      "issue_number": 4222,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-last-of-us-remastered",
+        "evidence_urls": [
+          "https://github.com/ravencaio/tlou-remastered-pc"
+        ],
+        "source_editions": [
+          {
+            "id": "the-last-of-us-remastered-playstation-4",
+            "title": "The Last of Us Remastered (PlayStation 4)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/ravencaio/tlou-remastered-pc"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "The Last of Us Remastered",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "rayman-3-hd-mysteriousaeon",
+      "project_url": "https://github.com/MysteriousAeon/rayman3-hd-recompiled",
+      "name": "Rayman 3 HD / MysteriousAeon",
+      "summary": "A native Windows port of Rayman 3 HD (Xbox 360) using static recompilation, with HD+ enhancements and Turkish localization.",
+      "issue_number": 6579,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "rayman-3-hd",
+        "evidence_urls": [
+          "https://github.com/MysteriousAeon/rayman3-hd-recompiled"
+        ],
+        "source_editions": [
+          {
+            "id": "rayman-3-hd-xbox-360",
+            "title": "Rayman 3 HD (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/MysteriousAeon/rayman3-hd-recompiled"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Rayman 3 HD",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "rb-blitz-xenon-recomp-gabrielofavero-rock-band-blitz",
       "name": "Rock Band Blitz — rb-blitz-xenon-recomp (gabrielofavero)",
       "original_game_title": "Rock Band Blitz",
@@ -75015,6 +77713,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "rcostanza-deception-iv-nightmare-princess-ps4-cusa02859",
+      "project_url": "https://github.com/rcostanza/Deception-IV-NightmarePrincess-recomp",
+      "name": "Deception IV: The Nightmare Princess (PS4) / rcostanza PS4 native execution",
+      "summary": "Deception IV: The Nightmare Princess (PS4) - Recompiled to PC",
+      "issue_number": 4933,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "deception-iv-the-nightmare-princess",
+        "evidence_urls": [
+          "https://github.com/rcostanza/Deception-IV-NightmarePrincess-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "deception-iv-the-nightmare-princess-playstation-4",
+            "title": "Deception IV: The Nightmare Princess (PlayStation 4)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/rcostanza/Deception-IV-NightmarePrincess-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Deception IV: The Nightmare Princess",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "re-jeweled-thefixinhixon-bejeweled-blitz-live",
@@ -75128,6 +77854,34 @@
         "linux-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "re-tero17-ratchet-tod-ps3-bces00052",
+      "project_url": "https://github.com/Re-TeRo17/ratchet-tod-recomp",
+      "name": "Ratchet & Clank Future: Tools of Destruction (PS3 EU BCES00052) / Re-TeRo17 recomp",
+      "summary": "Ratchet & Clank: Tools of Destruction native PC port (PS3 static recompilation) – 4K, 60 fps, DualSense, Windows",
+      "issue_number": 4268,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ratchet-and-clank-future-tools-of-destruction",
+        "evidence_urls": [
+          "https://github.com/Re-TeRo17/ratchet-tod-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "ratchet-and-clank-future-tools-of-destruction-playstation-3",
+            "title": "Ratchet & Clank Future: Tools of Destruction (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/Re-TeRo17/ratchet-tod-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Ratchet & Clank Future: Tools of Destruction",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "re-volt-rvgl",
@@ -76012,6 +78766,25 @@
       }
     },
     {
+      "id": "resident-evil-2-biohazard-2-openbiohazard2",
+      "project_url": "https://github.com/OpenBiohazard2/OpenBiohazard2",
+      "name": "Resident Evil 2 / Biohazard 2 / OpenBiohazard2 (OpenBiohazard2)",
+      "summary": "Open source re-implementation of the original Resident Evil 2 / Biohazard 2",
+      "issue_number": 7002,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "resident-evil-2",
+        "evidence_urls": [
+          "https://github.com/OpenBiohazard2/OpenBiohazard2"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Resident Evil 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "resident-evil-code-veronica-x-ps2-recvx-enhanced-port",
       "name": "Resident Evil Code: Veronica X (PS2) (RECVX Enhanced Port)",
       "summary": "Attach an independently permitted, prepared RECVX Enhanced Port Windows x86 player with your own NTSC-U SLUS-20184 ISO. Preserve the actual save/card and mod roots; optional co-op services, HD packs and upstream update successors remain separate.",
@@ -76147,6 +78920,25 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "resident-evil-the-umbrella-chronicles-reuc-recomp",
+      "project_url": "https://github.com/solleo95/reuc-recomp",
+      "name": "Resident Evil: The Umbrella Chronicles / Resident Evil: The Umbrella Chronicles PC native port (solleo95)",
+      "summary": "Resident Evil: The Umbrella Chronicles running natively on Windows, Linux and Steam Deck: unlocked FPS, mouse aiming, DLSS / FSR 3.1 + frame generation, ray-traced shadows, HDR, Lua/JS/DLL mods, online co-op. Bring your own NTSC-U (RBUE08) image.",
+      "issue_number": 7238,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "resident-evil-the-umbrella-chronicles",
+        "evidence_urls": [
+          "https://github.com/solleo95/reuc-recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Resident Evil: The Umbrella Chronicles",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012",
@@ -76956,6 +79748,44 @@
         "linux-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "rise-of-the-triad-rottexpr",
+      "project_url": "https://github.com/LTCHIPS/rottexpr",
+      "name": "Rise of the Triad / rottexpr (LTCHIPS)",
+      "summary": "A Rise Of The Triad Source Port with additional gameplay options and more...",
+      "issue_number": 6925,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "rise-of-the-triad",
+        "evidence_urls": [
+          "https://github.com/LTCHIPS/rottexpr"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Rise of the Triad",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "rise-of-the-triad-taradino",
+      "project_url": "https://github.com/fabiangreffrath/taradino",
+      "name": "Rise of the Triad / Taradino",
+      "summary": "SDL2-Port of Rise of the Triad",
+      "issue_number": 5681,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "rise-of-the-triad",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/taradino"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Rise of the Triad",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "riseio-twipe-00sheven",
@@ -78324,6 +81154,34 @@
       ]
     },
     {
+      "id": "saint-seiya-the-hades-matpdev",
+      "project_url": "https://github.com/matpdev/SaintSeiyaRecomp",
+      "name": "Saint Seiya: The Hades / matpdev",
+      "summary": "Native Linux port of Saint Seiya: The Hades (PS2) by static recompilation: Vulkan, 16:9, 60 Hz. Bring your own disc.",
+      "issue_number": 5535,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "saint-seiya-the-hades",
+        "evidence_urls": [
+          "https://github.com/matpdev/SaintSeiyaRecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "saint-seiya-the-hades-playstation-2",
+            "title": "Saint Seiya: The Hades (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/matpdev/SaintSeiyaRecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Saint Seiya: The Hades",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
       "artwork": {
         "game_id": 825,
@@ -78562,6 +81420,62 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "saw-ii-flesh-blood-saw2recomp",
+      "project_url": "https://github.com/Matt-code-d/Saw2Recomp",
+      "name": "Saw II: Flesh & Blood / Saw2Recomp (Matt-code-d)",
+      "summary": "Unofficial native PC recompilation of Saw II: Flesh & Blood (Xbox 360) using ReXGlue — BYO ISO.",
+      "issue_number": 7187,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "saw-ii-flesh-and-blood",
+        "evidence_urls": [
+          "https://github.com/Matt-code-d/Saw2Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "saw-ii-flesh-and-blood-xbox-360",
+            "title": "Saw II: Flesh & Blood (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Matt-code-d/Saw2Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Saw II: Flesh & Blood",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "scooby-doo-night-of-100-frights-scooby-doo-refrightened",
+      "project_url": "https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened",
+      "name": "Scooby-Doo! Night of 100 Frights / Scooby-Doo: Refrightened (josiahg2502-glitch)",
+      "summary": "No longer updated: continued as FrightWorks (github.com/FrightWorks/FrightWorks-no100f). Statically recompiled PC port of Scooby-Doo! Night of 100 Frights (GameCube).",
+      "issue_number": 7166,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "scooby-doo-night-of-100-frights",
+        "evidence_urls": [
+          "https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened"
+        ],
+        "source_editions": [
+          {
+            "id": "scooby-doo-night-of-100-frights-nintendo-gamecube",
+            "title": "Scooby-Doo! Night of 100 Frights (Nintendo GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Scooby-Doo! Night of 100 Frights",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "scottjco-wetrix-n64-usa-rev0-recomp",
@@ -81707,6 +84621,34 @@
       }
     },
     {
+      "id": "shadowgate-shadowgreat",
+      "project_url": "https://github.com/CorrieDivitt/ShadowGreat",
+      "name": "Shadowgate (NES) / Shadowgreat",
+      "summary": "Static recompilation of Shadowgate (NES) into a native Windows program",
+      "issue_number": 6551,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "shadowgate",
+        "evidence_urls": [
+          "https://github.com/CorrieDivitt/ShadowGreat"
+        ],
+        "source_editions": [
+          {
+            "id": "shadowgate-nes",
+            "title": "Shadowgate (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/CorrieDivitt/ShadowGreat"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Shadowgate",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "shaneomac1337-wwe-allstars-recomp",
       "name": "WWE All Stars (WWE All Stars Recomp)",
       "summary": "A WWE All Stars Windows x64 Vulkan port with project-reported matches, controls and shader preparation. The ZIP includes the player and initial setup launcher: import and check your own USA/Europe Xbox 360 ISO and supported TU2, prepare shaders/pipelines, then use game/wweallstars.exe. Release notifications check for new versions but do not download them. Source development separately uses VS2026/ReXGlue; framework portability does not establish other players. Complete-game, multiplayer, exact accepted input hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
@@ -81902,6 +84844,53 @@
           }
         ]
       }
+    },
+    {
+      "id": "sicksartori-mc3port-xbox-xbe-win-wine",
+      "project_url": "https://github.com/SickSartori/mc3port",
+      "name": "Midnight Club 3: DUB Edition Remix / SickSartori mc3port original Xbox",
+      "summary": "Midnight Club 3: DUB Edition Remix PC port. Unofficial native Windows and Linux (Wine) port of the Xbox game, with 60 fps, true 16:9 and up to 5K resolution. Bring your own disc image: no game files included.",
+      "issue_number": 5182,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "midnight-club-3-dub-edition",
+        "evidence_urls": [
+          "https://github.com/SickSartori/mc3port"
+        ],
+        "source_editions": [
+          {
+            "id": "midnight-club-3-dub-edition-xbox",
+            "title": "Midnight Club 3: DUB Edition Remix (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/SickSartori/mc3port"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Midnight Club 3: DUB Edition Remix",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "sid-meier-s-alpha-centauri-glsmac",
+      "project_url": "https://github.com/afwbkbc/glsmac",
+      "name": "Sid Meier's Alpha Centauri / GLSMAC (afwbkbc)",
+      "summary": "Unofficial open-source OpenGL/SDL2 reimplementation of Sid Meier's Alpha Centauri ( + Alien Crossfire )",
+      "issue_number": 6921,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "sid-meiers-alpha-centauri",
+        "evidence_urls": [
+          "https://github.com/afwbkbc/glsmac"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Sid Meier's Alpha Centauri",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "signus-the-artefact-wars",
@@ -82305,6 +85294,25 @@
         ]
       },
       "original_game_title": "Sin and Punishment"
+    },
+    {
+      "id": "skate-2-skate2-recompile-pc",
+      "project_url": "https://github.com/christianortel/skate2-recompile-pc",
+      "name": "Skate 2 / Skate 2 PC (christianortel)",
+      "summary": "Community Windows PC port of Skate 2, built with ReXGlue. Controller support, adjustable rendering quality, and unlocked FPS. Original game files required.",
+      "issue_number": 6946,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "skate-2",
+        "evidence_urls": [
+          "https://github.com/christianortel/skate2-recompile-pc"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Skate 2",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "skate-2-skate2recompiled",
@@ -82746,6 +85754,34 @@
       }
     },
     {
+      "id": "smash4pc-super-smash-bros-for-wii-u",
+      "project_url": "https://github.com/josiahg2502-glitch/Smash4PC",
+      "name": "Super Smash Bros. for Wii U / Smash4PC",
+      "summary": "Super Smash Bros. for Wii U, natively on Windows: a static recompilation (bring your own game)",
+      "issue_number": 3706,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros-for-wii-u",
+        "evidence_urls": [
+          "https://github.com/josiahg2502-glitch/Smash4PC"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-for-wii-u-wii-u",
+            "title": "Super Smash Bros. for Wii U (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/Smash4PC"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Super Smash Bros. for Wii U",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "smbx-13-thextech",
       "name": "Super Mario Bros. X (TheXTech)",
       "summary": "Use a prepared Super Mario Bros. X 1.3-compatible game and episode pack with TheXTech. The v1.7.4.1 Windows release names a separate SMBX game package and asset pack; a bare engine is not a complete game. SMBX2 and LunaLua content are incompatible. You manage setup, updates and your actual shared or portable profile.",
@@ -82858,6 +85894,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "snoopy-flying-ace-redbaron",
+      "project_url": "https://github.com/BTr-RJ/RedBaron_Recomp",
+      "name": "Snoopy Flying Ace / RedBaron",
+      "summary": "Native Windows x64 recompilation of Snoopy Flying Ace with a local-build launcher, modern video options and EOS online integration.",
+      "issue_number": 6564,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "snoopy-flying-ace",
+        "evidence_urls": [
+          "https://github.com/BTr-RJ/RedBaron_Recomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Snoopy Flying Ace",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "snowboard-kids",
@@ -83140,6 +86195,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "soldier-of-fortune-openmerc",
+      "project_url": "https://github.com/sidreshot/openMERC",
+      "name": "Soldier of Fortune / openMERC",
+      "summary": "Open-source (GPL v2) engine for Soldier of Fortune (2000): clean-room, Yamagi Quake II based. Bring your own licensed copy.",
+      "issue_number": 5481,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "soldier-of-fortune",
+        "evidence_urls": [
+          "https://github.com/sidreshot/openMERC"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Soldier of Fortune",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "sonic-3-knuckles-sonic-3-a-i-r",
@@ -83837,6 +86911,62 @@
       ]
     },
     {
+      "id": "sonic-the-hedgehog-2006-marathon-recompiled",
+      "project_url": "https://github.com/sonicnext-dev/MarathonRecomp",
+      "name": "Sonic the Hedgehog (2006) / Marathon Recompiled (sonicnext-dev)",
+      "summary": "An unofficial PC port of the Xbox 360 version of Sonic the Hedgehog (2006) created through the process of static recompilation",
+      "issue_number": 6854,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-the-hedgehog-2006",
+        "evidence_urls": [
+          "https://github.com/sonicnext-dev/MarathonRecomp"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-the-hedgehog-2006-xbox-360",
+            "title": "Sonic the Hedgehog (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sonicnext-dev/MarathonRecomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Sonic the Hedgehog (2006)",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "sonic-the-hedgehog-2006-soleanna-sonic06-recomp",
+      "project_url": "https://github.com/DrummingBird1/sonic06-recomp",
+      "name": "Sonic the Hedgehog (2006) / Soleanna (sonic06-recomp) (DrummingBird1)",
+      "summary": "Soleanna (sonic06-recomp): an unofficial PC port of Sonic the Hedgehog (2006), PS3 version, by static recompilation. No game files included: the launcher builds it from your own disc.",
+      "issue_number": 7236,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-the-hedgehog-2006",
+        "evidence_urls": [
+          "https://github.com/DrummingBird1/sonic06-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-the-hedgehog-2006-playstation-3",
+            "title": "Sonic the Hedgehog (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/DrummingBird1/sonic06-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Sonic the Hedgehog (2006)",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "sonic-the-hedgehog-2013-derived-sonic-1-forever",
       "name": "Sonic the Hedgehog — 2013-derived / Sonic 1 Forever",
       "summary": "Explore Sonic the Hedgehog — 2013-derived / Sonic 1 Forever and follow the upstream project for requirements, downloads and setup.",
@@ -84368,6 +87498,34 @@
       }
     },
     {
+      "id": "soulcalibur-voldorium",
+      "project_url": "https://github.com/enrique363/voldorium",
+      "name": "Soulcalibur / Voldorium Dreamcast native kit",
+      "summary": "Native Windows and Linux port of SoulCalibur (Dreamcast) by static recompilation: 16:9, online versus with rollback netcode (Windows and Linux play together). Requires your own legal disc dump; no game files included.",
+      "issue_number": 5603,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "soulcalibur",
+        "evidence_urls": [
+          "https://github.com/enrique363/voldorium"
+        ],
+        "source_editions": [
+          {
+            "id": "soulcalibur-dreamcast",
+            "title": "Soulcalibur (Dreamcast)",
+            "system": "dreamcast",
+            "evidence_urls": [
+              "https://github.com/enrique363/voldorium"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Soulcalibur",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "soulcalibur2hd-recomp-n0madic-soulcalibur-ii-hd-online",
       "name": "Soulcalibur II HD Online — Soulcalibur2HD-recomp (n0madic)",
       "original_game_title": "Soulcalibur II",
@@ -84841,6 +87999,62 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "speedbreakerproject-speedbreaker-carbon",
+      "project_url": "https://github.com/SpeedBreakerProject/speedbreaker-carbon",
+      "name": "Need for Speed: Carbon (Xbox 360 USA Collector's Edition) / SpeedBreaker: Carbon",
+      "summary": "Unofficial static recompilation of the Xbox 360 version of Need for Speed: Carbon (2006): a native port for Steam Deck, Steam Machine, Steam Frame, Linux and Mac, plus a Windows beta (iPhone/iPad: sideload the experimental IPA or build it yourself). Bring your own disc: no game files included. Not affiliated with EA or Valve.",
+      "issue_number": 4072,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "need-for-speed-carbon",
+        "evidence_urls": [
+          "https://github.com/SpeedBreakerProject/speedbreaker-carbon"
+        ],
+        "source_editions": [
+          {
+            "id": "need-for-speed-carbon-xbox-360",
+            "title": "Need for Speed: Carbon (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/SpeedBreakerProject/speedbreaker-carbon"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Need for Speed: Carbon",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "speedyjustice2-ridge-racer-psp-static-recomp",
+      "project_url": "https://github.com/SpeedyJustice2/Ridge-Racer-PSP-Static-Recomp",
+      "name": "Ridge Racer (PSP) / SpeedyJustice2 static recomp",
+      "summary": "This is a fan made static recomp of Ridge Racer for the PSP!",
+      "issue_number": 4269,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ridge-racer",
+        "evidence_urls": [
+          "https://github.com/SpeedyJustice2/Ridge-Racer-PSP-Static-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "ridge-racer-playstation-portable",
+            "title": "Ridge Racer (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/SpeedyJustice2/Ridge-Racer-PSP-Static-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Ridge Racer",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "spelunky-classic-hd",
@@ -88054,6 +91268,34 @@
       }
     },
     {
+      "id": "stuntman-lab0ulange",
+      "project_url": "https://github.com/lab0ulange/stuntman-pc",
+      "name": "Stuntman / LAB0ULANGE",
+      "summary": "Unofficial native Windows port of Stuntman (PS2, 2002) - bring your own disc",
+      "issue_number": 5515,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "stuntman",
+        "evidence_urls": [
+          "https://github.com/lab0ulange/stuntman-pc"
+        ],
+        "source_editions": [
+          {
+            "id": "stuntman-playstation-2",
+            "title": "Stuntman (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/lab0ulange/stuntman-pc"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Stuntman",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "styd051-doom64-ex-plus-enhanced",
       "name": "Doom 64 / DOOM64 EX+ Enhanced (Styd051)",
       "summary": "Use a permitted DOOM 64 EX+ Enhanced copy with your PC remaster files and preserved user profile.",
@@ -88265,6 +91507,25 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "super-bomberman-5-mauriciosuporte-recompiled",
+      "project_url": "https://github.com/MauricioSuporte/SuperBomberman5SNESRecomp",
+      "name": "Super Bomberman 5",
+      "summary": "Unofficial Super Bomberman 5 Windows prototype using SNESRecomp. Partial recompilation, ROM-free setup releases, English and Portuguese docs.",
+      "issue_number": 5509,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-bomberman-5",
+        "evidence_urls": [
+          "https://github.com/MauricioSuporte/SuperBomberman5SNESRecomp"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Super Bomberman 5",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "compatibility": {
@@ -90852,6 +94113,25 @@
       "original_game_title": "Syphon Filter"
     },
     {
+      "id": "system-shock-shockolate",
+      "project_url": "https://github.com/Interrupt/systemshock",
+      "name": "System Shock / Shockolate",
+      "summary": "Shockolate - A minimalist and cross platform System Shock source port.",
+      "issue_number": 5686,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "system-shock",
+        "evidence_urls": [
+          "https://github.com/Interrupt/systemshock"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "System Shock",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "t5dr-online-thewishin-tekken-5-dark-resurrection-online",
       "name": "Tekken 5: Dark Resurrection Online — T5DR Online (TheWishin)",
       "original_game_title": "Tekken 5: Dark Resurrection Online",
@@ -92278,6 +95558,25 @@
       }
     },
     {
+      "id": "test-drive-unlimited-opentdu",
+      "project_url": "https://github.com/opentestdriveunlimited/OpenTestDriveUnlimited",
+      "name": "Test Drive Unlimited / Open Test Drive Unlimited (OpenTDU) (opentestdriveunlimited)",
+      "summary": "Open source port of Test Drive Unlimited (2006)",
+      "issue_number": 6863,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "test-drive-unlimited",
+        "evidence_urls": [
+          "https://github.com/opentestdriveunlimited/OpenTestDriveUnlimited"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Test Drive Unlimited",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "texas-hold-em-ipod-ipod-clickwheel-recomps",
       "name": "Texas Hold’em (iPod Click Wheel Recomp)",
       "summary": "Play the iPod edition of Texas Hold’em using files from your own copy.",
@@ -93468,6 +96767,34 @@
       }
     },
     {
+      "id": "the-legend-of-zelda-breath-of-the-wild-botw-native",
+      "project_url": "https://github.com/ryderclanky/BotW-Native",
+      "name": "The Legend of Zelda: Breath of the Wild / BotW-Native (ryderclanky)",
+      "summary": "Breath of the Wild (Wii U, v1.5.0) statically recompiled to a native Windows program with a Vulkan renderer.",
+      "issue_number": 7186,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-breath-of-the-wild",
+        "evidence_urls": [
+          "https://github.com/ryderclanky/BotW-Native"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-wii-u",
+            "title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/ryderclanky/BotW-Native"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "The Legend of Zelda: Breath of the Wild",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
       "name": "The Legend of Zelda: Breath of the Wild (MacNativeGames)",
       "summary": "Build the Switch edition of Breath of the Wild for Apple silicon Mac or iPhone using your own base game and a supported 1.6.0 or 1.9.0 update. The project reports Great Plateau play on Mac and iPhone play on 1.6.0.",
@@ -93750,6 +97077,34 @@
       }
     },
     {
+      "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch-2-ocarina-recomp",
+      "project_url": "https://github.com/sostenesfreitas/ocarina-recomp",
+      "name": "The Legend of Zelda: Ocarina of Time (Nintendo Switch 2) / Ocarina Recomp (sostenesfreitas)",
+      "summary": "Ocarina of Time running natively on Windows, no emulator. Built on your PC from your own copy. No game files included.",
+      "issue_number": 7249,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-ocarina-of-time",
+        "evidence_urls": [
+          "https://github.com/sostenesfreitas/ocarina-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch",
+            "title": "The Legend of Zelda: Ocarina of Time (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/sostenesfreitas/ocarina-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "The Legend of Zelda: Ocarina of Time",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
       "name": "The Legend of Zelda: Skyward Sword HD (Sky Recomp)",
       "summary": "An experimental Skyward Sword HD desktop recompilation with documented Windows, Linux and macOS packages. The root diagram describes a precompiled sky game library while other text says no game code is included; exact selected-package/source contents remain unresolved. Supply your own version 1.0.0 prepared game files without updates. The launcher neither decrypts NSP/XCI nor accepts keys. Portcove offers no setup or launch integration and has not tested gameplay.",
@@ -94012,6 +97367,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "the-legend-of-zelda-tears-of-the-kingdom-weeping-of-the-empire",
+      "project_url": "https://github.com/daniel-madrid-07/weeping-of-the-empire",
+      "name": "The Legend of Zelda: Tears of the Kingdom / Weeping of the Empire (daniel-madrid-07)",
+      "summary": "Zelda: Tears of the Kingdom (TotK) 1.0.0 recompiled to native Windows and Vulkan. Frame cap up to 240, DLSS option, mouse and keyboard. Open source, mostly written by AI agents. You build it from your own dump; no game files included. Measured on one PC so far.",
+      "issue_number": 7203,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-tears-of-the-kingdom",
+        "evidence_urls": [
+          "https://github.com/daniel-madrid-07/weeping-of-the-empire"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "the-maw-linux-recompilation-thefixinhixon-the-maw",
@@ -94492,6 +97866,25 @@
       }
     },
     {
+      "id": "the-settlers-freeserf-net",
+      "project_url": "https://github.com/Pyrdacor/freeserf.net",
+      "name": "The Settlers / Freeserf.net",
+      "summary": "Settlers 1 clone written in C#",
+      "issue_number": 5691,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-settlers",
+        "evidence_urls": [
+          "https://github.com/Pyrdacor/freeserf.net"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The Settlers",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "the-simpsons-arcade-static-recompilation-sp00nznet-the-simpsons-arcade-xbox-live-arcade",
       "name": "The Simpsons Arcade (Xbox Live Arcade) — The Simpsons Arcade - Static Recompilation (sp00nznet)",
       "original_game_title": "The Simpsons Arcade (Xbox Live Arcade)",
@@ -94616,6 +98009,25 @@
         ]
       },
       "original_game_title": "The Simpsons Game"
+    },
+    {
+      "id": "the-sims-2-neots2",
+      "project_url": "https://github.com/Asli-s/NeoTS2",
+      "name": "The Sims 2 / NeoTS2 (Asli-s)",
+      "summary": "A 64-bit engine for The Sims 2 that runs on your own copy of the game.",
+      "issue_number": 7263,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-sims-2",
+        "evidence_urls": [
+          "https://github.com/Asli-s/NeoTS2"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The Sims 2",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "the-sims-bowling-ipod-ipod-clickwheel-recomps",
@@ -94928,6 +98340,53 @@
         ],
         "help_url": "https://github.com/sp00nznet/ww#readme"
       }
+    },
+    {
+      "id": "the-world-is-not-enough-ciphernovaa-ps1",
+      "project_url": "https://github.com/ciphernovaa/twine-pc",
+      "name": "007: The World Is Not Enough / CipherNovaa PS1 port",
+      "summary": "A Fan Remake of the Original PlayStation Classic \"007: The World is Not Enough\"",
+      "issue_number": 5521,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-world-is-not-enough-playstation",
+        "evidence_urls": [
+          "https://github.com/ciphernovaa/twine-pc"
+        ],
+        "source_editions": [
+          {
+            "id": "the-world-is-not-enough-playstation-playstation",
+            "title": "007: The World Is Not Enough (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ciphernovaa/twine-pc"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "007: The World Is Not Enough",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "the-x-files-game-shiloh",
+      "project_url": "https://github.com/Asterber/shiloh",
+      "name": "The X-Files Game / Shiloh",
+      "summary": "Open-source engine that runs The X-Files Game (1998) on modern PCs and in the browser. Rust + SDL2 + WebAssembly.",
+      "issue_number": 5439,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-x-files-game",
+        "evidence_urls": [
+          "https://github.com/Asterber/shiloh"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The X-Files Game",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "theclub654-projectcane",
@@ -96086,6 +99545,34 @@
       }
     },
     {
+      "id": "tom-clancy-s-ghost-recon-2-ghostrecon2-recomp",
+      "project_url": "https://github.com/ElKev118/ghostrecon2-recomp",
+      "name": "Tom Clancy's Ghost Recon 2 / Ghost Recon 2 recomp (ElKev118)",
+      "summary": "Native Windows port of Tom Clancy's Ghost Recon 2 (Xbox) via static recompilation — Vulkan renderer, up to 6x resolution, SMAA, FSR 1. Bring your own game files",
+      "issue_number": 7225,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "tom-clancys-ghost-recon-2",
+        "evidence_urls": [
+          "https://github.com/ElKev118/ghostrecon2-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "tom-clancys-ghost-recon-2-xbox",
+            "title": "Tom Clancy's Ghost Recon 2 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/ElKev118/ghostrecon2-recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Tom Clancy's Ghost Recon 2",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "tom-clancy-s-rainbow-six-3-xbox-static-recompilation-phobos665-tom-clancy-s-rainbow-six-3-xbox",
       "artwork": {
         "game_id": 9891,
@@ -96606,6 +100093,34 @@
       }
     },
     {
+      "id": "top-spin-max-spin",
+      "project_url": "https://github.com/djultra64/Max-Spin",
+      "name": "Top Spin / Max Spin",
+      "summary": "Experimental native PC recompilation of the original Xbox Top Spin for Linux and Windows. Requires original game files.",
+      "issue_number": 5969,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "top-spin",
+        "evidence_urls": [
+          "https://github.com/djultra64/Max-Spin"
+        ],
+        "source_editions": [
+          {
+            "id": "top-spin-xbox",
+            "title": "Top Spin (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/djultra64/Max-Spin"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Top Spin",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "topgunfireatwillrecomp-tanookistudios-top-gun-fire-at-will",
       "name": "Top Gun: Fire at Will — TopGunFireAtWillRecomp (TanookiStudios)",
       "original_game_title": "Top Gun: Fire at Will",
@@ -96714,6 +100229,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "torchlight-torchlight-rekindled",
+      "project_url": "https://github.com/GreenSwampDweller/torchlight-rekindled",
+      "name": "Torchlight / Torchlight Rekindled",
+      "summary": "Torchlight build for modern portable systems",
+      "issue_number": 5861,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "torchlight",
+        "evidence_urls": [
+          "https://github.com/GreenSwampDweller/torchlight-rekindled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Torchlight",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "tornado-sp00nznet-tornado-outbreak",
@@ -98974,6 +102508,44 @@
       ]
     },
     {
+      "id": "ultima-underworld-ii-labyrinth-of-worlds-underworldgodot",
+      "project_url": "https://github.com/hankmorgan/UnderworldGodot",
+      "name": "Ultima Underworld II: Labyrinth of Worlds / UnderworldGodot (hankmorgan)",
+      "summary": "Engine recreation for Ultima Underworld and Ultima Underworld 2 using the Godot Engine",
+      "issue_number": 7034,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ultima-underworld-ii-labyrinth-of-worlds",
+        "evidence_urls": [
+          "https://github.com/hankmorgan/UnderworldGodot"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Ultima Underworld II: Labyrinth of Worlds",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
+      "id": "ultima-underworld-the-stygian-abyss-underworldgodot",
+      "project_url": "https://github.com/hankmorgan/UnderworldGodot",
+      "name": "Ultima Underworld: The Stygian Abyss / UnderworldGodot (hankmorgan)",
+      "summary": "Engine recreation for Ultima Underworld and Ultima Underworld 2 using the Godot Engine",
+      "issue_number": 7030,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ultima-underworld-the-stygian-abyss",
+        "evidence_urls": [
+          "https://github.com/hankmorgan/UnderworldGodot"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Ultima Underworld: The Stygian Abyss",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "ultima-vii-part-two-serpent-isle-exult",
       "artwork": {
         "game_id": 9574,
@@ -99150,6 +102722,25 @@
       ]
     },
     {
+      "id": "ultimate-mortal-kombat-3-ios-umk3-ios-recomp",
+      "project_url": "https://github.com/MaryNCRT/Ultimate-Mortal-Kombat-3-iOS-Decompiled",
+      "name": "Ultimate Mortal Kombat 3 (iOS) / Ultimate Mortal Kombat 3 iOS Recomp (MaryNCRT)",
+      "summary": "Decompiled Ultimate Mortal Kombat 3 (iOS v1.2.59) with a playable native PC port featuring DirectX, Vulkan, OpenGL, widescreen support, HD textures, and multiplayer. Original game assets required.",
+      "issue_number": 6965,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "ultimate-mortal-kombat-3",
+        "evidence_urls": [
+          "https://github.com/MaryNCRT/Ultimate-Mortal-Kombat-3-iOS-Decompiled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "Ultimate Mortal Kombat 3",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
       "name": "Um Jammer Lammy — UmJamLamRecomp (NJH-1001)",
       "original_game_title": "Um Jammer Lammy",
@@ -99243,6 +102834,34 @@
         ],
         "source_editions": []
       }
+    },
+    {
+      "id": "uncharted-waters-new-horizons-uncharted-waters-new-horizons-recomp",
+      "project_url": "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp",
+      "name": "Uncharted Waters: New Horizons / Uncharted Waters: New Horizons SNES Static Recomp (Junior-Jones)",
+      "summary": "Static recompilation of Uncharted Waters: New Horizons (SNES) for Windows 10 and 11. ROM not included.",
+      "issue_number": 7229,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "uncharted-waters-new-horizons",
+        "evidence_urls": [
+          "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "uncharted-waters-new-horizons-super-nintendo",
+            "title": "Uncharted Waters: New Horizons (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Uncharted Waters: New Horizons",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "unchiga-yu-gi-oh-forbidden-memories-recompiled",
@@ -102841,6 +106460,34 @@
       "original_game_title": "Warcraft II: Tides of Darkness"
     },
     {
+      "id": "wario-land-shake-it-wariorecomp",
+      "project_url": "https://github.com/santiagovalencia109/Wario-Land-Shake-It-Native-PC",
+      "name": "Wario Land: Shake It! / WarioRecomp (santiagovalencia109)",
+      "summary": "Unofficial native PC port of Wario Land: Shake It! (Wii), statically recompiled with WiiCompiled. Testing build.",
+      "issue_number": 7218,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "wario-land-shake-it",
+        "evidence_urls": [
+          "https://github.com/santiagovalencia109/Wario-Land-Shake-It-Native-PC"
+        ],
+        "source_editions": [
+          {
+            "id": "wario-land-shake-it-wii",
+            "title": "Wario Land: Shake It! (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/santiagovalencia109/Wario-Land-Shake-It-Native-PC"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Wario Land: Shake It!",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "warioland4",
       "project_url": "https://github.com/BioRhythmicStudios/warioland4",
       "name": "Wario Land 4 (BioRhythmic Studios)",
@@ -105954,6 +109601,34 @@
       }
     },
     {
+      "id": "wwe-smackdown-vs-raw-2011-svr2011-recomp",
+      "project_url": "https://github.com/shaneomac1337/SVR2011-Recomp",
+      "name": "WWE SmackDown vs. Raw 2011 / SVR2011 Recomp (shaneomac1337)",
+      "summary": "Unofficial Windows version of WWE SmackDown vs. Raw 2011 (Xbox 360), recompiled with ReXGlue. Bring your own disc image.",
+      "issue_number": 7070,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "wwe-smackdown-vs-raw-2011",
+        "evidence_urls": [
+          "https://github.com/shaneomac1337/SVR2011-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+            "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/shaneomac1337/SVR2011-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "WWE SmackDown vs. Raw 2011",
+      "platforms": [],
+      "availability": "unknown"
+    },
+    {
       "id": "wwf-smackdown-2-know-your-role-recomp",
       "name": "WWF SmackDown! 2: Know Your Role Recomp",
       "summary": "Register a completed Know Your Role Windows player for your own SLUS-01234 disc, retaining its waiting Play entry and external saves.",
@@ -106145,6 +109820,34 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "x-men-2-clone-wars",
+      "project_url": "https://github.com/crabsmack/xmen2-pc",
+      "name": "X-Men 2: Clone Wars",
+      "summary": "X-Men 2: Clone Wars (Genesis) as a native PC game, from a full decompilation: widescreen, high frame rate, up to 4 players on one PC or online (rollback netplay). Bring your own ROM.",
+      "issue_number": 5453,
+      "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "x-men-2-clone-wars",
+        "evidence_urls": [
+          "https://github.com/crabsmack/xmen2-pc"
+        ],
+        "source_editions": [
+          {
+            "id": "x-men-2-clone-wars-mega-drive-genesis",
+            "title": "X-Men 2: Clone Wars (Mega Drive / Genesis)",
+            "system": "mega-drive-genesis",
+            "evidence_urls": [
+              "https://github.com/crabsmack/xmen2-pc"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "X-Men 2: Clone Wars",
+      "platforms": [],
+      "availability": "unknown"
     },
     {
       "id": "x-men-children-of-the-atom-cps2-recomp",

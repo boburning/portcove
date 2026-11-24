@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conker-recomped-reloaded-mabec-distribution",
+    "project_url": "https://github.com/Mabec-games/Conker-Recomped-and-Reloaded",
+    "name": "Conker: Live & Reloaded / Recomped & Reloaded (Mabec maintained distribution)",
+    "summary": "Conker: Live & Reloaded (Xbox) on Windows & Linux: a native recompilation with a launcher that builds it from your own disc, widescreen up to 240 FPS, enhancements, and online play with room codes.",
+    "issue_number": 4386,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-live-reloaded",
+      "evidence_urls": ["https://github.com/Mabec-games/Conker-Recomped-and-Reloaded"],
+      "source_editions": [
+        {
+          "id": "conker-live-reloaded-xbox",
+          "title": "Conker: Live & Reloaded (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/Mabec-games/Conker-Recomped-and-Reloaded"]
+        }
+      ]
+    },
+    "original_game_title": "Conker: Live & Reloaded"
+  }
+}

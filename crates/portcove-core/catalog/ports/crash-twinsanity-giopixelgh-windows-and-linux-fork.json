@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-twinsanity-giopixelgh-windows-and-linux-fork",
+    "project_url": "https://github.com/GioPixelGH/Crash-Twinsanity-Windows",
+    "name": "Crash Twinsanity / GioPixelGH Windows and Linux fork",
+    "summary": "Crash Twinsanity (PS2, PAL) running natively on Windows, played through to the credits: a Windows port of HAB3X's Mac port of Smartkin's C++ decompilation. No game data included: bring your own disc image.",
+    "issue_number": 5444,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-twinsanity",
+      "evidence_urls": ["https://github.com/GioPixelGH/Crash-Twinsanity-Windows"],
+      "source_editions": [
+        {
+          "id": "crash-twinsanity-playstation-2",
+          "title": "Crash Twinsanity (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/GioPixelGH/Crash-Twinsanity-Windows"]
+        }
+      ]
+    },
+    "original_game_title": "Crash Twinsanity"
+  }
+}

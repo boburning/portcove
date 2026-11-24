@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mightymike-jorio",
+    "project_url": "https://github.com/jorio/MightyMike",
+    "name": "Mighty Mike",
+    "summary": "Pangea Software's Mighty Mike (Power Pete) for modern systems",
+    "issue_number": 5646,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mighty-mike",
+      "evidence_urls": ["https://github.com/jorio/MightyMike"],
+      "source_editions": []
+    },
+    "original_game_title": "Mighty Mike"
+  }
+}

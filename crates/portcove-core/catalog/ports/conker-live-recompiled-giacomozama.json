@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conker-live-recompiled-giacomozama",
+    "project_url": "https://github.com/giacomozama/live-and-recompiled",
+    "name": "Conker: Live & Reloaded (original Xbox) / Live & Recompiled (giacomozama)",
+    "summary": "An unofficial Conker: Live & Reloaded native recompilation and enhancement project.",
+    "issue_number": 4385,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-live-reloaded",
+      "evidence_urls": ["https://github.com/giacomozama/live-and-recompiled"],
+      "source_editions": [
+        {
+          "id": "conker-live-reloaded-xbox",
+          "title": "Conker: Live & Reloaded (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/giacomozama/live-and-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Conker: Live & Reloaded"
+  }
+}

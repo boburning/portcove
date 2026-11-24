@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-x-files-game-shiloh",
+    "project_url": "https://github.com/Asterber/shiloh",
+    "name": "The X-Files Game / Shiloh",
+    "summary": "Open-source engine that runs The X-Files Game (1998) on modern PCs and in the browser. Rust + SDL2 + WebAssembly.",
+    "issue_number": 5439,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-x-files-game",
+      "evidence_urls": ["https://github.com/Asterber/shiloh"],
+      "source_editions": []
+    },
+    "original_game_title": "The X-Files Game"
+  }
+}

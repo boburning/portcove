@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ottomatic-jorio",
+    "project_url": "https://github.com/jorio/OttoMatic",
+    "name": "Otto Matic",
+    "summary": "Pangea Software’s Otto Matic 🤖",
+    "issue_number": 5649,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "otto-matic",
+      "evidence_urls": ["https://github.com/jorio/OttoMatic"],
+      "source_editions": []
+    },
+    "original_game_title": "Otto Matic"
+  }
+}

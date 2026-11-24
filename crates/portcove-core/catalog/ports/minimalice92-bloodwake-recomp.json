@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "minimalice92-bloodwake-recomp",
+    "project_url": "https://github.com/minimalice92/bloodwake-recomp",
+    "name": "Blood Wake (original Xbox) / bloodwake-recomp (minimalice92)",
+    "summary": "Blood Wake (Xbox, 2001) as a native Windows game: a static recompilation you build from your own disc. Original + Remastered (4K, ultrawide, high frame rate, 17 original bugs fixed).",
+    "issue_number": 3984,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "blood-wake",
+      "evidence_urls": ["https://github.com/minimalice92/bloodwake-recomp"],
+      "source_editions": [
+        {
+          "id": "blood-wake-xbox",
+          "title": "Blood Wake (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/minimalice92/bloodwake-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Blood Wake"
+  }
+}

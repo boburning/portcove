@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "inazuma-eleven-3-the-ogre-matheus2x",
+    "project_url": "https://github.com/matheus2x/ie3ogre-nds-recomp",
+    "name": "Inazuma Eleven 3: The Ogre / matheus2x",
+    "summary": "Port nativo para Windows de Inazuma Eleven 3: Sekai heno Chousen!! The Ogre",
+    "issue_number": 5972,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "inazuma-eleven-3-the-ogre",
+      "evidence_urls": ["https://github.com/matheus2x/ie3ogre-nds-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Inazuma Eleven 3: The Ogre"
+  }
+}

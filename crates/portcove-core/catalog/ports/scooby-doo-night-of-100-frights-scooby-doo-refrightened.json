@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "scooby-doo-night-of-100-frights-scooby-doo-refrightened",
+    "project_url": "https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened",
+    "name": "Scooby-Doo! Night of 100 Frights / Scooby-Doo: Refrightened (josiahg2502-glitch)",
+    "summary": "No longer updated: continued as FrightWorks (github.com/FrightWorks/FrightWorks-no100f). Statically recompiled PC port of Scooby-Doo! Night of 100 Frights (GameCube).",
+    "issue_number": 7166,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "scooby-doo-night-of-100-frights",
+      "evidence_urls": ["https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened"],
+      "source_editions": [
+        {
+          "id": "scooby-doo-night-of-100-frights-nintendo-gamecube",
+          "title": "Scooby-Doo! Night of 100 Frights (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": ["https://github.com/josiahg2502-glitch/Scooby-Doo-Refrightened"]
+        }
+      ]
+    },
+    "original_game_title": "Scooby-Doo! Night of 100 Frights"
+  }
+}

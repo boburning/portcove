@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "josiahg2502-glitch-tomodachilife-recomp",
+    "project_url": "https://github.com/josiahg2502-glitch/TomodachiLife-recomp",
+    "name": "Tomodachi Life: Living the Dream (Switch) / TomodachiLife-recomp (josiahg2502-glitch)",
+    "summary": "Static recompilation of Tomodachi Life: Living the Dream to a native Windows program: tools and runtime only, bring your own dump",
+    "issue_number": 4073,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomodachi-life-living-the-dream",
+      "evidence_urls": ["https://github.com/josiahg2502-glitch/TomodachiLife-recomp"],
+      "source_editions": [
+        {
+          "id": "tomodachi-life-living-the-dream-nintendo-switch",
+          "title": "Tomodachi Life: Living the Dream (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/josiahg2502-glitch/TomodachiLife-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Tomodachi Life: Living the Dream"
+  }
+}

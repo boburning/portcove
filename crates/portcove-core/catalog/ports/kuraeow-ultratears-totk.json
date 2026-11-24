@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kuraeow-ultratears-totk",
+    "project_url": "https://github.com/kuraeow/ultratears",
+    "name": "The Legend of Zelda: Tears of the Kingdom (Switch) / UltraTears (kuraeow)",
+    "summary": "Unofficial native PC and Steam Deck port of Tears of the Kingdom 1.4.3 using static recompilation. Builds locally from the player's own extracted game dump; no game files included.",
+    "issue_number": 4069,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/kuraeow/ultratears"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+          "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/kuraeow/ultratears"]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Tears of the Kingdom"
+  }
+}

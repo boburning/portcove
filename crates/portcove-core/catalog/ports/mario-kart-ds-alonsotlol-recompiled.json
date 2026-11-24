@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-ds-alonsotlol-recompiled",
+    "project_url": "https://github.com/AlonsoTlol/DS-Kart-Recompiled",
+    "name": "Mario Kart DS / DS Kart Recompiled",
+    "summary": "Native PC port of Mario Kart DS by static recompilation. Port nativo para PC de Mario Kart DS.",
+    "issue_number": 5501,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-ds",
+      "evidence_urls": ["https://github.com/AlonsoTlol/DS-Kart-Recompiled"],
+      "source_editions": [
+        {
+          "id": "mario-kart-ds-nintendo-ds",
+          "title": "Mario Kart DS (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": ["https://github.com/AlonsoTlol/DS-Kart-Recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Mario Kart DS"
+  }
+}

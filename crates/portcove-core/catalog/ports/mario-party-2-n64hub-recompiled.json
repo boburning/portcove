@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-party-2-n64hub-recompiled",
+    "project_url": "https://github.com/n64hub/mario-party-2-recomp",
+    "name": "Mario Party 2",
+    "summary": "AI-written static recompilation of Mario Party 2 (N64, USA) for PC and the web. Bring your own ROM.",
+    "issue_number": 5496,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-party-2",
+      "evidence_urls": ["https://github.com/n64hub/mario-party-2-recomp"],
+      "source_editions": [
+        {
+          "id": "mario-party-2-nintendo-64",
+          "title": "Mario Party 2 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/n64hub/mario-party-2-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Mario Party 2"
+  }
+}
