@@ -38,6 +38,7 @@ import {
   readDiscoverySnapshot,
 } from "./discovery-store.mts";
 import type {
+  DiscoveryKnownRevision,
   DiscoveryLease,
   DiscoveryProviderObservation,
   DiscoveryStore,
@@ -213,6 +214,19 @@ export interface DiscoveryWorkerOptions {
   /** This pass's budget; its limits come from physical resources. */
   budget?: DiscoveryBudget;
   now?: () => number;
+  /**
+   * State and lead records this process committed in an earlier pass. When the
+   * store still holds that exact revision, the pass reuses them instead of
+   * reading them again.
+   */
+  retained?: DiscoveryRetainedState;
+  /** Receives what this pass committed, for the next pass to reuse. */
+  retain?: (retained: DiscoveryRetainedState | undefined) => void;
+}
+
+/** A committed revision held in memory, with the full state including lead records. */
+export interface DiscoveryRetainedState extends DiscoveryKnownRevision {
+  state: Record<string, unknown>;
 }
 
 export interface DiscoveryWorkerResult {
@@ -246,6 +260,9 @@ export interface DiscoveryWorkerResult {
   };
   budget: { requests: number; bytes: number; milliseconds_remaining: number };
 }
+
+/** Generous bound on one commit's response (its revision, notices and errors). */
+export const commitResponseAllowance = 64 * 1024;
 
 const resumableProviderCodes = new Set([
   "budget_exhausted",
@@ -296,24 +313,40 @@ export async function runDiscoveryWorker(
 
   let grant;
   try {
+    const known = options.retained;
     grant = options.store.acquire(lease, {
       leaseSeconds,
       definition: discoveryDefinitionDigest,
       sourceRevision: options.sourceRevision,
       runner: options.runner,
+      ...(known
+        ? {
+            known: {
+              revision: known.revision,
+              generation: known.generation,
+              definition: known.definition,
+            },
+          }
+        : {}),
     });
   } catch (error) {
     if (error instanceof DiscoveryStoreRefused)
       return result("deferred", { reason: `${error.reason}: ${error.message}` });
     throw error;
   }
-  const state = parseWorkerState(grant.state);
+  // The store omits a revision this process committed and still holds in full.
+  const reused = grant.unchanged === true && options.retained ? options.retained : undefined;
+  options.retain?.(undefined);
+  const state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+  const grantDefinition = reused ? reused.definition : grant.definition_sha256;
   // Lead records live in rows; the state document carries everything else.
   // Records still embedded in an older document are kept and move into rows
-  // with the first commit.
+  // with the first commit. Reused state already carries every stored record.
   let loaded: { records: unknown[]; bytes: number };
   try {
-    loaded = options.store.loadLeadRecords(scope);
+    loaded = reused
+      ? { records: Object.values(state.leads.records), bytes: 0 }
+      : options.store.loadLeadRecords(scope);
   } catch (error) {
     // Close the attempt and release the lease rather than leaving them held.
     const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
@@ -362,7 +395,7 @@ export async function runDiscoveryWorker(
   // State written under other collector definitions (for example an earlier
   // parser version) is not assumed to have rows under this one; the first commit
   // resends them and the store keeps one row per identical content.
-  if (grant.definition_sha256 === discoveryDefinitionDigest) {
+  if (grantDefinition === discoveryDefinitionDigest) {
     const { observations, watches } = remember(state.leads);
     for (const o of observations) observed.set(o.provider_id, o.content_sha256);
     for (const w of watches) watched.set(w.provider_id, `${w.status}:${w.evidence_sha256}`);
@@ -392,6 +425,10 @@ export async function runDiscoveryWorker(
     ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
   });
   let lastCommit = now();
+  let committedDefinition = grantDefinition;
+  // The state document of the last commit, which with the committed lead
+  // records is exactly what the store holds at `revision`.
+  let committedDocument: Record<string, unknown> | undefined;
   let dirty = false;
   let stale = false;
   // Any other failed commit also halts collection, so a database error inside a
@@ -430,15 +467,13 @@ export async function runDiscoveryWorker(
       stopped();
       dirty = true;
       if (now() - lastCommit < interval) return;
-      // Commit (and so renew the lease) only while this commit and the final one
-      // still fit the admitted transfer; otherwise end the pass resumably. The
-      // admission meters 70% of its reservation as payload.
-      // Size the next and final commits from everything they carry.
-      const pending = remember(host.leads);
-      const stateBytes = Buffer.byteLength(
-        JSON.stringify([nextState(), pending.observations, pending.watches, pending.records]),
-      );
-      if (committed.sent_bytes + committed.received_bytes + 2 * stateBytes > transferBytes * 0.7) {
+      // Commit (and so renew the lease) only while this commit's and the final
+      // one's responses still fit the admitted transfer; otherwise end the pass
+      // resumably. Neon meters only what the database sends to the client: a
+      // commit's state, records and observations travel to the database and
+      // only its short acknowledgement returns. The admission meters 70% of its
+      // reservation as payload.
+      if (committed.received_bytes + 2 * commitResponseAllowance > transferBytes * 0.7) {
         spent = new GitHubApiError(
           "budget_exhausted",
           "This pass's admitted database transfer is spent; the next pass continues",
@@ -481,6 +516,9 @@ export async function runDiscoveryWorker(
         leadRecords: records,
       });
       revision = saved.revision;
+      committedDefinition = discoveryDefinitionDigest;
+      committedDocument = next;
+      committed.received_bytes += saved.received_bytes ?? 0;
       committed.pages++;
       committed.observations += observations.length;
       committed.watch_changes += watches.length;
@@ -589,6 +627,21 @@ export async function runDiscoveryWorker(
       milliseconds_remaining: Math.max(0, remaining.milliseconds),
     },
   });
+  // Hand the next pass exactly what the store holds, when every change committed.
+  if (!stale && !halted && !dirty) {
+    const document = committedDocument ?? (reused ? undefined : null);
+    if (document === undefined) options.retain?.(reused);
+    else if (document !== null)
+      options.retain?.({
+        revision,
+        generation: grant.generation,
+        definition: committedDefinition,
+        state: structuredClone({
+          ...document,
+          leads: { ...(document.leads as Record<string, unknown>), records: host.leads.records },
+        }),
+      });
+  }
   if (!stale) {
     try {
       const { notes: _notes, ...summary } = final;
@@ -604,7 +657,7 @@ export async function runDiscoveryWorker(
 
 export interface DiscoveryPassOptions extends Omit<
   DiscoveryWorkerOptions,
-  "budget" | "transferBytes" | "runStartedAt"
+  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain"
 > {
   /** Epoch milliseconds by which collection must stop, before final commits. */
   deadline: number;
@@ -667,6 +720,8 @@ async function collectPasses(options: DiscoveryPassOptions) {
   const sleep = options.sleep ?? cancellableSleep;
   const runStartedAt = new Date(now()).toISOString();
   const passes: DiscoveryWorkerResult[] = [];
+  // What the previous pass committed; the store confirms it is still current.
+  let retained: DiscoveryRetainedState | undefined;
   let deferred: string | undefined;
   let failure: string | undefined;
   for (let pass = 1; ; pass++) {
@@ -686,7 +741,16 @@ async function collectPasses(options: DiscoveryPassOptions) {
             milliseconds: Math.max(1, finishBy - startedAt),
           },
         );
-        return await runDiscoveryWorker({ ...options, budget, transferBytes: bytes, runStartedAt });
+        return await runDiscoveryWorker({
+          ...options,
+          budget,
+          transferBytes: bytes,
+          runStartedAt,
+          ...(retained ? { retained } : {}),
+          retain: (value) => {
+            retained = value;
+          },
+        });
       });
     } catch (error) {
       // Keep the record of the passes that already committed.
@@ -960,8 +1024,8 @@ export const discoveryTransferForecastQuery = `SELECT json_build_object(
     FROM portcove_maintenance.discovery_collection_state), 0),
   'record_bytes', coalesce((SELECT sum(octet_length(record::text))
     FROM portcove_maintenance.discovery_lead_records), 0),
+  -- Neon meters only what the database sends to the client.
   'previous_transfer_bytes', coalesce((SELECT max(
-      coalesce((result->'committed'->>'sent_bytes')::bigint, 0) +
       coalesce((result->'committed'->>'received_bytes')::bigint, 0))
     FROM portcove_maintenance.discovery_collection_attempts
     WHERE result IS NOT NULL AND runner IN (
@@ -1191,14 +1255,15 @@ export async function discoveryWorkerMain(argv: string[]) {
         return { sdk, http: createDiscoveryTransport(budget, token) };
       },
       admit: async (pass, collect) => {
-        // The acquire read, then a commit every half lease across the admission
-        // window and the final commit. Each commit carries the state document
-        // and only changed records and observations, estimated from the
-        // previous pass. The admission meters 70% of a reservation as payload.
+        // Neon meters only what the database sends to the client: the acquire
+        // read of the state and lead records (omitted when a later pass reuses
+        // what this run committed), then a short acknowledgement for a commit
+        // every half lease across the admission window and the final commit.
+        // The previous pass's response bytes cover growth. The admission meters
+        // 70% of a reservation as payload.
         const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
         const reservationBytes = Math.ceil(
-          (acquireBytes + commits * forecast.state_bytes * 1.25 + previousTransfer) / 0.7 +
-            1024 * 1024,
+          (acquireBytes + commits * commitResponseAllowance + previousTransfer) / 0.7 + 1024 * 1024,
         );
         try {
           const result = await withMaintenanceAdmission(
@@ -1208,13 +1273,12 @@ export async function discoveryWorkerMain(argv: string[]) {
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,
-              estimate: (value) =>
-                200_000 +
-                Math.ceil((value.committed.sent_bytes + value.committed.received_bytes) * 1.3),
+              // The responses this pass received, with a protocol margin.
+              estimate: (value) => 200_000 + Math.ceil(value.committed.received_bytes * 1.3),
               completed: (value) => value.outcome !== "failed",
             },
           );
-          previousTransfer = result.committed.sent_bytes + result.committed.received_bytes;
+          previousTransfer = result.committed.received_bytes;
           acquireBytes = Math.max(acquireBytes, result.committed.state_bytes);
           return result;
         } catch (error) {

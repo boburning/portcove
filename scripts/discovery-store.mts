@@ -45,6 +45,18 @@ export interface DiscoveryLeaseGrant {
   generation: number;
   /** Bytes the acquire read returned, for transfer accounting. */
   received_bytes?: number;
+  /**
+   * Set when the caller's known revision, generation and definition still match:
+   * the store omitted the state and lead records, which the caller already holds.
+   */
+  unchanged?: true;
+}
+
+/** A committed revision the caller still holds in full, state and lead records. */
+export interface DiscoveryKnownRevision {
+  revision: number;
+  generation: number;
+  definition: string;
 }
 
 export interface DiscoveryLease {
@@ -65,7 +77,13 @@ export class DiscoveryStoreRefused extends MaintenanceStoreError {
 export interface DiscoveryStore {
   acquire(
     lease: DiscoveryLease,
-    options: { leaseSeconds: number; definition: string; sourceRevision: string; runner: string },
+    options: {
+      leaseSeconds: number;
+      definition: string;
+      sourceRevision: string;
+      runner: string;
+      known?: DiscoveryKnownRevision;
+    },
   ): DiscoveryLeaseGrant;
   commit(
     lease: DiscoveryLease,
@@ -79,7 +97,7 @@ export interface DiscoveryStore {
       /** Lead records that changed since the last commit; each carries its numeric `id`. */
       leadRecords: readonly { id: number }[];
     },
-  ): { revision: number; bytes: number };
+  ): { revision: number; bytes: number; received_bytes?: number };
   /** The scope's stored lead records, read after acquire. */
   loadLeadRecords(scope: string): { records: unknown[]; bytes: number };
   finish(
@@ -119,17 +137,30 @@ export function postgresDiscoveryStore(
   return {
     acquire(lease, options) {
       try {
+        const acquire = `portcove_maintenance.discovery_acquire(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)},
+            ${uuid(lease.token)}, ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
+            ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)})`;
+        const { known } = options;
+        // Only a revision this caller committed, in the same activation generation
+        // and under the same definition, is omitted: every commit advances the
+        // revision under the lease, and a restore advances the generation.
         const output = runSql(
           environment,
-          `SELECT portcove_maintenance.discovery_acquire(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)},
-            ${uuid(lease.token)}, ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
-            ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)})::text;`,
+          known
+            ? `SELECT (CASE WHEN (g->>'revision')::bigint = ${known.revision}
+                 AND (g->>'generation')::bigint = ${known.generation}
+                 AND g->>'definition_sha256' = ${sqlLiteral(known.definition)}
+                 THEN (g - 'state') || '{"unchanged": true}'::jsonb ELSE g END)::text
+               FROM ${acquire} AS g;`
+            : `SELECT ${acquire}::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         return {
           ...grant,
+          state: grant.state ?? {},
           revision: Number(grant.revision),
           acquisition: Number(grant.acquisition),
+          generation: Number(grant.generation),
           received_bytes: Buffer.byteLength(output),
         };
       } catch (error) {
@@ -144,10 +175,15 @@ export function postgresDiscoveryStore(
         ${sqlLiteral(JSON.stringify(options.watches))}::jsonb,
         ${sqlLiteral(JSON.stringify(options.leadRecords))}::jsonb);`;
       try {
-        const revision = Number(runSql(environment, sql, { timeoutMs: 300_000 }).trim());
+        const output = runSql(environment, sql, { timeoutMs: 300_000 });
+        const revision = Number(output.trim());
         if (revision !== expectedRevision + 1)
           throw new MaintenanceStoreError("Discovery commit returned an unexpected revision");
-        return { revision, bytes: Buffer.byteLength(sql) };
+        return {
+          revision,
+          bytes: Buffer.byteLength(sql),
+          received_bytes: Buffer.byteLength(output),
+        };
       } catch (error) {
         return classify(error);
       }
