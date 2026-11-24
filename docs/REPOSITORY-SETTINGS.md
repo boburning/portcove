@@ -141,11 +141,14 @@ that advances `portcove-production-coordinator-state`, which only App
 `5632044` may update, so creation is limited to that App. GitHub matches each
 pattern's `*` against one path component, which is exactly one receipt name.
 `--check-release-rulesets` fails when either receipt policy is missing or
-weaker. `requireReceiptTagProtectionPolicy` interprets the isolated observer's
-inventory for the release consumers that rely on receipt pairs without
-re-reading historical raw commits; no production code calls it until those
-consumers are wired (#8626). Exact raw-commit verification remains at
-allocation time, for the active reservation, and in the published-source proof.
+weaker. Every release consumer that relies on receipt pairs without re-reading
+historical raw commits (admission, the coordinator, renewal and review
+requests, site completion, the catalog coordinator and the Linux risk gate)
+calls `requireReceiptTagProtectionPolicy` through its authenticated control
+source before acting, and refuses when the isolated observer's ruleset
+inventory lacks either policy, shows a weaker one, or the namespace has no
+ratified receipt policy. Exact raw-commit verification remains at allocation
+time, for the active reservation, and in the published-source proof.
 Every coordinator checkpoint after an allocation re-asserts both receipts with
 `beforeOid` equal to `afterOid` inside its signed atomic transaction, so the
 immutability policy is applied only because GitHub accepts that same-object

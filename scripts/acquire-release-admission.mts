@@ -567,6 +567,9 @@ export async function acquireReleaseAdmission(
       selected: AuthenticatedReleaseControlSource,
       opportunity: unknown,
     ) => {
+      // Historical receipts below contribute only their pair identity; that
+      // stands in for their raw commits only under exact receipt protection.
+      selected.receiptProtection(config.namespace);
       if (!scopedControls) return selected.read(api, opportunity);
       checkReadTime();
       const { reserve, elapsed } = archiveLookup();

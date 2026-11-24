@@ -796,6 +796,12 @@ void test("actual admission package transfer uses the scoped SDK with signed del
 
 void test("actual admission authenticates frozen semantic producer, owner pause and spending source without clearing independent holds", async (t) => {
   const f = await fixture(t);
+  // Reduced historical receipt verification is admitted only in a ratified
+  // namespace whose receipt tags are protected (#1422).
+  for (const tag of f.tags)
+    tag.name = tag.name.replace(/^portcove-fixture-/u, "portcove-production-");
+  const unratified = f.config;
+  f.config = { ...f.config, namespace: "portcove-production" };
   const frozen = {
     ...structuredClone(f.input.opportunity),
     change_set_sha256: f.sourceFacts.expectedHash,
@@ -894,6 +900,30 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
     }),
     /private-facts-ready/u,
   );
+  // Missing receipt protection, or a namespace no receipt policy is ratified
+  // for, refuses before the historical receipt pairs feed any decision.
+  const unprotected = await liveControlRuntimeFixture(
+    protectionFixture(control.head(), undefined, []),
+  ).create();
+  const renameReceipts = (from: string, to: string) => {
+    for (const tag of f.tags) tag.name = tag.name.replace(`${from}-`, `${to}-`);
+  };
+  for (const [config, selected] of [
+    [f.config, unprotected],
+    [unratified, controls],
+  ] as const) {
+    renameReceipts("portcove-production", config.namespace);
+    let refusal: unknown;
+    await assert.rejects(
+      acquireReleaseAdmission(f.root, config, { ...options, controls: selected }),
+      (error: unknown) => {
+        refusal = error;
+        return error instanceof CoordinatorRemoteError;
+      },
+    );
+    assert.match(String(refusal), /authenticated-controls-before/u);
+    renameReceipts(config.namespace, "portcove-production");
+  }
   control.faults.value = "issuer";
   await assert.rejects(acquireReleaseAdmission(f.root, f.config, options), CoordinatorRemoteError);
   assert.equal(control.mutations(), 1);

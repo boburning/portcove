@@ -1494,6 +1494,8 @@ async function coordinateTrustedReleaseAt(
       }));
     const readLiveControls = async (selectedOpportunity: typeof opportunity) => {
       budget.check();
+      // The publication facts above rely on historical receipt pair identity.
+      controls.receiptProtection(namespace);
       const observed = await controls.readSdkApplicationControls(selectedOpportunity);
       budget.check();
       return observed;
@@ -2200,6 +2202,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       observedArtifact: artifact,
       controlReader: "metadata-maintenance",
     });
+    // The renewal publication facts rely on historical receipt pair identity.
+    controls.receiptProtection(inspectCoordinatorRemoteNamespace(selected.remote_configuration));
     const readMaintenance = () => readFixedCoordinatorMaintenance(controls, budget, 2 * 1024 ** 2);
     const initial = await readMaintenance();
     if (
@@ -4246,6 +4250,8 @@ async function requestTrustedSemanticReviewAt(
       "application",
       "metadata-maintenance",
     );
+    // The review baseline relies on historical receipt pair identity.
+    controls.receiptProtection(namespace);
     const observed = await controls.readSdkMaintenance(undefined, {
       deadline: budget.monotonicDeadline,
       maxBytes: 16 * 1024 ** 2,

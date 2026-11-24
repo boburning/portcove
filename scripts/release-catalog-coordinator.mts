@@ -333,8 +333,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         requireAuthenticatedCatalogControlSource(controls, "coordinator");
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog controls required");
-        const read = () =>
-          controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        const read = () => {
+          // Catalog publication facts rely on historical receipt pair identity.
+          controls.receiptProtection(authorities.namespace);
+          return controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        };
         const observed = await read(),
           stable = catalogCoordinatorMaintenanceIdentity(observed);
         let current = observed,

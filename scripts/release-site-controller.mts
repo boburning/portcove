@@ -597,6 +597,8 @@ export async function runSitePublicationController(
       )
         throw new Error("completed candidate missing from exact published inventory");
       controls = await fresh();
+      // Completion relied on historical receipt pair identity above.
+      controls.receiptProtection(inspectCoordinatorRemoteNamespace(remote));
       await boundary();
       const next = structuredClone(completionSnapshot.input);
       next.active_candidate = null;

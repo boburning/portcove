@@ -320,8 +320,11 @@ async function authorizeRiskSubject706(
   };
   const deadline = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
   if (!Number.isFinite(deadline)) throw new Error("risk controls original deadline unavailable");
-  const readControls = () =>
-    controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
+  const readControls = () => {
+    // Exposure history relies on historical receipt pair identity.
+    controls.receiptProtection(authorities.namespace);
+    return controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
+  };
   const current = await readControls();
   const original = context.stage === "site-publication" ? current : context.admission.controls;
   if (
