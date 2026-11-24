@@ -975,6 +975,29 @@ void test(
         WHERE attempt_id = '${first}';`,
     );
     assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    // The fixed cutover sample predates the completion, so it never settles.
+    const cutover = {
+      ...meter,
+      sampleOrigin: "november-cutover" as const,
+      sampledAt: new Date(Date.now() - 7_200_000).toISOString(),
+    };
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET outcome = 'completed', estimate_bytes = 3000000000,
+            finished_at = clock_timestamp() - interval '3 hours'
+        WHERE attempt_id = '${first}';`,
+    );
+    assert.equal(
+      acquireMaintenanceReservation(owner, {
+        meter: cutover,
+        request: "cutover-unsettled",
+        operation: "collect",
+        reason: "test",
+      }).attempt_id,
+      null,
+      "a completion after the fixed cutover sample never settles",
+    );
   },
 );
 

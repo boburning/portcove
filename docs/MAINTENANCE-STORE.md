@@ -1606,7 +1606,9 @@ and the estimate is no longer added on top. Neon refreshes usage roughly every
 15 minutes. A recent completion is still charged in full, because a rise in the
 meter can belong to another client and an immediate API delta is never treated
 as command bytes. Running, cancelled and uncertain operations keep their full
-reservation for the period.
+reservation for the period. The window assumes Neon's counter has not stalled for more than
+two hours. With the November cutover reading, whose sample time is fixed, an
+operation that finished after that sample never settles and stays charged.
 Evidence shows the difference that can be attributed only as a lower bound
 and leaves exact unattributed transfer unknown.
 

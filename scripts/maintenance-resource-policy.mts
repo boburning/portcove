@@ -18,15 +18,14 @@ export const neonBranch = "br-frosty-bar-bbaitwbu";
 /** Organization that owns the metered project; named in credential diagnostics. */
 const neonOrganization = "org-polished-frog-23199890";
 /**
- * A provider message fit for retained evidence: one line, at most 200
- * characters, with the credential removed should a provider ever echo it.
- */
-/**
  * How long after an operation finishes the provider counter is assumed to include
  * its transfer. Neon refreshes usage roughly every 15 minutes; this is a wide margin.
  */
 const meterSettleInterval = "interval '2 hours'";
-
+/**
+ * A provider message fit for retained evidence: one line, at most 200
+ * characters, with the credential removed should a provider ever echo it.
+ */
 export function neonDiagnostic(message: string, token: string) {
   const line = message.replace(/[\r\n\t]+/gu, " ").trim();
   return (token ? line.split(token).join("[credential]") : line).slice(0, 200);
@@ -368,6 +367,11 @@ export function acquireMaintenanceReservation(
           THEN CASE WHEN finished_at <= ${sampled}::timestamptz - ${meterSettleInterval}
             THEN 0 ELSE greatest(estimate_bytes, least(reserved_bytes, 500000)) END
           ELSE reserved_bytes END), 0) AS unresolved,
+        -- Every charge in the period, settled or not, for attribution evidence.
+        coalesce(sum(
+          CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
+            THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
+            ELSE reserved_bytes END), 0) AS charged,
         max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
         min(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS initial
       FROM ${table}
@@ -406,7 +410,7 @@ export function acquireMaintenanceReservation(
       'prior_meter_high_water_bytes', high_water, 'unreconciled_bytes', unresolved,
       'provider_growth_since_accounting_bytes', CASE WHEN NOT ${useCutover} THEN ${meter.transferBytes} - initial END,
       'unattributed_growth_lower_bound_bytes', CASE WHEN NOT ${useCutover} AND initial IS NOT NULL
-        THEN greatest(0, ${meter.transferBytes} - initial - unresolved) END,
+        THEN greatest(0, ${meter.transferBytes} - initial - charged) END,
       'unattributed_exact_bytes', NULL, 'reason',
         CASE WHEN NOT period_compatible THEN 'overlapping-provider-period'
           WHEN ${meter.transferBytes} < coalesce(high_water, 0) THEN 'counter-regressed'
