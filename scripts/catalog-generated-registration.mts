@@ -127,7 +127,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 27;
+export const GENERATOR_VERSION = 28;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 23;
@@ -4027,8 +4027,84 @@ export const spelledNumberWords = [
   "eighteenth",
   "nineteenth",
   "twentieth",
+  // Generator 28 (F1): the tens beyond twenty, hundred and thousand.
+  "thirty",
+  "forty",
+  "fifty",
+  "sixty",
+  "seventy",
+  "eighty",
+  "ninety",
+  "hundred",
+  "thousand",
+  "thirtieth",
+  "fortieth",
+  "fiftieth",
+  "sixtieth",
+  "seventieth",
+  "eightieth",
+  "ninetieth",
+  "hundredth",
+  "thousandth",
 ] as const;
 const spelledNumberSet = new Set<string>(spelledNumberWords);
+/**
+ * A joined spelled compound (F1): a tens word with a unit (`twentyone`,
+ * `twentyfirst`, `ninetynine`), or a unit with `hundred` or `thousand`
+ * (`onehundred`, `twothousandth`). A hyphenated compound (`twenty-one`) is
+ * two words, each in `spelledNumberWords`.
+ */
+const spelledCompound =
+  /^(?:(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:one|two|three|four|five|six|seven|eight|nine|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)|(?:one|two|three|four|five|six|seven|eight|nine)(?:hundred|thousand)(?:th)?)$/u;
+/** Whether a word is a spelled number (B1, F1): `zero` is none. */
+export const spelledNumber = (word: string) =>
+  spelledNumberSet.has(word) || spelledCompound.test(word);
+/** A roman numeral in standard form, of any size (`mmxx`, `xxxiii`). */
+const romanNumeral = /^m*(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
+const romanDigit: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+/** The value of a roman numeral in standard form (`romanNumeral`), or null (F5). */
+export function romanValue(word: string): number | null {
+  if (word === "" || !romanNumeral.test(word)) return null;
+  let value = 0;
+  for (let at = 0; at < word.length; at++) {
+    const digit = romanDigit[word[at]!]!;
+    const next = romanDigit[word[at + 1] ?? ""] ?? 0;
+    value += digit < next ? -digit : digit;
+  }
+  return value;
+}
+/** The standard roman numeral of 1 to 3999 (F5). */
+export function romanOf(value: number): string {
+  const steps: [number, string][] = [
+    [1000, "m"],
+    [900, "cm"],
+    [500, "d"],
+    [400, "cd"],
+    [100, "c"],
+    [90, "xc"],
+    [50, "l"],
+    [40, "xl"],
+    [10, "x"],
+    [9, "ix"],
+    [5, "v"],
+    [4, "iv"],
+    [1, "i"],
+  ];
+  let text = "";
+  for (const [step, letters] of steps)
+    while (value >= step) {
+      text += letters;
+      value -= step;
+    }
+  return text;
+}
+/**
+ * Whether a word reads as a roman number in a later title segment (R1): a
+ * roman numeral of two or more letters of any size, or a lone `v` or `x`.
+ * A lone `i` is none.
+ */
+export const laterRomanNumber = (word: string) =>
+  (word.length >= 2 || word === "v" || word === "x") && romanValue(word) !== null;
 /** Separators that start an annotation segment. */
 const annotationSeparator = /[\u2014\u2013/\\|([{]/u;
 /** The words a partial name may drop alone before the words it keeps. */
@@ -4159,30 +4235,28 @@ function sequelOrdinal(
   before: readonly string[],
 ): boolean {
   const word = form[index]!;
-  if (
-    word.segment > 0 &&
-    !word.annotation &&
-    !word.optional &&
-    (spelledNumberSet.has(word.word) || (word.numeric && word.word.length >= 4))
-  )
-    return true;
-  if (!word.ordinal || word.optional || word.token) return false;
-  if (word.numeric && word.word.length >= 4) return false;
   const previous = form[index - 1];
   const next = form[index + 1];
+  const platform =
+    word.linked &&
+    previous !== undefined &&
+    (platformNumberSet.has(previous.word) ||
+      (word.glued && platformNumberSet.has(previous.word + word.word)));
+  const later = word.segment > 0 && !word.annotation && !word.optional;
+  if (later && (spelledNumber(word.word) || (word.numeric && word.word.length >= 4))) return true;
+  // R1: in a later title segment every other number is a sequel number too,
+  // one inside a dotted run ("Halo: 2.5") and a roman numeral of any size
+  // ("Halo: XXI", "Halo: MMXX"), but not a platform's number ("Xbox 360").
+  if (later && (word.numeric || laterRomanNumber(word.word)) && !platform) return true;
+  if (!word.ordinal || word.optional || word.token) return false;
+  if (word.numeric && word.word.length >= 4) return false;
   if (
     word.numeric &&
     ((previous?.numeric === true && before[index] === ".") ||
       (next?.numeric === true && before[index + 1] === "."))
   )
     return false;
-  if (
-    word.linked &&
-    previous !== undefined &&
-    (platformNumberSet.has(previous.word) ||
-      (word.glued && platformNumberSet.has(previous.word + word.word)))
-  )
-    return false;
+  if (platform) return false;
   return true;
 }
 const noHandles: ReadonlySet<string> = new Set();
@@ -4234,28 +4308,58 @@ export function authorHandles(
     handles.add(idFirst);
   return handles;
 }
-/** The roman numeral of each value 1 to 20, for `numberTwin`. */
-const twinRoman = ["i", ...romanNumbers] as const;
 /**
- * A name's number twin (D2): the same words with every number 1 to 20
- * written the other way, all digits as roman numerals (`roman`) or all roman
- * numerals as digits (`digits`; `romanNumbers`, so a lone `I` is no number).
+ * Whether a word of a form is a lone `I` or `1` that may stand for the
+ * other (F5): it directly follows a word of the title that is no number, in
+ * the same title segment, as the last word of that segment but optional
+ * trailing ones ("Final Fantasy I" and `ff1`). Nowhere else.
+ */
+function loneOnePlace(form: readonly NameFormWord[], index: number): boolean {
+  const word = form[index]!;
+  const previous = form[index - 1];
+  if (word.annotation || previous === undefined || previous.segment !== word.segment) return false;
+  if (previous.numeric || romanValue(previous.word) !== null) return false;
+  for (const next of form.slice(index + 1))
+    if (next.segment !== word.segment) break;
+    else if (!next.optional) return false;
+  return true;
+}
+/**
+ * A name's number twin (D2, F5): the same words with every number written
+ * the other way, all digit runs of 1 to 3999 as roman numerals (`roman`), or
+ * all roman numerals of 1 to 3999 as digits (`digits`). A roman numeral is
+ * one of two or more letters, or a lone `v` or `x` (`laterRomanNumber`); `1`
+ * and a lone `I` stand for each other only in `loneOnePlace`.
  * "God of War II" has the twin "God of War 2", "Syphon Filter 3" the twin
- * "Syphon Filter III". The form itself when it has no such number.
+ * "Syphon Filter III", "God of War XXI" the twin "God of War 21". The form
+ * itself when it has no such number.
  */
 export function numberTwin(
   form: readonly NameFormWord[],
   way: "roman" | "digits",
 ): readonly NameFormWord[] {
   let changed = false;
-  const twin = form.map((word) => {
-    if (way === "roman" && word.numeric && /^(?:[1-9]|1[0-9]|20)$/u.test(word.word)) {
+  const twin = form.map((word, index) => {
+    if (way === "roman" && word.numeric && /^[1-9][0-9]{0,3}$/u.test(word.word)) {
+      const value = Number(word.word);
+      if (value > 3999 || (value === 1 && !loneOnePlace(form, index))) return word;
       changed = true;
-      return { ...word, word: twinRoman[Number(word.word) - 1]!, numeric: false, ordinal: true };
+      return { ...word, word: romanOf(value), numeric: false, ordinal: true };
     }
-    if (way === "digits" && romanSet.has(word.word)) {
+    if (way === "digits" && !word.numeric) {
+      const value = romanValue(word.word);
+      if (value === null || value > 3999) return word;
+      if (!laterRomanNumber(word.word) && !(word.word === "i" && loneOnePlace(form, index)))
+        return word;
       changed = true;
-      return { ...word, word: String(twinRoman.indexOf(word.word as never) + 1), numeric: true };
+      // A lone `I` reads as a number only here: its twin is the sequel `1`.
+      return {
+        ...word,
+        word: String(value),
+        numeric: true,
+        ordinal: true,
+        sequel: word.sequel || word.word === "i",
+      };
     }
     return word;
   });
@@ -4351,6 +4455,34 @@ function laterTitleSegments(form: readonly NameFormWord[]): Map<number, string> 
         .join(" "),
     );
   return segments;
+}
+/**
+ * The later title segments of a listing's name that an accepted archive or
+ * program literal drops (F3, `subtitle_dropped_by_repository_name`), for an
+ * enrollment accepted because the literal equals the repository or id name
+ * (modulo descriptors), so not relieved and not queued by D1: the segments a
+ * relieved spelling of the listing name omits, or, when the name's own rules
+ * refuse every spelling (a sequel subtitle), the segments after the longest
+ * leading run of title segments the literal spells. Reporting only.
+ */
+export function subtitleDroppedByName(literal: string, listing: Record<string, unknown>): string[] {
+  if (typeof listing.name !== "string" || literal === "") return [];
+  const form = nameForm(listing.name);
+  const later = laterTitleSegments(form);
+  if (!later.size) return [];
+  const digits = digitRuns(literal);
+  const detail = reliefDetail(literal, digits, form);
+  if (detail !== null) return detail.relieved ? detail.droppedSegments : [];
+  const segments = [...later.keys()].toSorted((left, right) => right - left);
+  for (const segment of segments) {
+    const head = form.filter((word) => word.segment < segment && !word.annotation);
+    if (head.length && reliefDetail(literal, digits, head) !== null)
+      return segments
+        .filter((each) => each >= segment)
+        .toReversed()
+        .map((each) => later.get(each)!);
+  }
+  return [];
 }
 /**
  * Every way a literal (lowercase letters and digits) spells an accepted
@@ -5321,6 +5453,13 @@ export type FitDecision =
        * or folder name drops a later title segment (D1), named.
        */
       franchise_only_partial: string[];
+      /**
+       * Per finding, an offered archive or accepted program name that drops
+       * a later title segment of the listing's name while equal to the
+       * repository or id name (F3, `subtitleDroppedByName`): hand-checked
+       * first, never a withhold.
+       */
+      subtitle_dropped_by_repository_name: string[];
     }
   | {
       port_id: string;
@@ -5531,6 +5670,8 @@ export function fitDecision(
   const reliefs = new Set<NameRelief>();
   /** Why the enrollment is hand-checked as franchise-only (D1), per finding. */
   const franchise: string[] = [];
+  /** Dropped subtitles of names equal to the repository or id name (F3), per finding. */
+  const subtitleDropped: string[] = [];
   // Beside another package form the program name stays strictly literal.
   const strict = entry.other_packages.length > 0;
   for (const platform of platforms) {
@@ -5576,6 +5717,9 @@ export function fitDecision(
                 `${platform}: ${found.runtime.asset_name} shares its words with two or more listings`,
               ]),
         );
+      if (!account.dropped.length)
+        for (const segment of subtitleDroppedByName(account.product, record.listing))
+          subtitleDropped.push(`${platform}: ${found.runtime.asset_name} drops "${segment}"`);
       const handles = authorHandles(record.listing, entry.repository);
       const names = new Set([...ownJoinedNames(record.listing, entry.repository), account.product]);
       const words = new Set([
@@ -5605,6 +5749,13 @@ export function fitDecision(
         // D1: a relieved program or folder name that drops a later title segment.
         for (const segment of new Set(dropped))
           franchise.push(`${platform}: ${item.display_path} drops "${segment}"`);
+        // F3: an accepted program name equal to the repository or id name.
+        if (leftover === null && !dropped.length)
+          for (const segment of subtitleDroppedByName(
+            literalProgramName(item.display_path),
+            record.listing,
+          ))
+            subtitleDropped.push(`${platform}: ${item.display_path} drops "${segment}"`);
         if (leftover !== null) {
           unaccountedPrograms.push(`${platform}: ${item.display_path} (${leftover})`);
           programTokens.push(leftover);
@@ -5737,6 +5888,7 @@ export function fitDecision(
     fit: true,
     reliefs: nameReliefs.filter((relief) => reliefs.has(relief)),
     franchise_only_partial: [...new Set(franchise)].toSorted(compareCodePoints),
+    subtitle_dropped_by_repository_name: [...new Set(subtitleDropped)].toSorted(compareCodePoints),
     enrollment: {
       port_id,
       platforms: runtimes.map((runtime) => runtime.platform),
@@ -5945,6 +6097,13 @@ export interface RegistrationQueues {
    * the franchise-only partial names a person hand-checks first.
    */
   franchise_only_partial: Record<string, string[]>;
+  /**
+   * Every enrolled identity, in port_id order, whose offered archive or
+   * accepted program name drops a later title segment of the listing's name
+   * while equal to its repository or id name (F3): not relieved, so not in
+   * `franchise_only_partial`; hand-checked first, reporting only.
+   */
+  subtitle_dropped_by_repository_name: Record<string, string[]>;
   unaccounted_tokens: Record<
     "archive-name-unaccounted" | "program-name-unaccounted",
     { token: string; count: number; identities: string[] }[]
@@ -6106,6 +6265,15 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
         .flatMap((decision): [string, string[]][] =>
           decision.fit && decision.franchise_only_partial.length
             ? [[decision.port_id, decision.franchise_only_partial]]
+            : [],
+        )
+        .toSorted(([left], [right]) => compareCodePoints(left, right)),
+    ),
+    subtitle_dropped_by_repository_name: Object.fromEntries(
+      generation.decisions
+        .flatMap((decision): [string, string[]][] =>
+          decision.fit && decision.subtitle_dropped_by_repository_name.length
+            ? [[decision.port_id, decision.subtitle_dropped_by_repository_name]]
             : [],
         )
         .toSorted(([left], [right]) => compareCodePoints(left, right)),
@@ -8390,7 +8558,92 @@ export const gateSpelledNumbers = [
   "eighteenth",
   "nineteenth",
   "twentieth",
+  "thirty",
+  "forty",
+  "fifty",
+  "sixty",
+  "seventy",
+  "eighty",
+  "ninety",
+  "hundred",
+  "thousand",
+  "thirtieth",
+  "fortieth",
+  "fiftieth",
+  "sixtieth",
+  "seventieth",
+  "eightieth",
+  "ninetieth",
+  "hundredth",
+  "thousandth",
 ];
+/** Whether a word is a spelled number, restated: see `spelledNumber` (F1). */
+function gateSpelledNumber(text: string): boolean {
+  if (gateSpelledNumbers.includes(text)) return true;
+  const units = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+  const unitOrdinals = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+  ];
+  const tens = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+  for (const ten of tens)
+    if (text.startsWith(ten) && [...units, ...unitOrdinals].includes(text.slice(ten.length)))
+      return true;
+  for (const unit of units)
+    for (const big of ["hundred", "thousand"])
+      if (text === unit + big || text === `${unit + big}th`) return true;
+  return false;
+}
+/** The roman numeral of a positive value, `m` repeated for each thousand, restated. */
+function gateRomanOf(value: number): string {
+  const table: [string, number][] = [
+    ["m", 1000],
+    ["cm", 900],
+    ["d", 500],
+    ["cd", 400],
+    ["c", 100],
+    ["xc", 90],
+    ["l", 50],
+    ["xl", 40],
+    ["x", 10],
+    ["ix", 9],
+    ["v", 5],
+    ["iv", 4],
+    ["i", 1],
+  ];
+  let rest = value;
+  let text = "";
+  for (const [letters, step] of table) for (; rest >= step; rest -= step) text += letters;
+  return text;
+}
+/**
+ * The value of a word that is a roman numeral in standard form, or null,
+ * restated: see `romanValue` (F5). Read left to right, then accepted only
+ * when written back the same way.
+ */
+function gateRomanValue(text: string): number | null {
+  if (text === "" || !/^[ivxlcdm]+$/u.test(text)) return null;
+  const values: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+  let value = 0;
+  for (let at = 0; at < text.length; at++) {
+    const here = values[text[at]!]!;
+    const after = at + 1 < text.length ? values[text[at + 1]!]! : 0;
+    value += here < after ? -here : here;
+  }
+  return value > 0 && gateRomanOf(value) === text ? value : null;
+}
+/** A roman number in a later title segment, restated: see `laterRomanNumber` (R1). */
+function gateLaterRoman(text: string): boolean {
+  if (text.length < 2 && text !== "v" && text !== "x") return false;
+  return gateRomanValue(text) !== null;
+}
 /** The platform words whose linked number is no sequel, restated: see `platformNumberWords`. */
 export const gatePlatformNumberWords = [
   "xbox",
@@ -8522,33 +8775,34 @@ function gateForm(value: string, handles: readonly string[] = []): GateFormWord[
   }
   for (let at = 0; at < words.length; at++) {
     const word = words[at]!;
+    const prior = words[at - 1];
+    const afterPlatform =
+      word.linked &&
+      prior !== undefined &&
+      (gatePlatformNumberWords.includes(prior.text) ||
+        (word.glued && gatePlatformNumberWords.includes(prior.text + word.text)));
+    const laterTitle = word.segment > 0 && !word.annotation && !word.trailing;
     // B1: in a later title segment, a spelled number or an integer of four
     // or more digits is a sequel number too.
-    if (
-      word.segment > 0 &&
-      !word.annotation &&
-      !word.trailing &&
-      (gateSpelledNumbers.includes(word.text) || (word.digits && word.text.length >= 4))
-    ) {
+    if (laterTitle && (gateSpelledNumber(word.text) || (word.digits && word.text.length >= 4))) {
+      word.sequel = true;
+      continue;
+    }
+    // R1: and every digit run, dotted or not, and every roman numeral of two
+    // or more letters or a lone `v` or `x`, unless a platform's number.
+    if (laterTitle && (word.digits || gateLaterRoman(word.text)) && !afterPlatform) {
       word.sequel = true;
       continue;
     }
     if (!word.number || word.trailing || word.token) continue;
     if (word.digits && word.text.length >= 4) continue;
-    const prior = words[at - 1];
     const later = words[at + 1];
     const dotted =
       word.digits &&
       ((prior !== undefined && prior.digits && separators[at] === ".") ||
         (later !== undefined && later.digits && separators[at + 1] === "."));
     if (dotted) continue;
-    if (
-      word.linked &&
-      prior !== undefined &&
-      (gatePlatformNumberWords.includes(prior.text) ||
-        (word.glued && gatePlatformNumberWords.includes(prior.text + word.text)))
-    )
-      continue;
+    if (afterPlatform) continue;
     word.sequel = true;
   }
   return words;
@@ -9020,29 +9274,48 @@ export function gateHandles(listing: Record<string, unknown>, repository: string
 }
 /**
  * A listing's names, then all their numbers as roman numerals, then all as
- * digits, restated: see `numberTwinGroups`. Each group only where it differs.
+ * digits, restated: see `numberTwinGroups` and `numberTwin` (D2, F5). Each
+ * group only where it differs; values 1 to 3999; `1` and a lone `I` only
+ * as the last word of a title segment right after a word that is no number.
  */
 function gateTwinGroups(forms: readonly GateFormWord[][]): GateFormWord[][][] {
-  const roman = ["i", ...gateRoman];
+  const oneAllowed = (form: readonly GateFormWord[], at: number) => {
+    const word = form[at]!;
+    const prior = form[at - 1];
+    if (word.annotation || prior === undefined || prior.segment !== word.segment) return false;
+    if (prior.digits || gateRomanValue(prior.text) !== null) return false;
+    for (let next = at + 1; next < form.length && form[next]!.segment === word.segment; next++)
+      if (!form[next]!.trailing) return false;
+    return true;
+  };
   const groups: GateFormWord[][][] = [[...forms]];
   let changed = false;
   const asRoman = forms.map((form) =>
-    form.map((word) => {
+    form.map((word, at) => {
       if (!word.digits) return word;
       const value = Number(word.text);
-      if (String(value) !== word.text || value < 1 || value > 20) return word;
+      if (String(value) !== word.text || value < 1 || value > 3999) return word;
+      if (value === 1 && !oneAllowed(form, at)) return word;
       changed = true;
-      return { ...word, text: roman[value - 1]!, digits: false, number: true };
+      return { ...word, text: gateRomanOf(value), digits: false, number: true };
     }),
   );
   if (changed) groups.push(asRoman);
   changed = false;
   const asDigits = forms.map((form) =>
-    form.map((word) => {
-      const at = gateRoman.indexOf(word.text);
-      if (at < 0) return word;
+    form.map((word, at) => {
+      if (word.digits) return word;
+      const value = gateRomanValue(word.text);
+      if (value === null || value > 3999) return word;
+      if (!gateLaterRoman(word.text) && !(word.text === "i" && oneAllowed(form, at))) return word;
       changed = true;
-      return { ...word, text: String(at + 2), digits: true };
+      return {
+        ...word,
+        text: String(value),
+        digits: true,
+        number: true,
+        sequel: word.sequel || word.text === "i",
+      };
     }),
   );
   if (changed) groups.push(asDigits);

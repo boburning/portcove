@@ -4145,6 +4145,23 @@ relief for a person to hand-check first.
   Trip: Vacation 2012 Recompiled", "Super Mario RPG: Legend of the Seven
   Stars" and "The Operative: No One Lives Forever"), and none of them can be
   accounted for by a partial name that omits it.
+  Since generator 28 every number of a later title segment is a sequel
+  number, but a linked platform's number ("Crackdown: Xbox 360"): a digit run
+  inside a dotted run too (`KingdomHearts` never accounts for "Kingdom Hearts:
+  2.8", `Halo` never for "Halo: 2.5", "Halo: Version 2.0" or "Halo: Chapter
+  1.5"), every roman numeral in standard form of two or more letters, of any
+  size, and a lone `V` or `X` (`Halo` never for "Halo: XXI", "Halo: XL" or
+  "Halo: MMXX", `HaloWars` never for "Halo Wars: XXI"; a lone `I` stays a
+  word), and the spelled tens beyond twenty, `hundred`, `thousand`, their
+  ordinals and joined or hyphenated compounds (`thirty`, `twentyfirst`,
+  `twenty-one`, `ninetynine`, `onehundred`; never `zero`). The first segment
+  keeps the dotted-version reading (`Lantern 0.1`). The cost is stated: on the catalog
+  of November 24, 2026, three of 1,649 listings read a new sequel number
+  (`dx` in both "Link's Awakening DX" listings, `ninety` in "N3: Ninety-Nine
+  Nights", which already held one), and of 5,920 archive names built from
+  every listing's first title segment, whole title, repository name, id and
+  initialisms, one changes outcome: `Zelda` no longer accounts for "Zelda:
+  Link's Awakening DX HD".
   An annotation may also repeat a number the product carries ("Gears of War
   2 — Gears of War 2 port" for `GearsOfWar2`). So `Halo` never accounts for
   "Halo: 2", "Halo — 2" or "Halo, 2", `Doom` never for "Doom (2)" or "Doom:
@@ -4356,15 +4373,19 @@ shared-repository rule withholds them). The cost is stated: two ports of one gam
 different repositories collide too (`thps`), and such an identity waits for
 a person. Since generator 27 numbers compare by value (`numberTwinGroups`,
 `gateTwinGroups`): each listing's names are compared as they are, then with
-every number from 1 to 20 written as a roman numeral, then with every roman
-numeral written as digits, one group at a time, so `gow2` collides with
+every number written as a roman numeral, then with every roman numeral
+written as digits, one group at a time (since generator 28 for every value
+from 1 to 3999, read by a general roman parser both ways, so `gow21`
+collides with "God of War XXI"), so `gow2` collides with
 "God of War II", `sf3` for "Syphon Filter 3" with "Shining Force III" (and
 with a listing named "Street Fighter III"; the real "Street Fighter III: 3rd
 Strike" accepts neither `sf3` nor `sfiii`, its subtitle holding the number
 3), and `sfiii` with "Syphon Filter 3". The same holds for the cross-listing
 check below (`Lantern2` for "Lantern 2: Echoes" names a "Lantern II"
-listing). A lone `I` is no number, so `1` is read as `i` but not the
-reverse. A product that spells its own listing's or repository's name
+listing). A lone `I` and `1` stand for each other only where the `I` (or
+`1`) directly follows the product words of a title as the last word of that
+segment (`ff1` meets "Final Fantasy I"); elsewhere neither is twinned
+(generator 28). A product that spells its own listing's or repository's name
 exactly, or modulo descriptors, is not relieved and is not compared:
 `sfiii` for the repository `sfiii-native` of "Shining Force III" still
 enrolls. Author handles give no initials in the index either (D3).
@@ -4408,6 +4429,13 @@ hand-verified `cybermage` for "CyberMage: Darklight Re-Awakening" and
 listed identity to its findings, naming the dropped segment
 (`windows-x86-64: rampage.exe drops "total destruction"`) or the shared
 prefix (`… shares its words with two or more listings`).
+Since generator 28 an offered archive or accepted program name that drops a
+later title segment of the listing's name while equal to its repository or
+id name (modulo descriptors), and so is not relieved, is listed in
+`registration_queues.subtitle_dropped_by_repository_name` with the same
+findings (`windows-x86-64: Doom2.exe drops "total destruction"` for "Doom 2:
+Total Destruction" in the repository `doom2`): reporting only, enrollment is
+unchanged.
 `HalfLife` for "Half-Life: Blue Shift" is such a franchise-only partial name
 (the colon makes "Blue Shift" a later segment without a number); beside a
 "Half-Life: Opposing Force" listing in another repository it spells that
@@ -5113,6 +5141,9 @@ and the relieved identities by relief), `franchise_only_partial` (per
 enrolled identity, its findings: a partial name, or an initialism by its
 run's words, shared as a prefix by two or more listings, and every relieved
 archive, program or folder name that drops a later title segment, named),
+`subtitle_dropped_by_repository_name` (per enrolled identity, each archive
+or program name equal to the repository or id name that drops a later title
+segment of the listing's name, named),
 `unaccounted_tokens` (per closed-vocabulary
 reason, each unaccounted token with the number of identities it withholds and
 those identities, most frequent first: the evidence a person reads before a
@@ -5205,7 +5236,11 @@ linking words; generator 27: spelled and four-digit numbers in a later
 title segment as sequel numbers, every dropped title segment in the
 `franchise_only_partial` queue, numbers compared by value in uniqueness and
 the cross-listing check, no initial from an author handle, and relieved
-folder names unique; generator 22 and parser 23: the
+folder names unique; generator 28: every digit run (dotted too), roman
+numeral of any size and spelled number beyond twenty in a later title
+segment as sequel numbers, numbers compared by value from 1 to 3999 with
+`1` and a lone `I` only after a title's product words, and the
+`subtitle_dropped_by_repository_name` queue; generator 22 and parser 23: the
 ordered archive grammar, folder numbers by the same grammar, relief only for
 recognised forms and the listing's own names, a `.wad` as a competing
 container, `release` before a status word's number, and the

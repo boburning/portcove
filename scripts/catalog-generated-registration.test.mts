@@ -82,6 +82,11 @@ import {
   numberTwinGroups,
   spelledNumberWords,
   gateSpelledNumbers,
+  spelledNumber,
+  romanValue,
+  romanOf,
+  laterRomanNumber,
+  subtitleDroppedByName,
   nameInitialisms,
   reliefSpelling,
   dropsLinkedNumber,
@@ -10121,10 +10126,14 @@ void test("generator 27: numbers compare by value in the uniqueness index and th
   ]);
   const plain = nameForm("Lantern");
   assert.equal(numberTwin(plain, "roman"), plain);
+  // Generator 28 (F5): no bound of 20; a lone `1` stays as it is but as the
+  // last word of a title segment right after the product words.
   assert.deepEqual(
     numberTwin(nameForm("Lantern 21"), "roman").map((word) => word.word),
-    ["lantern", "21"],
+    ["lantern", "xxi"],
   );
+  const lantern1 = nameForm("Lantern 1 Night");
+  assert.equal(numberTwin(lantern1, "roman"), lantern1);
 });
 
 void test("random catalogs with numbers written both ways: a relieved literal is never accepted when a listing in another repository accepts its roman or digit twin (D2 property)", () => {
@@ -10454,4 +10463,415 @@ void test("forced enrollments over random names and catalogs: the gate never acc
   assert.ok(enrolled > 30 && withheld > 100, `${enrolled} enrolled, ${withheld} withheld`);
   for (const reason of ["name-not-unique-in-catalog", "archive-name-unaccounted"])
     assert.ok(reasons.has(reason), `${reason} among ${[...reasons].join(", ")}`);
+});
+
+// ---------------------------------------------------------------------------
+// Generator 28: every number of a later title segment is a sequel number
+// (R1, F1), numbers compare by value without a bound (F5), and a dropped
+// subtitle of a name equal to the repository or id name is queued (F3).
+
+/** The rows of R1 and F1: a relieved name that drops a numbered subtitle. */
+const generator28Withheld: [string, string][] = [
+  ["Kingdom Hearts: 2.8", "KingdomHearts"],
+  ["Halo: 2.5", "Halo"],
+  ["Halo: 1.5", "Halo"],
+  ["Halo: 3.0", "Halo"],
+  ["Halo: 2.0", "Halo"],
+  ["Halo: Version 2.0", "Halo"],
+  ["Halo: Episode 2.5", "Halo"],
+  ["Halo: Chapter 1.5", "Halo"],
+  ["Halo Wars: 2.5", "HaloWars"],
+  ["Halo Wars: XXI", "HaloWars"],
+  ["Halo: XXI", "Halo"],
+  ["Halo: XL", "Halo"],
+  ["Halo: XXV", "Halo"],
+  ["Halo: XXXIII", "Halo"],
+  ["Halo: MMXX", "Halo"],
+  ["Halo: V", "Halo"],
+  ["Halo: X", "Halo"],
+  // F1: spelled numbers beyond twenty, joined or hyphenated.
+  ["Halo: Thirty", "Halo"],
+  ["Halo: Ninety Nights", "Halo"],
+  ["Halo: Hundred", "Halo"],
+  ["Halo: Thousand Suns", "Halo"],
+  ["Halo: Thirtieth", "Halo"],
+  ["Halo: Twentyfirst", "Halo"],
+  ["Halo: Twenty-One", "Halo"],
+  ["Halo: Thirty-One", "Halo"],
+  ["Halo: Twentysecond", "Halo"],
+  ["Halo: TwentyFirst Century", "Halo"],
+  ["Halo: Ninetynine", "Halo"],
+  ["Halo: Onehundred", "Halo"],
+];
+
+void test("generator 28: a later title segment holding a dotted, roman or spelled number of any size is never omitted, in fit and gate, archive and program (R1, F1)", () => {
+  for (const [name, product] of generator28Withheld) {
+    const fit = reliefAccount(name, "zzrepo", `${product}-1.0-win64.zip`);
+    assert.ok("unaccounted" in fit, `${product} for ${name}: ${JSON.stringify(fit)}`);
+    const forms = reliefForms(
+      reliefRecord("r1", name, "zz-r1-port").listing,
+      "fixture-owner/zz-r1-port",
+      "",
+    );
+    const path = `${product.toLowerCase()}.exe`;
+    assert.notEqual(
+      programNameUnaccounted(path, new Set(), new Set(), false, forms),
+      null,
+      `${path} for ${name}`,
+    );
+    assert.equal(gateProgramAccounted(path, [], [], false, forms), false, `gate ${path} ${name}`);
+  }
+  // Still enrolling: a lone `I`, `zero`, a platform's number, an annotation's
+  // number, and a literal that keeps the segment.
+  const enrolled: [string, string, string[]][] = [
+    ["Halo: I", "Halo-1.0-win64.zip", ["partial-name"]],
+    ["Halo: Zero Hour", "Halo-1.0-win64.zip", ["partial-name"]],
+    ["Crackdown: Xbox 360", "Crackdown-1.0-win64.zip", ["partial-name"]],
+    ["Halo (2.5)", "Halo-1.0-win64.zip", ["partial-name"]],
+    ["Halo — Port XXI (someone)", "Halo-1.0-win64.zip", ["partial-name"]],
+    ["Halo: XXI", "HaloXXI-1.0-win64.zip", []],
+    ["Halo: Thirty", "HaloThirty-1.0-win64.zip", []],
+  ];
+  for (const [name, archive, reliefs] of enrolled) {
+    const fit = reliefAccount(name, "zzrepo", archive);
+    assert.ok("product" in fit, `${archive} for ${name}: ${JSON.stringify(fit)}`);
+    assert.deepEqual(fit.reliefs, reliefs, archive);
+  }
+  assert.deepEqual(gateSpelledNumbers, [...spelledNumberWords]);
+  for (const word of ["thirty", "ninety", "hundred", "thousand", "twentyfirst", "ninetynine"])
+    assert.ok(spelledNumber(word), word);
+  for (const word of ["zero", "thirtyzero", "hundredone", "twenties"])
+    assert.ok(!spelledNumber(word), word);
+  const sequels = (name: string) =>
+    nameForm(name)
+      .filter((word) => word.sequel)
+      .map((word) => word.word);
+  assert.deepEqual(sequels("Halo: Version 2.0"), ["2", "0"]);
+  assert.deepEqual(sequels("Halo: MMXX"), ["mmxx"]);
+  assert.deepEqual(sequels("Halo: I"), []);
+  assert.deepEqual(sequels("Crackdown: Xbox 360"), []);
+  // The first segment keeps its dotted-version reading.
+  assert.deepEqual(sequels("Lantern 0.1"), []);
+});
+
+void test("generator 28: roman numerals read by value without a bound, both ways (F5)", () => {
+  const values: [string, number | null][] = [
+    ["i", 1],
+    ["iv", 4],
+    ["xx", 20],
+    ["xxi", 21],
+    ["xl", 40],
+    ["mcmxlii", 1942],
+    ["mmxx", 2020],
+    ["mmmmx", 4010],
+    ["iiii", null],
+    ["vx", null],
+    ["il", null],
+    ["mix", 1009],
+    ["mid", null],
+    ["", null],
+  ];
+  for (const [word, value] of values) assert.equal(romanValue(word), value, word);
+  for (let value = 1; value <= 3999; value++) assert.equal(romanValue(romanOf(value)), value);
+  assert.ok(laterRomanNumber("v") && laterRomanNumber("x") && laterRomanNumber("xxxiii"));
+  assert.ok(!laterRomanNumber("i") && !laterRomanNumber("l") && !laterRomanNumber("halo"));
+});
+
+void test("generator 28: numbers compare by value without a bound, and `1` meets a lone `I` only right after a title's product words, in fit and gate (F5)", () => {
+  const other = (id: string, name: string, repository: string) =>
+    listing(id, {
+      name,
+      original_game_title: name,
+      project_url: `https://github.com/fixture-owner/${repository}`,
+    });
+  const godOfWarXXI = other("zz-god-of-war-xxi", "God of War XXI", "god-of-war-xxi-port");
+  const godOfWar21 = other("zz-god-of-war-21", "God of War 21", "god-of-war-21-port");
+  const finalFantasyI = other("zz-final-fantasy-i", "Final Fantasy I", "final-fantasy-i-port");
+  const finalFantasy1 = other("zz-final-fantasy-1", "Final Fantasy 1", "final-fantasy-1-port");
+  const lanternXL = other("zz-lantern-xl", "Lantern XL", "lantern-xl-port");
+  const lanternOne = other("zz-lantern-1-night", "Lantern 1 Night", "lantern-1-night-port");
+  const rows: [string, string, string, AuthoredPort[], Record<string, string[]> | null][] = [
+    [
+      "Gears of War 21",
+      "gears-port",
+      "gow21-1.0-win64.zip",
+      [godOfWarXXI],
+      { notUnique: [godOfWarXXI.listing.id] },
+    ],
+    [
+      "Gears of War XXI",
+      "gears-port",
+      "gowxxi-1.0-win64.zip",
+      [godOfWar21],
+      { notUnique: [godOfWar21.listing.id] },
+    ],
+    [
+      "Fighting Force 1",
+      "fighting-port",
+      "ff1-1.0-win64.zip",
+      [finalFantasyI],
+      { notUnique: [finalFantasyI.listing.id] },
+    ],
+    [
+      "Fighting Force I",
+      "fighting-port",
+      "ffi-1.0-win64.zip",
+      [finalFantasy1],
+      { notUnique: [finalFantasy1.listing.id] },
+    ],
+    // The cross-listing check: 40 written the other way.
+    [
+      "Lantern 40: Echoes",
+      "lantern-port",
+      "Lantern40-1.0-win64.zip",
+      [lanternXL],
+      { anotherListing: [lanternXL.listing.id] },
+    ],
+    // A `1` that is not the last word of its segment is no `I`.
+    ["Lantern I Night", "lantern-i-port", "lin-1.0-win64.zip", [lanternOne], null],
+  ];
+  for (const [name, repository, archive, others, expected] of rows) {
+    const fit = reliefAccount(name, repository, archive, others);
+    if (expected === null)
+      assert.ok("product" in fit, `${archive} for ${name}: ${JSON.stringify(fit)}`);
+    else assert.deepEqual(fit, expected, `${archive} for ${name}`);
+  }
+  const catalog = [godOfWarXXI, finalFantasyI, lanternOne].map(
+    (record) => record.listing as Record<string, unknown>,
+  );
+  const collisions = (literal: string) => {
+    const fit = catalogNameCollisions(literal, digitRuns(literal), catalog, "zz-own", "x/own");
+    const gate = gateCollisions(literal, digitRuns(literal), catalog, "zz-own", "x/own", null);
+    assert.deepEqual(fit, gate, `fit and gate agree on ${literal}`);
+    return fit;
+  };
+  assert.deepEqual(collisions("gow21"), [godOfWarXXI.listing.id]);
+  assert.deepEqual(collisions("ff1"), [finalFantasyI.listing.id]);
+  assert.deepEqual(collisions("l1n"), [lanternOne.listing.id]);
+  assert.deepEqual(collisions("lin"), []);
+});
+
+void test("generator 28: a name equal to the repository or id name that drops a later title segment is queued for a hand check and still enrolls (F3)", () => {
+  assert.deepEqual(subtitleDroppedByName("halo2", { name: "Halo 2: Chapter Two" }), [
+    "chapter two",
+  ]);
+  // The name's own rules refuse every spelling: the segments after the run.
+  assert.deepEqual(subtitleDroppedByName("halo", { name: "Halo: 2.5" }), ["2 5"]);
+  assert.deepEqual(subtitleDroppedByName("halochaptertwo", { name: "Halo: Chapter Two" }), []);
+  assert.deepEqual(subtitleDroppedByName("lantern", { name: "Lantern (2048)" }), []);
+  const cases: [string, string, string, string, string[], string[]][] = [
+    // A repository named for the franchise and a number.
+    [
+      "Doom 2: Total Destruction",
+      "doom2",
+      "Doom2-1.0-win64.zip",
+      "Doom2.exe",
+      [],
+      [
+        'windows-x86-64: Doom2-1.0-win64.zip drops "total destruction"',
+        'windows-x86-64: Doom2.exe drops "total destruction"',
+      ],
+    ],
+    // A sequel subtitle the listing name never lets go is withheld by the
+    // base rules even through the repository name (`missing:2`,
+    // `missing:thirty`), so it never reaches this queue.
+    // A relieved name is D1's, never listed twice.
+    [
+      "Lantern: Total Destruction — LanternRE (someone)",
+      "LanternRE",
+      "LanternRE-1.0-win64.zip",
+      "Lantern.exe",
+      ['windows-x86-64: Lantern.exe drops "total destruction"'],
+      [],
+    ],
+    // A name equal to the listing's is not queued.
+    ["Doom 2", "doom2", "Doom2-1.0-win64.zip", "Doom2.exe", [], []],
+  ];
+  const records: AuthoredPort[] = [];
+  const entries: ListingFactsEntry[] = [];
+  cases.forEach(([name, repository, archive, program, franchise, queued], at) => {
+    const { decision, gate, record, facts } = reliefDecision(
+      `f3-${at}`,
+      name,
+      repository,
+      archive,
+      [program],
+    );
+    assert.ok(decision.fit, `${archive} for ${name}: ${JSON.stringify(decision)}`);
+    assert.equal(gate, "accepted", `gate ${archive} for ${name}`);
+    assert.deepEqual(decision.franchise_only_partial, franchise, `${archive} for ${name}`);
+    assert.deepEqual(decision.subtitle_dropped_by_repository_name, queued, `${archive} ${name}`);
+    // The route report, beside a listing it does not queue (one per repository).
+    if (at < 2) {
+      records.push(record);
+      entries.push(facts);
+    }
+  });
+  const queues = registrationQueues(generateRegistrations(records, table(...entries)));
+  assert.deepEqual(queues.subtitle_dropped_by_repository_name, {
+    "zz-relief-f3-0": cases[0]![5],
+  });
+});
+
+void test("random titles: no relieved name whose omitted segment holds a dotted number, a roman numeral of any size or a spelled number beyond twenty enrolls, in fit and gate (R1/F1 property)", () => {
+  let seed = 8_569_028;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "night", "blade", "orbit"];
+  const tens = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+  const units = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+  const ordinals = ["first", "second", "third", "fourth", "fifth", "ninth"];
+  const roman = () => {
+    let value = 2 + Math.floor(random() * 3998);
+    if (random() < 0.5) value = 2 + Math.floor(random() * 60);
+    let text = romanOf(value);
+    // A lone `L`, `C`, `D` or `M` is a word, not a number: one more `I`.
+    if (text.length === 1 && text !== "v" && text !== "x") text += "i";
+    return random() < 0.5 ? text.toUpperCase() : text;
+  };
+  const numbers = [
+    () => String(1 + Math.floor(random() * 99)),
+    () => `${Math.floor(random() * 10)}.${Math.floor(random() * 10)}`,
+    () =>
+      `${1 + Math.floor(random() * 9)}.${Math.floor(random() * 10)}.${Math.floor(random() * 10)}`,
+    roman,
+    () => pick(["V", "X", "v", "x"]),
+    () => pick(spelledNumberWords),
+    () => `${pick(tens)}-${pick([...units, ...ordinals])}`,
+    () => `${pick(tens)}${pick([...units, ...ordinals])}`,
+    () => `${pick(units)}${pick(["hundred", "thousand"])}`,
+  ];
+  let checked = 0;
+  for (let round = 0; round < 1500; round++) {
+    const head = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ];
+    const subtitle = [
+      ...new Set(Array.from({ length: Math.floor(random() * 3) }, () => pick(vocabulary))),
+    ];
+    const number = pick(numbers)();
+    subtitle.splice(Math.floor(random() * (subtitle.length + 1)), 0, number);
+    const title = `${head.join(" ")}: ${subtitle.join(" ")}${pick(["", " — Port (someone)", " (Recomp)"])}`;
+    const product = head.map((word) => word[0]!.toUpperCase() + word.slice(1)).join("");
+    const archive = `${product}-${pick(["1.0", "v2.1"])}-win64.zip`;
+    const record = reliefRecord("q", title, "zz-q-port");
+    const fit = archiveNameAccount(archive, record.listing, "fixture-owner/zz-q-port");
+    const gate = gateArchiveAccount(archive, record.listing, "fixture-owner/zz-q-port");
+    assert.equal("product" in fit ? fit.product : null, gate, `parity ${archive} for ${title}`);
+    assert.ok(!("product" in fit), `${archive} must withhold for ${title}`);
+    const forms = reliefForms(record.listing, "fixture-owner/zz-q-port", "");
+    const path = `${product.toLowerCase()}.exe`;
+    assert.notEqual(programNameUnaccounted(path, new Set(), new Set(), false, forms), null, path);
+    assert.equal(gateProgramAccounted(path, [], [], false, forms), false, `gate ${path}`);
+    checked++;
+  }
+  assert.ok(checked >= 1500, `${checked} titles`);
+});
+
+void test("forced enrollments over random names and catalogs with numbered subtitles and large numbers: the gate never accepts what the fit withholds, nor withholds what it accepts (generator 28 parity)", () => {
+  let seed = 8_569_288;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const heads: [string, string[]][] = [
+    ["Lantern", ["Lantern.exe", "LanternTwo.exe"]],
+    ["Spider Man 2", ["SpiderMan2.exe", "SpiderMan.exe"]],
+    ["Star Wars", ["StarWars.exe", "StarWarsBattlefront.exe"]],
+    ["Doom", ["Doom.exe", "Doom2.exe"]],
+    ["Crackdown", ["Crackdown.exe", "CrackdownRecompiled.exe"]],
+  ];
+  const subtitles = [
+    "",
+    ": 2.5",
+    ": Version 2.0",
+    ": XXI",
+    ": MMXX",
+    ": XL",
+    ": V",
+    ": I",
+    ": Thirty",
+    ": Twenty-One",
+    ": Twentyfirst",
+    ": Zero Hour",
+    ": Xbox 360",
+    " 21",
+    " XXI",
+    " I",
+    " 1",
+    " (2.5)",
+    ": Total Destruction",
+  ];
+  const pool = [
+    ["zz-h-lantern-xxi", "Lantern XXI"],
+    ["zz-h-lantern-21-echoes", "Lantern 21: Echoes"],
+    ["zz-h-lantern-i", "Lantern I"],
+    ["zz-h-doom-1", "Doom 1"],
+    ["zz-h-spider-man-ii", "Spider Man II"],
+    ["zz-h-star-wars-mmxx", "Star Wars: MMXX"],
+    ["zz-h-crackdown-40", "Crackdown 40"],
+    ["zz-h-doom-xl", "Doom XL"],
+  ].map(([id, name]) =>
+    listing(id, {
+      name,
+      original_game_title: name,
+      project_url: `https://github.com/fixture-owner/${id}-port`,
+    }),
+  );
+  const camel = (text: string) =>
+    text
+      .split(/[^A-Za-z0-9]+/u)
+      .filter(Boolean)
+      .map((word) => word[0]!.toUpperCase() + word.slice(1))
+      .join("");
+  const initials = (text: string) =>
+    text
+      .split(/[^A-Za-z0-9]+/u)
+      .filter(Boolean)
+      .map((word) => (/^[0-9]+$/u.test(word) ? word : word[0]!.toLowerCase()))
+      .join("");
+  let enrolled = 0;
+  let withheld = 0;
+  for (let round = 0; round < 500; round++) {
+    const [head, programs] = pick(heads);
+    const name = `${head}${pick(subtitles)}`;
+    const slug = head.toLowerCase().replace(/[^a-z0-9]+/gu, "-");
+    const repository = pick([`${slug}-port`, `fixture-${slug}`, `${slug}-recomp`]);
+    const product = pick([
+      camel(head),
+      initials(head),
+      camel(name),
+      `${camel(head)}-Recomp`,
+      `${camel(head)}21`,
+      `${camel(head)}XXI`,
+      `${initials(head)}1`,
+    ]);
+    const archive = `${product}-${pick(["1.0", "v2.1"])}-win64.zip`;
+    const program = pick(programs);
+    const folder = pick(["", `${initials(head)}/`, `${camel(head)}/`, "bin/"]);
+    const { decision, gate } = reliefDecision(
+      `h${round}`,
+      name,
+      repository,
+      archive,
+      [`${folder}${program}`],
+      { others: pool.filter(() => random() < 0.3) },
+    );
+    if (decision.fit) {
+      assert.equal(gate, "accepted", `${archive} ${folder}${program} for ${name}: ${gate}`);
+      enrolled++;
+    } else {
+      assert.notEqual(
+        gate,
+        "accepted",
+        `${archive} ${folder}${program} for ${name}: ${decision.reason}`,
+      );
+      withheld++;
+    }
+  }
+  assert.ok(enrolled > 20 && withheld > 100, `${enrolled} enrolled, ${withheld} withheld`);
 });
