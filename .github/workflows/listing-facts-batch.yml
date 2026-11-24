@@ -361,9 +361,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
         with:
-          # The observer checkpoint is read against the catalog at the
-          # observer run's own source commit, an earlier main commit.
-          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         timeout-minutes: 5

@@ -1831,6 +1831,15 @@ void test("a carried entry's receipts are reused only for its repository id and 
   const reused = await again([{ since, entry }]);
   assert.deepEqual(reused.reads, []);
   assert.deepEqual(reused.entry!.artifacts, entry.artifacts);
+  // A sharded run carries the queue through its plan to the combined state,
+  // which the job's carry step then rewrites.
+  const plan = await derive(records, report, undefined, {
+    inspect,
+    plan: true,
+    state: { format: 3, pending: [], retry: [], carried: [{ since, entry }] },
+  });
+  assert.deepEqual(plan.state.carried, [{ since, entry }]);
+  assert.deepEqual(combineShards(plan, []).state.carried, [{ since, entry }]);
   // Another repository id, another parser version or a malformed item: read again.
   assert.deepEqual((await again([{ since, entry: { ...entry, repository_id: 9 } }])).reads, [
     windowsZip,

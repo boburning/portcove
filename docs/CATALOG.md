@@ -5669,9 +5669,10 @@ Each run, in one concurrency group (`listing-facts-batch`):
    entry, or stays absent when new, and is saved in the worker state's
    `carried` queue with the time it was first carried and the entry it
    derived. The next deriving run restores the queue, reuses each queued
-   entry's inspection receipts (its artifacts and refusals per asset id and
-   SHA-256, for the same repository id and facts parser version), so an
-   unchanged release is not downloaded again, and lands the longest-waiting
+   entry's inspection receipts (its artifacts per asset id and SHA-256, for
+   the same repository id and facts parser version; never its refusals, since
+   an ineligible verdict lands without reproduction), so an unchanged release
+   is not downloaded again, and lands the longest-waiting
    entries first, then the rest in `port_id` order. An identity late in the
    alphabet is never starved by newer ones: every queued entry lands within
    its queue position divided by one batch's entries. A receipt grants
@@ -5699,28 +5700,36 @@ maintenance inventory and the listing delivery (`readUpstreamObservations`:
 the newest completed schedule or push `main` run of the last 24 hours that
 retains one, each producer event in its own window). The job keeps no copy
 of observer state. `scripts/listing-facts-observations.mts` projects every
-source that has completed to its last complete listing observation, still
-bound to the current listing and catalog (`completedListingCandidates`, the
-listing delivery's own rule), so a source observed in any earlier observer
-run reaches the worker. When a source's latest attempt ended for an upstream
-reason (the checkpoint's stated coverage: `failed`, `unavailable` or a
-provider-truncated `partial`), its listing carries that status, so the worker
-keeps the last-good facts within `lastGoodRetentionDays` rather than
-reconfirming them. The observer's own budget, cancellation and quota stops
-(`partialProgressRules`) keep the complete observation. A listing whose
-source never completed, or whose declaration changed since, stays
-unobserved. The `prepare` job checks out full history, because the snapshot
-is read against the catalog at the observer run's source commit, and records
-the snapshot's revision as the run's `observer_run_id`. If no run of the last
-24 hours retains a snapshot, the run fails and the next scheduled run tries
-again.
+source that has completed to the last complete listing observation of each
+port it serves, so a source observed in any earlier observer run reaches the
+worker. An observation is kept while the current listing still names the
+observed repository; a re-pointed listing is never rebound. The binding is
+the repository, not the listing's whole declaration (the listing delivery's
+rule): the worker reads only the repository's releases and assets, and a
+landed batch rewrites the generated parts of the declarations it enrolls, so
+a declaration binding would hide each newly enrolled identity until the
+observer next completed its source, and the next run would stop with
+`observer-coverage-dropped`. When a source's latest attempt ended for a
+reason that is not the observer's own progress (the checkpoint's stated
+coverage: `failed`, `unavailable`, including a rate limit or transport
+failure, or a `partial` such as a truncated page), its listing carries that
+status, so the worker keeps the last-good facts within
+`lastGoodRetentionDays` rather than reconfirming them. The observer's own
+budget, cancellation and quota stops (`partialProgressRules`) and a
+collection that changed under it (`concurrent-change`) keep the complete
+observation. A listing whose source never completed stays unobserved. The
+snapshot is read against the catalog at the observer run's source commit,
+which the job fetches on demand into its shallow checkout (the repository is
+public), and the snapshot's revision is recorded as the run's
+`observer_run_id`. If no run of the last 24 hours retains a snapshot, the
+run fails and the next scheduled run tries again.
 
 On 2026-11-24 the newest handoff (observer run 45397908546) held 73 of the
 1,146 listing-only identities; that run's checkpoint held completed
-observations for 1,116 of them (1,093 complete, 20 the observer itself
-recorded incomplete and 3 with a stated upstream failure on the latest
-attempt). The earlier dry run 45213427510 read only the
-handoff of observer run 45202674950: 80 of 1,146.
+observations for 1,125 of them (1,095 complete, 20 the observer itself
+recorded incomplete and 10 whose latest attempt failed upstream). The
+earlier dry run 45213427510 read only the handoff of observer run
+45202674950: 80 of 1,146.
 
 ###### State and cursor
 

@@ -6,7 +6,7 @@
 // holds only that slice. Its durable record of every source is its catalog
 // checkpoint, retained as the `upstream-observer-checkpoint-*` snapshot and
 // already read by the maintenance inventory and the listing delivery
-// (`readUpstreamObservations`, `completedListingCandidates`). The job reads
+// (`readUpstreamObservations`). The job reads
 // the same snapshot, so a source observed in any earlier observer run reaches
 // the facts worker; nothing here keeps a second copy of observer state.
 //
@@ -19,59 +19,81 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
-  catalogObservationSources,
   partialProgressRules,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
-import { completedListingCandidates } from "./listing-observation-delivery.mts";
+import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { readUpstreamObservations, type UpstreamInput } from "./maintenance-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /**
+ * Stated coverage that is the observer's own progress, not a statement about
+ * upstream: its budget, cancellation and quota stops (`partialProgressRules`)
+ * and a collection that changed under it (`concurrent-change`).
+ */
+const observerSideRules: readonly string[] = [...partialProgressRules, "concurrent-change"];
+
+/**
  * The listing observations the observer has accumulated, as the facts
  * worker's report `{ listings }`: for every source that has ever completed,
- * its last complete listing observation, still bound to the current
- * canonical listing and catalog (`completedListingCandidates`, the listing
- * delivery's own rule). A source whose latest attempt ended for an upstream
- * reason (the checkpoint's stated `coverage`: failed, unavailable or a
- * provider-truncated partial) carries that status, so the worker keeps its
- * last-good facts within its retention bound instead of reconfirming them.
- * The observer's own partial progress (budget, cancellation, quota:
- * `partialProgressRules`) is not a statement about upstream and keeps the
- * complete observation. `gaps` names sources with no applicable completed
- * observation; their listings stay unobserved, as before.
+ * the last complete listing observation of each port it serves, kept while
+ * the current listing still names the observed repository. The binding is
+ * the repository, not the listing's whole declaration: the facts worker
+ * reads only the observed repository's releases and assets, and a landed
+ * batch rewrites the generated parts of the declarations it enrolls, which
+ * must not hide them from the next run (`observer-coverage-dropped`).
+ * A source whose latest attempt ended for an upstream reason (the
+ * checkpoint's stated `coverage`, other than `observerSideRules`) carries
+ * that status, so the worker keeps its last-good facts within its retention
+ * bound instead of reconfirming them. `gaps` names sources that never
+ * completed; their listings stay unobserved.
  */
 export function accumulatedObservations(
   input: UpstreamInput,
-  current: unknown,
   canonical: unknown,
   now = Date.now(),
 ) {
-  const gaps: string[] = [];
-  const candidates = completedListingCandidates(input, current, canonical, now, gaps);
   const checkpoint = validateCatalogObserverCheckpoint(input.checkpoint, now);
-  const stated = new Map<string, string>();
-  for (const source of catalogObservationSources(input.catalog).sources) {
-    const coverage = checkpoint.sources[source.key]?.coverage;
-    if (!coverage || partialProgressRules.includes(coverage.rule)) continue;
-    for (const port of source.ports) if (!stated.has(port.id)) stated.set(port.id, coverage.kind);
+  const listed = new Map<string, string>();
+  for (const listing of isRecord(canonical) && Array.isArray(canonical.listings)
+    ? canonical.listings
+    : []) {
+    if (!isRecord(listing) || typeof listing.id !== "string") continue;
+    const identity = listingProviderIdentity(listing);
+    if (identity?.provider === "github") listed.set(listing.id, identity.repository.toLowerCase());
   }
-  const listings: { id: string; upstream_observation: Record<string, unknown> }[] = [];
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    const id = candidate.id;
-    if (typeof id !== "string" || seen.has(id) || !isRecord(candidate.upstream_observation))
+  const gaps: string[] = [];
+  const found = new Map<string, Record<string, unknown>>();
+  for (const key of Object.keys(checkpoint.sources).toSorted()) {
+    const progress = checkpoint.sources[key]!;
+    if (!progress.completed_scope_sha256) {
+      gaps.push(`${progress.repository}: no completed observer scope`);
       continue;
-    seen.add(id);
-    const status = stated.get(id);
-    listings.push({
-      id,
-      upstream_observation: status
-        ? { ...candidate.upstream_observation, status }
-        : candidate.upstream_observation,
-    });
+    }
+    const coverage = progress.coverage;
+    const status =
+      coverage && !observerSideRules.includes(coverage.rule) ? coverage.kind : undefined;
+    const byPort = new Map<string, Record<string, unknown>[]>();
+    for (const policy of progress.last_complete_policies)
+      if (typeof policy.port_id === "string")
+        byPort.set(policy.port_id, [...(byPort.get(policy.port_id) ?? []), policy]);
+    for (const [id, policies] of byPort) {
+      const update = policies.length === 1 ? policies[0]!.listing_update : undefined;
+      const observation = isRecord(update) ? update.upstream_observation : undefined;
+      if (
+        found.has(id) ||
+        !isRecord(observation) ||
+        observation.provider !== "github" ||
+        typeof observation.repository !== "string" ||
+        listed.get(id) !== observation.repository.toLowerCase()
+      )
+        continue;
+      found.set(id, status ? { ...observation, status } : observation);
+    }
   }
-  listings.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+  const listings = [...found]
+    .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([id, upstream_observation]) => ({ id, upstream_observation }));
   return { listings, gaps };
 }
 
@@ -80,19 +102,23 @@ async function main(argv: string[]) {
   if (!values.output) throw new Error("Usage: listing-facts-observations.mts --output FILE");
   const root = fileURLToPath(new URL("../", import.meta.url));
   const catalogDirectory = path.join(root, "crates/portcove-core/catalog");
-  const input = await readUpstreamObservations((revision, file) =>
-    execFileSync("git", ["show", `${revision}:${file}`], {
-      cwd: root,
-      maxBuffer: 64 * 1024 * 1024,
-      timeout: 15_000,
-    }),
-  );
-  const read = (name: string): unknown =>
-    JSON.parse(readFileSync(path.join(catalogDirectory, name), "utf8"));
+  // The snapshot is read against the catalog at the observer run's own
+  // commit, an earlier (or, after a push since checkout, later) main commit:
+  // fetch it on demand into the shallow checkout.
+  const git = (args: string[]) =>
+    execFileSync("git", args, { cwd: root, maxBuffer: 64 * 1024 * 1024, timeout: 60_000 });
+  const input = await readUpstreamObservations((revision, file) => {
+    if (!/^[0-9a-f]{40}$/u.test(revision)) throw new Error(`Not a commit id: ${revision}`);
+    try {
+      git(["cat-file", "-e", `${revision}^{commit}`]);
+    } catch {
+      git(["fetch", "--quiet", "--no-tags", "--depth=1", "origin", revision]);
+    }
+    return git(["show", `${revision}:${file}`]);
+  });
   const { listings, gaps } = accumulatedObservations(
     input,
-    read("catalog.json"),
-    read("listings.json"),
+    JSON.parse(readFileSync(path.join(catalogDirectory, "listings.json"), "utf8")),
   );
   writeFileSync(values.output, `${JSON.stringify({ listings })}\n`);
   if (process.env.GITHUB_OUTPUT)

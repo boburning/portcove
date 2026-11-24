@@ -153,10 +153,10 @@ export interface WorkerState {
    * (`scripts/listing-facts-batch.mts` `carryOver`), oldest wait first. Each
    * keeps when it was first carried (`since`, so a later batch lands the
    * longest-waiting entries first) and the entry it derived, whose artifacts
-   * and refusals are inspection receipts per digest-bound archive: reused
-   * like a committed entry's (`reusable`) while the repository id and the
-   * parser version still match, so an unchanged release is not downloaded
-   * again.
+   * are inspection receipts per digest-bound archive: reused like a committed
+   * entry's (`reusable`) while the repository id and the parser version still
+   * match, so an unchanged release is not downloaded again. Its refusals are
+   * not reused: an ineligible verdict lands without reproduction.
    * A receipt grants nothing: a carried entry is reproduced from its bytes
    * when its batch lands, like any other. Absent when nothing is carried.
    */
@@ -1495,8 +1495,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         .flatMap((entry) => entry?.artifacts ?? [])
         .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
+    // A carried refusal is not reused: an ineligible verdict needs no
+    // reproduction, so only a committed (reproduced) refusal may stand for
+    // bytes not read again.
     const reusableRefusals = new Map(
-      [prior, receipted]
+      [prior]
         .flatMap((entry) => entry?.refused_archives ?? [])
         .map((archive) => [`${archive.asset_id}/${archive.sha256}`, archive.refusal] as const),
     );

@@ -2093,6 +2093,7 @@ void test("the job reads every listing the observer has accumulated, not only th
   const newest = listingFor(fixtureListing.id, "owner/game");
   const failing = listingFor("failing-port", "owner/failing");
   const budget = listingFor("budget-port", "owner/budget");
+  const changing = listingFor("changing-port", "owner/changing");
   const base = fixturePolicy();
   const policyFor = (listing: typeof older, repositoryId: number) => ({
     ...base,
@@ -2120,10 +2121,11 @@ void test("the job reads every listing the observer has accumulated, not only th
     ] as const;
   };
   // Observer run 1 completed `owner/older`; run 2 (the newest) completed
-  // `owner/game`, failed `owner/failing` upstream and ran out of its own
-  // budget on `owner/budget`. The newest run's handoff holds only run 2's
-  // sources; the checkpoint run 2 retained holds every completed source.
-  const newestHandoff = [newest.id, failing.id, budget.id];
+  // `owner/game`, failed `owner/failing` upstream, ran out of its own budget
+  // on `owner/budget` and saw `owner/changing` change under it. The newest
+  // run's handoff holds only run 2's sources; the checkpoint run 2 retained
+  // holds every completed source.
+  const newestHandoff = [newest.id, failing.id, budget.id, changing.id];
   const input = {
     revision: "upstream-observer-run:2-1@fixture",
     config_sha256: "a".repeat(64),
@@ -2141,17 +2143,38 @@ void test("the job reads every listing the observer has accumulated, not only th
           exception_rule: "budget",
           coverage: { kind: "partial", rule: "budget", next_cursor: null },
         }),
+        source(changing, 46, {
+          exception_key: "e".repeat(64),
+          exception_rule: "concurrent-change",
+          coverage: { kind: "partial", rule: "concurrent-change", next_cursor: null },
+        }),
+        // A source that never completed has nothing to offer.
+        [
+          keyOf("owner/never"),
+          progress("owner/never", [], { completed_scope_sha256: null, last_complete_policies: [] }),
+        ],
       ]),
     ),
-    catalog: { ports: [], listings: [older, newest, failing, budget] },
+    catalog: { ports: [], listings: [older, newest, failing, budget, changing] },
   };
-  const canonical = { format_version: 11, listings: [older, newest, failing, budget] };
-  const { listings, gaps } = accumulatedObservations(input, { ports: [] }, canonical);
+  // Since the observation, a landed batch enrolled `older-run-port`: its
+  // generated declaration gained setup steps. It names the same repository,
+  // so it stays observed and its coverage never reads as dropped
+  // (`observer-coverage-dropped`).
+  const enrolled = {
+    ...older,
+    manual_setup: { steps: [{ title: "Select the game program", instruction: "Generated." }] },
+  };
+  const current = [enrolled, newest, failing, budget, changing];
+  const { listings, gaps } = accumulatedObservations(input, {
+    format_version: 11,
+    listings: current,
+  });
   // The identity only an older observer run saw reaches the worker.
   assert.ok(!newestHandoff.includes(older.id));
   assert.deepEqual(
     listings.map((listing) => listing.id),
-    [budget.id, failing.id, newest.id, older.id],
+    [budget.id, changing.id, failing.id, newest.id, older.id],
   );
   const status = (id: string) =>
     listings.find((listing) => listing.id === id)!.upstream_observation.status;
@@ -2163,24 +2186,19 @@ void test("the job reads every listing the observer has accumulated, not only th
   // An upstream failure on the latest attempt keeps last-good facts in the
   // worker (its retention bound), never reconfirms them.
   assert.equal(status(failing.id), "failed");
-  // The observer's own budget stop says nothing about upstream.
+  // The observer's own budget stop, or a collection that changed under it,
+  // says nothing about upstream.
   assert.equal(status(budget.id), "complete");
-  assert.deepEqual(
-    gaps.filter((gap) => !gap.includes("retained completed observation")),
-    [],
-  );
+  assert.equal(status(changing.id), "complete");
+  assert.deepEqual(gaps, ["owner/never: no completed observer scope"]);
   // A listing re-pointed since the observation stays unobserved, never rebound.
   const moved = { ...older, project_url: "https://github.com/someone/else" };
   assert.deepEqual(
-    accumulatedObservations(
-      input,
-      { ports: [] },
-      {
-        format_version: 11,
-        listings: [moved, newest, failing, budget],
-      },
-    ).listings.map((listing) => listing.id),
-    [budget.id, failing.id, newest.id],
+    accumulatedObservations(input, {
+      format_version: 11,
+      listings: [moved, newest, failing, budget, changing],
+    }).listings.map((listing) => listing.id),
+    [budget.id, changing.id, failing.id, newest.id],
   );
 });
 
