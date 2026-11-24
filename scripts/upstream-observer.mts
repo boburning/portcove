@@ -6,7 +6,7 @@ import type {
 } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { orderedJsonSha256 as observationHash } from "./json-values.mts";
-import { bodyExcerpt, releaseBodyReadWindow } from "./release-text.mts";
+import { bodyFirstLine } from "./release-text.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Existing observer metadata contracts retain exact received bytes through the SDK. */
@@ -619,24 +619,45 @@ export function releaseFact(release: unknown) {
  */
 export const releaseTextWindow = 4;
 /**
- * A release's own text as the facts keep it: its name (`title`), and of its
- * body only the part the generated-registration release-text rule reads
- * (`bodyExcerpt`: the body's first readable line within
- * `releaseBodyReadWindow` characters, as written; empty when there is
- * none), with `body_truncated` when that reading was cut. Null fields are
- * absent on the provider.
+ * The catalog checkpoint's byte bound (`catalogCheckpointByteLimit` in
+ * `catalog-upstream-observer.mts`, pinned equal by a test).
+ */
+export const catalogCheckpointBytes = 32 * 1024 * 1024;
+/**
+ * The source population the catalog checkpoint's capacity model holds (the
+ * fact-growth model test), which keeps half the bound as headroom.
+ */
+export const modeledCatalogSources = 1_295;
+/**
+ * The bytes of release text (titles and judged lines, as JSON) one source may
+ * keep: the half of the checkpoint the capacity model leaves as headroom,
+ * shared by every modeled source, for the two copies the checkpoint holds
+ * (the page facts and the listing projection). A bounded unit: a source over
+ * it keeps no text, and its releases read as unobserved
+ * (`overflow_bytes` records how much it had), never as stating nothing.
+ */
+export const releaseTextSourceBytes = Math.floor(
+  catalogCheckpointBytes / 2 / 2 / modeledCatalogSources,
+);
+/**
+ * A release's own text as the facts keep it: its name (`title`) and, of its
+ * body, only the line the generated-registration release-text rule judges
+ * (`bodyFirstLine`: null when the body holds no readable line or there is no
+ * body). `line_complete` is false only for a source over
+ * `releaseTextSourceBytes`, whose title and line are then null and
+ * `overflow_bytes` says how much text it had.
  */
 export interface ReleaseTextFact {
   title: string | null;
-  body: string | null;
-  body_truncated: boolean;
+  line: string | null;
+  line_complete: boolean;
+  overflow_bytes?: number;
 }
 /**
- * The release's own text from a provider release row (its name and body,
- * kept to `bodyExcerpt`), or undefined when the row states neither field
+ * The release's own text from a provider release row (its name and the
+ * body's judged line), or undefined when the row states neither field
  * (UNKNOWN, never empty text). A row the observer already projected
- * carries `text` and is returned as kept, after checking that it is one
- * bounded line.
+ * carries `text` and is returned as kept, after checking its shape.
  */
 export function releaseTextFact(release: Record<string, unknown>): ReleaseTextFact | undefined {
   if (Object.hasOwn(release, "text")) {
@@ -646,26 +667,41 @@ export function releaseTextFact(release: Record<string, unknown>): ReleaseTextFa
       "invalid-metadata",
       "release text is not a bounded projection",
     );
-    return { title: text.title, body: text.body, body_truncated: text.body_truncated };
+    return text.overflow_bytes === undefined
+      ? { title: text.title, line: text.line, line_complete: text.line_complete }
+      : { ...overflowText(text.overflow_bytes) };
   }
   if (!Object.hasOwn(release, "name") && !Object.hasOwn(release, "body")) return undefined;
-  const title = typeof release.name === "string" ? release.name : null;
-  if (typeof release.body !== "string") return { title, body: null, body_truncated: false };
-  const kept = bodyExcerpt(release.body);
-  return { title, body: kept.body, body_truncated: kept.truncated };
+  return {
+    title: typeof release.name === "string" ? release.name : null,
+    line: typeof release.body === "string" ? bodyFirstLine(release.body) : null,
+    line_complete: true,
+  };
 }
-/** A projected release text: one bounded line of body, truncated only when kept. */
+/** The text a source over `releaseTextSourceBytes` keeps: none, read as unobserved. */
+const overflowText = (bytes: number): ReleaseTextFact => ({
+  title: null,
+  line: null,
+  line_complete: false,
+  overflow_bytes: bytes,
+});
+/** A projected release text: a judged line or none, or a source's overflow. */
 function isReleaseTextFact(text: unknown): text is ReleaseTextFact {
+  if (!isRecord(text)) return false;
+  if (Object.hasOwn(text, "overflow_bytes"))
+    return (
+      Object.keys(text).length === 4 &&
+      text.title === null &&
+      text.line === null &&
+      text.line_complete === false &&
+      Number.isSafeInteger(text.overflow_bytes) &&
+      Number(text.overflow_bytes) > releaseTextSourceBytes
+    );
   return (
-    isRecord(text) &&
     Object.keys(text).length === 3 &&
     (text.title === null || typeof text.title === "string") &&
-    (text.body === null ||
-      (typeof text.body === "string" &&
-        text.body.length <= releaseBodyReadWindow &&
-        !text.body.includes("\n"))) &&
-    typeof text.body_truncated === "boolean" &&
-    (text.body !== null || text.body_truncated === false)
+    (text.line === null || (typeof text.line === "string" && !/[\r\n]/u.test(text.line))) &&
+    text.line_complete === true
   );
 }
 /**
@@ -697,22 +733,6 @@ function textWindowIds(
   );
 }
 /**
- * Release list rows with text kept only for the newest `releaseTextWindow`
- * non-draft releases among them (publication time, then id): applied to each
- * page and to the whole list alike, so a page keeps a superset of the list's
- * window and the facts derived from fresh and retained pages agree.
- */
-export function windowedReleaseText<
-  Row extends { id: number; draft: boolean; published_at: string | null; text?: ReleaseTextFact },
->(rows: readonly Row[]): Row[] {
-  const kept = textWindowIds(rows);
-  return rows.map((row) => {
-    if (kept.has(row.id) || !Object.hasOwn(row, "text")) return row;
-    const { text: _text, ...rest } = row;
-    return rest as Row;
-  });
-}
-/**
  * A release list's rows as facts (`releaseListFact`), reading release text
  * only for the rows inside the text window, so untrusted text outside it is
  * never parsed; with `text` false, no row keeps text.
@@ -723,9 +743,16 @@ export function releaseListFacts(
 ): (ReturnType<typeof releaseFact> & { text?: ReleaseTextFact })[] {
   const facts = rows.map((row) => releaseFact(row));
   const kept = text ? textWindowIds(facts) : new Set<number>();
-  return rows.map((row, index) =>
-    kept.has(facts[index]!.id) ? releaseListFact(row) : facts[index]!,
+  const listed: (ReturnType<typeof releaseFact> & { text?: ReleaseTextFact })[] = rows.map(
+    (row, index) => (kept.has(facts[index]!.id) ? releaseListFact(row) : facts[index]!),
   );
+  // One source's kept text, as the checkpoint stores it, within its share.
+  const bytes = listed.reduce(
+    (sum, row) => sum + (row.text ? Buffer.byteLength(JSON.stringify(row.text)) : 0),
+    0,
+  );
+  if (bytes <= releaseTextSourceBytes) return listed;
+  return listed.map((row) => (row.text ? { ...row, text: overflowText(bytes) } : row));
 }
 /** Whether a configuration keeps release text (`release_text`). */
 const keepsText = (config: Pick<ObserverConfig, "release_text">) =>

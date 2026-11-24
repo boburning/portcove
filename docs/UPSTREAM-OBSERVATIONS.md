@@ -1379,12 +1379,13 @@ A source whose consumers are all descriptive listings also keeps each of its
 four newest published releases' own text, for generated registration's
 release-text rule only: its observer configuration says so
 (`release_text: "listing-window"`, so its checkpoints are its own), and its
-facts keep the release name and, of the body, only the raw first line the
-rule judges, with whether that reading was cut (`text: { title, body,
-body_truncated }`). That line is looked for within the body's first 4,096
-characters (`releaseBodyReadWindow`, a bounded unit: a first line that does
-not end inside it reads as unobserved text, never as a statement either
-way). A change to the kept text during an observation is a concurrent change
+facts keep the release name and, of the body, only the first line the rule
+judges, looked for in the whole body (`text: { title, line, line_complete }`).
+The kept text of one source is bounded by the checkpoint's capacity
+(`releaseTextSourceBytes`, 32 MiB ÷ 2 ÷ 2 ÷ 1,295 sources, a bounded unit);
+over it, each kept release records only a typed overflow with its size
+(`overflow_bytes`), which reads as unobserved text, never as a statement
+either way. A change to the kept text during an observation is a concurrent change
 like any other fact. Managed sources keep no release text: their facts,
 checkpoints and Core projections are unchanged. The text travels beside the
 candidates, never inside `upstream_observation`, whose shape Core's signed

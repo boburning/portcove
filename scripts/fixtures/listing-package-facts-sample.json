@@ -16,7 +16,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -115,7 +115,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -200,7 +200,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -283,7 +283,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -372,7 +372,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -455,7 +455,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -538,7 +538,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 24,
+      "parser_version": 25,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -609,5 +609,5 @@
       ]
     }
   ],
-  "entries_sha256": "efad56be1db4ef264d23476c38f8a4ea837211dc630c3fb01c34a69609d51dbd"
+  "entries_sha256": "86a96cde2e8c931ababe156adff1435ba4356f795aa383f3ceb177006d9e064a"
 }

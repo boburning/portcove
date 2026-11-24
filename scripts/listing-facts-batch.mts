@@ -117,6 +117,7 @@ import {
   reproductionsPerBatch,
   toolchainNames,
   listingCounts,
+  refusalReceipt,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -137,6 +138,7 @@ import {
   listingOnly,
   cliClassifier,
   cliInspector,
+  CoreToolError,
   InspectionError,
   isArchive,
   latestStable,
@@ -1170,7 +1172,7 @@ export function quotaResumeAt(
     : now + githubFirstRetryMs;
 }
 /** A response past `githubResponseBytes`: the provider's answer, never retried. */
-class OversizedResponseError extends Error {}
+export class OversizedResponseError extends Error {}
 /** A provider answer with a non-success status that no retry applies to. */
 export class GithubStatusError extends Error {
   readonly status: number;
@@ -1203,10 +1205,12 @@ export const providerStatement = (error: unknown) =>
  * (`core-refused`), the runner's or provider's condition (`transient`), the
  * shard's deadline (`over-budget`), another typed inspection failure of
  * these bytes (`asset-unavailable`), or anything else, which is a fault of the
- * job's own code or CLI (`job-fault`).
+ * job's own code or CLI (`job-fault`): an untyped error, or a Core CLI that
+ * could not start, crashed, printed no JSON envelope or refused its own
+ * invocation (`CoreToolError`).
  */
 export function inspectionRefusal(error: unknown): RefusalReason {
-  if (!(error instanceof InspectionError)) return "job-fault";
+  if (!(error instanceof InspectionError) || error instanceof CoreToolError) return "job-fault";
   if (error.permanent) return "core-refused";
   if (transientInspection(error)) return "transient";
   if (error.cause === "over-budget") return "over-budget";
@@ -2552,6 +2556,23 @@ export function identityRefusals(file: string, shards: number): Refusal[] {
   });
 }
 /**
+ * Why a reproduction's refusals look systemic rather than one identity's
+ * each: more than one identity was reproduced and every one was refused for
+ * the same reason. A single repository's 404 cannot be told apart from a
+ * fault that sends every request to a wrong URL or identity; when all agree,
+ * the job stops (`reproduction-unsound`) instead of withholding them all.
+ */
+export function systemicRefusal(
+  reproduced: number,
+  refusals: readonly Refusal[],
+): string | undefined {
+  const reasons = new Set(refusals.map((refusal) => refusal.reason));
+  const identities = new Set(refusals.map((refusal) => refusal.port_id));
+  if (reproduced > 1 && identities.size === reproduced && reasons.size === 1)
+    return `Every one of the ${reproduced} reproduced identities was refused for the same reason (${[...reasons][0]}): a fault of the job, not ${reproduced} upstream changes.`;
+  return undefined;
+}
+/**
  * The batch with each identity its reproduction refused withheld: its entry
  * becomes ineligible `reproduction-refused` for the same observed release,
  * naming the refusal reason, so the generated catalog offers nothing for it
@@ -2581,8 +2602,14 @@ export function withholdRefused(
       ...entry,
       ineligible: {
         reason: "reproduction-refused",
-        detail: `Reproduction from the provider and the exact bytes refused this entry (${refusal.reason}); a person hand-checks it, and the next run derives and reproduces it again.`,
+        detail: `Reproduction from the provider and the exact bytes refused this entry (${refusal.reason}); a person hand-checks it, and it is derived and reproduced again once its release, assets, release text or rule versions change.`,
         cause: null,
+        receipt: refusalReceipt({
+          repository_id: entry.repository_id,
+          release_id: entry.observation.release_id,
+          assets_sha256: entry.observation.assets_sha256,
+          observed_releases: entry.observed_releases,
+        }),
       },
       observed_releases: [],
       other_packages: [],
@@ -3576,10 +3603,14 @@ async function main(argv: string[]): Promise<string> {
       const shards = Number(option["shard-count"]);
       if (!(Number.isSafeInteger(shards) && shards > 0))
         throw new Error("withhold needs --shard-count, the number of reproduction shards.");
-      const { table, withheld } = withholdRefused(
+      const refusals = identityRefusals(option.refusals, shards);
+      const reproduced = reproductionPlan(
+        baselineFacts(baselineRevision(option.base)),
         currentFacts(),
-        identityRefusals(option.refusals, shards),
-      );
+      ).entries.length;
+      const systemic = systemicRefusal(reproduced, refusals);
+      if (systemic) throw new Error(systemic);
+      const { table, withheld } = withholdRefused(currentFacts(), refusals);
       if (withheld.length) {
         writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
         writeFileSync(

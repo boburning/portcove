@@ -217,7 +217,7 @@ export const partialProgressRules: readonly string[] = ["budget", "cancelled", "
  * through the ordinary exception path; the counter then stops at its cap.
  */
 export const quotaDeferralNotifyAfter = 3;
-const catalogCheckpointByteLimit = 32 * 1024 * 1024;
+export const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";

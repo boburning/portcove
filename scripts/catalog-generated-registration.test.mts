@@ -33,6 +33,7 @@ import {
   machineSystem,
   registrationQueues,
   checkListingFactsTable,
+  refusalReceipt,
   digestOf,
   displayableName,
   emptyFactsTable,
@@ -65,7 +66,7 @@ import {
   sourceArchive,
   textStatement,
   observedTextStatement,
-  releaseBodyReadWindow,
+  lineStatement,
   launcherProgram,
   programRoleWord,
   gateRoleProgram,
@@ -390,10 +391,10 @@ interface ReleaseSpec {
   assets: AssetSpec[];
   /**
    * The release's own name and body as the observer would report them
-   * (`body_truncated` when it kept only the body's first window); absent:
+   * absent:
    * observed with neither; null: unobserved.
    */
-  text?: { name: string | null; body: string | null; body_truncated?: boolean } | null;
+  text?: { name: string | null; body: string | null } | null;
 }
 interface ObservationSpec {
   status?: string;
@@ -433,7 +434,6 @@ function observerReport(specs: Record<string, ObservationSpec>) {
               : {
                   name: release.text?.name ?? null,
                   body: release.text?.body ?? null,
-                  ...(release.text?.body_truncated ? { body_truncated: true } : {}),
                 }),
             assets: release.assets.map((asset) => ({
               id: asset.id,
@@ -11243,10 +11243,10 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
-// Re-pinned for generator 30: only each enrollment's recorded
+// Re-pinned for generator 31: only each enrollment's recorded
 // `generator_version` and facts digest changed.
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "87053e4ab2ccd535dd62c52691ed9dc9f02ddf6b19935eaf09764536efee2db3";
+  "20a74b5aacfda3f4b0572d7fde14f7767efbc1c1b4710176aba83d7673a3353f";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };
@@ -11311,7 +11311,11 @@ function textObservation(
       prerelease: release.prerelease ?? false,
       created_at: release.at,
       published_at: release.at,
-      text: { title: release.title, body: release.body ?? null, body_truncated: false },
+      text: {
+        title: release.title,
+        line: release.body ? bodyFirstLine(release.body) : null,
+        line_complete: true,
+      },
       assets: [
         {
           id: release.id * 10 + 1,
@@ -11496,44 +11500,64 @@ void test("a hyphenated status compound states a status: Alpha-Testing 0.0.11 (#
   assert.equal(gateStatement("Alpha-Testing Grounds 1.0", repository, words), null);
 });
 
-void test("truncated release text never establishes that nothing is stated (#1422 1)", () => {
+void test("the whole judged line of the whole body is read; text not kept is never read as stating nothing (#1422 1, 3)", () => {
   const repository = "fixture-owner/game";
-  const filler = "![banner](a.png)\n".repeat(Math.ceil(releaseBodyReadWindow / 17) + 2);
-  // A first line read whole in the kept window is observed either way.
-  assert.deepEqual(observedTextStatement("v1.0", "Bug fixes.\nMore", true, repository), {
+  // Measured: bustagrooverecompiled-releases-brankomatija-bust-a-groove v0.1.0
+  // pastes about 47 KB of HTML notes whose first readable line ran 8,276
+  // characters, so the old 4,096-character window left it unobserved. The
+  // whole body is read now, and HTML block tags end a line.
+  const pasted = `<div><p><img src="cover.png" alt="Bust A Groove">${"<span>Recompiled from the original game.</span> ".repeat(200)}</p><p>Beta 2 of the recompilation</p></div>`;
+  assert.ok(pasted.length > 8_000);
+  assert.deepEqual(observedTextStatement("v0.1.0", pasted, false, repository), {
     observed: true,
     statement: null,
   });
-  assert.deepEqual(observedTextStatement("v1.0", "Beta 2\n", true, repository), {
+  // The same long paragraph ending in a status is judged whole.
+  const paragraph = `${"<b>Many fixes.</b> ".repeat(500)}(beta)`;
+  assert.deepEqual(observedTextStatement("v0.1.0", paragraph, false, repository), {
     observed: true,
     statement: { field: "body-first-line", token: "beta" },
   });
-  // No line, or a first line that runs to the cut, in a truncated body.
-  assert.deepEqual(
-    observedTextStatement("v1.0", filler.slice(0, releaseBodyReadWindow), true, repository),
-    { observed: false },
-  );
-  assert.deepEqual(
-    observedTextStatement("v1.0", "x".repeat(releaseBodyReadWindow), true, repository),
-    { observed: false },
-  );
-  // The same text, not truncated, states nothing.
-  assert.deepEqual(observedTextStatement("v1.0", "x".repeat(100), false, repository), {
+  // A tag whose attributes continue on the next line never becomes the line.
+  assert.equal(bodyFirstLine('<img src="a"\nalt=x>\nBeta 3'), "Beta 3");
+  assert.deepEqual(observedTextStatement("v1", '<img src="a"\nalt=x>\nBeta 3', false, repository), {
     observed: true,
-    statement: null,
+    statement: { field: "body-first-line", token: "beta" },
   });
-  // A statement in the title or the read line stands whatever was cut.
-  assert.deepEqual(observedTextStatement("v1.0 RC1", filler, true, repository), {
+  // Text a source did not keep (over its budget) states nothing either way.
+  assert.deepEqual(lineStatement(null, null, false, repository), { observed: false });
+  assert.deepEqual(observedTextStatement("v1.0", "Bug fixes.", true, repository), {
+    observed: false,
+  });
+  // A statement found still stands.
+  assert.deepEqual(lineStatement("v1.0 RC1", null, false, repository), {
     observed: true,
     statement: { field: "title", token: "release-candidate" },
   });
-  // The whole first line is judged, however long: no 256-character cut.
-  const long = `${"Many fixes and changes. ".repeat(20)}(beta)`;
-  assert.ok(long.length > 300);
-  assert.deepEqual(observedTextStatement("v1.0", long, false, repository), {
-    observed: true,
-    statement: { field: "body-first-line", token: "beta" },
-  });
+});
+
+void test("an ellipsis never erases a status word; only a range between two versions is removed (#1422)", () => {
+  const repository = "fixture-owner/game";
+  for (const [line, token] of [
+    ["v1.0 Beta...", "beta"],
+    ["v1.0 Beta...!", "beta"],
+    ["beta...v2", "beta"],
+    ["Beta..", "beta"],
+    ["Beta....", "beta"],
+    ["Beta…", "beta"],
+    ["v1.0...v1.1 beta", "beta"],
+    // Removed as a compare range: digits on both sides of the dots.
+    ["v0.9-beta...v1.0", null],
+    ["1.0-beta...1.0", null],
+    ["**Full Changelog**: https://github.com/o/r/compare/v0.9-beta...v1.0", null],
+    // "Beta... finally" reads as "Beta finally": the word does not stand.
+    ["Beta... finally", null],
+    // An en dash joins a compound like a hyphen.
+    ["Beta–Test 3", "beta"],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
 });
 
 void test("fit and gate agree on the release-text rules over generated release windows (#1422)", () => {
@@ -11638,11 +11662,23 @@ void test("fit and gate read hyphenated status compounds alike over generated li
     "-",
     "--",
     "game",
+    "...",
+    "..",
+    "....",
+    "\u2026",
+    "\u2013",
+    "v0.9",
+    "1.0",
   ];
   let stated = 0;
   for (let round = 0; round < 20_000; round++) {
     const line = Array.from({ length: 1 + Math.floor(random() * 6) }, () => pick(pieces))
-      .map((piece, index) => (index ? pick(["-", "-", " ", "", " - ", "_-", "-."]) : "") + piece)
+      .map(
+        (piece, index) =>
+          (index
+            ? pick(["-", "-", " ", "", " - ", "_-", "-.", "...", "\u2013", "..", " ..."])
+            : "") + piece,
+      )
       .join("");
     const words = pick([[], ["alpha", "testing"], ["game"]]);
     const fit = releaseStatement(line, "fixture-owner/game", words);
@@ -11652,26 +11688,62 @@ void test("fit and gate read hyphenated status compounds alike over generated li
   assert.ok(stated > 1000, `${stated} statements`);
 });
 
-void test("an identity withheld after reproduction is derived again on the next run, never reconfirmed (#1422 2)", async () => {
-  const inspect = inspector({ [windowsZip]: [player("Game/Game.exe")] });
+void test("an identity withheld after reproduction stays withheld without downloading until its receipt changes (#1422 2)", async () => {
+  const downloads: string[] = [];
+  const inner = inspector({ [windowsZip]: [player("Game/Game.exe")] });
+  const inspect: TestInspector = async (asset, platform) => {
+    downloads.push(asset.name);
+    return await inner(asset, platform);
+  };
   const first = await derive([listing()], observerReport({ [unseen]: {} }), undefined, { inspect });
   assert.equal(first.table.entries[0]!.ineligible, null);
   const { table } = withholdRefused(first.table, [
     { port_id: unseen, reason: "mismatch", detail: "The provider no longer states it." },
   ]);
-  assert.equal(table.entries[0]!.ineligible?.reason, "reproduction-refused");
-  // The withheld identity offers nothing, and the gate agrees.
+  const refused = table.entries[0]!;
+  assert.equal(refused.ineligible?.reason, "reproduction-refused");
+  // The receipt binds what the refusal was derived from without bytes.
+  assert.equal(
+    refused.ineligible?.receipt,
+    refusalReceipt({
+      repository_id: first.table.entries[0]!.repository_id,
+      release_id: first.table.entries[0]!.observation.release_id,
+      assets_sha256: first.table.entries[0]!.observation.assets_sha256,
+      observed_releases: first.table.entries[0]!.observed_releases,
+    }),
+  );
+  // The withheld identity offers nothing, and it is queued for a person.
   const generation = generateRegistrations([listing()], table);
   assert.equal(generation.enrollments.length, 0);
   assert.deepEqual(registrationQueues(generation).reasons["reproduction-refused"], [unseen]);
-  // The same release on the next run is inspected and derived again, so a
-  // reproduction that now agrees lands it without a person.
-  const next = await derive([listing()], observerReport({ [unseen]: {} }), table, {
+  // Unchanged receipt: reconfirmed, still withheld and queued, no download.
+  downloads.length = 0;
+  const same = await derive([listing()], observerReport({ [unseen]: {} }), table, {
     inspect,
     now: "2026-11-22T00:00:00.000Z",
   });
-  assert.equal(next.table.entries[0]!.ineligible, null);
-  assert.notEqual(outcome(next, unseen)?.outcome, "unchanged");
+  assert.deepEqual(downloads, []);
+  assert.equal(same.table.entries[0]!.ineligible?.reason, "reproduction-refused");
+  assert.equal(outcome(same, unseen)?.outcome, "unchanged");
+  // Changed release text (another observed verdict) changes the receipt: the
+  // identity is inspected and derived again, and can land.
+  const changed = await derive(
+    [listing()],
+    observerReport({
+      [unseen]: {
+        releases: [{ ...defaultRelease(unseen), text: { name: "v1.0", body: "Notes" } }],
+      },
+    }),
+    table,
+    { inspect, now: "2026-11-22T00:00:00.000Z" },
+  );
+  assert.ok(downloads.length > 0);
+  assert.equal(changed.table.entries[0]!.ineligible, null);
+  // A refusal record without its receipt is refused by the facts check.
+  const forged = structuredClone(table);
+  delete forged.entries[0]!.ineligible!.receipt;
+  forged.entries_sha256 = digestOf(forged.entries);
+  assert.throws(() => checkListingFactsTable(forged), /ineligible/u);
 });
 
 /** The archive account of a measured identity in fit and gate, which must agree on the product. */

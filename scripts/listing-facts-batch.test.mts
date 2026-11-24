@@ -42,6 +42,7 @@ import {
 import {
   artifactFact,
   assetsDigest,
+  coreData,
   InspectionError,
   OverBudgetError,
   boundLinesOf,
@@ -108,6 +109,9 @@ import {
   mergeMessage,
   withdrawalCauses,
   identityRefusal,
+  OversizedResponseError,
+  systemicRefusal,
+  type Refusal,
   inspectionRefusal,
   GithubStatusError,
   identityRefusals,
@@ -3930,7 +3934,7 @@ void test("the decide job withholds refused identities and re-checks the batch b
   const steps = workflow.jobs.decide!.steps;
   const index = (id: string) => steps.findIndex((step) => step.id === id);
   const withhold = steps[index("withhold")]!;
-  assert.match(withhold.run!, /listing-facts-batch\.mts withhold --refusals/u);
+  assert.match(withhold.run!, /listing-facts-batch\.mts withhold --base HEAD~1 --refusals/u);
   assert.match(withhold.if!, /needs\.reproduce\.result == 'success'/u);
   // Regenerated, then every check of the batch runs again before assess.
   const order = [
@@ -4029,4 +4033,79 @@ void test("repeat refusals wait behind other entries, and an unbuilt withheld ba
   const assess = steps.find((step) => step.id === "assess")!;
   assert.equal(assess.env!.RECHECK, "${{ steps.effective.outputs.recheck }}");
   assert.match(assess.run!, /--withheld-recheck/u);
+});
+
+void test("every reproduction failure is classified: one identity's, the provider's condition, or the job's own fault (#1422 2)", async () => {
+  const { entry, players } = fixture();
+  const listedAs = async (error: Error) =>
+    (
+      await reproduceFacts({
+        entries: [entry],
+        listReleases: async () => {
+          throw error;
+        },
+        inspect: inspector(players),
+        classify: coreClassifier,
+        boundLines: unbound([entry]),
+      })
+    ).refused[0]!.reason;
+  const status = (code: number, message: string | null = null) =>
+    new GithubStatusError(`GET x answered ${code}.`, code, message);
+  // The release list: the repository's own condition withholds one identity;
+  // the provider's passing condition retries; anything else stops the job.
+  for (const [error, reason] of [
+    [status(401), "job-fault"],
+    [status(403, "Resource not accessible by integration"), "job-fault"],
+    [status(403, "Repository access blocked"), "release-unavailable"],
+    [status(404), "release-unavailable"],
+    [status(410), "release-unavailable"],
+    [status(451), "release-unavailable"],
+    [status(422), "job-fault"],
+    // Rate limits (403/429 with a wait), server errors, timeouts and a body
+    // that does not parse are retried inside `githubRequest`, then surface
+    // as transient.
+    [new TransientGithubError("rate limited (429)"), "transient"],
+    [new TransientGithubError("a server error (502)"), "transient"],
+    [new TransientGithubError("the request timed out"), "transient"],
+    [new TransientGithubError("the answer did not parse"), "transient"],
+    [new OversizedResponseError("GET x answered more than 8 MiB."), "release-unavailable"],
+    [new TypeError("x is not a function"), "job-fault"],
+  ] as const)
+    assert.equal(await listedAs(error), reason, `${error.constructor.name}: ${error.message}`);
+  // Core: a verdict on the bytes is the identity's; the CLI's own faults
+  // (it could not start, crashed or printed no envelope, or refused its own
+  // invocation) are the job's.
+  const run = (stdout: string, exited = true, unstarted = false) => {
+    try {
+      coreData({ stdout, exited, unstarted }, "inspection");
+      return "data";
+    } catch (error) {
+      return inspectionRefusal(error);
+    }
+  };
+  const envelope = (code: string) => JSON.stringify({ ok: false, error: { code } });
+  assert.equal(run("thread 'main' panicked at src/main.rs"), "job-fault");
+  assert.equal(run(envelope("usage")), "job-fault");
+  assert.equal(run("", false, true), "job-fault");
+  assert.equal(run(envelope("unsupported")), "core-refused");
+  assert.equal(run(envelope("verification")), "core-refused");
+  assert.equal(run("", false), "over-budget");
+  assert.equal(run(JSON.stringify({ ok: true, data: {} })), "data");
+});
+
+void test("refusals of every reproduced identity for one reason stop the job instead of withholding them all (#1422 2)", () => {
+  const refusal = (port_id: string, reason: Refusal["reason"] = "release-unavailable") => ({
+    port_id,
+    reason,
+    detail: "x",
+  });
+  // Every one of several identities refused alike: systemic.
+  assert.match(
+    systemicRefusal(3, [refusal("a"), refusal("b"), refusal("c")]) ?? "",
+    /Every one of the 3 reproduced identities/u,
+  );
+  // One identity, some identities, or mixed reasons: withheld one by one.
+  assert.equal(systemicRefusal(1, [refusal("a")]), undefined);
+  assert.equal(systemicRefusal(3, [refusal("a"), refusal("b")]), undefined);
+  assert.equal(systemicRefusal(2, [refusal("a"), refusal("b", "mismatch")]), undefined);
 });

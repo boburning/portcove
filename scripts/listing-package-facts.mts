@@ -96,7 +96,8 @@ import {
   channelOnlyTag,
   listingCounts,
   listingWords,
-  observedTextStatement,
+  lineStatement,
+  refusalReceipt,
   failureCauses,
   compareCodePoints,
   type FailureCause,
@@ -186,11 +187,10 @@ export interface ObservedRelease {
   /** Asset records in this release the worker cannot read; never dropped silently. */
   malformed_assets: number;
   /**
-   * The release's own text as the observer reported it (its name and the
-   * part of its body the release-text rule reads, `bodyExcerpt`, with
-   * whether that reading was cut), or null when the report carries neither
-   * field: UNKNOWN optional evidence. Only `observedTextStatement` reads the body; it is
-   * never recorded.
+   * The release's own text as the observer reported it (its name and its
+   * body's judged line, `bodyFirstLine`, and whether that text was kept
+   * whole), or null when the report carries neither: UNKNOWN optional
+   * evidence. The line is never recorded; only the statement it makes is.
    */
   text: ReleaseTextFact | null;
 }
@@ -398,20 +398,25 @@ export function unreadableReleases(
 }
 
 /**
- * A release's own text as an observer report (or the provider) states it:
- * `name`, `body`, and `body_truncated` when the observer's kept part of the
- * body was cut. The body is kept to the part the rule reads (`bodyExcerpt`),
- * so a whole body and the observer's kept part read alike; null when the
- * report states neither field.
+ * A release's own text as an observer report (or the provider) states it.
+ * The observer's kept text (`name`, `body_line`, `body_line_complete`) is
+ * the judged line already; a whole `body` (the provider's own release, or an
+ * older report) is read to its judged line here (`releaseTextFact`), so both
+ * read alike. Null when the report states no text at all.
  */
 export function reportedText(release: Record<string, unknown>): ReleaseTextFact | null {
-  const text = releaseTextFact({
-    ...(Object.hasOwn(release, "name") ? { name: release.name } : {}),
-    ...(Object.hasOwn(release, "body") ? { body: release.body } : {}),
-  });
-  return text === undefined
-    ? null
-    : { ...text, body_truncated: text.body_truncated || release.body_truncated === true };
+  if (Object.hasOwn(release, "body_line") || Object.hasOwn(release, "body_line_complete"))
+    return {
+      title: typeof release.name === "string" ? release.name : null,
+      line: typeof release.body_line === "string" ? release.body_line : null,
+      line_complete: release.body_line_complete === true,
+    };
+  return (
+    releaseTextFact({
+      ...(Object.hasOwn(release, "name") ? { name: release.name } : {}),
+      ...(Object.hasOwn(release, "body") ? { body: release.body } : {}),
+    }) ?? null
+  );
 }
 
 function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
@@ -575,11 +580,11 @@ export const observedReleaseFacts = (
 /**
  * What the facts record of a release's own text: whether it is observed, the
  * title when it is bounded printable text (`recordedTag`'s class), and the
- * prerelease statement the title or the body's first line makes
- * (`observedTextStatement`, with the listing's own words, `listingWords`).
- * Text the observer did not report, or a truncated body whose first line was
- * not wholly read while nothing states a prerelease, is `unobserved`: absence
- * is never inferred from it. The body is never recorded.
+ * prerelease statement the title or the body's judged line makes
+ * (`lineStatement`, with the listing's own words, `listingWords`). Text the
+ * observer did not report, or did not keep (its source over its text
+ * budget) while nothing states a prerelease, is `unobserved`: absence is
+ * never inferred from it. The body is never recorded.
  */
 export const releaseTextFacts = (
   release: ObservedRelease,
@@ -587,10 +592,10 @@ export const releaseTextFacts = (
   listing: readonly string[] = [],
 ): Pick<ObservedReleaseFact, "text" | "title" | "statement"> => {
   if (release.text === null) return { text: "unobserved", title: null, statement: null };
-  const judged = observedTextStatement(
+  const judged = lineStatement(
     release.text.title,
-    release.text.body,
-    release.text.body_truncated,
+    release.text.line,
+    release.text.line_complete,
     repository,
     listing,
   );
@@ -1425,13 +1430,22 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         entry.observation.release_id === release.id &&
         entry.observation.assets_sha256 === fingerprint,
     );
+    // A reproduction refusal stays while its receipt holds (the same
+    // release, assets, observed release text verdicts and rule versions):
+    // reconfirmed without downloading. Any change derives it again.
+    const refusalHolds =
+      same?.ineligible?.reason !== "reproduction-refused" ||
+      same.ineligible.receipt ===
+        refusalReceipt({
+          repository_id: repositoryId,
+          release_id: release.id,
+          assets_sha256: fingerprint,
+          observed_releases: observedReleasesOf(id),
+        });
     if (
       same?.ineligible &&
-      // A reproduction refusal is the batch job's, not a verdict on this
-      // release: the identity is derived again every run.
-      !["observation-unavailable", "repository-identity-changed", "reproduction-refused"].includes(
-        same.ineligible.reason,
-      )
+      refusalHolds &&
+      !["observation-unavailable", "repository-identity-changed"].includes(same.ineligible.reason)
     ) {
       // Completed ineligible for this exact release: reconfirm, do not retry.
       entries.set(id, {
@@ -1947,7 +1961,16 @@ export interface CoreRun {
   stdout: string;
   /** The process ran to an exit code (not killed or failed to start). */
   exited: boolean;
+  /** The CLI could not be started at all (missing, not executable). */
+  unstarted?: boolean;
 }
+/**
+ * A fault of the Core CLI itself, not of the bytes it was given: it could not
+ * be started, it crashed or printed no JSON envelope, or it refused its own
+ * invocation (`usage`). The worker treats it like any inspection failure it
+ * retries; the batch job's reproduction treats it as a fault of the job.
+ */
+export class CoreToolError extends InspectionError {}
 /**
  * Run the Portcove CLI with its temporary directory inside `scratch`, which
  * the caller deletes, so a killed run (timeout) cannot leak Core's workspace.
@@ -1981,6 +2004,8 @@ export async function runCore(
           stdout: String(stdout ?? ""),
           exited:
             !failure || (!failure.killed && !failure.signal && typeof failure.code === "number"),
+          // A system error code (`ENOENT`, `EACCES`) means it never ran.
+          unstarted: typeof failure?.code === "string",
         });
       },
     );
@@ -1989,16 +2014,22 @@ export async function runCore(
 
 /** Core's JSON envelope: its data, or the failure as an `InspectionError`. Exported for its unit test. */
 export function coreData(run: CoreRun, what: string): Record<string, unknown> {
+  if (run.unstarted)
+    throw new CoreToolError(
+      `The Core CLI could not be started for ${what}.`,
+      false,
+      "core-unknown",
+      "over-budget",
+    );
   let parsed: unknown;
   try {
     parsed = JSON.parse(run.stdout);
   } catch {
-    throw new InspectionError(
-      `Core gave no ${what} result.`,
-      false,
-      "core-unknown",
-      run.exited ? "unreadable-archive" : "over-budget",
-    );
+    // An exited run without its JSON envelope is the CLI's own fault.
+    const cause = run.exited ? "unreadable-archive" : "over-budget";
+    if (run.exited)
+      throw new CoreToolError(`Core gave no ${what} result.`, false, "core-unknown", cause);
+    throw new InspectionError(`Core gave no ${what} result.`, false, "core-unknown", cause);
   }
   if (isRecord(parsed) && parsed.ok === true && isRecord(parsed.data)) return parsed.data;
   // The runner's disk ran out while Core extracted the archive: a real
@@ -2016,6 +2047,10 @@ export function coreData(run: CoreRun, what: string): Record<string, unknown> {
   // Core ran and refused these bytes: the same bytes are refused again. A
   // run that was killed (its timeout) settles nothing about the bytes.
   const refusal = refusalClassOf(error?.code);
+  // Core refused its own invocation (a version or argument mismatch): no
+  // verdict on these bytes.
+  if (refusal === "core-usage" && run.exited)
+    throw new CoreToolError(`Core refused the invocation during ${what}.`, true, refusal, refusal);
   throw new InspectionError(
     `Core refused the archive during ${what}.`,
     run.exited,

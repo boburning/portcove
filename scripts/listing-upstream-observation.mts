@@ -558,7 +558,7 @@ export function listingUpdatesForReport(
 
 /**
  * The observation with each release's own text attached in the worker's
- * release shape (`name`, `body`, `body_truncated`), only where the text
+ * release shape (`name`, `body_line`, `body_line_complete`), only where the text
  * (`listing_release_text`) names this observation's exact facts digest and a
  * release id of it. A projection without text (one an older observer
  * retained), text of other facts, or a malformed row leaves those releases without text: UNKNOWN, which the fit
@@ -592,8 +592,26 @@ export function withReleaseText(observation: unknown, text: unknown): unknown {
       const fact =
         isRecord(release) && typeof release.id === "number" ? rows.get(release.id) : undefined;
       return fact && isRecord(release)
-        ? { ...release, name: fact.title, body: fact.body, body_truncated: fact.body_truncated }
+        ? {
+            ...release,
+            name: fact.title,
+            body_line: fact.line,
+            body_line_complete: fact.line_complete,
+          }
         : release;
     }),
   };
+}
+
+/**
+ * The bytes of release text a source had beyond its budget
+ * (`releaseTextSourceBytes`), when its projection kept none for that reason;
+ * null otherwise.
+ */
+export function releaseTextOverflow(text: unknown): number | null {
+  if (!isRecord(text) || !Array.isArray(text.releases)) return null;
+  for (const row of text.releases as unknown[])
+    if (isRecord(row) && Number.isSafeInteger(row.overflow_bytes))
+      return Number(row.overflow_bytes);
+  return null;
 }

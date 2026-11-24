@@ -61,10 +61,12 @@ import {
   releaseListFact,
   releaseListFacts,
   releaseTextWindow,
-  windowedReleaseText,
+  catalogCheckpointBytes,
+  modeledCatalogSources,
+  releaseTextSourceBytes,
 } from "./upstream-observer.mts";
-import { releaseBodyReadWindow } from "./release-text.mts";
 import { listingReleaseLimit } from "./listing-upstream-observation.mts";
+import { catalogCheckpointByteLimit } from "./catalog-upstream-observer.mts";
 import {
   advanceObservation,
   withCheckpointLock,
@@ -859,8 +861,8 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
   });
   assert.deepEqual(kept.observation.facts.releases[0]!.text, {
     title: "v1.0.0 Beta",
-    body: null,
-    body_truncated: false,
+    line: null,
+    line_complete: true,
   });
   assert.throws(
     () => validateObserverConfig({ ...config, release_text: "listing-window" }),
@@ -3292,8 +3294,22 @@ void test("a rate-limited single-port observation states unavailable coverage wi
 });
 
 void test("release lists keep each newest release's own text, bounded to what the release-text rule reads", () => {
-  // The text window is the listing observation window.
+  // The text window is the listing observation window, and the per-source
+  // text budget is the checkpoint's headroom shared by its modeled sources.
   assert.equal(releaseTextWindow, listingReleaseLimit);
+  assert.equal(catalogCheckpointBytes, catalogCheckpointByteLimit);
+  assert.equal(
+    releaseTextSourceBytes,
+    Math.floor(catalogCheckpointByteLimit / 2 / 2 / modeledCatalogSources),
+  );
+  // Capacity: every modeled source at its full budget, in both copies,
+  // stays inside the half of the checkpoint the model leaves as headroom.
+  // The measured listing population (#1422 review: about 565 bytes per
+  // repository on average, at most about 4.2 KB, ~1,146 repositories) fits
+  // each source's share with room to spare.
+  assert.ok(releaseTextSourceBytes * modeledCatalogSources * 2 <= catalogCheckpointByteLimit / 2);
+  assert.ok(4_200 < releaseTextSourceBytes);
+  assert.ok(565 * 1_146 * 2 < catalogCheckpointByteLimit / 16);
   const row = (id: number, published: string, extra: Record<string, unknown> = {}) => ({
     id,
     tag_name: `v${id}`,
@@ -3305,53 +3321,60 @@ void test("release lists keep each newest release's own text, bounded to what th
     body: `Notes ${id}\nMore notes`,
     ...extra,
   });
-  const long = "x".repeat(releaseBodyReadWindow + 10);
+  const long = "x".repeat(5000);
   const raw = [
     row(1, "2026-01-01T00:00:00Z"),
-    row(2, "2026-02-01T00:00:00Z", { body: long }),
+    row(2, "2026-02-01T00:00:00Z", { body: `<p>${"<b>x</b>".repeat(800)} beta</p>` }),
     row(3, "2026-03-01T00:00:00Z", { name: null, body: null }),
     row(4, "2026-04-01T00:00:00Z", {
-      body: "![banner](b.png)\r\n\r\n## Beta 2 is here\r\nDetails",
+      body: '![banner](b.png)\r\n<img src="a"\r\nalt=x>\r\n## Beta 2 is here\r\nDetails',
     }),
     row(5, "2026-05-01T00:00:00Z", { draft: true, published_at: null }),
     row(6, "2026-06-01T00:00:00Z"),
   ];
-  const facts = windowedReleaseText(raw.map((value) => releaseListFact(value)));
+  const facts = releaseListFacts(raw, true);
   const text = (id: number) => facts.find((fact) => fact.id === id)!.text;
   // The newest four published releases keep text; a draft and older ones do not.
   assert.equal(text(1), undefined);
   assert.equal(text(5), undefined);
-  // Of a body only the first readable line is kept, as written.
-  assert.deepEqual(text(6), { title: "Release 6", body: "Notes 6", body_truncated: false });
-  assert.deepEqual(text(4), {
-    title: "Release 4",
-    body: "## Beta 2 is here",
-    body_truncated: false,
-  });
-  assert.deepEqual(text(3), { title: null, body: null, body_truncated: false });
-  // A first line that runs past the read window is kept to it, marked cut.
-  assert.deepEqual(text(2), {
-    title: "Release 2",
-    body: long.slice(0, releaseBodyReadWindow),
-    body_truncated: true,
-  });
-  // A long body whose readable line ends inside the window is not cut.
-  const later = releaseListFact(row(9, "2026-09-01T00:00:00Z", { body: `Fixes\n${long}` }));
-  assert.deepEqual(later.text, { title: "Release 9", body: "Fixes", body_truncated: false });
+  // Of a body only its judged line is kept: tags (also across lines) and
+  // banners never become it, and a long HTML line is judged whole.
+  assert.deepEqual(text(6), { title: "Release 6", line: "Notes 6", line_complete: true });
+  assert.deepEqual(text(4), { title: "Release 4", line: "Beta 2 is here", line_complete: true });
+  assert.deepEqual(text(3), { title: null, line: null, line_complete: true });
+  assert.match(text(2)!.line!, / beta$/u);
   // Projection is idempotent: projected rows project to themselves.
-  assert.deepEqual(windowedReleaseText(facts.map((value) => releaseListFact(value))), facts);
+  assert.deepEqual(releaseListFacts(facts, true), facts);
   // Without the listing window, no text is kept at all.
   assert.equal("text" in releaseListFact(row(6, "2026-06-01T00:00:00Z"), false), false);
   // A row stating neither field has no text (UNKNOWN, never empty text).
   const { name: _name, body: _body, ...bare } = row(7, "2026-07-01T00:00:00Z");
   assert.equal("text" in releaseListFact(bare), false);
-  // A projected row whose text is not one bounded line is refused.
+  // A source over its budget keeps no text: every kept row reads as
+  // unobserved and states how much it had; the outcome is idempotent too.
+  const heavy = releaseListFacts(
+    [1, 2, 3, 4].map((id) => row(id, `2026-0${id}-01T00:00:00Z`, { body: long })),
+    true,
+  );
+  for (const fact of heavy) {
+    assert.equal(fact.text?.line_complete, false);
+    assert.equal(fact.text?.line, null);
+    assert.ok((fact.text?.overflow_bytes ?? 0) > releaseTextSourceBytes);
+  }
+  assert.deepEqual(releaseListFacts(heavy, true), heavy);
+  // An over-long title counts against the same budget.
+  const titled = releaseListFacts(
+    [row(1, "2026-01-01T00:00:00Z", { name: long.repeat(2), body: null })],
+    true,
+  );
+  assert.equal(titled[0]!.text?.title, null);
+  // A projected row whose text is not a judged line or a budget overflow is refused.
   for (const text of [
-    { title: null, body: `${long}x`, body_truncated: true },
-    { title: null, body: "two\nlines", body_truncated: false },
-    { title: null, body: null, body_truncated: true },
-    { title: 7, body: null, body_truncated: false },
-    { title: null, body: null },
+    { title: null, line: "two\nlines", line_complete: true },
+    { title: null, line: null, line_complete: false },
+    { title: 7, line: null, line_complete: true },
+    { title: null, line: null },
+    { title: null, line: null, line_complete: false, overflow_bytes: 10 },
   ])
     assert.throws(
       () => releaseListFact({ ...row(8, "2026-08-01T00:00:00Z"), text }),

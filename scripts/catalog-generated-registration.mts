@@ -125,15 +125,15 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
-import { bodyFirstLineRead, releaseBodyReadWindow, statementText } from "./release-text.mts";
+import { bodyFirstLine, compareRange, statementText, withoutTags } from "./release-text.mts";
 
-export { bodyFirstLineRead, releaseBodyReadWindow, statementText };
+export { bodyFirstLine, compareRange, statementText, withoutTags };
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 30;
+export const GENERATOR_VERSION = 31;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 24;
+export const FACTS_PARSER_VERSION = 25;
 export const FACTS_TABLE_FORMAT = 18;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -516,7 +516,7 @@ function statementWords(line: string): StatementWord[] {
       end = -1;
       continue;
     } else {
-      if (end >= 0 && text.slice(end, start) === "-" && words.length)
+      if (end >= 0 && ["-", "\u2013"].includes(text.slice(end, start)) && words.length)
         words[words.length - 1]!.hyphenated = true;
       group++;
       for (const chunk of token.split(/[._]/u))
@@ -666,17 +666,6 @@ export function releaseStatement(
   return null;
 }
 /**
- * The line of a release body that is judged (`bodyFirstLineRead`): the first
- * line, within the first `releaseBodyReadWindow` characters, that holds a
- * letter or digit once what states nothing is removed (`statementText`) and
- * leading Markdown heading, quote, list and emphasis marks are removed; null
- * when there is none. A banner image or a bare link line is skipped. The
- * whole line is judged, however long.
- */
-export function bodyFirstLine(body: string): string | null {
-  return bodyFirstLineRead(body, false).line;
-}
-/**
  * The statement a release's observed text makes: the title first, then the
  * body's first line (`bodyFirstLine`), or null.
  */
@@ -690,27 +679,44 @@ export function textStatement(
   return judged.observed ? judged.statement : null;
 }
 /**
- * What a release's own text establishes: a statement (title first, then the
- * body's first line), or that it states none, or nothing at all
- * (`observed: false`) when no statement was found and the body's first line
- * was not wholly read (`bodyFirstLineRead`): absence is never inferred from
- * truncated text.
+ * What a release's own text establishes from its whole body: `lineStatement`
+ * over the body's judged line (`bodyFirstLine`). `withheld` says the text was
+ * not kept whole (a source over its text budget), so absence is not read.
  */
 export function observedTextStatement(
   title: string | null,
   body: string | null,
-  truncated: boolean,
+  withheld: boolean,
+  repository: string,
+  listing: readonly string[] = [],
+): { observed: true; statement: ReleaseStatement | null } | { observed: false } {
+  return lineStatement(
+    title,
+    body === null ? null : bodyFirstLine(body),
+    !withheld,
+    repository,
+    listing,
+  );
+}
+/**
+ * What a release's kept text establishes: a statement (the title first, then
+ * the body's judged line), that it states none, or nothing at all
+ * (`observed: false`) when no statement was found in text that was not kept
+ * (`complete` false): absence is never inferred from text that was not read.
+ */
+export function lineStatement(
+  title: string | null,
+  line: string | null,
+  complete: boolean,
   repository: string,
   listing: readonly string[] = [],
 ): { observed: true; statement: ReleaseStatement | null } | { observed: false } {
   const titled = title === null ? null : releaseStatement(title, repository, listing);
   if (titled !== null) return { observed: true, statement: { field: "title", token: titled } };
-  if (body === null) return { observed: true, statement: null };
-  const read = bodyFirstLineRead(body, truncated);
-  const bodied = read.line === null ? null : releaseStatement(read.line, repository, listing);
+  const bodied = line === null ? null : releaseStatement(line, repository, listing);
   if (bodied !== null)
     return { observed: true, statement: { field: "body-first-line", token: bodied } };
-  return read.complete ? { observed: true, statement: null } : { observed: false };
+  return complete ? { observed: true, statement: null } : { observed: false };
 }
 /**
  * Whether a recorded release states a prerelease in its own text: its
@@ -911,6 +917,14 @@ export interface ListingFactsEntry {
      * null for every other reason.
      */
     cause: FailureCause | null;
+    /**
+     * For `reproduction-refused` only: the refusal receipt (`refusalReceipt`),
+     * the digest of everything the refused entry was derived from that needs
+     * no bytes. While the next observation derives the same receipt, the
+     * identity stays withheld without downloading again; any change to it
+     * re-derives the identity.
+     */
+    receipt?: string;
   } | null;
   /**
    * Package forms of the release's assets the worker does not read, sorted and
@@ -1387,8 +1401,15 @@ export function checkListingFactsEntry(
     throw new Error(`${where}.observation needs a release identity and stated coverage.`);
   if (entry.ineligible !== null) {
     if (!isRecord(entry.ineligible)) throw new Error(`${where}.ineligible must be an object.`);
-    exact(entry.ineligible, ["reason", "detail", "cause"], `${where}.ineligible`);
+    exact(
+      entry.ineligible,
+      entry.ineligible.reason === "reproduction-refused"
+        ? ["reason", "detail", "cause", "receipt"]
+        : ["reason", "detail", "cause"],
+      `${where}.ineligible`,
+    );
     if (
+      (entry.ineligible.reason === "reproduction-refused" && !sha(entry.ineligible.receipt)) ||
       !(ineligibleReasons as readonly unknown[]).includes(entry.ineligible.reason) ||
       (entry.ineligible.reason === "repeated-inspection-failure"
         ? !(failureCauses as readonly unknown[]).includes(entry.ineligible.cause)
@@ -2190,6 +2211,28 @@ export function fitContext(records: readonly AuthoredPort[]): FitContext {
  * (`latestStable`): later publication, then higher id; an unknown time sorts
  * oldest.
  */
+/**
+ * The receipt of an entry reproduction refused: the repository id, the
+ * offered release, its asset list digest (each asset's id, name, size and
+ * provider SHA-256), the observed releases with their text verdicts, and the
+ * facts parser and generator versions. Everything in it is known from an
+ * observation without downloading.
+ */
+export function refusalReceipt(input: {
+  repository_id: number;
+  release_id: number | null;
+  assets_sha256: string;
+  observed_releases: readonly ObservedReleaseFact[];
+}): string {
+  return digestOf({
+    repository_id: input.repository_id,
+    release_id: input.release_id,
+    assets_sha256: input.assets_sha256,
+    observed_releases: input.observed_releases,
+    parser_version: FACTS_PARSER_VERSION,
+    generator_version: GENERATOR_VERSION,
+  });
+}
 export function newerInOrder(release: ObservedReleaseFact, other: ObservedReleaseFact): boolean {
   const left = Date.parse(release.published_at ?? "") || 0;
   const right = Date.parse(other.published_at ?? "") || 0;
@@ -7936,7 +7979,19 @@ export function gateStatement(
     .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
     .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
     .replace(/(?<![A-Za-z0-9])www\.\S*/giu, " ")
-    .replace(/\S+\.{2,3}\S+/gu, " ")
+    // A compare range: dots joining two version-like parts, each with a digit.
+    .split(/(\s+)/u)
+    .map((piece) => {
+      const range = /^(.+?)(\.{2,})(.+)$/su.exec(piece);
+      return range &&
+        !range[1]!.includes("..") &&
+        range[2]!.length <= 3 &&
+        /\d/u.test(range[1]!) &&
+        /\d/u.test(range[3]!)
+        ? " "
+        : piece;
+    })
+    .join("")
     .replace(/\S+\.(?:png|jpe?g|gif|webp|svg|ico|bmp)(?![A-Za-z0-9])/giu, " ")
     .toLowerCase();
   const words: {
@@ -7953,7 +8008,7 @@ export function gateStatement(
   let between = "";
   const flush = () => {
     // A hyphen joins only a word that starts this run right after it.
-    let joins = between === "-" && /^[a-z0-9]/u.test(run);
+    let joins = (between === "-" || between === "\u2013") && /^[a-z0-9]/u.test(run);
     let pushed = false;
     // Letters and digits joined by one `.` or `_` are one glued token.
     for (const piece of run.split(/[._]{2,}/u)) {

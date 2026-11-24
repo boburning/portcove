@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 30,
+  "generator_version": 31,
   "facts_provenance": null,
   "enrollments": [],
   "blocked": {

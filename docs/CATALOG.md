@@ -4753,7 +4753,7 @@ with digits), `early-access` (`early` followed by `access`), `unstable`,
 `development-snapshot` (`development` followed by `snapshot`), `dev`,
 `prototype` and `playtest` only with a number (glued, `dev2`, or directly
 before one, `Playtest 2`), and `not-for-production` (`not for production`,
-wherever it stands). A status word joined by a single hyphen to `test`,
+wherever it stands). A status word joined by a single hyphen or en dash to `test`,
 `testing`, `tests`, `phase` or `stage` is one compound status that stands
 where its last word stands: `Alpha-Testing 0.0.11` (measured: it stated
 nothing before), `Beta-Test 3` and `Game 1.0 Beta-Test` state a status, while
@@ -4774,7 +4774,12 @@ anywhere in a sentence:
 - what never states anything is removed first: image references
   (an image's alt text and file path), HTML tags, link targets (the link text stays),
   URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
-  "Full Changelog" line) and image file names;
+  "Full Changelog" line: a run of two or three dots with a digit both before
+  and after it, so `Beta...` and `Beta... finally` keep their status word) and
+  image file names; HTML tags are removed also where one spans lines (an
+  `<img` whose attributes continue on the next line), and a block element
+  (`<br>`, `<p>`, `<div>`, list items, headings, table rows and the like)
+  ends a line;
 - the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
   before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
   or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
@@ -4802,14 +4807,13 @@ anywhere in a sentence:
 
 Only two places are judged: the release title, and the body's first line
 that holds a letter or digit once what states nothing and leading Markdown
-heading, quote, list and emphasis marks are removed, looked for within the
-body's first 4,096 characters (`releaseBodyReadWindow` in
-`scripts/release-text.mts`, shared by the observer and the rule), so a banner
-image or link-only line is skipped. That whole line is judged, however long.
-When the body is longer than the window and that line did not end inside it
-(no such line, or one running to the cut), and the title states nothing, the
-text is recorded `unobserved`: absence of a statement is never inferred from
-text that was not wholly read. A project-level remark further down ("pre-release quality"
+heading, quote, list and emphasis marks are removed, looked for in the whole
+body (`bodyFirstLine` in `scripts/release-text.mts`, shared by the observer
+and the rule), so a banner image or link-only line is skipped. That whole
+line is judged, however long, and nothing is cut before it is found. Text the
+observer did not keep (a source over its text budget, below) is recorded
+`unobserved`: absence of a statement is never inferred from text that was not
+read. A project-level remark further down ("pre-release quality"
 in a long description) is never read. The facts record, per entry, the
 listing words the text was judged with (`listing_words`), and per observed
 release whether the text was observed (`text`: `observed` or
@@ -4839,11 +4843,15 @@ The observer feeds the rule. For a source whose consumers are all
 descriptive listings, its configuration keeps release text
 (`release_text: "listing-window"`), and its facts keep, for each of the
 newest four published releases (`releaseTextWindow`, the listing
-observation window), the release name and of the body only the raw line the
-rule judges, with whether that reading was cut (`text: { title, body,
-body_truncated }`, `bodyExcerpt`). Reading the kept part gives the rule the
-same line and the same completeness as the whole body, so keeping less never
-changes a statement. Only the rows inside that window are read for text at
+observation window), the release name and of the body only the line the rule
+judges (`text: { title, line, line_complete }`), so keeping less never
+changes a statement. A source's kept text is bounded by the checkpoint's
+capacity: at most `releaseTextSourceBytes` of JSON per source (half the
+32 MiB checkpoint for text, half of that for the projection's copy, divided
+among the modeled 1,295 sources). Over it, every kept release of that source
+records only a typed overflow (`overflow_bytes`, its size), the batch job's
+accumulated read reports it in `gaps` with that size, and the text reads as
+unobserved. Only the rows inside that window are read for text at
 all, so untrusted text of older releases is never parsed. A change to that
 text during an observation is a concurrent change like any other fact. A
 source shared by a listing and a managed port keeps no text, so that
@@ -4854,8 +4862,8 @@ digest), never inside `upstream_observation`, whose shape Core's signed
 listing accepts. The observer's checkpoint retains it with the projection
 (`last_complete_policies`), and the batch job's accumulated read
 (`accumulatedObservations`) attaches it to the observation it names
-(`withReleaseText`) in the worker's release shape (`name`, `body`,
-`body_truncated`); text of other facts, a malformed row, or a projection
+(`withReleaseText`) in the worker's release shape (`name`, `body_line`,
+`body_line_complete`); text of other facts, a malformed row, or a projection
 retained before the observer kept text (until its source is next observed)
 leaves those releases' text unobserved. A port with more than one completed
 projection in one source is reported in the read's `gaps`, never chosen
@@ -6058,22 +6066,34 @@ of one identity's facts (`identityRefusal`: `release-unavailable`,
 `release-changed`, `not-latest-stable`, `asset-unavailable`, `core-refused`
 or `mismatch`) is a verdict on that identity, not on the job. A release list
 read counts as `release-unavailable` only when the provider states it
-(404, 410, or malformed records); an archive inspection counts only when it
-fails with the worker's typed inspection error. Any other failure (a
-permission refusal, a missing CLI, a fault of the job's own code) is
-`job-fault`, which stops the job like `out-of-scope`. For a verdict on one
+(404, 410, 451, a 403 whose message says repository access is blocked,
+malformed records or a response over its size bound); an archive inspection
+counts only when it fails with the worker's typed inspection error and Core
+gave a verdict on the archive. Any other failure (another permission refusal,
+a missing or crashed Core CLI, Core output that is not JSON, a Core usage
+refusal, a fault of the job's own code) is `job-fault`, which stops the job
+like `out-of-scope`. A systemic fault can still look like a verdict on each
+identity (a wrong URL template gives every identity a 404), so when every
+reproduced identity is refused for the same reason, `decide` withholds
+nothing and stops as `reproduction-unsound`. A single 404 cannot be told
+apart from a systemic fault that touched only one identity; it withholds
+that identity, which is the safe direction. For a verdict on one
 identity the shard
 passes, and `decide` withholds the identity (`withholdRefused`). Its entry
 becomes ineligible `reproduction-refused` for the release it was refused
-for, naming the refusal reason only, so a repeated refusal of the same
+for, naming the refusal reason and a receipt (`refusalReceipt`: the digest of the
+repository, release, assets fingerprint, observed release text verdicts and
+the parser and generator versions), so a repeated refusal of the same
 release is a reconfirmation rather than a new change; the provider's detail
 is in the job summary and the run's `withheld.json`. The catalog is
 regenerated and the paths, the gate, both capacity bounds and the batch's
 checks run again on the batch as it now stands; the rest of the batch
 proceeds. The identity is listed under `reproduction-refused` in the
-exception queues for a person to hand-check, and the worker derives it again
-on every run (it is never reconfirmed as ineligible), so it lands without a
-person once reproduction agrees. When a batch must carry entries
+exception queues for a person to hand-check. While the receipt's inputs are
+unchanged the worker reconfirms it without downloading the release again;
+when any of them changes (a new release or asset, a changed text verdict, a
+rule version), the worker derives it again, so it lands without a person once
+reproduction agrees. When a batch must carry entries
 (`carryOver`), an entry refused before for the same release waits behind
 every other, so a recurring refusal never holds another identity's slot. If
 the batch without the withheld identities cannot be regenerated, or its
@@ -6105,8 +6125,8 @@ the run's refusal records). The conditions are `gate-refused`, `catalog-capacity
 [catalog capacity](#catalog-capacity)), `reproduction-unsound` (the
 reproduction gave no per-identity outcome: an entry outside the authored
 candidate scope, `out-of-scope`, a change that also edits authored sources,
-a shard that ended without its typed record, a `job-fault` refusal, or a
-batch whose separation, clock or canonical-output checks failed after an
+a shard that ended without its typed record, a `job-fault` refusal, every
+reproduced identity refused for the same reason, or a batch whose separation, clock or canonical-output checks failed after an
 identity was withheld), `withheld-batch-unchecked` (the batch without the withheld
 identities could not be regenerated or its exception queues published),
 `reproduction-transient` (a reproduction that ended only transiently on two
@@ -6390,7 +6410,7 @@ is a correctness rule or comes from a real constraint:
 | `lastGoodRetentionDays`                                                                  | 14 days                                                      | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `maxDistinctPrograms`                                                                    | 1                                                            | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)                       | 4 releases, 32 assets                                        | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `releaseBodyReadWindow`, `releaseTextWindow`                                             | 4,096 characters, 4 releases                                 | Bounded unit: the part of a release body the release-text rule reads and the observer keeps (only the body's first readable line within it), for the listing observation window's releases. A body whose first readable line does not end inside it, with no statement found, is unobserved text: withheld (`release-text-unobserved`), never read as stating nothing.                                                                                                                                                                                                 |
+| `releaseTextWindow`, `releaseTextSourceBytes`                                            | 4 releases, 6,477 bytes per source (32 MiB ÷ 2 ÷ 2 ÷ 1,295)  | Bounded unit derived from the checkpoint's capacity: the listing observation window's releases keep their title and judged first line (the whole body is read to find it); a source whose kept text exceeds its share records a typed overflow with its size, reported in the accumulated read's gaps, and reads as unobserved text: withheld (`release-text-unobserved`), never read as stating nothing.                                                                                                                                                              |
 | `coreInspectedFileBound` (players per archive)                                           | 16,384                                                       | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `maximumNameBytes`, `chunkNames`, `chunkBytes`                                           | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes               | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `guideBound` (`guide-bound`)                                                             | 8 entries                                                    | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                                                                                                                                                                                                                                                          |

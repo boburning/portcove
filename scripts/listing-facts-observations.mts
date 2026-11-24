@@ -22,7 +22,11 @@ import {
   partialProgressRules,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
-import { listingProviderIdentity, withReleaseText } from "./listing-upstream-observation.mts";
+import {
+  listingProviderIdentity,
+  releaseTextOverflow,
+  withReleaseText,
+} from "./listing-upstream-observation.mts";
 import { readUpstreamObservations, type UpstreamInput } from "./maintenance-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -89,6 +93,11 @@ export function accumulatedObservations(
       const observation = isRecord(update)
         ? withReleaseText(update.upstream_observation, policies[0]!.listing_release_text)
         : undefined;
+      const overflow = releaseTextOverflow(policies[0]!.listing_release_text);
+      if (overflow !== null)
+        gaps.push(
+          `${progress.repository}: ${id} release text over its budget (${overflow} bytes); read as unobserved`,
+        );
       // The repository the observer was asked to observe: the listing it
       // observed, not the provider's resolved name, so a rename GitHub
       // redirects keeps its observation (the worker binds the repository id).
