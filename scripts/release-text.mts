@@ -56,6 +56,12 @@ const lineBreakingElements = new Set([
   "hr",
 ]);
 
+/**
+ * A blank line: a line break, optional spaces or tabs, and another line
+ * break (a lone CRLF is one line break).
+ */
+const blankLine = /(?:\r\n|\r(?!\n)|\n)[ \t]*(?:\r\n|\r|\n)/u;
+
 /** Elements whose contents are never shown as text: removed with them. */
 const rawTextElements = ["script", "style"] as const;
 
@@ -84,7 +90,8 @@ function runEnd(text: string, at: number, pattern: RegExp): number {
  * CommonMark's: a tag name (an ASCII letter, then letters, digits and `-`);
  * for an open tag, attributes (whitespace, a name of letters, digits, `_`,
  * `.`, `:` and `-` starting with a letter, `_` or `:`, optionally `=` and an
- * unquoted, single-quoted or double-quoted value), optional whitespace and an
+ * unquoted, single-quoted or double-quoted value holding no blank line),
+ * optional whitespace and an
  * optional `/`; then `>`. Whether GitHub renders the element does not matter:
  * it removes what it does not render, and shows neither as text.
  */
@@ -107,7 +114,8 @@ function rawTag(text: string, open: number): { end: number; name: string } | und
       const quote = text[value];
       if (quote === '"' || quote === "'") {
         const end = text.indexOf(quote, value + 1);
-        if (end < 0) return undefined;
+        // A blank line ends the paragraph, so the value never spans one.
+        if (end < 0 || blankLine.test(text.slice(value + 1, end))) return undefined;
         at = end + 1;
       } else {
         at = runEnd(text, value, /[^ \t\r\n"'=<>`]/u);

@@ -4782,7 +4782,9 @@ anywhere in a sentence:
   processing instructions, and any open or closing tag, so `<html>`,
   `<body>`, `<center>` and `<font color=red>` never become the judged line; a
   tag's whitespace may hold one line break (an `<img` whose attributes
-  continue on the next line), and a `<script>` or `<style>` element is
+  continue on the next line) and a tag never spans a blank line (a quoted
+  value holding one is no tag: the paragraph ends there, and GitHub shows
+  its start as text), and a `<script>` or `<style>` element is
   removed with its contents. A block element (`<br>`, `<p>`, `<div>`, list
   items, headings, table rows and the like) ends a line. Anything else in
   angle brackets is text, as GitHub shows it: `v1 <- Beta 2`,

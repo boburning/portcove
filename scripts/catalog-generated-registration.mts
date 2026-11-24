@@ -7972,8 +7972,13 @@ export function gateListingWords(listing: Record<string, unknown>): string[] {
 const gateTagSpace = "[ \\t]*(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?";
 /** The same whitespace, not empty. */
 const gateTagSpaced = "(?:[ \\t]+(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?|(?:\\r\\n|\\r|\\n)[ \\t]*)";
-/** One attribute of a raw HTML open tag, with its leading whitespace. */
-const gateAttribute = `${gateTagSpaced}[A-Za-z_:][A-Za-z0-9_.:-]*(?:${gateTagSpace}=${gateTagSpace}(?:[^ \\t\\r\\n"'=<>\`]+|'[^']*'|"[^"]*"))?`;
+/** A blank line: two line breaks with only spaces or tabs between. */
+const gateBlankLine = "(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*(?:\\r\\n|\\r|\\n)";
+/**
+ * One attribute of a raw HTML open tag, with its leading whitespace. A
+ * quoted value holds no blank line: the paragraph ends there.
+ */
+const gateAttribute = `${gateTagSpaced}[A-Za-z_:][A-Za-z0-9_.:-]*(?:${gateTagSpace}=${gateTagSpace}(?:[^ \\t\\r\\n"'=<>\`]+|'(?:(?!${gateBlankLine})[^'])*'|"(?:(?!${gateBlankLine})[^"])*"))?`;
 /** A `script` or `style` element with its contents, up to its closing tag. */
 const gateRawText = (name: string) => {
   const letters = name.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`);

@@ -6715,6 +6715,13 @@ void test("fit and gate read release text alike over generated lines (F1)", () =
     "<font color=red>",
     "<style>x</style>",
     "<Beta 3>",
+    '<a title="',
+    "<a title='",
+    '">',
+    "'>",
+    "\n\n",
+    "\r\n\r\n",
+    "\n",
   ];
   const repositories = ["fixture-owner/beta-squadron", "fixture-owner/game", "fixture-owner/rc"];
   const listings = [[], ["beta", "squadron"], ["game"], ["alpha"]];
@@ -11579,6 +11586,23 @@ void test("raw HTML is removed whether or not GitHub renders it; other angle bra
     ),
     "Bust A Groove Recompiled",
   );
+  // Found in review: a quoted value never spans a blank line (the paragraph
+  // ends there), so it cannot hide the lines GitHub shows; the unclosed
+  // `<a title="` is then the text shown first.
+  for (const [quote, blank] of [
+    ['"', "\n\n"],
+    ["'", "\n\n"],
+    ['"', "\r\n\r\n"],
+    ["'", "\r\n \r\n"],
+  ] as const) {
+    const body = `<a title=${quote}${blank}Beta 2${blank}${quote}>\nStable release`;
+    assert.equal(bodyFirstLine(body), `<a title=${quote}`, JSON.stringify(body));
+    const line = `v1 <a title=${quote}${blank}Beta 2${blank}${quote}> ok`;
+    assert.equal(releaseStatement(line, repository), "beta", `fit: ${JSON.stringify(line)}`);
+    assert.equal(gateStatement(line, repository), "beta", `gate: ${JSON.stringify(line)}`);
+  }
+  // One line break inside a quoted value is still one tag.
+  assert.equal(bodyFirstLine('<a title="x\ny">\nBeta 3'), "Beta 3");
   // A quoted attribute value may hold `>`.
   assert.equal(bodyFirstLine('<a title="a>b">\nBeta 5'), "Beta 5");
   // Comments and tags, also across one line break, state nothing.
