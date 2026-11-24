@@ -37,7 +37,7 @@ const observerSideRules: readonly string[] = [...partialProgressRules, "concurre
  * The listing observations the observer has accumulated, as the facts
  * worker's report `{ listings }`: for every source that has ever completed,
  * the last complete listing observation of each port it serves, kept while
- * the current listing still names the observed repository. The binding is
+ * the current listing still names the repository that was observed. The binding is
  * the repository, not the listing's whole declaration: the facts worker
  * reads only the observed repository's releases and assets, and a landed
  * batch rewrites the generated parts of the declarations it enrolls, which
@@ -80,12 +80,16 @@ export function accumulatedObservations(
     for (const [id, policies] of byPort) {
       const update = policies.length === 1 ? policies[0]!.listing_update : undefined;
       const observation = isRecord(update) ? update.upstream_observation : undefined;
+      // The repository the observer was asked to observe: the listing it
+      // observed, not the provider's resolved name, so a rename GitHub
+      // redirects keeps its observation (the worker binds the repository id).
+      const asked = isRecord(update) ? listingProviderIdentity(update) : null;
       if (
         found.has(id) ||
         !isRecord(observation) ||
         observation.provider !== "github" ||
-        typeof observation.repository !== "string" ||
-        listed.get(id) !== observation.repository.toLowerCase()
+        asked?.provider !== "github" ||
+        listed.get(id) !== asked.repository.toLowerCase()
       )
         continue;
       found.set(id, status ? { ...observation, status } : observation);

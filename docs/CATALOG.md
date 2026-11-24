@@ -5703,7 +5703,9 @@ of observer state. `scripts/listing-facts-observations.mts` projects every
 source that has completed to the last complete listing observation of each
 port it serves, so a source observed in any earlier observer run reaches the
 worker. An observation is kept while the current listing still names the
-observed repository; a re-pointed listing is never rebound. The binding is
+repository the observer was asked to observe (a rename GitHub redirects
+keeps it; the worker binds the repository id); a re-pointed listing is never
+rebound. The binding is
 the repository, not the listing's whole declaration (the listing delivery's
 rule): the worker reads only the repository's releases and assets, and a
 landed batch rewrites the generated parts of the declarations it enrolls, so

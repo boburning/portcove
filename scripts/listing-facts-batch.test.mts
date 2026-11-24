@@ -2191,6 +2191,37 @@ void test("the job reads every listing the observer has accumulated, not only th
   assert.equal(status(budget.id), "complete");
   assert.equal(status(changing.id), "complete");
   assert.deepEqual(gaps, ["owner/never: no completed observer scope"]);
+  // A repository GitHub renamed resolves to its new name in the observation;
+  // the listing still names the one observed, so it stays observed (the
+  // worker binds the repository id).
+  const renamed = accumulatedObservations(
+    {
+      ...input,
+      checkpoint: checkpoint(
+        Object.fromEntries([
+          source(older, 43, {
+            last_complete_policies: [
+              {
+                ...policyFor(older, 43),
+                listing_update: {
+                  ...policyFor(older, 43).listing_update,
+                  upstream_observation: {
+                    ...policyFor(older, 43).listing_update.upstream_observation,
+                    repository: "new-owner/older-renamed",
+                  },
+                },
+              },
+            ],
+          }),
+        ]),
+      ),
+    },
+    { format_version: 11, listings: [older] },
+  );
+  assert.deepEqual(
+    renamed.listings.map((listing) => listing.id),
+    [older.id],
+  );
   // A listing re-pointed since the observation stays unobserved, never rebound.
   const moved = { ...older, project_url: "https://github.com/someone/else" };
   assert.deepEqual(
