@@ -2863,6 +2863,10 @@ pub struct ModSetupsView {
     /// Results of the last automatic check, even after reopening the library.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub last_automatic_checks: Vec<crate::ProviderAutoUpdateCheck>,
+    /// The last automatic pass recorded results that cannot be shown whole, so
+    /// `last_automatic_checks` is not a complete report of that pass.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub last_automatic_checks_incomplete: bool,
     /// The mod provider this game has a reviewed binding for (`gamebanana` or
     /// `thunderstore`), if any.
     #[serde(default)]
@@ -2910,6 +2914,7 @@ impl ModSetupsView {
             live: None,
             held_updates: Vec::new(),
             last_automatic_checks: Vec::new(),
+            last_automatic_checks_incomplete: false,
             provider: None,
             github_release_url,
             github_native_import_offered,
@@ -2997,12 +3002,14 @@ impl PortcoveService {
                     .map(|entry| entry.packages.len())
             })
             .transpose()?;
+        let last_checks = crate::provider_auto_update::last_checks(&layout, &inventory);
         Ok(ModSetupsView {
             github_release_url,
             github_native_import_offered,
             external_mod_portals,
             held_updates,
-            last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
+            last_automatic_checks: last_checks.checks,
+            last_automatic_checks_incomplete: last_checks.incomplete,
             provider: crate::provider_binding::default_binding(port)
                 .map(|binding| binding.provider().to_owned()),
             providers: crate::provider_binding::configured_bindings(port)

@@ -3610,6 +3610,15 @@ a smaller count of its own.
 - Thunderstore closures resolve completely and iteratively, with cycle and
   version-conflict detection. A requirement the listing does not offer is an
   explicit failure naming it.
+- Every revision of every setup is kept and travels in library metadata.
+  Export, import and recovery-bundle review admit that document against the
+  library's memory-derived admission budget and refuse it early, naming its size,
+  the budget and its basis, when it does not fit. This history is not pruned
+  or streamed per revision yet; it is an open constraint (#1422).
+- The automatic mod update check log records one result per installed provider
+  file of every automatic setup, without a count cap. A log that cannot be read
+  whole, or a pass whose results could not be stored, is reported as incomplete
+  (`last_automatic_checks_incomplete`), never as "no checks".
 
 ### Runtime diagnostic writer
 

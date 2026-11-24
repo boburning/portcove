@@ -1698,6 +1698,12 @@ pub(crate) async fn execute(
                         utc_time(check.checked_at)
                     ));
                 }
+                if view.last_automatic_checks_incomplete {
+                    lines.push(
+                        "The results of the last automatic mod update check could not be read in full. The next automatic check records them again."
+                            .to_owned(),
+                    );
+                }
                 for held in &view.held_updates {
                     let setup = inventory
                         .profiles

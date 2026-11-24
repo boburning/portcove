@@ -88,7 +88,10 @@ game setup queue is unavailable. A successful envelope with
 `data.batches` is empty. The prior API returned an error for this queue failure.
 An independent, optional `profile setups.last_automatic_checks` field reports
 the last bounded check and grants no update permission. Event schema 3 and
-the private library writer protocol are unchanged.
+the private library writer protocol are unchanged. A later additive, optional
+`profile setups.last_automatic_checks_incomplete` (no API version change)
+reports that the stored results of the last pass could not be read in full;
+an older reader sees the same document without it.
 
 API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
 Inspection records one file and its exact bytes. Preservation requires the

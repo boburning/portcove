@@ -1604,6 +1604,7 @@ export default interface Resources {
           "held": "Update needs review.",
           "unavailable": "Check unavailable. Portcove will try again."
         },
+        "automaticIncomplete": "Some results of the last automatic check could not be read. The next automatic check records them again.",
         "check": "Check for mod updates",
         "checking": "Checking for mod updates…",
         "detail": {

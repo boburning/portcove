@@ -1719,3 +1719,64 @@ fn a_recorded_review_survives_staging_pruning_while_it_is_resumed() {
     w.service.prune_recipe_reviews(&recipe_root);
     assert!(!abandoned.exists());
 }
+
+#[test]
+fn a_review_in_the_earlier_full_copy_shape_reads_and_asks_for_a_fresh_review() {
+    let w = world();
+    grow_setup(&w, 3);
+    let (recipe, acquisitions) = staged_recipe(&w, 1);
+    record(&w.service, &recipe, &acquisitions);
+    let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(reviewed.can_apply, "{:?}", reviewed.holds);
+    assert!(!reviewed.staging.acquisitions.is_empty());
+
+    // The shape reviews and CLI plan files had before plans were held once:
+    // every acquisition carries its own copy of its provider plan.
+    let mut earlier = serde_json::to_value(&reviewed).unwrap();
+    let object = earlier.as_object_mut().unwrap();
+    object.remove("provider_plans");
+    object["acquisitions"] = serde_json::Value::Array(
+        reviewed
+            .staging
+            .acquisitions
+            .iter()
+            .map(|reference| {
+                serde_json::to_value(RecipeAcquisitionPlan {
+                    recipe_identity_sha256: recipe.identity_sha256.clone(),
+                    native_id: reference.native_id.clone(),
+                    provider_plan: reviewed
+                        .staging
+                        .plan(&reference.plan_sha256)
+                        .unwrap()
+                        .clone(),
+                })
+                .unwrap()
+            })
+            .collect(),
+    );
+    let earlier_bytes = serde_json::to_vec(&earlier).unwrap();
+    earlier["plan_sha256"] = hex::encode(sha2::Sha256::digest(&earlier_bytes)).into();
+
+    let read: RecipeImportPlan = serde_json::from_value(earlier).unwrap();
+    assert_eq!(read.staging.acquisitions, reviewed.staging.acquisitions);
+    let mut plans = read.staging.provider_plans.clone();
+    let mut expected = reviewed.staging.provider_plans.clone();
+    plans.sort_by(|a, b| a.plan_sha256.cmp(&b.plan_sha256));
+    expected.sort_by(|a, b| a.plan_sha256.cmp(&b.plan_sha256));
+    assert_eq!(plans, expected);
+    // Its digest covered the earlier shape, so approval needs a fresh review.
+    let error = w
+        .service
+        .apply_recipe_import(&read, "Copy", "unused")
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict, "{error:?}");
+    assert!(
+        error.message.contains("review the recipe again"),
+        "{error:?}"
+    );
+    // The fresh review of the same recipe is the current one.
+    assert_eq!(
+        w.service.plan_recipe_import(&recipe).unwrap().plan_sha256,
+        reviewed.plan_sha256
+    );
+}

@@ -35,11 +35,17 @@ use crate::{
 const HOLDS_FILE: &str = "auto-update-holds.json";
 const MAX_REMEMBERED_HOLDS: usize = 256;
 const CHECKS_FILE: &str = "last-automatic-checks.json";
-/// One check per installed provider file: at most one per package of a setup,
-/// so every file of a full setup is reported rather than silently dropped.
-const MAX_CHECKS: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
-/// Each check is a few identifiers and one short reason.
-const MAX_CHECKS_BYTES: u64 = MAX_CHECKS as u64 * 2 * 1024;
+/// Written in place of a pass's results that could not be stored whole.
+const INCOMPLETE_CHECKS: &[u8] = br#"{"incomplete":true}"#;
+/// One check per installed provider file of every automatic setup of a port.
+/// A setup has at most one provider file per package (the shared setup
+/// capacity), and setups per port are not counted, so a pass records every
+/// check. The log is Portcove-owned and read whole, so its parse budget is the
+/// library's memory-derived document admission budget; a log past it, or one
+/// that cannot be read, is reported as incomplete rather than as no checks.
+fn max_checks_bytes() -> u64 {
+    crate::library_metadata_document::admission_budget()
+}
 
 /// What one standing pass did about one installed provider file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -81,18 +87,33 @@ pub struct ProviderAutoUpdateCheck {
     pub result: Option<ProviderAutoUpdateOutcome>,
 }
 
-pub(crate) fn last_checks(
-    layout: &Layout,
-    inventory: &crate::ProfileInventory,
-) -> Vec<ProviderAutoUpdateCheck> {
-    let checks: Vec<ProviderAutoUpdateCheck> =
-        crate::path::read_bounded_regular(&layout.store().join(CHECKS_FILE), MAX_CHECKS_BYTES)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .unwrap_or_default();
-    checks
+/// The stored results of the last automatic pass for a port's setups.
+#[derive(Debug, Default)]
+pub(crate) struct LastChecks {
+    pub(crate) checks: Vec<ProviderAutoUpdateCheck>,
+    /// A stored log existed but could not be read whole (unreadable, past its
+    /// parse budget, or not a check log), so `checks` does not report it.
+    pub(crate) incomplete: bool,
+}
+
+pub(crate) fn last_checks(layout: &Layout, inventory: &crate::ProfileInventory) -> LastChecks {
+    let path = layout.store().join(CHECKS_FILE);
+    if std::fs::symlink_metadata(&path)
+        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+    {
+        return LastChecks::default();
+    }
+    let Some(checks) = crate::path::read_bounded_regular(&path, max_checks_bytes())
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Vec<ProviderAutoUpdateCheck>>(&bytes).ok())
+    else {
+        return LastChecks {
+            checks: Vec::new(),
+            incomplete: true,
+        };
+    };
+    let checks = checks
         .into_iter()
-        .take(MAX_CHECKS)
         .filter(|check| {
             // Keep observed Unix timestamps within the portable date range.
             (0..=253_402_300_799).contains(&check.checked_at)
@@ -102,7 +123,11 @@ pub(crate) fn last_checks(
                             == ProfileUpdatePolicy::AutomaticEligible
                 })
         })
-        .collect()
+        .collect();
+    LastChecks {
+        checks,
+        incomplete: false,
+    }
 }
 
 fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Result<()> {
@@ -111,12 +136,17 @@ fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Resul
         return Ok(());
     }
     let bytes = serde_json::to_vec(checks)?;
-    if bytes.len() as u64 > MAX_CHECKS_BYTES {
-        return Err(PortcoveError::state(
-            "automatic mod check results exceed their storage bound",
-        ));
-    }
     std::fs::create_dir_all(layout.store())?;
+    if bytes.len() as u64 > max_checks_bytes() {
+        // Never leave an older pass's results looking current: the marker is
+        // not a check log, so readers report the log as incomplete.
+        crate::durability::write_bytes_atomically(&path, INCOMPLETE_CHECKS, true)?;
+        return Err(
+            PortcoveError::state("automatic mod check results exceed their storage bound")
+                .detail("check_bytes", bytes.len().to_string())
+                .detail("budget_bytes", max_checks_bytes().to_string()),
+        );
+    }
     crate::durability::write_bytes_atomically(&path, &bytes, true)?;
     Ok(())
 }
@@ -584,16 +614,14 @@ impl PortcoveService {
                  project_id: Option<String>,
                  candidate_file_id: Option<String>,
                  outcome: Option<ProviderAutoUpdateOutcome>| {
-                    if checks.len() < MAX_CHECKS {
-                        checks.push(ProviderAutoUpdateCheck {
-                            checked_at: crate::Library::now(),
-                            profile_id: setup.id.clone(),
-                            native_ids: native_ids.clone(),
-                            project_id,
-                            candidate_file_id,
-                            result: outcome.clone(),
-                        });
-                    }
+                    checks.push(ProviderAutoUpdateCheck {
+                        checked_at: crate::Library::now(),
+                        profile_id: setup.id.clone(),
+                        native_ids: native_ids.clone(),
+                        project_id,
+                        candidate_file_id,
+                        result: outcome.clone(),
+                    });
                     if let Some(outcome) = outcome {
                         results.push(ProviderAutoUpdate {
                             port_id: port_id.into(),

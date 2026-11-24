@@ -57,7 +57,10 @@ type Props = {
   onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
   onAppliedFromPlay?: (() => void) | undefined;
-  updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
+  updates?: Pick<
+    ModUpdateControlProps,
+    "policy" | "setPolicy" | "automaticChecks" | "automaticChecksIncomplete"
+  >;
 };
 
 /**

@@ -642,6 +642,7 @@ function BoundModSetupsControl({
                 automaticChecks: (view.last_automatic_checks ?? []).filter(
                   (check) => check.profile_id === selected.profile.id,
                 ),
+                automaticChecksIncomplete: view.last_automatic_checks_incomplete ?? false,
                 setPolicy: (policy) =>
                   void perform(
                     () =>

@@ -38950,6 +38950,10 @@
         },
         "type": "array"
       },
+      "last_automatic_checks_incomplete": {
+        "description": "The last automatic pass recorded results that cannot be shown whole, so\n`last_automatic_checks` is not a complete report of that pass.",
+        "type": "boolean"
+      },
       "later_mods_take_priority": {
         "description": "True when reviewed loader source shows that the later of two mods changing\nthe same asset wins. False when the order is kept but which mod wins is not\nestablished.",
         "type": "boolean"

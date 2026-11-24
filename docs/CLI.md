@@ -3232,6 +3232,9 @@ check that field before treating empty game work as a completed game assessment.
 Earlier clients returned an error for that queue failure before checking mods. The
 `profile setups` field `last_automatic_checks` may be absent when there is no
 receipt to show. It provides status for review and grants no update permission.
+When the stored results of the last automatic pass cannot be read in full,
+`last_automatic_checks_incomplete` is `true` and the text output says so; the
+next automatic pass records them again.
 
 In Desktop, use **Setups and mods** to choose the current setup's mod update
 policy or check for a newer file. An explicit check reads provider metadata and

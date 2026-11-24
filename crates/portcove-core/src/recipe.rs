@@ -181,12 +181,53 @@ pub struct RecipeAcquisitionRef {
 /// The provider files a recipe review has staged. Each provider plan is held
 /// once, however many of its members the recipe uses, so a shared closure
 /// costs its plan once in the review, its records and IPC.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct RecipeStaging {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub acquisitions: Vec<RecipeAcquisitionRef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub provider_plans: Vec<crate::ProviderInstallPlan>,
+}
+
+/// Reads both the current shape and the earlier one, in which each entry of
+/// `acquisitions` carried a full copy of its provider plan (reviews and CLI
+/// plan files written before plans were held once). An earlier entry becomes a
+/// reference plus its plan, held once. Such a review keeps the digest it was
+/// written with, which covered the earlier shape, so applying it asks for a
+/// fresh review (the approval is bound to that digest) instead of trusting
+/// the converted form.
+impl<'de> Deserialize<'de> for RecipeStaging {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Entry {
+            Reference(RecipeAcquisitionRef),
+            Earlier(RecipeAcquisitionPlan),
+        }
+        #[derive(Deserialize)]
+        struct Wire {
+            #[serde(default)]
+            acquisitions: Vec<Entry>,
+            #[serde(default)]
+            provider_plans: Vec<crate::ProviderInstallPlan>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        let mut staging = Self {
+            acquisitions: Vec::with_capacity(wire.acquisitions.len()),
+            provider_plans: wire.provider_plans,
+        };
+        for entry in wire.acquisitions {
+            match entry {
+                Entry::Reference(reference) => staging.acquisitions.push(reference),
+                Entry::Earlier(earlier) => staging
+                    .insert(&earlier.native_id, earlier.provider_plan)
+                    .map_err(serde::de::Error::custom)?,
+            }
+        }
+        Ok(staging)
+    }
 }
 
 impl RecipeStaging {

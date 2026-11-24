@@ -6260,6 +6260,11 @@ export interface OutputModSetupsView {
    */
   last_automatic_checks?: ProviderAutoUpdateCheck[];
   /**
+   * The last automatic pass recorded results that cannot be shown whole, so
+   * `last_automatic_checks` is not a complete report of that pass.
+   */
+  last_automatic_checks_incomplete?: boolean;
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.

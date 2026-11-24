@@ -361,6 +361,7 @@
         "held": "La actualización requiere revisión.",
         "unavailable": "No se pudo comprobar. Portcove volverá a intentarlo."
       },
+      "automaticIncomplete": "No se pudieron leer algunos resultados de la última comprobación automática. La próxima comprobación automática los vuelve a registrar.",
       "check": "Buscar actualizaciones de mods",
       "checking": "Buscando actualizaciones de mods…",
       "detail": {
