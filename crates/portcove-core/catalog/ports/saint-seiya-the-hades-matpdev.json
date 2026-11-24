@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "saint-seiya-the-hades-matpdev",
+    "project_url": "https://github.com/matpdev/SaintSeiyaRecomp",
+    "name": "Saint Seiya: The Hades / matpdev",
+    "summary": "Native Linux port of Saint Seiya: The Hades (PS2) by static recompilation: Vulkan, 16:9, 60 Hz. Bring your own disc.",
+    "issue_number": 5535,
+    "listed_at": "2026-11-24"
+  }
+}

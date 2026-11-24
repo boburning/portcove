@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "downhill-domination-downhill-revived",
+    "project_url": "https://github.com/skuza-oss/downhill-revived",
+    "name": "Downhill Domination / Downhill Revived (skuza-oss)",
+    "summary": "A PC port of Downhill Domination (PS2), built on a matching decompilation. Bring your own disc.",
+    "issue_number": 7205,
+    "listed_at": "2026-11-24"
+  }
+}

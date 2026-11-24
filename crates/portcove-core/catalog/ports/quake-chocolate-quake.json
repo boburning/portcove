@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-chocolate-quake",
+    "project_url": "https://github.com/Henrique194/chocolate-quake",
+    "name": "Quake / Chocolate Quake",
+    "summary": "A purist Quake source port that restores the original look and feel of v1.09 and earlier.",
+    "issue_number": 5778,
+    "listed_at": "2026-11-24"
+  }
+}

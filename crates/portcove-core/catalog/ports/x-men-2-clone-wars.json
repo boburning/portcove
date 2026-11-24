@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "x-men-2-clone-wars",
+    "project_url": "https://github.com/crabsmack/xmen2-pc",
+    "name": "X-Men 2: Clone Wars",
+    "summary": "X-Men 2: Clone Wars (Genesis) as a native PC game, from a full decompilation: widescreen, high frame rate, up to 4 players on one PC or online (rollback netplay). Bring your own ROM.",
+    "issue_number": 5453,
+    "listed_at": "2026-11-24"
+  }
+}

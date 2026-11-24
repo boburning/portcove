@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ninja-gaiden-ii-gamboozino-recompiled",
+    "project_url": "https://github.com/gamboozino/ng2recomp",
+    "name": "Ninja Gaiden II / gamboozino",
+    "summary": "Ninja Gaiden II (Xbox 360, 2008) statically recompiled into native Linux and Windows builds, drawn by its own Vulkan renderer. A steady 60 fps, up to 8x render scale, widescreen and ultrawide, keyboard and mouse, mods, Steam Deck ready. Bring your own copy of the game.",
+    "issue_number": 5500,
+    "listed_at": "2026-11-24"
+  }
+}

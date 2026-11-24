@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "andrewnakas-gtav-xbox360-tu27-rexglue",
+    "project_url": "https://github.com/andrewnakas/gtav-recomp",
+    "name": "Grand Theft Auto V (Xbox 360 TU27) / andrewnakas ReXGlue recomp",
+    "summary": "GTA V (Xbox 360, TU27) static recompilation with ReXGlue",
+    "issue_number": 4267,
+    "listed_at": "2026-11-24"
+  }
+}

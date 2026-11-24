@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-alpha-centauri-glsmac",
+    "project_url": "https://github.com/afwbkbc/glsmac",
+    "name": "Sid Meier's Alpha Centauri / GLSMAC (afwbkbc)",
+    "summary": "Unofficial open-source OpenGL/SDL2 reimplementation of Sid Meier's Alpha Centauri ( + Alien Crossfire )",
+    "issue_number": 6921,
+    "listed_at": "2026-11-24"
+  }
+}

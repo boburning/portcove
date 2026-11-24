@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-iii-arena-quake3e",
+    "project_url": "https://github.com/ec-/Quake3e",
+    "name": "Quake III Arena / Quake3e",
+    "summary": "Improved Quake III Arena engine",
+    "issue_number": 5679,
+    "listed_at": "2026-11-24"
+  }
+}

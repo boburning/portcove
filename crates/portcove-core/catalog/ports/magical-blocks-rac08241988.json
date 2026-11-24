@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "magical-blocks-rac08241988",
+    "project_url": "https://github.com/rac08241988/MagicalBlocks",
+    "name": "Magical Tetris Challenge / Magical Blocks",
+    "summary": "Windows PC port of Magical Tetris Challenge (Nintendo 64), made with N64Recomp. Bring your own ROM. No game files included.",
+    "issue_number": 5967,
+    "listed_at": "2026-11-24"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cdetv-conker-live-recompiled-original-xbox",
+    "project_url": "https://github.com/cdetv/conker-live-recompiled",
+    "name": "Conker: Live & Reloaded (original Xbox USA/PAL) / cdetv Live & Recompiled",
+    "summary": "A native Windows PC version of Conker: Live & Reloaded, made by statically recompiling the original Xbox game. No game files included. Playable on Linux (via Proton)",
+    "issue_number": 4342,
+    "listed_at": "2026-11-24"
+  }
+}

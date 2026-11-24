@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-edge-classic",
+    "project_url": "https://github.com/edge-classic/EDGE-classic",
+    "name": "Doom / EDGE Classic",
+    "summary": "Cross-Platform OpenGL Doom Source Port with powerful modding features",
+    "issue_number": 5666,
+    "listed_at": "2026-11-24"
+  }
+}

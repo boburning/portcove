@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-party-n64hub-recompiled",
+    "project_url": "https://github.com/n64hub/mario-party-recomp",
+    "name": "Mario Party",
+    "summary": "AI-written static recompilation of Mario Party (N64, USA) for PC and the web. Bring your own ROM.",
+    "issue_number": 5494,
+    "listed_at": "2026-11-24"
+  }
+}

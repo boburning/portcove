@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-ds-alonsotlol-recompiled",
+    "project_url": "https://github.com/AlonsoTlol/DS-Kart-Recompiled",
+    "name": "Mario Kart DS / DS Kart Recompiled",
+    "summary": "Native PC port of Mario Kart DS by static recompilation. Port nativo para PC de Mario Kart DS.",
+    "issue_number": 5501,
+    "listed_at": "2026-11-24"
+  }
+}

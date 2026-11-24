@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-settlers-freeserf-net",
+    "project_url": "https://github.com/Pyrdacor/freeserf.net",
+    "name": "The Settlers / Freeserf.net",
+    "summary": "Settlers 1 clone written in C#",
+    "issue_number": 5691,
+    "listed_at": "2026-11-24"
+  }
+}

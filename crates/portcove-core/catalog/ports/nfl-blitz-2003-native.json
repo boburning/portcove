@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nfl-blitz-2003-native",
+    "project_url": "https://github.com/8bitninja64/NFLBlitz2003-PC",
+    "name": "NFL Blitz 2003 / native recomp",
+    "summary": "Native Windows/Linux PC port of NFL Blitz 2003 (GameCube) by static recompilation. Bring your own disc; no game data included.",
+    "issue_number": 6548,
+    "listed_at": "2026-11-24"
+  }
+}

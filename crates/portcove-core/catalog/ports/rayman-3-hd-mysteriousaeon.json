@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rayman-3-hd-mysteriousaeon",
+    "project_url": "https://github.com/MysteriousAeon/rayman3-hd-recompiled",
+    "name": "Rayman 3 HD / MysteriousAeon",
+    "summary": "A native Windows port of Rayman 3 HD (Xbox 360) using static recompilation, with HD+ enhancements and Turkish localization.",
+    "issue_number": 6579,
+    "listed_at": "2026-11-24"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rise-of-the-triad-taradino",
+    "project_url": "https://github.com/fabiangreffrath/taradino",
+    "name": "Rise of the Triad / Taradino",
+    "summary": "SDL2-Port of Rise of the Triad",
+    "issue_number": 5681,
+    "listed_at": "2026-11-24"
+  }
+}

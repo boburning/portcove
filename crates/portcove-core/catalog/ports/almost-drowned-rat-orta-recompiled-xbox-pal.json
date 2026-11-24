@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "almost-drowned-rat-orta-recompiled-xbox-pal",
+    "project_url": "https://github.com/almost-drowned-rat/Orta-Recompiled",
+    "name": "Panzer Dragoon Orta (original Xbox Europe PAL) / almost-drowned-rat Orta Recompiled",
+    "summary": "Static recompilation of Panzer Dragoon Orta (Xbox, Europe/PAL) to native PC code with a Vulkan renderer",
+    "issue_number": 4579,
+    "listed_at": "2026-11-24"
+  }
+}

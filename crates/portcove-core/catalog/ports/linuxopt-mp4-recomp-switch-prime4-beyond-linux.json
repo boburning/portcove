@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "linuxopt-mp4-recomp-switch-prime4-beyond-linux",
+    "project_url": "https://github.com/linuxopt/mp4-recomp",
+    "name": "Metroid Prime 4: Beyond (Switch updated 010019A01E2F2000) / linuxopt SwitchRecomp",
+    "summary": "Metroid Prime 4 Beyond for Linux as a self-contained AppImage —  MP4 Recomp's static recompilation, built from your own game files. No game files included.",
+    "issue_number": 4818,
+    "listed_at": "2026-11-24"
+  }
+}

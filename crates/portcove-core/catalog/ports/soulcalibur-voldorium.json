@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "soulcalibur-voldorium",
+    "project_url": "https://github.com/enrique363/voldorium",
+    "name": "Soulcalibur / Voldorium Dreamcast native kit",
+    "summary": "Native Windows and Linux port of SoulCalibur (Dreamcast) by static recompilation: 16:9, online versus with rollback netcode (Windows and Linux play together). Requires your own legal disc dump; no game files included.",
+    "issue_number": 5603,
+    "listed_at": "2026-11-24"
+  }
+}

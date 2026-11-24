@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cheviman-outrunners-console-style-home-native-c",
+    "project_url": "https://github.com/cheviman/outrunners-port",
+    "name": "OutRunners (1992 arcade-derived home variant) / cheviman console-style native game",
+    "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+    "issue_number": 4684,
+    "listed_at": "2026-11-24"
+  }
+}

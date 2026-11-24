@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dungeon-keeper-2-glkeeper",
+    "project_url": "https://github.com/codenamecpp/GLKeeper",
+    "name": "Dungeon Keeper 2 / Grim Lands Keeper (codenamecpp)",
+    "summary": "Open Source Dungeon Keeper 2 Reimplementation",
+    "issue_number": 7039,
+    "listed_at": "2026-11-24"
+  }
+}

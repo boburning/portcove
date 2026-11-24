@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "resident-evil-the-umbrella-chronicles-reuc-recomp",
+    "project_url": "https://github.com/solleo95/reuc-recomp",
+    "name": "Resident Evil: The Umbrella Chronicles / Resident Evil: The Umbrella Chronicles PC native port (solleo95)",
+    "summary": "Resident Evil: The Umbrella Chronicles running natively on Windows, Linux and Steam Deck: unlocked FPS, mouse aiming, DLSS / FSR 3.1 + frame generation, ray-traced shadows, HDR, Lua/JS/DLL mods, online co-op. Bring your own NTSC-U (RBUE08) image.",
+    "issue_number": 7238,
+    "listed_at": "2026-11-24"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadowgate-shadowgreat",
+    "project_url": "https://github.com/CorrieDivitt/ShadowGreat",
+    "name": "Shadowgate (NES) / Shadowgreat",
+    "summary": "Static recompilation of Shadowgate (NES) into a native Windows program",
+    "issue_number": 6551,
+    "listed_at": "2026-11-24"
+  }
+}

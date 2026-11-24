@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bayonetta-3-b3-express",
+    "project_url": "https://github.com/LuvAbyss/B3-Express",
+    "name": "Bayonetta 3 / B3-Express (LuvAbyss)",
+    "summary": "Bayonetta 3 v1.2.0 running natively on Windows through ScarletNX static recompilation, with an NVN renderer on Vulkan and a friendly launcher. Aiming for butter-smooth 60 FPS. No game files included: bring your own dump.",
+    "issue_number": 7250,
+    "listed_at": "2026-11-24"
+  }
+}

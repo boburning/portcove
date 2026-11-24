@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "candycrisis-jorio",
+    "project_url": "https://github.com/jorio/CandyCrisis",
+    "name": "Candy Crisis",
+    "summary": "Candy Crisis source port for modern operating systems",
+    "issue_number": 5644,
+    "listed_at": "2026-11-24"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-arcade-opengp",
+    "project_url": "https://github.com/OpenGP-dev/OpenGP",
+    "name": "Mario Kart Arcade GP and GP 2 / OpenGP",
+    "summary": "A native PC port of Mario Kart Arcade GP and GP 2 by static recompilation. Builds the games from your own disc images.",
+    "issue_number": 5499,
+    "listed_at": "2026-11-24"
+  }
+}

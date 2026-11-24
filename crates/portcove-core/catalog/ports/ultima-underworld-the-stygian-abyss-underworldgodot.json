@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-the-stygian-abyss-underworldgodot",
+    "project_url": "https://github.com/hankmorgan/UnderworldGodot",
+    "name": "Ultima Underworld: The Stygian Abyss / UnderworldGodot (hankmorgan)",
+    "summary": "Engine recreation for Ultima Underworld and Ultima Underworld 2 using the Godot Engine",
+    "issue_number": 7030,
+    "listed_at": "2026-11-24"
+  }
+}

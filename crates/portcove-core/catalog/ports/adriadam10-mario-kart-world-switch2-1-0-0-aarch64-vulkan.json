@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "adriadam10-mario-kart-world-switch2-1-0-0-aarch64-vulkan",
+    "project_url": "https://github.com/adriadam10/mkw-recomp",
+    "name": "Mario Kart World (Nintendo Switch 2, 1.0.0) / adriadam10 mkw-recomp",
+    "summary": "Static recompilation of Mario Kart World (Nintendo Switch 2) to a native PC program",
+    "issue_number": 4931,
+    "listed_at": "2026-11-24"
+  }
+}

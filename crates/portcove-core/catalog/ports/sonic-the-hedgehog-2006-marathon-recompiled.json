@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-the-hedgehog-2006-marathon-recompiled",
+    "project_url": "https://github.com/sonicnext-dev/MarathonRecomp",
+    "name": "Sonic the Hedgehog (2006) / Marathon Recompiled (sonicnext-dev)",
+    "summary": "An unofficial PC port of the Xbox 360 version of Sonic the Hedgehog (2006) created through the process of static recompilation",
+    "issue_number": 6854,
+    "listed_at": "2026-11-24"
+  }
+}

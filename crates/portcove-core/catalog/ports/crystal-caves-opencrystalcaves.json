@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crystal-caves-opencrystalcaves",
+    "project_url": "https://github.com/OpenCrystalCaves/OpenCrystalCaves",
+    "name": "Crystal Caves / OpenCrystalCaves",
+    "summary": "OCC is an unofficial open source engine reimplementation of the game trilogy Crystal Caves",
+    "issue_number": 5659,
+    "listed_at": "2026-11-24"
+  }
+}

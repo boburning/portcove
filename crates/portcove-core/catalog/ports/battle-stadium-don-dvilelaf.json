@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battle-stadium-don-dvilelaf",
+    "project_url": "https://github.com/dvilelaf/battlestadium-don",
+    "name": "Battle Stadium D.O.N / dvilelaf",
+    "summary": "PC port (Linux, Windows) of Battle Stadium D.O.N (PS2) by static recompilation. No game material included: bring your own disc.",
+    "issue_number": 5518,
+    "listed_at": "2026-11-24"
+  }
+}

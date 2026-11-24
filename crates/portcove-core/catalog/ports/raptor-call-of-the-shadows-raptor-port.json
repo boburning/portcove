@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "raptor-call-of-the-shadows-raptor-port",
+    "project_url": "https://github.com/skynettx/raptor",
+    "name": "Raptor: Call of the Shadows / Raptor port",
+    "summary": "Reversed-engineered source port from Raptor Call Of The Shadows",
+    "issue_number": 5741,
+    "listed_at": "2026-11-24"
+  }
+}

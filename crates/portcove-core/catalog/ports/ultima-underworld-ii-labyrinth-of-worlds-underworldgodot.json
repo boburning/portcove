@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-ii-labyrinth-of-worlds-underworldgodot",
+    "project_url": "https://github.com/hankmorgan/UnderworldGodot",
+    "name": "Ultima Underworld II: Labyrinth of Worlds / UnderworldGodot (hankmorgan)",
+    "summary": "Engine recreation for Ultima Underworld and Ultima Underworld 2 using the Godot Engine",
+    "issue_number": 7034,
+    "listed_at": "2026-11-24"
+  }
+}

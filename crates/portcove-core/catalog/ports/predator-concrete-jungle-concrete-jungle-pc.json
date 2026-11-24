@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "predator-concrete-jungle-concrete-jungle-pc",
+    "project_url": "https://github.com/Adolini1715/Concrete-Jungle-PC",
+    "name": "Predator: Concrete Jungle / Predator: Concrete Jungle, PC port (Adolini1715)",
+    "summary": "Native PC port of Predator: Concrete Jungle (Xbox, 2005) by static recompilation. Build it from your own disc with Install.bat. No game data included.",
+    "issue_number": 7208,
+    "listed_at": "2026-11-24"
+  }
+}

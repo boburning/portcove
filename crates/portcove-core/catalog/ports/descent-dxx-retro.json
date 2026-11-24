@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "descent-dxx-retro",
+    "project_url": "https://github.com/CDarrow/DXX-Retro",
+    "name": "Descent / DXX-Retro (CDarrow)",
+    "summary": "A source port of Descent 1 and 2, focused on quality competitive play.  Uncompromising commitment to original gameplay (except where the original sucked).  Based on the Rebirth project.",
+    "issue_number": 7009,
+    "listed_at": "2026-11-24"
+  }
+}

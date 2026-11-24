@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-bomberman-5-mauriciosuporte-recompiled",
+    "project_url": "https://github.com/MauricioSuporte/SuperBomberman5SNESRecomp",
+    "name": "Super Bomberman 5",
+    "summary": "Unofficial Super Bomberman 5 Windows prototype using SNESRecomp. Partial recompilation, ROM-free setup releases, English and Portuguese docs.",
+    "issue_number": 5509,
+    "listed_at": "2026-11-24"
+  }
+}

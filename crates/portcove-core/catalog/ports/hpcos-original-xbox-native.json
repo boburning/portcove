@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hpcos-original-xbox-native",
+    "project_url": "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp",
+    "name": "Harry Potter and the Chamber of Secrets / original Xbox native port",
+    "summary": "Recompilation of Harry Potter and the Chamber of Secrets (Xbox) for PC",
+    "issue_number": 6566,
+    "listed_at": "2026-11-24"
+  }
+}

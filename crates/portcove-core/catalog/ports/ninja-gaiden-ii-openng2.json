@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ninja-gaiden-ii-openng2",
+    "project_url": "https://github.com/KamiTK2/openNG2",
+    "name": "Ninja Gaiden II / openNG2 (KamiTK2)",
+    "summary": "Native PC port of Ninja Gaiden II (Xbox 360) via ReXGlue static recompilation. No game data: bring your own copy.",
+    "issue_number": 7226,
+    "listed_at": "2026-11-24"
+  }
+}

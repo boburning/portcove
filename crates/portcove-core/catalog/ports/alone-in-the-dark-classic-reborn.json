@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alone-in-the-dark-classic-reborn",
+    "project_url": "https://github.com/nayo186/AloneInTheDarkClassicReborn",
+    "name": "Alone in the Dark: Classic Reborn",
+    "summary": "A source port of the Alone in the Dark trilogy and Jack in the Dark for modern PCs (Windows and Linux): fixes, HD options and its own launcher. Built on FITD by yaz0r, with parts of Re-Haunted",
+    "issue_number": 5469,
+    "listed_at": "2026-11-24"
+  }
+}

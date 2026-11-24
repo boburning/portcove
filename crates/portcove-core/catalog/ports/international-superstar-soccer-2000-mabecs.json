@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "international-superstar-soccer-2000-mabecs",
+    "project_url": "https://github.com/Mabec-games/ISS2000-RECOMP",
+    "name": "International Superstar Soccer 2000",
+    "summary": "Native Windows & Linux widescreen port of International Superstar Soccer 2000 (N64) via static recompilation",
+    "issue_number": 5506,
+    "listed_at": "2026-11-24"
+  }
+}

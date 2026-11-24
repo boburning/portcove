@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "clickingmaster-ssrecomp",
+    "project_url": "https://github.com/ClickingMaster/ssrecomp",
+    "name": "Pokémon SoulSilver (ssrecomp)",
+    "summary": "A recomp of Pokemon Soul Silver for single screen devices. macOS support thanks to DarthMDev.",
+    "issue_number": 2761,
+    "listed_at": "2026-11-24"
+  }
+}

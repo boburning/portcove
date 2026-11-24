@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "test-drive-unlimited-opentdu",
+    "project_url": "https://github.com/opentestdriveunlimited/OpenTestDriveUnlimited",
+    "name": "Test Drive Unlimited / Open Test Drive Unlimited (OpenTDU) (opentestdriveunlimited)",
+    "summary": "Open source port of Test Drive Unlimited (2006)",
+    "issue_number": 6863,
+    "listed_at": "2026-11-24"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-or-alive-2-ultimate-norain211",
+    "project_url": "https://github.com/NoRain211/doa2u-re",
+    "name": "Dead or Alive 2 Ultimate / NoRain211",
+    "summary": "Native Windows port of Dead or Alive 2 Ultimate (Xbox), built by static recompilation with a hand-written runtime. Requires your own copy of the game.",
+    "issue_number": 6555,
+    "listed_at": "2026-11-24"
+  }
+}

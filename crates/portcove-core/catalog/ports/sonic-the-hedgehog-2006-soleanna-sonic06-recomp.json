@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-the-hedgehog-2006-soleanna-sonic06-recomp",
+    "project_url": "https://github.com/DrummingBird1/sonic06-recomp",
+    "name": "Sonic the Hedgehog (2006) / Soleanna (sonic06-recomp) (DrummingBird1)",
+    "summary": "Soleanna (sonic06-recomp): an unofficial PC port of Sonic the Hedgehog (2006), PS3 version, by static recompilation. No game files included: the launcher builds it from your own disc.",
+    "issue_number": 7236,
+    "listed_at": "2026-11-24"
+  }
+}

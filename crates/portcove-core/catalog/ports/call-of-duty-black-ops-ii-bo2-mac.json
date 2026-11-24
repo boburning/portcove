@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-black-ops-ii-bo2-mac",
+    "project_url": "https://github.com/adrbn/bo2-mac",
+    "name": "Call of Duty: Black Ops II / bo2-mac",
+    "summary": "Call of Duty: Black Ops II statically recompiled from 32-bit x86 Windows to native ARM64 macOS: Remill → LLVM IR, a hand-written Win32 runtime, Direct3D 11 drawn by Metal. No Wine, no game files.",
+    "issue_number": 6728,
+    "listed_at": "2026-11-24"
+  }
+}

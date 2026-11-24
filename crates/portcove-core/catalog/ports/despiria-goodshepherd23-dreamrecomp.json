@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "despiria-goodshepherd23-dreamrecomp",
+    "project_url": "https://github.com/goodshepherd23/despiria-dreamrecomp",
+    "name": "deSPIRIA / goodshepherd23 DreamRecomp",
+    "summary": "Play deSPIRIA (Dreamcast, English fan translation) natively on Windows with dream-recomp. Build-from-source kit: bring your own patched disc.",
+    "issue_number": 5529,
+    "listed_at": "2026-11-24"
+  }
+}

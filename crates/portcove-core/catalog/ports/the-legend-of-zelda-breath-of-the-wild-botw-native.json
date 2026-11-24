@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-breath-of-the-wild-botw-native",
+    "project_url": "https://github.com/ryderclanky/BotW-Native",
+    "name": "The Legend of Zelda: Breath of the Wild / BotW-Native (ryderclanky)",
+    "summary": "Breath of the Wild (Wii U, v1.5.0) statically recompiled to a native Windows program with a Vulkan renderer.",
+    "issue_number": 7186,
+    "listed_at": "2026-11-24"
+  }
+}

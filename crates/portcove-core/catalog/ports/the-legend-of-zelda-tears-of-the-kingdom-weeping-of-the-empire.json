@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-tears-of-the-kingdom-weeping-of-the-empire",
+    "project_url": "https://github.com/daniel-madrid-07/weeping-of-the-empire",
+    "name": "The Legend of Zelda: Tears of the Kingdom / Weeping of the Empire (daniel-madrid-07)",
+    "summary": "Zelda: Tears of the Kingdom (TotK) 1.0.0 recompiled to native Windows and Vulkan. Frame cap up to 240, DLSS option, mouse and keyboard. Open source, mostly written by AI agents. You build it from your own dump; no game files included. Measured on one PC so far.",
+    "issue_number": 7203,
+    "listed_at": "2026-11-24"
+  }
+}

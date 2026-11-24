@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-gotham-racing-4-pgr4-native",
+    "project_url": "https://github.com/shaunsingh/pgr4-native",
+    "name": "Project Gotham Racing 4 / pgr4-native (shaunsingh)",
+    "summary": "Native Direct3D 12 renderer for the Project Gotham Racing 4 static recompilation",
+    "issue_number": 7191,
+    "listed_at": "2026-11-24"
+  }
+}

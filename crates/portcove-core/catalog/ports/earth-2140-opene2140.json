@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "earth-2140-opene2140",
+    "project_url": "https://github.com/OpenE2140/OpenE2140",
+    "name": "Earth 2140 / OpenE2140",
+    "summary": "Remake of Earth 2140 using OpenRA.",
+    "issue_number": 5770,
+    "listed_at": "2026-11-24"
+  }
+}

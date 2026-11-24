@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "caiuscodes-perfect-dark-xbla-2010-rexglue",
+    "project_url": "https://github.com/CaiusCodes/Perfect-Dark-XBLA-PC-Recomp",
+    "name": "Perfect Dark 2010 Xbox Live Arcade / CaiusCodes ReXGlue recomp",
+    "summary": "Native Windows PC recompilation of the Perfect Dark Xbox 360/XBLA remaster using ReXGlue. Requires your own copy.",
+    "issue_number": 6278,
+    "listed_at": "2026-11-24"
+  }
+}
