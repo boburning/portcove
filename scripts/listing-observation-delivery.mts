@@ -946,7 +946,9 @@ export async function prepareObservationBundle(options: {
     execFileSync(options.cli, args, {
       env: environment,
       timeout: options.cliTimeoutMs ?? 30000,
-      maxBuffer: 16 * 1024 * 1024,
+      // Core's exported directory comes back on stdout: the buffer follows the
+      // canonical input's own bound, so no smaller hidden ceiling applies.
+      maxBuffer: listingDirectoryTextMaximum,
       encoding: "utf8",
     });
   const canonicalPath = path.join(workspace, "canonical.json");

@@ -5781,14 +5781,14 @@ both ceilings (`capacity`): the generated, compact and signed-envelope
 catalog measures, the escaped retained contract (estimated as the escaped
 `catalog.json` text plus `retainedContractReserveBytes`, 16 KiB, about four
 times the contract's 3,477 bytes of other fields) and the listing directory
-text. A batch past either ceiling is not proposed, since its required check
-would fail; the run files the reused stop issue `catalog-capacity` with the
-exact figures. The listing delivery rows of `catalog-capacity --check` (the
-complete legacy target and the compact carrier's decoded, wire, record and
-element bounds released readers enforce, see
-[reader generations](SIGNED-CATALOG.md#reader-generations)) measure
-projections of the directory; the job does not repeat them, so a batch past
-one of those is refused by the pull request's required check instead. Raising
+text, together with every listing delivery row of `catalog-capacity --check`
+(`listingDirectoryMeasures`: the complete legacy target and the compact
+carrier's decoded, wire, record, entry and element bounds released readers
+enforce, see [reader generations](SIGNED-CATALOG.md#reader-generations)).
+The complete legacy target binds first among them (1,844,080 bytes of
+headroom on November 24, 2026). A batch past any ceiling is not proposed,
+since its required check would fail; the run files the reused stop issue
+`catalog-capacity` with the exact figures. Raising
 a released-reader bound needs a compatibility analysis of released readers and
 is a separate change.
 

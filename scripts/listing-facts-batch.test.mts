@@ -3062,7 +3062,8 @@ void test("an identity that stays pending across consecutive runs stops the job,
 });
 
 void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", async () => {
-  const { capacityConstant } = await import("./catalog-capacity.mts");
+  const { capacityConstant, listingDeliveryBounds, listingDirectoryMeasures } =
+    await import("./catalog-capacity.mts");
   const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
   const signedCatalogSource = readFileSync(
     join(root, "crates/portcove-core/src/signed_catalog.rs"),
@@ -3078,12 +3079,23 @@ void test("a batch past either released-reader bound is never proposed; it stops
     capacityConstant(listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
   );
   const catalogText = readFileSync(join(root, "crates/portcove-core/catalog/catalog.json"), "utf8");
+  const listingText = readFileSync(join(root, "crates/portcove-core/catalog/listings.json"));
   const listingBytes = statSync(join(root, "crates/portcove-core/catalog/listings.json")).size;
-  // Today's catalog fits both bounds.
+  // The delivery rows are exactly `catalog-capacity`'s listing rows.
+  const listingDelivery = listingDirectoryMeasures(
+    listingText,
+    listingDeliveryBounds(
+      readFileSync(join(root, "crates/portcove-listing-carrier/src/lib.rs"), "utf8"),
+      listingSource,
+      readFileSync(join(root, "crates/portcove-core/src/listing_delivery.rs"), "utf8"),
+    ),
+  );
+  // Today's catalog fits every bound.
   const today = batchCapacity({
     catalogText,
     listingBytes,
     signedCatalogSource,
+    listingDelivery,
   });
   assert.equal(today.ok, true);
   assert.equal(capacityDetail(today), undefined);
@@ -3095,7 +3107,28 @@ void test("a batch past either released-reader bound is never proposed; it stops
   );
   assert.equal(retained.ceiling, Math.floor((16 * 1024 * 1024 * 85) / 100));
   const listingRows = today.rows.filter((row) => row.name.includes("listings.json"));
-  assert.equal(listingRows.length, 1, "one listing row, against one bound");
+  assert.equal(listingRows.length, 1, "one listing text row, against one bound");
+  // Every other listing row of the required check is checked too.
+  assert.deepEqual(
+    today.rows.slice(3, -1).map((row) => row.name),
+    listingDelivery.map(([name]) => name),
+  );
+  const legacy = today.rows.find((row) => row.name.startsWith("complete legacy listing target"))!;
+  assert.equal(legacy.bound, 8 * 1024 * 1024);
+  // A batch past a delivery row the required check enforces is refused, so
+  // it never opens a pull request that check would fail.
+  const overDelivery = batchCapacity({
+    catalogText,
+    listingBytes,
+    signedCatalogSource,
+    listingDelivery: listingDelivery.map(([name, bytes, bound, basis]) =>
+      name === legacy.name ? [name, legacy.ceiling + 1, bound, basis] : [name, bytes, bound, basis],
+    ),
+  });
+  assert.deepEqual(
+    overDelivery.rows.filter((row) => !row.ok).map((row) => row.name),
+    [legacy.name],
+  );
   const listing = listingRows[0]!;
   assert.equal(listing.bound, listingDirectoryTextMaximum);
   assert.equal(listing.ceiling, Math.floor((listingDirectoryTextMaximum * 85) / 100));
@@ -3105,6 +3138,7 @@ void test("a batch past either released-reader bound is never proposed; it stops
       catalogText,
       listingBytes: 8 * 1024 * 1024 + 1,
       signedCatalogSource,
+      listingDelivery: [],
     }).ok,
     true,
   );
@@ -3115,6 +3149,7 @@ void test("a batch past either released-reader bound is never proposed; it stops
       catalogText,
       listingBytes: listing.ceiling,
       signedCatalogSource,
+      listingDelivery: [],
     }).ok,
     true,
   );
@@ -3122,6 +3157,7 @@ void test("a batch past either released-reader bound is never proposed; it stops
     catalogText,
     listingBytes: listing.ceiling + 1,
     signedCatalogSource,
+    listingDelivery: [],
   });
   assert.equal(listings.ok, false);
   assert.deepEqual(
@@ -3144,6 +3180,7 @@ void test("a batch past either released-reader bound is never proposed; it stops
     catalogText: quoted,
     listingBytes: 0,
     signedCatalogSource,
+    listingDelivery: [],
   });
   assert.equal(escaped.rows[0]!.ok, true);
   assert.equal(escaped.rows.find((row) => row.name.startsWith("JSON-escaped retained"))!.ok, false);
