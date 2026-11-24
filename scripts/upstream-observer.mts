@@ -754,6 +754,15 @@ export function releaseListFacts(
   if (bytes <= releaseTextSourceBytes) return listed;
   return listed.map((row) => (row.text ? { ...row, text: overflowText(bytes) } : row));
 }
+/**
+ * Whether a release list page keeps text: only the first. The provider lists
+ * releases newest first, so the newest `releaseTextWindow` published releases
+ * are on it; a release of that window on a later page (behind more drafts
+ * than the page holds) reads as unobserved text. Keeping text on one page
+ * makes the page copy one window, so a source stores at most
+ * `releaseTextSourceBytes` of text per copy.
+ */
+const textPage = (address: string) => new URL(address).searchParams.get("page") === "1";
 /** Whether a configuration keeps release text (`release_text`). */
 const keepsText = (config: Pick<ObserverConfig, "release_text">) =>
   config.release_text === "listing-window";
@@ -1044,7 +1053,7 @@ function observerPageFacts(
     "invalid-checkpoint",
     "page collection differs",
   );
-  if (tail === "/releases") return releaseListFacts(body, keepsText(config));
+  if (tail === "/releases") return releaseListFacts(body, keepsText(config) && textPage(address));
   requireFact(/^\/releases\/\d+\/assets$/u.test(tail), "invalid-checkpoint", "page kind differs");
   const releaseId = Number(tail.split("/")[2]);
   const tags = new Set<string>();
@@ -2037,7 +2046,7 @@ export async function observeUpstream(
   async function collection(
     pathname: string,
     normalizeItem: (value: unknown) => unknown,
-    normalizeRows: (rows: unknown[]) => unknown[] = (rows) => rows,
+    normalizeRows: (rows: unknown[], url: string) => unknown[] = (rows) => rows,
   ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
@@ -2060,7 +2069,10 @@ export async function observeUpstream(
             "invalid-metadata",
             "collection page must contain at most 100 objects",
           );
-          return normalizeRows(body.map((value: unknown) => normalizeItem(value)));
+          return normalizeRows(
+            body.map((value: unknown) => normalizeItem(value)),
+            url,
+          );
         },
         true,
       );
@@ -2103,7 +2115,7 @@ export async function observeUpstream(
       await collection(
         `${repositoryPath}/releases`,
         (row) => row,
-        (rows) => releaseListFacts(rows, keep),
+        (rows, url) => releaseListFacts(rows, keep && textPage(url)),
       ),
       keep,
     );

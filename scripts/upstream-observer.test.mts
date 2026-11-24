@@ -3382,6 +3382,46 @@ void test("release lists keep each newest release's own text, bounded to what th
     );
 });
 
+void test("only the first release page keeps text, so a source stores one window of it (#1422)", async () => {
+  const listingWindow = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    release_text: "listing-window",
+  });
+  const server = fixture();
+  // Page 1 holds one published release behind 99 drafts; the three newest
+  // published releases of the window are on page 2.
+  server.replies.set(`${root}/releases?per_page=100&page=1`, {
+    body: [
+      release(1, { name: "v1 Beta", body: "Notes" }),
+      ...Array.from({ length: 99 }, (_, index) =>
+        release(index + 2, { draft: true, published_at: null }),
+      ),
+    ],
+    link: `<${root}/releases?per_page=100&page=2>; rel="next"`,
+  });
+  server.replies.set(`${root}/releases?per_page=100&page=2`, {
+    body: [101, 102, 103].map((id) => release(id, { name: `v${id} Beta`, body: "Beta notes" })),
+    link: "",
+  });
+  const result = await observeUpstream(listingWindow, {
+    fetch: server.fetch,
+    selectAssetReleases: async () => [],
+  });
+  const texts = new Map(
+    result.observation.facts.releases.map((fact) => [fact.id, fact.text ?? null]),
+  );
+  assert.deepEqual(texts.get(1), { title: "v1 Beta", line: "Notes", line_complete: true });
+  // Inside the window but on page 2: no text, read as unobserved.
+  for (const id of [101, 102, 103]) assert.equal(texts.get(id), null, `release ${id}`);
+  const stored = arrayFixture(
+    requiredFixture(result.cache.pages[`${root}/releases?per_page=100&page=2`]).body,
+  );
+  assert.ok(stored.every((row) => !Object.hasOwn(objectFixture(row), "text")));
+});
+
 void test("release text outside the window is never read", () => {
   const at = (day: number) => `2026-01-${String(day).padStart(2, "0")}T00:00:00Z`;
   const rows = Array.from({ length: 6 }, (_, index) => {

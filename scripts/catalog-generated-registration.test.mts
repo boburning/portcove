@@ -59,6 +59,7 @@ import {
   gateStatement,
   gateListingWords,
   bodyFirstLine,
+  statementText,
   listingWords,
   listingCounts,
   productIdentity,
@@ -11534,6 +11535,59 @@ void test("the whole judged line of the whole body is read; text not kept is nev
     observed: true,
     statement: { field: "title", token: "release-candidate" },
   });
+});
+
+void test("only markup GitHub renders is removed; other angle brackets are text (#1422)", () => {
+  const repository = "fixture-owner/game";
+  // Found in review: a `<` with no rendered element after it reached a later
+  // blockquote `>` and erased the status between them.
+  for (const body of [
+    "Upgrade path: v1 <- Beta 2\n\n> Thanks to all testers",
+    "Build 5 (2 < 3, Beta)\n> quote",
+    "Requires Windows < 10 Beta 3\n\n- item\n> x",
+    "<Beta 3>",
+  ])
+    assert.deepEqual(
+      observedTextStatement("v1", body, false, repository),
+      { observed: true, statement: { field: "body-first-line", token: "beta" } },
+      JSON.stringify(body),
+    );
+  // Comments and rendered tags, also across one line break, state nothing.
+  assert.equal(
+    bodyFirstLine("<!-- Release notes generated using configuration -->\n## Beta 2"),
+    "Beta 2",
+  );
+  assert.equal(bodyFirstLine('<IMG src="a"\r\nalt=x>\nBeta 3'), "Beta 3");
+  assert.equal(bodyFirstLine("<b>\n\nBeta 4\n</b>"), "Beta 4");
+  // A span reaching a blank line is no tag: it stays text.
+  assert.equal(bodyFirstLine("<b\n\nBeta 3\n>"), "<b");
+  // An unclosed comment is text.
+  assert.equal(bodyFirstLine("<!-- Beta 5"), "<!-- Beta 5");
+  for (const [line, token] of [
+    ["v1 <- Beta 2", "beta"],
+    ["Game <b>1.0</b>", null],
+    ["Game 1.0 <sup>beta</sup>", "beta"],
+    ["Game <!-- beta --> 1.0", null],
+    ["Game <beta> 1.0", "beta"],
+    ["Game <b class=x\n>1.0", null],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+});
+
+void test("release text of any length is read in time linear in its length (#1422)", () => {
+  // Found in review: several removals were quadratic on untrusted text, so a
+  // 125,000-character body (the provider's maximum) took about 37 seconds.
+  // Each of these used to take seconds; read linearly, all take milliseconds.
+  const started = performance.now();
+  for (const unit of ["a", "![", "[", "[a](", "[a][", "<", "<b ", "<!--", "a.", "www.", "a://"]) {
+    const body = unit.repeat(Math.ceil(125_000 / unit.length));
+    bodyFirstLine(body);
+    statementText(body);
+  }
+  // A generous bound: quadratic reading takes minutes here.
+  assert.ok(performance.now() - started < 20_000);
 });
 
 void test("an ellipsis never erases a status word; only a range between two versions is removed (#1422)", () => {

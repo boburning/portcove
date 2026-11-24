@@ -1381,6 +1381,9 @@ release-text rule only: its observer configuration says so
 (`release_text: "listing-window"`, so its checkpoints are its own), and its
 facts keep the release name and, of the body, only the first line the rule
 judges, looked for in the whole body (`text: { title, line, line_complete }`).
+Only the first release list page keeps text (the provider lists releases
+newest first); a window release on a later page reads as unobserved text, so
+the stored pages and the projection each hold at most one window.
 The kept text of one source is bounded by the checkpoint's capacity
 (`releaseTextSourceBytes`, 32 MiB ÷ 2 ÷ 2 ÷ 1,295 sources, a bounded unit);
 over it, each kept release records only a typed overflow with its size

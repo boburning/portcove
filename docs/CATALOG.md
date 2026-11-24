@@ -4776,10 +4776,16 @@ anywhere in a sentence:
   URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
   "Full Changelog" line: a run of two or three dots with a digit both before
   and after it, so `Beta...` and `Beta... finally` keep their status word) and
-  image file names; HTML tags are removed also where one spans lines (an
-  `<img` whose attributes continue on the next line), and a block element
+  image file names. HTML comments are removed, and so are tags of the
+  elements GitHub renders in release notes (`renderedElements`, its
+  sanitizer's allowlist), also where one spans a single line break (an
+  `<img` whose attributes continue on the next line); a block element
   (`<br>`, `<p>`, `<div>`, list items, headings, table rows and the like)
-  ends a line;
+  ends a line. Any other angle bracket is text, as GitHub shows it:
+  `v1 <- Beta 2`, `Windows < 10 Beta 3` and `<Beta 3>` state _beta_, and a
+  span that reaches another `<` or a blank line before its `>` is no tag.
+  Every removal reads the text once, so a body of any length is read in
+  time linear in its length;
 - the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
   before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
   or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
@@ -4852,7 +4858,11 @@ among the modeled 1,295 sources). Over it, every kept release of that source
 records only a typed overflow (`overflow_bytes`, its size), the batch job's
 accumulated read reports it in `gaps` with that size, and the text reads as
 unobserved. Only the rows inside that window are read for text at
-all, so untrusted text of older releases is never parsed. A change to that
+all, so untrusted text of older releases is never parsed, and only the first
+release list page keeps text: the provider lists releases newest first, so the
+window is on it, and the stored pages hold one window of text, not one per
+page. A window release on a later page (behind more drafts than a page holds)
+keeps no text and reads as unobserved. A change to that
 text during an observation is a concurrent change like any other fact. A
 source shared by a listing and a managed port keeps no text, so that
 listing's releases stay `release-text-unobserved`. Managed sources keep no text and

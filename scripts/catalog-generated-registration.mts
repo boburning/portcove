@@ -125,7 +125,13 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
-import { bodyFirstLine, compareRange, statementText, withoutTags } from "./release-text.mts";
+import {
+  bodyFirstLine,
+  compareRange,
+  renderedElements,
+  statementText,
+  withoutTags,
+} from "./release-text.mts";
 
 export { bodyFirstLine, compareRange, statementText, withoutTags };
 
@@ -2207,11 +2213,6 @@ export function fitContext(records: readonly AuthoredPort[]): FitContext {
 }
 
 /**
- * Whether `release` comes before `other` in the worker's newest-stable order
- * (`latestStable`): later publication, then higher id; an unknown time sorts
- * oldest.
- */
-/**
  * The receipt of an entry reproduction refused: the repository id, the
  * offered release, its asset list digest (each asset's id, name, size and
  * provider SHA-256), the observed releases with their text verdicts, and the
@@ -2233,6 +2234,11 @@ export function refusalReceipt(input: {
     generator_version: GENERATOR_VERSION,
   });
 }
+/**
+ * Whether `release` comes before `other` in the worker's newest-stable order
+ * (`latestStable`): later publication, then higher id; an unknown time sorts
+ * oldest.
+ */
 export function newerInOrder(release: ObservedReleaseFact, other: ObservedReleaseFact): boolean {
   const left = Date.parse(release.published_at ?? "") || 0;
   const right = Date.parse(other.published_at ?? "") || 0;
@@ -7960,6 +7966,16 @@ export function gateListingWords(listing: Record<string, unknown>): string[] {
   return [...words].sort().slice(0, 64);
 }
 /**
+ * An HTML comment, or a tag of an element GitHub renders (any case) whose
+ * span holds no `<` and no blank line; restated from `withoutMarkup`.
+ */
+const gateMarkup = new RegExp(
+  `<!--[\\s\\S]*?-->|<\\/?(?:${[...renderedElements]
+    .toSorted((left, right) => right.length - left.length)
+    .join("|")})(?=[\\s/>])(?:(?!(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*(?:\\r\\n|\\r|\\n))[^<>])*>`,
+  "giu",
+);
+/**
  * The prerelease statement token class a line of release text makes,
  * restated: see `releaseStatement` and `statementText`. Exported for its
  * unit table only.
@@ -7970,11 +7986,11 @@ export function gateStatement(
   listing: readonly string[] = [],
 ): string | null {
   const own = [...gateNameWords(repository.split("/")[1] ?? ""), ...listing];
-  // Image references, tags, link targets, URLs, compare ranges and image
-  // file names never state anything.
+  // Image references, HTML comments and tags of rendered elements, link
+  // targets, URLs, compare ranges and image file names never state anything.
   const text = line
     .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
-    .replace(/<[^>]*>/gu, " ")
+    .replace(gateMarkup, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/gu, "$1")
     .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
     .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
