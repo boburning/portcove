@@ -13,6 +13,16 @@ import {
 
 const mb = 1_000_000;
 export const neonProject = "wispy-salad-36926388";
+/** The production branch whose transfer the meter reads. */
+export const neonBranch = "br-frosty-bar-bbaitwbu";
+/**
+ * A provider message fit for retained evidence: one line, at most 200
+ * characters, with the credential removed should a provider ever echo it.
+ */
+export function neonDiagnostic(message: string, token: string) {
+  const line = message.replace(/[\r\n\t]+/gu, " ").trim();
+  return (token ? line.split(token).join("[credential]") : line).slice(0, 200);
+}
 export const transferLimit = 5_000 * mb;
 const day = 86_400_000;
 export const admissionTimeout = 2 * 60 * 60 * 1000;
@@ -104,7 +114,7 @@ export function normalizeNeonMeter(
     owner?.subscription_type !== "free_v3" ||
     project.id !== neonProject ||
     branch.project_id !== neonProject ||
-    branch.id !== "br-frosty-bar-bbaitwbu" ||
+    branch.id !== neonBranch ||
     !periodStart ||
     !periodEnd ||
     !resetAt ||
@@ -133,23 +143,65 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
   const token = environment.PORTCOVE_NEON_METER_TOKEN;
   if (!token) throw new MaintenanceStoreError("Missing PORTCOVE_NEON_METER_TOKEN");
   const base = `https://console.neon.tech/api/v2/projects/${neonProject}`;
-  const read = async (suffix: string) => {
-    const response = await fetch(base + suffix, {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: "error",
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok)
-      throw new MaintenanceStoreError(`Neon metadata returned HTTP ${response.status}`);
-    return await response.json();
+  // Each read names itself and Neon's own error message when it fails, so a
+  // deferred admission records which read a credential cannot see and why.
+  const read = async (name: string, suffix: string) => {
+    let response: Response;
+    try {
+      response = await fetch(base + suffix, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (error) {
+      throw new MaintenanceStoreError(
+        `Neon ${name} read failed: ${neonDiagnostic(error instanceof Error ? error.message : String(error), token)}`,
+      );
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      let message = "";
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (isRecord(parsed) && typeof parsed.message === "string") message = parsed.message;
+      } catch {
+        // A non-JSON error body is not quoted.
+      }
+      throw new MaintenanceStoreError(
+        `Neon ${name} read returned HTTP ${response.status}${message ? `: ${neonDiagnostic(message, token)}` : ""}`,
+      );
+    }
+    try {
+      const value: unknown = await response.json();
+      return value;
+    } catch (error) {
+      throw new MaintenanceStoreError(
+        `Neon ${name} read returned an unreadable body: ${neonDiagnostic(error instanceof Error ? error.message : String(error), token)}`,
+      );
+    }
   };
   const sampledAt = new Date().toISOString();
-  const [projectResponse, branchResponse, endpointsResponse] = await Promise.all([
-    read(""),
-    read("/branches/br-frosty-bar-bbaitwbu"),
-    read("/endpoints"),
+  // Every read finishes, so a failure report names each read that failed.
+  const reads = await Promise.allSettled([
+    read("project", ""),
+    read("branch", `/branches/${neonBranch}`),
+    read("endpoints", "/endpoints"),
   ]);
+  const failed = reads.filter(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (failed.length)
+    throw new MaintenanceStoreError(
+      failed
+        .map((result) =>
+          result.reason instanceof Error ? result.reason.message : String(result.reason),
+        )
+        .join("; "),
+    );
+  const [projectResponse, branchResponse, endpointsResponse] = reads.map((result) =>
+    result.status === "fulfilled" ? result.value : undefined,
+  );
   const project = isRecord(projectResponse) && projectResponse.project;
   const branch = isRecord(branchResponse) && branchResponse.branch;
   const endpoints = isRecord(endpointsResponse) && endpointsResponse.endpoints;
@@ -160,9 +212,7 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
     !Array.isArray(endpoints) ||
     !endpoints.some(
       (endpoint: unknown) =>
-        isRecord(endpoint) &&
-        endpoint.host === host &&
-        endpoint.branch_id === "br-frosty-bar-bbaitwbu",
+        isRecord(endpoint) && endpoint.host === host && endpoint.branch_id === neonBranch,
     )
   )
     throw new MaintenanceStoreError(
