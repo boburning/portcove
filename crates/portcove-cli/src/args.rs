@@ -63,6 +63,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "remove",
             "status",
             "port-capabilities",
+            "port-capabilities-batch",
         ],
     ),
     (
@@ -281,6 +282,12 @@ pub(crate) enum Commands {
     PortCapabilities {
         /// Stable catalog or retained listing identity.
         port_id: String,
+    },
+    /// Read several capability reports in one process; each port succeeds or fails alone.
+    PortCapabilitiesBatch {
+        /// Stable catalog or retained listing identity; repeat for several, in output order.
+        #[arg(long = "port", required = true)]
+        ports: Vec<String>,
     },
     /// Show installation, game-file, launch, and update readiness.
     Status {

@@ -443,7 +443,13 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. `capabilities` advertises `port_capability_schema`
+current or retained listing. `port-capabilities-batch --port PORT_ID ...`
+reads several in one process: format 1 with `reports[]` in argument order, each
+`{port_id, ok, report}` or `{port_id, ok: false, error: {code, message}}`. Each
+report, or refusal code and message, is what the single-port command returns
+for that port (the refusal's `details` and `presentation` are omitted); one
+port's refusal never fails the others. Maintenance collection uses it to load the
+catalog once per batch instead of once per port. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
 `listing_delivery_carriers` identifies the independently versioned signed
 directory carriers a client consumes. `listing_delivery_limits` states the
