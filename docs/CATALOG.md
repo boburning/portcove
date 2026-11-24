@@ -556,9 +556,12 @@ Listing format 15 carries `restrictions`. In a format-15 document the legacy
 names `download`, at any scope. An older reader treats that string as a hold on
 every download, and the listing carries no other operation, so a reader limited
 to format 14 is never less restricted than a capable one. Exports below format 15 omit `restrictions` and
-keep that string. Signed listing delivery stays at format 11; a delivered
-listing that repeats the current string for the same project and game keeps
-the typed restrictions, and any other delivered value replaces them.
+keep that string. Signed listing delivery carries the compact format-15
+listing, with `restrictions`, to Preview 14 and later; the legacy format-11
+target is frozen at revision 47 and Preview 13 and earlier receive no later
+hold ([compact listing delivery](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview)).
+A delivered listing that repeats the current string for the same project and
+game keeps the typed restrictions, and any other delivered value replaces them.
 
 The managed wire format is unchanged. The generator emits typed integration
 data as the existing `managed_acquisition_hold` and refuses typed data that
