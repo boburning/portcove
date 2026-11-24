@@ -127,7 +127,7 @@ facts, class 1) and AR-15 (path and link containment, class 2).
 ### Ratchet
 
 `scripts/check-document-links.test.mts` enforces the register (added in
-RATCHET_PR):
+#8650):
 
 - Every cited file must exist.
 - Each name cited after a file must still occur in it as a whole word.
