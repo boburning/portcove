@@ -111,7 +111,8 @@ impl PortcoveService {
             }
             ProviderClient::Thunderstore { client, community } => {
                 let observed = client.community_catalog(&community).await?;
-                let (mut projects, expected) = observed.value;
+                let expected = observed.value.1;
+                let mut projects = observed.value.0.clone();
                 let mut seen = std::collections::HashSet::new();
                 projects.retain(|project| seen.insert(project.project_id.clone()));
                 for project in &mut projects {

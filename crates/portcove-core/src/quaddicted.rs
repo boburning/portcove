@@ -16,8 +16,9 @@ const API: &str = "https://www.quaddicted.com/api/v1/";
 pub(crate) const DIRECTORY: &str = "https://www.quaddicted.com/db/v2/";
 const MAP_PAGE: &str = "https://www.quaddicted.com/db/v2/maps/";
 const FILTER: &str = "+tags:\"game=quake\" +tags:\"game_mode=singleplayer\"";
+/// Rows shown per browse page. One extra row is requested as a lookahead, so
+/// "more results" is reported only when the provider actually has another row.
 const PAGE_SIZE: usize = 24;
-const MAX_PAGE: u32 = 20;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -75,7 +76,8 @@ pub struct QuaddictedPage {
     pub page: u32,
     pub entries: Vec<QuaddictedEntry>,
     pub unreadable_rows: usize,
-    /// A full page below the client limit suggests another page may be available.
+    /// The provider returned a row beyond this page, so another page exists.
+    /// False means the provider listed no further row for this query.
     pub may_have_more: bool,
 }
 
@@ -144,11 +146,6 @@ impl QuaddictedReader {
 }
 
 fn endpoint(search: Option<&str>, page: u32) -> Result<Url> {
-    if page > MAX_PAGE {
-        return Err(PortcoveError::usage(
-            "Quaddicted page exceeds the browsing limit",
-        ));
-    }
     let mut query = FILTER.to_owned();
     if let Some(term) = search.map(str::trim).filter(|term| !term.is_empty()) {
         if !(2..=64).contains(&term.len())
@@ -164,7 +161,10 @@ fn endpoint(search: Option<&str>, page: u32) -> Result<Url> {
         let term = term.replace('-', "\\-");
         query.push_str(&format!(" +filenames_txt:*{term}*"));
     }
-    query_url(&query, page as usize * PAGE_SIZE, PAGE_SIZE)
+    let start = (page as usize).checked_mul(PAGE_SIZE).ok_or_else(|| {
+        PortcoveError::usage("the Quaddicted page number is outside the provider's range")
+    })?;
+    query_url(&query, start, PAGE_SIZE + 1)
 }
 
 fn valid_sha256(value: &str) -> bool {
@@ -188,10 +188,14 @@ fn query_url(query: &str, start: usize, rows: usize) -> Result<Url> {
 fn project(value: &Value, engine: QuakeEngine, page: u32) -> Result<QuaddictedPage> {
     let rows = value
         .as_array()
-        .filter(|rows| rows.len() <= PAGE_SIZE)
+        .filter(|rows| rows.len() <= PAGE_SIZE + 1)
         .ok_or_else(|| {
             PortcoveError::verification("Quaddicted returned an invalid or oversized page")
         })?;
+    // The lookahead row only establishes that another page exists; it is
+    // shown, deduplicated and counted on that page.
+    let may_have_more = rows.len() > PAGE_SIZE;
+    let rows = &rows[..rows.len().min(PAGE_SIZE)];
     let mut seen = BTreeSet::new();
     let mut duplicated = BTreeSet::new();
     let mut entries = Vec::new();
@@ -209,7 +213,7 @@ fn project(value: &Value, engine: QuakeEngine, page: u32) -> Result<QuaddictedPa
         engine,
         page,
         unreadable_rows: rows.len() - entries.len(),
-        may_have_more: page < MAX_PAGE && rows.len() == PAGE_SIZE,
+        may_have_more,
         entries,
     })
 }
