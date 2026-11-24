@@ -969,6 +969,36 @@ async fn cancellation_retains_bounded_attention_and_exact_discard_allows_retry()
 }
 
 #[tokio::test]
+async fn a_dropped_connection_releases_the_acquisition_for_a_fresh_review_without_discard() {
+    let (_temporary, service, mut server) = fixture(true, false);
+    let service = Arc::new(service);
+    let authorization = grant(&service).await;
+    let worker_service = service.clone();
+    let mut task = tokio::spawn(async move {
+        worker_service
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
+            .await
+    });
+    arrived(&server, &mut task).await;
+    // The server goes away after the headers: the body ends early and every
+    // reconnect is refused, a temporary network failure.
+    server.finish().unwrap();
+    let error = tokio::time::timeout(Duration::from_secs(60), task)
+        .await
+        .expect("the transfer must give up within its reconnect budget")
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Network, "{error:?}");
+    assert!(crate::TemporaryFailure::of(&error).is_some(), "{error:?}");
+    // No attention hold and nothing for the player to discard: a fresh review
+    // of the same unchanged release can proceed.
+    assert!(service.status(PORT).unwrap().acquisition.is_none());
+    service.recover_pending_operations().unwrap();
+    assert!(service.status(PORT).unwrap().acquisition.is_none());
+    assert!(service.plan_game_update_acquisition(PORT).await.is_ok());
+}
+
+#[tokio::test]
 async fn corrupt_archive_and_changed_source_definition_never_publish_runtime() {
     let (_temporary, mut service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
