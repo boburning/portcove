@@ -2297,12 +2297,9 @@ function releaseLineProblem(
   if (skipped.length)
     return {
       reason: "worded-prerelease-skipped",
-      detail:
-        `${skipped.length} newer release(s) the provider and their tags call stable state a prerelease only in their own words (${skipped
-          .map((release) => release.tag ?? `#${release.release_id}`)
-          .join(
-            ", ",
-          )}), so the older release is not offered until a person hand-checks them.`.slice(0, 1000),
+      detail: `${skipped.length} newer release(s) the provider and their tags call stable state a prerelease only in their own words (${skipped
+        .map((release) => release.tag ?? `#${release.release_id}`)
+        .join(", ")}), so the older release is not offered until a person hand-checks them.`,
     };
   // Lines are counted over stable packaged releases only (and releases whose
   // verdict Core did not give): a prerelease's tag noise never splits the

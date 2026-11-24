@@ -3538,7 +3538,7 @@ async function main(argv: string[]): Promise<string> {
           `### Withheld after reproduction\n\n${withheld
             .map(
               (refusal) =>
-                `- ${inertText(refusal.port_id)}: ${inertText(refusal.reason)}: ${inertText(refusal.detail.slice(0, 400))}`,
+                `- ${inertText(refusal.port_id)}: ${inertText(refusal.reason)}: ${inertText(refusal.detail)}`,
             )
             .join("\n")}`,
         );
