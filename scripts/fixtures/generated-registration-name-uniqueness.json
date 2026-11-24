@@ -1,5 +1,5 @@
 {
-  "_comment": "Real catalog listings (names and upstream URLs copied from crates/portcove-core/catalog/listings.json on 2026-11-24) with the measured archive and program names of generator 22 to 25 and the real-catalog name collisions found by the second review of #8654. Each case states the fit outcome at generator 26 with this file's listings as the whole catalog; catalog-generated-registration.test.mts asserts it in fit and gate. Every expectation was checked by hand against the name rules.",
+  "_comment": "Real catalog listings (names and upstream URLs copied from crates/portcove-core/catalog/listings.json on 2026-11-24) with the measured archive and program names of generator 22 to 25 and the real-catalog name collisions found by the second review of #8654. Each case states the fit outcome at generator 26 with this file's listings as the whole catalog; catalog-generated-registration.test.mts asserts it in fit and gate. Every expectation was checked by hand against the name rules. Generator 27 added the God of War II, Syphon Filter 3, Shining Force III, Street Fighter III, Suikoden II, Serious Sam and The Order: 1886 listings: numbers compare by value in uniqueness (D2: `sf3` for Syphon Filter 3 meets Shining Force III; `sfiii` spells Shining Force III's repository name `sfiii-native` modulo its descriptor, so it is not relieved and still enrolls), no initial from an author handle (D3: `asii`, `as2`), and a later title segment holding a spelled or four-digit number is never omitted (B1: `SeriousSam`, `TheOrder`).",
   "listings": [
     {
       "id": "god-of-war-kiexster",
@@ -231,6 +231,62 @@
       "name": "Brogue / Brogue Community Edition",
       "project_url": "https://github.com/tmewett/BrogueCE",
       "release_url": "https://github.com/tmewett/BrogueCE/releases/tag/v1.15.1"
+    },
+    {
+      "id": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
+      "name": "God of War II — GoW2-nativo-PS2 (cxldsakeb)",
+      "project_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2"
+    },
+    {
+      "id": "gow2-recomp-andrebrumdev-andrebrumdev-god-of-war-ii-hd",
+      "name": "God of War II HD — GoW2 Recomp (andrebrumdev) (andrebrumdev)",
+      "project_url": "https://github.com/andrebrumdev/gow2-recomp"
+    },
+    {
+      "id": "alexbeav-syphon-filter-3-recomp",
+      "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
+      "release_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases"
+    },
+    {
+      "id": "sfiii-native-mattkuhnqaai-shining-force-iii",
+      "name": "Shining Force III / SFIII Native",
+      "project_url": "https://github.com/mattkuhnQAAI/sfiii-native",
+      "release_url": "https://github.com/mattkuhnQAAI/sfiii-native/releases/tag/v0.9.2"
+    },
+    {
+      "id": "street-fighter-iii-3rd-strike-3sx",
+      "name": "Street Fighter III: 3rd Strike / 3SX",
+      "project_url": "https://github.com/crowded-street/3sx"
+    },
+    {
+      "id": "alexbeav-suikoden-ii-recomp",
+      "name": "Suikoden II / Alexbeav PSXRecomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
+      "release_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases"
+    },
+    {
+      "id": "serious-sam-the-first-encounter-serioussamclassic",
+      "name": "Serious Sam: The First Encounter (SeriousSamClassic)",
+      "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+      "release_url": "https://github.com/tx00100xt/SeriousSamClassic/releases/tag/1.10.7"
+    },
+    {
+      "id": "serious-sam-the-second-encounter-serioussamclassic",
+      "name": "Serious Sam: The Second Encounter (SeriousSamClassic)",
+      "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+      "release_url": "https://github.com/tx00100xt/SeriousSamClassic/releases/tag/1.10.7"
+    },
+    {
+      "id": "order1886-pc-lxnis-lxnis-the-order-1886",
+      "name": "The Order: 1886 — Order1886-PC (lxnis) (lxnis)",
+      "project_url": "https://github.com/lxnis/Order1886-PC"
+    },
+    {
+      "id": "the-order-1886-divinusx",
+      "name": "The Order: 1886 / DivinusX",
+      "project_url": "https://github.com/DivinusX/a-port-of-the-order-1886-thats-actually-alive",
+      "release_url": "https://github.com/DivinusX/a-port-of-the-order-1886-thats-actually-alive/releases/tag/v0.2.33"
     }
   ],
   "archives": [
@@ -493,6 +549,78 @@
       "expected": {
         "enrolls": ["partial-name"]
       }
+    },
+    {
+      "listing": "alexbeav-syphon-filter-3-recomp",
+      "archive": "sf3-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": ["sfiii-native-mattkuhnqaai-shining-force-iii"]
+      }
+    },
+    {
+      "listing": "sfiii-native-mattkuhnqaai-shining-force-iii",
+      "archive": "sfiii-1.0-win64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "alexbeav-suikoden-ii-recomp",
+      "archive": "asii-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": ["asii"]
+      }
+    },
+    {
+      "listing": "abilliontokens-sims2-recomp",
+      "archive": "as2-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": ["as"]
+      }
+    },
+    {
+      "listing": "serious-sam-the-second-encounter-serioussamclassic",
+      "archive": "SeriousSam-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:the",
+          "missing:second",
+          "missing:encounter",
+          "missing:classic"
+        ]
+      }
+    },
+    {
+      "listing": "serious-sam-the-first-encounter-serioussamclassic",
+      "archive": "SeriousSam-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:the",
+          "missing:first",
+          "missing:encounter",
+          "missing:classic"
+        ]
+      }
+    },
+    {
+      "listing": "order1886-pc-lxnis-lxnis-the-order-1886",
+      "archive": "TheOrder-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:1886",
+          "missing:1886",
+          "missing:pc",
+          "missing:lxnis",
+          "missing:lxnis"
+        ]
+      }
+    },
+    {
+      "listing": "the-order-1886-divinusx",
+      "archive": "TheOrder-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": ["missing:1886", "missing:divinus", "missing:x"]
+      }
     }
   ],
   "programs": [
@@ -567,6 +695,13 @@
       "program": "hst.exe",
       "expected": {
         "name-not-unique-in-catalog": ["nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip"]
+      }
+    },
+    {
+      "listing": "alexbeav-suikoden-ii-recomp",
+      "program": "asii.exe",
+      "expected": {
+        "program-name-unaccounted": "asii"
       }
     }
   ]
