@@ -454,10 +454,10 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT, RecipeAcquisitionBatch,
-    RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
-    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
-    RecipeRuntime,
+    MAX_RECIPE_REVIEW_BYTES, ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT,
+    RecipeAcquisitionBatch, RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeAcquisitionRef,
+    RecipeCodeApproval, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus, RecipeOriginal,
+    RecipeOriginalStorage, RecipePackage, RecipeRuntime, RecipeStaging,
 };
 pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{

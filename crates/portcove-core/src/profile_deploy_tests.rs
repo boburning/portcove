@@ -4525,3 +4525,26 @@ fn a_setup_draft_beyond_the_shared_capacity_is_refused_before_staging() {
     assert_eq!(refused.code, crate::ErrorCode::Usage);
     assert!(refused.message.contains("4096"), "{}", refused.message);
 }
+
+#[test]
+fn a_full_consent_ledger_drops_consents_for_bytes_no_longer_stored() {
+    let w = world();
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let packages = layout.store().join("packages");
+    // A full ledger: one consent whose bytes are still stored, the rest for
+    // bytes that left the store.
+    let kept = "a".repeat(64);
+    fs::create_dir_all(packages.join(&kept)).unwrap();
+    let mut digests = (0..MAX_CODE_CONSENTS - 1)
+        .map(|index| format!("{index:064x}"))
+        .collect::<BTreeSet<_>>();
+    digests.insert(kept.clone());
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::write(layout.code_consent(), serde_json::to_vec(&digests).unwrap()).unwrap();
+    assert_eq!(consented_code(&layout).unwrap().len(), MAX_CODE_CONSENTS);
+
+    let new = "b".repeat(64);
+    record_code_consent(&layout, &new).unwrap();
+    let after = consented_code(&layout).unwrap();
+    assert_eq!(after, BTreeSet::from([kept, new]));
+}

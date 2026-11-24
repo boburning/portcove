@@ -482,3 +482,51 @@ async fn provider_plan_refuses_unconfirmed_archival_status_before_download() {
     assert!(requests.recv().unwrap().contains("Mod/42"));
     assert!(requests.try_recv().is_err());
 }
+
+#[tokio::test]
+async fn a_closure_that_would_overfill_the_setup_is_refused_before_download() {
+    let w = world();
+    let capacity = crate::setup_capacity::MAX_SETUP_PACKAGES;
+    let packages = (0..capacity)
+        .map(|index| crate::ResolvedPackage {
+            native_id: format!("held-{index:04}.o2r"),
+            native_version: None,
+            provider: None,
+            sha256: format!("{index:064x}"),
+            size: 1,
+            enabled: false,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        })
+        .collect();
+    let current = w
+        .service
+        .profile_revisions("starship", &w.profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    w.service
+        .create_profile_revision(
+            "starship",
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    // Only the project observation is served: a download request would fail.
+    let (root, requests, server) =
+        serve_http_bytes(vec![json_response(&project_body(777, 10, "pack.zip", 10))]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let refused = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(refused.code, ErrorCode::Unsupported);
+    assert_eq!(refused.details["setup_packages"], capacity.to_string());
+    assert_eq!(requests.try_iter().count(), 1, "nothing was downloaded");
+}

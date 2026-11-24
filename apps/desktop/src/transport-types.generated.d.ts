@@ -1680,7 +1680,7 @@ export interface TransportOutputs {
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
   quaddicted_catalog: OutputQuaddictedCatalog;
-  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  recipe_acquisition_plan: OutputRecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -7397,14 +7397,19 @@ export interface QuaddictedInstallNotes {
 /**
  * Private provider staging bound to one exact recipe and expected package.
  */
-export interface RecipeAcquisitionPlan {
+export interface OutputRecipeAcquisitionPlan {
   native_id: string;
   provider_plan: ProviderInstallPlan;
   recipe_identity_sha256: string;
   [k: string]: unknown;
 }
+/**
+ * The provider files a recipe review has staged. Each provider plan is held
+ * once, however many of its members the recipe uses, so a shared closure
+ * costs its plan once in the review, its records and IPC.
+ */
 export interface RecipeImportPlan {
-  acquisitions?: RecipeAcquisitionPlan[];
+  acquisitions?: RecipeAcquisitionRef[];
   can_apply: boolean;
   code_approval?: RecipeCodeApproval[];
   /**
@@ -7422,6 +7427,7 @@ export interface RecipeImportPlan {
    * Missing packages with an exact coordinate that the player can check.
    */
   provider_checks?: string[];
+  provider_plans?: ProviderInstallPlan[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
   /**
@@ -7429,6 +7435,13 @@ export interface RecipeImportPlan {
    */
   verified_originals?: OriginalBinding[];
   [k: string]: unknown;
+}
+/**
+ * One staged recipe package and the provider plan (by digest) that holds it.
+ */
+export interface RecipeAcquisitionRef {
+  native_id: string;
+  plan_sha256: string;
 }
 export interface RecipeCodeApproval {
   native_id: string;

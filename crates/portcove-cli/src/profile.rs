@@ -1790,13 +1790,20 @@ pub(crate) async fn execute(
             allow_mod_code,
             yes,
         } => {
-            let plan = service.plan_recipe_import_with_acquisitions(
-                &read_recipe(&recipe_file)?,
-                &acquisitions
-                    .iter()
-                    .map(read_plan)
-                    .collect::<Result<Vec<_>>>()?,
-            )?;
+            let recipe = read_recipe(&recipe_file)?;
+            // The same inputs `recipe-plan` reviewed: recorded steps when no
+            // acquisition files are given.
+            let plan = if acquisitions.is_empty() {
+                service.plan_recipe_import(&recipe)?
+            } else {
+                service.plan_recipe_import_with_acquisitions(
+                    &recipe,
+                    &acquisitions
+                        .iter()
+                        .map(read_plan)
+                        .collect::<Result<Vec<_>>>()?,
+                )?
+            };
             if plan.plan_sha256 != expected_plan {
                 return Err(PortcoveError::conflict(
                     "the local inputs differ from the plan you reviewed; plan again",

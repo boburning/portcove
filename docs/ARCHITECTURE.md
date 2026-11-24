@@ -3571,7 +3571,12 @@ a smaller count of its own.
   on the staging volume with a reserve. A setup draft admits the package-store
   copy it will make before anything changes.
 - Recipe acquisition stages missing packages in bounded steps. Each staged step
-  is recorded beside its private staging, so reopening the recipe resumes. Steps
+  is recorded beside its private staging, so reopening the recipe resumes. A
+  provider plan is stored once by digest and packages reference it, in the
+  records, the review and IPC; the review's provider plans have a 64 MiB
+  working-set budget, refused by name. A review in use is refreshed against
+  the daily pruning of abandoned staging; one with recorded steps is kept for
+  30 days. Steps
   are rechecked by identity and size between steps; apply reads every byte and
   releases a step whose bytes no longer match, so the next review shows it as
   missing rather than ready.

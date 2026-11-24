@@ -38,6 +38,9 @@ const MAX_MEMBERS: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
 const MAX_REPORTED_CONFLICTS: usize = 100;
 pub(crate) const RECOMP_REVIEW_BINDING: &str = "recomp_review_binding";
 const STAGED_RETENTION_SECONDS: u64 = 24 * 60 * 60;
+/// A recipe review with recorded steps is resumable work, not abandoned
+/// staging: it keeps its bytes longer, but not forever.
+const RECORDED_REVIEW_RETENTION_SECONDS: u64 = 30 * 24 * 60 * 60;
 const ACTION: &str = "install_provider_package";
 /// A plan whose packages run code is authorized separately, only when the player
 /// explicitly allows that code.
@@ -627,6 +630,20 @@ impl PortcoveService {
             .as_ref()
             != Some(&scope))
         .then_some(scope);
+        // The closure joins the current setup; one that cannot fit is refused
+        // before anything is downloaded. (A recipe review stages for a new
+        // setup, which the recipe's own capacity check already bounds.)
+        if !matches!(mode, ProviderInstallMode::Recipe { .. })
+            && current.packages.len().saturating_add(projects.len())
+                > crate::setup_capacity::MAX_SETUP_PACKAGES
+        {
+            return Err(PortcoveError::unsupported(format!(
+                "this mod and its requirements would take the setup past {} mods",
+                crate::setup_capacity::MAX_SETUP_PACKAGES
+            ))
+            .detail("setup_packages", current.packages.len().to_string())
+            .detail("closure_files", projects.len().to_string()));
+        }
         let reuse_dependencies = mode == ProviderInstallMode::Automatic
             && matches!(client, ProviderClient::Thunderstore { .. });
         let retained = if reuse_dependencies {
@@ -664,7 +681,10 @@ impl PortcoveService {
                 staging.path(),
                 file.size.min(MAX_DOWNLOAD_BYTES).saturating_mul(2),
             )?;
-            let download_budget = MAX_DOWNLOAD_BYTES;
+            // The provider's claimed size is only a hint; the download itself
+            // stops at the free space the staging volume can give.
+            let download_budget =
+                MAX_DOWNLOAD_BYTES.min(crate::setup_capacity::staging_allowance(staging.path())?);
             // Extraction can expand past the claimed size; it never takes the
             // reserve, whatever the archive declares.
             let extraction_budget =
@@ -1050,7 +1070,7 @@ impl PortcoveService {
             None
         };
         if matches!(mode, ProviderInstallMode::Recipe { .. }) {
-            self.prune_staged(&layout.store().join("recipe-staged"));
+            self.prune_recipe_reviews(&layout.store().join("recipe-staged"));
         }
         let staging_root = mode.staging_root(&layout);
         self.prune_staged(&staging_root);
@@ -1078,6 +1098,32 @@ impl PortcoveService {
             }
         }
         Ok(plan)
+    }
+
+    /// Removes abandoned recipe reviews: a day after last use, or thirty days
+    /// for a review with recorded steps someone may still resume.
+    pub(crate) fn prune_recipe_reviews(&self, root: &std::path::Path) {
+        let Ok(entries) = fs::read_dir(root) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let recorded = fs::read_dir(entry.path().join("acquisitions").join("members"))
+                .is_ok_and(|mut members| members.next().is_some());
+            let retention = if recorded {
+                RECORDED_REVIEW_RETENTION_SECONDS
+            } else {
+                STAGED_RETENTION_SECONDS
+            };
+            let old = entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|m| m.elapsed().ok())
+                .is_some_and(|age| age.as_secs() > retention);
+            if old {
+                let _ = fs::remove_dir_all(entry.path());
+            }
+        }
     }
 
     /// Removes reviewed-but-unapplied staging older than a day (best effort).

@@ -17,8 +17,11 @@ use portcove_core::{
 };
 
 impl RecipeImportReview {
-    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
+    pub(crate) fn new(mut plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
         let serialized_plan = serde_json::to_string(&plan)?;
+        // The provider plans travel once, inside the authoritative serialized
+        // plan. The display copy keeps only which packages are staged.
+        plan.staging.provider_plans.clear();
         let setting_values = plan
             .recipe
             .settings
@@ -305,37 +308,12 @@ pub(crate) async fn acquire_mod_recipe_package(
         move |service| async move {
             let plan = RecipeImportReview::decode(&serialized_plan)?;
             require_recipe_port(&port_id, &plan.recipe)?;
-            let current =
-                service.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
-            if current.plan_sha256 != plan.plan_sha256
-                || !current.provider_checks.contains(&native_id)
-            {
-                return Err(PortcoveError::conflict(
-                    "recipe inputs changed; inspect the recipe again",
-                )
-                .into());
-            }
-            let acquisition = service
-                .plan_recipe_acquisition(&plan.recipe, &profile_id, &native_id, &plan.acquisitions)
-                .await?;
-            let mut acquisitions = plan.acquisitions;
-            acquisitions.push(acquisition);
-            match service
-                .plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions)
-                .and_then(RecipeImportReview::new)
-            {
-                Ok(review) => Ok(review),
-                Err(error) => {
-                    if let Some((acquisition, earlier)) = acquisitions.split_last()
-                        && !earlier.iter().any(|item| {
-                            item.provider_plan.plan_sha256 == acquisition.provider_plan.plan_sha256
-                        })
-                    {
-                        let _ = service.discard_recipe_acquisition(acquisition);
-                    }
-                    Err(error.into())
-                }
-            }
+            RecipeImportReview::new(
+                service
+                    .acquire_recipe_package(&plan, &profile_id, &native_id)
+                    .await?,
+            )
+            .map_err(Into::into)
         },
     )
     .await
@@ -380,20 +358,7 @@ pub(crate) async fn discard_mod_recipe_review(
         let service = service_at_generation(&state, generation)?;
         let plan = RecipeImportReview::decode(&serialized_plan)?;
         require_recipe_port(&port_id, &plan.recipe)?;
-        for acquisition in &plan.acquisitions {
-            if acquisition.provider_plan.port_id != port_id
-                || acquisition.recipe_identity_sha256 != plan.recipe.identity_sha256
-            {
-                return Err(PortcoveError::conflict(
-                    "staging belongs to a different recipe review",
-                )
-                .into());
-            }
-        }
-        for acquisition in &plan.acquisitions {
-            service.discard_recipe_acquisition(acquisition)?;
-        }
-        Ok(())
+        service.discard_recipe_review(&plan).map_err(Into::into)
     })
     .await
 }
@@ -933,6 +898,20 @@ pub(crate) async fn discard_provider_install(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_desktop_draft_capacity_is_cores_setup_capacity() {
+        // React bounds drafts with this literal; it must stay Core's number.
+        let draft = include_str!("../../src/features/mod-setups/mod-draft.ts");
+        let expected = format!(
+            "export const MOD_SETUP_CAPACITY = {};",
+            portcove_core::MAX_SETUP_PACKAGES
+        );
+        assert!(
+            draft.contains(&expected),
+            "mod-draft.ts must declare {expected}"
+        );
+    }
 
     #[test]
     fn a_plan_must_match_the_displayed_game_setup_and_digest() {

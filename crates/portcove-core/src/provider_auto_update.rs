@@ -35,8 +35,11 @@ use crate::{
 const HOLDS_FILE: &str = "auto-update-holds.json";
 const MAX_REMEMBERED_HOLDS: usize = 256;
 const CHECKS_FILE: &str = "last-automatic-checks.json";
-const MAX_CHECKS: usize = 256;
-const MAX_CHECKS_BYTES: u64 = 512 * 1024;
+/// One check per installed provider file: at most one per package of a setup,
+/// so every file of a full setup is reported rather than silently dropped.
+const MAX_CHECKS: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
+/// Each check is a few identifiers and one short reason.
+const MAX_CHECKS_BYTES: u64 = MAX_CHECKS as u64 * 2 * 1024;
 
 /// What one standing pass did about one installed provider file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

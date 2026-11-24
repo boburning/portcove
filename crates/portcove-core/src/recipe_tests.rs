@@ -1241,6 +1241,19 @@ fn authorizing_code_rejects_an_edited_approval_list_with_the_original_digest() {
     assert_eq!(error.code, ErrorCode::Conflict);
 }
 
+/// Records staged steps as a review would after staging each of them.
+fn record(
+    service: &PortcoveService,
+    recipe: &ProfileRecipe,
+    acquisitions: &[RecipeAcquisitionPlan],
+) {
+    for acquisition in acquisitions {
+        service
+            .record_recipe_step(recipe, &acquisition.native_id, &acquisition.provider_plan)
+            .unwrap();
+    }
+}
+
 /// Adds `count` more packages to the world's default setup in one draft.
 fn grow_setup(w: &World, count: usize) {
     let port = "starship";
@@ -1364,9 +1377,9 @@ fn recipe_acquisitions_past_the_former_thirty_two_file_bound_resume_and_apply() 
         // Interrupted after the first half was staged and recorded: reopening
         // the recipe resumes with exactly those steps instead of the prefix again.
         let (done, rest) = acquisitions.split_at(missing / 2);
-        w.service.record_recipe_acquisitions(&recipe, done).unwrap();
+        record(&w.service, &recipe, done);
         let resumed = w.service.plan_recipe_import(&recipe).unwrap();
-        assert_eq!(resumed.acquisitions.len(), done.len());
+        assert_eq!(resumed.staging.acquisitions.len(), done.len());
         assert_eq!(resumed.provider_checks.len(), rest.len());
         assert_eq!(
             resumed.provider_checks,
@@ -1375,10 +1388,10 @@ fn recipe_acquisitions_past_the_former_thirty_two_file_bound_resume_and_apply() 
                 .collect::<Vec<_>>()
         );
 
-        w.service.record_recipe_acquisitions(&recipe, rest).unwrap();
+        record(&w.service, &recipe, rest);
         let ready = w.service.plan_recipe_import(&recipe).unwrap();
         assert!(ready.can_apply, "{:?}", ready.holds);
-        assert_eq!(ready.acquisitions.len(), missing);
+        assert_eq!(ready.staging.acquisitions.len(), missing);
         let token = w
             .service
             .authorize_recipe_import(&ready, "Shared")
@@ -1396,8 +1409,9 @@ fn recipe_acquisitions_past_the_former_thirty_two_file_bound_resume_and_apply() 
         // The completed review leaves no record to resume.
         assert!(
             w.service
-                .recorded_recipe_acquisitions(&recipe)
+                .recorded_recipe_staging(&recipe)
                 .unwrap()
+                .acquisitions
                 .is_empty()
         );
     }
@@ -1408,9 +1422,7 @@ fn a_staged_step_that_changed_leaves_the_review_instead_of_repeating_as_ready() 
     let w = world();
     grow_setup(&w, 3);
     let (recipe, acquisitions) = staged_recipe(&w, 1);
-    w.service
-        .record_recipe_acquisitions(&recipe, &acquisitions)
-        .unwrap();
+    record(&w.service, &recipe, &acquisitions);
     let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
     assert!(reviewed.can_apply, "{:?}", reviewed.holds);
     let layout = w.service.deploy_layout("starship").unwrap();
@@ -1437,7 +1449,7 @@ fn a_staged_step_that_changed_leaves_the_review_instead_of_repeating_as_ready() 
     // The next review shows that one package as missing; the others stay ready.
     let next = w.service.plan_recipe_import(&recipe).unwrap();
     assert_eq!(next.provider_checks, [changed.native_id.clone()]);
-    assert_eq!(next.acquisitions.len(), acquisitions.len() - 1);
+    assert_eq!(next.staging.acquisitions.len(), acquisitions.len() - 1);
 }
 
 #[test]
@@ -1490,4 +1502,220 @@ fn a_recipe_beyond_the_shared_capacity_is_refused_on_inspection() {
         ProfileRecipe::inspect(&bytes(&recipe)).unwrap_err().code,
         ErrorCode::Verification
     );
+}
+
+/// Bytes under a directory, recursively.
+fn tree_bytes(path: &Path) -> u64 {
+    fs::read_dir(path).map_or(0, |entries| {
+        entries
+            .flatten()
+            .map(|entry| {
+                let metadata = entry.metadata().unwrap();
+                if metadata.is_dir() {
+                    tree_bytes(&entry.path())
+                } else {
+                    metadata.len()
+                }
+            })
+            .sum()
+    })
+}
+
+/// A recipe whose packages after the first are all members of ONE staged
+/// provider plan, as a shared closure stages them. Only the first member is
+/// recorded; the rest are found by reuse.
+fn shared_closure_recipe(w: &World) -> (ProfileRecipe, crate::ProviderInstallPlan) {
+    use crate::provider_install::{ProviderInstallMode, digest};
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    for package in recipe.packages.iter_mut().skip(1) {
+        package.provider = Some(label("1", "2"));
+    }
+    let recipe = sealed(recipe);
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let members = recipe.packages.iter().skip(1).collect::<Vec<_>>();
+    let mut provider_plan = crate::ProviderInstallPlan {
+        port_id: "starship".into(),
+        profile_id: w.profile.clone(),
+        expected_revision: 2,
+        review_nonce: None,
+        provider: label("1", "2"),
+        project_name: "Shared closure fixture".into(),
+        file: crate::ProviderFileCandidate {
+            file_id: "2".into(),
+            file_name: "fixture.zip".into(),
+            size: 1,
+            added_at: 1,
+            download_url: "https://gamebanana.com/dl/2".into(),
+            claimed_md5: None,
+            archived: false,
+            status_unknown: None,
+            claimed_scan: None,
+            thunderstore_dependencies: None,
+        },
+        download_sha256: "d".repeat(64),
+        download_size: 1,
+        members: members
+            .iter()
+            .map(|input| crate::PlanMember {
+                file_name: input.native_id.clone(),
+                sha256: input.sha256.clone(),
+                size: input.size,
+                asset_count: 1,
+                runs_code: Vec::new(),
+            })
+            .collect(),
+        wrappers: Vec::new(),
+        ignored_entries: 0,
+        replaces: Vec::new(),
+        conflicts: Vec::new(),
+        conflicts_truncated: false,
+        unverified_claims: Vec::new(),
+        plan_sha256: String::new(),
+    };
+    provider_plan.plan_sha256 = digest(&provider_plan).unwrap();
+    let stage = ProviderInstallMode::Recipe {
+        identity: &recipe.identity_sha256,
+        install_id: None,
+    }
+    .staging(&layout, &provider_plan.plan_sha256);
+    fs::create_dir_all(&stage).unwrap();
+    for input in members {
+        let stored = layout.package(&input.sha256, &input.native_id);
+        fs::rename(&stored, stage.join(&input.native_id)).unwrap();
+    }
+    (recipe, provider_plan)
+}
+
+#[tokio::test]
+async fn a_shared_closure_costs_its_plan_once_in_records_and_the_review() {
+    let w = world();
+    let members = 300;
+    grow_setup(&w, members);
+    let (recipe, provider_plan) = shared_closure_recipe(&w);
+    let first = recipe.packages[1].native_id.clone();
+    w.service
+        .record_recipe_step(&recipe, &first, &provider_plan)
+        .unwrap();
+    let waiting = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(waiting.staging.acquisitions.len(), 1);
+    assert_eq!(waiting.provider_checks.len(), members - 1);
+
+    // Every other member is staged by reuse: no download, no plan copy.
+    let batch = w
+        .service
+        .acquire_recipe_packages(&waiting, &w.profile)
+        .await
+        .unwrap();
+    assert_eq!(batch.failure, None);
+    assert_eq!(batch.acquired.len(), members - 1);
+    let ready = batch.plan;
+    assert!(ready.can_apply, "{:?}", ready.holds);
+    assert!(ready.provider_checks.is_empty());
+    assert_eq!(ready.staging.acquisitions.len(), members);
+    assert_eq!(ready.staging.provider_plans.len(), 1);
+
+    // Linear, not quadratic: the plan once plus a small reference per member,
+    // in the review that crosses IPC and in the durable records.
+    let plan_bytes = serde_json::to_vec(&provider_plan).unwrap().len() as u64;
+    let per_member = 512;
+    let review_bytes = serde_json::to_vec(&ready).unwrap().len() as u64;
+    let without_staging = {
+        let mut copy = ready.clone();
+        copy.staging = RecipeStaging::default();
+        serde_json::to_vec(&copy).unwrap().len() as u64
+    };
+    assert!(
+        review_bytes - without_staging <= plan_bytes + per_member * members as u64,
+        "review staging {} bytes for a {plan_bytes}-byte plan",
+        review_bytes - without_staging
+    );
+    let records = w
+        .service
+        .acquisition_records("starship", &recipe.identity_sha256);
+    assert!(
+        tree_bytes(&records) <= plan_bytes + per_member * members as u64,
+        "records {} bytes for a {plan_bytes}-byte plan",
+        tree_bytes(&records)
+    );
+
+    // A restart resumes the same review from the records.
+    let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(resumed.plan_sha256, ready.plan_sha256);
+    let token = w
+        .service
+        .authorize_recipe_import(&resumed, "Shared")
+        .unwrap()
+        .token;
+    let imported = w
+        .service
+        .apply_recipe_import(&resumed, "Shared", &token)
+        .unwrap();
+    let history = w
+        .service
+        .profile_revisions("starship", &imported.id)
+        .unwrap();
+    assert_eq!(history[0].packages.len(), members + 1);
+}
+
+#[test]
+fn a_review_past_its_working_set_budget_is_refused_by_name() {
+    let refused = require_review_budget(MAX_RECIPE_REVIEW_BYTES + 1).unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Unsupported);
+    assert!(
+        refused.message.contains("review budget"),
+        "{}",
+        refused.message
+    );
+    require_review_budget(MAX_RECIPE_REVIEW_BYTES).unwrap();
+}
+
+#[test]
+fn a_recorded_review_survives_staging_pruning_while_it_is_resumed() {
+    let w = world();
+    grow_setup(&w, 3);
+    let (recipe, acquisitions) = staged_recipe(&w, 1);
+    record(&w.service, &recipe, &acquisitions);
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let recipe_root = layout.store().join("recipe-staged");
+    let review = recipe_root.join(&recipe.identity_sha256);
+    let day_and_more = std::time::SystemTime::now() - std::time::Duration::from_secs(25 * 60 * 60);
+    let age_everything = || {
+        for entry in fs::read_dir(&review).unwrap().flatten() {
+            set_directory_modified(&entry.path(), day_and_more);
+        }
+        set_directory_modified(&review, day_and_more);
+    };
+
+    // Paused for more than a day, then reopened: reopening refreshes it before
+    // any later staging prunes, so nothing is downloaded again.
+    age_everything();
+    let reopened = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(reopened.staging.acquisitions.len(), acquisitions.len());
+    w.service.prune_recipe_reviews(&recipe_root);
+    w.service.prune_staged(&review);
+    assert_eq!(
+        w.service
+            .plan_recipe_import(&recipe)
+            .unwrap()
+            .staging
+            .acquisitions
+            .len(),
+        acquisitions.len()
+    );
+
+    // Not reopened, while another recipe stages: a review with recorded steps
+    // is kept as resumable work.
+    age_everything();
+    w.service.prune_recipe_reviews(&recipe_root);
+    assert!(review.exists());
+
+    // An abandoned review without records is pruned as before.
+    let abandoned = recipe_root.join("a".repeat(64));
+    fs::create_dir_all(abandoned.join("plan")).unwrap();
+    set_directory_modified(&abandoned, day_and_more);
+    w.service.prune_recipe_reviews(&recipe_root);
+    assert!(!abandoned.exists());
 }

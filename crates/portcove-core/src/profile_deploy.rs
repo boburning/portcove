@@ -286,7 +286,11 @@ pub(crate) struct StagedPackage {
     pub code_consent: bool,
 }
 
-const MAX_CODE_CONSENTS: usize = 4096;
+/// The consent ledger's parse budget (about 80 bytes per digest, ~5 MiB).
+/// Retained history keeps older package bytes, and their consents, alive, so
+/// this is sized well past one setup; consents for bytes no longer in the
+/// package store are pruned when it fills.
+const MAX_CODE_CONSENTS: usize = 16 * crate::setup_capacity::MAX_SETUP_PACKAGES;
 
 /// Digests the player allowed to run code in this library, for this game.
 pub(crate) fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
@@ -322,9 +326,17 @@ pub(crate) fn record_code_consent(layout: &Layout, sha256: &str) -> Result<()> {
         return Ok(());
     }
     if digests.len() > MAX_CODE_CONSENTS {
-        return Err(PortcoveError::state(
-            "too many mods with allowed code are recorded",
-        ));
+        // A consent only ever applies to bytes in the package store; bytes
+        // that left it need a fresh review (and consent) to come back.
+        let packages = layout.store().join("packages");
+        digests.retain(|digest| digest == sha256 || packages.join(digest).exists());
+    }
+    if digests.len() > MAX_CODE_CONSENTS {
+        return Err(
+            PortcoveError::state("too many mods with allowed code are recorded")
+                .detail("recorded", digests.len().to_string())
+                .detail("limit", MAX_CODE_CONSENTS.to_string()),
+        );
     }
     fs::create_dir_all(layout.store())?;
     crate::durability::write_bytes_atomically(

@@ -3064,9 +3064,13 @@ a repeatable `--acquisition`. Earlier results can also be supplied to
 count or combined-size limit of its own: each provider file is admitted against
 free space, and Desktop's Check the provider for every missing mod stages the
 missing packages in bounded steps until none remain. Each staged package is
-recorded beside its private staging, so `recipe-plan` and Desktop's next review
-of the same recipe resume with the packages already checked, also after a
-restart. A staged package whose bytes changed is released when apply finds it
+recorded beside its private staging, so `recipe-plan`, `recipe-apply` and
+Desktop's next review of the same recipe resume with the packages already
+checked, also after a restart. Each provider file's plan is recorded and held
+in the review once, however many recipe packages it supplies, and a review whose
+provider plans would exceed 64 MiB is refused with that reason. Using a review
+keeps its staging from the daily cleanup of abandoned staging; a review with
+recorded steps that nobody reopens is removed after 30 days. A staged package whose bytes changed is released when apply finds it
 and shows as missing again. Close the Desktop review or run `recipe-discard` to
 release private staging. For originals, register the
 lawful local input in the game's existing setup workflow and inspect again.

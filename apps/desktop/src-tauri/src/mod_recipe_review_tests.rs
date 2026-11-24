@@ -83,7 +83,7 @@ fn sealed_plan(format: u32) -> RecipeImportPlan {
         originals: Vec::new(),
         verified_originals: Vec::new(),
         packages: Vec::new(),
-        acquisitions: Vec::new(),
+        staging: Default::default(),
         provider_checks: Vec::new(),
         code_approval: vec![RecipeCodeApproval {
             native_id: "numbers.nrm".into(),

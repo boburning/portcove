@@ -57021,23 +57021,20 @@
         ],
         "type": "object"
       },
-      "RecipeAcquisitionPlan": {
-        "description": "Private provider staging bound to one exact recipe and expected package.",
+      "RecipeAcquisitionRef": {
+        "additionalProperties": false,
+        "description": "One staged recipe package and the provider plan (by digest) that holds it.",
         "properties": {
           "native_id": {
             "type": "string"
           },
-          "provider_plan": {
-            "$ref": "#/$defs/ProviderInstallPlan"
-          },
-          "recipe_identity_sha256": {
+          "plan_sha256": {
             "type": "string"
           }
         },
         "required": [
-          "recipe_identity_sha256",
           "native_id",
-          "provider_plan"
+          "plan_sha256"
         ],
         "type": "object"
       },
@@ -57389,10 +57386,11 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The provider files a recipe review has staged. Each provider plan is held\nonce, however many of its members the recipe uses, so a shared closure\ncosts its plan once in the review, its records and IPC.",
     "properties": {
       "acquisitions": {
         "items": {
-          "$ref": "#/$defs/RecipeAcquisitionPlan"
+          "$ref": "#/$defs/RecipeAcquisitionRef"
         },
         "type": "array"
       },
@@ -57438,6 +57436,12 @@
         "description": "Missing packages with an exact coordinate that the player can check.",
         "items": {
           "type": "string"
+        },
+        "type": "array"
+      },
+      "provider_plans": {
+        "items": {
+          "$ref": "#/$defs/ProviderInstallPlan"
         },
         "type": "array"
       },
