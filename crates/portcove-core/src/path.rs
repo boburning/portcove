@@ -145,6 +145,26 @@ pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Streams one JSON document from a regular, non-link file. For durable
+/// Portcove documents whose size follows the library they describe (transfer
+/// journals carrying a reviewed plan); fixed-shape documents use
+/// `read_bounded_regular` instead.
+pub(crate) fn read_regular_json<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    name: &str,
+) -> Result<T> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(
+            PortcoveError::verification(format!("{name} is not a regular file"))
+                .detail("path", path.display().to_string()),
+        );
+    }
+    Ok(serde_json::from_reader(std::io::BufReader::new(
+        std::fs::File::open(path)?,
+    ))?)
+}
+
 /// Resolve aliases in the existing part while preserving missing descendants.
 /// Missing install directories must remain exportable as recovery metadata.
 pub(crate) fn resolve_existing_ancestor(path: &Path) -> Result<std::path::PathBuf> {

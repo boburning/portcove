@@ -822,8 +822,8 @@ fn retiring_default_recovery_preserves_another_setups_pin_and_progress() {
 }
 
 #[test]
-fn offered_history_is_bounded_and_never_dropped_silently() {
-    // Synthetic identities: the bound is a pure history rule, so it needs no installs.
+fn retention_policy_retires_the_oldest_unpinned_offer_instead_of_blocking() {
+    // Synthetic identities: the policy is a pure history rule, so it needs no installs.
     let (_temporary, service, first) = fixture();
     let mut reference = bind(&service, "custom", &first);
     let identity = |name: &str| RetainedBuildIdentity {
@@ -838,17 +838,124 @@ fn offered_history_is_bounded_and_never_dropped_silently() {
             superseded_at: 1,
         })
         .collect();
-    let error = successor_history(Some(&reference), &identity("one-too-many"), 2).unwrap_err();
+    let none = RetentionPins::none();
+
+    // The old boundary: the 17th superseded build used to refuse the binding.
+    let next = successor_history(Some(&reference), "one-more", 2, &none).unwrap();
+    assert_eq!(next.history.len(), MAX_OFFERED_REVISIONS);
+    assert_eq!(next.retired.len(), 1);
+    assert_eq!(next.retired[0].build.install_id, "old-0");
+    assert_eq!(next.history.last().unwrap().build.install_id, first.id);
+
+    // A pinned build (the selected setup's projection) is skipped, not retired.
+    let pinned = RetentionPins {
+        pinned: ["old-0".to_owned()].into(),
+        switch_pending: false,
+    };
+    let next = successor_history(Some(&reference), "one-more", 2, &pinned).unwrap();
+    assert_eq!(next.retired[0].build.install_id, "old-1");
+    assert!(
+        next.history
+            .iter()
+            .any(|entry| entry.build.install_id == "old-0")
+    );
+
+    // An interrupted setup switch must finish before anything is retired, but
+    // a binding that needs no retirement still proceeds.
+    let switching = RetentionPins {
+        pinned: BTreeSet::new(),
+        switch_pending: true,
+    };
+    let error = successor_history(Some(&reference), "one-more", 2, &switching).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
-    // Promoting an offered build swaps rather than grows, so recovery still works when full.
-    let promoted = successor_history(Some(&reference), &identity("old-3"), 2).unwrap();
-    assert_eq!(promoted.len(), MAX_OFFERED_REVISIONS);
+
+    // Promoting an offered build swaps rather than grows, so nothing is retired.
+    let promoted = successor_history(Some(&reference), "old-3", 2, &switching).unwrap();
+    assert!(promoted.retired.is_empty());
+    assert_eq!(promoted.history.len(), MAX_OFFERED_REVISIONS);
     assert!(
         promoted
+            .history
             .iter()
             .all(|entry| entry.build.install_id != "old-3")
     );
-    assert_eq!(promoted.last().unwrap().build.install_id, first.id);
+    assert_eq!(promoted.history.last().unwrap().build.install_id, first.id);
+
+    // Far beyond the old boundary: 200 successive bindings stay bounded, retire
+    // strictly oldest first, and every result remains a valid stored reference.
+    let mut current = reference.clone();
+    let mut retired = Vec::new();
+    for number in 0..200 {
+        let build = identity(&format!("build-{number}"));
+        let next = successor_history(Some(&current), &build.install_id, 3, &none).unwrap();
+        retired.extend(next.retired.iter().map(|entry| entry.revision));
+        current = RetainedBuildReference {
+            history: next.history,
+            build,
+            revision: current.revision + 1,
+            ..current
+        };
+        validate_reference(&current).unwrap();
+        assert!(current.history.len() <= MAX_OFFERED_REVISIONS);
+    }
+    assert!(retired.windows(2).all(|pair| pair[0] < pair[1]));
+    assert_eq!(retired.len(), 200);
+}
+
+#[test]
+fn binding_past_the_old_history_boundary_retires_explicitly_and_keeps_the_install() {
+    let (_temporary, service, first) = fixture();
+    let library = service.library();
+    bind(&service, "custom", &first);
+    let mut installs = vec![first.clone()];
+    for number in 0..MAX_OFFERED_REVISIONS {
+        let id = format!("runtime-{number}");
+        let install = install(library, &id, id.as_bytes(), false);
+        bind(&service, "custom", &install);
+        installs.push(install);
+    }
+    let full = service
+        .current_retained_reference(&first.port_id, "custom")
+        .unwrap()
+        .unwrap();
+    assert_eq!(full.history.len(), MAX_OFFERED_REVISIONS);
+
+    // The preview names the offer the binding retires, and consent covers it.
+    let next = install(library, "next", b"next runtime", false);
+    let preview = service
+        .preview_retained_build_binding(&first.port_id, "custom", &next.id)
+        .unwrap();
+    assert_eq!(preview.retires.len(), 1);
+    assert_eq!(preview.retires[0].build.install_id, first.id);
+    let reference = bind(&service, "custom", &next);
+    assert_eq!(reference.history.len(), MAX_OFFERED_REVISIONS);
+    assert!(
+        reference
+            .retained_builds()
+            .all(|build| build.install_id != first.id)
+    );
+    // The retirement is recorded durably and surfaced with the reference.
+    let resolved = service
+        .resolve_retained_build(&first.port_id, "custom")
+        .unwrap();
+    assert_eq!(resolved.retired.len(), 1);
+    assert_eq!(resolved.retired[0].retired, preview.retires[0]);
+    assert_eq!(
+        resolved.retired[0].reason,
+        RetainedBuildRetirementReason::RetentionPolicy
+    );
+    assert_eq!(resolved.retired[0].binding_revision, reference.revision);
+
+    // Retirement ends only the offer: the exact install stays registered and
+    // verified, survives reopen, and can be bound again.
+    let reopened = Library::open(library.root()).unwrap();
+    let kept = Library::install_by_id(&reopened.connection().unwrap(), Some(&first.id))
+        .unwrap()
+        .unwrap();
+    assert!(kept.verified);
+    let restored = bind(&service, "custom", &first);
+    assert_eq!(restored.build.install_id, first.id);
+    assert_eq!(restored.history.len(), MAX_OFFERED_REVISIONS);
 }
 
 #[test]

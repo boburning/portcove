@@ -17,7 +17,6 @@ pub const LIBRARY_MEMBERSHIP_FORMAT_VERSION: u8 = 1;
 pub const MAX_LIBRARY_MEMBERSHIP_BATCH: usize = 512;
 const MAX_PROVENANCE_SOURCES: usize = 32;
 const MAX_RECORD_BYTES: usize = 16 * 1024;
-const MAX_EXPORTED_MEMBERSHIPS: usize = 100_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -122,14 +121,11 @@ fn decode(port_id: &str, json: &str) -> Result<LibraryMembership> {
     Ok(record)
 }
 
-/// Reviewed export contract: bounded, unique, and structurally valid. Retained
-/// provenance never grants execution trust, so import checks shape only.
+/// Reviewed export contract: unique per port and structurally valid, with each
+/// record inside its own byte bound. The count follows the exporting library,
+/// which keeps at most one entry per port. Retained provenance never grants
+/// execution trust, so import checks shape only.
 pub(crate) fn validate_export(entries: &[LibraryMembership]) -> Result<()> {
-    if entries.len() > MAX_EXPORTED_MEMBERSHIPS {
-        return Err(PortcoveError::verification(
-            "library metadata exceeds the saved Library entry limit",
-        ));
-    }
     let mut seen = std::collections::BTreeSet::new();
     for entry in entries {
         let request = LibraryMembershipRequest {

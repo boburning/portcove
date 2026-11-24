@@ -360,11 +360,14 @@ impl PortcoveService {
             ));
         }
         let content = crate::library_transfer::plan_portable_content(&metadata, &content_root)?;
+        // The import journal and its recovery archive each carry the plan.
+        let journal_reserve =
+            crate::library_metadata_document::transfer_reserve(&metadata, &content, 2)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
                 .checked_mul(4)
-                .and_then(|size| size.checked_add(64 * 1024 * 1024))
+                .and_then(|size| size.checked_add(journal_reserve))
                 .ok_or_else(|| PortcoveError::state("import capacity estimate overflowed"))?,
             |size, tree| {
                 size.checked_add(tree.copy.total_bytes)
@@ -399,14 +402,15 @@ impl PortcoveService {
     }
 }
 
+/// Reads exactly what `write_library_metadata` and recovery bundles write; see
+/// `library_metadata_document` for why no whole-document ceiling applies.
 pub(crate) fn read_metadata(path: &Path) -> Result<(LibraryMetadataFile, LibraryMetadata)> {
-    let bytes = crate::path::read_bounded_regular(path, 16 * 1024 * 1024)?;
-    let document = serde_json::from_slice(&bytes)?;
+    let (digest, document) = crate::library_metadata_document::read(path)?;
     Ok((
         LibraryMetadataFile {
             path: fs::canonicalize(path)?,
-            sha256: hex::encode(Sha256::digest(&bytes)),
-            size: bytes.len() as u64,
+            sha256: digest.sha256,
+            size: digest.size,
         },
         document,
     ))
@@ -693,11 +697,6 @@ fn retained_references_by_install(
     {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",
-        ));
-    }
-    if metadata.retained_build_references.len() > crate::retained_build::MAX_REFERENCES {
-        return Err(PortcoveError::verification(
-            "library metadata exceeds the retained build reference limit",
         ));
     }
     let installs = metadata

@@ -77,6 +77,7 @@ mod library_access;
 mod library_authority;
 mod library_import;
 mod library_membership;
+mod library_metadata_document;
 mod library_move;
 mod library_recovery_bundle;
 mod library_transfer;
@@ -478,7 +479,8 @@ pub use retained_build::{
     MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
-    RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+    RetainedBuildResolution, RetainedBuildRetirement, RetainedBuildRetirementPreview,
+    RetainedBuildRetirementReason, RetainedBuildRevision,
 };
 pub use route_facts::{
     ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
