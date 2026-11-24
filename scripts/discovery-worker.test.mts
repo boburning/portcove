@@ -23,6 +23,7 @@ import type { DiscoveryWorkerResult } from "./discovery-worker.mts";
 import {
   discoveryDefinitionDigest,
   discoveryWorkerMain,
+  unmigratedStore,
   importLocalState,
   leadObservation,
   leadWatch,
@@ -1177,5 +1178,30 @@ void test(
       readFileSync(path.join(output, "status.md"), "utf8"),
       /deferred: The maintenance store is not migrated for discovery collection yet/u,
     );
+    // A misconfigured connection is a failure, not an unmigrated store.
+    process.env[name] = process.env[name].replace(
+      `/${environment.PGDATABASE}?`,
+      "/portcove_missing_database?",
+    );
+    await assert.rejects(
+      discoveryWorkerMain(["status", "--database-env", name, "--output", output]),
+      /database "portcove_missing_database" does not exist/u,
+    );
   },
 );
+
+void test("only the store's own missing schema or tables read as an unmigrated store", () => {
+  for (const message of [
+    'psql exited 3: ERROR:  relation "portcove_maintenance.discovery_watches" does not exist',
+    'ERROR:  schema "portcove_maintenance" does not exist',
+  ])
+    assert.equal(unmigratedStore(new Error(message)), true, message);
+  for (const message of [
+    'psql exited 2: FATAL:  database "portcove" does not exist',
+    'psql exited 2: FATAL:  role "reader" does not exist',
+    'ERROR:  column "acquisition" does not exist',
+    "ERROR:  function portcove_maintenance.discovery_acquire(text) does not exist",
+    'ERROR:  relation "other_schema.discovery_watches" does not exist',
+  ])
+    assert.equal(unmigratedStore(new Error(message)), false, message);
+});
