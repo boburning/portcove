@@ -77,6 +77,31 @@ void test("maintenance registry and TOML sources retain explicit focused owners"
   assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
 });
 
+void test("bound sources and the register select the restriction register ratchet", () => {
+  const consumer = "scripts/check-document-links.test.mts";
+  for (const file of [
+    "crates/portcove-core/src/archive.rs",
+    "crates/portcove-release-tools/src/lib.rs",
+    "apps/desktop/src-tauri/src/lib.rs",
+    "apps/desktop/src/App.tsx",
+    "scripts/public-catalog.mts",
+    "scripts/qualification/example.mts",
+    "docs/RESTRICTION-REGISTER.md",
+  ])
+    for (const status of ["A", "M", "D"])
+      assert.ok(
+        classifyChanges([{ status, path: file }], { fileExists: () => false }).nodeTests.has(
+          consumer,
+        ),
+        `${status}: ${file}`,
+      );
+  assert.ok(
+    !classifyChanges([
+      { status: "M", path: "crates/portcove-core/catalog/catalog.json" },
+    ]).nodeTests.has(consumer),
+  );
+});
+
 const allFilesExist = () => true;
 
 void test("SDK and preparation changes retain accepted-observation and lineage consumers", async () => {

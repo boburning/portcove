@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
   symlinkSync,
   mkdirSync,
@@ -80,9 +81,89 @@ void test("line references only read regular files inside the repository", () =>
   }
 });
 
-// The restriction register cites limits by file and name. A cited file must exist.
-// A cited name that no longer occurs in its file is reported as a warning only:
-// the full ratchet is not yet enforced while limits pull requests are in flight.
+// The restriction register cites limits by file and name, so a renamed or removed
+// limit fails here instead of leaving a stale row. Every production bound constant
+// must be named in the register or in the reviewed exclusions below: a new or
+// removed bound constant needs a register edit in the same change.
+const registerExclusions: Record<string, string> = {
+  // Reviewed: names that match the bound pattern but bound nothing.
+};
+
+const boundSegments = new Set([
+  "MAX",
+  "MAXIMUM",
+  "LIMIT",
+  "LIMITS",
+  "BOUND",
+  "BOUNDS",
+  "CAP",
+  "BUDGET",
+]);
+const rustBound = /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+([A-Z][A-Z0-9_]*)\b/u;
+const scriptBound = /^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=/u;
+const camelBound =
+  /^(?:max|maximum)[A-Z0-9]|(?:Max|Maximum|Limit|Limits|Bound|Bounds|Budget|Cap|Ceiling)$/u;
+const nonProduction =
+  /(?:^|\/)tests?\/|(?:^|\/)fixtures?\/|_tests?\.rs$|\.(?:test|spec)\.|test_support|test_http|\.d\.ts$|\.generated\./u;
+
+function* registerSources(root: string, relative: string): Generator<string> {
+  for (const entry of readdirSync(path.join(root, relative), { withFileTypes: true })) {
+    const child = path.posix.join(relative, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "node_modules" && entry.name !== "generated")
+        yield* registerSources(root, child);
+    } else if (/\.(?:rs|ts|tsx|mts)$/u.test(entry.name) && !nonProduction.test(child)) yield child;
+  }
+}
+
+const isBoundName = (name: string) =>
+  /^[A-Z][A-Z0-9_]*$/u.test(name)
+    ? name.split("_").some((segment) => boundSegments.has(segment))
+    : camelBound.test(name);
+
+// Production bound constants: Rust constants and statics with a MAX, MAXIMUM, LIMIT,
+// BOUND, CAP or BUDGET name segment, and top-level TypeScript constants named like a
+// bound (`MAX_ITEMS`, `maxItems`, `maximumBytes`, `requestLimit`, `pageBound`).
+function productionBoundConstants(root: string) {
+  const roots = readdirSync(path.join(root, "crates"))
+    .map((crate) => `crates/${crate}/src`)
+    .concat(["apps/desktop/src-tauri/src", "apps/desktop/src", "scripts"]);
+  const found = new Set<string>();
+  for (const file of roots
+    .filter((directory) => existsSync(path.join(root, directory)))
+    .flatMap((directory) => [...registerSources(root, directory)])) {
+    const rust = file.endsWith(".rs");
+    let testModule = false;
+    let testItem = false;
+    for (const line of readFileSync(path.join(root, file), "utf8").split(/\r?\n/u)) {
+      if (testModule) break;
+      if (rust && /^\s*#\[cfg\(test\)\]/u.test(line)) {
+        testItem = true;
+        continue;
+      }
+      if (rust && testItem) {
+        if (/^\s*#\[/u.test(line) || !line.trim()) continue;
+        // A test module ends the production part of the file; a test-only item
+        // excludes only itself.
+        if (/^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s/u.test(line)) testModule = true;
+        testItem = false;
+        continue;
+      }
+      const name = (rust ? rustBound : scriptBound).exec(line)?.[1];
+      if (name && isBoundName(name)) found.add(`${file} ${name}`);
+    }
+  }
+  return [...found];
+}
+
+// A cited name must occur as a whole word: `MAX_ITEMS` does not match `MAX_ITEMS_2`.
+function occurs(source: string, name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const before = /^[\w$]/u.test(name) ? "(?<![\\w$])" : "";
+  const after = /[\w$]$/u.test(name) ? "(?![\\w$])" : "";
+  return new RegExp(before + escaped + after, "u").test(source);
+}
+
 function registerCitations(register: string) {
   const cited = new Set<string>();
   const problems: string[] = [];
@@ -115,13 +196,12 @@ function registerCitations(register: string) {
   return { cited, problems };
 }
 
-void test("restriction register citations name existing files", (t) => {
+void test("restriction register citations resolve and name every production bound constant", () => {
   const root = path.resolve(import.meta.dirname, "..");
   const register = readFileSync(path.join(root, "docs/RESTRICTION-REGISTER.md"), "utf8");
   const { cited, problems } = registerCitations(register);
   assert.ok(cited.size > 200, "the register cites its limits");
   const sources = new Map<string, string | undefined>();
-  const stale: string[] = [];
   for (const citation of cited) {
     const [file, name] = citation.split(/ (.*)/su) as [string, string];
     if (!sources.has(file)) {
@@ -130,11 +210,34 @@ void test("restriction register citations name existing files", (t) => {
     }
     const source = sources.get(file);
     if (source === undefined) problems.push(`missing file: ${file}`);
-    else if (!source.includes(name)) stale.push(`${file} no longer contains \`${name}\``);
+    else if (!occurs(source, name)) problems.push(`${file} no longer contains \`${name}\``);
   }
-  for (const warning of [...new Set(stale)])
-    t.diagnostic(`restriction register warning: ${warning}`);
+  for (const constant of productionBoundConstants(root))
+    if (!cited.has(constant) && !(constant in registerExclusions))
+      problems.push(`unregistered bound (add a register row or appendix F entry): ${constant}`);
+  for (const excluded of Object.keys(registerExclusions))
+    if (cited.has(excluded)) problems.push(`excluded bound is also registered: ${excluded}`);
   assert.deepEqual([...new Set(problems)], []);
+});
+
+void test("restriction register matching uses whole words and bound-shaped names", () => {
+  assert.ok(occurs("const MAX_ITEMS: usize = 1;", "MAX_ITEMS"));
+  assert.ok(!occurs("const MAX_ITEMS_2: usize = 1;", "MAX_ITEMS"));
+  assert.ok(!occurs("const maxItemsTotal = 1;", "maxItems"));
+  assert.ok(occurs('hints: ["dhewm3-1."]', '"dhewm3-1."'));
+  assert.ok(occurs("backups.slice(0, 3)", "backups.slice(0, 3)"));
+  for (const name of [
+    "MAX_ITEMS",
+    "PAGE_LIMIT",
+    "maxItems",
+    "maximumBytes",
+    "requestLimit",
+    "pageBound",
+    "readCeiling",
+  ])
+    assert.ok(isBoundName(name), name);
+  for (const name of ["CAPABILITY_V2", "MAXIMIZE", "maxim", "limitedMode", "boundary", "capture"])
+    assert.ok(!isBoundName(name), name);
 });
 
 void test("restriction register parsing reads row locations and named bounds", () => {
