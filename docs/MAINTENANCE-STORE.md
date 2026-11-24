@@ -1536,7 +1536,11 @@ have Editor rights. The application checks effective Viewer access before using
 the metadata response. The meter makes three reads (project, production branch
 and endpoints). A failed reading names each read that failed, with its HTTP
 status and Neon's own error message, in the deferred admission's
-`resource.jsonl` evidence; the credential is never retained. See [Neon API keys](https://neon.com/docs/manage/api-keys)
+`resource.jsonl` evidence; the credential is never retained. When every read
+reports the project as not found, the reading also names the credential's
+identity by opaque ids only: the Neon user it belongs to and whether that user is
+a member of the owning organization (other memberships are not recorded), or
+that it is not a personal key. See [Neon API keys](https://neon.com/docs/manage/api-keys)
 and [Neon user permissions](https://neon.com/docs/manage/user-permissions).
 
 During local PostgreSQL replay, pass the existing `--database-env` or

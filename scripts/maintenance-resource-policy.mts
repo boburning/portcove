@@ -15,6 +15,8 @@ const mb = 1_000_000;
 export const neonProject = "wispy-salad-36926388";
 /** The production branch whose transfer the meter reads. */
 export const neonBranch = "br-frosty-bar-bbaitwbu";
+/** Organization that owns the metered project; named in credential diagnostics. */
+const neonOrganization = "org-polished-frog-23199890";
 /**
  * A provider message fit for retained evidence: one line, at most 200
  * characters, with the credential removed should a provider ever echo it.
@@ -139,6 +141,53 @@ export function normalizeNeonMeter(
   };
 }
 
+async function neonCredentialIdentity(token: string) {
+  const get = async (path: string) => {
+    try {
+      const response = await fetch(`https://console.neon.tech/api/v2${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      return { status: response.status, body };
+    } catch (error) {
+      return {
+        status: 0,
+        body: { message: error instanceof Error ? error.message : String(error) },
+      };
+    }
+  };
+  const user = await get("/users/me");
+  if (user.status !== 200 || !isRecord(user.body) || typeof user.body.id !== "string") {
+    const message =
+      isRecord(user.body) && typeof user.body.message === "string"
+        ? `: ${neonDiagnostic(user.body.message, token)}`
+        : "";
+    const kind = [401, 403, 404].includes(user.status)
+      ? "credential is not a personal key"
+      : "credential identity unreadable";
+    return `${kind} (users/me HTTP ${user.status}${message}); project ${neonProject} belongs to ${neonOrganization}`;
+  }
+  const organizations = await get("/users/me/organizations");
+  const listed =
+    isRecord(organizations.body) && Array.isArray(organizations.body.organizations)
+      ? organizations.body.organizations
+          .map((organization: unknown) =>
+            isRecord(organization) && typeof organization.id === "string" ? organization.id : "",
+          )
+          .filter(Boolean)
+      : null;
+  const membership =
+    listed === null
+      ? `organizations unreadable (HTTP ${organizations.status})`
+      : listed.includes(neonOrganization)
+        ? `member of ${neonOrganization} but without access to project ${neonProject}`
+        : `not a member of ${neonOrganization}`;
+  return `credential belongs to Neon user ${neonDiagnostic(user.body.id, token).slice(0, 64)}, ${membership}`;
+}
+
 export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMeter> {
   const token = environment.PORTCOVE_NEON_METER_TOKEN;
   if (!token) throw new MaintenanceStoreError("Missing PORTCOVE_NEON_METER_TOKEN");
@@ -191,14 +240,18 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
   const failed = reads.filter(
     (result): result is PromiseRejectedResult => result.status === "rejected",
   );
-  if (failed.length)
-    throw new MaintenanceStoreError(
-      failed
-        .map((result) =>
-          result.reason instanceof Error ? result.reason.message : String(result.reason),
-        )
-        .join("; "),
+  if (failed.length) {
+    const reasons = failed.map((result) =>
+      result.reason instanceof Error ? result.reason.message : String(result.reason),
     );
+    // When the project is invisible to the credential, name whose credential it
+    // is (opaque ids only) so the wrong key or a missing membership is evident.
+    if (failed.length === reads.length && reasons.every((reason) => / HTTP 404\b/u.test(reason)))
+      reasons.push(
+        await neonCredentialIdentity(token).catch(() => "credential identity probe failed"),
+      );
+    throw new MaintenanceStoreError(reasons.join("; "));
+  }
   const [projectResponse, branchResponse, endpointsResponse] = reads.map((result) =>
     result.status === "fulfilled" ? result.value : undefined,
   );
