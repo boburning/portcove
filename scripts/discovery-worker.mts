@@ -76,7 +76,15 @@ export const discoveryDefinitionDigest = createHash("sha256")
 const sha256 = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 /** Clocks a pass stamps even when it learns nothing new. */
-const passClocks = new Set(["completed_at", "observed_at", "checked_at", "attempted_at"]);
+const passClocks = new Set([
+  "completed_at",
+  "observed_at",
+  "checked_at",
+  "attempted_at",
+  "unchanged_at",
+  // A read's measured transfer, not something learned.
+  "bytes",
+]);
 
 /** Digest of what a pass learned: collector state without its observation clocks. */
 export function learnedDigest(value: unknown) {
@@ -721,6 +729,9 @@ export function providerWake(budget: DiscoveryBudget, now: number) {
     const needed = resource === "graphql" ? budget.graphqlPointHeadroom : 1;
     const reset = Date.parse(quota.resetAt);
     if (quota.remaining < needed && Number.isFinite(reset) && reset > now) times.push(reset);
+    // A quota window that has rolled over leaves the pass's observation stale,
+    // and the pass stops admitting requests; a new pass observes it afresh now.
+    else if (resource === "core" && Number.isFinite(reset) && reset <= now) times.push(now);
   }
   // Wake just after the latest blocking reset, so every exhausted resource has lifted.
   return times.length ? Math.max(...times) + 1000 : undefined;
@@ -775,6 +786,45 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     lines.push("| Source | Status | Records |", "| --- | --- | --- |");
     for (const s of sources)
       lines.push(`| ${String(s.id)} | ${String(s.status)} | ${String(s.records)} |`);
+    lines.push("");
+  }
+  // Curated lists and inventory baselines: coverage and contribution per source.
+  const cell = (value: unknown) =>
+    typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const external =
+    isRecord(result.leads) && isRecord(result.leads.external) ? result.leads.external : {};
+  const lists = isRecord(external.lists) ? external.lists : {};
+  const listRows = Object.entries(lists).filter(([, value]) => isRecord(value));
+  if (listRows.length) {
+    lines.push(
+      `Curated hints: ${Number(external.hints ?? 0)} (unsupported-host ${Number(external["unsupported-host"] ?? 0)}, non-GitHub ${Number(external["non-github"] ?? 0)}).`,
+      "",
+      "| List | Last complete | Entries | Hints | Discovered | Platform claims | Unresolved hosts | Due |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    );
+    for (const [id, raw] of listRows) {
+      const value = raw as Record<string, unknown>;
+      const clock = isRecord(value.last_complete) ? value.last_complete : undefined;
+      const c = isRecord(value.contribution) ? value.contribution : {};
+      lines.push(
+        `| ${id} | ${clock ? cell(clock.completed_at).slice(0, 16) : "never"} | ${cell(clock?.entries ?? "")} | ${cell(c.hints ?? 0)} | ${cell(c.discovered ?? 0)} | ${cell(c.platform_claims ?? 0)} | ${cell(c.unresolved_hosts ?? 0)} | ${value.due ? "yes" : "no"} |`,
+      );
+    }
+    lines.push("");
+  }
+  const inventories = isRecord(external.inventories) ? external.inventories : {};
+  const inventoryRows = Object.entries(inventories).filter(([, value]) => isRecord(value));
+  if (inventoryRows.length) {
+    lines.push(
+      "| Baseline | Inventory read | Items | Read | Due | Without public code |",
+      "| --- | --- | --- | --- | --- | --- |",
+    );
+    for (const [id, raw] of inventoryRows) {
+      const value = raw as Record<string, unknown>;
+      lines.push(
+        `| ${id} | ${cell(value.inventory_at).slice(0, 16)} | ${cell(value.items)} | ${cell(value.read)} | ${cell(value.due)} | ${cell(value.candidates_without_public_code)} |`,
+      );
+    }
     lines.push("");
   }
   if (due.length) {

@@ -1464,12 +1464,24 @@ impl GithubReleaseProvider {
                 .get(&sidecar.browser_download_url)
                 .send()
                 .await
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
+                .map_err(|error| PortcoveError::from_transport(&error))?;
             if !response.status().is_success() {
-                return Err(PortcoveError::network(format!(
-                    "checksum download returned {}",
-                    response.status()
-                )));
+                // Recorded as an observed status, so a 5xx or a throttle here is
+                // temporary and a 404 stays lasting.
+                let status = response.status();
+                let mut error =
+                    PortcoveError::network(format!("checksum download returned {status}"))
+                        .with_upstream(Some(crate::failure::UpstreamObservation::Status(
+                            status.as_u16(),
+                        )));
+                if let Some(wait) = response
+                    .headers()
+                    .get(header::RETRY_AFTER)
+                    .and_then(|value| value.to_str().ok())
+                {
+                    error = error.detail("retry_after", wait.trim());
+                }
+                return Err(error);
             }
             let body =
                 bounded_response_bytes(response, CHECKSUM_MAX_BYTES, "checksum response").await?;
@@ -3042,8 +3054,8 @@ fn github_request_error(error: reqwest::Error) -> PortcoveError {
         ResponseTestPhase::Headers,
         error.is_timeout(),
     ));
-    let observation = crate::failure::UpstreamObservation::from_reqwest(&error);
-    PortcoveError::network(error.to_string()).with_upstream(observation)
+    // A DNS, TLS, connect or reset failure before any answer is temporary.
+    PortcoveError::from_transport(&error)
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -3555,7 +3567,8 @@ pub(crate) async fn bounded_response_bytes(
                 ResponseTestPhase::Body,
                 error.is_timeout(),
             ));
-            PortcoveError::network(error.to_string())
+            // A body cut off mid-transfer is an interruption, not an answer.
+            PortcoveError::from_transport(&error)
         })?;
         if chunk.len() > limit.saturating_sub(body.len()) {
             return Err(PortcoveError::verification(format!(
@@ -7421,6 +7434,62 @@ mod tests {
             .unwrap_err();
             assert_eq!(error.code, code);
         }
+    }
+
+    #[tokio::test]
+    async fn checksum_sidecar_statuses_classify_as_temporary_or_lasting_from_the_status() {
+        for (response, expected) in [
+            (
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                Some(crate::TemporaryCause::ServerUnavailable),
+            ),
+            (
+                "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 120\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                Some(crate::TemporaryCause::RateLimited),
+            ),
+            (
+                "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                None,
+            ),
+        ] {
+            let error = checksum_http_fixture(&["SHA256SUMS"], vec![response.into()])
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.temporary_cause().map(|(cause, _)| cause),
+                expected,
+                "{response}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_github_transport_failure_before_any_answer_is_temporary() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        // Nothing listens on a port that was just released: connection refused.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let error = runtime
+            .block_on(
+                reqwest::Client::builder()
+                    .no_proxy()
+                    .build()
+                    .unwrap()
+                    .get(format!("http://127.0.0.1:{port}/"))
+                    .send(),
+            )
+            .unwrap_err();
+        let converted = github_request_error(error);
+        assert_eq!(
+            converted.temporary_cause().map(|(cause, _)| cause),
+            Some(crate::TemporaryCause::Network)
+        );
     }
 
     #[tokio::test]

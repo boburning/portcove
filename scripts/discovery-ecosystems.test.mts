@@ -129,16 +129,23 @@ void test("the wiki capture hands table evidence off to a human reviewer", async
       saved[name] = value;
     },
   };
+  // A reference capture: one page fingerprint for manual review, never coverage.
   const changed = await collectPcgamingwikiSource(context);
-  assert.equal(changed.status, "partial");
-  assert.deepEqual(changed.records, []);
-  assert.match(String(changed.next_action), /revision.*corroborate leads upstream/u);
+  assert.equal(changed.status, "complete");
+  assert.equal(changed.coverage_role, "reference");
+  assert.equal(changed.snapshot_kind, "reference-capture");
+  assert.equal(changed.records.length, 1);
   assert.match(String(changed.coverage), /manual review/u);
+  assert.match(String(changed.reconsider), /structured surface/u);
 
+  // Per-request comments, scripts and whitespace are not page changes.
+  body = `<!-- parser cache 42 --><table><tr><td>Changed implementation</td></tr></table>
+    <script>var request = 7;</script>`;
+  const noise = await collectPcgamingwikiSource(context);
+  assert.equal(noise.records[0]!.fingerprint, changed.records[0]!.fingerprint);
   body = "<table><thead><tr><th>Game</th></tr></thead><tbody></tbody></table>";
-  const empty = await collectPcgamingwikiSource(context);
-  assert.equal(empty.status, "partial");
-  assert.deepEqual(empty.records, []);
+  const edited = await collectPcgamingwikiSource(context);
+  assert.notEqual(edited.records[0]!.fingerprint, changed.records[0]!.fingerprint);
   assert.equal((saved.pcgamingwiki as { text: string }).text, body);
 
   body = " ";
@@ -148,22 +155,17 @@ void test("the wiki capture hands table evidence off to a human reviewer", async
   const denied = await collectPcgamingwikiSource(context);
   assert.equal(denied.status, "inaccessible");
   assert.equal(denied.http_status, 403);
-  const previous = advanceDiscovery(emptyCheckpoint(), {
-    observed_at: now,
-    sources: [
-      {
-        ...changed,
-        status: "complete",
-        records: [{ key: "reviewed-row", fingerprint: "a".repeat(64) }],
-      },
-    ],
-  });
-  for (const source of [changed, empty, denied]) {
-    assert.deepEqual(
-      advanceDiscovery(previous, { observed_at: now, sources: [source] }).sources,
-      previous.sources,
-    );
-  }
+  assert.equal(denied.coverage_role, "reference");
+
+  // A changed page enters manual review once; a denied capture keeps the last one.
+  const first = advanceDiscovery(emptyCheckpoint(), { observed_at: now, sources: [changed] });
+  const later = new Date(Date.parse(now) + 1000).toISOString();
+  const second = advanceDiscovery(first, { observed_at: later, sources: [edited] });
+  assert.equal(Object.keys(second.pending).length - Object.keys(first.pending).length, 1);
+  assert.deepEqual(
+    advanceDiscovery(second, { observed_at: later, sources: [denied] }).sources,
+    second.sources,
+  );
 });
 
 void test("manifest omission remains Unknown and independent toolchains/source systems remain explicit", () => {

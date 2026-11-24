@@ -6792,6 +6792,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -6806,6 +6813,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -6842,6 +6860,82 @@
             "type": "string"
           }
         ]
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6849,6 +6943,14 @@
     "properties": {
       "cancel_requested": {
         "type": "boolean"
+      },
+      "clean_stop_at": {
+        "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
       },
       "created_at": {
         "format": "int64",
@@ -7776,6 +7878,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -7790,6 +7899,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -7833,6 +7953,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -7864,6 +7992,82 @@
           "updated_at",
           "cancel_requested",
           "items"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       }
@@ -11658,6 +11862,101 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11695,7 +11994,7 @@
         "type": "integer"
       },
       "failed_plan_sha256": {
-        "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+        "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
         "type": [
           "string",
           "null"
@@ -11706,6 +12005,10 @@
           "string",
           "null"
         ]
+      },
+      "failure_classified": {
+        "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+        "type": "boolean"
       },
       "format_version": {
         "format": "uint8",
@@ -11725,6 +12028,17 @@
           "$ref": "#/$defs/PortIntentSource"
         },
         "type": "array"
+      },
+      "temporary_retry": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TemporaryRetry"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
       },
       "updated_at": {
         "format": "int64",
@@ -11750,6 +12064,14 @@
           "newly_ready": {
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
+          },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "port_id": {
             "type": "string"
@@ -12008,7 +12330,7 @@
             "type": "integer"
           },
           "failed_plan_sha256": {
-            "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+            "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
             "type": [
               "string",
               "null"
@@ -12019,6 +12341,10 @@
               "string",
               "null"
             ]
+          },
+          "failure_classified": {
+            "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+            "type": "boolean"
           },
           "format_version": {
             "format": "uint8",
@@ -12038,6 +12364,17 @@
               "$ref": "#/$defs/PortIntentSource"
             },
             "type": "array"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
           },
           "updated_at": {
             "format": "int64",
@@ -12100,6 +12437,101 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14180,9 +14612,14 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
+          },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
           },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
@@ -14193,6 +14630,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -14216,6 +14664,101 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -14307,9 +14850,14 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
+          },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
           },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
@@ -14320,6 +14868,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -14343,6 +14902,101 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -18889,6 +19543,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -18903,6 +19564,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -18946,6 +19618,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -18988,6 +19668,14 @@
           "newly_ready": {
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
+          },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "port_id": {
             "type": "string"
@@ -19279,6 +19967,14 @@
       "RootSetupWaiting": {
         "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
         "properties": {
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "port_id": {
             "type": [
               "string",
@@ -19314,6 +20010,82 @@
         "required": [
           "port_id",
           "reason"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       },

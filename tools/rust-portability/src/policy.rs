@@ -26,6 +26,12 @@ const GLOBAL: &[&str] = &[
 ];
 
 const SCOPED: &[(&str, &[&str])] = &[
+    // The Linux-only, ignored listing-scale measurement reads the kernel's
+    // process memory counters and resets its peak; it never runs elsewhere.
+    (
+        "crates/portcove-core/src/listing_delivery.rs",
+        &["/proc/self/status", "/proc/self/clear_refs"],
+    ),
     // ELF PT_INTERP program-interpreter names a header declares. Core compares
     // them as identifiers to classify an executable's host; it never opens them.
     (
@@ -428,6 +434,11 @@ const SCOPED: &[(&str, &[&str])] = &[
     ),
     // An exact rooted package name that recipe inspection must reject.
     ("crates/portcove-core/src/recipe_tests.rs", &["/etc/passwd"]),
+    // Linux process accounting read by the ignored scaling profile only.
+    (
+        "crates/portcove-core/src/scaling_profile_tests.rs",
+        &["/proc/self/status", "/proc/self/clear_refs"],
+    ),
     // Host locations a launch text value or argument must refuse.
     (
         "crates/portcove-core/src/reviewed_launch_contract.rs",

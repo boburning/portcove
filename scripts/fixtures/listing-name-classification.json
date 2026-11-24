@@ -37,6 +37,34 @@
       {
         "tag": "v1.0‮",
         "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": false
       }
     ],
     "assets": [
@@ -74,7 +102,26 @@
       "Switchblade-v1.0-windows-x64.zip",
       "Game-v1.0-x64.zip",
       "Game-v1.0-win32.zip",
-      "Collection-v1.0-windows-x64.zip"
+      "Collection-v1.0-windows-x64.zip",
+      "Game-Studio-v1.0-windows-x64.zip",
+      "Studiopolis-v1.0-windows-x64.zip",
+      "Game-Extras-v1.0-windows-x64.zip",
+      "Table-Tennis-Engine-Windows-v1.6.0.zip",
+      "SOTN-v1.2.0-windows-x64.zip",
+      "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+      "Woof-v15.0.0-windows.zip",
+      "OpenTIE-v1.0-windows-x64.zip",
+      "MiniQuake-v0.9-macos-arm64.zip",
+      "Peggle-v1.0-windows-x64.zip",
+      "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
+      "TableTennis-Windows-v1.7.0.zip",
+      "the-force-engine-v1.0-win.zip",
+      "Game-v1.0-win64.7z",
+      "Game-v1.0.rar",
+      "Game-win64.7z",
+      "Game-v1.0.7z",
+      "Game-v1.0-android.7z",
+      "Game-win32.7z"
     ],
     "programs": [
       "game.exe",
@@ -118,7 +165,109 @@
       "Doom.exe",
       "Doom64.exe",
       "Quake.exe",
-      "Quake32.exe"
+      "Quake32.exe",
+      "TextureStudio.exe",
+      "SpiderMan.exe",
+      "SpiderMan2.exe",
+      "rexglue.exe",
+      "rex-glue.exe",
+      "Studiopolis.exe",
+      "Game Studio.exe",
+      "sotn.exe",
+      "openmb2",
+      "woof.exe",
+      "opentie.exe",
+      "miniquake",
+      "Peggle.exe",
+      "pokeplatinum",
+      "GameConfig.exe",
+      "Game_Settings.exe",
+      "Configurator.exe",
+      "Editor.exe",
+      "GameLauncher.exe",
+      "GameStudio.exe",
+      "Launch.exe",
+      "Settler.exe",
+      "Setup.exe",
+      "Upset.exe",
+      "game",
+      "game-installer.exe",
+      "launcher",
+      "GameCodegen.exe",
+      "GameRecomp.exe",
+      "game-gen",
+      "the-mapper.exe",
+      "Table.exe",
+      "MyGame.exe",
+      "Game-x64.exe",
+      "game.x86_64",
+      "supergame2.exe",
+      "Table_Game.exe",
+      "gamegen",
+      "StartGame.exe",
+      "Game-start.exe",
+      "GameCfg.exe",
+      "Configure.exe",
+      "GameLoader.exe",
+      "Install.exe",
+      "Starfall.exe",
+      "Startup.exe",
+      "Restart.exe",
+      "Installation.exe",
+      "Loaders2.exe",
+      "Cfgame.exe",
+      "Game-debug.exe",
+      "Game-dedicated.exe",
+      "Game-demo.exe",
+      "Game-headless.exe",
+      "GameServer.exe",
+      "GameEditor.exe",
+      "Observer.exe",
+      "Demon.exe",
+      "Serverless.exe",
+      "Debugger.exe",
+      "Demos.exe",
+      "Game2.exe",
+      "Game-2.exe",
+      "Super_Game.exe",
+      "gameserver.exe",
+      "GAMESERVER.EXE",
+      "gamedebug.exe",
+      "gamed.exe",
+      "servergame.exe",
+      "Game-dbg.exe",
+      "Game-srv.exe",
+      "Game-ded.exe",
+      "Game-trial.exe",
+      "Game-shareware.exe",
+      "Game-test.exe",
+      "Gamedev.exe",
+      "Testament.exe",
+      "Trialsmith.exe",
+      "Gamer.exe",
+      "Gаme.exe",
+      "Ｇａｍｅ.exe",
+      "Space.exe",
+      "2048.exe",
+      "SGEDIT.EXE",
+      "SGSERVER.EXE",
+      "SUPERGAMELAUNCHER.EXE",
+      "SpaceGame-cli.exe",
+      "SpaceGame.exe",
+      "SuperGame-x64.exe",
+      "SuperGame.exe",
+      "SuperGame64.exe",
+      "supergame-cli.exe",
+      "supergameserver64.exe",
+      "engine.exe",
+      "HaikuQuest.exe",
+      "Switchblade.exe",
+      "UpdatedGame.exe",
+      "DeltaruneFan.exe",
+      "Patchwork.exe",
+      "Doom2.exe",
+      "doom2.exe",
+      "Deltaforce.exe"
     ]
   },
   "output": {
@@ -166,6 +315,41 @@
       },
       {
         "tag": "v1.0‮",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v3.0",
         "provider_prerelease": false,
         "prerelease": false
       }
@@ -450,6 +634,158 @@
         "arch": "x86-64",
         "tool_token": null,
         "system_token": null
+      },
+      {
+        "name": "Game-Studio-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "studio",
+        "system_token": null
+      },
+      {
+        "name": "Studiopolis-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-Extras-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Table-Tennis-Engine-Windows-v1.6.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "SOTN-v1.2.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Woof-v15.0.0-windows.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenTIE-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "MiniQuake-v0.9-macos-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Peggle-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "TableTennis-Windows-v1.7.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "the-force-engine-v1.0-win.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.rar",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.7z",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-android.7z",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-win32.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
       }
     ],
     "programs": [
@@ -619,6 +955,414 @@
       },
       {
         "name": "Quake32.exe",
+        "tool_token": null
+      },
+      {
+        "name": "TextureStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rexglue.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rex-glue.exe",
+        "tool_token": "glue"
+      },
+      {
+        "name": "Studiopolis.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game Studio.exe",
+        "tool_token": "studio"
+      },
+      {
+        "name": "sotn.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openmb2",
+        "tool_token": null
+      },
+      {
+        "name": "woof.exe",
+        "tool_token": null
+      },
+      {
+        "name": "opentie.exe",
+        "tool_token": null
+      },
+      {
+        "name": "miniquake",
+        "tool_token": null
+      },
+      {
+        "name": "Peggle.exe",
+        "tool_token": null
+      },
+      {
+        "name": "pokeplatinum",
+        "tool_token": null
+      },
+      {
+        "name": "GameConfig.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game_Settings.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configurator.exe",
+        "tool_token": "configurator"
+      },
+      {
+        "name": "Editor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "GameLauncher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Launch.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Settler.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Setup.exe",
+        "tool_token": "setup"
+      },
+      {
+        "name": "Upset.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game",
+        "tool_token": null
+      },
+      {
+        "name": "game-installer.exe",
+        "tool_token": "installer"
+      },
+      {
+        "name": "launcher",
+        "tool_token": null
+      },
+      {
+        "name": "GameCodegen.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameRecomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game-gen",
+        "tool_token": null
+      },
+      {
+        "name": "the-mapper.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table.exe",
+        "tool_token": null
+      },
+      {
+        "name": "MyGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "supergame2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamegen",
+        "tool_token": null
+      },
+      {
+        "name": "StartGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-start.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameCfg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configure.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameLoader.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Install.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Starfall.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Startup.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Restart.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Installation.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Loaders2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Cfgame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dedicated.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-demo.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-headless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "GameEditor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "Observer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Demon.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Serverless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Debugger.exe",
+        "tool_token": "debugger"
+      },
+      {
+        "name": "Demos.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Super_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gameserver.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GAMESERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "gamedebug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamed.exe",
+        "tool_token": null
+      },
+      {
+        "name": "servergame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dbg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-srv.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-ded.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-trial.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-shareware.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-test.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamedev.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Testament.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Trialsmith.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gаme.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Ｇａｍｅ.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Space.exe",
+        "tool_token": null
+      },
+      {
+        "name": "2048.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SGEDIT.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SGSERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SUPERGAMELAUNCHER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergameserver64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "engine.exe",
+        "tool_token": null
+      },
+      {
+        "name": "HaikuQuest.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Switchblade.exe",
+        "tool_token": null
+      },
+      {
+        "name": "UpdatedGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "DeltaruneFan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Patchwork.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Deltaforce.exe",
         "tool_token": null
       }
     ]

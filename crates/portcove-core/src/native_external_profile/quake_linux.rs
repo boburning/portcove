@@ -28,30 +28,25 @@ pub(crate) fn matches_ironwail_tar(port: &PortDefinition, platform: Platform, na
 }
 
 pub(super) fn validate(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
-    let (id, repo, asset, executable, last_argument, persistent): (_, _, _, _, _, &[_]) =
-        match policy {
-            ExternalProfilePolicy::IronwailLinuxV1 => (
-                "quake-ironwail",
-                "andrei-drexler/ironwail",
-                IRONWAIL_TAR,
-                "ironwail",
-                "-noaddons",
-                &["id1", "history.txt"],
-            ),
-            ExternalProfilePolicy::VkquakeLinuxV1 => (
-                "quake-vkquake",
-                "Novum/vkQuake",
-                ["vkquake-", "-x86_64.appimage"],
-                "vkquake.AppImage",
-                "-nosteam",
-                &["id1", "vkQuake.cfg", "history.txt"],
-            ),
-            _ => unreachable!("only the reviewed Quake Linux policies are validated here"),
-        };
+    // The exact upstream package, fixed launch and data paths bind the policy;
+    // the authenticated definition supplies its own identity and repository.
+    let (asset, executable, last_argument, persistent): (_, _, _, &[_]) = match policy {
+        ExternalProfilePolicy::IronwailLinuxV1 => (
+            IRONWAIL_TAR,
+            "ironwail",
+            "-noaddons",
+            &["id1", "history.txt"],
+        ),
+        ExternalProfilePolicy::VkquakeLinuxV1 => (
+            ["vkquake-", "-x86_64.appimage"],
+            "vkquake.AppImage",
+            "-nosteam",
+            &["id1", "vkQuake.cfg", "history.txt"],
+        ),
+        _ => unreachable!("only the reviewed Quake Linux policies are validated here"),
+    };
     let linux = Platform::LinuxX86_64;
-    if port.id != id
-        || !port.release.repository.eq_ignore_ascii_case(repo)
-        || !port.platforms.contains(&linux)
+    if !port.platforms.contains(&linux)
         || port.channels != [crate::ReleaseChannel::Stable]
         || port.source_profile.is_some()
         || port.launch_arguments != ["-basedir", ".", last_argument]

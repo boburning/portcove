@@ -63,24 +63,102 @@ async function metadataRequest(
 
 const pcgamingwikiUrl = "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports";
 
+/**
+ * Reviewed sources outside normal automated collection. A `reference` source is
+ * captured at low frequency for manual research and never counts as automated
+ * coverage. A `suspended` source is probed with one cheap read per run; its
+ * last-good checkpoint and provenance stay, and normal collection resumes only
+ * when the same source reads again. Neither makes a run's coverage partial;
+ * each is reported with its reason and reconsideration condition.
+ */
+export const sourcePolicies = {
+  pcgamingwiki: {
+    role: "reference",
+    interval_days: 30,
+    reason:
+      "The unofficial-ports page is captured for manual review only and yields no structured rows; its MediaWiki and Cargo API answered HTTP 403 (Cloudflare) to the 2026-11-23 audit",
+    reconsider:
+      "Promote to collection once a supported structured surface (MediaWiki parse or Cargo query) answers and yields rows",
+  },
+  portforge: {
+    role: "suspended",
+    since: "2026-11-23",
+    reason:
+      "zamiba/portforge-mediaitems returned HTTP 404 to the 2026-11-23 audit; Git reported authentication required and raw files 404, so private, renamed and deleted are indistinguishable. A winget installer redirect ties the earlier portforge publisher to zamiba; no successor repository is attributable",
+    reconsider:
+      "Full collection resumes automatically when the same repository reads again. A publisher-named successor needs review before it becomes the source; a surviving fork never replaces it",
+  },
+} as const;
+const executionEnvironment = () =>
+  process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "local";
+/** Whether a failure is a run boundary rather than an answer about the source. */
+export function runBoundary(error: unknown) {
+  return (
+    error instanceof GitHubApiError &&
+    [
+      "budget_exhausted",
+      "rate_limited",
+      "quota_unknown",
+      "quota_stale",
+      "deadline_exceeded",
+      "cancelled",
+    ].includes(error.code)
+  );
+}
+/** The facts of a failed source read: its class, HTTP status and where it ran. */
+export function failureFacts(error: unknown) {
+  return {
+    error: errorMessage(error),
+    error_class:
+      error instanceof GitHubApiError
+        ? error.code
+        : error instanceof Error
+          ? error.name
+          : "unknown",
+    ...(error instanceof GitHubApiError && error.status ? { http_status: error.status } : {}),
+    environment: executionEnvironment(),
+  };
+}
+
+/**
+ * The page's content for change detection: markup comments, scripts and styles
+ * carry per-request parser and cache details, and whitespace is not content.
+ */
+export function pageContent(html: string) {
+  return html
+    .replace(/<!--[\s\S]*?-->/gu, "")
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/giu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+/** A low-frequency reference capture of the PCGamingWiki page, never automated coverage. */
 export async function collectPcgamingwikiSource(
   c: Pick<SourceContext, "http" | "save">,
 ): Promise<CollectedSource> {
   const page = await c.http.request("GET", pcgamingwikiUrl);
   c.save("pcgamingwiki", page);
-  const reviewable = page.status === 200 && Boolean(page.text.trim());
+  const captured = page.status === 200 && Boolean(page.text.trim());
+  const policy = sourcePolicies.pcgamingwiki;
   return {
     id: "pcgamingwiki",
-    status: reviewable ? "partial" : "inaccessible",
+    status: captured ? "complete" : "inaccessible",
+    coverage_role: policy.role,
     evidence: pcgamingwikiUrl,
     next_page: null,
     truncated: false,
-    records: [],
+    snapshot_kind: "reference-capture",
+    // One fingerprint of the captured page: a change hands it to manual review.
+    records: captured
+      ? [{ key: "page", fingerprint: observationHash(pageContent(page.text)) }]
+      : [],
     http_status: page.status,
-    coverage: "Response capture for manual review only; no automated table coverage",
-    next_action: reviewable
-      ? "Verify the wiki revision and relevant changed rows manually, then corroborate leads upstream"
-      : "Resume manual review on restored normal access",
+    environment: executionEnvironment(),
+    coverage: "Reference capture for manual review only; no automated table coverage",
+    reason: policy.reason,
+    reconsider: policy.reconsider,
+    next_action: captured
+      ? "Review the changed page manually, then corroborate leads upstream"
+      : "Retry the reference capture on a later run",
   };
 }
 
@@ -218,6 +296,8 @@ const entryKey = (v: Record<string, unknown>) =>
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9:/_.-]/gu, "-")
     .slice(0, 240);
+/** The suspended source's probe failed and was reported; nothing else to collect. */
+class SuspendedSource extends Error {}
 export async function collectDiscoverySources(
   c: SourceContext,
   known: DiscoveryCheckpoint,
@@ -234,20 +314,35 @@ export async function collectDiscoverySources(
   const now = c.budget.now();
   const due = (changed: boolean, checked: string) =>
     changed || !checked || now - Date.parse(checked) >= 7 * 86400000;
-  const fail = (id: string, evidence: string, error: unknown) =>
+  const fail = (
+    id: string,
+    evidence: string,
+    error: unknown,
+    extra: Record<string, unknown> = {},
+  ) =>
     accept({
       id,
-      status: "inaccessible",
+      // A run boundary (budget, quota, rate limit, deadline, cancellation) says
+      // nothing about the source: it is a resumable partial read, not an outage.
+      status: runBoundary(error) ? "partial" : "inaccessible",
+      ...(runBoundary(error)
+        ? { deferred: true, next_action: "Resume this source on a later admitted run" }
+        : {}),
       evidence,
       next_page: null,
       truncated: false,
       records: [],
-      error: errorMessage(error),
+      ...failureFacts(error),
+      ...extra,
     });
   try {
     accept(await collectQuiver(c));
   } catch (error) {
-    fail("quiver", "https://github.com/Paroxy/Quiver", error);
+    // The evidence is the request Portcove makes; quiver-launcher is the
+    // publisher's own client for the same catalog API.
+    fail("quiver", "https://api.quiverlauncher.com/api/v1/apps?limit=100&sort=added", error, {
+      implementation: "https://github.com/tgeorgiadis/quiver-launcher",
+    });
   }
   for (const repo of ["SirDiabo/GHLAppList"] as const) {
     try {
@@ -384,7 +479,51 @@ export async function collectDiscoverySources(
     fail("retcomm-collection", "https://github.com/RetroPortingToolKit/Retro-Catalog", e);
   }
   try {
-    const meta = await metadata(c, "zamiba/portforge-mediaitems");
+    // A suspended source: one metadata probe. Only the same repository, read
+    // without a redirect, resumes full collection.
+    let meta: Record<string, unknown>;
+    const policy = sourcePolicies.portforge;
+    const suspended = (error: unknown, extra: Record<string, unknown> = {}) => {
+      fail("portforge", "https://api.github.com/repos/zamiba/portforge-mediaitems", error, {
+        coverage_role: policy.role,
+        suspended_since: policy.since,
+        reason: policy.reason,
+        reconsider: policy.reconsider,
+        last_good: known.sources["portforge-tree"]?.completed_at ?? null,
+        ...extra,
+      });
+      return new SuspendedSource();
+    };
+    try {
+      meta = await metadata(c, "zamiba/portforge-mediaitems");
+    } catch (error) {
+      // Only the provider's answer about this repository keeps the suspension.
+      // Quota, credential, network and other failures say nothing about it and
+      // are reported as ordinary failures, which keep the run partial.
+      if (
+        error instanceof GitHubApiError &&
+        ![
+          "budget_exhausted",
+          "rate_limited",
+          "quota_unknown",
+          "quota_stale",
+          "retry_exhausted",
+          "credential_unavailable",
+          "deadline_exceeded",
+          "cancelled",
+        ].includes(error.code) &&
+        [403, 404, 410, 451].includes(error.status ?? 0)
+      )
+        throw suspended(error);
+      throw error;
+    }
+    // A renamed or transferred repository answers under another name: that is a
+    // successor, which needs review before it becomes the source.
+    if (str(meta.full_name).toLowerCase() !== "zamiba/portforge-mediaitems")
+      throw suspended(new Error("The repository now answers under another name"), {
+        successor: str(meta.full_name),
+        next_action: "Review the successor's attribution before it becomes the source",
+      });
     const ref = await commit(c, meta);
     const tree = rec(
       (await metadataRequest(c, `repos/${str(meta.full_name)}/git/trees/${ref}?recursive=1`)).data,
@@ -452,13 +591,24 @@ export async function collectDiscoverySources(
       },
     });
   } catch (e) {
-    fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
+    if (!(e instanceof SuspendedSource))
+      fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
   }
-  try {
-    accept(await collectPcgamingwikiSource(c));
-  } catch (e) {
-    fail("pcgamingwiki", pcgamingwikiUrl, e);
-  }
+  // A reference capture runs at its own low frequency.
+  const reference = known.sources.pcgamingwiki?.completed_at;
+  if (
+    !reference ||
+    now - Date.parse(reference) >= sourcePolicies.pcgamingwiki.interval_days * 86400000
+  )
+    try {
+      accept(await collectPcgamingwikiSource(c));
+    } catch (e) {
+      fail("pcgamingwiki", pcgamingwikiUrl, e, {
+        coverage_role: sourcePolicies.pcgamingwiki.role,
+        reason: sourcePolicies.pcgamingwiki.reason,
+        reconsider: sourcePolicies.pcgamingwiki.reconsider,
+      });
+    }
   try {
     accept(await collectRecompBoardSource(c, known));
   } catch (e) {
@@ -474,10 +624,8 @@ export async function collectDiscoverySources(
           await c.budget.admit(1, 1);
           await job.run();
         } catch (error) {
-          if (
-            error instanceof GitHubApiError &&
-            ["budget_exhausted", "rate_limited"].includes(error.code)
-          ) {
+          // Any run boundary stops the queue; the remaining jobs stay due.
+          if (runBoundary(error)) {
             exhausted = true;
             break;
           }

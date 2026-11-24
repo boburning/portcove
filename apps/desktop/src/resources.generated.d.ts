@@ -30,6 +30,7 @@ export default interface Resources {
       "libraryNeedsRecovery": "Your library needs to finish an upgrade or recovery first, so the update wasn’t installed. Reopen Portcove and let it finish, then try again.",
       "libraryRelocated": "Your library has moved, so the update wasn’t installed. Open the library at its new location, then try again.",
       "packageManaged": "This copy of Portcove was installed by your package manager. Update it through your package manager instead.",
+      "releaseNotFound": "Portcove couldn’t get update information. Try again later.",
       "saveFailed": "Portcove couldn’t save your update settings. Try again.",
       "stale": "This update is no longer available. Check for updates, then try again.",
       "unavailable": "Updates aren’t available in this Portcove build. Download the latest version from the Portcove website."
@@ -1030,7 +1031,8 @@ export default interface Resources {
         "detail": "Portcove only shows what it finds here.",
         "label": "Don't set up games from this folder automatically"
       },
-      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits.",
+      "waiting": "<game/> didn't finish setting up: <reason/>. Portcove will try again automatically. Next attempt: <time/>"
     },
     "intent": {
       "discoverOnly": {
@@ -1038,6 +1040,8 @@ export default interface Resources {
         "label": "Only show it in discovery"
       },
       "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+      "failedTemporary": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically.",
+      "failedTemporaryNext": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically. Next attempt: <time/>",
       "ignored": {
         "detail": "Portcove doesn't suggest, notify about or set up this game.",
         "label": "Ignore this game"

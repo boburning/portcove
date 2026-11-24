@@ -896,7 +896,7 @@ impl Library {
         transaction.execute("INSERT INTO ghostship_runtime_safety(backup_id,receipt_sha256,receipt_json) VALUES (?1,?2,?3)",
             rusqlite::params![safety.id, crate::signed_catalog::digest(json.as_bytes()), json])?;
         Self::write_install(&transaction, install, false)?;
-        crate::profile::follow_active_install(&transaction, install)?;
+        crate::profile::follow_active_install(self, &transaction, install)?;
         transaction.execute("UPDATE port_settings SET active_install_id=?1,previous_install_id=?2 WHERE port_id='ghostship'",
             rusqlite::params![install.id, plan.active_install.id])?;
         let changed = transaction.execute("UPDATE lifecycle_operations SET phase='metadata_committed',last_error=NULL,updated_at=?2

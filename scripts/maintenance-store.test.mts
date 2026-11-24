@@ -492,6 +492,26 @@ void test(
       /must be owner/u,
     );
 
+    // A Core reuse binding, written by its in-progress run, travels with the backup.
+    runSql(
+      collector,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+         VALUES ('core-run-1', 'core-port-capabilities-linux-x86-64', 'fixture', '2026-11-04T00:00:00Z');
+       INSERT INTO portcove_maintenance.core_reuse_bindings
+         (source, subject_key, scope_key, catalog_digest, content_sha256, run_id, read_at, visible_until)
+         VALUES ('core-port-capabilities-linux-x86-64', 'port:example-port', '${hex("5")}', '${hex("6")}',
+                 '${hex("7")}', 'core-run-1', '2026-11-04T00:00:00Z', 1700000000);
+       UPDATE portcove_maintenance.collection_runs
+          SET coverage = 'complete', completed_at = '2026-11-04T00:01:00Z', source_revision = 'commit-b',
+              expected_count = 0, observed_count = 0
+        WHERE run_id = 'core-run-1';`,
+    );
+    rejects(
+      collector,
+      `UPDATE portcove_maintenance.core_reuse_bindings SET scope_key = '${hex("8")}';`,
+      /in-progress run/u,
+    );
+
     // Backup from one snapshot, restore onto an independent cluster, verify everything.
     const before = storeDigest(source.owner);
     const archive = path.join(root, "backup");
@@ -525,6 +545,19 @@ void test(
     const restored = restore(target.owner, archive);
     assert.equal(restored.verified, true);
     assert.deepEqual(storeDigest(target.owner), before);
+    assert.equal(
+      runSql(
+        target.owner,
+        `SELECT scope_key || ' ' || run_id || ' ' || visible_until FROM portcove_maintenance.core_reuse_bindings;`,
+      ).trim(),
+      `${hex("5")} core-run-1 1700000000`,
+      "the restored store keeps the binding",
+    );
+    rejects(
+      target.owner,
+      "DELETE FROM portcove_maintenance.core_reuse_bindings;",
+      /never deleted/u,
+    );
     assert.throws(() => restore(target.owner, archive), /already has maintenance schemas/u);
     assert.deepEqual(migrationStatus(target.owner).problems, []);
 

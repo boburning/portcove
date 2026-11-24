@@ -41,6 +41,8 @@ The `app-release.yml` workflow turns it on with `--config` and signs with
 | Preview (opt-in) | `https://boburning.github.io/portcove/updates/preview/latest.json` |
 
 Preview gets new versions before Beta. There is no Stable channel before 1.0.
+Until the first Beta release, the Beta feed serves the current Preview version
+([interim Beta alias](RELEASING.md#interim-beta-alias)).
 Each feed is the plugin's static JSON format (`version`, `notes`, `pub_date` and
 per-platform `url` and `signature`). Linux is published as the AppImage under
 `linux-x86_64`. The plugin installs only a version newer than the running one, the

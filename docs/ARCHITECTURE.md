@@ -35,6 +35,20 @@ without cancelling or overlapping backend IPC. Recovery stays outside query
 execution. Activity ordering, pending-change handoff and diagnostic revision guards
 remain explicit; query cancellation only stops frontend continuations.
 
+Core keeps routine workspace work proportional to what changed. Each `Catalog`
+document value carries its own lazily built port and listing id index, plus its
+canonical serialization digest. Nothing in Core can change a document without
+first discarding both, so they never outlive the revision they describe. Overlays,
+definition delivery and catalog replacement therefore always use fresh ones. No
+process-wide cache is involved. Lookups keep linear first-match semantics and the
+same unknown-id errors. Provenance, browsing binding and definition fingerprints
+reuse the digest without changing their bytes. The status hydration pass reads
+pending manual setups once inside the workspace transaction. Mutations still
+recheck them. No permission or eligibility decision is cached. The ignored
+`scaling_profile_workspace_acquisition` Core test measures this path on
+deterministic 1×/5×/10× catalog and 0/100/1,000-installation fixtures. These are
+validation scenarios, not product limits.
+
 Mod setup inventory requests share one frontend read lane per port and library
 generation, including across component remounts while native work is outstanding.
 Refreshes arriving during a read coalesce into one subsequent read; each current
@@ -2249,7 +2263,14 @@ every six hours while the preference is on. A found update is announced through
 the existing `application-update-notice` event and never installed without the
 player's explicit Download and restart request. That request downloads the
 announced package and lets the plugin verify its signature before any bytes are
-returned. Package-managed `.deb` and `.rpm` installations refuse checks and
+returned. The update check has a 60-second deadline; the package download has
+none. It is abandoned only when no bytes arrive for 60 seconds or the connection
+falls below Core's progress floor, so a slow link that keeps delivering finishes.
+Because the plugin holds the package in memory until it verifies the signature,
+the download also stops as soon as it exceeds its declared `Content-Length` or
+the 512 MiB package ceiling (`MAX_PACKAGE_BYTES`, a memory budget).
+The plugin holds the package in memory and offers no range continuation, so an
+abandoned download starts again on the next request. Package-managed `.deb` and `.rpm` installations refuse checks and
 installs and point the player to their package manager. The idle preflight runs
 before the download. After verification, `application_update_admission` takes
 the library-selection mutex, blocks new backend workers (game launches included)
@@ -3142,7 +3163,14 @@ the opened file's location/object/size/mtime before and after reading, and reche
 retained handles, library identity, catalog and registrations before returning.
 Profiles, individual/aggregate hashing, response size and cooperative elapsed
 work are bounded. The elapsed limit does not interrupt blocked filesystem calls;
-adapters must await the worker before terminal settlement. These dated facts
+adapters must await the worker before terminal settlement. When it runs out, the
+original being read and every later one are reported as `NotChecked` with state
+`source_not_checked_yet`, never as missing, unreadable or unsupported, and the
+originals already checked keep their results. The batch's own final fences
+recheck the retained handles and re-list retained directories (bounded by the
+inventory budgets), so they run to completion past the deadline and stop only
+for cancellation. A caller with its own deadline, such as the game-file query
+refresh, still discards the whole result when that deadline passes. These dated facts
 write no registrations and establish neither continuous freshness nor route,
 platform or selected-release eligibility. Legacy identity remains unknown.
 Public CLI/Desktop transport and complete game-file query predicates remain
@@ -3242,11 +3270,17 @@ default to a host that reads no store.
 The result is a read-only suggestion: it adds no saved root, registration, setup
 intent or second scanner, and store titles never identify a source. Search and
 admission stay with the existing discovery and inspector. Source import refuses
-Move for an original inside a detected store game folder or a Steam library's
+Move for an original inside a recorded store game folder or a Steam library's
 `steamapps` folder, for a folder that contains one, and for any path through a
-folder named `steamapps`, so Portcove does not remove a recognized store's
-files; Copy and Use current location are unchanged. Recognition depends on
-readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+folder named `steamapps`, so Portcove does not remove a store's files; Copy and
+Use current location are unchanged. That decision does not use the bounded
+suggestion list. Core's ownership check streams every install record of each
+store the host can read (Steam libraries and app manifests, GOG registry
+entries, Epic manifests) with no count bound and keeps only the first match.
+A record whose location does not exist is a definite absence. An unreadable,
+oversized, malformed or relative record, or an unreadable registry entry or
+manifest folder, makes ownership `not_checked`, which blocks Move with a typed
+refusal rather than allowing it. CLI `source roots stores` and the Tauri
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.
@@ -3476,7 +3510,7 @@ Restore consumes its one-use, action/target-bound authorization under the port l
 
 When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub managed-game release discovery reads 100-item pages newest first only until the channel choice is decided (a Beta stable fallback, curated identity checks, reviewed fallbacks and uploader continuity read further, up to the complete history), within the sixty-second request budget; running out reports an incomplete history, never an absent release. GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads at most ten pages, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, starts with the least recently checked games, returns results in the caller's order, records each activity it starts independently, defers the unstarted games of an allowance that reported a rate limit, and never retries a rate-limited item implicitly (see the update-check request cost below); CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no whole-transfer deadline, so a progressing large transfer on a slow link remains possible and cancellable. A shared progress floor (`transfer_progress`: at least 16 KiB in every 60-second window, about 273 bytes per second) cuts a connection that trickles bytes often enough to defeat the read-idle bound but too slowly to finish; together the two bound a worker's hold time by the file's size, never by a fixed duration. A floor cut ends the transfer like a read-idle stall and keeps eligible received bytes for a later run. Mod-provider downloads (`provider_http`) use the same floor in place of their former size-derived wall-clock allowance; they keep their declared-size and hard-cap checks and, because no digest is known before the download, restart rather than resume. After a 429, a server error or GitHub's throttling 403, `provider_http` pauses that provider's requests in memory for its stated `Retry-After` (read by the one shared parser, in any HTTP form) or 60 seconds, at most 15 minutes. Refusals during the pause record the status that started it, so a server error is never reported as a rate limit, and the failure keeps the provider's full stated wait for the durable unattended retry schedule (at most one day). A provider listing cut off mid-body is a temporary interruption; a complete body that is not the expected document stays lasting. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. The byte budget bounds what idle entries keep: a single asset larger than it may still keep its own bytes once idle entries have made room and no other transfer is active, so a large game is not refused durable resume for its size. A later download of another asset can still evict that idle entry when the budget requires, as with any idle entry. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub managed-game release discovery reads 100-item pages newest first only until the channel choice is decided (a Beta stable fallback, curated identity checks, reviewed fallbacks and uploader continuity read further, up to the complete history), within the sixty-second request budget; running out reports an incomplete history, never an absent release. GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads at most ten pages, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, starts with the least recently checked games, returns results in the caller's order, records each activity it starts independently, defers the unstarted games of an allowance that reported a rate limit, and never retries a rate-limited item implicitly (see the update-check request cost below); CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
 Update-check request cost and the running GitHub budget. GitHub's documentation ("Rate
 limits for the REST API",
@@ -3506,8 +3540,14 @@ budget and bulk checks:
   per credential (anonymous, or an in-memory fingerprint of the token), what GitHub last
   reported in `x-ratelimit-limit`, `-remaining`, `-used`, `-reset` and `-resource` (only
   `core` applies), plus any `retry-after` wait. A throttling answer (429, or 403 with an
-  exhausted allowance or `retry-after`) blocks that credential until `retry-after` (at most
-  an hour), the reported reset, or a default minute. While blocked, or once the allowance
+  exhausted allowance or `retry-after`) blocks that credential until `retry-after`, the
+  reported reset, or a default minute. `retry-after` is read by the one shared parser
+  (`temporary_failure::parse_retry_after`, delay-seconds or any HTTP-date, under its one
+  ceiling) against the answer's `Date`; the process holds requests back in memory for at
+  most one primary window (an hour) and then lets GitHub answer again, while the failure
+  keeps the stated time for presentation and the durable retry schedule. A local refusal
+  (`ProviderAllowanceExhausted`) classifies as a temporary rate limit and never spends an
+  unattended setup attempt. While blocked, or once the allowance
   is known to be spent, Core refuses further requests of that credential locally with a
   `provider_rate_limited` failure and sends nothing. Each sent anonymous or unconditional
   request reserves one request; GitHub's answer then describes the allowance, and a
@@ -3528,27 +3568,27 @@ Portcove's request behavior and the counts that rule implies, not a measurement 
 GitHub's own quota accounting. Each ordinary game reads its repository document and one
 `releases` page. "Before" checks every game independently, as bulk checks did until
 November 2026; "after" is one bulk check that shares observations. The test pins the
-formulas on a 20-game library. The 100- and 1,000-game rows were measured once with the
-same harness (1,000 games measured exactly ten times each 100-game row); the 5,000-game
-rows are derived from the pinned formulas, not measured.
+formulas on a 20-game library. The 100-, 1,000- and 5,000-game rows are derived from the
+pinned 20-game formulas, not pinned by a test; a one-off run of the same harness at 100 and
+1,000 games agreed with them.
 
-| Library                                        | Credential | Cold: requests / counted | Warm: requests / counted |
-| ---------------------------------------------- | ---------- | ------------------------ | ------------------------ |
-| 100 games, 100 repositories, before            | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 100 repositories, after             | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 100 repositories, either            | signed in  | 200 / 200                | 200 / 0                  |
-| 100 games, 4 per repository, before            | anonymous  | 200 / 200                | 200 / 200                |
-| 100 games, 4 per repository, after             | anonymous  | 50 / 50                  | 50 / 50                  |
-| 100 games, 4 per repository, before            | signed in  | 200 / 50                 | 200 / 0                  |
-| 100 games, 4 per repository, after             | signed in  | 50 / 50                  | 50 / 0                   |
-| 1,000 games, 1,000 repositories, either        | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
-| 1,000 games, 1,000 repositories, either        | signed in  | 2,000 / 2,000            | 2,000 / 0                |
-| 1,000 games, 4 per repository, before          | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
-| 1,000 games, 4 per repository, after           | anonymous  | 500 / 500                | 500 / 500                |
-| 1,000 games, 4 per repository, before          | signed in  | 2,000 / 500              | 2,000 / 0                |
-| 1,000 games, 4 per repository, after           | signed in  | 500 / 500                | 500 / 0                  |
-| 5,000 games, 4 per repository, after (derived) | anonymous  | 2,500 / 2,500            | 2,500 / 2,500            |
-| 5,000 games, 4 per repository, after (derived) | signed in  | 2,500 / 2,500            | 2,500 / 0                |
+| Library                                           | Credential | Cold: requests / counted | Warm: requests / counted |
+| ------------------------------------------------- | ---------- | ------------------------ | ------------------------ |
+| 100 games, 100 repositories, before (derived)     | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, after (derived)      | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, either (derived)     | signed in  | 200 / 200                | 200 / 0                  |
+| 100 games, 4 per repository, before (derived)     | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 4 per repository, after (derived)      | anonymous  | 50 / 50                  | 50 / 50                  |
+| 100 games, 4 per repository, before (derived)     | signed in  | 200 / 50                 | 200 / 0                  |
+| 100 games, 4 per repository, after (derived)      | signed in  | 50 / 50                  | 50 / 0                   |
+| 1,000 games, 1,000 repositories, either (derived) | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 1,000 repositories, either (derived) | signed in  | 2,000 / 2,000            | 2,000 / 0                |
+| 1,000 games, 4 per repository, before (derived)   | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 4 per repository, after (derived)    | anonymous  | 500 / 500                | 500 / 500                |
+| 1,000 games, 4 per repository, before (derived)   | signed in  | 2,000 / 500              | 2,000 / 0                |
+| 1,000 games, 4 per repository, after (derived)    | signed in  | 500 / 500                | 500 / 0                  |
+| 5,000 games, 4 per repository, after (derived)    | anonymous  | 2,500 / 2,500            | 2,500 / 2,500            |
+| 5,000 games, 4 per repository, after (derived)    | signed in  | 2,500 / 2,500            | 2,500 / 0                |
 
 One repository changing between warm checks adds two counted requests when signed in.
 UNKNOWN: whether exempt authenticated `304` answers count toward GitHub's secondary
@@ -3567,9 +3607,10 @@ resources changed.
 Bulk checks retain and resume work fairly. `check_updates` starts with the game whose
 latest durable check or attempt is oldest, never-attempted games first, and returns
 results in the caller's order. A check counts from its successful snapshot
-(`update_snapshots.checked_at`) or from a finished check activity in the retained activity
-history that failed for any reason but a provider rate limit, so games that always fail
-cannot take every window. Once a check fails with a rate limit, games not yet started whose
+(`update_snapshots.checked_at`) or from the latest check activity in the retained activity
+history that reached a verdict (it succeeded, or failed for any reason but a provider rate
+limit), so games that always fail cannot take every window. Rate-limited and deferred
+checks, cancellations and interrupted checks reached no verdict and keep their place. Once a check fails with a rate limit, games not yet started whose
 own checks draw from the allowance that failed (the provider, and for GitHub the anonymous
 or signed-in credential the failure records) are not sent: each returns a
 `provider_rate_limited` failure with `update_check_deferred`, keeps its earlier snapshot
@@ -3579,8 +3620,7 @@ provider reported it) through Tauri's `UpdateCheckOutcome` and the CLI's `deferr
 the desktop counts such games as not checked rather than failed and does not fail the batch
 for them. Attempts come from the retained activity history, which keeps the 1,000 most
 recent finished activities; a pruned attempt falls back to the snapshot time or to never
-attempted. A cancelled check counts as an attempt. The next bulk check after the reset
-starts with them, so a large library completes across allowance windows instead of
+attempted. The next bulk check after the reset starts with the deferred games, so a large library completes across allowance windows instead of
 re-checking its first games, and the order survives restart because it is read from the
 library database. Launching an installed game never reads update-check state or waits for
 a check.
@@ -3937,6 +3977,15 @@ requires independently expected nonzero sizes and SHA-256 identities. Existing
 provider, definition, runtime-policy and source requirements still apply. Shared
 preference artifact trust is checked during transfer; permission to write that
 scope is reviewed afresh only by the later exclusive preparation/apply operation.
+
+A failure during `acquiring` that Core classifies as temporary (an interrupted,
+stalled or starved connection, a transport failure, a rate limit or a server
+error) releases the exact private reservation in the same process instead of
+entering `attention_required`: nothing was verified or published, and eligible
+received bytes stay in the partial-download store, so a fresh review of the same
+release continues from them without a discard. Cancellation, a lasting failure,
+any later phase and every process interruption keep `attention_required` and its
+explicit discard route.
 
 Private archives live under `downloads/update-acquisition-v1/<activity-UUID>`.
 The journal binds their exact owner, release, platform, definition and ordered

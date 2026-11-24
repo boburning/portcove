@@ -6,6 +6,44 @@ export const controllerTagPatterns = [
   "refs/tags/portcove-controller-canary-*",
 ] as const;
 
+/** Coordinator namespaces whose preparation receipts are allocation authority.
+ * Receipt names are slash-separated (`<namespace>-prepared/v<version>` and
+ * `<namespace>-prepared-source/<source commit>`), so each pattern's trailing
+ * star covers exactly one path component under GitHub's fnmatch matching. */
+export const receiptTagNamespaces = ["portcove-production"] as const;
+
+export function receiptTagPatterns(namespace: string) {
+  if (!receiptTagNamespaces.some((known) => known === namespace))
+    throw new Error("receipt tag protection is defined only for ratified coordinator namespaces");
+  return [`refs/tags/${namespace}-prepared/*`, `refs/tags/${namespace}-prepared-source/*`] as const;
+}
+
+export const receiptTagPatternList: readonly string[] =
+  receiptTagNamespaces.flatMap(receiptTagPatterns);
+
+/** The existing release state writer App. Coordinator checkpoints create
+ * receipts in the same atomic ref transaction that advances
+ * `refs/heads/portcove-production-coordinator-state`, which only this App may
+ * update, so no other actor can create a receipt through a valid checkpoint. */
+export const releaseReceiptWriter = {
+  actor_type: "Integration",
+  actor_id: 5632044,
+  bypass_mode: "always",
+} as const;
+
+/** GitHub fnmatch with FNM_PATHNAME for the supported literal-prefix patterns:
+ * the trailing star matches one non-empty component that contains no `/`. */
+export function matchesReceiptTagPattern(pattern: string, ref: string) {
+  const prefix = pattern.slice(0, -1);
+  const rest = ref.slice(prefix.length);
+  return (
+    receiptTagPatternList.includes(pattern) &&
+    ref.startsWith(prefix) &&
+    rest.length > 0 &&
+    !rest.includes("/")
+  );
+}
+
 export const releaseOwner = {
   actor_type: "User",
   actor_id: 43177418,
@@ -47,12 +85,16 @@ export function activeRefRuleset(rule: unknown, target: "branch" | "tag", ref: s
       (include) =>
         typeof include === "string" &&
         (exact.test(include) ||
-          (target === "tag" && controllerTagPatterns.some((pattern) => pattern === include))),
+          (target === "tag" &&
+            (controllerTagPatterns.some((pattern) => pattern === include) ||
+              receiptTagPatternList.includes(include)))),
     ) ||
     !includes.some(
       (include) =>
         typeof include === "string" &&
-        (include === ref || (target === "tag" && matchesControllerTagPattern(include, ref))),
+        (include === ref ||
+          (target === "tag" &&
+            (matchesControllerTagPattern(include, ref) || matchesReceiptTagPattern(include, ref)))),
     )
   ) {
     return undefined;
@@ -112,4 +154,34 @@ export function hasControllerTagProtection(rulesets: readonly unknown[], ref: st
         hasOnlyActor(actors, releaseOwner) && hasOnlyRules(rules, ["creation"]),
     )
   );
+}
+
+/** Receipt tags of one namespace are immutable for everyone (update and
+ * deletion denied, no bypass actor) and only the release state writer App may
+ * create one. Both receipt patterns must be covered; any weaker or missing
+ * policy fails closed. Additional active restrictions only narrow access. */
+export function hasReceiptTagProtection(rulesets: readonly unknown[], namespace: string) {
+  const [versions, sources] = receiptTagPatterns(namespace);
+  // A real-shaped name under each prefix selects the applicable policies; each
+  // must name the namespace pattern itself, so a policy for one exact receipt
+  // cannot stand in for the whole namespace.
+  const examples = [
+    [versions, `${versions.slice(0, -1)}v0.1.0-alpha.3`],
+    [sources, `${sources.slice(0, -1)}${"0".repeat(40)}`],
+  ] as const;
+  return examples.every(([pattern, ref]) => {
+    const applicable = rulesets.flatMap((rule) => {
+      const active = activeRefRuleset(rule, "tag", ref);
+      return active && active.includes.includes(pattern) ? [active] : [];
+    });
+    return (
+      applicable.some(
+        ({ actors, rules }) => actors.length === 0 && hasOnlyRules(rules, ["update", "deletion"]),
+      ) &&
+      applicable.some(
+        ({ actors, rules }) =>
+          hasOnlyActor(actors, releaseReceiptWriter) && hasOnlyRules(rules, ["creation"]),
+      )
+    );
+  });
 }

@@ -2,7 +2,8 @@
 # at most one preview a day from the newest CI-green `main` commit, never from a tag.
 # The `release` environment admits this run because its ref is `main`. The
 # `nightly-X.Y.Z-preview.N` tag only names the release and the feed version stays
-# `X.Y.Z-preview.N`. Previews publish only to the opt-in Preview feed.
+# `X.Y.Z-preview.N`. Previews publish to the opt-in Preview feed and, until a
+# Beta release exists, to the Beta feed as an interim alias (#1422).
 name: Nightly preview
 run-name: Nightly preview
 

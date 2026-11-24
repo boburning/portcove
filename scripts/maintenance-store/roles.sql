@@ -75,6 +75,11 @@ GRANT EXECUTE ON FUNCTION portcove_maintenance.acquire_collection(),
   portcove_maintenance.expect_baseline(text, text),
   portcove_maintenance.verify_current(bigint, text)
   TO portcove_maintenance_collector;
+-- Scoped Core reuse (migration 0010): bindings are written by the reading run
+-- under their guard; due selection is readable by the collector and reports.
+GRANT INSERT, UPDATE ON portcove_maintenance.core_reuse_bindings TO portcove_maintenance_collector;
+GRANT EXECUTE ON FUNCTION portcove_maintenance.core_reassessment_due(text, jsonb)
+  TO portcove_maintenance_collector, portcove_maintenance_report;
 -- A run inserted without a ticket takes one from the same sequence at insert.
 GRANT USAGE ON SEQUENCE portcove_maintenance.collection_acquisition TO portcove_maintenance_collector;
 

@@ -934,8 +934,11 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
-content bound before exposing an immutable inventory. The general per-target
+The parser enforces a 4 MiB index and a 32 MiB aggregate content bound before
+exposing an immutable inventory. It reads every definition identity within the
+index byte bound. Released readers also refuse more than 4,096 definitions, so
+the publisher keeps that count until they are no longer supported (see
+[Reader generations](SIGNED-CATALOG.md#reader-generations)). The general per-target
 ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
 representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
@@ -1424,6 +1427,97 @@ Policy schema 4 adds `decision.curated_acquisition_checks: 1` and also requires
 including null; unknown versions fail closed. A schema-4 grant binds a nonempty
 curated record map to the exact independently authenticated definition. Record
 claims or a first client download cannot create this grant or install its root.
+
+#### Decision binding schemas
+
+The `policy_schema` number above selects the grant's scope. A separate
+top-level `decision_schema` selects how a positive decision (`availability`,
+`managed_github`, `managed_forge_v1`) names the exact definition it authorizes.
+
+- **Decision schema 1** is expressed by omitting `decision_schema`. The decision
+  names `definition_revision`, `definition_sha256` (the exact indexed entry
+  bytes), `template` and the global definitions `index_sha256`.
+- **Decision schema 2** is `"decision_schema": 2`. The decision names the same
+  fields except `index_sha256`, which it must omit.
+
+Readers interpret both. A decision with `decision_schema: 1`, a non-integer, or
+schema 2 with `index_sha256` is invalid. A larger number is refused before typed
+parsing as needing a newer Portcove for that one subject. A manual refresh
+reports it as `engine_capability_required`; a scheduled refresh skips that
+subject. Siblings and that subject's retained last-good admission are
+unaffected. A `revoked` decision binds nothing and never carries
+`decision_schema`, in this or any later schema, so every released reader can
+read a revocation.
+The binding form is not authority. Changing it keeps retained launch continuity,
+just as a schema-1 rebind at a higher `policy_revision` does. Readers that list
+`catalog.policy-decision-v2` in `capabilities.definition_features` accept
+schema 2. Earlier readers refuse the unknown field for that subject and keep
+their last-good decision.
+
+**What the global index binding protects.** Each property of decision
+schema 1 and the mechanism that also enforces it:
+
+| Property                                                                 | Also enforced by                                                                                                                                     | Schema 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A decision is paired only with the entry its publisher reviewed          | `namespace`, `stable_id`, `definition_revision`, `definition_sha256` and `template`, all compared on every use                                       | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A removed subject's decision stops being honored                         | The reader resolves a subject only through the verified index it is using; a removed subject has no entry, so nothing can be interpreted or admitted | No entry, no projection, no admission. Schema 1 also made the policy role countersign the whole index, so a definitions-role signature alone could list the subject again only by replaying that exact whole index. Under schema 2 a later index that lists the identical reviewed entry again would honor an unrevoked decision, so a schema-2 publisher revokes (a higher-revision `revoked` decision under the policy role) whenever it removes a subject. Publication inspection accepts policy targets only for indexed subjects, so the revocation is published while the subject is still indexed, and the removal follows in a later publication |
+| A revised subject's old decision stops being honored                     | A revision has a new entry digest, which the index names and verifies                                                                                | Unchanged: the entry digest differs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| The entry's contracts are the reviewed ones                              | The entry names its contract leaves by content-addressed targets the index verifies, so the entry digest binds them                                  | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A decision is not combined with a definition from another index          | The projection is interpreted from one verified index                                                                                                | Each use requires the projection's own index digest to equal the index the caller relies on (a fresh candidate or the retained selection), and that index to name this entry digest                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| A revoked subject stays revoked                                          | Revocation is a higher `policy_revision` under the per-subject policy revision floor; it carries no index binding                                    | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| An older index or metadata cannot replace a newer one (replay, rollback) | The definitions-role replay floor on selection, the policy-role replay floor on admission, and authenticated expiry                                  | Unchanged; tested with an unchanged decision presented with an older index                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Concurrent publications are ordered                                      | Monotonic role versions; an equal version with a different signed body is equivocation                                                               | Unchanged; tested with identical decision bytes from two racing bodies                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Freshness                                                                | Earliest authenticated metadata expiry on the candidate, the selection and the policy                                                                | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| An unrelated index change invalidates the decision                       | Nothing else; this is the only additional effect of the global binding                                                                               | Removed: an addition or change of another subject leaves this decision valid, so the publisher re-signs only the changed subject's targets                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+Only the removal row depends on the publisher: it holds when removal is a
+policy-role revocation, which every reader generation honors. With that
+procedure no property depends only on the global digest, so no case keeps the
+conservative binding. Decision schema 1 keeps its existing behavior, including
+stored admissions and selections that libraries already hold.
+
+Schema 2 is safe only because an entry's meaning depends on nothing at index
+level: the entry bytes and the contracts they name by digest are the whole
+reviewed definition, and the index contributes only membership. A future index
+field or `index_schema` that changes what an entry means must either be added
+to the decision binding or bump the decision schema.
+
+**Stored decisions a reader cannot interpret.** A stored admission whose exact
+authenticated bytes this reader cannot parse refuses only its own subject. An
+example is a newer decision schema stored by a later release before an
+application rollback. The authority review that runs before every official
+refresh still checks that row's digest, provenance and replay floor, then
+continues with the other subjects. Bytes that fail those checks still refuse
+the review. Curated hold evaluation still reads every retained receipt
+strictly and fails closed. Releases before this reader stop every official
+refresh on any stored decision they cannot parse.
+
+**Rollout.** A publisher emits schema 2 only after the
+[released-reader gate](design/CATALOG-DISTRIBUTION-SCALING.md#4-definitions-policy-decision-schema-2)
+verifies a released build that lists `catalog.policy-decision-v2`. That build
+is declared the minimum supported preview generation before the first schema-2
+decision is emitted. Older previews then refuse each schema-2 decision with a
+generic unknown-field parse error. They keep their last-good decisions,
+selections and installs, but no further decisions reach them. Once each
+stored policy's authenticated expiry passes, `require_fresh` refuses new
+acquisition for that subject. Already-installed games keep launching under the
+retained contract. Those previews must update the application. The cutover
+re-signs every subject once at a higher `policy_revision`, which requires one
+re-selection of every subject. After that, an addition or change re-signs only
+that subject's policy and launch targets.
+
+Before the first schema-2 emission, every writer that compares or emits
+`decision.index_sha256` must handle schema 2. The writers are:
+
+- `crates/portcove-release-tools/src/definition_repository/bundle.rs`
+- `scripts/catalog-prepare-publication.mts`
+- `scripts/catalog-publication-receipt.mts`
+- `scripts/catalog-literal-launch-publication.mts`
+- `scripts/n64-original-publication.mts`
+
+The publication receipt check must also refuse a `removed` change unless that
+subject already has a higher-revision revocation, so "removal is revocation" is
+enforced rather than procedural.
 
 Curated resolution freshly observes the numeric GitHub repository, release and
 asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.
@@ -2069,9 +2163,11 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The legacy target is bounded to 8 MiB, each listing
-uses the existing descriptive validator, and both lists are bounded to 10,000
-identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
+The legacy target is bounded to 8 MiB and each listing
+uses the existing descriptive validator. The current reader charges each
+listing and withdrawal against one measured working-memory element budget per
+admission (about 10,400 listings or 616,000 withdrawals); released readers
+instead refuse more than 10,000 of either, which the publisher keeps honoring. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
@@ -2079,7 +2175,9 @@ execution consent and managed installation retain their existing boundaries.
 The compact target uses the same delegation and an 8 MiB authenticated carrier.
 A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
 of decoded directory data. Compact parsing checks each record separately and
-accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+accepts up to 1 MiB per record. Records and withdrawals are charged against the
+element budget while they are parsed (released readers: 10,000 each). See
+[Reader generations](SIGNED-CATALOG.md#reader-generations). Admission and
 local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including

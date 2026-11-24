@@ -1,11 +1,7 @@
-use std::{
-    io::Write,
-    path::{Component, Path, PathBuf},
-};
+use std::path::{Component, Path, PathBuf};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::{
     InstallRecord, Library, PortcoveError, PortcoveService, ReleaseChannel, Result, SourceRecord,
@@ -128,9 +124,12 @@ impl PortcoveService {
         // Removed originals must not travel; any removal still pending is
         // finished now, or the export stops with the next step.
         crate::artwork_eviction::prepare_transfer(self.library())?;
-        let bytes = serde_json::to_vec_pretty(&self.export_library_metadata()?)?;
+        let metadata = self.export_library_metadata()?;
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-        temporary.write_all(&bytes)?;
+        let written = crate::library_metadata_document::write(temporary.as_file_mut(), &metadata)?;
+        drop(metadata);
+        // Never publish an export the supported importer on this machine would refuse.
+        crate::library_metadata_document::require_admitted(written.size, "library metadata")?;
         temporary.as_file().sync_all()?;
         temporary.persist_noclobber(&destination).map_err(|error| {
             let kind = error.error.kind();
@@ -145,8 +144,8 @@ impl PortcoveService {
         })?;
         Ok(LibraryMetadataFile {
             path: destination,
-            sha256: hex::encode(Sha256::digest(&bytes)),
-            size: bytes.len() as u64,
+            sha256: written.sha256,
+            size: written.size,
         })
     }
 }
@@ -422,6 +421,7 @@ pub(crate) fn portable_relative(path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
     use std::fs;
 
     #[test]

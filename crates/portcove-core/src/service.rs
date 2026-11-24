@@ -197,6 +197,8 @@ mod install_batch;
 mod port_intent;
 #[path = "root_setup.rs"]
 mod root_setup;
+#[path = "unattended_setup.rs"]
+mod unattended_setup;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchCapacity, InstallBatchItem, InstallBatchItemState,
     InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
@@ -212,6 +214,7 @@ pub use root_setup::{
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
     RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
 };
+pub(crate) use unattended_setup::player_cancelled_activity as unattended_player_cancelled_activity;
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
@@ -1323,7 +1326,9 @@ impl PortcoveService {
             update_snapshot_row_count = metrics.update_snapshot_row_count,
             "loaded status read model"
         );
-        self.hydrate_statuses(&self.catalog, statuses, sources)
+        let pending_downloads =
+            Self::pending_download_port_ids_from(&self.library.connection()?, None)?;
+        self.hydrate_statuses(&self.catalog, statuses, sources, &pending_downloads)
     }
 
     fn apply_fresh_native_channel_recommendations(
@@ -1469,6 +1474,7 @@ impl PortcoveService {
         catalog: &Catalog,
         statuses: Vec<PortStatus>,
         sources: &[SourceRecord],
+        pending_downloads: &HashSet<String>,
     ) -> Result<Vec<PortStatus>> {
         let mut checked_sources = HashMap::new();
         let registered_sources = sources
@@ -1511,8 +1517,13 @@ impl PortcoveService {
                     status,
                     retained_catalog.as_ref().ok().and_then(Option::as_ref),
                 )?;
-                self.with_port_actions(port, status, &registered_sources)
-                    .map(|status| self.with_rollback_assessment(status))
+                self.with_port_actions_observed(
+                    port,
+                    status,
+                    &registered_sources,
+                    pending_downloads,
+                )
+                .map(|status| self.with_rollback_assessment(status))
             })
             .collect()
     }
@@ -1582,6 +1593,7 @@ impl PortcoveService {
             )?;
             let mut activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
+            let pending_downloads = Self::pending_download_port_ids_from(&transaction, None)?;
             transaction.commit()?;
             self.library
                 .observe_activity_liveness(&mut activities.records);
@@ -1609,6 +1621,7 @@ impl PortcoveService {
                     })
                     .collect(),
                 &sources,
+                &pending_downloads,
             )?;
             let listing_statuses =
                 self.listing_statuses_from(&catalog, &statuses, listing_raw, &pending_setups)?;
@@ -2920,8 +2933,25 @@ impl PortcoveService {
     fn with_port_actions(
         &self,
         current_port: &PortDefinition,
+        status: PortStatus,
+        registered_sources: &HashMap<String, SourceRecord>,
+    ) -> Result<PortStatus> {
+        let pending = Self::pending_download_port_ids_from(
+            &self.library.connection()?,
+            Some(&status.port_id),
+        )?;
+        self.with_port_actions_observed(current_port, status, registered_sources, &pending)
+    }
+
+    /// Assess actions against one pending-setup observation shared by the
+    /// whole read, instead of opening a connection per port. Mutations keep
+    /// their own transactional pending-setup checks.
+    fn with_port_actions_observed(
+        &self,
+        current_port: &PortDefinition,
         mut status: PortStatus,
         registered_sources: &HashMap<String, SourceRecord>,
+        pending_downloads: &HashSet<String>,
     ) -> Result<PortStatus> {
         use PortAction as Action;
         use PortActionAvailability as Availability;
@@ -3158,12 +3188,7 @@ impl PortcoveService {
             update,
         ];
         crate::acquisition_restriction::assess_port_actions(&self.catalog, &mut status);
-        let pending: bool = self.library.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
-            [&status.port_id],
-            |row| row.get(0),
-        )?;
-        if pending {
+        if pending_downloads.contains(&status.port_id) {
             for assessment in &mut status.port_actions {
                 if matches!(
                     assessment.action,
@@ -5364,7 +5389,8 @@ impl PortcoveService {
         self.managed_install_root(port_id, &staged.path)?;
         crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
-        crate::profile::require_default_recovery_capacity(
+        crate::profile::require_default_retention_ready(
+            &self.library,
             &self.library.connection()?,
             port_id,
             &staged.id,
@@ -8946,6 +8972,7 @@ mod tests {
     mod channel_recommendations;
     #[cfg(windows)]
     mod dynamic_policy;
+    mod pending_setup_actions;
 
     use std::{
         sync::{
@@ -10236,27 +10263,21 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn bulk_update_checks_retain_unfinished_games_and_resume_them_first() {
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let catalog = Catalog::embedded().unwrap();
-        let provider = Arc::new(ExhaustibleReleaseProvider {
-            allowance: AtomicUsize::new(usize::MAX),
-            calls: Mutex::new(Vec::new()),
-            broken: None,
-        });
-        // Use games whose check asks the provider about that game alone: a runtime
-        // family game also resolves its shared runtime, which would spend allowance
-        // on another game's behalf and blur what this test counts.
-        let probe = PortcoveService::with_provider(
-            Library::open(temporary.path().join("probe")).unwrap(),
-            provider.clone(),
-        )
-        .unwrap();
+    /// GitHub games whose check asks the provider about that game alone: a runtime
+    /// family game also resolves its shared runtime, which would spend allowance
+    /// on another game's behalf and blur what a windowed test counts.
+    async fn single_request_github_ports(
+        catalog: &Catalog,
+        provider: &Arc<ExhaustibleReleaseProvider>,
+        probe_library: &std::path::Path,
+        count: usize,
+    ) -> Vec<String> {
+        let probe =
+            PortcoveService::with_provider(Library::open(probe_library).unwrap(), provider.clone())
+                .unwrap();
         let mut port_ids = Vec::new();
         for port in catalog.ports() {
-            if port_ids.len() == 12 {
+            if port_ids.len() == count {
                 break;
             }
             if port.release.provider != ReleaseSource::Github {
@@ -10269,7 +10290,77 @@ mod tests {
                 port_ids.push(port.id.clone());
             }
         }
-        drop(probe);
+        provider.calls.lock().unwrap().clear();
+        port_ids
+    }
+
+    /// One game always fails for a lasting reason (its repository is gone). Its
+    /// failed check reached a verdict, so with five requests per window it does
+    /// not hold the front of every window: the second window goes to games the
+    /// first never reached.
+    #[tokio::test]
+    async fn an_always_failing_game_yields_the_next_window_to_unreached_games() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let provider = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(usize::MAX),
+            calls: Mutex::new(Vec::new()),
+            broken: None,
+        });
+        let port_ids =
+            single_request_github_ports(&catalog, &provider, &temporary.path().join("probe"), 20)
+                .await;
+        assert_eq!(port_ids.len(), 20);
+        let broken = port_ids[0].clone();
+        let provider = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(5),
+            calls: Mutex::new(Vec::new()),
+            broken: Some(broken.clone()),
+        });
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+
+        // Window 1: nothing was ever attempted, so the caller's order decides and
+        // the failing game goes first.
+        let first = service.check_updates(port_ids.clone()).await.unwrap();
+        assert_eq!(provider.calls.lock().unwrap().first(), Some(&broken));
+        let unreached = first
+            .iter()
+            .filter(|(_, result)| result.as_ref().is_err_and(crate::failure::is_rate_limited))
+            .map(|(id, _)| id.clone())
+            .collect::<std::collections::HashSet<_>>();
+        assert!(!unreached.contains(&broken));
+        assert_eq!(unreached.len(), 20 - 5, "five requests reached a verdict");
+
+        // Window 2: the whole allowance (and anything already in flight when it
+        // ran out) goes to games window 1 never reached.
+        provider.calls.lock().unwrap().clear();
+        provider.allowance.store(5, Ordering::SeqCst);
+        let second = service.check_updates(port_ids.clone()).await.unwrap();
+        let calls = provider.calls.lock().unwrap().clone();
+        assert!(calls.len() >= 5, "{calls:?}");
+        assert!(
+            calls.iter().all(|id| unreached.contains(id)),
+            "window 2 asked about {calls:?}"
+        );
+        assert!(!calls.contains(&broken));
+        let newly_checked = second.iter().filter(|(_, result)| result.is_ok()).count();
+        assert_eq!(newly_checked, 5);
+    }
+
+    #[tokio::test]
+    async fn bulk_update_checks_retain_unfinished_games_and_resume_them_first() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let provider = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(usize::MAX),
+            calls: Mutex::new(Vec::new()),
+            broken: None,
+        });
+        let port_ids =
+            single_request_github_ports(&catalog, &provider, &temporary.path().join("probe"), 12)
+                .await;
         assert_eq!(port_ids.len(), 12);
         provider.allowance.store(5, Ordering::SeqCst);
         provider.calls.lock().unwrap().clear();

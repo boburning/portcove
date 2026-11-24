@@ -622,3 +622,137 @@ void test("only an initial repository metadata 404 becomes upstream unavailable"
     );
   }
 });
+
+void test("an unreadable suspended source is probed once and reported with its reconsideration", async () => {
+  const requested: string[] = [];
+  const sdk = await fixtureGitHub(({ endpoint }) => {
+    requested.push(endpoint);
+    if (endpoint === "repos/zamiba/portforge-mediaitems")
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    throw new Error(`unrelated unavailable registry ${endpoint}`);
+  });
+  const checkpoint = emptyCheckpoint();
+  checkpoint.sources["portforge-tree"] = {
+    completed_at: new Date(epoch - 86400000).toISOString(),
+    evidence: "https://github.com/zamiba/portforge-mediaitems/tree/a",
+    hashes: {},
+  };
+  const sources = await collectDiscoverySources(
+    {
+      sdk,
+      budget: new DiscoveryBudget(
+        "ordinary",
+        () => {},
+        () => epoch,
+      ),
+      save: () => {},
+      http: {
+        request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+      },
+    },
+    checkpoint,
+  );
+  const portforge = sources.filter((source) => source.id.startsWith("portforge"));
+  assert.equal(portforge.length, 1);
+  assert.equal(portforge[0]!.status, "inaccessible");
+  assert.equal(portforge[0]!.coverage_role, "suspended");
+  assert.equal(portforge[0]!.http_status, 404);
+  assert.equal(portforge[0]!.last_good, checkpoint.sources["portforge-tree"].completed_at);
+  assert.match(String(portforge[0]!.reconsider), /fork never replaces/u);
+  assert.ok(
+    !requested.some((endpoint) => endpoint.startsWith("repos/zamiba/portforge-mediaitems/")),
+    "a suspended source reads nothing beyond its probe",
+  );
+  // A failed Quiver read names the request Portcove made, not a stale repository.
+  const quiver = sources.find((source) => source.id === "quiver-api")!;
+  assert.equal(quiver.evidence, "https://api.quiverlauncher.com/api/v1/apps?limit=100&sort=added");
+  assert.equal(quiver.implementation, "https://github.com/tgeorgiadis/quiver-launcher");
+  assert.equal(
+    quiver.failed_request,
+    "https://api.quiverlauncher.com/api/v1/apps?limit=100&sort=added",
+  );
+  assert.equal(quiver.http_status, 503);
+  assert.equal(
+    quiver.environment,
+    process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "local",
+  );
+  assert.equal(quiver.error_class, "Error");
+  // PCGamingWiki is a reference capture outside coverage.
+  assert.equal(sources.find((source) => source.id === "pcgamingwiki")!.coverage_role, "reference");
+});
+
+void test("a suspended source never takes a successor or hides an unrelated failure", async () => {
+  const run = async (answer: () => unknown) => {
+    const requested: string[] = [];
+    const sdk = await fixtureGitHub(({ endpoint }) => {
+      requested.push(endpoint);
+      if (endpoint === "repos/zamiba/portforge-mediaitems") return answer();
+      throw new Error(`unrelated unavailable registry ${endpoint}`);
+    });
+    const sources = await collectDiscoverySources(
+      {
+        sdk,
+        budget: new DiscoveryBudget(
+          "ordinary",
+          () => {},
+          () => epoch,
+        ),
+        save: () => {},
+        http: {
+          request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+        },
+      },
+      emptyCheckpoint(),
+    );
+    return {
+      portforge: sources.filter((source) => source.id.startsWith("portforge")),
+      requested,
+    };
+  };
+  // A renamed or transferred repository answers under another name.
+  const renamed = await run(() => ({
+    id: 7,
+    full_name: "someone/portforge-mediaitems",
+    default_branch: "main",
+  }));
+  assert.equal(renamed.portforge.length, 1);
+  assert.equal(renamed.portforge[0]!.coverage_role, "suspended");
+  assert.equal(renamed.portforge[0]!.successor, "someone/portforge-mediaitems");
+  assert.ok(
+    !renamed.requested.some((endpoint) => endpoint.includes("/git/")),
+    "a successor is never read as the source",
+  );
+  // A server failure says nothing about the repository: it keeps the run partial.
+  const unavailable = await run(() => Response.json({ message: "down" }, { status: 503 }));
+  assert.equal(unavailable.portforge.length, 1);
+  assert.equal(unavailable.portforge[0]!.status, "inaccessible");
+  assert.equal(unavailable.portforge[0]!.coverage_role, undefined);
+});
+
+void test("a reviewed source stopped by a run boundary is a resumable partial read", async () => {
+  const sdk = await fixtureGitHub(() => {
+    return Response.json(
+      { message: "rate limited" },
+      { status: 429, headers: { "retry-after": "60" } },
+    );
+  });
+  const sources = await collectDiscoverySources(
+    {
+      sdk,
+      budget: new DiscoveryBudget(
+        "ordinary",
+        () => {},
+        () => epoch,
+      ),
+      save: () => {},
+      http: {
+        request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+      },
+    },
+    emptyCheckpoint(),
+  );
+  const launcher = sources.find((source) => source.id === "githublauncher")!;
+  assert.equal(launcher.status, "partial");
+  assert.equal(launcher.deferred, true);
+  assert.equal(launcher.error_class, "rate_limited");
+});

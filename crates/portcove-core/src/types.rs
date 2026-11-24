@@ -2924,6 +2924,14 @@ pub struct CapabilityDocument {
     /// Independently negotiated signed-directory transport representations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub listing_delivery_carriers: Vec<String>,
+    /// Named definition-delivery features, such as `catalog.policy-decision-v2`.
+    /// A publisher emits a newer form only after a released reader lists it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub definition_features: Vec<String>,
+    /// Reader limits for signed descriptive delivery. Absent on older readers,
+    /// which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listing_delivery_limits: Option<ListingDeliveryLimits>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
@@ -2945,6 +2953,43 @@ pub struct CapabilityDocument {
     pub port_operation_locking: String,
 }
 
+/// Limits a client applies to signed descriptive delivery. Instead of the
+/// released 10,000-entry count, each listing and withdrawal is charged against
+/// one measured working-memory element budget per admission.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingDeliveryLimits {
+    /// Largest authenticated listing target body, either carrier.
+    pub target_bytes: u64,
+    /// Largest decoded compact directory admitted and retained.
+    pub decoded_bytes: u64,
+    /// Largest single compact listing record.
+    pub record_bytes: u64,
+    /// Largest signed definition index.
+    pub definition_index_bytes: u64,
+    /// Working-memory element budget of one directory admission.
+    pub element_budget_bytes: u64,
+    /// Charge per listing against the element budget.
+    pub listing_charge_bytes: u64,
+    /// Charge per withdrawal against the element budget.
+    pub withdrawal_charge_bytes: u64,
+}
+
+impl ListingDeliveryLimits {
+    pub fn current() -> Self {
+        use crate::definition_repository::publisher_policy::listing_delivery;
+        Self {
+            target_bytes: listing_delivery::MAX_BYTES as u64,
+            decoded_bytes: listing_delivery::MAX_COMPACT_DECODED_BYTES as u64,
+            record_bytes: portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES as u64,
+            definition_index_bytes: crate::definition_index::MAX_INDEX_BYTES as u64,
+            element_budget_bytes: listing_delivery::ELEMENT_WORKING_BUDGET as u64,
+            listing_charge_bytes: listing_delivery::LISTING_WORKING_BYTES as u64,
+            withdrawal_charge_bytes: listing_delivery::WITHDRAWAL_WORKING_BYTES as u64,
+        }
+    }
+}
+
 impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
@@ -2955,6 +3000,8 @@ impl CapabilityDocument {
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER
                     .into(),
             ],
+            definition_features: crate::definition_capabilities::supported_definition_features(),
+            listing_delivery_limits: Some(ListingDeliveryLimits::current()),
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

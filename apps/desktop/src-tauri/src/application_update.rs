@@ -38,11 +38,37 @@ const MAX_PREFERENCE_BYTES: u64 = 4 * 1024;
 const FIRST_AUTOMATIC_CHECK_DELAY: Duration = Duration::from_secs(60);
 const AUTOMATIC_CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const CHECK_TIMEOUT: Duration = Duration::from_secs(60);
-/// Bounds any single updater request, including the whole package download.
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(30 * 60);
-/// A download that receives no bytes for this long is abandoned.
+/// A download that receives no bytes for this long is abandoned. There is no
+/// whole-download deadline: a package that keeps arriving finishes at any link
+/// speed, while Core's progress floor cuts a connection that only trickles.
 const DOWNLOAD_STALL_TIMEOUT: Duration = Duration::from_secs(60);
 const PROGRESS_STEP_BYTES: u64 = 256 * 1024;
+/// The updater plugin holds the whole package in memory until its signature
+/// is verified, so the download needs a size bound now that it has no time
+/// bound. Portcove's installer packages are tens of MiB; 512 MiB leaves ample
+/// room for growth while keeping a hostile or broken host from exhausting
+/// memory. A memory budget for one bounded unit of work (class 3).
+const MAX_PACKAGE_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Why a package download must stop before the plugin returns it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PackageOverrun {
+    /// More bytes than the server declared in Content-Length.
+    BeyondDeclared,
+    /// More bytes than any Portcove package may have.
+    BeyondCeiling,
+}
+
+/// Checks received bytes against the declared length and the package ceiling.
+fn package_overrun(downloaded: u64, declared: Option<u64>) -> Option<PackageOverrun> {
+    if declared.is_some_and(|declared| downloaded > declared) {
+        Some(PackageOverrun::BeyondDeclared)
+    } else if downloaded > MAX_PACKAGE_BYTES {
+        Some(PackageOverrun::BeyondCeiling)
+    } else {
+        None
+    }
+}
 
 pub(crate) use crate::application_update_admission::{
     RuntimeLease, UPDATE_IN_PROGRESS_DETAIL, refusal,
@@ -324,7 +350,6 @@ async fn check(
     let diagnostics = app.state::<crate::ExitDiagnostics>().inner().clone();
     let updater = app
         .updater_builder()
-        .timeout(REQUEST_TIMEOUT)
         .on_before_exit(move || diagnostics.shutdown())
         .endpoints(vec![
             url::Url::parse(feed_url(channel)).map_err(|_| unavailable_error())?,
@@ -348,7 +373,7 @@ async fn check(
                 error = %error,
                 message = "application update check failed"
             );
-            check_failed_error()
+            check_error(&error)
         })?;
     let mut activity = state.activity()?;
     // A channel change during the check makes this answer irrelevant.
@@ -367,6 +392,21 @@ fn unavailable_error() -> DesktopError {
         ),
         "unavailable",
     )
+}
+
+/// The plugin reports `ReleaseNotFound` when every feed request got an HTTP
+/// response without update information: a missing feed (404), a server error
+/// or a refusal, possibly from a proxy or firewall rather than the update
+/// server. Connection failures report other errors. The player is told only
+/// what holds for all of these, without blaming their connection.
+fn check_error(error: &tauri_plugin_updater::Error) -> DesktopError {
+    match error {
+        tauri_plugin_updater::Error::ReleaseNotFound => refusal(
+            PortcoveError::network("Portcove couldn't get update information. Try again later."),
+            "release-not-found",
+        ),
+        _ => check_failed_error(),
+    }
 }
 
 fn check_failed_error() -> DesktopError {
@@ -533,6 +573,9 @@ pub(crate) async fn install_application_update(
     // The library stays closed and new work stays refused in this process; the
     // exclusive leases are released so the restarted build can start.
     admission.finish_for_exit();
+    // Admission already refused while setup ran; stop anything that started
+    // since, cleanly, in case this restart does not pass through Exit.
+    crate::stop_unattended_setup_for_exit(&app);
     app.restart()
 }
 
@@ -543,13 +586,23 @@ fn announce_library_reopened(app: &AppHandle) {
 
 /// Downloads the package with progress. The plugin verifies its signature
 /// against the configured key before returning the bytes. A download that
-/// stalls is abandoned; the request timeout bounds the whole transfer.
+/// stalls, or trickles below Core's progress floor, is abandoned; one that
+/// keeps progressing is never cut for taking long.
 async fn download_verified(
     update: &Update,
     on_event: &Channel<ApplicationUpdateProgress>,
 ) -> DesktopResult<Vec<u8>> {
     let last_progress = Arc::new(Mutex::new(Instant::now()));
     let observed = last_progress.clone();
+    // Set when the download must stop now: starved below the progress floor,
+    // or larger than declared or than any package may be.
+    let stop: Arc<Mutex<Option<&'static str>>> = Arc::new(Mutex::new(None));
+    let stopping = stop.clone();
+    let abort = Arc::new(tokio::sync::Notify::new());
+    let aborting = abort.clone();
+    // The floor's first window starts with the first bytes, so connection
+    // setup and redirects are bounded by the stall watchdog alone.
+    let mut floor: Option<portcove_core::ProgressWatch> = None;
     let mut downloaded = 0_u64;
     let mut reported = 0_u64;
     let download = update.download(
@@ -558,6 +611,31 @@ async fn download_verified(
                 *last = Instant::now();
             }
             downloaded = downloaded.saturating_add(chunk as u64);
+            let reason = if floor
+                .get_or_insert_with(|| {
+                    portcove_core::ProgressWatch::new(portcove_core::PROGRESS_FLOOR)
+                })
+                .record(chunk as u64)
+                .is_err()
+            {
+                Some("the download became too slow to finish")
+            } else {
+                match package_overrun(downloaded, total) {
+                    Some(PackageOverrun::BeyondDeclared) => {
+                        Some("the download is larger than the server declared")
+                    }
+                    Some(PackageOverrun::BeyondCeiling) => {
+                        Some("the download is larger than any Portcove package")
+                    }
+                    None => None,
+                }
+            };
+            if let Some(reason) = reason {
+                if let Ok(mut stop) = stopping.lock() {
+                    stop.get_or_insert(reason);
+                }
+                aborting.notify_one();
+            }
             if downloaded.saturating_sub(reported) >= PROGRESS_STEP_BYTES
                 || Some(downloaded) == total
             {
@@ -598,6 +676,9 @@ async fn download_verified(
     tokio::select! {
         result = download => result.map_err(|error| failed(&error.to_string())),
         () = stalled => Err(failed("the download stalled")),
+        () = abort.notified() => Err(failed(
+            stop.lock().ok().and_then(|stop| *stop).unwrap_or("the download was stopped"),
+        )),
     }
 }
 
@@ -636,6 +717,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn package_downloads_stop_beyond_the_declared_length_or_the_ceiling() {
+        assert_eq!(package_overrun(10, Some(10)), None);
+        assert_eq!(
+            package_overrun(11, Some(10)),
+            Some(PackageOverrun::BeyondDeclared)
+        );
+        // A server that declares nothing still cannot exceed the ceiling,
+        // however slowly and steadily it sends.
+        assert_eq!(package_overrun(MAX_PACKAGE_BYTES, None), None);
+        assert_eq!(
+            package_overrun(MAX_PACKAGE_BYTES + 1, None),
+            Some(PackageOverrun::BeyondCeiling)
+        );
+        // A declared length above the ceiling does not lift it.
+        assert_eq!(
+            package_overrun(MAX_PACKAGE_BYTES + 1, Some(u64::MAX)),
+            Some(PackageOverrun::BeyondCeiling)
+        );
+    }
+
+    #[test]
     fn channels_use_their_fixed_feeds() {
         assert_eq!(
             feed_url(ApplicationUpdateChannel::Beta),
@@ -649,6 +751,22 @@ mod tests {
             ApplicationUpdateChannel::default(),
             ApplicationUpdateChannel::Beta
         );
+    }
+
+    #[test]
+    fn a_missing_feed_is_not_reported_as_a_connection_problem() {
+        let missing = check_error(&tauri_plugin_updater::Error::ReleaseNotFound);
+        assert!(!missing.message.contains("internet connection"));
+        assert!(missing.message.contains("update information"));
+        assert_eq!(
+            missing
+                .details
+                .get(crate::application_update_admission::REFUSAL_DETAIL),
+            Some(&"release-not-found".to_owned())
+        );
+        let offline = check_error(&tauri_plugin_updater::Error::Network("offline".into()));
+        assert_eq!(offline.message, check_failed_error().message);
+        assert!(offline.message.contains("internet connection"));
     }
 
     #[test]

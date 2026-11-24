@@ -25,7 +25,8 @@ interface SuccessfulSource {
   completed_at: string;
   evidence: string;
   hashes: Record<string, string>;
-  snapshot_kind?: "rolling-feed";
+  /** A rolling feed, or a reference capture kept for manual review. */
+  snapshot_kind?: "rolling-feed" | "reference-capture";
 }
 interface PendingObservation {
   source: string;
@@ -111,7 +112,11 @@ function checkpoint(value: unknown): DiscoveryCheckpoint {
       const source = object(value, "Checkpoint source");
       const completed_at = text(source.completed_at, "Checkpoint completion");
       clock(completed_at);
-      if (source.snapshot_kind !== undefined && source.snapshot_kind !== "rolling-feed")
+      if (
+        source.snapshot_kind !== undefined &&
+        source.snapshot_kind !== "rolling-feed" &&
+        source.snapshot_kind !== "reference-capture"
+      )
         throw new Error("Invalid checkpoint snapshot kind");
       return [
         id,
@@ -122,7 +127,9 @@ function checkpoint(value: unknown): DiscoveryCheckpoint {
           hashes: stringMap(source.hashes, "Checkpoint hashes"),
           ...(source.snapshot_kind === "rolling-feed"
             ? { snapshot_kind: "rolling-feed" as const }
-            : {}),
+            : source.snapshot_kind === "reference-capture"
+              ? { snapshot_kind: "reference-capture" as const }
+              : {}),
         },
       ];
     }),
@@ -339,7 +346,11 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
     )
       throw new Error("Complete source requires evidence and terminal pagination");
     boundCheckpoint(source);
-    if (source.snapshot_kind !== undefined && source.snapshot_kind !== "rolling-feed")
+    if (
+      source.snapshot_kind !== undefined &&
+      source.snapshot_kind !== "rolling-feed" &&
+      source.snapshot_kind !== "reference-capture"
+    )
       throw new Error("Invalid source snapshot kind");
     const previous = Object.hasOwn(state.sources, sourceId) ? state.sources[sourceId] : undefined;
     if (previous && previous.snapshot_kind !== source.snapshot_kind)
@@ -399,7 +410,9 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
       completed_at: run.observed_at,
       evidence: text(source.evidence, "Source evidence"),
       hashes: source.snapshot_kind === "rolling-feed" ? { ...previous?.hashes, ...hashes } : hashes,
-      ...(source.snapshot_kind === "rolling-feed" ? { snapshot_kind: "rolling-feed" } : {}),
+      ...(source.snapshot_kind === "rolling-feed" || source.snapshot_kind === "reference-capture"
+        ? { snapshot_kind: source.snapshot_kind }
+        : {}),
     };
   }
   return boundCheckpoint(next);

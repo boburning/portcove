@@ -20,7 +20,7 @@ import type {
   WatchState,
   DeliveryJob,
 } from "./pr-delivery.mts";
-import { DeliveryOutcomeError } from "./pr-delivery.mts";
+import { DeliveryOutcomeError, isMergeMutationPath } from "./pr-delivery.mts";
 import { spawnSync as spawnHelp } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1300,6 +1300,57 @@ void test("check-run pagination follows only this repository's bound numeric-id 
     );
     assert.ok(!refused.requests.some((path) => path.includes("page=2")));
   }
+});
+
+void test("the merge mutation allow-list escapes the repository name", () => {
+  assert.ok(isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge"));
+  // An unescaped `.` would admit any character in its place.
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repoXname/pulls/7/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/0/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge/x"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7"));
+  assert.ok(isMergeMutationPath(repository, `/repos/${repository}/pulls/12/merge`));
+});
+
+void test("a separate merge credential carries the merge mutation alone", async () => {
+  const seen: { method: string; path: string; authorization: string | null }[] = [];
+  const client = await PullRequestDeliveryClient.connect({
+    credential: { kind: "explicit", token: "read-token" },
+    mergeCredential: { kind: "explicit", token: "merge-token" },
+    deadline: performance.now() + 60000,
+    fetch: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const url = new URL(request.url);
+      seen.push({
+        method: request.method,
+        path: url.pathname,
+        authorization: new Headers(init?.headers ?? request.headers).get("authorization"),
+      });
+      return Response.json({ merged: true });
+    },
+  });
+  const internal = client as unknown as {
+    request(method: "GET" | "PUT", endpoint: string, data?: unknown): Promise<unknown>;
+    mergeSdk: { request(options: { method: string; url: string }): Promise<unknown> };
+  };
+  await internal.request("GET", `repos/${repository}/pulls/7`);
+  await internal.request("PUT", `repos/${repository}/pulls/7/merge`, { sha: head });
+  assert.deepEqual(
+    seen.map(({ method, path }) => `${method} ${path}`),
+    [`GET /repos/${repository}/pulls/7`, `PUT /repos/${repository}/pulls/7/merge`],
+  );
+  assert.match(String(seen[0]!.authorization), /read-token/u);
+  assert.doesNotMatch(String(seen[0]!.authorization), /merge-token/u);
+  assert.match(String(seen[1]!.authorization), /merge-token/u);
+  // The merge credential admits nothing but the merge mutation.
+  await assert.rejects(
+    internal.mergeSdk.request({
+      method: "GET",
+      url: `https://api.github.com/repos/${repository}/pulls/7`,
+    }),
+    /outside the admitted scope/u,
+  );
+  assert.equal(seen.length, 2);
 });
 
 void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {

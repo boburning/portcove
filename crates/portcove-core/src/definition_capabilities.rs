@@ -35,6 +35,11 @@ macro_rules! definition_features {
                     _ => None,
                 }
             }
+
+            /// Every stable name this reader implements, for capability discovery.
+            pub(crate) fn names() -> Vec<&'static str> {
+                vec![$($name,)*]
+            }
         }
     };
 }
@@ -97,10 +102,14 @@ definition_features! {
     PsxMultiTrack => "psx.multi-track-disc-set-v1", "catalog.source_catalog PSX multi-track profiles";
     SnesCopierHeader => "source.snes-copier-header-v1", "catalog.source_catalog SNES copier-header profiles";
     UpstreamActiveReviewed => "catalog.upstream-active-review-v1", "port.upstream_active_reviewed";
+    // Read by the publisher policy parser, not an entry field: this reader
+    // accepts `decision_schema: 2` (entry-bound) publisher policy decisions.
+    PolicyDecisionV2 => "catalog.policy-decision-v2", "policy/official/*.json decision_schema";
 }
 
 const UNKNOWN_REQUIRED_FEATURE: &str = "unknown_required_feature";
 const UNSUPPORTED_DEFINITION_SCHEMA: &str = "unsupported_definition_schema";
+const UNSUPPORTED_POLICY_DECISION_SCHEMA: &str = "unsupported_policy_decision_schema";
 /// The newest indexed definition entry schema this reader interprets.
 pub(crate) const MAX_DEFINITION_SCHEMA: u64 = 4;
 
@@ -111,7 +120,28 @@ pub(crate) const MAX_DEFINITION_SCHEMA: u64 = 4;
 pub(crate) fn requires_newer_engine(error: &PortcoveError) -> bool {
     error.code == crate::ErrorCode::Unsupported
         && (error.details.contains_key(UNKNOWN_REQUIRED_FEATURE)
-            || error.details.contains_key(UNSUPPORTED_DEFINITION_SCHEMA))
+            || error.details.contains_key(UNSUPPORTED_DEFINITION_SCHEMA)
+            || error
+                .details
+                .contains_key(UNSUPPORTED_POLICY_DECISION_SCHEMA))
+}
+
+/// Refuse a publisher policy decision schema newer than this reader before any
+/// typed parsing. Only that subject needs a newer Portcove; its siblings and
+/// the retained last-good admission are unaffected.
+pub(crate) fn newer_policy_decision_schema(schema: u64) -> PortcoveError {
+    PortcoveError::unsupported(format!(
+        "publisher policy decision schema {schema} requires a newer Portcove"
+    ))
+    .detail(UNSUPPORTED_POLICY_DECISION_SCHEMA, schema.to_string())
+}
+
+/// Named definition-delivery features this reader implements, advertised so a
+/// publisher's released-reader gate can detect capable builds.
+pub(crate) fn supported_definition_features() -> Vec<String> {
+    let mut names: Vec<String> = Feature::names().into_iter().map(str::to_owned).collect();
+    names.sort_unstable();
+    names
 }
 
 /// Refuse an entry schema newer than this reader before any typed parsing, so

@@ -150,7 +150,10 @@ impl RateLimitHeaders {
                 .map(str::trim)
         };
         let number = |name: &str| text(name).and_then(|value| value.parse::<u64>().ok());
-        let date = text(header::DATE.as_str()).and_then(http_date);
+        let date = text(header::DATE.as_str())
+            .and_then(crate::temporary_failure::http_date)
+            .and_then(|date| u64::try_from(date).ok());
+        let server_now = date.unwrap_or(local_now);
         Self {
             limit: number("x-ratelimit-limit"),
             remaining: number("x-ratelimit-remaining"),
@@ -158,42 +161,35 @@ impl RateLimitHeaders {
             reset: number("x-ratelimit-reset"),
             resource: text("x-ratelimit-resource").map(str::to_owned),
             retry_after: text(header::RETRY_AFTER.as_str())
-                .and_then(|value| retry_after_wait(value, date.unwrap_or(local_now))),
+                .and_then(|value| retry_after_wait(value, server_now)),
             date,
         }
     }
 }
 
-/// The longest wait Portcove believes from any provider answer: GitHub's primary
-/// window is one hour, so a later reset or `retry-after` (or a clock that is far
-/// off) never blocks requests for longer.
-pub(crate) const PROVIDER_WAIT_CEILING: Duration = Duration::from_secs(60 * 60);
+/// The longest the running budget holds requests back in memory after one
+/// answer: GitHub's primary window is one hour, so a later reset (or a clock
+/// that is far off) never pauses this process for longer. This is a hold, not a
+/// second ceiling on stated waits: `Retry-After` is read by the one shared
+/// parser ([`crate::temporary_failure::parse_retry_after`]) under its one
+/// ceiling, which the failure keeps for the durable retry schedule.
+pub(crate) const IN_MEMORY_HOLD_CEILING: Duration = Duration::from_secs(60 * 60);
 
-/// Parse a `Retry-After` value: delta-seconds, or an HTTP-date measured against
-/// `server_now` (the provider's `Date`, Unix seconds). Capped at
-/// [`PROVIDER_WAIT_CEILING`]; a date in the past means no wait. Shared parser for
-/// provider throttling answers.
-pub(crate) fn retry_after_wait(value: &str, server_now: u64) -> Option<Duration> {
-    let value = value.trim();
-    let seconds = match value.parse::<u64>() {
-        Ok(seconds) => seconds,
-        Err(_) => http_date(value)?.saturating_sub(server_now),
-    };
-    Some(Duration::from_secs(seconds).min(PROVIDER_WAIT_CEILING))
+/// The wait a `Retry-After` value states, measured against `server_now` (the
+/// provider's `Date`, Unix seconds) through the shared parser and its ceiling;
+/// a date in the past means no wait.
+fn retry_after_wait(value: &str, server_now: u64) -> Option<Duration> {
+    let server_now = i64::try_from(server_now).ok()?;
+    let until = crate::temporary_failure::parse_retry_after(value, server_now)?;
+    Some(Duration::from_secs(
+        u64::try_from(until.saturating_sub(server_now)).unwrap_or(0),
+    ))
 }
 
 /// The wait until a reported reset instant, measured on the provider's clock and
-/// capped at [`PROVIDER_WAIT_CEILING`].
-pub(crate) fn reset_wait(reset: u64, server_now: u64) -> Duration {
-    Duration::from_secs(reset.saturating_sub(server_now)).min(PROVIDER_WAIT_CEILING)
-}
-
-/// An HTTP-date (IMF-fixdate) in Unix seconds.
-fn http_date(value: &str) -> Option<u64> {
-    let parsed =
-        time::OffsetDateTime::parse(value.trim(), &time::format_description::well_known::Rfc2822)
-            .ok()?;
-    u64::try_from(parsed.unix_timestamp()).ok()
+/// held at most [`IN_MEMORY_HOLD_CEILING`].
+fn reset_wait(reset: u64, server_now: u64) -> Duration {
+    Duration::from_secs(reset.saturating_sub(server_now)).min(IN_MEMORY_HOLD_CEILING)
 }
 
 /// Without a usable `retry-after`, GitHub asks clients to wait at least a minute
@@ -249,7 +245,7 @@ pub(crate) struct AllowanceSnapshot {
 /// kept separately for each credential. It starts unknown and learns only from
 /// actual response headers. Deadlines are monotonic and measured from the
 /// provider's own `Date`, so a wrong or changed local clock cannot stretch or
-/// cancel a wait, and no wait exceeds [`PROVIDER_WAIT_CEILING`]. It lives in
+/// cancel a wait, and no wait exceeds [`IN_MEMORY_HOLD_CEILING`]. It lives in
 /// memory: after a restart GitHub's next answer re-establishes it.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct GithubRequestBudget(Arc<Mutex<HashMap<RequestCredential, Allowance>>>);
@@ -410,8 +406,10 @@ impl GithubRequestBudget {
                         false,
                     ),
                 };
+            // The time shown is what the provider stated; the process holds
+            // back at most one primary window and then lets GitHub answer again.
             let block = Block {
-                until: now + wait.max(Duration::from_secs(1)),
+                until: now + wait.clamp(Duration::from_secs(1), IN_MEMORY_HOLD_CEILING),
                 stop,
                 resets_at,
                 reported,
@@ -717,7 +715,19 @@ mod tests {
     #[test]
     fn retry_after_and_reset_waits_are_capped_and_never_negative() {
         assert_eq!(retry_after_wait("30", 0), Some(secs(30)));
-        assert_eq!(retry_after_wait(" 86400 ", 0), Some(PROVIDER_WAIT_CEILING));
+        // One parser and one ceiling for stated waits, shared with the durable
+        // retry schedule; HTTP-date accepted.
+        assert_eq!(retry_after_wait(" 7200 ", 0), Some(secs(7_200)));
+        assert_eq!(
+            retry_after_wait("999999999", 0),
+            Some(secs(
+                crate::temporary_failure::STATED_WAIT_CEILING_SECONDS as u64
+            ))
+        );
+        assert_eq!(
+            retry_after_wait("Wed, 21 Oct 2015 07:28:00 GMT", 1_445_412_480 - 90),
+            Some(secs(90))
+        );
         assert_eq!(
             retry_after_wait("Wed, 21 Oct 2015 07:28:00 GMT", 1_445_412_480 + 10),
             Some(Duration::ZERO),
@@ -726,7 +736,7 @@ mod tests {
         assert_eq!(retry_after_wait("soon", 0), None);
         assert_eq!(reset_wait(1_000, 400), secs(600));
         assert_eq!(reset_wait(1_000, 2_000), Duration::ZERO);
-        assert_eq!(reset_wait(u64::MAX, 0), PROVIDER_WAIT_CEILING);
+        assert_eq!(reset_wait(u64::MAX, 0), IN_MEMORY_HOLD_CEILING);
     }
 
     #[test]
@@ -850,6 +860,20 @@ mod tests {
                 .contains("asked this computer to wait")
         );
         budget.admit_at(anonymous, true, start + secs(30)).unwrap();
+        // A stated wait beyond one window is shown as stated but held in memory
+        // for at most one window; GitHub's next answer decides after that.
+        let long = RateLimitHeaders {
+            retry_after: Some(secs(7_200)),
+            ..RateLimitHeaders::default()
+        };
+        let held = GithubRequestBudget::default();
+        held.observe_at(anonymous, StatusCode::TOO_MANY_REQUESTS, &long, start, wall);
+        let refused = held
+            .admit_at(anonymous, true, start + IN_MEMORY_HOLD_CEILING - secs(1))
+            .unwrap_err();
+        assert_eq!(refused.details["rate_reset"], (wall + 7_200).to_string());
+        held.admit_at(anonymous, true, start + IN_MEMORY_HOLD_CEILING)
+            .unwrap();
         // A primary-limit 403 without retry-after waits for the reported reset.
         budget.observe_at(
             anonymous,
@@ -944,7 +968,7 @@ mod tests {
                 .is_err()
         );
         behind
-            .admit_at(anonymous, true, start + PROVIDER_WAIT_CEILING)
+            .admit_at(anonymous, true, start + IN_MEMORY_HOLD_CEILING)
             .unwrap();
         // A wall-clock jump after the answer changes nothing: deadlines are
         // monotonic, so only elapsed time reopens the allowance.
