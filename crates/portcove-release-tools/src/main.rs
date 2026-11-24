@@ -35,6 +35,11 @@ enum Command {
     VerifyDefinitionRepository {
         config: PathBuf,
     },
+    /// Keyless read-only check of every retained catalog metadata version,
+    /// optionally reading or deriving the listing-floor ledger.
+    VerifyDefinitionHistory {
+        config: PathBuf,
+    },
     SignDefinitionRole {
         /// targets, official-definitions, official-policy, snapshot or timestamp.
         #[arg(value_parser = DefinitionOnlineRole::parse)]
@@ -152,6 +157,15 @@ fn run(command: Command) -> Result<(), Box<dyn std::error::Error>> {
                 portcove_release_tools::definition_repository::assemble_definition_repository(
                     &config,
                 ),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+        }
+        Command::VerifyDefinitionHistory { config } => {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?;
+            let report = runtime.block_on(
+                portcove_release_tools::definition_repository::verify_definition_history(&config),
             )?;
             println!("{}", serde_json::to_string(&report)?);
         }

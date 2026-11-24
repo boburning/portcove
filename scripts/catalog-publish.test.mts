@@ -91,11 +91,17 @@ void test("Pages overlay reuses retained immutable files and writes only the gen
       [overlayTimestamp]: "successor",
     }),
   );
-  assert.deepEqual(result, {
+  const { retention, ...staged } = result;
+  assert.deepEqual(staged, {
     changed: [addedMetadata, overlayTimestamp],
+    removed: [],
     retainedBytes: 25,
     writtenBytes: 17,
   });
+  // Body retention is off by default: nothing is pruned and no ledger is served.
+  assert.equal(retention.mode, "all");
+  assert.equal(retention.ledger, null);
+  assert.deepEqual(retention.pruned, { bodies: 0, bytes: 0 });
   assert.equal(readFileSync(path.join(prior, priorTarget), "utf8"), "historic");
   assert.equal(readFileSync(path.join(prior, overlayTimestamp), "utf8"), "successor");
   assert.equal(readFileSync(path.join(prior, "browse/index.html"), "utf8"), "browse");

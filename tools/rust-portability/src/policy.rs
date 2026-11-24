@@ -434,6 +434,11 @@ const SCOPED: &[(&str, &[&str])] = &[
     ),
     // An exact rooted package name that recipe inspection must reject.
     ("crates/portcove-core/src/recipe_tests.rs", &["/etc/passwd"]),
+    // Linux process accounting read by the ignored scaling profile only.
+    (
+        "crates/portcove-core/src/scaling_profile_tests.rs",
+        &["/proc/self/status", "/proc/self/clear_refs"],
+    ),
     // Host locations a launch text value or argument must refuse.
     (
         "crates/portcove-core/src/reviewed_launch_contract.rs",

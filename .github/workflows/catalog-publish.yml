@@ -13,6 +13,11 @@
 #   checkpoint. Push and scheduled runs never pass it; without a published
 #   checkpoint pointer they publish exactly as before history existed.
 #
+# - Listing-body retention (#1422) is off: CATALOG_RETAIN_BODIES stays `all`
+#   until the lead activates `ledger`, then `window`, in reviewed changes
+#   (docs/RELEASING.md, "Catalog listing-body window"). It never runs beside
+#   checkpointed history.
+#
 # Each signing job runs in its own catalog signing environment, which only
 # admits `main`, and sees only its own key, in one step. Root and Targets stay
 # offline with the owner. There is no review gate.
@@ -40,6 +45,11 @@ concurrency:
   group: catalog-publish
   cancel-in-progress: false
 
+env:
+  # all: serve every listing body (unchanged). ledger: also serve the verified
+  # listing-floor ledger. window: also prune superseded listing bodies.
+  CATALOG_RETAIN_BODIES: all
+
 jobs:
   prepare:
     if: >-
@@ -58,6 +68,7 @@ jobs:
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
       reader_activation: ${{ steps.observe.outputs.reader_activation }}
+      retain_bodies: ${{ steps.prepare.outputs.retain_bodies }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -82,7 +93,8 @@ jobs:
           # ls-remote exits 2 only for a missing branch; any other failure stops the run.
           rc=0; git ls-remote --exit-code --heads origin gh-pages > /dev/null || rc=$?
           if [ "$rc" = 0 ]; then
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # Every later step reads only the published tree, never its history.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             git worktree add --quiet --detach site refs/remotes/origin/gh-pages
           elif [ "$rc" != 2 ]; then
             echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
@@ -98,6 +110,10 @@ jobs:
           if [ ! -d site/catalog ]; then
             exit 0
           fi
+          # The readback compares the last catalog commit with its parent, past
+          # any later application-only Pages commits: deepen in bounded steps
+          # (up to 64 commits) until both are present.
+          node scripts/catalog-readback-depth.mts --site site
           receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
           status="$RUNNER_TEMP/catalog-publication-late-observation.json"
           node scripts/catalog-publication-continuation.mts --site site --output "$receipt" --status "$status"
@@ -213,6 +229,7 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --retain-bodies "$CATALOG_RETAIN_BODIES" \
             --prior "$PRIOR" "${history_request[@]}" > "$RUNNER_TEMP/prepare.outputs"
           cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
@@ -308,6 +325,7 @@ jobs:
       PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
       HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
       CATALOG_READER_ACTIVATION: ${{ needs.prepare.outputs.reader_activation }}
+      RETAIN_BODIES: ${{ needs.prepare.outputs.retain_bodies || 'all' }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -365,7 +383,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           repository="$RUNNER_TEMP/catalog-work/repository"
           for attempt in 1 2 3 4; do
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # The new commit needs only the current head as its parent.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
             # A reader withdrawn or replaced on the fresh Pages base stops the push.
             if [ -n "$CATALOG_READER_ACTIVATION" ]; then
@@ -374,10 +393,19 @@ jobs:
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
-              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json"
+              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json" \
+              --retain-bodies "$RETAIN_BODIES" --ledger "$RUNNER_TEMP/catalog-work/listing-floors.json" \
+              --pins release/catalog-publication-pins.json --history-mode "$HISTORY_MODE"
             if [ -n "$HISTORY_MODE" ]; then
               node scripts/catalog-publish.mts stage-history --site site \
                 --work "$RUNNER_TEMP/catalog-work" --prior-history "$PRIOR_HISTORY_DIGEST"
+            fi
+            if [ "$RETAIN_BODIES" != all ]; then
+              # The staged tree must verify with the ledger it serves before it
+              # is committed, so a window/verifier divergence stops this run.
+              node scripts/catalog-publish.mts site-history-config --work "$RUNNER_TEMP/catalog-work" --site site
+              "$RUNNER_TEMP/catalog-tools/portcove-release-tools" verify-definition-history \
+                "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
             fi
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
@@ -385,7 +413,7 @@ jobs:
             git -C site ls-tree -r -l HEAD | awk '
               $2 == "blob" { bytes += $4; files++ }
               END {
-                printf "Complete Pages tree: %d files, %.0f bytes\n", files, bytes
+                printf "Complete Pages tree: %d files, %.0f of 900000000 bytes\n", files, bytes
                 if (bytes > 900000000) exit 1
               }'
             if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi

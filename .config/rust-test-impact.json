@@ -235,6 +235,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/scaling_profile_tests.rs",
+      "test": "scaling_profile_workspace_acquisition",
+      "reason": "opt-in workspace acquisition scaling profile on generated catalogs; prints measurements only; see docs/ARCHITECTURE.md",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/artwork_tests.rs",
       "test": "live_igdb_shipwright_cover_fetches_and_reuses_bounded_thumbnail",
       "reason": "manual live CDN qualification; run explicitly when network access is available",

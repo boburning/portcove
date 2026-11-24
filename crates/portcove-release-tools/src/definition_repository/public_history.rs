@@ -71,6 +71,14 @@ impl PublicHistory {
         ))
     }
 
+    /// Drop served files that are not TUF repository content (visitor pages
+    /// and the listing-floor ledger), as the publisher's prior copy does.
+    pub(super) fn without_served_extras(mut self) -> Self {
+        self.0
+            .retain(|name, _| !name.starts_with("browse/") && !name.starts_with("history-ledger/"));
+        self
+    }
+
     pub(super) fn identities(&self) -> Vec<DefinitionFile> {
         self.0.values().map(|file| file.identity.clone()).collect()
     }

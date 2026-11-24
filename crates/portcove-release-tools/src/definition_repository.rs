@@ -21,12 +21,17 @@ mod bundle;
 mod history_checkpoint;
 mod io;
 mod key_inventory;
+mod listing_floor_ledger;
 mod policy;
 mod public_history;
 mod repository;
 mod signing;
 pub use key_inventory::{CatalogKeyInventory, inspect_catalog_key_inventory};
-pub use repository::{assemble_definition_repository, verify_definition_repository};
+pub use listing_floor_ledger::{LedgerReport, PATH as LISTING_FLOOR_LEDGER_PATH};
+pub use repository::{
+    DefinitionHistoryReport, assemble_definition_repository, verify_definition_history,
+    verify_definition_repository,
+};
 pub use signing::{sign_definition_role, sign_offline_definition_targets};
 
 type Result<T> = std::result::Result<T, TufRepositoryError>;
@@ -128,6 +133,9 @@ pub struct DefinitionRepositoryReport {
     pub versions: BTreeMap<String, String>,
     pub expires: BTreeMap<String, String>,
     pub index_sha256: String,
+    /// Present only when the run maintains the listing-floor ledger (#1422).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing_floor_ledger: Option<LedgerReport>,
     pub authority: &'static str,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -170,9 +178,18 @@ struct ContextConfig {
     bootstrap_history: bool,
     #[serde(default)]
     history_store: Option<String>,
+    /// Maintain the listing-floor ledger (#1422). `prior` is the published
+    /// ledger, or null for the one-time backfill from every retained body.
+    #[serde(default)]
+    listing_floor_ledger: Option<ListingFloorLedgerConfig>,
     previous_repository: serde_json::Value,
     versions: Four<u64>,
     expires: Four<String>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListingFloorLedgerConfig {
+    prior: Option<String>,
 }
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -198,6 +215,7 @@ struct Context {
     history_store: Option<PathBuf>,
     bootstrap_history: bool,
     history: Option<history_checkpoint::PreparedHistory>,
+    listing_ledger: Option<listing_floor_ledger::State>,
     prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
@@ -292,6 +310,33 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
     if let Some(store) = &history_store {
         inputs.push(store.clone());
     }
+    let mut readback = readback;
+    let listing_ledger = match &config.listing_floor_ledger {
+        None => None,
+        Some(_)
+            if config.bootstrap_history
+                || history_store.is_some()
+                || !config.previous_repository.is_string() =>
+        {
+            return invalid(
+                "catalog listing-floor ledger needs a complete retained prior and no history checkpoint",
+            );
+        }
+        Some(ListingFloorLedgerConfig { prior: None }) => {
+            Some(listing_floor_ledger::State::default())
+        }
+        Some(ListingFloorLedgerConfig { prior: Some(prior) }) => {
+            let path = io::resolve(base, prior)?;
+            let bytes = io::read(&path, listing_floor_ledger::MAX_BYTES)?;
+            let ledger = listing_floor_ledger::Ledger::parse(&bytes)?;
+            readback.push((path.clone(), listing_floor_ledger::MAX_BYTES, sha(&bytes)));
+            inputs.push(path);
+            Some(listing_floor_ledger::State {
+                prior: Some(ledger),
+                next: None,
+            })
+        }
+    };
     let mut context = Context {
         root_bytes,
         root,
@@ -309,14 +354,18 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         history_store,
         bootstrap_history: config.bootstrap_history,
         history: None,
+        listing_ledger,
         prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        let (prior, history) = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history, ledger) = repository::inspect_prior(&context, &previous).await?;
         context.prior = prior;
+        if let Some(state) = context.listing_ledger.as_mut() {
+            state.next = ledger;
+        }
         if let Some(prepared) = history {
             if context
                 .targets
