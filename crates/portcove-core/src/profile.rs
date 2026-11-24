@@ -1531,7 +1531,20 @@ pub(crate) fn active_install_id(connection: &Connection, port_id: &str) -> Resul
         .flatten())
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Stored setup and revision records decoded on this thread: a
+    /// deterministic measure of per-operation work for scaling tests.
+    pub(crate) static DECODED_RECORDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn count_decoded_record() {
+    #[cfg(test)]
+    DECODED_RECORDS.with(|count| count.set(count.get() + 1));
+}
+
 fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Profile> {
+    count_decoded_record();
     if json.len() > MAX_PROFILE_BYTES {
         return Err(PortcoveError::state("stored profile exceeds its bound"));
     }
@@ -1629,20 +1642,48 @@ pub(crate) fn provider_evidence(
 }
 
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {
-    Ok(profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.is_default))
+    // `profiles_one_default` keeps at most one row per port.
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE port_id=?1 AND is_default=1",
+        params![port_id],
+    )
 }
 
+/// One setup by its primary key. Reads only that row, so operating on one
+/// setup costs the same however many setups the port has.
 pub(crate) fn profile_from(
     connection: &Connection,
     port_id: &str,
     profile_id: &str,
 ) -> Result<Profile> {
-    profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.id == profile_id)
-        .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE id=?1 AND port_id=?2",
+        params![profile_id, port_id],
+    )?
+    .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+}
+
+fn profile_row(
+    connection: &Connection,
+    sql: &str,
+    parameters: impl rusqlite::Params,
+) -> Result<Option<Profile>> {
+    connection
+        .query_row(sql, parameters, |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .optional()?
+        .map(|(id, port, current, json)| read_profile(&json, &id, &port, current))
+        .transpose()
 }
 
 fn revision_from(
@@ -1658,6 +1699,7 @@ fn revision_from(
         )
         .optional()?
         .ok_or_else(|| PortcoveError::not_found("profile revision is missing"))?;
+    count_decoded_record();
     if json.len() > MAX_REVISION_BYTES {
         return Err(PortcoveError::state(
             "stored profile revision exceeds its bound",

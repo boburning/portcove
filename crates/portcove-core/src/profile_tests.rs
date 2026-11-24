@@ -719,27 +719,47 @@ fn a_revision_keeps_more_than_sixty_four_settings() {
 
 #[test]
 fn a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them() {
-    let (_temporary, service, first) = fixture();
+    let (temporary, service, first) = fixture();
     let port_id = &first.port_id;
     let default = service.ensure_default_profile(port_id).unwrap();
-    // 64 setups per port used to be the ceiling; 65 crosses it, 500 goes well beyond.
+    let assert_exported = |expected: usize| {
+        let connection = service.library().connection().unwrap();
+        let profiles = export(&connection).unwrap();
+        let references = crate::retained_build::references_from(&connection).unwrap();
+        assert_eq!(profiles.len(), expected);
+        assert_eq!(references.len(), expected);
+        validate_export(&profiles, &references, true).unwrap();
+    };
+    // 64 setups per port used to be the ceiling; 65 crosses it and 200 goes
+    // well beyond, every one through the durable per-setup creation path. Each
+    // create costs the same at any library size (a fixed set of statements,
+    // one WAL commit), so hosted Windows bounds how many of them a case runs.
     let mut count = 1;
-    for checkpoint in [65, 500] {
+    for checkpoint in [65, 200] {
         while count < checkpoint {
             service
                 .copy_profile(port_id, &default.id, &format!("Setup {count}"))
                 .unwrap();
             count += 1;
         }
-        let connection = service.library().connection().unwrap();
-        let profiles = export(&connection).unwrap();
-        let references = crate::retained_build::references_from(&connection).unwrap();
-        assert_eq!(profiles.len(), checkpoint);
-        assert_eq!(references.len(), checkpoint);
-        validate_export(&profiles, &references, true).unwrap();
+        assert_exported(checkpoint);
     }
+    // A library already holding 1,000 setups still creates the next one through
+    // the same path, and the whole library still exports and validates.
+    crate::import_execution::tests::add_scaled_profiles(
+        &temporary.path().join("library"),
+        &first.id,
+        1_000 - count,
+        0,
+    );
+    assert_exported(1_000);
+    let created = service
+        .copy_profile(port_id, &default.id, "Setup 1000")
+        .unwrap();
+    assert_exported(1_001);
     // Each setup stays readable, editable and selectable after the library grew.
     let inventory = service.profile_inventory(port_id).unwrap();
+    assert_eq!(inventory.profiles.len(), 1_001);
     let last = inventory.profiles.last().unwrap();
     service
         .set_profile_update_policy(port_id, &last.profile.id, ProfileUpdatePolicy::KeepCurrent)
@@ -751,4 +771,31 @@ fn a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them(
             .len(),
         1
     );
+    service
+        .set_profile_update_policy(port_id, &created.id, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+}
+
+#[test]
+fn creating_a_setup_does_the_same_work_however_many_setups_the_port_has() {
+    let (temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    // Stored setup and revision records decoded by one create, counted rather
+    // than timed so the result is deterministic on every runner.
+    let decoded_by_one_create = |name: &str| {
+        DECODED_RECORDS.with(|count| count.set(0));
+        service.copy_profile(port_id, &default.id, name).unwrap();
+        DECODED_RECORDS.with(std::cell::Cell::get)
+    };
+    let with_one_setup = decoded_by_one_create("Second");
+    crate::import_execution::tests::add_scaled_profiles(
+        &temporary.path().join("library"),
+        &first.id,
+        1_000,
+        0,
+    );
+    let with_a_thousand_and_two = decoded_by_one_create("After a thousand");
+    assert_eq!(with_one_setup, with_a_thousand_and_two);
+    assert!(with_one_setup > 0);
 }
