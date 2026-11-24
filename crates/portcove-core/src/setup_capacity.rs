@@ -39,9 +39,33 @@ pub(crate) const MAX_RECIPE_DOCUMENT_BYTES: usize = 2 * MAX_SETUP_DOCUMENT_BYTES
 /// staging never fills the volume that also holds the player's data.
 const STAGING_RESERVE_BYTES: u64 = 256 * 1024 * 1024;
 
-/// Admits `bytes` of new staging under `directory` only when its volume keeps
-/// the reserve afterwards. The failure names what was needed and what is free.
-pub(crate) fn require_staging_space(directory: &Path, bytes: u64) -> Result<()> {
+#[cfg(test)]
+type AvailableSpace = Box<dyn Fn(&Path) -> u64>;
+
+#[cfg(test)]
+thread_local! {
+    static AVAILABLE_OVERRIDE: std::cell::RefCell<Option<AvailableSpace>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Replaces the volume's free space for staging checks on this thread until
+/// the guard drops, so tests can model a staging volume that fills as files
+/// are written.
+#[cfg(test)]
+pub(crate) fn override_available_space(available: impl Fn(&Path) -> u64 + 'static) -> impl Drop {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            AVAILABLE_OVERRIDE.with(|cell| cell.borrow_mut().take());
+        }
+    }
+    AVAILABLE_OVERRIDE.with(|cell| *cell.borrow_mut() = Some(Box::new(available)));
+    Restore
+}
+
+/// Free space on the volume that holds `directory`, measured at its nearest
+/// existing ancestor, since staging directories are often not created yet.
+fn available_space(directory: &Path) -> Result<u64> {
     let mut probe = directory;
     while !probe.exists() {
         match probe.parent() {
@@ -49,7 +73,19 @@ pub(crate) fn require_staging_space(directory: &Path, bytes: u64) -> Result<()> 
             None => break,
         }
     }
-    let available = fs4::available_space(probe)?;
+    #[cfg(test)]
+    if let Some(available) =
+        AVAILABLE_OVERRIDE.with(|cell| cell.borrow().as_ref().map(|available| available(probe)))
+    {
+        return Ok(available);
+    }
+    Ok(fs4::available_space(probe)?)
+}
+
+/// Admits `bytes` of new staging under `directory` only when its volume keeps
+/// the reserve afterwards. The failure names what was needed and what is free.
+pub(crate) fn require_staging_space(directory: &Path, bytes: u64) -> Result<()> {
+    let available = available_space(directory)?;
     let required = bytes.saturating_add(STAGING_RESERVE_BYTES);
     if required > available {
         return Err(PortcoveError::state(
@@ -62,10 +98,15 @@ pub(crate) fn require_staging_space(directory: &Path, bytes: u64) -> Result<()> 
     Ok(())
 }
 
-/// Bytes that can still be staged under `directory` while keeping the reserve.
+/// Bytes that can still be staged under `directory` while keeping the reserve,
+/// measured now: bytes already staged (such as a downloaded archive still
+/// waiting to be extracted) are no longer free.
 pub(crate) fn staging_allowance(directory: &Path) -> Result<u64> {
-    Ok(fs4::available_space(directory)?.saturating_sub(STAGING_RESERVE_BYTES))
+    Ok(available_space(directory)?.saturating_sub(STAGING_RESERVE_BYTES))
 }
+
+#[cfg(test)]
+pub(crate) const TEST_STAGING_RESERVE_BYTES: u64 = STAGING_RESERVE_BYTES;
 
 /// A human-readable size for player-facing bound messages.
 pub(crate) fn mebibytes(bytes: usize) -> String {

@@ -1780,3 +1780,230 @@ fn a_review_in_the_earlier_full_copy_shape_reads_and_asks_for_a_fresh_review() {
         reviewed.plan_sha256
     );
 }
+
+#[test]
+fn a_chain_of_requirements_is_staged_dependants_first() {
+    let w = world();
+    grow_setup(&w, 4);
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    // grown-0000 requires grown-0001, which requires grown-0002, and so on:
+    // a closure install stores them dependency-first, so the recipe and its
+    // provider checks list them in that order.
+    let chain = (0..4)
+        .map(|index| format!("grown-{index:04}.o2r"))
+        .collect::<Vec<_>>();
+    for pair in chain.windows(2) {
+        let required = recipe
+            .packages
+            .iter()
+            .find(|package| package.native_id == pair[1])
+            .unwrap()
+            .clone();
+        let dependant = recipe
+            .packages
+            .iter_mut()
+            .find(|package| package.native_id == pair[0])
+            .unwrap();
+        dependant.provider_requires = vec![crate::ProviderRequirement {
+            provider: label("1", &pair[1]),
+            members: [(required.native_id.clone(), required.sha256.clone())].into(),
+        }];
+    }
+    let checks = chain.iter().rev().cloned().collect::<Vec<_>>();
+    // The root goes first; its plan stages the whole chain, so every
+    // requirement after it is reused instead of downloaded again inside
+    // each dependant's closure (n downloads, not n(n+1)/2).
+    assert_eq!(dependants_first(&recipe, &checks), chain);
+    // Unrelated packages keep their order, and a cycle cannot drop any.
+    let unrelated = vec!["hd-link.o2r".to_owned(), chain[0].clone()];
+    assert_eq!(dependants_first(&recipe, &unrelated), unrelated);
+    let first = chain[0].clone();
+    let last = chain[3].clone();
+    let tail = recipe
+        .packages
+        .iter()
+        .find(|package| package.native_id == first)
+        .unwrap()
+        .clone();
+    recipe
+        .packages
+        .iter_mut()
+        .find(|package| package.native_id == last)
+        .unwrap()
+        .provider_requires = vec![crate::ProviderRequirement {
+        provider: label("1", &first),
+        members: [(tail.native_id.clone(), tail.sha256.clone())].into(),
+    }];
+    let mut cyclic = dependants_first(&recipe, &checks);
+    cyclic.sort();
+    let mut expected = checks.clone();
+    expected.sort();
+    assert_eq!(cyclic, expected);
+}
+
+#[test]
+fn a_dangling_plan_reference_is_refused_and_a_tampered_plan_record_is_dropped() {
+    let w = world();
+    grow_setup(&w, 3);
+    let (recipe, acquisitions) = staged_recipe(&w, 1);
+    record(&w.service, &recipe, &acquisitions);
+    let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(reviewed.can_apply, "{:?}", reviewed.holds);
+
+    // A review whose reference names no plan (as an edited IPC copy could)
+    // is refused even with a digest recomputed to match it.
+    let mut dangling = reviewed.clone();
+    dangling.staging.provider_plans.remove(0);
+    dangling.plan_sha256 = import_plan_digest(&dangling).unwrap();
+    let error = w
+        .service
+        .apply_recipe_import(&dangling, "Dangling", "unused")
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict, "{error:?}");
+    assert!(
+        error.message.contains("names no provider review"),
+        "{error:?}"
+    );
+
+    // A plan record edited on disk no longer matches its digest: it is
+    // dropped, never trusted, and its package is offered for checking again.
+    let records = w
+        .service
+        .acquisition_records("starship", &recipe.identity_sha256);
+    let tampered = acquisitions[0].provider_plan.plan_sha256.clone();
+    let path = records.join("plans").join(format!("{tampered}.json"));
+    let mut plan: crate::ProviderInstallPlan =
+        serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    plan.project_name.push_str(" (edited)");
+    fs::write(&path, serde_json::to_vec(&plan).unwrap()).unwrap();
+    let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(!resumed.can_apply);
+    assert!(
+        resumed.provider_checks.contains(&acquisitions[0].native_id),
+        "{:?}",
+        resumed.provider_checks
+    );
+    assert!(
+        resumed
+            .staging
+            .provider_plans
+            .iter()
+            .all(|plan| plan.plan_sha256 != tampered)
+    );
+}
+
+/// A recipe whose packages after the first are missing from the package store
+/// and offered by their own GameBanana files, with the responses that serve
+/// them in order (project, download redirect, file).
+fn served_recipe(w: &World, missing: usize) -> (ProfileRecipe, Vec<Vec<u8>>) {
+    grow_setup(w, missing);
+    let mut recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    for (index, package) in recipe.packages.iter_mut().enumerate().skip(1) {
+        package.provider = Some(label(
+            &(100 + index).to_string(),
+            &(200 + index).to_string(),
+        ));
+    }
+    let recipe = sealed(recipe);
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let response = |content_type: &str, bytes: &[u8]| {
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            bytes.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(bytes);
+        response
+    };
+    let mut responses = Vec::new();
+    for (index, package) in recipe.packages.iter().enumerate().skip(1) {
+        let stored = layout.package(&package.sha256, &package.native_id);
+        let bytes = fs::read(&stored).unwrap();
+        fs::remove_file(&stored).unwrap();
+        let name = format!("wrapper-{index}.zip");
+        let wrapper = fs::read(o2r(
+            w._temporary.path(),
+            &name,
+            &[(package.native_id.as_str(), &bytes)],
+        ))
+        .unwrap();
+        let project = serde_json::to_vec(&serde_json::json!({
+            "_sName": format!("Served fixture {index}"), "_aGame": {"_idRow": 777},
+            "_tsDateUpdated": 3, "_bIsObsolete": false,
+            "_aFiles": [{
+                "_idRow": 200 + index, "_sFile": name, "_nFilesize": wrapper.len(),
+                "_tsDateAdded": 2, "_bIsArchived": false,
+            }],
+        }))
+        .unwrap();
+        responses.push(response("application/json", &project));
+        responses.push(
+            format!("HTTP/1.1 302 Found\r\nLocation: /files/{name}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .into_bytes(),
+        );
+        responses.push(response("application/zip", &wrapper));
+    }
+    (recipe, responses)
+}
+
+#[tokio::test]
+async fn a_review_budget_refusal_while_acquiring_keeps_earlier_progress() {
+    // The size of each staged plan, measured on an identical review.
+    let plan_bytes = {
+        let w = world();
+        let (recipe, responses) = served_recipe(&w, 2);
+        let (root, _requests, server) = crate::test_http::serve_http_bytes(responses);
+        let _served = crate::GameBananaClient::serve_library_clients_from(&root);
+        let waiting = w.service.plan_recipe_import(&recipe).unwrap();
+        let batch = w
+            .service
+            .acquire_recipe_packages(&waiting, &w.profile)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(batch.failure, None);
+        assert!(batch.plan.can_apply, "{:?}", batch.plan.holds);
+        batch
+            .plan
+            .staging
+            .provider_plans
+            .iter()
+            .map(|plan| serde_json::to_vec(plan).unwrap().len())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(plan_bytes.len(), 2);
+
+    // A budget with room for the first plan but not both.
+    let w = world();
+    let (recipe, responses) = served_recipe(&w, 2);
+    let (root, _requests, server) = crate::test_http::serve_http_bytes(responses);
+    let _served = crate::GameBananaClient::serve_library_clients_from(&root);
+    let waiting = w.service.plan_recipe_import(&recipe).unwrap();
+    let batch = {
+        let _budget = override_review_budget(plan_bytes[0] + plan_bytes[1] - 64);
+        w.service
+            .acquire_recipe_packages(&waiting, &w.profile)
+            .await
+            .unwrap()
+    };
+    server.join().unwrap();
+    let first = recipe.packages[1].native_id.clone();
+    let second = recipe.packages[2].native_id.clone();
+    assert_eq!(batch.acquired, [first.clone()]);
+    let failure = batch.failure.unwrap();
+    assert_eq!(failure.native_id, second);
+    assert!(failure.message.contains("review budget"), "{failure:?}");
+    assert_eq!(batch.plan.staging.acquisitions.len(), 1);
+    assert_eq!(batch.plan.provider_checks, [second.clone()]);
+
+    // The staged step was recorded: reopening the recipe resumes with it.
+    let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(resumed.staging.contains(&first));
+    assert_eq!(resumed.provider_checks, [second]);
+}

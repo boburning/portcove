@@ -4548,3 +4548,31 @@ fn a_full_consent_ledger_drops_consents_for_bytes_no_longer_stored() {
     let after = consented_code(&layout).unwrap();
     assert_eq!(after, BTreeSet::from([kept, new]));
 }
+
+#[test]
+fn a_consent_dropped_from_a_full_ledger_is_asked_again_when_its_bytes_return() {
+    let w = recomp_world();
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    let size = fs::metadata(&code).unwrap().len();
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    // A full ledger that still consents to these bytes, which have left the store.
+    let mut digests = (0..MAX_CODE_CONSENTS - 1)
+        .map(|index| format!("{index:064x}"))
+        .collect::<BTreeSet<_>>();
+    digests.insert(sha.clone());
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::write(layout.code_consent(), serde_json::to_vec(&digests).unwrap()).unwrap();
+    record_code_consent(&layout, &"b".repeat(64)).unwrap();
+    assert!(!consented_code(&layout).unwrap().contains(&sha));
+
+    // The same bytes come back: the dropped consent is never assumed.
+    let stored = layout.package(&sha, "speedrun_timer.nrm");
+    fs::create_dir_all(stored.parent().unwrap()).unwrap();
+    fs::copy(&code, &stored).unwrap();
+    let error = w
+        .service
+        .create_profile_revision(RECOMP, &w.default, &code_revision_request(1, &sha, size))
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    assert_eq!(w.revision(), 1, "nothing was recorded");
+}

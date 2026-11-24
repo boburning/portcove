@@ -320,15 +320,100 @@ impl RecipeStaging {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    static REVIEW_BUDGET_OVERRIDE: std::cell::Cell<Option<usize>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Runs `run` with a smaller review budget on this thread.
+#[cfg(test)]
+pub(crate) fn override_review_budget(budget: usize) -> impl Drop {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            REVIEW_BUDGET_OVERRIDE.with(|cell| cell.set(None));
+        }
+    }
+    REVIEW_BUDGET_OVERRIDE.with(|cell| cell.set(Some(budget)));
+    Restore
+}
+
+fn review_budget() -> usize {
+    #[cfg(test)]
+    if let Some(budget) = REVIEW_BUDGET_OVERRIDE.with(std::cell::Cell::get) {
+        return budget;
+    }
+    MAX_RECIPE_REVIEW_BYTES
+}
+
 fn require_review_budget(bytes: usize) -> Result<()> {
-    if bytes > MAX_RECIPE_REVIEW_BYTES {
+    let budget = review_budget();
+    if bytes > budget {
         return Err(PortcoveError::unsupported(format!(
             "this recipe review's provider files would exceed the {} review budget",
-            crate::setup_capacity::mebibytes(MAX_RECIPE_REVIEW_BYTES)
+            crate::setup_capacity::mebibytes(budget)
         ))
-        .detail("review_bytes", bytes.to_string()));
+        .detail("review_bytes", bytes.to_string())
+        .detail("review_budget_bytes", budget.to_string()));
     }
     Ok(())
+}
+
+/// The order a batch stages missing packages in: a package before the
+/// packages it requires, so a dependant's provider plan, which stages its
+/// whole closure, is reused for its requirements instead of each requirement
+/// being downloaded on its own and again inside every dependant's closure.
+/// Packages that require nothing in the batch keep the recipe's order; a cycle
+/// (which closure resolution refuses) falls back to that order too.
+fn dependants_first(recipe: &ProfileRecipe, checks: &[String]) -> Vec<String> {
+    let index = checks
+        .iter()
+        .enumerate()
+        .map(|(position, native_id)| (native_id.as_str(), position))
+        .collect::<BTreeMap<_, _>>();
+    let packages = recipe
+        .packages
+        .iter()
+        .map(|package| (package.native_id.as_str(), package))
+        .collect::<BTreeMap<_, _>>();
+    let mut dependants = vec![0usize; checks.len()];
+    let mut requires = vec![BTreeSet::new(); checks.len()];
+    for (position, native_id) in checks.iter().enumerate() {
+        let Some(package) = packages.get(native_id.as_str()) else {
+            continue;
+        };
+        for requirement in &package.provider_requires {
+            for member in requirement.members.keys() {
+                if let Some(&required) = index.get(member.as_str())
+                    && required != position
+                    && requires[position].insert(required)
+                {
+                    dependants[required] += 1;
+                }
+            }
+        }
+    }
+    let mut ready = (0..checks.len())
+        .filter(|&position| dependants[position] == 0)
+        .collect::<BTreeSet<_>>();
+    let mut placed = vec![false; checks.len()];
+    let mut order = Vec::with_capacity(checks.len());
+    while let Some(position) = ready.pop_first() {
+        placed[position] = true;
+        order.push(position);
+        for &required in &requires[position] {
+            dependants[required] -= 1;
+            if dependants[required] == 0 {
+                ready.insert(required);
+            }
+        }
+    }
+    order.extend((0..checks.len()).filter(|&position| !placed[position]));
+    order
+        .into_iter()
+        .map(|position| checks[position].clone())
+        .collect()
 }
 
 /// The package an acquisition batch stopped at, and why.
@@ -1342,7 +1427,7 @@ impl PortcoveService {
         let mut acquired = Vec::new();
         let mut downloads = 0usize;
         let mut failure = None;
-        for native_id in &current.provider_checks {
+        for native_id in &dependants_first(&plan.recipe, &current.provider_checks) {
             if downloads == RECIPE_ACQUISITION_STEP {
                 break;
             }

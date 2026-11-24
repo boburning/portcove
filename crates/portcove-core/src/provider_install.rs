@@ -630,20 +630,6 @@ impl PortcoveService {
             .as_ref()
             != Some(&scope))
         .then_some(scope);
-        // The closure joins the current setup; one that cannot fit is refused
-        // before anything is downloaded. (A recipe review stages for a new
-        // setup, which the recipe's own capacity check already bounds.)
-        if !matches!(mode, ProviderInstallMode::Recipe { .. })
-            && current.packages.len().saturating_add(projects.len())
-                > crate::setup_capacity::MAX_SETUP_PACKAGES
-        {
-            return Err(PortcoveError::unsupported(format!(
-                "this mod and its requirements would take the setup past {} mods",
-                crate::setup_capacity::MAX_SETUP_PACKAGES
-            ))
-            .detail("setup_packages", current.packages.len().to_string())
-            .detail("closure_files", projects.len().to_string()));
-        }
         let reuse_dependencies = mode == ProviderInstallMode::Automatic
             && matches!(client, ProviderClient::Thunderstore { .. });
         let retained = if reuse_dependencies {
@@ -666,6 +652,37 @@ impl PortcoveService {
             } else {
                 projects.as_slice()
             };
+        // The closure joins the current setup; one that cannot fit is refused
+        // before anything is downloaded. Only provider projects the setup does
+        // not hold yet add packages: an update replaces its own package and a
+        // dependency already present is replaced or kept, so a setup at
+        // capacity can still update. Revision validation stays the authority.
+        // (A recipe review stages for a new setup, which the recipe's own
+        // capacity check already bounds.)
+        if !matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            let added = projects
+                .iter()
+                .filter(|(project, _)| {
+                    !current.packages.iter().any(|package| {
+                        package.provider.as_ref().is_some_and(|provider| {
+                            provider.provider == client.provider()
+                                && provider.project == project.project_id
+                        })
+                    })
+                })
+                .count();
+            if current.packages.len().saturating_add(added)
+                > crate::setup_capacity::MAX_SETUP_PACKAGES
+            {
+                return Err(PortcoveError::unsupported(format!(
+                    "this mod and its requirements would take the setup past {} mods",
+                    crate::setup_capacity::MAX_SETUP_PACKAGES
+                ))
+                .detail("setup_packages", current.packages.len().to_string())
+                .detail("closure_files", projects.len().to_string())
+                .detail("new_closure_files", added.to_string()));
+            }
+        }
         fs::create_dir_all(layout.tmp())?;
         let staging = tempfile::tempdir_in(layout.tmp())?;
         let mut member_paths = Vec::new();
@@ -685,10 +702,6 @@ impl PortcoveService {
             // stops at the free space the staging volume can give.
             let download_budget =
                 MAX_DOWNLOAD_BYTES.min(crate::setup_capacity::staging_allowance(staging.path())?);
-            // Extraction can expand past the claimed size; it never takes the
-            // reserve, whatever the archive declares.
-            let extraction_budget =
-                MAX_EXTRACTED_BYTES.min(crate::setup_capacity::staging_allowance(staging.path())?);
             let extension = file
                 .file_name
                 .rsplit_once('.')
@@ -707,6 +720,11 @@ impl PortcoveService {
             let (download_sha256, download_size) = client
                 .download(&project.project_id, file, &download, download_budget)
                 .await?;
+            // Measured after the download: the archive keeps its bytes until
+            // extraction finishes, so extraction may use only what is left,
+            // never the reserve, whatever the archive declares.
+            let extraction_budget =
+                MAX_EXTRACTED_BYTES.min(crate::setup_capacity::staging_allowance(staging.path())?);
             let members_dir = directory.join("members");
             fs::create_dir(&members_dir)?;
             let paths = if direct {

@@ -940,3 +940,73 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
     offered.thunderstore_dependencies = None;
     assert_eq!(key(&offered), without_requirements);
 }
+
+/// Fills the setup to the shared capacity with turned-off local packages,
+/// keeping what it holds.
+fn fill_to_capacity(service: &PortcoveService, profile: &str) {
+    let current = service
+        .profile_revisions(PORT, profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let mut packages = current.packages.clone();
+    let filler = crate::setup_capacity::MAX_SETUP_PACKAGES - packages.len();
+    packages.extend((0..filler).map(|index| crate::ResolvedPackage {
+        native_id: format!("held-{index:04}.o2r"),
+        native_version: None,
+        provider: None,
+        sha256: format!("{index:064x}"),
+        size: 1,
+        enabled: false,
+        requires: Vec::new(),
+        provider_requires: Vec::new(),
+    }));
+    service
+        .create_profile_revision(
+            PORT,
+            profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_setup_at_capacity_updates_a_mod_automatically() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    fill_to_capacity(&w.service, &w.profile);
+    w.allow_automatic();
+    assert_eq!(
+        w.revision().packages.len(),
+        crate::setup_capacity::MAX_SETUP_PACKAGES
+    );
+    let updates = w
+        .pass_with_update(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v2")]))
+        .await;
+    assert!(
+        matches!(
+            updates[0].outcome,
+            ProviderAutoUpdateOutcome::Applied { .. }
+        ),
+        "{updates:?}"
+    );
+    let after = w.revision();
+    assert_eq!(
+        after.packages.len(),
+        crate::setup_capacity::MAX_SETUP_PACKAGES
+    );
+    let updated = after
+        .packages
+        .iter()
+        .find(|package| package.native_id == "hd-link.o2r")
+        .unwrap();
+    assert_eq!(
+        updated.provider.as_ref().unwrap().file.as_deref(),
+        Some("11")
+    );
+}
