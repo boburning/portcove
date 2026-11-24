@@ -575,6 +575,13 @@ reports coverage across configured sources. Historical fallback policies retain 
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
+A handoff holds only the sources its run attempted, so consumers that need
+every source read the retained checkpoint snapshot instead
+(`readUpstreamObservations`): the maintenance inventory, the listing delivery
+and the listing facts batch job
+([accumulated observations](CATALOG.md#accumulated-observations)), which
+projects each completed source to its last complete listing observation.
+
 Each source operation admits response bytes, including identity lookups, while
 reading. Its finite byte envelope does not cap cumulative catalog-session work:
 further bounded operations continue while actual quota and runtime remain.

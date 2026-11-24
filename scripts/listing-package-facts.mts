@@ -148,6 +148,23 @@ export interface WorkerState {
   pending: string[];
   /** Transiently incomplete identities, retried oldest first. */
   retry: RetryItem[];
+  /**
+   * Entries the scheduled job derived but carried to a later batch
+   * (`scripts/listing-facts-batch.mts` `carryOver`), oldest wait first. Each
+   * keeps when it was first carried (`since`, so a later batch lands the
+   * longest-waiting entries first) and the entry it derived, whose artifacts
+   * are inspection receipts per digest-bound archive: reused like a committed
+   * entry's (`reusable`) while the repository id and the parser version still
+   * match, so an unchanged release is not downloaded again. Its refusals are
+   * not reused: an ineligible verdict lands without reproduction.
+   * A receipt grants nothing: a carried entry is reproduced from its bytes
+   * when its batch lands, like any other. Absent when nothing is carried.
+   */
+  carried?: CarriedItem[];
+}
+export interface CarriedItem {
+  since: string;
+  entry: ListingFactsEntry;
 }
 export const initialState = (): WorkerState => ({ format: 3, pending: [], retry: [] });
 
@@ -969,6 +986,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const retry = new Map(
     state.retry.filter((item) => candidates.has(item.port_id)).map((item) => [item.port_id, item]),
   );
+  /** Inspection receipts of carried entries (`WorkerState.carried`). */
+  const receipts = new Map((state.carried ?? []).map((item) => [item.entry.port_id, item]));
   const observed = observations(
     only === undefined ? candidates : new Map([...candidates].filter(([id]) => only.has(id))),
     inputs.observerReport,
@@ -1466,11 +1485,19 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     // accumulates. Several archives for one platform are judged by the fit
     // rule (`ambiguous-artifact`), never by a count.
     const digestBound = archives as (ObservedAsset & { sha256: string })[];
+    const receipt = receipts.get(id)?.entry;
+    const receipted =
+      receipt?.repository_id === repositoryId && receipt.parser_version === FACTS_PARSER_VERSION
+        ? receipt
+        : undefined;
     const reusable = new Map(
-      [prior]
+      [prior, receipted]
         .flatMap((entry) => entry?.artifacts ?? [])
         .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
+    // A carried refusal is not reused: an ineligible verdict needs no
+    // reproduction, so only a committed (reproduced) refusal may stand for
+    // bytes not read again.
     const reusableRefusals = new Map(
       [prior]
         .flatMap((entry) => entry?.refused_archives ?? [])
@@ -1716,6 +1743,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       retry: [...retry.values()]
         .filter((item) => !entries.get(item.port_id)?.ineligible)
         .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
+      // Only the scheduled job's carry step rewrites the carried entries.
+      ...(state.carried?.length ? { carried: state.carried } : {}),
     },
     report,
     ineligible: ineligibleCounts,
@@ -1803,6 +1832,8 @@ export function combineShards(
           shard.result.state.retry.filter((item) => owner.get(item.port_id) === shard.result),
         ),
       ].toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
+      // Shards only read the carried entries; the carry step rewrites them.
+      ...(plan.state.carried?.length ? { carried: plan.state.carried } : {}),
     },
     report: report.toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     ineligible,
@@ -1836,7 +1867,24 @@ function sanitizeState(state: WorkerState): WorkerState {
         Number(item.failures) > 0 &&
         (item.cause === undefined || (failureCauses as readonly unknown[]).includes(item.cause)),
     ),
+    ...carriedOf(state.carried),
   };
+}
+/** The well-formed carried items (`WorkerState.carried`); a malformed one is dropped and re-read. */
+function carriedOf(value: unknown): Pick<WorkerState, "carried"> {
+  const carried = (Array.isArray(value) ? value : []).filter(
+    (item: unknown): item is CarriedItem => {
+      if (!isRecord(item) || typeof item.since !== "string" || Number.isNaN(Date.parse(item.since)))
+        return false;
+      try {
+        checkListingFactsEntry(item.entry, "A carried entry");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  );
+  return carried.length ? { carried } : {};
 }
 
 // ---------------------------------------------------------------------------
