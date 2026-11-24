@@ -279,13 +279,6 @@ pub(crate) enum KnownFailureCause {
     /// work continues from where it stopped on the next attempt. Incomplete
     /// is never an absent release, package or file. Always temporary, and it
     /// waits until `resets_at` when the provider stated one.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the provider enumeration work in #8637 raises it; this PR only classifies it"
-        )
-    )]
     InventoryIncomplete {
         provider: FailureProvider,
         /// What was being listed, such as `release history`.
@@ -295,6 +288,10 @@ pub(crate) enum KnownFailureCause {
         /// Pages or chunks the provider listed, when it said.
         total: Option<u64>,
         resets_at: Option<i64>,
+        /// A provider allowance or throttle cut the listing short, so work that
+        /// shares that allowance waits too (a bulk update check defers the rest
+        /// rather than sending them).
+        rate_limited: bool,
     },
 }
 
@@ -308,6 +305,10 @@ pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
                 rate_limited: true,
                 ..
             } | KnownFailureCause::ProviderAllowanceExhausted { .. }
+                | KnownFailureCause::InventoryIncomplete {
+                    rate_limited: true,
+                    ..
+                }
         )
     )
 }
@@ -320,12 +321,19 @@ pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::Rele
             rate_limited: true,
             ..
         }
-        | KnownFailureCause::ProviderAllowanceExhausted { provider, .. } => *provider,
+        | KnownFailureCause::ProviderAllowanceExhausted { provider, .. }
+        | KnownFailureCause::InventoryIncomplete {
+            provider,
+            rate_limited: true,
+            ..
+        } => *provider,
         _ => return None,
     };
     Some(match provider {
         FailureProvider::Github => crate::ReleaseSource::Github,
         FailureProvider::Gitlab => crate::ReleaseSource::Gitlab,
+        // Not a release provider: no update-check allowance to defer.
+        FailureProvider::Thunderstore => return None,
     })
 }
 
@@ -360,6 +368,22 @@ pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
             *throttled,
             *reset_reported,
             *signed_in,
+        ),
+        // A listing a rate limit cut short keeps the stopping request's details.
+        KnownFailureCause::InventoryIncomplete {
+            provider,
+            resets_at,
+            rate_limited: true,
+            ..
+        } => (
+            *provider,
+            *resets_at,
+            cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
+            resets_at.is_some(),
+            cause
+                .details
+                .get("rate_limit_credential")
+                .map(|credential| credential == "authenticated"),
         ),
         _ => return None,
     };
@@ -408,6 +432,7 @@ fn reset_sentence(resets_at: Option<i64>) -> String {
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+    Thunderstore,
 }
 
 impl FailureProvider {
@@ -415,8 +440,73 @@ impl FailureProvider {
         match self {
             Self::Github => "GitHub",
             Self::Gitlab => "GitLab",
+            Self::Thunderstore => "Thunderstore",
         }
     }
+}
+
+/// Detail key every incomplete provider listing carries, shared by the
+/// GitHub, GitLab and Thunderstore readers.
+pub(crate) const INVENTORY_INCOMPLETE_DETAIL: &str = "inventory";
+
+/// An incomplete provider listing: typed cause plus the shared details.
+pub(crate) fn inventory_incomplete(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+) -> PortcoveError {
+    let mut error = PortcoveError::network(format!(
+        "the {} {inventory} was read only in part; trying again continues where it stopped",
+        provider.name()
+    ))
+    .detail(INVENTORY_INCOMPLETE_DETAIL, "incomplete")
+    .detail("inventory_read", read.to_string());
+    if let Some(total) = total {
+        error = error.detail("inventory_total", total.to_string());
+    }
+    error.with_known_cause(KnownFailureCause::InventoryIncomplete {
+        provider,
+        inventory,
+        read,
+        total,
+        resets_at: None,
+        rate_limited: false,
+    })
+}
+
+/// An incomplete provider listing caused by `cause`, a request that did not
+/// complete. The cause's details (status facts, `retry_after`) are kept, its
+/// message becomes the `cause` detail, and any wait it states (a rate-limit
+/// reset or `Retry-After`) becomes the listing's own `resets_at`, so the
+/// retry schedule still honors it.
+pub(crate) fn inventory_incomplete_after(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+    cause: PortcoveError,
+) -> PortcoveError {
+    let temporary = cause.temporary_cause();
+    let resets_at = temporary.and_then(|(_, reset)| reset);
+    // A throttle or spent allowance stays one, so work sharing that allowance waits.
+    let limited = is_rate_limited(&cause)
+        || temporary.is_some_and(|(kind, _)| kind == crate::TemporaryCause::RateLimited);
+    let mut error = inventory_incomplete(provider, inventory, read, total)
+        .detail("cause", cause.message.clone());
+    for (name, value) in cause.details {
+        error.details.entry(name).or_insert(value);
+    }
+    if let Some(KnownFailureCause::InventoryIncomplete {
+        resets_at: reset,
+        rate_limited,
+        ..
+    }) = error.failure.known_cause.as_mut()
+    {
+        *reset = resets_at;
+        *rate_limited = limited;
+    }
+    error
 }
 
 fn decimal_gigabytes(bytes: u64) -> String {
@@ -829,6 +919,15 @@ impl PortcoveError {
                 resets_at: *resets_at,
                 reset_reported: *reset_reported && resets_at.is_some(),
             }),
+            // The reset of a cut-short listing is the provider's stated wait.
+            KnownFailureCause::InventoryIncomplete {
+                resets_at,
+                rate_limited: true,
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: resets_at.is_some(),
+            }),
             _ => None,
         }
     }
@@ -871,6 +970,15 @@ impl PortcoveError {
 
     pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
         self.failure.known_cause.as_ref()
+    }
+
+    /// Whether a provider listing stopped before its end; the item asked for
+    /// is not known to be absent.
+    pub(crate) fn is_inventory_incomplete(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::InventoryIncomplete { .. })
+        )
     }
 
     pub(crate) fn is_recorded_uploader_hold(&self) -> bool {

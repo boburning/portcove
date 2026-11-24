@@ -10,7 +10,9 @@ import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-b
 import {
   acquireMaintenanceReservation,
   cutoverReading,
+  neonDiagnostic,
   normalizeNeonMeter,
+  sampleNeon,
   policyLimits,
   type NeonMeter,
 } from "./maintenance-resource-policy.mts";
@@ -736,6 +738,109 @@ void test("Neon Free readings preserve missing dimensions and require an active 
     /usable/u,
   );
   assert.throws(() => normalizeNeonMeter(project, branch, "2026-12-01T00:00:00Z"), /usable/u);
+});
+
+void test("a failed Neon meter read names each failing read and Neon's reason", async (t) => {
+  const token = "napi_fixture_secret";
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const answers: Record<string, () => Response> = {
+    "": () => Response.json({ project: { effective_project_permission: "VIEWER" } }),
+    "/branches/br-frosty-bar-bbaitwbu": () =>
+      Response.json({ message: "not allowed for viewer" }, { status: 404 }),
+    "/endpoints": () => Response.json({ message: `bad token ${token}\nretry` }, { status: 403 }),
+  };
+  globalThis.fetch = async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    const suffix = url.slice(url.indexOf("wispy-salad-36926388") + "wispy-salad-36926388".length);
+    return answers[suffix]!();
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon branch read returned HTTP 404: not allowed for viewer/u);
+    assert.match(message, /Neon endpoints read returned HTTP 403: bad token \[credential\] retry/u);
+    assert.doesNotMatch(message, /napi_fixture_secret/u, "the credential is never retained");
+    assert.doesNotMatch(
+      message,
+      /credential (?:belongs|is not|identity)/u,
+      "no probe on partial 404",
+    );
+    return true;
+  });
+  // A read that cannot connect, or answers with an unreadable body, is named too.
+  answers[""] = () => {
+    throw new Error(`connect failed with ${token}`);
+  };
+  answers["/endpoints"] = () => new Response("not json", { status: 200 });
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon project read failed: connect failed with \[credential\]/u);
+    assert.match(message, /Neon endpoints read returned an unreadable body/u);
+    assert.doesNotMatch(message, /napi_fixture_secret/u);
+    assert.doesNotMatch(message, /credential (?:belongs|is not|identity)/u);
+    return true;
+  });
+  assert.equal(neonDiagnostic("x".repeat(500), ""), "x".repeat(200));
+  // A project invisible to every read names whose credential it is.
+  const missing = () => Response.json({ message: "project not found" }, { status: 404 });
+  answers[""] = missing;
+  answers["/branches/br-frosty-bar-bbaitwbu"] = missing;
+  answers["/endpoints"] = missing;
+  let identity: Record<string, () => Response> = {
+    "/users/me": () => Response.json({ id: "user-1", email: "private@example.com" }),
+    "/users/me/organizations": () => Response.json({ organizations: [{ id: "org-other" }] }),
+  };
+  const projectFetch = globalThis.fetch;
+  globalThis.fetch = async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    const path = url.slice(url.indexOf("/api/v2") + "/api/v2".length);
+    return identity[path] ? identity[path]() : projectFetch(input);
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon project read returned HTTP 404: project not found/u);
+    assert.match(
+      message,
+      /credential belongs to Neon user user-1, not a member of org-polished-frog-23199890$/u,
+    );
+    assert.doesNotMatch(message, /org-other/u, "unrelated memberships are not retained");
+    assert.doesNotMatch(message, /private@example\.com/u, "no email is retained");
+    return true;
+  });
+  identity["/users/me/organizations"] = () =>
+    Response.json({ organizations: [{ id: "org-polished-frog-23199890" }] });
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /member of org-polished-frog-23199890 but without access to project/u);
+    return true;
+  });
+  identity["/users/me/organizations"] = () => new Response("", { status: 500 });
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /user-1, organizations unreadable \(HTTP 500\)/u);
+    return true;
+  });
+  identity["/users/me"] = () => Response.json({ message: "overloaded" }, { status: 503 });
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /credential identity unreadable \(users\/me HTTP 503: overloaded\)/u);
+    return true;
+  });
+  identity = {
+    "/users/me": () =>
+      Response.json({ message: `not allowed for org keys ${token}` }, { status: 403 }),
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(
+      message,
+      /credential is not a personal key \(users\/me HTTP 403: not allowed for org keys \[credential\]\)/u,
+    );
+    assert.doesNotMatch(message, /napi_fixture_secret/u);
+    return true;
+  });
 });
 
 void test(

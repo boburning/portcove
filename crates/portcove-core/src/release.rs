@@ -973,8 +973,11 @@ impl GithubReleaseProvider {
             return Ok(false);
         };
         let incomplete = || {
-            PortcoveError::network(
-                "GitHub release history did not finish within the provider request budget. Try again.",
+            crate::failure::inventory_incomplete(
+                crate::failure::FailureProvider::Github,
+                "release history",
+                (page - 1) as u64,
+                None,
             )
             .detail("release_inventory", "incomplete")
             .detail("release_pages_read", (page - 1).to_string())

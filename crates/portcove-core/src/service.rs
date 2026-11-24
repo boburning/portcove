@@ -10348,6 +10348,122 @@ mod tests {
         assert_eq!(newly_checked, 5);
     }
 
+    /// Fails `walked` the way a release-history walk does when page 2 answers
+    /// 429: an incomplete listing wrapping the rate limit.
+    struct RateLimitedWalkProvider {
+        walked: String,
+        calls: Mutex<Vec<String>>,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for RateLimitedWalkProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.calls.lock().unwrap().push(port.id.clone());
+            tokio::task::yield_now().await;
+            if port.id == self.walked {
+                let page_two = PortcoveError::network("GitHub API returned 429 Too Many Requests")
+                    .with_upstream(Some(crate::failure::UpstreamObservation::Status(429)))
+                    .with_known_cause(crate::failure::KnownFailureCause::ProviderRequest {
+                        provider: crate::failure::FailureProvider::Github,
+                        status: 429,
+                        rate_limited: true,
+                        resets_at: None,
+                    })
+                    // A test provider reports no credential for its games, so the
+                    // failure names none either (a real provider names the same one).
+                    .detail("retry_after", "60");
+                return Err(crate::failure::inventory_incomplete_after(
+                    crate::failure::FailureProvider::Github,
+                    "release history",
+                    1,
+                    None,
+                    page_two,
+                ));
+            }
+            Ok(ResolvedRelease {
+                version: "2.0.0".into(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-2.0.0.zip", port.id),
+                    url: "https://invalid.example/walk.zip".into(),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
+                },
+                uploader_continuity: None,
+            })
+        }
+    }
+
+    /// A 429 on page 2 of one game's release walk ends that game as an incomplete
+    /// listing. It is still a rate limit: the games not yet started are deferred,
+    /// not failed, and none of them counts as a verdict for the fair order.
+    #[tokio::test]
+    async fn a_rate_limited_listing_defers_the_rest_of_the_bulk_check() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let probe = Arc::new(ExhaustibleReleaseProvider {
+            allowance: AtomicUsize::new(usize::MAX),
+            calls: Mutex::new(Vec::new()),
+            broken: None,
+        });
+        let port_ids =
+            single_request_github_ports(&catalog, &probe, &temporary.path().join("probe"), 12)
+                .await;
+        assert_eq!(port_ids.len(), 12);
+        // Never attempted, so the caller's order decides: the walk fails first.
+        let walked = port_ids[0].clone();
+        let provider = Arc::new(RateLimitedWalkProvider {
+            walked: walked.clone(),
+            calls: Mutex::new(Vec::new()),
+        });
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+        let calls = provider.calls.lock().unwrap().clone();
+        // The cut-short game plus at most the three already in flight were sent.
+        assert!(calls.contains(&walked) && calls.len() <= 4, "{calls:?}");
+        let mut deferred = 0;
+        for (port_id, result) in &outcomes {
+            let Err(error) = result else { continue };
+            // Never "Check failed": every unchecked game is a typed deferral.
+            assert!(
+                crate::failure::is_rate_limited(error),
+                "{port_id}: {error:?}"
+            );
+            assert!(error.update_check_deferral().is_some(), "{port_id}");
+            if *port_id == walked {
+                assert!(error.is_inventory_incomplete());
+            } else {
+                assert_eq!(
+                    error
+                        .details
+                        .get("update_check_deferred")
+                        .map(String::as_str),
+                    Some("true"),
+                    "{port_id}"
+                );
+                deferred += 1;
+            }
+        }
+        assert_eq!(deferred, 12 - calls.len());
+        assert!(deferred >= 8);
+        // Nothing unchecked reached a verdict, so all of it keeps its place.
+        let attempted = library.update_check_attempted_at().unwrap();
+        assert!(
+            outcomes
+                .iter()
+                .filter(|(_, result)| result.is_err())
+                .all(|(port_id, _)| !attempted.contains_key(port_id)),
+            "{attempted:?}"
+        );
+    }
+
     #[tokio::test]
     async fn bulk_update_checks_retain_unfinished_games_and_resume_them_first() {
         let temporary = tempfile::tempdir().unwrap();

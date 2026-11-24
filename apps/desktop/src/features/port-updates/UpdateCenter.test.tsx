@@ -656,6 +656,31 @@ it("shows a request-limited check activity as not checked, not as a failure", ()
   expect(html).toContain("activity-row not-checked");
   expect(html).not.toContain("activity-row failed");
   expect(html).not.toMatch(/activity-status[^"]*text-pc-danger-foreground/u);
+  const partial = renderToStaticMarkup(
+    <UpdateCenter
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[
+        {
+          ...record,
+          failure: {
+            ...record.failure!,
+            presentation: { ...refusal.presentation, presentation_key: "inventory_incomplete" },
+          },
+        },
+      ]}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  expect(partial).toContain("Not checked: list read in part");
+  expect(partial).not.toContain("activity-row failed");
 });
 
 it("keeps batch failure count unknown when no individual results are available", () => {

@@ -707,6 +707,7 @@ mod tests {
                     read: 3,
                     total: Some(9),
                     resets_at: Some(42),
+                    rate_limited: false,
                 })
                 .temporary_cause(),
             Some((TemporaryCause::InventoryIncomplete, Some(42)))

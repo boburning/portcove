@@ -331,6 +331,7 @@ pub struct Library {
     pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
+    pub(crate) thunderstore_listings: crate::thunderstore::ListingSnapshots,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -584,6 +585,16 @@ const HTTP_CACHE_RECORD_RESERVE_BYTES: u64 = 4096;
 const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 const HTTP_CACHE_RECORD_BYTES_SQL: &str = "length(CAST(body AS BLOB)) + 2 * length(CAST(url AS BLOB)) + COALESCE(length(CAST(etag AS BLOB)), 0) + COALESCE(length(CAST(last_modified AS BLOB)), 0) + ?1";
 
+/// Keys of saved walk progress (such as a GitLab release-history walk) kept
+/// in the conditional-request table. They are tiny, are removed when their
+/// walk finishes, and are not responses: response traffic never evicts them,
+/// so a long walk's continuation does not depend on the 64 MiB response
+/// budget. Age pruning still removes abandoned progress after seven days, and
+/// at most [`CONTINUATION_MAX_ROWS`] (newest first) are kept.
+pub(crate) const CONTINUATION_KEY_PREFIX: &str = "portcove-continuation:";
+const CONTINUATION_MAX_ROWS: i64 = 1024;
+const NOT_CONTINUATION_SQL: &str = "substr(url, 1, 22) <> 'portcove-continuation:'";
+
 fn prune_http_cache(connection: &Connection) -> Result<()> {
     prune_http_cache_with_limits(
         connection,
@@ -601,8 +612,19 @@ fn prune_http_cache_with_limits(
         "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
         [max_age_seconds],
     )?;
+    connection.execute(
+        &format!(
+            "DELETE FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL}) AND rowid NOT IN (
+                SELECT rowid FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL})
+                ORDER BY updated_at DESC, rowid DESC LIMIT ?1
+            )"
+        ),
+        [CONTINUATION_MAX_ROWS],
+    )?;
     let retained_bytes: u64 = connection.query_row(
-        &format!("SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache"),
+        &format!(
+            "SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}"
+        ),
         [HTTP_CACHE_RECORD_RESERVE_BYTES],
         |row| row.get(0),
     )?;
@@ -611,7 +633,9 @@ fn prune_http_cache_with_limits(
     }
     // A single uncacheable response must not evict smaller useful responses.
     connection.execute(
-        &format!("DELETE FROM github_http_cache WHERE {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"),
+        &format!(
+            "DELETE FROM github_http_cache WHERE {NOT_CONTINUATION_SQL} AND {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"
+        ),
         params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
     )?;
     connection.execute(
@@ -620,7 +644,7 @@ fn prune_http_cache_with_limits(
             SELECT rowid FROM (
                 SELECT rowid, SUM({HTTP_CACHE_RECORD_BYTES_SQL}) OVER (
                     ORDER BY updated_at DESC, rowid DESC ROWS UNBOUNDED PRECEDING
-                ) AS retained_bytes FROM github_http_cache
+                ) AS retained_bytes FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}
             ) WHERE retained_bytes > ?2
         )"
         ),
@@ -842,6 +866,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         })
     }
@@ -859,6 +884,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -1949,8 +1975,9 @@ impl Library {
 
     /// When each port's update check last reached a verdict (it succeeded, or failed
     /// for a reason other than a provider rate limit), from the retained activity
-    /// history. A rate-limited or deferred attempt, a cancellation and an
-    /// interruption learned nothing, so they do not move the game back in the order.
+    /// history. A rate-limited or deferred attempt, a listing read only in part, a
+    /// cancellation and an interruption learned nothing, so they do not move the
+    /// game back in the order.
     pub(crate) fn update_check_attempted_at(&self) -> Result<HashMap<String, i64>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
@@ -1977,7 +2004,12 @@ impl Library {
                         .and_then(|presentation| presentation.get("presentation_key"))
                         .and_then(serde_json::Value::as_str)
                         .is_some_and(|key| {
-                            matches!(key, "provider_rate_limited" | "operation_interrupted")
+                            matches!(
+                                key,
+                                "provider_rate_limited"
+                                    | "inventory_incomplete"
+                                    | "operation_interrupted"
+                            )
                         })
                 });
             if !no_verdict {
@@ -2296,6 +2328,12 @@ impl Library {
             .map_err(PortcoveError::from)?;
         transaction.commit()?;
         Ok(cached)
+    }
+
+    pub(crate) fn remove_http_cache(&self, url: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
+        Ok(())
     }
 
     pub(crate) fn store_http_cache(
@@ -4620,6 +4658,41 @@ mod tests {
                 "https://example.test/c".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn saved_walk_progress_survives_response_pressure_but_not_age() {
+        // A walk's continuation must not depend on the response budget: newer
+        // responses filling the budget evict older responses, never progress.
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        let progress = format!("{CONTINUATION_KEY_PREFIX}v1:walk");
+        let abandoned = format!("{CONTINUATION_KEY_PREFIX}v1:abandoned");
+        for (url, body, updated_at) in [
+            (abandoned.as_str(), "{}", 1_i64),
+            (progress.as_str(), "{\"next_page\":7}", 2_000_000_000_i64),
+            ("https://example.test/a", "aaaa", 2_000_000_001_i64),
+            ("https://example.test/b", "bbbb", 2_000_000_002_i64),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO github_http_cache(url, body, updated_at) VALUES (?1, ?2, ?3)",
+                    params![url, body, updated_at],
+                )
+                .unwrap();
+        }
+        let one_record =
+            HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * "https://example.test/b".len() as u64 + 4;
+        prune_http_cache_with_limits(&connection, one_record, 1_000_000_000).unwrap();
+        let urls = connection
+            .prepare("SELECT url FROM github_http_cache ORDER BY url")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(urls, vec!["https://example.test/b".to_owned(), progress]);
     }
 
     #[test]
