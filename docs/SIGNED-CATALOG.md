@@ -155,16 +155,17 @@ the field. Listing formats and bounds by released reader (from each tag's
 | `nightly-0.1.0-preview.13`                                  | 5–13            | No              | 8 MiB         | —                       | 10,000 each                |
 | `nightly-0.1.0-preview.14`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
 | `nightly-0.1.0-preview.15`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
-| `nightly-0.1.0-preview.16`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 40 MiB element budget      |
+| `nightly-0.1.0-preview.16`, `.17`                           | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 40 MiB element budget      |
 
-Preview 16 is the first released reader with the element budget: it
-charges listings and withdrawals against the element budget instead of
-counting them, advertises `listing_delivery_limits`, and keeps the 4 MiB
-definition index without a definition count. Every earlier reader refuses more
-than 4,096 indexed definitions and keeps the 4 MiB definition index. Which of
-them are still supported is decided by `updates/withdrawn.json` and the
-released-reader gate. The file is written by the first withdrawal; until then
-it is absent and no version is withdrawn.
+Preview 16 is the first released reader with the element budget, and
+Preview 17 keeps its listing bounds unchanged: they charge listings and
+withdrawals against the element budget instead of counting them, advertise
+`listing_delivery_limits`, and keep the 4 MiB definition index without a
+definition count. Every earlier reader refuses more than 4,096 indexed
+definitions and keeps the 4 MiB definition index. Which of them are still
+supported is decided by `updates/withdrawn.json` and the released-reader gate.
+The file is written by the first withdrawal; until then it is absent and no
+version is withdrawn.
 
 | Bound                                                | Preview 15 and earlier   | Current generation        | Why it stays or changed                                                                                                                |
 | ---------------------------------------------------- | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -858,7 +859,8 @@ comments:
 [Compact listing: released-client readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7137500145)
 (command-line clients observed 16:11–16:20 UTC; comment posted 16:20 UTC); and
 [Compact listing: Windows desktop readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7138279401)
-(run finished about 16:44 UTC; comment posted 16:50 UTC). These are dated
+(run 16:44–16:47 UTC; listing selected 16:46:14 UTC; comment posted 16:50 UTC;
+the comment's "~17:40 UTC" header time is inaccurate). These are dated
 observations, not expected values for later publications.
 
 - **Publication.** Scheduled `Catalog publish` run 45430469470, source commit
