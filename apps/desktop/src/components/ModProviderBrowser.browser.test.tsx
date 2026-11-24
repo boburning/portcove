@@ -424,14 +424,20 @@ it("shows a file with unconfirmed eligibility without offering Add", async () =>
   expect(planned).not.toHaveBeenCalled();
 });
 
-it("offers Thunderstore's community link when the catalog exceeds Core's limits", async () => {
+it("offers a retry and Thunderstore's community link when the listing read is incomplete", async () => {
   const url = "https://thunderstore.io/c/zelda-64-recompiled/";
   vi.spyOn(desktopApi, "modProviderCatalog").mockRejectedValue({
     presentation: {
-      summary: "The catalog is too large to load.",
-      technical_message: "The community exceeds its package limit.",
+      summary: "The community listing did not finish loading.",
+      technical_message:
+        "the Thunderstore community listing did not finish within the provider request budget; try again to continue it",
       mutation_state: "read_only",
-      technical_context: { provider_browse_url: url },
+      technical_context: {
+        provider_browse_url: url,
+        inventory: "incomplete",
+        chunks_read: "3",
+        chunks_total: "26",
+      },
       recovery_actions: [],
     },
   });

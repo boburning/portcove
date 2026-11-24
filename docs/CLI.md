@@ -2930,7 +2930,9 @@ install and update files outside Portcove.
 
 On supported Windows and Linux routes for vkQuake and Ironwail, use
 `portcove profile quaddicted PORT_ID` to see newest entries, or pass
-`--search SEARCH` and `--page 2` to narrow or continue the results. The
+`--search SEARCH` and `--page 2` to narrow or continue the results. Every page
+Quaddicted holds is reachable; "may have more results" appears only when Quaddicted
+returned a row beyond the current page. The
 vkQuake route also offers Arcane Dimensions file notices via
 `portcove profile mod-db-notices quake-vkquake`. These notices can include
 patches and documentation. Use the source page to see its instructions.
@@ -2992,8 +2994,11 @@ a number and a file is a number. Zelda 64: Recompiled is bound to the Thundersto
 community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
 of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
 the only byte identity, and a version Thunderstore no longer offers cannot be
-installed. Thunderstore listings are read once per community, conditionally and
-cached, and shown in Thunderstore's order. Desktop names the reviewed mods that run
+installed. Thunderstore listings are read per community from its chunked listing
+index, in Thunderstore's order. Verified chunks are kept and the parsed community is
+reused while its chunks are unchanged, so a community of any size is read completely;
+when a read stops early it fails as incomplete with the community link, and trying
+again continues from the chunks already kept. Desktop names the reviewed mods that run
 code and asks for permission to apply those exact files.
 
 Desktop's **Mods** workspace uses the same reviewed bindings and exact file identities.

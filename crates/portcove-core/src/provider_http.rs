@@ -448,6 +448,142 @@ impl ProviderHttp {
     }
 }
 
+impl ProviderHttp {
+    /// Whether `url` is on this provider's own site: the same origin as
+    /// `origin`, or HTTPS on the provider's registrable site or a subdomain.
+    pub(crate) fn on_provider_site(&self, origin: &reqwest::Url, url: &reqwest::Url) -> bool {
+        let same_origin = url.scheme() == origin.scheme()
+            && url.host_str() == origin.host_str()
+            && url.port_or_known_default() == origin.port_or_known_default();
+        let provider_host = url.scheme() == "https"
+            && url.port().is_none()
+            && url.host_str().is_some_and(|host| {
+                host == self.site || host.ends_with(&format!(".{}", self.site))
+            });
+        (same_origin || provider_host) && url.username().is_empty() && url.password().is_none()
+    }
+
+    /// Reads one bounded response body, following at most four redirects that
+    /// stay on the provider's own site. Throttling and server errors start the
+    /// provider-wide backoff and keep the answer's status and `Retry-After`;
+    /// while the backoff lasts no request is made. A `transfer` (a larger
+    /// body) has connection and idle-read bounds and the shared progress
+    /// floor but no overall deadline, so it finishes while bytes keep
+    /// arriving; other reads also have the metadata request deadline. A body
+    /// cut off mid-stream is an interruption (temporary).
+    pub(crate) async fn read_site_bytes(
+        &self,
+        url: reqwest::Url,
+        max_bytes: usize,
+        transfer: bool,
+    ) -> Result<Vec<u8>> {
+        if let Some((wait, status)) = self.backoff_remaining() {
+            let message = if status >= 500 {
+                format!("{} is unavailable right now", self.label)
+            } else {
+                format!("{} is rate limiting this client", self.label)
+            };
+            return Err(PortcoveError::network(message)
+                .with_upstream(Some(crate::failure::UpstreamObservation::Status(status)))
+                .detail("retry_after", wait.as_secs().max(1).to_string()));
+        }
+        let origin = url.clone();
+        let mut current = url;
+        for _ in 0..=4 {
+            let client = if transfer {
+                &self.download_client
+            } else {
+                &self.client
+            };
+            let response = client
+                .get(current.clone())
+                .send()
+                .await
+                .map_err(|error| transport(&error))?;
+            let status = response.status();
+            if status.is_redirection() {
+                let next = response
+                    .headers()
+                    .get(header::LOCATION)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|location| current.join(location).ok())
+                    .ok_or_else(|| {
+                        PortcoveError::network(format!("{} redirect has no location", self.label))
+                    })?;
+                if !self.on_provider_site(&origin, &next) {
+                    return Err(PortcoveError::verification(format!(
+                        "{} redirected away from its own site",
+                        self.label
+                    )));
+                }
+                current = next;
+                continue;
+            }
+            if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
+                self.start_backoff(status, response.headers());
+            }
+            if !status.is_success() {
+                return Err(with_retry_after(
+                    PortcoveError::network(format!("{} returned {status}", self.label))
+                        .with_upstream(Some(crate::failure::UpstreamObservation::Status(
+                            status.as_u16(),
+                        ))),
+                    response.headers(),
+                ));
+            }
+            if !transfer {
+                return bounded_response_bytes(response, max_bytes, self.label)
+                    .await
+                    .map_err(PortcoveError::mark_interrupted_body);
+            }
+            return self.progressing_body(response, max_bytes).await;
+        }
+        Err(PortcoveError::network(format!(
+            "{} redirected too many times",
+            self.label
+        )))
+    }
+
+    /// A bounded body read under the shared progress floor instead of a
+    /// whole-response deadline.
+    async fn progressing_body(
+        &self,
+        response: reqwest::Response,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>> {
+        use futures_util::StreamExt;
+        let limit_error = || {
+            PortcoveError::verification(format!(
+                "{} exceeds the {max_bytes} byte limit",
+                self.label
+            ))
+            .detail("response_byte_limit", max_bytes.to_string())
+        };
+        if response
+            .content_length()
+            .is_some_and(|length| length > max_bytes as u64)
+        {
+            return Err(limit_error());
+        }
+        let mut progress = self.progress_watch();
+        let mut body = Vec::new();
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| transport(&error))?;
+            progress.record(chunk.len() as u64)?;
+            if chunk.len() > max_bytes.saturating_sub(body.len()) {
+                return Err(limit_error());
+            }
+            body.extend_from_slice(&chunk);
+        }
+        Ok(body)
+    }
+
+    pub(crate) fn library(&self) -> Option<&Library> {
+        self.library.as_ref()
+    }
+}
+
 fn transport(error: &reqwest::Error) -> PortcoveError {
     PortcoveError::from_transport(error)
 }

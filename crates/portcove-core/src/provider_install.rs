@@ -579,13 +579,13 @@ impl PortcoveService {
 
         let projects = match client {
             ProviderClient::Thunderstore { client, community } => {
-                let listing = client.community(community).await?;
+                let listing = client.community_catalog(community).await?;
                 if listing.freshness == ProviderFreshness::Stale {
                     return Err(PortcoveError::network(
                         "Thunderstore could not be reached; a plan needs a current observation",
                     ));
                 }
-                crate::thunderstore::resolve_dependencies(&listing.value, project_id, file_id)?
+                crate::thunderstore::resolve_dependencies(&listing.value.0, project_id, file_id)?
                     .into_iter()
                     .map(|(project, file)| (project.clone(), file.clone()))
                     .collect::<Vec<_>>()
