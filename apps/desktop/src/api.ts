@@ -535,28 +535,38 @@ export const desktopApi = {
   exportModRecipe: (portId: string, profileId: string, path: string, generation: number) =>
     invoke<void>("export_mod_recipe", { portId, profileId, path, generation }),
   inspectModRecipe: (portId: string, path: string, generation: number) =>
-    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
-      "inspect_mod_recipe",
-      {
-        portId,
-        path,
-        generation,
-      },
-    ),
+    invoke<import("./transport-types.generated").RecipeImportReview>("inspect_mod_recipe", {
+      portId,
+      path,
+      generation,
+    }),
   acquireModRecipePackage: (
     portId: string,
     profileId: string,
     nativeId: string,
-    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    review: import("./transport-types.generated").RecipeImportReview,
     generation: number,
   ) =>
-    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
-      "acquire_mod_recipe_package",
-      { portId, profileId, nativeId, serializedPlan: review.serialized_plan, generation },
+    invoke<import("./transport-types.generated").RecipeImportReview>("acquire_mod_recipe_package", {
+      portId,
+      profileId,
+      nativeId,
+      serializedPlan: review.serialized_plan,
+      generation,
+    }),
+  acquireModRecipePackages: (
+    portId: string,
+    profileId: string,
+    review: import("./transport-types.generated").RecipeImportReview,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputDesktopRecipeAcquisitionStep>(
+      "acquire_mod_recipe_packages",
+      { portId, profileId, serializedPlan: review.serialized_plan, generation },
     ),
   discardModRecipeReview: (
     portId: string,
-    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    review: import("./transport-types.generated").RecipeImportReview,
     generation: number,
   ) =>
     invoke<void>("discard_mod_recipe_review", {
@@ -567,7 +577,7 @@ export const desktopApi = {
   applyModRecipe: (
     portId: string,
     displayName: string,
-    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    review: import("./transport-types.generated").RecipeImportReview,
     generation: number,
     allowCode: boolean,
   ) =>

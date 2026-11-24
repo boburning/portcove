@@ -178,7 +178,6 @@ pub(crate) struct ExtractedPackages {
     pub files: Vec<std::path::PathBuf>,
     /// Entries that were not packages and were neither read nor written.
     pub ignored: usize,
-    pub extracted_bytes: u64,
 }
 
 const MAX_MEMBER_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -212,27 +211,21 @@ fn extract_packages_capped(
         extensions,
         max_total,
         MAX_MEMBERS,
-        1,
         None,
     )
 }
 
-/// Divides raw ZIP parser budgets across the wrappers known before extraction.
+/// Extracts one wrapper with the full raw ZIP parser budget. Wrappers of a
+/// closure are parsed one at a time, so each is its own unit of parser work.
 pub(crate) fn extract_provider_packages(
     archive: &Path,
     destination: &Path,
     extensions: &[&str],
     max_total: u64,
     max_members: usize,
-    wrappers: usize,
     manifest: Option<(&str, &crate::ProviderFileCandidate)>,
 ) -> Result<ExtractedPackages> {
-    let limits = zip_read::Limits {
-        entries: LIMITS.entries / wrappers,
-        metadata: LIMITS.metadata / wrappers as u64,
-        ..LIMITS
-    };
-    let mut zip = zip_read::open(File::open(archive)?, limits, &mut |_| Ok(()))
+    let mut zip = zip_read::open(File::open(archive)?, LIMITS, &mut |_| Ok(()))
         .map_err(|error| invalid(&error.message))?;
     let mut names = BTreeSet::new();
     let mut files = Vec::new();
@@ -329,11 +322,7 @@ pub(crate) fn extract_provider_packages(
             "the Thunderstore wrapper has no root manifest.json",
         ));
     }
-    Ok(ExtractedPackages {
-        files,
-        ignored,
-        extracted_bytes: extracted_total,
-    })
+    Ok(ExtractedPackages { files, ignored })
 }
 
 /// Finds asset paths several enabled packages provide. `ordered` lists

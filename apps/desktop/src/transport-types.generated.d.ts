@@ -1698,7 +1698,7 @@ export interface TransportOutputs {
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
   quaddicted_catalog: OutputQuaddictedCatalog;
-  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  recipe_acquisition_plan: OutputRecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -1791,7 +1791,8 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
-  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
+  desktop_recipe_acquisition_step: OutputDesktopRecipeAcquisitionStep;
+  desktop_recipe_import_review: RecipeImportReview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
@@ -6273,6 +6274,11 @@ export interface OutputModSetupsView {
    */
   last_automatic_checks?: ProviderAutoUpdateCheck[];
   /**
+   * The last automatic pass recorded results that cannot be shown whole, so
+   * `last_automatic_checks` is not a complete report of that pass.
+   */
+  last_automatic_checks_incomplete?: boolean;
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.
@@ -7460,14 +7466,19 @@ export interface QuaddictedInstallNotes {
 /**
  * Private provider staging bound to one exact recipe and expected package.
  */
-export interface RecipeAcquisitionPlan {
+export interface OutputRecipeAcquisitionPlan {
   native_id: string;
   provider_plan: ProviderInstallPlan;
   recipe_identity_sha256: string;
   [k: string]: unknown;
 }
+/**
+ * The provider files a recipe review has staged. Each provider plan is held
+ * once, however many of its members the recipe uses, so a shared closure
+ * costs its plan once in the review, its records and IPC.
+ */
 export interface RecipeImportPlan {
-  acquisitions?: RecipeAcquisitionPlan[];
+  acquisitions?: RecipeAcquisitionRef[];
   can_apply: boolean;
   code_approval?: RecipeCodeApproval[];
   /**
@@ -7485,6 +7496,7 @@ export interface RecipeImportPlan {
    * Missing packages with an exact coordinate that the player can check.
    */
   provider_checks?: string[];
+  provider_plans?: ProviderInstallPlan[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
   /**
@@ -7492,6 +7504,13 @@ export interface RecipeImportPlan {
    */
   verified_originals?: OriginalBinding[];
   [k: string]: unknown;
+}
+/**
+ * One staged recipe package and the provider plan (by digest) that holds it.
+ */
+export interface RecipeAcquisitionRef {
+  native_id: string;
+  plan_sha256: string;
 }
 export interface RecipeCodeApproval {
   native_id: string;
@@ -8628,11 +8647,35 @@ export interface PortMaintenance {
   [k: string]: unknown;
 }
 /**
+ * One bounded step of staging a recipe's missing packages.
+ */
+export interface OutputDesktopRecipeAcquisitionStep {
+  /**
+   * Packages this step staged, in order.
+   */
+  acquired: string[];
+  /**
+   * Set when the step stopped at a package it could not stage; earlier
+   * steps stay staged and are resumed by the next review of this recipe.
+   */
+  failure?: RecipeAcquisitionFailure | null;
+  review: RecipeImportReview;
+  [k: string]: unknown;
+}
+/**
+ * The package an acquisition batch stopped at, and why.
+ */
+export interface RecipeAcquisitionFailure {
+  message: string;
+  native_id: string;
+  [k: string]: unknown;
+}
+/**
  * A recipe review's display data and its exact Core-owned import plan.
  * JavaScript numbers cannot preserve every JSON number representation, so
  * only the unchanged serialized plan is sent back for Core to verify and use.
  */
-export interface OutputDesktopRecipeImportReview {
+export interface RecipeImportReview {
   plan: RecipeImportPlan;
   serialized_plan: string;
   /**

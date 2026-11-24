@@ -55,7 +55,9 @@ const SNAPSHOT_COMMUNITIES: usize = 4;
 /// largest community observed on November 23, 2026 was about 26 chunks of
 /// 14 MiB of JSON (about 364 MiB).
 const SNAPSHOT_MAX_SOURCE_BYTES: u64 = 512 * 1024 * 1024;
-const MAX_DEPENDENCIES: usize = 128;
+/// Direct requirements one version may declare. A modpack's requirements are
+/// packages of the setup it builds, so the shared setup capacity bounds them.
+const MAX_DEPENDENCIES: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
 
 /// Reviewed port → Thunderstore community bindings. A community's own listing is
 /// the only route; a package is never matched to a game by name.
@@ -926,93 +928,128 @@ fn parse_chunk(bytes: &[u8], community: &str, web_root: &str) -> Result<ChunkRea
 
 /// Exact provider files, with requirements before their dependants. The root
 /// file is last. Native requirements are established separately by inspection.
+///
+/// The closure is resolved completely: there is no closure size of its own,
+/// only the shared setup capacity, because a larger closure could not be
+/// installed into one setup anyway. The walk is iterative over an index built
+/// once, so its work is proportional to the listing plus the closure. A
+/// requirement the listing does not offer is an explicit failure naming that
+/// requirement; it is never treated as "no more dependencies".
 pub(crate) fn resolve_dependencies<'a>(
     listing: &'a [ProviderProject],
     project_id: &str,
     file_id: &str,
 ) -> Result<Vec<(&'a ProviderProject, &'a ProviderFileCandidate)>> {
-    const MAX_CLOSURE: usize = 64;
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-    struct Resolution<'a> {
-        listing: &'a [ProviderProject],
-        versions: std::collections::BTreeMap<String, String>,
-        visiting: std::collections::BTreeSet<String>,
-        files: Vec<(&'a ProviderProject, &'a ProviderFileCandidate)>,
+    struct Frame<'a> {
+        project: &'a ProviderProject,
+        file: &'a ProviderFileCandidate,
+        requirements: &'a [ThunderstoreDependency],
+        next: usize,
     }
 
-    impl<'a> Resolution<'a> {
-        fn visit(&mut self, project_id: &str, file_id: &str) -> Result<()> {
-            let with_coordinate = |error: PortcoveError| {
-                error
-                    .detail("project", project_id)
-                    .detail("version", file_id)
-            };
-            if let Some(existing) = self.versions.get(project_id) {
-                if existing != file_id {
-                    return Err(with_coordinate(
-                        PortcoveError::conflict(
-                            "Thunderstore requires two versions of the same package",
-                        )
-                        .detail("other_version", existing),
-                    ));
-                }
-                if self.visiting.contains(project_id) {
-                    return Err(with_coordinate(PortcoveError::conflict(
-                        "the Thunderstore package requirements form a cycle",
-                    )));
-                }
-                return Ok(());
+    let mut index = HashMap::<&str, Vec<&'a ProviderProject>>::new();
+    for project in listing {
+        index
+            .entry(project.project_id.as_str())
+            .or_default()
+            .push(project);
+    }
+    let mut versions = BTreeMap::<String, String>::new();
+    let mut on_path = BTreeSet::<String>::new();
+    let mut files = Vec::new();
+    // Returns the frame to walk next, or None when this exact version is done.
+    let enter = |project_id: &str,
+                 file_id: &str,
+                 versions: &mut BTreeMap<String, String>,
+                 on_path: &mut BTreeSet<String>|
+     -> Result<Option<Frame<'a>>> {
+        let with_coordinate = |error: PortcoveError| {
+            error
+                .detail("project", project_id)
+                .detail("version", file_id)
+        };
+        if let Some(existing) = versions.get(project_id) {
+            if existing != file_id {
+                return Err(with_coordinate(
+                    PortcoveError::conflict(
+                        "Thunderstore requires two versions of the same package",
+                    )
+                    .detail("other_version", existing),
+                ));
             }
-            if self.versions.len() >= MAX_CLOSURE {
-                return Err(with_coordinate(PortcoveError::unsupported(
-                    "the Thunderstore dependency closure exceeds the supported size",
+            if on_path.contains(project_id) {
+                return Err(with_coordinate(PortcoveError::conflict(
+                    "the Thunderstore package requirements form a cycle",
                 )));
             }
-            let project = exact_listing_entry(
-                self.listing
-                    .iter()
-                    .filter(|entry| entry.project_id == project_id),
-                &with_coordinate,
+            return Ok(None);
+        }
+        if versions.len() >= crate::setup_capacity::MAX_SETUP_PACKAGES {
+            return Err(with_coordinate(
+                PortcoveError::unsupported(
+                    "the Thunderstore dependency closure has more packages than one setup can hold",
+                )
+                .detail(
+                    "setup_capacity",
+                    crate::setup_capacity::MAX_SETUP_PACKAGES.to_string(),
+                ),
+            ));
+        }
+        let project = exact_listing_entry(
+            index.get(project_id).into_iter().flatten().copied(),
+            &with_coordinate,
+        )?;
+        let file = exact_listing_entry(
+            project.files.iter().filter(|file| file.file_id == file_id),
+            &with_coordinate,
+        )?;
+        if project.status_unknown.is_some() || file.status_unknown.is_some() {
+            return Err(with_coordinate(PortcoveError::verification(
+                crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
+            )));
+        }
+        if project.obsolete || file.archived {
+            return Err(with_coordinate(PortcoveError::unsupported(
+                "the exact Thunderstore package version is no longer offered",
+            )));
+        }
+        let requirements = file.thunderstore_dependencies.as_deref().ok_or_else(|| {
+            with_coordinate(PortcoveError::verification(
+                "the exact Thunderstore package version has unreadable dependency metadata",
+            ))
+        })?;
+        versions.insert(project_id.into(), file_id.into());
+        on_path.insert(project_id.into());
+        Ok(Some(Frame {
+            project,
+            file,
+            requirements,
+            next: 0,
+        }))
+    };
+
+    let mut stack = Vec::new();
+    stack.extend(enter(project_id, file_id, &mut versions, &mut on_path)?);
+    while let Some(frame) = stack.last_mut() {
+        if let Some(requirement) = frame.requirements.get(frame.next) {
+            frame.next += 1;
+            let required_project = format!("{}-{}", requirement.namespace, requirement.package);
+            let next = enter(
+                &required_project,
+                &requirement.version,
+                &mut versions,
+                &mut on_path,
             )?;
-            let file = exact_listing_entry(
-                project.files.iter().filter(|file| file.file_id == file_id),
-                &with_coordinate,
-            )?;
-            if project.status_unknown.is_some() || file.status_unknown.is_some() {
-                return Err(with_coordinate(PortcoveError::verification(
-                    crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
-                )));
-            }
-            if project.obsolete || file.archived {
-                return Err(with_coordinate(PortcoveError::unsupported(
-                    "the exact Thunderstore package version is no longer offered",
-                )));
-            }
-            let requirements = file.thunderstore_dependencies.as_deref().ok_or_else(|| {
-                with_coordinate(PortcoveError::verification(
-                    "the exact Thunderstore package version has unreadable dependency metadata",
-                ))
-            })?;
-            self.versions.insert(project_id.into(), file_id.into());
-            self.visiting.insert(project_id.into());
-            for requirement in requirements {
-                let required_project = format!("{}-{}", requirement.namespace, requirement.package);
-                self.visit(&required_project, &requirement.version)?;
-            }
-            self.visiting.remove(project_id);
-            self.files.push((project, file));
-            Ok(())
+            stack.extend(next);
+        } else {
+            let done = stack.pop().expect("the stack has a frame");
+            on_path.remove(&done.project.project_id);
+            files.push((done.project, done.file));
         }
     }
-
-    let mut resolution = Resolution {
-        listing,
-        versions: Default::default(),
-        visiting: Default::default(),
-        files: Vec::new(),
-    };
-    resolution.visit(project_id, file_id)?;
-    Ok(resolution.files)
+    Ok(files)
 }
 
 fn exact_listing_entry<T>(

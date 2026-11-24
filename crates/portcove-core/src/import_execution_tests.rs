@@ -1750,3 +1750,148 @@ fn transfer_capacity_reserves_the_actual_journal_size_beyond_the_old_flat_reserv
         crate::library_metadata_document::transfer_reserve(&metadata, &content, 2).unwrap();
     assert_eq!(reserve, 2 * journal + 1024 * 1024);
 }
+
+/// One setup at `packages` packages, saved `revisions` times: the history a
+/// player accumulates by editing a large setup. Every revision is kept and
+/// exported; none is pruned.
+fn add_setup_with_history(root: &Path, install_id: &str, packages: usize, revisions: u64) {
+    let library = Library::open(root).unwrap();
+    let install = library
+        .all_installs()
+        .unwrap()
+        .into_iter()
+        .find(|install| install.id == install_id)
+        .unwrap();
+    let build = crate::install::retained_build_identity_for_install(&install).unwrap();
+    let mut connection = library.connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    let mut profile = crate::profile::new_profile("starship", "Large setup", false);
+    profile.current_revision = revisions;
+    let save_group = uuid::Uuid::new_v4().to_string();
+    let references = (1..=revisions)
+        .map(|revision| crate::RetainedBuildReference {
+            id: uuid::Uuid::new_v4().to_string(),
+            setup_id: profile.id.clone(),
+            revision,
+            build: build.clone(),
+            history: Vec::new(),
+            created_at: 1,
+            updated_at: 1,
+        })
+        .collect::<Vec<_>>();
+    crate::retained_build::restore_references(&transaction, &references).unwrap();
+    crate::profile::write_profile(&transaction, &profile).unwrap();
+    for revision in 1..=revisions {
+        let mut record = crate::ProfileRevision {
+            profile_id: profile.id.clone(),
+            revision,
+            parent_revision: revision.checked_sub(1).filter(|parent| *parent > 0),
+            build: build.clone(),
+            originals: Vec::new(),
+            loader: None,
+            // Each save toggles one package, as an edit of a large setup does.
+            packages: (0..packages)
+                .map(|index| crate::ResolvedPackage {
+                    native_id: format!("mod-{index:05}.o2r"),
+                    native_version: Some("1.0.0".into()),
+                    provider: None,
+                    sha256: format!("{index:064x}"),
+                    size: 1024,
+                    enabled: index as u64 != revision,
+                    requires: Vec::new(),
+                    provider_requires: Vec::new(),
+                })
+                .collect(),
+            recomp_companion_sets_v1: None,
+            orderings: Vec::new(),
+            settings: Default::default(),
+            save_group: save_group.clone(),
+            limits: Vec::new(),
+            created_at: revision as i64,
+            digest: String::new(),
+        };
+        crate::profile::seal(&mut record).unwrap();
+        crate::profile::write_revision(&transaction, &record).unwrap();
+    }
+    transaction.commit().unwrap();
+}
+
+#[test]
+fn accumulated_setup_history_is_refused_early_by_the_admission_budget_and_round_trips_when_it_fits()
+{
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let bundle = temp.path().join("bundle");
+    drop(fixture_library(&source, &[("active", false)]));
+    // 1,000 packages saved 12 times: past every former per-setup bound, within
+    // the shared capacity and the stored revision budget.
+    add_setup_with_history(&source, "active", 1_000, 12);
+    let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+    let document =
+        crate::library_metadata_document::digest(&service.export_library_metadata().unwrap())
+            .unwrap()
+            .size;
+    // The history alone is about 3 MiB of metadata.
+    assert!(document > 2 * 1024 * 1024, "{document}");
+
+    let refused_with_reason = |error: crate::PortcoveError| {
+        assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error:?}");
+        assert_eq!(
+            error.failure.mutation_state,
+            crate::MutationState::NoChanges
+        );
+        assert_eq!(error.details["admission_basis"], "physical_memory_div_32");
+        assert!(error.details.contains_key("document_bytes"), "{error:?}");
+    };
+    let tight = document / 2;
+
+    // Too much history for the budget: every stage refuses before it changes
+    // anything, naming the document size, the budget and its basis.
+    crate::library_metadata_document::with_admission_budget(tight, || {
+        refused_with_reason(service.write_library_metadata(&export).unwrap_err());
+        assert!(!export.exists());
+        refused_with_reason(service.plan_library_recovery_bundle(&bundle).unwrap_err());
+        assert!(!bundle.exists());
+    });
+
+    // Within the budget the same history exports, imports completely and is
+    // admitted for a recovery bundle.
+    let fits = document + 1024 * 1024;
+    let destination = temp.path().join("destination");
+    let metadata = crate::library_metadata_document::with_admission_budget(fits, || {
+        let written = service.write_library_metadata(&export).unwrap();
+        assert_eq!(written.size, document);
+        let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+        start_import(&export, &source, &destination, &plan.plan_sha256, &|_| {
+            Ok(())
+        })
+        .unwrap();
+        service.plan_library_recovery_bundle(&bundle).unwrap();
+        crate::library_import::read_metadata(&export).unwrap().1
+    });
+    let restored = Library::open(&destination).unwrap();
+    let connection = restored.connection().unwrap();
+    let profiles = crate::profile::export(&connection).unwrap();
+    assert_eq!(profiles, metadata.profiles);
+    let setup = profiles
+        .iter()
+        .find(|setup| setup.profile.display_name == "Large setup")
+        .unwrap();
+    assert_eq!(setup.revisions.len(), 12);
+    assert!(
+        setup
+            .revisions
+            .iter()
+            .all(|revision| revision.packages.len() == 1_000)
+    );
+
+    // The export, read back on a machine with less memory, is refused before it is decoded.
+    crate::library_metadata_document::with_admission_budget(tight, || {
+        refused_with_reason(
+            PortcoveService::plan_library_import(&export, &source, &temp.path().join("other"))
+                .unwrap_err(),
+        );
+    });
+    assert!(!temp.path().join("other").exists());
+}
