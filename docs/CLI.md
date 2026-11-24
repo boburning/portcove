@@ -2014,7 +2014,7 @@ include more than progress saves; it is separate from original game files,
 installed versions and a metadata export. These labels change neither command
 names nor the versioned JSON/JSONL fields.
 
-`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` prepares or keeps the eligible version for later without switching versions, downloading only when needed, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
+`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. It starts with the least recently checked or attempted ports. A port a provider request limit stopped is not checked: its outcome has `ok: false` and a `deferred` object (`resets_at` in Unix seconds when known, and `reset_reported`, false when Portcove estimated it), its update state stays unknown, and the next `check --all` starts with it. The human summary counts those ports separately. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` prepares or keeps the eligible version for later without switching versions, downloading only when needed, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
 
 Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation.
 
@@ -3008,9 +3008,12 @@ as partial. **Installed mods** lists the applied packages in load order, includi
 disabled packages. Queued additions and edits stay separate until **Apply changes**.
 **Review changes** binds the preview to the selected setup and base revision and
 shows the combined order and overlaps. Applying publishes one successor, with
-explicit permission for reviewed files that run code. The draft keeps file choices
-and edits. Private download staging belongs to the review and is discarded when
-the review closes. Setup history restores the selected revision's mods and retains
+explicit permission for reviewed files that run code. A draft can queue as many
+files as one setup holds under the
+[supported setup contract](ARCHITECTURE.md#supported-setup-contract); the review
+admits the package-store copy against free space before anything changes. The
+draft keeps file choices and edits. Private download staging belongs to the
+review and is discarded when the review closes. Setup history restores the selected revision's mods and retains
 the setup's current save group.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
@@ -3046,8 +3049,11 @@ manifest must agree with the exact listing. The plan lists each wrapper's
 coordinate, computed digest and complete native member set. It refuses missing
 or ambiguous versions, incompatible version requests, cycles and wrappers with
 no supported packages. A native filename, installed label or bundled mod cannot
-stand in for an exact provider wrapper. The plan bounds the aggregate downloads
-and extraction, and the combined closure receives one confirmation. Any newly
+stand in for an exact provider wrapper. The closure is resolved completely; its
+only size bound is the 4,096-package
+[setup contract](ARCHITECTURE.md#supported-setup-contract). Each wrapper has its
+own download and extraction budget and is admitted against free space before
+download, and the combined closure receives one confirmation. Any newly
 reviewed mod code in that closure requires explicit permission.
 
 A Thunderstore `provider-plan` now includes the complete `wrappers` review,
@@ -3118,7 +3124,9 @@ keys and files, unrelated built-ins, and ordinary preferences stay in the
 profile’s mutable native data. For a supported option a malformed live value
 holds reconciliation and lists the affected setting for review.
 
-`recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
+`recipe-inspect` is local: no provider account, no network, bounded to 32 MiB
+and to the [supported setup contract](ARCHITECTURE.md#supported-setup-contract)
+of 4,096 packages. It
 refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
 forged identity digest, unsafe package names, missing dependencies and dependency
 cycles. Export applies the same rules, so a profile with, for example, an enabled
@@ -3132,8 +3140,19 @@ detail gives the exact project and file. Choose Check provider in Desktop or run
 The private review checks the exact downloaded package name, size, digest and
 loader identity. Supply the resulting JSON to `recipe-plan` and `recipe-apply` using
 a repeatable `--acquisition`. Earlier results can also be supplied to
-`recipe-acquire` to reuse a previously checked wrapper. Close the Desktop review
-or run `recipe-discard` to release private staging. For originals, register the
+`recipe-acquire` to reuse a previously checked wrapper. A recipe review has no
+count or combined-size limit of its own: each provider file is admitted against
+free space, and Desktop's Check the provider for every missing mod stages the
+missing packages in bounded steps until none remain. Each staged package is
+recorded beside its private staging, so `recipe-plan`, `recipe-apply` and
+Desktop's next review of the same recipe resume with the packages already
+checked, also after a restart. Each provider file's plan is recorded and held
+in the review once, however many recipe packages it supplies, and a review whose
+provider plans would exceed 64 MiB is refused with that reason. Using a review
+keeps its staging from the daily cleanup of abandoned staging; a review with
+recorded steps that nobody reopens is removed after 30 days. A staged package whose bytes changed is released when apply finds it
+and shows as missing again. Close the Desktop review or run `recipe-discard` to
+release private staging. For originals, register the
 lawful local input in the game's existing setup workflow and inspect again.
 The plan also holds for a different platform, an original requirement the game
 does not use, or an unregistered, unreadable or changed original. The plan
@@ -3254,6 +3273,9 @@ check that field before treating empty game work as a completed game assessment.
 Earlier clients returned an error for that queue failure before checking mods. The
 `profile setups` field `last_automatic_checks` may be absent when there is no
 receipt to show. It provides status for review and grants no update permission.
+When the stored results of the last automatic pass cannot be read in full,
+`last_automatic_checks_incomplete` is `true` and the text output says so; the
+next automatic pass records them again.
 
 In Desktop, use **Setups and mods** to choose the current setup's mod update
 policy or check for a newer file. An explicit check reads provider metadata and

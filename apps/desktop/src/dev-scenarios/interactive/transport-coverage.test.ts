@@ -25,7 +25,7 @@ const unsupportedByReason: Record<string, string[]> = {
     choose_steamgriddb_artwork check_steamgriddb_listings set_steamgriddb_key
     clear_steamgriddb_key
     export_portable_saves import_portable_saves export_mod_recipe apply_mod_recipe
-    acquire_mod_recipe_package discard_mod_recipe_review
+    acquire_mod_recipe_package acquire_mod_recipe_packages discard_mod_recipe_review
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package apply_local_mod_package
     add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_settings_change_set apply_game_update apply_steam_batch_add

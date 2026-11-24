@@ -50,6 +50,7 @@ import type {
   UpdateCheck,
   UpdateCheckOutcome,
 } from "../types";
+import { useAppTranslation } from "../localization";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
 import { useEffect, useId, useRef, useState } from "react";
@@ -260,8 +261,20 @@ function useUpdateCenter({
     0,
     ...installed.map((port) => savedByPort.get(port.id)?.checked_at ?? 0),
   );
-  const failed = outcomes.filter((outcome) => !outcome.ok).length;
-  const failedInstalled = installed.filter((port) => byPort.get(port.id)?.ok === false).length;
+  // A deferred outcome was not checked: a provider request limit stopped it. Its update
+  // state is unknown, not failed, and Core resumes it first on the next check.
+  const failed = outcomes.filter((outcome) => !outcome.ok && !outcome.deferred).length;
+  const failedInstalled = installed.filter((port) => {
+    const outcome = byPort.get(port.id);
+    return outcome?.ok === false && !outcome.deferred;
+  }).length;
+  const deferredInstalled = installed
+    .map((port) => byPort.get(port.id))
+    .filter((outcome) => outcome?.ok === false && outcome.deferred);
+  const deferredResets = deferredInstalled
+    .map((outcome) => outcome?.deferred)
+    .filter((deferral) => typeof deferral?.resets_at === "number")
+    .sort((left, right) => (right?.resets_at ?? 0) - (left?.resets_at ?? 0))[0];
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   const renderStatistics = () => (
     <div className="update-stats grid grid-cols-4">
@@ -340,6 +353,8 @@ function useUpdateCenter({
     complete,
     failed,
     failedInstalled,
+    deferredInstalled: deferredInstalled.length,
+    deferredResets,
     latestSavedCheck,
     renderStatistics,
   };
@@ -380,6 +395,12 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
             {model.checked.length} of {model.installed.length} installed{" "}
             {model.installed.length === 1 ? "port" : "ports"}.
             {!model.complete && " Unchecked or failed ports may still have updates."}
+            {model.deferredInstalled > 0 && (
+              <>
+                {" "}
+                <DeferralSummary count={model.deferredInstalled} deferral={model.deferredResets} />
+              </>
+            )}
             {model.latestSavedCheck > 0 &&
               ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
           </p>
@@ -553,7 +574,67 @@ function renderInstalledUpdateDetails({ model, port, status, outcome }: Installe
   );
 }
 
+/** The reset sentence for a deferral: reported, estimated by Portcove, or unknown. */
+type UpdateCheckDeferral = NonNullable<UpdateCheckOutcome["deferred"]>;
+
+function DeferralReset({ deferral }: { deferral?: UpdateCheckDeferral | null | undefined }) {
+  const { t } = useAppTranslation("gameUpdates");
+  if (typeof deferral?.resets_at !== "number") return t("deferral.resetUnknown");
+  const time = formatActivityTime(deferral.resets_at);
+  return deferral.reset_reported
+    ? t("deferral.resets", { time })
+    : t("deferral.resetsEstimated", { time });
+}
+
+function DeferralSummary({
+  count,
+  deferral,
+}: {
+  count: number;
+  deferral?: UpdateCheckDeferral | null | undefined;
+}) {
+  const { t } = useAppTranslation("gameUpdates");
+  return (
+    <>
+      {t("deferral.summary", { count })} <DeferralReset deferral={deferral} />
+    </>
+  );
+}
+
+/**
+ * A deferred check is unknown, never a failure: a muted note, with the provider's
+ * refusal kept only inside the technical details.
+ */
+function DeferredRowNote({
+  port,
+  outcome,
+  failure,
+}: Pick<InstalledUpdateRowContext, "port" | "outcome" | "failure">) {
+  const { t } = useAppTranslation("gameUpdates");
+  return (
+    <section
+      aria-label={t("deferral.rowLabel", { port: port.name })}
+      data-update-check-deferred={port.id}
+      className="col-span-full min-w-0 rounded-pc-md border border-pc-border px-3 py-2 text-xs break-words text-pc-muted-foreground"
+    >
+      <p>
+        {t("deferral.rowNote")} <DeferralReset deferral={outcome?.deferred} />
+      </p>
+      {failure && outcome?.error && (
+        <FailureDetails
+          key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+          presentation={failure}
+          code={outcome.error.code}
+          showMutationSummary={false}
+        />
+      )}
+    </section>
+  );
+}
+
 function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdateRowContext) {
+  if (outcome && !outcome.ok && outcome.deferred)
+    return <DeferredRowNote port={port} outcome={outcome} failure={failure} />;
   return (
     outcome?.error && (
       <section
@@ -577,6 +658,39 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
 
 type UpdateCenterModel = ReturnType<typeof useUpdateCenter>;
 
+/**
+ * An update check a provider request limit stopped (including a list a limit cut
+ * short) learned nothing about the game: it is not checked, never a failure that
+ * needs attention. Core leaves it out of the attention ids for the same reason.
+ */
+function uncheckedReason(activity: ActivityRecord) {
+  return activity.operation === "check_update" &&
+    activity.status === "failed" &&
+    activity.failure?.presentation.presentation_key === "provider_rate_limited"
+    ? "Not checked: request limit"
+    : undefined;
+}
+
+/**
+ * A check whose provider list stopped for another reason stays a visible problem
+ * (it may keep happening), named the same in its row and in the activity history.
+ */
+const checkIncompleteLabel = "Check incomplete";
+
+function isIncompleteCheck(presentationKey: string | undefined) {
+  return presentationKey === "inventory_incomplete";
+}
+
+/** A failed activity that needs attention, or one with a recorded failure. */
+function needsActivityAttention(activity: ActivityRecord, nowSeconds: number) {
+  if (uncheckedReason(activity)) return false;
+  return (
+    ["running", "unfinished", "failed", "unknown"].includes(
+      activityPresentationState(activity, nowSeconds),
+    ) || Boolean(activity.failure)
+  );
+}
+
 function countActivityTasks(model: UpdateCenterModel) {
   const feed = model.activityFeed;
   return new Set([
@@ -584,12 +698,7 @@ function countActivityTasks(model: UpdateCenterModel) {
     ...(feed?.attention_required_activity_ids ?? []),
     ...(feed?.recovery_required_activity_ids ?? []),
     ...model.activities
-      .filter(
-        (activity) =>
-          ["running", "unfinished", "failed", "unknown"].includes(
-            activityPresentationState(activity, model.nowSeconds),
-          ) || Boolean(activity.failure),
-      )
+      .filter((activity) => needsActivityAttention(activity, model.nowSeconds))
       .map((activity) => activity.id),
   ]).size;
 }
@@ -981,7 +1090,16 @@ function UpdateBatchNotice({ read }: { read?: UpdateBatchRead | undefined }) {
 }
 
 function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) {
-  if (!check) return outcome ? (outcome.ok ? "Unavailable" : "Check failed") : "Not checked";
+  if (!check)
+    return outcome
+      ? outcome.ok
+        ? "Unavailable"
+        : outcome.deferred
+          ? "Not checked"
+          : isIncompleteCheck(outcome.error?.presentation.presentation_key)
+            ? checkIncompleteLabel
+            : "Check failed"
+      : "Not checked";
   const runtimeOnly =
     check.update_available &&
     check.installed_artifact?.sha256 === check.release.asset.sha256 &&
@@ -1041,10 +1159,7 @@ function ActivityHistory({
   ]);
   const inTasks = (activity: ActivityRecord) =>
     protectedIds.has(activity.id) ||
-    ["running", "unfinished", "failed", "unknown"].includes(
-      activityPresentationState(activity, nowSeconds),
-    ) ||
-    Boolean(activity.failure) ||
+    needsActivityAttention(activity, nowSeconds) ||
     activity.id === reviewedActivityId ||
     activity.id === focusedActivityId;
   const visibleInMode = (activity: ActivityRecord) =>
@@ -1494,7 +1609,26 @@ const terminalActivityPresentations: ReadonlyMap<
 ]);
 
 function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
+  const unchecked = uncheckedReason(activity);
+  if (unchecked)
+    return {
+      state: "not-checked",
+      label: unchecked,
+      icon: CircleMinus,
+      time: `Started ${formatActivityTime(activity.started_at)}`,
+    };
   const state = activityPresentationState(activity, nowSeconds);
+  if (
+    state === "failed" &&
+    activity.operation === "check_update" &&
+    isIncompleteCheck(activity.failure?.presentation.presentation_key)
+  )
+    return {
+      state: "failed",
+      label: checkIncompleteLabel,
+      icon: AlertTriangle,
+      time: `Started ${formatActivityTime(activity.started_at)}`,
+    };
   if (state !== "running" && state !== "unfinished") {
     const presentation = terminalActivityPresentations.get(state) ?? {
       state: "unknown",
@@ -1581,6 +1715,16 @@ function updateState(
     if (savedCheck) return { label: "No update found at last check", tone: "current" };
     return { label: "Not checked", tone: "muted" };
   }
+  if (!outcome.ok && outcome.deferred)
+    return {
+      label: earlier ? "Not checked at last check: request limit" : "Not checked: request limit",
+      tone: "muted",
+    };
+  if (!outcome.ok && isIncompleteCheck(outcome.error?.presentation.presentation_key))
+    return {
+      label: earlier ? `Earlier: ${checkIncompleteLabel.toLowerCase()}` : checkIncompleteLabel,
+      tone: "failed",
+    };
   if (!outcome.ok)
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
   if (status.staged) return { label: "Update saved for later", tone: "staged" };

@@ -482,3 +482,200 @@ async fn provider_plan_refuses_unconfirmed_archival_status_before_download() {
     assert!(requests.recv().unwrap().contains("Mod/42"));
     assert!(requests.try_recv().is_err());
 }
+
+#[tokio::test]
+async fn a_closure_that_would_overfill_the_setup_is_refused_before_download() {
+    let w = world();
+    let capacity = crate::setup_capacity::MAX_SETUP_PACKAGES;
+    let packages = (0..capacity)
+        .map(|index| crate::ResolvedPackage {
+            native_id: format!("held-{index:04}.o2r"),
+            native_version: None,
+            provider: None,
+            sha256: format!("{index:064x}"),
+            size: 1,
+            enabled: false,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        })
+        .collect();
+    let current = w
+        .service
+        .profile_revisions("starship", &w.profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    w.service
+        .create_profile_revision(
+            "starship",
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    // Only the project observation is served: a download request would fail.
+    let (root, requests, server) =
+        serve_http_bytes(vec![json_response(&project_body(777, 10, "pack.zip", 10))]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let refused = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(refused.code, ErrorCode::Unsupported);
+    assert_eq!(refused.details["setup_packages"], capacity.to_string());
+    assert_eq!(requests.try_iter().count(), 1, "nothing was downloaded");
+}
+
+fn stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, bytes) in entries {
+        writer
+            .start_file(
+                *name,
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored),
+            )
+            .unwrap();
+        writer.write_all(bytes).unwrap();
+    }
+    writer.finish().unwrap().into_inner()
+}
+
+fn bytes_under(path: &Path) -> u64 {
+    fs::read_dir(path)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|entry| match entry.metadata() {
+                    Ok(metadata) if metadata.is_dir() => bytes_under(&entry.path()),
+                    Ok(metadata) => metadata.len(),
+                    Err(_) => 0,
+                })
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+#[tokio::test]
+async fn extraction_cannot_use_space_the_downloaded_archive_still_holds() {
+    // A small download that expands to a large package: the archive keeps its
+    // bytes until extraction ends, so extraction gets only what is left.
+    let large = stored_zip(&[("objects/large.bin", &vec![0u8; 1024 * 1024])]);
+    let payload = zip_bytes(&[("large.o2r", &large)]);
+    let (download, extracted) = (payload.len() as u64, large.len() as u64);
+    assert!(extracted > 8 * download, "{extracted} vs {download}");
+
+    for (spare, fits) in [
+        // Room for the package alone, not for the package and the archive:
+        // measuring before the download would have let extraction into the
+        // reserve.
+        (extracted + download / 2, false),
+        (extracted + download + 64 * 1024, true),
+    ] {
+        let w = world();
+        let tmp = w.service.deploy_layout("starship").unwrap().tmp();
+        let _space = {
+            let tmp = tmp.clone();
+            crate::setup_capacity::override_available_space(move |_| {
+                (crate::setup_capacity::TEST_STAGING_RESERVE_BYTES + spare)
+                    .saturating_sub(bytes_under(&tmp))
+            })
+        };
+        let (root, server) = serve(777, "pack.zip", &payload);
+        let client = GameBananaClient::with_roots(&root, None).unwrap();
+        let result = w
+            .service
+            .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+            .await;
+        server.join().unwrap();
+        match (fits, result) {
+            (true, Ok(plan)) => assert_eq!(plan.members[0].file_name, "large.o2r"),
+            (false, Err(_)) => assert_eq!(bytes_under(&tmp), 0, "nothing stays staged"),
+            (fits, result) => panic!("spare {spare}, fits {fits}: {result:?}"),
+        }
+        assert!(live_mods(&w).is_empty());
+    }
+}
+
+#[tokio::test]
+async fn a_setup_at_capacity_can_update_a_mod_it_holds_after_review() {
+    let w = world();
+    let install = |file_id: u64, bytes: &'static [u8]| {
+        let payload = zip_bytes(&[("hd-link.o2r", &o2r(&[("objects/link.bin", bytes)]))]);
+        let (root, _requests, server) = serve_http_bytes(vec![
+            json_response(&project_body(777, file_id, "pack.zip", payload.len())),
+            redirect(),
+            file_response(&payload),
+        ]);
+        (root, server)
+    };
+    let (root, server) = install(10, b"v1");
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let token = w.service.authorize_provider_install(&plan).unwrap().token;
+    w.service.apply_provider_install(&plan, &token).unwrap();
+
+    let capacity = crate::setup_capacity::MAX_SETUP_PACKAGES;
+    let current = w
+        .service
+        .profile_revisions("starship", &w.profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let mut packages = current.packages.clone();
+    packages.extend(
+        (packages.len()..capacity).map(|index| crate::ResolvedPackage {
+            native_id: format!("held-{index:04}.o2r"),
+            native_version: None,
+            provider: None,
+            sha256: format!("{index:064x}"),
+            size: 1,
+            enabled: false,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        }),
+    );
+    w.service
+        .create_profile_revision(
+            "starship",
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+    // The newer file replaces the package the setup already holds.
+    let (root, server) = install(11, b"v2");
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 11)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let token = w.service.authorize_provider_install(&plan).unwrap().token;
+    let revision = w.service.apply_provider_install(&plan, &token).unwrap();
+    assert_eq!(revision.packages.len(), capacity);
+    let updated = revision
+        .packages
+        .iter()
+        .find(|package| package.native_id == "hd-link.o2r")
+        .unwrap();
+    assert_eq!(
+        updated.provider.as_ref().unwrap().file.as_deref(),
+        Some("11")
+    );
+}
