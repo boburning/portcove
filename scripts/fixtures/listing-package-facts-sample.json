@@ -1,5 +1,5 @@
 {
-  "format": 12,
+  "format": 17,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -8,8 +8,15 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
+      "listing_words": [
+        "a",
+        "game",
+        "sample",
+        "windows",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -27,7 +34,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -82,7 +92,11 @@
           ],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -91,8 +105,16 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
+      "listing_words": [
+        "b",
+        "game",
+        "only",
+        "patcher",
+        "sample",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -110,7 +132,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -151,7 +176,11 @@
           ],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -160,8 +189,16 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
+      "listing_words": [
+        "archive",
+        "c",
+        "game",
+        "patcher",
+        "sample",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -179,7 +216,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -219,7 +259,11 @@
           "excluded_players": [],
           "contradictory": true,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -228,8 +272,15 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
+      "listing_words": [
+        "d",
+        "game",
+        "sample",
+        "several",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -247,7 +298,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -293,7 +347,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -302,8 +360,15 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
+      "listing_words": [
+        "e",
+        "game",
+        "recomp",
+        "sample",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -321,7 +386,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -361,7 +429,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -370,8 +442,15 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
+      "listing_words": [
+        "f",
+        "game",
+        "linux",
+        "sample",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -389,7 +468,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -429,7 +511,11 @@
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     },
@@ -438,8 +524,15 @@
       "provider": "github",
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
+      "listing_words": [
+        "g",
+        "game",
+        "mac",
+        "sample",
+        "zz"
+      ],
       "parser": "listing-package-facts",
-      "parser_version": 16,
+      "parser_version": 23,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -457,7 +550,10 @@
           "tag": "v1.0",
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
-          "packaged": true
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
         }
       ],
       "other_packages": [],
@@ -488,19 +584,23 @@
           },
           "players": [
             {
-              "path": "unseen.app/contents/macos/unseen",
-              "display_path": "Unseen.app/Contents/MacOS/Unseen",
+              "path": "game.app/contents/macos/game",
+              "display_path": "Game.app/Contents/MacOS/Game",
               "machine": "macho-universal-arm64+x86-64",
-              "sha256": "73f4ffd4877d1d651e1dc3c5463b30abc2f7869793023ce4ae3e1ccfb06c7047"
+              "sha256": "54b7c060bf61626dde587b74e0699a289c749aa168d89b48c48ccead7e56e770"
             }
           ],
           "excluded_players": [],
           "contradictory": false,
           "toolchain_names": [],
-          "bundled_toolchain": []
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 0,
+            "source_leaves": 0
+          }
         }
       ]
     }
   ],
-  "entries_sha256": "9014ec0a0658d98db0b8d1ceda4f011eac3559f8edfbba86b94057ec5596bc55"
+  "entries_sha256": "2f2fa9f50edd441df8d80ed0c2024b9278fd6253219e5371b34b954e4b4142b5"
 }

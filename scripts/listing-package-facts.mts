@@ -94,6 +94,9 @@ import {
   bundledToolchain,
   toolchainNames,
   channelOnlyTag,
+  listingCounts,
+  listingWords,
+  textStatement,
   failureCauses,
   compareCodePoints,
   type FailureCause,
@@ -164,6 +167,12 @@ export interface ObservedRelease {
   assets: ObservedAsset[];
   /** Asset records in this release the worker cannot read; never dropped silently. */
   malformed_assets: number;
+  /**
+   * The release's own text as the observer reported it (its name and body),
+   * or null when the report carries neither field: UNKNOWN optional
+   * evidence. Only `textStatement` reads the body; it is never recorded.
+   */
+  text: { title: string | null; body: string | null } | null;
 }
 /**
  * A failed inspection. `permanent` failures are not retried for this release:
@@ -383,6 +392,13 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
               published_at: typeof release.published_at === "string" ? release.published_at : null,
               provider_prerelease: release.provider_prerelease === true,
               assets_complete: release.assets_complete === true,
+              text:
+                Object.hasOwn(release, "name") || Object.hasOwn(release, "body")
+                  ? {
+                      title: typeof release.name === "string" ? release.name : null,
+                      body: typeof release.body === "string" ? release.body : null,
+                    }
+                  : null,
               malformed_assets: release.assets.filter((asset: unknown) => !readableAsset(asset))
                 .length,
               assets: release.assets.flatMap((asset: unknown) =>
@@ -504,6 +520,8 @@ export const containerNames = (release: ObservedRelease | undefined) =>
 export const observedReleaseFacts = (
   releases: readonly ObservedRelease[],
   prerelease: (release: ObservedRelease) => boolean | undefined,
+  repository: string,
+  listing: readonly string[] = [],
 ): ObservedReleaseFact[] =>
   releases
     .toSorted((left, right) => left.id - right.id)
@@ -515,8 +533,28 @@ export const observedReleaseFacts = (
         prerelease: prerelease(release) ?? null,
         published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
         packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
+        ...releaseTextFacts(release, repository, listing),
       };
     });
+/**
+ * What the facts record of a release's own text: whether the observer
+ * reported it, the title when it is bounded printable text (`recordedTag`'s
+ * class), and the prerelease statement the title or the body's first line
+ * makes (`textStatement`, with the listing's own words, `listingWords`).
+ * The body is never recorded.
+ */
+export const releaseTextFacts = (
+  release: ObservedRelease,
+  repository: string,
+  listing: readonly string[] = [],
+): Pick<ObservedReleaseFact, "text" | "title" | "statement"> =>
+  release.text === null
+    ? { text: "unobserved", title: null, statement: null }
+    : {
+        text: "observed",
+        title: release.text.title === null ? null : recordedTag(release.text.title),
+        statement: textStatement(release.text.title, release.text.body, repository, listing),
+      };
 /**
  * The releases a listing observation keeps from a provider list: the newest
  * `listingReleaseLimit` by publication time (then id), each with at most
@@ -552,6 +590,7 @@ export function artifactFact(
   suggestion: NameSuggestion,
   programToken: (name: string) => string | null,
   toolchain: readonly string[] = [],
+  counts: ArtifactFactV2["listing_counts"] = { leaves: 0, source_leaves: 0 },
 ): ArtifactFactV2 {
   // Core's listing-only tool veto excludes a player, never the whole archive;
   // a tool token in the archive's own name vetoes the archive below.
@@ -591,6 +630,7 @@ export function artifactFact(
     contradictory,
     toolchain_names: [...toolchain],
     bundled_toolchain: bundledToolchain(toolchain),
+    listing_counts: { ...counts },
   };
 }
 
@@ -903,6 +943,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const state = sanitizeState(inputs.state ?? initialState());
   const candidates = listingOnly(inputs.records);
   const recordById = new Map(inputs.records.map((record) => [record.listing.id, record]));
+  /** The listing's own words, which release text is judged with (`listingWords`). */
+  const wordsOf = (id: string) => {
+    const record = recordById.get(id);
+    return record ? listingWords(record.listing) : [];
+  };
   const context = fitContext(inputs.records);
   // Facts bind to the repository the listing names; a re-pointed listing rebinds.
   const bound = (entry: ListingFactsEntry) =>
@@ -941,6 +986,14 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         provider_prerelease: release.provider_prerelease,
       })),
   });
+  // A release whose own title or first body line states a prerelease is one
+  // for the newest-stable choice, whatever the provider flag says.
+  const verdictOf = (id: string) => (release: ObservedRelease) => {
+    const verdict = names.prerelease(release);
+    return verdict === undefined
+      ? undefined
+      : verdict || releaseTextFacts(release, candidates.get(id)!, wordsOf(id)).statement !== null;
+  };
   // A listing whose release URL names a tag binds the identity to that tag's
   // release line: only that line's releases can be offered.
   const lineOf = (id: string, release: ObservedRelease) =>
@@ -957,7 +1010,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
             bound === null
               ? observation.releases
               : observation.releases.filter((release) => lineOf(id, release) === bound),
-            (release) => names.prerelease(release),
+            verdictOf(id),
           ),
         ];
       }),
@@ -1012,12 +1065,18 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   };
   /** The observed releases, for the release-line rule; null fields are unknown. */
   const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
-    observedReleaseFacts(observed.get(id)!.releases, (release) => names.prerelease(release));
+    observedReleaseFacts(
+      observed.get(id)!.releases,
+      verdictOf(id),
+      candidates.get(id)!,
+      wordsOf(id),
+    );
   const base = (id: string, repositoryId: number) => ({
     port_id: id,
     provider: "github" as const,
     repository: candidates.get(id)!,
     repository_id: repositoryId,
+    listing_words: wordsOf(id),
     parser: FACTS_PARSER,
     parser_version: FACTS_PARSER_VERSION,
   });
@@ -1118,12 +1177,20 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     asset: ObservedAsset & { sha256: string },
     players: readonly PlayerFact[],
     toolchain: readonly string[],
+    counts: ArtifactFactV2["listing_counts"],
   ) => {
     const suggestion = names.suggestion(asset.name);
     const programs = players.map((player) => basenameOf(player.display_path));
     if (!suggestion || programs.some((name) => names.programToken(name) === undefined))
       return undefined;
-    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!, toolchain);
+    return artifactFact(
+      asset,
+      players,
+      suggestion,
+      (name) => names.programToken(name)!,
+      toolchain,
+      counts,
+    );
   };
   const unclassified =
     "A release file or program name could not be classified by Core (malformed, over 1,024 bytes or refused), so it cannot be vetoed.";
@@ -1332,6 +1399,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
               { ...asset, sha256: artifact.sha256 },
               candidatesOf(artifact),
               artifact.toolchain_names,
+              artifact.listing_counts,
             )
           : undefined;
       });
@@ -1448,6 +1516,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       asset: ObservedAsset & { sha256: string };
       players: PlayerFact[];
       toolchain: readonly string[];
+      counts: ArtifactFactV2["listing_counts"];
     }[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
@@ -1481,7 +1550,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
       if (known) {
         // The recorded helper entries stand for the listing already read.
-        found.push({ asset, players: candidatesOf(known), toolchain: known.toolchain_names });
+        found.push({
+          asset,
+          players: candidatesOf(known),
+          toolchain: known.toolchain_names,
+          counts: known.listing_counts,
+        });
         reused++;
         continue;
       }
@@ -1507,6 +1581,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           asset,
           players: inspection.players,
           toolchain: toolchainNames(inspection.names, inspection.leaves),
+          counts: listingCounts(inspection.leaves),
         });
       } catch (error) {
         // The shard deadline cut this identity: it is pending, not failed.
@@ -1547,6 +1622,23 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         return;
       }
     }
+    // Every archive of the bound release answered 404: upstream itself says
+    // the release's packages are gone, which is no transient failure. One 404
+    // among reachable archives stays that archive's own refusal.
+    if (
+      need.archives.length > 0 &&
+      refused.length === need.archives.length &&
+      refused.every(({ refusal }) => refusal === "asset-not-found")
+    ) {
+      ineligible(
+        need.id,
+        need.repositoryId,
+        need.release,
+        "upstream-unavailable",
+        `Every archive of the release (${need.archives.length}) answered 404 Not Found, so upstream no longer serves its packages.`,
+      );
+      return;
+    }
     await names.add({
       programs: found.flatMap(({ players }) =>
         players.map((player) => basenameOf(player.display_path)),
@@ -1557,7 +1649,9 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         need.id,
         need.repositoryId,
         need.release,
-        found.map(({ asset, players, toolchain }) => factFor(asset, players, toolchain)),
+        found.map(({ asset, players, toolchain, counts }) =>
+          factFor(asset, players, toolchain, counts),
+        ),
         refused.map(({ asset, refusal }) => refusedFor(asset, refusal)),
       )
     ) {
@@ -1899,6 +1993,11 @@ export function cliInspector(
         if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
         throw new InspectionError("Download failed.", false, "core-unknown", "network");
       }
+      // 404 is upstream's definitive statement that this asset is gone: a
+      // permanent refusal of this archive. 5xx, rate limits and other
+      // failures stay transient.
+      if (response.status === 404)
+        throw new InspectionError("Download failed: 404 Not Found.", true, "asset-not-found");
       if (!response.ok || !response.body)
         throw new InspectionError(
           `Download failed: ${response.status}.`,
