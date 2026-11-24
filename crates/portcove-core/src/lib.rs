@@ -170,6 +170,8 @@ mod runtime_path_policy;
 #[cfg(test)]
 mod scaling_profile_tests;
 mod service;
+mod setup_capacity;
+pub use setup_capacity::{MAX_SETUP_DOCUMENT_BYTES, MAX_SETUP_PACKAGES};
 mod signed_catalog;
 mod source;
 mod source_assessment;
@@ -465,9 +467,10 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
-    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
-    RecipeRuntime,
+    MAX_RECIPE_REVIEW_BYTES, ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT,
+    RecipeAcquisitionBatch, RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeAcquisitionRef,
+    RecipeCodeApproval, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus, RecipeOriginal,
+    RecipeOriginalStorage, RecipePackage, RecipeRuntime, RecipeStaging,
 };
 pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{

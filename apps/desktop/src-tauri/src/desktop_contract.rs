@@ -131,6 +131,18 @@ pub(crate) struct RecipeImportReview {
     pub(crate) setting_values: Vec<String>,
 }
 
+/// One bounded step of staging a recipe's missing packages.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeAcquisitionStep {
+    pub(crate) review: RecipeImportReview,
+    /// Packages this step staged, in order.
+    pub(crate) acquired: Vec<String>,
+    /// Set when the step stopped at a package it could not stage; earlier
+    /// steps stay staged and are resumed by the next review of this recipe.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) failure: Option<portcove_core::RecipeAcquisitionFailure>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
@@ -485,6 +497,7 @@ pub fn export_transport_schemas() -> Value {
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
             "recipe_import_review": output::<RecipeImportReview>(),
+            "recipe_acquisition_step": output::<RecipeAcquisitionStep>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
             "update_check_outcome": output::<UpdateCheckOutcome>(),

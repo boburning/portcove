@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 78;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 79;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -492,6 +492,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "retained-build retirement records",
         apply: crate::retained_build::migrate_retirements,
         verify: crate::retained_build::verify_retirements,
+    },
+    Migration {
+        version: 79,
+        name: "supported setup revision bound",
+        apply: crate::profile::migrate_revision_bound,
+        verify: crate::profile::verify_revision_bound,
     },
 ];
 
@@ -4273,6 +4279,85 @@ mod tests {
     }
 
     #[test]
+    fn revision_bound_migration_keeps_every_revision_and_admits_larger_setups() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 78).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO profiles(id,port_id,is_default,current_revision,profile_json)
+                     VALUES ('p','shipwright',1,2,'{}');
+                 INSERT INTO profile_revisions(profile_id,revision,digest,revision_json)
+                     VALUES ('p',1,'d1','{\"a\":1}'),('p',2,'d2','{\"a\":2}');",
+            )
+            .unwrap();
+        let large = format!("{{\"x\":\"{}\"}}", "y".repeat(300 * 1024));
+        // The schema-78 check (unchanged since 77) refuses a revision past 256 KiB.
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO profile_revisions VALUES ('p',3,'d3',?1)",
+                    [&large]
+                )
+                .is_err()
+        );
+        assert!(crate::profile::verify_revision_bound(&connection).is_err());
+        drop(connection);
+
+        migrate_to(root, 79).unwrap();
+        let connection = connect(root).unwrap();
+        crate::profile::verify_revision_bound(&connection).unwrap();
+        let kept = connection
+            .prepare(
+                "SELECT revision,digest,revision_json FROM profile_revisions ORDER BY revision",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            kept,
+            [
+                (1, "d1".to_owned(), "{\"a\":1}".to_owned()),
+                (2, "d2".to_owned(), "{\"a\":2}".to_owned())
+            ]
+        );
+        connection
+            .execute(
+                "INSERT INTO profile_revisions VALUES ('p',3,'d3',?1)",
+                [&large],
+            )
+            .unwrap();
+        let beyond = "y".repeat(crate::profile::REVISION_BOUND_V79 + 1);
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO profile_revisions VALUES ('p',4,'d4',?1)",
+                    [&beyond]
+                )
+                .is_err()
+        );
+        // The rebuilt table still refuses revisions of an unknown setup.
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO profile_revisions VALUES ('missing',1,'d',?1)",
+                    ["{}"]
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
     fn landscape_slot_migration_keeps_every_choice_and_constraint() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -4576,6 +4661,7 @@ mod tests {
         schema_75: 75,
         schema_76: 76,
         schema_77: 77,
+        schema_78: 78,
     }
 
     #[test]

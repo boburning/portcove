@@ -3195,6 +3195,7 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::export_mod_recipe,
             mod_setup_commands::inspect_mod_recipe,
             mod_setup_commands::acquire_mod_recipe_package,
+            mod_setup_commands::acquire_mod_recipe_packages,
             mod_setup_commands::discard_mod_recipe_review,
             mod_setup_commands::apply_mod_recipe,
             mod_setup_commands::set_mod_package_enabled,

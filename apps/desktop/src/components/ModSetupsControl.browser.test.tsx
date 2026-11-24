@@ -11,10 +11,7 @@ import type {
   ModSetupView,
   ModSetupsView,
 } from "../types";
-import type {
-  TransportOutputs,
-  OutputDesktopRecipeImportReview,
-} from "../transport-types.generated";
+import type { TransportOutputs, RecipeImportReview } from "../transport-types.generated";
 import { sourceProfile } from "../test-fixtures";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -25,7 +22,7 @@ vi.mock("../features/game-file-discovery/use-standing-setup", { spy: true });
 
 type RecipeImportPlan = TransportOutputs["recipe_import_plan"];
 
-function recipeReview(plan: RecipeImportPlan): OutputDesktopRecipeImportReview {
+function recipeReview(plan: RecipeImportPlan): RecipeImportReview {
   return {
     plan,
     serialized_plan: JSON.stringify(plan),
@@ -1921,6 +1918,94 @@ it.each(["accepted", "refused"] as const)(
   },
 );
 
+it("checks every missing recipe mod in bounded steps past the former 32-file bound", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
+  const ids = Array.from({ length: 40 }, (_, index) => `mod-${index}.nrm`);
+  const reviewWith = (remaining: string[], sha: string) =>
+    recipeReview({
+      can_apply: remaining.length === 0,
+      holds: remaining.map((id) => `package ${id} needs its exact bytes before import`),
+      originals: [],
+      packages: ids.map((name) => ({
+        name,
+        status: remaining.includes(name) ? "unavailable" : "available",
+        detail: "fixture",
+      })),
+      provider_checks: remaining,
+      plan_sha256: sha.repeat(64),
+      recipe: {
+        identity_sha256: "a".repeat(64),
+        uncaptured: [],
+        packages: ids.map((native_id) => ({
+          native_id,
+          enabled: true,
+          provider: { provider: "thunderstore", project: `Owner-${native_id}`, file: "1.0.0" },
+        })),
+        orderings: [],
+        runtime: { platform: "windows-x86-64" },
+      },
+      runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+    } as unknown as RecipeImportPlan);
+  const first = reviewWith(ids, "0");
+  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(first);
+  const steps = [8, 16, 24, 32, 40].map((done, index) => ({
+    review: reviewWith(ids.slice(done), String(index + 1)),
+    acquired: ids.slice(done - 8, done),
+  }));
+  const acquire = vi.spyOn(desktopApi, "acquireModRecipePackages");
+  for (const step of steps) acquire.mockResolvedValueOnce(step);
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  await page.getByRole("button", { name: "Check the provider for every missing mod" }).click();
+  await expect.element(page.getByText("40 of 40 mods checked with the provider.")).toBeVisible();
+  expect(acquire).toHaveBeenCalledTimes(5);
+  expect(acquire).toHaveBeenNthCalledWith(1, "shipwright", expect.any(String), first, 7);
+  expect(acquire).toHaveBeenNthCalledWith(5, "shipwright", expect.any(String), steps[3]!.review, 7);
+  await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
+});
+
+it("stops checking recipe mods at a failed step and keeps what was checked", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
+  const plan = (checks: string[], sha: string) =>
+    recipeReview({
+      can_apply: false,
+      holds: ["held"],
+      originals: [],
+      packages: [],
+      provider_checks: checks,
+      plan_sha256: sha.repeat(64),
+      recipe: {
+        identity_sha256: "a".repeat(64),
+        uncaptured: [],
+        packages: [],
+        orderings: [],
+        runtime: { platform: "windows-x86-64" },
+      },
+      runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+    } as unknown as RecipeImportPlan);
+  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(
+    plan(["a.nrm", "b.nrm", "c.nrm"], "0"),
+  );
+  const acquire = vi.spyOn(desktopApi, "acquireModRecipePackages").mockResolvedValueOnce({
+    review: plan(["b.nrm", "c.nrm"], "1"),
+    acquired: ["a.nrm"],
+    failure: { native_id: "b.nrm", message: "The provider no longer offers this version." },
+  });
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  await page.getByRole("button", { name: "Check the provider for every missing mod" }).click();
+  await expect
+    .element(page.getByRole("alert").getByText(/Stopped at b.nrm. The provider no longer offers/))
+    .toBeVisible();
+  expect(acquire).toHaveBeenCalledOnce();
+  await expect.element(page.getByText("1 of 3 mods checked with the provider.")).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Check provider for b.nrm" }))
+    .toBeVisible();
+});
+
 it("explains how to check provider files when the game has no selected setup", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ inventory: null, live: null }));
   vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
@@ -2110,6 +2195,35 @@ it("keeps the older draft when storage cannot save the recovered addition", asyn
     await act(async () => button(host, "Recover additions").click());
     expect(localStorage.getItem(current)).toBeNull();
     expect(localStorage.getItem(previous)).toBe(older);
+    expect(button(host, "Review changes").disabled).toBe(false);
+  } finally {
+    localStorage.removeItem(previous);
+    localStorage.removeItem(current);
+  }
+});
+
+it("recovers a stored draft past the former 16-addition bound in full", async () => {
+  const library = "draft-capacity-test";
+  const scope = `portcove.mod-draft.${JSON.stringify([library, "shipwright", "default"])}`;
+  const previous = `${scope}.2`;
+  const current = `${scope}.3`;
+  const additions = Array.from({ length: 200 }, (_, index) => ({
+    provider: "gamebanana",
+    project: String(1000 + index),
+    file: String(5000 + index),
+    name: `Fixture mod ${index}`,
+    fileName: `fixture-${index}.otr`,
+  }));
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ provider: "gamebanana" }));
+  localStorage.setItem(previous, JSON.stringify({ additions, packages: [], order: null }));
+  try {
+    const host = await render(false, undefined, 7, library);
+    expect(host.textContent).toContain("Fixture mod 199");
+    await act(async () => button(host, "Recover additions").click());
+    const recovered = JSON.parse(localStorage.getItem(current) ?? "null") as {
+      additions: unknown[];
+    } | null;
+    expect(recovered?.additions).toHaveLength(200);
     expect(button(host, "Review changes").disabled).toBe(false);
   } finally {
     localStorage.removeItem(previous);

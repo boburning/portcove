@@ -36,13 +36,34 @@ const RECIPE_FORMAT_WITH_PROVIDER_BINDINGS: u32 = 4;
 const LEGACY_RECIPE_FORMAT: u32 = 1;
 const RECIPE_FORMAT_WITH_MOD_STATE: u32 = 2;
 const MAX_RECIPE_SETTINGS: usize = crate::profile::MAX_SETTINGS;
-const MAX_RECIPE_BYTES: usize = 256 * 1024;
-const MAX_PACKAGES: usize = 512;
-const MAX_TEXT: usize = 256;
+const MAX_RECIPE_BYTES: usize = crate::setup_capacity::MAX_RECIPE_DOCUMENT_BYTES;
+const MAX_PACKAGES: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
+/// The same text bound as a revision, so every exported revision is importable.
+const MAX_TEXT: usize = profile::MAX_TEXT;
 const ACTION: &str = "import_profile_recipe";
 const ACTION_WITH_CODE: &str = "apply_mod_recipe_with_code";
-const MAX_ACQUISITIONS: usize = 32;
-const MAX_ACQUISITION_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// Provider downloads one acquisition call stages before it returns, so
+/// progress reaches the player and a stop is honored between calls. The calls
+/// continue until every package is staged; this is not a recipe size bound.
+pub const RECIPE_ACQUISITION_STEP: usize = 8;
+const ACQUISITION_RECORDS: &str = "acquisitions";
+/// Inside the records: one file per staged provider plan, by digest, and one
+/// small reference per package naming the plan that holds it.
+const PLAN_RECORDS: &str = "plans";
+const MEMBER_RECORDS: &str = "members";
+/// Every distinct provider plan a recipe review holds, serialized. A review is
+/// kept whole in memory and crosses IPC once, so this is its working-set
+/// budget; a review past it is refused with this reason before it grows.
+pub const MAX_RECIPE_REVIEW_BYTES: usize = 2 * crate::setup_capacity::MAX_RECIPE_DOCUMENT_BYTES;
+/// Room a revision needs beyond its recipe-derived content.
+const MAX_IMPORTED_SETUP_BYTES: usize = crate::setup_capacity::MAX_SETUP_DOCUMENT_BYTES - 64 * 1024;
+/// One recorded step: a provider plan, whose wrapper closure is bounded by the
+/// setup capacity.
+const MAX_ACQUISITION_RECORD_BYTES: usize = crate::setup_capacity::MAX_SETUP_DOCUMENT_BYTES;
+
+fn record_name(native_id: &str) -> String {
+    format!("{}.json", hex::encode(Sha256::digest(native_id.as_bytes())))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -149,6 +170,281 @@ pub struct RecipeAcquisitionPlan {
     pub provider_plan: crate::ProviderInstallPlan,
 }
 
+/// One staged recipe package and the provider plan (by digest) that holds it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RecipeAcquisitionRef {
+    pub native_id: String,
+    pub plan_sha256: String,
+}
+
+/// The provider files a recipe review has staged. Each provider plan is held
+/// once, however many of its members the recipe uses, so a shared closure
+/// costs its plan once in the review, its records and IPC.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct RecipeStaging {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acquisitions: Vec<RecipeAcquisitionRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_plans: Vec<crate::ProviderInstallPlan>,
+}
+
+/// Reads both the current shape and the earlier one, in which each entry of
+/// `acquisitions` carried a full copy of its provider plan (reviews and CLI
+/// plan files written before plans were held once). An earlier entry becomes a
+/// reference plus its plan, held once. Such a review keeps the digest it was
+/// written with, which covered the earlier shape, so applying it asks for a
+/// fresh review (the approval is bound to that digest) instead of trusting
+/// the converted form.
+impl<'de> Deserialize<'de> for RecipeStaging {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Entry {
+            Reference(RecipeAcquisitionRef),
+            Earlier(RecipeAcquisitionPlan),
+        }
+        #[derive(Deserialize)]
+        struct Wire {
+            #[serde(default)]
+            acquisitions: Vec<Entry>,
+            #[serde(default)]
+            provider_plans: Vec<crate::ProviderInstallPlan>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        let mut staging = Self {
+            acquisitions: Vec::with_capacity(wire.acquisitions.len()),
+            provider_plans: wire.provider_plans,
+        };
+        for entry in wire.acquisitions {
+            match entry {
+                Entry::Reference(reference) => staging.acquisitions.push(reference),
+                Entry::Earlier(earlier) => staging
+                    .insert(&earlier.native_id, earlier.provider_plan)
+                    .map_err(serde::de::Error::custom)?,
+            }
+        }
+        Ok(staging)
+    }
+}
+
+impl RecipeStaging {
+    /// Collects single-package acquisitions (as the CLI exchanges them).
+    pub fn from_acquisitions(
+        recipe: &ProfileRecipe,
+        acquisitions: &[RecipeAcquisitionPlan],
+    ) -> Result<Self> {
+        let mut staging = Self::default();
+        for acquisition in acquisitions {
+            if acquisition.recipe_identity_sha256 != recipe.identity_sha256 {
+                return Err(PortcoveError::conflict(
+                    "the provider review does not match this exact recipe",
+                ));
+            }
+            staging.insert(&acquisition.native_id, acquisition.provider_plan.clone())?;
+        }
+        Ok(staging)
+    }
+
+    pub(crate) fn plan(&self, plan_sha256: &str) -> Option<&crate::ProviderInstallPlan> {
+        self.provider_plans
+            .iter()
+            .find(|plan| plan.plan_sha256 == plan_sha256)
+    }
+
+    pub(crate) fn contains(&self, native_id: &str) -> bool {
+        self.acquisitions
+            .iter()
+            .any(|item| item.native_id == native_id)
+    }
+
+    /// Adds one staged package; its plan is stored only if not already held.
+    /// A different plan under an existing digest is refused.
+    pub(crate) fn insert(
+        &mut self,
+        native_id: &str,
+        plan: crate::ProviderInstallPlan,
+    ) -> Result<()> {
+        if self.contains(native_id) {
+            return Err(PortcoveError::conflict(
+                "the provider review does not match this exact recipe",
+            ));
+        }
+        match self.plan(&plan.plan_sha256) {
+            Some(held) if *held != plan => {
+                return Err(PortcoveError::conflict(
+                    "two provider reviews claim the same digest",
+                ));
+            }
+            Some(_) => {}
+            None => self.provider_plans.push(plan.clone()),
+        }
+        self.acquisitions.push(RecipeAcquisitionRef {
+            native_id: native_id.to_owned(),
+            plan_sha256: plan.plan_sha256,
+        });
+        Ok(())
+    }
+
+    /// Each staged package with the plan that holds it.
+    fn steps(&self) -> Result<Vec<(&str, &crate::ProviderInstallPlan)>> {
+        let plans = self
+            .provider_plans
+            .iter()
+            .map(|plan| (plan.plan_sha256.as_str(), plan))
+            .collect::<BTreeMap<_, _>>();
+        if plans.len() != self.provider_plans.len() {
+            return Err(PortcoveError::conflict(
+                "the review holds a provider plan twice",
+            ));
+        }
+        self.acquisitions
+            .iter()
+            .map(|item| {
+                plans
+                    .get(item.plan_sha256.as_str())
+                    .map(|plan| (item.native_id.as_str(), *plan))
+                    .ok_or_else(|| {
+                        PortcoveError::conflict("a staged package names no provider review")
+                    })
+            })
+            .collect()
+    }
+
+    fn encoded_bytes(&self) -> Result<usize> {
+        self.provider_plans.iter().try_fold(0usize, |sum, plan| {
+            Ok(sum.saturating_add(serde_json::to_vec(plan)?.len()))
+        })
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static REVIEW_BUDGET_OVERRIDE: std::cell::Cell<Option<usize>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Runs `run` with a smaller review budget on this thread.
+#[cfg(test)]
+pub(crate) fn override_review_budget(budget: usize) -> impl Drop {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            REVIEW_BUDGET_OVERRIDE.with(|cell| cell.set(None));
+        }
+    }
+    REVIEW_BUDGET_OVERRIDE.with(|cell| cell.set(Some(budget)));
+    Restore
+}
+
+fn review_budget() -> usize {
+    #[cfg(test)]
+    if let Some(budget) = REVIEW_BUDGET_OVERRIDE.with(std::cell::Cell::get) {
+        return budget;
+    }
+    MAX_RECIPE_REVIEW_BYTES
+}
+
+fn require_review_budget(bytes: usize) -> Result<()> {
+    let budget = review_budget();
+    if bytes > budget {
+        return Err(PortcoveError::unsupported(format!(
+            "this recipe review's provider files would exceed the {} review budget",
+            crate::setup_capacity::mebibytes(budget)
+        ))
+        .detail("review_bytes", bytes.to_string())
+        .detail("review_budget_bytes", budget.to_string()));
+    }
+    Ok(())
+}
+
+/// The order a batch stages missing packages in: a package before the
+/// packages it requires, so a dependant's provider plan, which stages its
+/// whole closure, is reused for its requirements instead of each requirement
+/// being downloaded on its own and again inside every dependant's closure.
+/// Packages that require nothing in the batch keep the recipe's order; a cycle
+/// (which closure resolution refuses) falls back to that order too.
+fn dependants_first(recipe: &ProfileRecipe, checks: &[String]) -> Vec<String> {
+    let index = checks
+        .iter()
+        .enumerate()
+        .map(|(position, native_id)| (native_id.as_str(), position))
+        .collect::<BTreeMap<_, _>>();
+    let packages = recipe
+        .packages
+        .iter()
+        .map(|package| (package.native_id.as_str(), package))
+        .collect::<BTreeMap<_, _>>();
+    let mut dependants = vec![0usize; checks.len()];
+    let mut requires = vec![BTreeSet::new(); checks.len()];
+    for (position, native_id) in checks.iter().enumerate() {
+        let Some(package) = packages.get(native_id.as_str()) else {
+            continue;
+        };
+        for requirement in &package.provider_requires {
+            for member in requirement.members.keys() {
+                if let Some(&required) = index.get(member.as_str())
+                    && required != position
+                    && requires[position].insert(required)
+                {
+                    dependants[required] += 1;
+                }
+            }
+        }
+    }
+    let mut ready = (0..checks.len())
+        .filter(|&position| dependants[position] == 0)
+        .collect::<BTreeSet<_>>();
+    let mut placed = vec![false; checks.len()];
+    let mut order = Vec::with_capacity(checks.len());
+    while let Some(position) = ready.pop_first() {
+        placed[position] = true;
+        order.push(position);
+        for &required in &requires[position] {
+            dependants[required] -= 1;
+            if dependants[required] == 0 {
+                ready.insert(required);
+            }
+        }
+    }
+    order.extend((0..checks.len()).filter(|&position| !placed[position]));
+    order
+        .into_iter()
+        .map(|position| checks[position].clone())
+        .collect()
+}
+
+/// The package an acquisition batch stopped at, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RecipeAcquisitionFailure {
+    pub native_id: String,
+    pub message: String,
+}
+
+impl RecipeAcquisitionFailure {
+    fn new(native_id: &str, error: PortcoveError) -> Self {
+        Self {
+            native_id: native_id.to_owned(),
+            message: error.message,
+        }
+    }
+}
+
+/// One bounded step of staging a recipe's missing packages.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RecipeAcquisitionBatch {
+    /// The review including every step staged so far.
+    pub plan: RecipeImportPlan,
+    /// Packages this call staged, in order.
+    pub acquired: Vec<String>,
+    /// Set when the call stopped at a package it could not stage. Earlier
+    /// steps stay staged and recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<RecipeAcquisitionFailure>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RecipeCodeApproval {
     pub native_id: String,
@@ -167,8 +463,9 @@ pub struct RecipeImportPlan {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub verified_originals: Vec<OriginalBinding>,
     pub packages: Vec<RecipeInputPlan>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub acquisitions: Vec<RecipeAcquisitionPlan>,
+    /// Provider files staged for this review, each plan held once.
+    #[serde(flatten)]
+    pub staging: RecipeStaging,
     /// Missing packages with an exact coordinate that the player can check.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub provider_checks: Vec<String>,
@@ -182,6 +479,13 @@ pub struct RecipeImportPlan {
 
 fn invalid(message: &str) -> PortcoveError {
     PortcoveError::verification(format!("profile recipe is not valid: {message}"))
+}
+
+fn too_large() -> PortcoveError {
+    invalid(&format!(
+        "it exceeds {}",
+        crate::setup_capacity::mebibytes(MAX_RECIPE_BYTES)
+    ))
 }
 
 fn text_ok(value: &str) -> bool {
@@ -249,7 +553,7 @@ impl ProfileRecipe {
     /// duplicate-key refusal first, so the envelope cannot hide a second value.
     pub fn inspect_document(bytes: &[u8]) -> Result<ProfileRecipe> {
         if bytes.len() > MAX_RECIPE_BYTES {
-            return Err(invalid("it exceeds 256 KiB"));
+            return Err(too_large());
         }
         let crate::definition_entry::strict_json::UniqueValue(value) =
             serde_json::from_slice(bytes)
@@ -265,7 +569,7 @@ impl ProfileRecipe {
     /// Parses and validates untrusted recipe bytes. Pure and local.
     pub fn inspect(bytes: &[u8]) -> Result<ProfileRecipe> {
         if bytes.len() > MAX_RECIPE_BYTES {
-            return Err(invalid("it exceeds 256 KiB"));
+            return Err(too_large());
         }
         // Duplicate keys are refused, so no reader can see a different value.
         let crate::definition_entry::strict_json::UniqueValue(value) =
@@ -339,14 +643,17 @@ impl ProfileRecipe {
             ));
         }
         let mut setting_ids = BTreeSet::new();
+        let enabled_digests = self
+            .packages
+            .iter()
+            .filter(|package| package.enabled)
+            .map(|package| (package.native_id.as_str(), package.sha256.as_str()))
+            .collect::<BTreeSet<_>>();
         for setting in &self.settings {
             if !setting.validates_shape()
                 || !setting_ids.insert((&setting.native_id, &setting.option_id))
-                || !self.packages.iter().any(|package| {
-                    package.enabled
-                        && package.native_id == setting.native_id
-                        && package.sha256 == setting.package_sha256
-                })
+                || !enabled_digests
+                    .contains(&(setting.native_id.as_str(), setting.package_sha256.as_str()))
             {
                 return Err(invalid(
                     "a setting does not name a unique option for an exact enabled package",
@@ -645,6 +952,8 @@ impl PortcoveService {
 
     /// Privately obtains an exact provider file explicitly selected from a recipe.
     /// The ordinary provider plan checks origin, bounds and executable content.
+    /// `prior` are the review's earlier steps; with none, the steps recorded for
+    /// this exact recipe are used, so a CLI review resumes like Desktop's.
     pub async fn plan_recipe_acquisition(
         &self,
         recipe: &ProfileRecipe,
@@ -652,8 +961,40 @@ impl PortcoveService {
         native_id: &str,
         prior: &[RecipeAcquisitionPlan],
     ) -> Result<RecipeAcquisitionPlan> {
-        use crate::provider_install::ProviderInstallMode;
         recipe.validate()?;
+        let staging = if prior.is_empty() {
+            self.recorded_recipe_staging(recipe)?
+        } else {
+            RecipeStaging::from_acquisitions(recipe, prior)?
+        };
+        let step = self
+            .acquire_recipe_step(recipe, review_profile_id, native_id, &staging)
+            .await?;
+        let provider_plan = match step {
+            AcquiredStep::Reused { plan_sha256 } => staging
+                .plan(&plan_sha256)
+                .cloned()
+                .ok_or_else(|| PortcoveError::state("a reused provider review disappeared"))?,
+            AcquiredStep::Staged(plan) => plan,
+        };
+        Ok(RecipeAcquisitionPlan {
+            recipe_identity_sha256: recipe.identity_sha256.clone(),
+            native_id: native_id.to_owned(),
+            provider_plan,
+        })
+    }
+
+    /// One acquisition step. A package already held by a staged plan reuses it
+    /// by digest; nothing is copied. A new plan is staged, read in full and
+    /// recorded before it is returned.
+    async fn acquire_recipe_step(
+        &self,
+        recipe: &ProfileRecipe,
+        review_profile_id: &str,
+        native_id: &str,
+        prior: &RecipeStaging,
+    ) -> Result<AcquiredStep> {
+        use crate::provider_install::ProviderInstallMode;
         let package = recipe
             .packages
             .iter()
@@ -680,46 +1021,35 @@ impl PortcoveService {
         let layout = self.layout_for_install(install)?.ok_or_else(|| {
             PortcoveError::unsupported("the recipe build has no reviewed mod loader")
         })?;
-        let (_, used_bytes) = verified_acquisitions(&catalog, recipe, &layout, prior)?;
-        if prior.len() >= MAX_ACQUISITIONS
-            || prior
-                .iter()
-                .any(|acquisition| acquisition.native_id == native_id)
-            || prior
-                .iter()
-                .filter_map(|acquisition| {
-                    recipe
-                        .packages
-                        .iter()
-                        .find(|package| package.native_id == acquisition.native_id)
-                })
-                .fold(package.size, |sum, package| {
-                    sum.saturating_add(package.size)
-                })
-                > MAX_ACQUISITION_BYTES
-        {
+        // Earlier steps were verified when they were staged and are rechecked by
+        // every plan and in full by apply; this step only needs to know which
+        // packages they already cover, so its work does not grow with them.
+        if prior.contains(native_id) {
             return Err(PortcoveError::usage(
-                "the recipe package is already reviewed or would exceed the review limits",
+                "the recipe package is already in this review",
             ));
         }
-        if let Some(acquisition) = prior.iter().find(|item| {
-            reviewed_origin(&item.provider_plan, native_id).is_ok_and(|(origin, _)| {
+        if let Some(plan) = prior.provider_plans.iter().find(|plan| {
+            reviewed_origin(plan, native_id).is_ok_and(|(origin, _)| {
                 origin.project == project
                     && origin.file.as_deref() == Some(file.as_str())
-                    && item
-                        .provider_plan
+                    && plan
                         .members
                         .iter()
                         .any(|member| member.file_name == native_id)
             })
         }) {
-            let reused = RecipeAcquisitionPlan {
-                recipe_identity_sha256: recipe.identity_sha256.clone(),
-                native_id: native_id.to_owned(),
-                provider_plan: acquisition.provider_plan.clone(),
-            };
-            verified_acquisitions(&catalog, recipe, &layout, std::slice::from_ref(&reused))?;
-            return Ok(reused);
+            verify_steps(
+                &catalog,
+                recipe,
+                &layout,
+                [(native_id, plan)],
+                Depth::Recorded,
+            )?;
+            self.record_recipe_step(recipe, native_id, plan)?;
+            return Ok(AcquiredStep::Reused {
+                plan_sha256: plan.plan_sha256.clone(),
+            });
         }
         let client = crate::provider_client::ProviderClient::for_definition(
             &self.library,
@@ -728,7 +1058,6 @@ impl PortcoveService {
         )?;
         let mode = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
-            byte_budget: MAX_ACQUISITION_BYTES - used_bytes,
             install_id: Some(&install.id),
         };
         let provider_plan = self
@@ -741,21 +1070,33 @@ impl PortcoveService {
                 mode,
             )
             .await?;
-        let acquisition = RecipeAcquisitionPlan {
-            recipe_identity_sha256: recipe.identity_sha256.clone(),
-            native_id: native_id.to_owned(),
-            provider_plan,
+        let discard = |plan: &crate::ProviderInstallPlan| {
+            let _ = self.discard_provider_install_in_mode(plan, mode);
         };
-        let acquisitions = prior
-            .iter()
-            .cloned()
-            .chain(std::iter::once(acquisition.clone()))
-            .collect::<Vec<_>>();
-        if let Err(error) = verified_acquisitions(&catalog, recipe, &layout, &acquisitions) {
-            let _ = self.discard_recipe_acquisition(&acquisition);
+        // The review stays inside its working-set budget as it grows.
+        let added = serde_json::to_vec(&provider_plan)?.len();
+        if let Err(error) = require_review_budget(prior.encoded_bytes()?.saturating_add(added)) {
+            discard(&provider_plan);
             return Err(error);
         }
-        Ok(acquisition)
+        // Only the new step is read in full; the earlier ones were checked above.
+        if let Err(error) = verify_steps(
+            &catalog,
+            recipe,
+            &layout,
+            [(native_id, &provider_plan)],
+            Depth::Content,
+        ) {
+            discard(&provider_plan);
+            return Err(error);
+        }
+        // Recorded before it is returned, so a review interrupted after this
+        // step resumes with it (see `plan_recipe_import`).
+        if let Err(error) = self.record_recipe_step(recipe, native_id, &provider_plan) {
+            discard(&provider_plan);
+            return Err(error);
+        }
+        Ok(AcquiredStep::Staged(provider_plan))
     }
 
     /// Releases the private staging for a cancelled recipe review.
@@ -764,23 +1105,360 @@ impl PortcoveService {
             &acquisition.provider_plan.port_id,
             "discard-recipe-acquisition",
         )?;
-        self.discard_recipe_acquisition_locked(acquisition)
-    }
-
-    fn discard_recipe_acquisition_locked(&self, acquisition: &RecipeAcquisitionPlan) -> Result<()> {
         if !hash_ok(&acquisition.recipe_identity_sha256) {
             return Err(invalid(
                 "the provider review has an invalid recipe identity",
             ));
         }
-        self.discard_provider_install_in_mode(
+        self.discard_recipe_plan_locked(
+            &acquisition.recipe_identity_sha256,
             &acquisition.provider_plan,
+        )
+    }
+
+    /// Releases a whole review: every staged provider plan and its records.
+    pub fn discard_recipe_review(&self, plan: &RecipeImportPlan) -> Result<()> {
+        plan.recipe.validate()?;
+        let _guard = self
+            .library
+            .try_lock_port(&plan.recipe.port_id, "discard-recipe-review")?;
+        for provider_plan in &plan.staging.provider_plans {
+            if provider_plan.port_id != plan.recipe.port_id {
+                return Err(PortcoveError::conflict(
+                    "staging belongs to a different recipe review",
+                ));
+            }
+        }
+        for provider_plan in &plan.staging.provider_plans {
+            self.discard_recipe_plan_locked(&plan.recipe.identity_sha256, provider_plan)?;
+        }
+        self.clear_recipe_acquisition_record(&plan.recipe)
+    }
+
+    /// Removes one plan's staging and its record. References to it from other
+    /// packages no longer resolve and are dropped on the next review.
+    fn discard_recipe_plan_locked(
+        &self,
+        identity: &str,
+        provider_plan: &crate::ProviderInstallPlan,
+    ) -> Result<()> {
+        self.discard_provider_install_in_mode(
+            provider_plan,
             crate::provider_install::ProviderInstallMode::Recipe {
-                identity: &acquisition.recipe_identity_sha256,
-                byte_budget: 0,
+                identity,
                 install_id: None,
             },
-        )
+        )?;
+        let record = self
+            .acquisition_records(&provider_plan.port_id, identity)
+            .join(PLAN_RECORDS)
+            .join(format!("{}.json", provider_plan.plan_sha256));
+        match fs::remove_file(record) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
+            _ => Ok(()),
+        }
+    }
+
+    /// Where a recipe review records its staged steps: beside the staging they
+    /// name, so abandoned reviews are pruned with their bytes.
+    fn acquisition_records(&self, port_id: &str, identity: &str) -> PathBuf {
+        let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(port_id));
+        crate::provider_install::ProviderInstallMode::Recipe {
+            identity,
+            install_id: None,
+        }
+        .staging_root(&layout)
+        .join(ACQUISITION_RECORDS)
+    }
+
+    /// Durably records one staged package: its plan once, by digest, and a
+    /// small reference naming that plan. Reusing a plan writes only the
+    /// reference, so records grow with the packages, not with plan copies.
+    fn record_recipe_step(
+        &self,
+        recipe: &ProfileRecipe,
+        native_id: &str,
+        provider_plan: &crate::ProviderInstallPlan,
+    ) -> Result<()> {
+        if !hash_ok(&recipe.identity_sha256) || !hash_ok(&provider_plan.plan_sha256) {
+            return Err(invalid("its identity digest is malformed"));
+        }
+        if provider_plan.port_id != recipe.port_id {
+            return Err(PortcoveError::conflict(
+                "the provider review does not match this exact recipe",
+            ));
+        }
+        let directory = self.acquisition_records(&recipe.port_id, &recipe.identity_sha256);
+        crate::path::refuse_symlink_ancestors(&directory)?;
+        let plans = directory.join(PLAN_RECORDS);
+        let members = directory.join(MEMBER_RECORDS);
+        fs::create_dir_all(&plans)?;
+        fs::create_dir_all(&members)?;
+        let plan_path = plans.join(format!("{}.json", provider_plan.plan_sha256));
+        if !plan_path.is_file() {
+            let bytes = serde_json::to_vec(provider_plan)?;
+            if bytes.len() > MAX_ACQUISITION_RECORD_BYTES {
+                return Err(PortcoveError::unsupported(
+                    "one provider review is too large to record",
+                ));
+            }
+            crate::durability::write_bytes_atomically(&plan_path, &bytes, true)?;
+        }
+        let reference = RecipeAcquisitionRef {
+            native_id: native_id.to_owned(),
+            plan_sha256: provider_plan.plan_sha256.clone(),
+        };
+        crate::durability::write_bytes_atomically(
+            &members.join(record_name(native_id)),
+            &serde_json::to_vec(&reference)?,
+            true,
+        )?;
+        self.keep_recipe_staging(recipe, provider_plan);
+        Ok(())
+    }
+
+    /// A review in use keeps its plan staging, records and root out of the
+    /// 24-hour pruning of abandoned staging, however long it takes.
+    fn keep_recipe_staging(
+        &self,
+        recipe: &ProfileRecipe,
+        provider_plan: &crate::ProviderInstallPlan,
+    ) {
+        let staging = self.recipe_plan_staging(recipe, provider_plan);
+        touch_directory(&staging);
+        if let Some(root) = staging.parent() {
+            touch_directory(root);
+            touch_directory(&root.join(ACQUISITION_RECORDS));
+        }
+    }
+
+    fn recipe_plan_staging(
+        &self,
+        recipe: &ProfileRecipe,
+        provider_plan: &crate::ProviderInstallPlan,
+    ) -> PathBuf {
+        let layout =
+            crate::profile_deploy::Layout::for_user(&self.library.user_dir(&recipe.port_id));
+        crate::provider_install::ProviderInstallMode::Recipe {
+            identity: &recipe.identity_sha256,
+            install_id: None,
+        }
+        .staging(&layout, &provider_plan.plan_sha256)
+    }
+
+    /// The recorded steps that still name present, exact staging for this
+    /// recipe. A step that no longer verifies is forgotten, so the review shows
+    /// that package as missing rather than ready. Each plan is read once.
+    pub fn recorded_recipe_staging(&self, recipe: &ProfileRecipe) -> Result<RecipeStaging> {
+        recipe.validate()?;
+        let directory = self.acquisition_records(&recipe.port_id, &recipe.identity_sha256);
+        if crate::path::refuse_symlink_ancestors(&directory).is_err() {
+            return Ok(RecipeStaging::default());
+        }
+        let members = match fs::read_dir(directory.join(MEMBER_RECORDS)) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(RecipeStaging::default());
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let read_bounded = |path: &Path| {
+            fs::symlink_metadata(path)
+                .is_ok_and(|metadata| {
+                    metadata.is_file() && metadata.len() <= MAX_ACQUISITION_RECORD_BYTES as u64
+                })
+                .then(|| fs::read(path).ok())
+                .flatten()
+        };
+        let layout =
+            crate::profile_deploy::Layout::for_user(&self.library.user_dir(&recipe.port_id));
+        let mut plans = BTreeMap::<String, Option<crate::ProviderInstallPlan>>::new();
+        let mut staging = RecipeStaging::default();
+        let mut references = BTreeMap::new();
+        for entry in members {
+            let entry = entry?;
+            let path = entry.path();
+            let reference = read_bounded(&path)
+                .and_then(|bytes| serde_json::from_slice::<RecipeAcquisitionRef>(&bytes).ok())
+                .filter(|reference| {
+                    entry.file_name().to_str() == Some(record_name(&reference.native_id).as_str())
+                        && hash_ok(&reference.plan_sha256)
+                });
+            let Some(reference) = reference else {
+                let _ = fs::remove_file(&path);
+                continue;
+            };
+            let plan = plans
+                .entry(reference.plan_sha256.clone())
+                .or_insert_with(|| {
+                    read_bounded(
+                        &directory
+                            .join(PLAN_RECORDS)
+                            .join(format!("{}.json", reference.plan_sha256)),
+                    )
+                    .and_then(|bytes| {
+                        serde_json::from_slice::<crate::ProviderInstallPlan>(&bytes).ok()
+                    })
+                    .filter(|plan| {
+                        plan.plan_sha256 == reference.plan_sha256
+                            && crate::provider_install::digest(plan)
+                                .is_ok_and(|digest| digest == plan.plan_sha256)
+                    })
+                });
+            let verified = plan.as_ref().is_some_and(|plan| {
+                verify_steps(
+                    self.catalog(),
+                    recipe,
+                    &layout,
+                    [(reference.native_id.as_str(), plan)],
+                    Depth::Recorded,
+                )
+                .is_ok()
+            });
+            if verified {
+                references.insert(reference.native_id.clone(), reference);
+            } else {
+                let _ = fs::remove_file(&path);
+            }
+        }
+        for reference in references.into_values() {
+            if let Some(Some(plan)) = plans.get(&reference.plan_sha256) {
+                staging.insert(&reference.native_id, plan.clone())?;
+                self.keep_recipe_staging(recipe, plan);
+            }
+        }
+        require_review_budget(staging.encoded_bytes()?)?;
+        Ok(staging)
+    }
+
+    fn clear_recipe_acquisition_record(&self, recipe: &ProfileRecipe) -> Result<()> {
+        let directory = self.acquisition_records(&recipe.port_id, &recipe.identity_sha256);
+        crate::path::refuse_symlink_ancestors(&directory)?;
+        match fs::remove_dir_all(directory) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
+            _ => Ok(()),
+        }
+    }
+
+    /// Releases each plan holding a step whose staged bytes no longer match,
+    /// so a fresh review shows it as missing instead of repeatedly offering it
+    /// as ready. `layout` must be the recipe installation's own layout, so
+    /// native code is checked with the loader that reviewed it.
+    fn forget_unverifiable_acquisitions(
+        &self,
+        recipe: &ProfileRecipe,
+        layout: &crate::profile_deploy::Layout,
+        staging: &RecipeStaging,
+    ) {
+        let Ok(steps) = staging.steps() else {
+            return;
+        };
+        let mut released = BTreeSet::new();
+        for (native_id, plan) in steps {
+            if released.contains(plan.plan_sha256.as_str()) {
+                continue;
+            }
+            if verify_steps(
+                self.catalog(),
+                recipe,
+                layout,
+                [(native_id, plan)],
+                Depth::Content,
+            )
+            .is_err()
+            {
+                released.insert(plan.plan_sha256.as_str());
+                let _ = self.discard_recipe_plan_locked(&recipe.identity_sha256, plan);
+            }
+        }
+    }
+
+    /// Stages one named package of a reviewed plan and returns the new review.
+    /// The plan must still be current and must list the package to check.
+    pub async fn acquire_recipe_package(
+        &self,
+        plan: &RecipeImportPlan,
+        review_profile_id: &str,
+        native_id: &str,
+    ) -> Result<RecipeImportPlan> {
+        require_import_plan_digest(plan)?;
+        let current = self.plan_recipe_import_with_staging(&plan.recipe, &plan.staging)?;
+        if current.plan_sha256 != plan.plan_sha256
+            || !current.provider_checks.iter().any(|id| id == native_id)
+        {
+            return Err(PortcoveError::conflict(
+                "recipe inputs changed; inspect the recipe again",
+            ));
+        }
+        let mut staging = current.staging;
+        match self
+            .acquire_recipe_step(&plan.recipe, review_profile_id, native_id, &staging)
+            .await?
+        {
+            AcquiredStep::Reused { plan_sha256 } => {
+                staging.acquisitions.push(RecipeAcquisitionRef {
+                    native_id: native_id.to_owned(),
+                    plan_sha256,
+                });
+            }
+            AcquiredStep::Staged(provider_plan) => staging.insert(native_id, provider_plan)?,
+        }
+        self.plan_recipe_import_with_staging(&plan.recipe, &staging)
+    }
+
+    /// Stages the next missing recipe packages, at most
+    /// [`RECIPE_ACQUISITION_STEP`] provider downloads per call. Each staged
+    /// step is recorded before the next starts. A failure stops the batch at
+    /// that package and returns the progress so far with the reason; the
+    /// caller repeats the call until nothing is left to check.
+    pub async fn acquire_recipe_packages(
+        &self,
+        plan: &RecipeImportPlan,
+        review_profile_id: &str,
+    ) -> Result<RecipeAcquisitionBatch> {
+        require_import_plan_digest(plan)?;
+        let current = self.plan_recipe_import_with_staging(&plan.recipe, &plan.staging)?;
+        if current.plan_sha256 != plan.plan_sha256 {
+            return Err(PortcoveError::conflict(
+                "recipe inputs changed; inspect the recipe again",
+            ));
+        }
+        let mut staging = current.staging;
+        let mut acquired = Vec::new();
+        let mut downloads = 0usize;
+        let mut failure = None;
+        for native_id in &dependants_first(&plan.recipe, &current.provider_checks) {
+            if downloads == RECIPE_ACQUISITION_STEP {
+                break;
+            }
+            match self
+                .acquire_recipe_step(&plan.recipe, review_profile_id, native_id, &staging)
+                .await
+            {
+                Ok(AcquiredStep::Reused { plan_sha256 }) => {
+                    staging.acquisitions.push(RecipeAcquisitionRef {
+                        native_id: native_id.clone(),
+                        plan_sha256,
+                    });
+                    acquired.push(native_id.clone());
+                }
+                Ok(AcquiredStep::Staged(provider_plan)) => {
+                    downloads += 1;
+                    staging.insert(native_id, provider_plan)?;
+                    acquired.push(native_id.clone());
+                }
+                Err(error) => {
+                    failure = Some(RecipeAcquisitionFailure::new(native_id, error));
+                    break;
+                }
+            }
+        }
+        let plan = self.plan_recipe_import_with_staging(&plan.recipe, &staging)?;
+        Ok(RecipeAcquisitionBatch {
+            plan,
+            acquired,
+            failure,
+        })
     }
 
     /// Exports the current resolved setup into the player-selected file.
@@ -793,7 +1471,10 @@ impl PortcoveService {
         let recipe = self.export_profile_recipe(port_id, profile_id, None)?;
         let bytes = serde_json::to_vec(&recipe)?;
         if bytes.len() > MAX_RECIPE_BYTES {
-            return Err(invalid("the exported recipe would exceed 256 KiB"));
+            return Err(PortcoveError::unsupported(format!(
+                "the exported recipe would exceed {}",
+                crate::setup_capacity::mebibytes(MAX_RECIPE_BYTES)
+            )));
         }
         crate::durability::write_bytes_atomically(destination, &bytes, true)
     }
@@ -820,16 +1501,41 @@ impl PortcoveService {
             })
     }
 
+    /// Plans an import, resuming the provider files an earlier review of the
+    /// same recipe already staged (see [`PortcoveService::record_recipe_acquisitions`]).
     pub fn plan_recipe_import(&self, recipe: &ProfileRecipe) -> Result<RecipeImportPlan> {
-        self.plan_recipe_import_with_acquisitions(recipe, &[])
+        recipe.validate()?;
+        let recorded = self.recorded_recipe_staging(recipe)?;
+        self.plan_recipe_import_with_staging(recipe, &recorded)
     }
 
+    /// Plans with explicit single-package acquisitions (as the CLI passes them).
     pub fn plan_recipe_import_with_acquisitions(
         &self,
         recipe: &ProfileRecipe,
         acquisitions: &[RecipeAcquisitionPlan],
     ) -> Result<RecipeImportPlan> {
         recipe.validate()?;
+        let staging = RecipeStaging::from_acquisitions(recipe, acquisitions)?;
+        self.plan_recipe_import_with_staging(recipe, &staging)
+    }
+
+    pub fn plan_recipe_import_with_staging(
+        &self,
+        recipe: &ProfileRecipe,
+        staging: &RecipeStaging,
+    ) -> Result<RecipeImportPlan> {
+        self.plan_recipe_import_at(recipe, staging, Depth::Recorded)
+    }
+
+    fn plan_recipe_import_at(
+        &self,
+        recipe: &ProfileRecipe,
+        staging: &RecipeStaging,
+        depth: Depth,
+    ) -> Result<RecipeImportPlan> {
+        recipe.validate()?;
+        require_review_budget(staging.encoded_bytes()?)?;
         self.catalog().port(&recipe.port_id)?;
         let mut holds = Vec::new();
         if Platform::current()? != recipe.runtime.platform {
@@ -892,12 +1598,18 @@ impl PortcoveService {
             .flatten()
             .unwrap_or_else(|| crate::profile_deploy::Layout::for_user(&user));
         let catalog = self.catalog();
-        let (acquisition_bytes, _) = verified_acquisitions(catalog, recipe, &layout, acquisitions)?;
+        let acquisition_bytes = verify_steps(catalog, recipe, &layout, staging.steps()?, depth)?;
+        // Every review of these steps keeps their staging from aging out.
+        for provider_plan in &staging.provider_plans {
+            self.keep_recipe_staging(recipe, provider_plan);
+        }
         let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let mut code_approval = Vec::new();
         let mut provider_checks = Vec::new();
         let recomp_game = layout.recomp_game();
         let connection = self.library.connection()?;
+        let evidence_index =
+            profile::ProviderEvidenceIndex::read(&connection, &recipe.port_id, &recipe.packages)?;
         let packages = recipe
             .packages
             .iter()
@@ -954,12 +1666,7 @@ impl PortcoveService {
                         runs: staged.runs_code.clone(),
                     });
                 }
-                let evidence = profile::provider_evidence(
-                    &connection,
-                    &recipe.port_id,
-                    package,
-                    package.provider.as_ref(),
-                )?;
+                let evidence = evidence_index.evidence(package, package.provider.as_ref());
                 let closure_member = !package.provider_requires.is_empty()
                     || recipe.packages.iter().filter(|member| member.enabled).any(|member| {
                         member.provider_requires.iter().any(|requirement| {
@@ -1103,6 +1810,12 @@ impl PortcoveService {
                     .to_owned(),
             );
         }
+        if encoded_setup_bytes(recipe)? > MAX_IMPORTED_SETUP_BYTES {
+            holds.push(format!(
+                "this recipe's setup would not fit in one saved setup ({} limit)",
+                crate::setup_capacity::mebibytes(crate::setup_capacity::MAX_SETUP_DOCUMENT_BYTES)
+            ));
+        }
         let mut plan = RecipeImportPlan {
             recipe: recipe.clone(),
             runtime,
@@ -1110,7 +1823,7 @@ impl PortcoveService {
             originals,
             verified_originals,
             packages,
-            acquisitions: acquisitions.to_vec(),
+            staging: staging.clone(),
             provider_checks,
             code_approval,
             can_apply: holds.is_empty(),
@@ -1195,8 +1908,19 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(&port_id, "apply-recipe-import")?;
-        let current =
-            self.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
+        // Apply reads every staged byte; a step that no longer matches leaves
+        // the review so the next plan shows it as missing instead of ready.
+        let current = match self.plan_recipe_import_at(&plan.recipe, &plan.staging, Depth::Content)
+        {
+            Ok(current) => current,
+            Err(error) => {
+                let layout = self.layout_for_install(&plan_install)?.unwrap_or_else(|| {
+                    crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id))
+                });
+                self.forget_unverifiable_acquisitions(&plan.recipe, &layout, &plan.staging);
+                return Err(error);
+            }
+        };
         if current.plan_sha256 != plan.plan_sha256 {
             return Err(PortcoveError::conflict(
                 "the local inputs changed after review; plan the import again",
@@ -1228,8 +1952,13 @@ impl PortcoveService {
             crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id))
         });
         let (catalog, _) = self.library.load_catalog()?;
-        let (acquisition_bytes, _) =
-            verified_acquisitions(&catalog, &current.recipe, &layout, &current.acquisitions)?;
+        let acquisition_bytes = verify_steps(
+            &catalog,
+            &current.recipe,
+            &layout,
+            current.staging.steps()?,
+            Depth::Content,
+        )?;
         for package in &current.recipe.packages {
             if let Some(acquired) = acquisition_bytes.get(&package.native_id) {
                 publish_acquired_package(&layout, package, &acquired.path)?;
@@ -1243,16 +1972,14 @@ impl PortcoveService {
         // bytes and file name, so update checks never follow a label the recipe
         // supplied. The reviewed plan says which labels are dropped.
         let connection = self.library.connection()?;
+        let evidence_index =
+            profile::ProviderEvidenceIndex::read(&connection, &port_id, &plan.recipe.packages)?;
         let mut providers = Vec::with_capacity(plan.recipe.packages.len());
         for package in &plan.recipe.packages {
             let kept = match &package.provider {
                 Some(provider)
-                    if profile::provider_evidence(
-                        &connection,
-                        &port_id,
-                        package,
-                        Some(provider),
-                    )? == profile::ProviderEvidence::Matches =>
+                    if evidence_index.evidence(package, Some(provider))
+                        == profile::ProviderEvidence::Matches =>
                 {
                     Some(provider.clone())
                 }
@@ -1306,9 +2033,10 @@ impl PortcoveService {
             Some(&base),
             base.loader.clone(),
         )?;
-        for acquisition in &current.acquisitions {
-            let _ = self.discard_recipe_acquisition_locked(acquisition);
+        for provider_plan in &current.staging.provider_plans {
+            let _ = self.discard_recipe_plan_locked(&current.recipe.identity_sha256, provider_plan);
         }
+        let _ = self.clear_recipe_acquisition_record(&current.recipe);
         Ok(created)
     }
 }
@@ -1384,28 +2112,72 @@ fn reviewed_origin<'a>(
     }
 }
 
-fn verified_acquisitions(
+/// How much of a staged acquisition a check reads.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Depth {
+    /// Identity, plan digest, presence and exact size. Used between review
+    /// steps, so each step's work stays proportional to the step itself.
+    Recorded,
+    /// Also the exact bytes and native content. Used when a step is staged and
+    /// by apply, which is the authority for what the new setup contains.
+    Content,
+}
+
+/// A staged step: reused by digest from a plan the review already holds, or a
+/// newly staged plan.
+enum AcquiredStep {
+    Reused { plan_sha256: String },
+    Staged(crate::ProviderInstallPlan),
+}
+
+/// Refreshes a staging directory's age so age-based pruning keeps a review
+/// that is still being used. Best effort: pruning only causes a re-download.
+pub(crate) fn touch_directory(path: &Path) {
+    set_directory_modified(path, std::time::SystemTime::now());
+}
+
+pub(crate) fn set_directory_modified(path: &Path, modified: std::time::SystemTime) {
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // A directory handle needs backup semantics; writing its times needs
+        // FILE_WRITE_ATTRIBUTES.
+        options.custom_flags(0x0200_0000).access_mode(0x0100);
+    }
+    if let Ok(directory) = options.open(path) {
+        let _ = directory.set_modified(modified);
+    }
+}
+
+fn verify_steps<'a>(
     catalog: &crate::Catalog,
     recipe: &ProfileRecipe,
     layout: &crate::profile_deploy::Layout,
-    acquisitions: &[RecipeAcquisitionPlan],
-) -> Result<(BTreeMap<String, AcquiredPackage>, u64)> {
+    steps: impl IntoIterator<Item = (&'a str, &'a crate::ProviderInstallPlan)>,
+    depth: Depth,
+) -> Result<BTreeMap<String, AcquiredPackage>> {
     use crate::provider_install::{ProviderInstallMode, digest};
-    if acquisitions.len() > MAX_ACQUISITIONS {
+    let steps = steps.into_iter().collect::<Vec<_>>();
+    // One acquisition per recipe package: the recipe's own package bound is
+    // the only count bound. Bytes are admitted by free space when staged.
+    if steps.len() > recipe.packages.len() {
         return Err(PortcoveError::usage(
-            "too many provider files for one recipe review",
+            "the review has more provider files than the recipe has packages",
         ));
     }
     let mut verified = BTreeMap::new();
-    let mut total_bytes = 0u64;
-    let mut counted = BTreeSet::new();
-    for acquisition in acquisitions {
-        let plan = &acquisition.provider_plan;
-        let package = recipe
-            .packages
-            .iter()
-            .find(|item| item.native_id == acquisition.native_id);
-        let (origin, exact_requirements) = reviewed_origin(plan, &acquisition.native_id)?;
+    // Steps of one closure share a provider plan; check each plan's digest once.
+    let mut digested = BTreeSet::new();
+    let packages = recipe
+        .packages
+        .iter()
+        .map(|item| (item.native_id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    for (native_id, plan) in steps {
+        let package = packages.get(native_id).copied();
+        let (origin, exact_requirements) = reviewed_origin(plan, native_id)?;
         let reference = package.and_then(|package| package.provider.as_ref());
         let identity = reference
             .and_then(|provider| plannable_provider_file(catalog, &recipe.port_id, provider));
@@ -1431,16 +2203,19 @@ fn verified_acquisitions(
                         .as_ref()
                         .is_none_or(|version| origin.version.as_ref() == Some(version))
             });
+        // Identity binding: steps are only ever staged and recorded under this
+        // recipe's identity directory, and single-package inputs are checked
+        // against it when collected (`RecipeStaging::from_acquisitions`).
         if !agrees
-            || recipe.identity_sha256 != acquisition.recipe_identity_sha256
             || plan.port_id != recipe.port_id
-            || digest(plan)? != plan.plan_sha256
-            || verified.contains_key(&acquisition.native_id)
+            || (!digested.contains(plan.plan_sha256.as_str()) && digest(plan)? != plan.plan_sha256)
+            || verified.contains_key(native_id)
         {
             return Err(PortcoveError::conflict(
                 "the provider review does not match this exact recipe",
             ));
         }
+        digested.insert(plan.plan_sha256.as_str());
         let package =
             package.ok_or_else(|| PortcoveError::conflict("the recipe package changed"))?;
         if exact_requirements != package.provider_requires {
@@ -1448,27 +2223,6 @@ fn verified_acquisitions(
                 "the provider file declares different exact requirements. Use a recipe exported with the complete provider closure.",
             )
             .detail("package", &package.native_id));
-        }
-        if counted.insert(plan.plan_sha256.as_str()) {
-            let wrapper_bytes = if plan.wrappers.is_empty() {
-                plan.download_size
-            } else {
-                plan.wrappers.iter().fold(0u64, |sum, wrapper| {
-                    sum.saturating_add(wrapper.download_size)
-                })
-            };
-            let staged_bytes = plan
-                .members
-                .iter()
-                .fold(0u64, |sum, member| sum.saturating_add(member.size));
-            total_bytes = total_bytes
-                .saturating_add(wrapper_bytes)
-                .saturating_add(staged_bytes);
-        }
-        if total_bytes > MAX_ACQUISITION_BYTES {
-            return Err(PortcoveError::unsupported(
-                "the recipe exceeds the combined provider download and staging limit",
-            ));
         }
         let member = plan
             .members
@@ -1486,15 +2240,34 @@ fn verified_acquisitions(
             })?;
         let path = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
-            byte_budget: 0,
             install_id: None,
         }
         .staging(layout, &plan.plan_sha256)
         .join(&package.native_id);
-        if !matches_exact_package(&path, package) {
+        let present = match depth {
+            Depth::Recorded => {
+                crate::path::refuse_symlink_ancestors(&path).is_ok()
+                    && fs::symlink_metadata(&path)
+                        .is_ok_and(|entry| entry.is_file() && entry.len() == package.size)
+            }
+            Depth::Content => matches_exact_package(&path, package),
+        };
+        if !present {
             return Err(PortcoveError::conflict(
                 "the private package changed or was discarded; review it again",
-            ));
+            )
+            .detail("package", &package.native_id));
+        }
+        if depth == Depth::Recorded {
+            verified.insert(
+                package.native_id.clone(),
+                AcquiredPackage {
+                    path,
+                    provider: origin.clone(),
+                    runs_code: member.runs_code.clone(),
+                },
+            );
+            continue;
         }
         // The plan is input. Recheck actual code facts from its exact staged bytes.
         let runs_code = if let Some(game) = layout.recomp_game() {
@@ -1535,7 +2308,28 @@ fn verified_acquisitions(
             },
         );
     }
-    Ok((verified, total_bytes))
+    Ok(verified)
+}
+
+/// What the imported revision's recipe-derived content occupies. The rest of
+/// a revision (build identity, originals, save group) has fixed small size.
+fn encoded_setup_bytes(recipe: &ProfileRecipe) -> Result<usize> {
+    let packages = recipe
+        .packages
+        .iter()
+        .map(|package| crate::ResolvedPackage {
+            native_id: package.native_id.clone(),
+            native_version: package.native_version.clone(),
+            provider: package.provider.clone(),
+            sha256: package.sha256.clone(),
+            size: package.size,
+            enabled: package.enabled,
+            requires: package.requires.clone(),
+            provider_requires: package.provider_requires.clone(),
+        })
+        .collect::<Vec<_>>();
+    let settings = recomp_mod_settings::import(&recipe.settings)?;
+    Ok(serde_json::to_vec(&(&packages, &recipe.orderings, &recipe.originals, &settings))?.len())
 }
 
 fn matches_exact_package(path: &Path, package: &RecipePackage) -> bool {
