@@ -974,6 +974,16 @@ export function finalizationMilliseconds(stateBytes: number) {
   return 60_000 + Math.ceil(stateBytes / (256 * 1024)) * 1000;
 }
 
+const unmigratedReason = "The maintenance store is not migrated for discovery collection yet";
+
+/** Only the store's own missing schema or tables mean "not migrated"; a missing
+ * database, role, column or function is a configuration fault and is raised. */
+export function unmigratedStore(error: unknown) {
+  return /\b(?:relation|schema) "portcove_maintenance(?:\.[a-z_]+)?" does not exist/u.test(
+    errorMessage(error),
+  );
+}
+
 const usage =
   "usage: node scripts/discovery-worker.mts collect|status|import-local [--database-env NAME] [--output DIR] [--state-dir DIR]";
 
@@ -1033,14 +1043,17 @@ export async function discoveryWorkerMain(argv: string[]) {
         { request: request("export"), reservationBytes: Math.ceil(Number(size) * 2) },
       );
     } catch (error) {
-      if (!(error instanceof MaintenanceResourceDeferred)) throw error;
-      // The meter or allowance is unavailable; keep the prior export and say so.
-      const deferred = `Discovery status export deferred: ${error.message}\n`;
+      // A deferred admission or an unmigrated store leaves status.json untouched
+      // and replaces status.md with the reason; any other failure is raised.
+      const resource = error instanceof MaintenanceResourceDeferred;
+      if (!resource && !unmigratedStore(error)) throw error;
+      const reason = resource ? errorMessage(error) : unmigratedReason;
+      const deferred = `Discovery status export deferred: ${reason}\n`;
       writeFileSync(
         path.join(output, "status.md"),
         `## Unattended discovery collection\n\n${deferred}`,
       );
-      console.log(JSON.stringify({ outcome: "deferred", reason: error.message }));
+      console.log(JSON.stringify({ outcome: "deferred", reason }));
       return 75;
     }
     if (!isRecord(status)) throw new MaintenanceStoreError("Malformed discovery status");
@@ -1138,8 +1151,7 @@ export async function discoveryWorkerMain(argv: string[]) {
     } catch (error) {
       if (error instanceof MaintenanceResourceDeferred)
         return deferredRun(`resource admission: ${error.message}`);
-      if (/does not exist/u.test(errorMessage(error)))
-        return deferredRun("The maintenance store is not migrated for discovery collection yet");
+      if (unmigratedStore(error)) return deferredRun(unmigratedReason);
       throw error;
     }
     const deadlineEpoch = Number(process.env.PORTCOVE_DISCOVERY_DEADLINE_EPOCH);
