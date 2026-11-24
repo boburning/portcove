@@ -10496,33 +10496,52 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let catalog = Catalog::embedded().unwrap();
-        let shared_repository = "openmoh/openmohaa";
-        let mut port_ids = catalog
+        // Everything comes from the catalog as this platform sees it, so the test
+        // holds on Windows, Linux and macOS alike.
+        let platform = Platform::current().unwrap();
+        let candidates = catalog
             .ports()
             .iter()
             .filter(|port| {
-                port.release.provider == ReleaseSource::Github
-                    && port
-                        .release
-                        .repository
-                        .eq_ignore_ascii_case(shared_repository)
+                port.release.provider == ReleaseSource::Github && port.platforms.contains(&platform)
+            })
+            .collect::<Vec<_>>();
+        let mut games_per_repository = std::collections::BTreeMap::<String, usize>::new();
+        for port in &candidates {
+            *games_per_repository
+                .entry(port.release.repository.to_ascii_lowercase())
+                .or_default() += 1;
+        }
+        // Prefer the repository this test was written against; any repository the
+        // platform's catalog names for several games exercises the same rule.
+        let shared_repository = ["openmoh/openmohaa".to_owned()]
+            .into_iter()
+            .chain(games_per_repository.keys().cloned())
+            .find(|repository| {
+                games_per_repository
+                    .get(repository)
+                    .is_some_and(|games| *games >= 2)
+            })
+            .expect("the catalog names one repository for several games on this platform");
+        let shared_repository = shared_repository.as_str();
+        let mut port_ids = candidates
+            .iter()
+            .filter(|port| {
+                port.release
+                    .repository
+                    .eq_ignore_ascii_case(shared_repository)
             })
             .map(|port| port.id.clone())
             .collect::<Vec<_>>();
-        assert!(
-            port_ids.len() >= 2,
-            "the catalog names {shared_repository} more than once"
-        );
         let mut seen_repositories = std::collections::HashSet::new();
-        for port in catalog.ports() {
+        for port in &candidates {
             if port_ids.len() >= 24 {
                 break;
             }
-            if port.release.provider == ReleaseSource::Github
-                && !port
-                    .release
-                    .repository
-                    .eq_ignore_ascii_case(shared_repository)
+            if !port
+                .release
+                .repository
+                .eq_ignore_ascii_case(shared_repository)
                 && seen_repositories.insert(port.release.repository.to_ascii_lowercase())
             {
                 port_ids.push(port.id.clone());

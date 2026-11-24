@@ -561,15 +561,101 @@ it("shows a request-limit deferral as not checked, never as a failure", () => {
   expect(reported).not.toContain(">Check failed</span>");
   expect(reported).not.toContain("Some update checks failed");
   expect(reported).toMatch(/<strong[^>]*>0<\/strong><span[^>]*>Failed<\/span>/u);
-  expect(reported).toContain("1 not checked yet: a provider&#x27;s request limit was reached");
-  expect(reported).toContain("The next check starts with it.");
+  expect(reported).toContain(
+    "1 port not checked yet because a request limit was reached. The next check starts with this port.",
+  );
   expect(reported).toMatch(/ Resets: (?!about)/u);
+  // The row is a muted note: no failure section and no danger styling. The
+  // provider's refusal stays inside the technical details disclosure.
+  expect(reported).not.toContain("data-update-check-failure");
+  expect(reported).not.toContain("Update check failure for");
+  const row = /<div class="update-entry grid min-w-0">[\s\S]*?<\/section><\/div>/u.exec(
+    reported,
+  )?.[0];
+  expect(row).toBeDefined();
+  expect(row).not.toMatch(
+    /(?<![:\w-])(border-pc-danger|bg-pc-danger-subtle|text-pc-danger-foreground)/u,
+  );
+  expect(reported).toContain(`data-update-check-deferred="${port.id}"`);
+  expect(reported).toContain("Not checked: request limit.");
+  expect(reported).toMatch(/<details>[\s\S]*source changed since registration[\s\S]*<\/details>/u);
+  expect(reported).not.toContain(">Retry update check<");
   expect(deferred({ resets_at: 1_800_000_000, reset_reported: false })).toContain(
     " Resets: about ",
   );
   expect(deferred({ resets_at: null, reset_reported: false })).toContain(
     "The reset time is unknown.",
   );
+  // Several deferred games use the plural form, never a concatenated pronoun.
+  const several = renderToStaticMarkup(
+    <UpdateCenter
+      generation={1}
+      ports={[port, { ...port, id: "second", name: "Second" }]}
+      statuses={
+        new Map([
+          [port.id, { ...portStatus(), active: installRecord() }],
+          ["second", { ...portStatus(), port_id: "second", active: installRecord() }],
+        ])
+      }
+      activities={[]}
+      outcomes={[port.id, "second"].map((port_id) => ({
+        port_id,
+        ok: false,
+        result: null,
+        error: failureReport(),
+        deferred: { resets_at: null, reset_reported: false },
+      }))}
+      batchRead={{ status: "current", hasResults: true }}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  expect(several).toContain(
+    "2 ports not checked yet because a request limit was reached. The next check starts with these ports.",
+  );
+});
+
+it("shows a request-limited check activity as not checked, not as a failure", () => {
+  const refusal = failureReport();
+  const record: ActivityRecord = {
+    id: "limited-check",
+    operation: "check_update",
+    target_kind: "port",
+    target_id: port.id,
+    status: "failed",
+    started_at: 10,
+    finished_at: 11,
+    message: null,
+    failure: {
+      ...refusal,
+      code: "network",
+      presentation: { ...refusal.presentation, presentation_key: "provider_rate_limited" },
+    },
+    cancellation: null,
+  };
+  const html = renderToStaticMarkup(
+    <UpdateCenter
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[record]}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  expect(html).toContain("Not checked: request limit");
+  expect(html).toContain("activity-row not-checked");
+  expect(html).not.toContain("activity-row failed");
+  expect(html).not.toMatch(/activity-status[^"]*text-pc-danger-foreground/u);
 });
 
 it("keeps batch failure count unknown when no individual results are available", () => {

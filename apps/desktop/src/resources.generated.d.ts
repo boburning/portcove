@@ -1780,6 +1780,15 @@ export default interface Resources {
       "stable": "Stable",
       "unknown": "Unknown channel"
     },
+    "deferral": {
+      "resetUnknown": "The reset time is unknown.",
+      "resets": "Resets: {{time}}.",
+      "resetsEstimated": "Resets: about {{time}} (Portcove’s estimate).",
+      "rowLabel": "Update check not run for {{port}}",
+      "rowNote": "Not checked: request limit.",
+      "summary_one": "{{count}} port not checked yet because a request limit was reached. The next check starts with this port.",
+      "summary_other": "{{count}} ports not checked yet because a request limit was reached. The next check starts with these ports."
+    },
     "releaseChannel": {
       "changeEffect": "Changing channel selects releases for future checks and updates. Your installed version stays unchanged.",
       "changing": "Changing update channel…",

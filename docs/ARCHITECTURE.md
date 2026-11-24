@@ -3536,6 +3536,10 @@ budget and bulk checks:
   reservation. The provider desktop and CLI use (`CompositeReleaseProvider`) forwards these
   forecasts to its GitHub provider; before November 2026 it reported nothing for ordinary
   and saved-choice GitHub games.
+- **Shared observations.** Within one bulk check, ordinary GitHub metadata for a repository
+  that several of its games name is read once per credential and reused in memory for the
+  rest of that check only. The shared bodies are bounded at 64 MiB in total; past the bound
+  a game reads for itself as it would without sharing.
 - **Running budget.** Each provider (shared by clones, so one per desktop process) keeps,
   per credential (anonymous, or an in-memory fingerprint of the token), what GitHub last
   reported in `x-ratelimit-limit`, `-remaining`, `-used`, `-reset` and `-resource` (only
@@ -3618,9 +3622,15 @@ and stays unknown, never "checked" or "up to date". Every rate-limited item, def
 answered with a limit, carries a typed `UpdateCheckDeferral` (`resets_at`, and whether the
 provider reported it) through Tauri's `UpdateCheckOutcome` and the CLI's `deferred` field;
 the desktop counts such games as not checked rather than failed and does not fail the batch
-for them. Attempts come from the retained activity history, which keeps the 1,000 most
-recent finished activities; a pruned attempt falls back to the snapshot time or to never
-attempted. The next bulk check after the reset starts with the deferred games, so a large library completes across allowance windows instead of
+for them. Each deferred game shows a muted "Not checked: request limit" note with its
+**Resets** time, the provider's refusal only inside the technical details, and the
+activity history shows a rate-limited check as not checked rather than failed; the CLI's
+human summary also states the latest Resets time. Attempts come from the retained activity
+history, which keeps the 1,000 most recent finished activities; a pruned attempt falls back
+to the snapshot time or to never attempted. Open constraint: a game whose checks never
+succeed therefore regains front priority about once per 1,000 activities. The durable fix
+is a per-port last-verdict time with a schema migration and an upgrade test, which this
+change does not add. The next bulk check after the reset starts with the deferred games, so a large library completes across allowance windows instead of
 re-checking its first games, and the order survives restart because it is read from the
 library database. Launching an installed game never reads update-check state or waits for
 a check.

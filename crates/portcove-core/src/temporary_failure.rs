@@ -599,6 +599,7 @@ mod tests {
                     resets_at,
                     throttled,
                     reset_reported,
+                    signed_in: None,
                 },
             )
         };

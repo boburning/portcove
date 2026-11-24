@@ -270,6 +270,9 @@ pub(crate) enum KnownFailureCause {
         throttled: bool,
         /// Whether the provider reported `resets_at`, or Portcove estimated it.
         reset_reported: bool,
+        /// Whose allowance: signed in (per account) or anonymous (per network
+        /// address). `None` when the failure does not say.
+        signed_in: Option<bool>,
     },
     /// A provider listing the decision depends on was read only in part this
     /// time (a page budget, a partial listing or a mixed-time snapshot): the
@@ -329,7 +332,7 @@ pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::Rele
 /// The failure of an item that was not sent because `cause` already stopped the
 /// same provider allowance. `None` when `cause` is not a rate limit.
 pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
-    let (provider, resets_at, throttled, reset_reported) = match cause.known_cause()? {
+    let (provider, resets_at, throttled, reset_reported, signed_in) = match cause.known_cause()? {
         KnownFailureCause::ProviderRequest {
             provider,
             rate_limited: true,
@@ -340,13 +343,24 @@ pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
             *resets_at,
             cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
             resets_at.is_some(),
+            cause
+                .details
+                .get("rate_limit_credential")
+                .map(|credential| credential == "authenticated"),
         ),
         KnownFailureCause::ProviderAllowanceExhausted {
             provider,
             resets_at,
             throttled,
             reset_reported,
-        } => (*provider, *resets_at, *throttled, *reset_reported),
+            signed_in,
+        } => (
+            *provider,
+            *resets_at,
+            *throttled,
+            *reset_reported,
+            *signed_in,
+        ),
         _ => return None,
     };
     let mut error = PortcoveError::network(
@@ -357,6 +371,7 @@ pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
         resets_at,
         throttled,
         reset_reported,
+        signed_in,
     })
     .detail("rate_limit_deferred", "true");
     for key in [
@@ -373,16 +388,20 @@ pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
     Some(error)
 }
 
-fn reset_sentence(resets_at: Option<i64>) -> String {
+/// A provider reset instant (Unix seconds) as RFC 3339, for presentation.
+fn reset_time(resets_at: Option<i64>) -> Option<String> {
     resets_at
         .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
         .and_then(|time| {
             time.format(&time::format_description::well_known::Rfc3339)
                 .ok()
         })
-        .map_or_else(String::new, |time| {
-            format!(" The provider reported a reset time of {time}.")
-        })
+}
+
+fn reset_sentence(resets_at: Option<i64>) -> String {
+    reset_time(resets_at).map_or_else(String::new, |time| {
+        format!(" The provider reported a reset time of {time}.")
+    })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -743,22 +762,20 @@ impl KnownFailureCause {
                 resets_at,
                 throttled,
                 reset_reported,
+                signed_in,
             } => {
-                let provider = match provider {
-                    FailureProvider::Github => "GitHub",
-                    FailureProvider::Gitlab => "GitLab",
+                let provider = provider.name();
+                let cause = match (throttled, signed_in) {
+                    (true, _) => format!("{provider} asked Portcove to wait before more requests"),
+                    (false, Some(true)) => format!(
+                        "The {provider} request allowance for your signed-in account is used up"
+                    ),
+                    (false, Some(false)) => format!(
+                        "The {provider} request allowance for anonymous requests from this network is used up"
+                    ),
+                    (false, None) => format!("The {provider} request allowance is used up"),
                 };
-                let cause = if *throttled {
-                    format!("{provider} asked this computer to wait before more requests")
-                } else {
-                    format!("{provider}'s request allowance for this computer is used up")
-                };
-                let reset = resets_at
-                    .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
-                    .and_then(|time| {
-                        time.format(&time::format_description::well_known::Rfc3339)
-                            .ok()
-                    });
+                let reset = reset_time(*resets_at);
                 let next = match (reset, reset_reported) {
                     (Some(time), true) => format!("Resets: {time}. Try again after then."),
                     (Some(time), false) => format!(
@@ -1276,6 +1293,104 @@ mod upstream_classification_tests {
             rate_limited,
             resets_at: None,
         })
+    }
+
+    fn allowance_refusal(
+        resets_at: Option<i64>,
+        throttled: bool,
+        reset_reported: bool,
+        signed_in: Option<bool>,
+    ) -> PortcoveError {
+        PortcoveError::network("not sent").with_known_cause(
+            KnownFailureCause::ProviderAllowanceExhausted {
+                provider: FailureProvider::Github,
+                resets_at,
+                throttled,
+                reset_reported,
+                signed_in,
+            },
+        )
+    }
+
+    #[test]
+    fn allowance_refusal_copy_names_whose_allowance_and_how_the_reset_is_known() {
+        let summary = |error: PortcoveError| error.presentation().summary;
+        let account = summary(allowance_refusal(Some(1_600), false, true, Some(true)));
+        assert!(account.starts_with("The GitHub request allowance for your signed-in account"));
+        assert!(
+            account.contains("Resets: 1970-01-01T00:26:40Z. "),
+            "{account}"
+        );
+        let anonymous = summary(allowance_refusal(Some(1_600), false, false, Some(false)));
+        assert!(anonymous.contains("anonymous requests from this network"));
+        assert!(anonymous.contains("Resets: about 1970-01-01T00:26:40Z (estimated by Portcove)."));
+        let unknown = summary(allowance_refusal(None, false, false, None));
+        assert!(unknown.starts_with("The GitHub request allowance is used up"));
+        assert!(unknown.contains("The reset time is unknown."));
+        let throttled = summary(allowance_refusal(None, true, false, Some(true)));
+        assert!(throttled.starts_with("GitHub asked Portcove to wait"));
+        for text in [account, anonymous, unknown, throttled] {
+            assert!(!text.contains("computer"), "{text}");
+            assert!(!text.contains("waited"), "{text}");
+        }
+    }
+
+    #[test]
+    fn update_check_deferral_reports_a_reset_only_when_the_provider_stated_it() {
+        let deferral = |error: PortcoveError| error.update_check_deferral().unwrap();
+        // A provider answer with a reset states it.
+        let answered = deferral(PortcoveError::network("limited").with_known_cause(
+            KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Github,
+                status: 403,
+                rate_limited: true,
+                resets_at: Some(1_600),
+            },
+        ));
+        assert_eq!(
+            (answered.resets_at, answered.reset_reported),
+            (Some(1_600), true)
+        );
+        // A provider answer without a reset: unknown, not reported.
+        let unstated = PortcoveError::network("limited").with_known_cause(
+            KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Github,
+                status: 429,
+                rate_limited: true,
+                resets_at: None,
+            },
+        );
+        let unstated = deferral(unstated);
+        assert_eq!((unstated.resets_at, unstated.reset_reported), (None, false));
+        // A local refusal keeps whether the provider reported its time.
+        let reported = deferral(allowance_refusal(Some(1_600), false, true, None));
+        assert_eq!(
+            (reported.resets_at, reported.reset_reported),
+            (Some(1_600), true)
+        );
+        let estimated = deferral(allowance_refusal(Some(1_600), true, false, None));
+        assert_eq!(
+            (estimated.resets_at, estimated.reset_reported),
+            (Some(1_600), false)
+        );
+        // "Reported" never stands without a time.
+        let timeless = deferral(allowance_refusal(None, false, true, None));
+        assert_eq!((timeless.resets_at, timeless.reset_reported), (None, false));
+        // A deferred item inherits whose allowance stopped the batch.
+        let stopped = provider(403, true)
+            .detail("rate_remaining", "0")
+            .detail("rate_limit_credential", "authenticated");
+        let follower = deferred_after(&stopped).unwrap();
+        assert!(matches!(
+            follower.known_cause(),
+            Some(KnownFailureCause::ProviderAllowanceExhausted {
+                signed_in: Some(true),
+                throttled: false,
+                ..
+            })
+        ));
+        // Not a rate limit: no deferral.
+        assert!(provider(404, false).update_check_deferral().is_none());
     }
 
     #[test]

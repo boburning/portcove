@@ -23,14 +23,24 @@ use crate::{
     failure::{FailureProvider, KnownFailureCause},
 };
 
-/// The allowance a GitHub API request draws from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// The allowance a GitHub API request draws from. `Debug` never shows the
+/// fingerprint, so a log or panic message cannot correlate a token.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RequestCredential {
     /// No `Authorization` header: the per-address anonymous allowance. Managed
     /// scoped acquisition always sends this way, whatever the player's sign-in.
     Anonymous,
     /// A token's allowance, identified by an in-memory fingerprint, never the token.
     Authenticated(u64),
+}
+
+impl std::fmt::Debug for RequestCredential {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Anonymous => "Anonymous",
+            Self::Authenticated(_) => "Authenticated(<redacted>)",
+        })
+    }
 }
 
 impl RequestCredential {
@@ -500,6 +510,7 @@ fn refusal(credential: RequestCredential, block: &Block) -> PortcoveError {
         resets_at,
         throttled: block.stop == AllowanceStop::Throttled,
         reset_reported: block.reported,
+        signed_in: Some(credential.is_authenticated()),
     })
     .detail("rate_limit_deferred", "true")
     .detail("rate_limit_credential", credential.label());
@@ -640,6 +651,19 @@ mod tests {
     }
 
     #[test]
+    fn debug_output_never_shows_the_token_fingerprint() {
+        let credential = RequestCredential::for_token(Some("fixture-token"));
+        let RequestCredential::Authenticated(fingerprint) = credential else {
+            panic!("a token is an authenticated credential");
+        };
+        let shown = format!("{credential:?} {:?}", Some(credential));
+        assert!(!shown.contains(&fingerprint.to_string()), "{shown}");
+        assert!(!shown.contains(&format!("{fingerprint:x}")), "{shown}");
+        assert_eq!(format!("{credential:?}"), "Authenticated(<redacted>)");
+        assert_eq!(format!("{:?}", RequestCredential::Anonymous), "Anonymous");
+    }
+
+    #[test]
     fn documented_accounting_exempts_only_an_authenticated_not_modified_answer() {
         let token = RequestCredential::for_token(Some("fixture-token"));
         assert!(token.is_authenticated());
@@ -774,7 +798,7 @@ mod tests {
         assert!(
             presentation
                 .summary
-                .contains("allowance for this computer is used up")
+                .contains("allowance for anonymous requests from this network is used up")
         );
         assert!(
             presentation
@@ -857,7 +881,7 @@ mod tests {
             refused
                 .presentation()
                 .summary
-                .contains("asked this computer to wait")
+                .contains("asked Portcove to wait")
         );
         budget.admit_at(anonymous, true, start + secs(30)).unwrap();
         // A stated wait beyond one window is shown as stated but held in memory

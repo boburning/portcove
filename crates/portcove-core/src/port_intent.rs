@@ -2652,6 +2652,7 @@ mod tests {
                 resets_at: Some(reset),
                 throttled: false,
                 reset_reported: true,
+                signed_in: Some(false),
             },
         );
         for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
