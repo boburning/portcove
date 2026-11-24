@@ -121,8 +121,8 @@ export async function readUntilSettled<T>(
     try {
       return await read();
     } catch (error) {
-      const delay = delays[attempt];
       if (!unsettled(error)) throw error;
+      const delay = delays[attempt];
       if (delay === undefined)
         throw new UnsettledPublicationRead(
           `Uploaded report state was not readable after ${attempt + 1} attempts over ${delays.reduce((sum, value) => sum + value, 0)}s; the next publication replays it: ${sanitizeOperationError(error).message}`,

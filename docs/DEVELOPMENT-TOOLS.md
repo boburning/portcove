@@ -1402,8 +1402,9 @@ publisher now uses SDK metadata operations and awaited replay/readback. Its trus
 main checkout installs frozen dependencies before the credentialed steps. Existing
 artifact-byte downloads remain staged acquisition work under the same owner.
 GitHub's run artifact list lags a just-finished upload, so the publish step re-reads
-its own uploaded state for up to six waits (60 seconds) while the list is 404, omits
-the artifact or reports a total that differs from its items. It publishes only after
+its own uploaded state for up to six waits (60 seconds) while the list or archive
+lookup is 404, the list omits the artifact or it reports a total that differs from
+its items. It publishes only after
 the read-back bytes equal the candidate. Exhaustion names the collection and both
 numbers; the unchanged pointer lets the next publication replay the same receipts.
 

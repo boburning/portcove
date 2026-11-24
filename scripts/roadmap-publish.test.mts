@@ -273,14 +273,16 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
       | "size"
       | "historical"
       | "malformed-digest"
-      | "upload-lag" = "valid",
+      | "upload-lag"
+      | "upload-unlisted" = "valid",
   ) => {
     const trace = path.join(root, `${operation}-${variant}.log`);
     const archive =
       variant === "size" ||
       variant === "historical" ||
       variant === "malformed-digest" ||
-      variant === "upload-lag"
+      variant === "upload-lag" ||
+      variant === "upload-unlisted"
         ? valid
         : archives[variant];
     const preload = `
@@ -362,8 +364,9 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
           return Response.json({ total_count: 1, artifacts: [artifact(450, "roadmap-diagnostics-45-3", 45)] });
         if (route === "/actions/runs/50/artifacts") {
           // GitHub's list lags the just-finished upload: the count before the item.
-          if (variant === "upload-lag" && (globalThis.ownListReads = (globalThis.ownListReads ?? 0) + 1) === 1)
-            return Response.json({ total_count: 1, artifacts: [] });
+          // Or a coherent list that does not include the new artifact yet.
+          if (variant.startsWith("upload-") && (globalThis.ownListReads = (globalThis.ownListReads ?? 0) + 1) === 1)
+            return Response.json({ total_count: variant === "upload-lag" ? 1 : 0, artifacts: [] });
           return Response.json({ total_count: 1, artifacts: [artifact(500, "roadmap-report-state-50-4", 50)] });
         }
         const match = route.match(/^\\/actions\\/artifacts\\/(400|450|500)\\/zip$/);
@@ -417,11 +420,12 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
     "GET /issues/comments/7",
   ]);
   // A lagging own-run artifact list recovers within the same publication.
-  assert.deepEqual((await run("publish", "upload-lag")).slice(0, 3), [
-    "GET /actions/runs/50/artifacts?per_page=100",
-    "GET /actions/runs/50/artifacts?per_page=100",
-    "GET /actions/artifacts/500/zip",
-  ]);
+  for (const variant of ["upload-lag", "upload-unlisted"] as const)
+    assert.deepEqual((await run("publish", variant)).slice(0, 3), [
+      "GET /actions/runs/50/artifacts?per_page=100",
+      "GET /actions/runs/50/artifacts?per_page=100",
+      "GET /actions/artifacts/500/zip",
+    ]);
   await run("prepare", "historical");
   const historical = JSON.parse(await readFile(stateFile, "utf8")) as RoadmapReportState;
   assert.deepEqual(historical.observations, selected.observations);
