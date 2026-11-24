@@ -27,6 +27,7 @@ const COMMANDS: &[&str] = &[
     "sign-offline-definition-targets",
     "assemble-definition-repository",
     "verify-definition-repository",
+    "verify-definition-history",
     "sign-definition-role",
 ];
 

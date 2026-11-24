@@ -133,7 +133,7 @@ catalog measured 4,263,284 bytes, the compact catalog 3,271,875 bytes and its
 representative signed envelope 3,449,316 bytes. The generated listing
 directory measured 6,449,993 bytes. The complete retained graph remains
 available for existing installs and rollback. A per-port retention redesign
-requires separate work.
+requires separate work. Once the lead activates the [listing-body window](RELEASING.md#catalog-listing-body-window), superseded listing bodies leave the served tree. They stay in `gh-pages` Git history, and the listing-floor ledger keeps what history verification derives from them. Metadata, current and previous bodies, and pinned publications stay served. Metadata stale across two or more publications inside the 600-second Pages cache window can name a pruned body and get a 404; the client treats that as an incomplete delivery and recovers on its next refresh.
 
 ### Reader generations
 
