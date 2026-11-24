@@ -87,6 +87,8 @@ void test("line references only read regular files inside the repository", () =>
 // removed bound constant needs a register edit in the same change.
 const registerExclusions: Record<string, string> = {
   // Reviewed: names that match the bound pattern but bound nothing.
+  "crates/portcove-core/src/signed_catalog.rs MAX_CATALOG_LIMIT_MESSAGE":
+    "the refusal message for MAX_CATALOG_BYTES (CD-03), not a bound",
 };
 
 const boundSegments = new Set([
@@ -183,7 +185,7 @@ function registerCitations(register: string) {
         else problems.push(`row ${cells[1]} has no cited file`);
       }
     // Appendix F rows: | `NAME` | `path` | ...
-    if (section === "F" && /^`[A-Z]/u.test(cells[1] ?? "")) {
+    if (section === "F" && /^`[A-Za-z_$]/u.test(cells[1] ?? "")) {
       const file = /^`([^`]+)`$/u.exec(cells[2] ?? "")?.[1];
       if (file)
         cite(
@@ -252,6 +254,7 @@ void test("restriction register parsing reads row locations and named bounds", (
       "| LC-01 | 3 | reason |",
       "## F. Other named bounds",
       "| `MAX_C` / `MAX_D` | `crates/a/src/z.rs` | 64 |",
+      "| `maxE` | `scripts/w.mts` | 8 |",
     ].join("\n"),
   );
   assert.deepEqual(problems, []);
@@ -260,6 +263,7 @@ void test("restriction register parsing reads row locations and named bounds", (
     "crates/a/src/x.rs b_fn",
     "crates/a/src/z.rs MAX_C",
     "crates/a/src/z.rs MAX_D",
+    "scripts/w.mts maxE",
     "scripts/y.mts limitB",
   ]);
 });

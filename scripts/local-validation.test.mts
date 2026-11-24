@@ -1779,7 +1779,8 @@ void test("native declaration inputs select their cheap consumer before Rust com
     "crates/portcove-core/src/lib.rs",
   ]) {
     const { selection } = planFor([source]);
-    assert.deepEqual([...selection.nodeTests], [contract]);
+    // Rust sources also select the restriction register ratchet.
+    assert.deepEqual([...selection.nodeTests], [contract, "scripts/check-document-links.test.mts"]);
     assert.equal(selection.scopes.has("release-tooling"), false);
   }
   assert.equal(
@@ -1828,9 +1829,11 @@ void test("all optional workspace Rust execution remains behind the existing adm
 
 void test("UI sources build and run import-related units in optional feedback", () => {
   const { plan } = planFor(["apps/desktop/src/view-model.ts"]);
+  // Desktop sources also select the restriction register ratchet (a Node test).
   assert.deepEqual(ids(plan), [
     "diff-check",
     "repository-lint",
+    "node-tests",
     "ui-content",
     "ui-build",
     "ui-related-tests",
