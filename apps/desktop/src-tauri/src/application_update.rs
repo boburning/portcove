@@ -348,7 +348,7 @@ async fn check(
                 error = %error,
                 message = "application update check failed"
             );
-            check_failed_error()
+            check_error(&error)
         })?;
     let mut activity = state.activity()?;
     // A channel change during the check makes this answer irrelevant.
@@ -367,6 +367,21 @@ fn unavailable_error() -> DesktopError {
         ),
         "unavailable",
     )
+}
+
+/// The plugin reports `ReleaseNotFound` when every feed request got an HTTP
+/// response without update information: a missing feed (404), a server error
+/// or a refusal, possibly from a proxy or firewall rather than the update
+/// server. Connection failures report other errors. The player is told only
+/// what holds for all of these, without blaming their connection.
+fn check_error(error: &tauri_plugin_updater::Error) -> DesktopError {
+    match error {
+        tauri_plugin_updater::Error::ReleaseNotFound => refusal(
+            PortcoveError::network("Portcove couldn't get update information. Try again later."),
+            "release-not-found",
+        ),
+        _ => check_failed_error(),
+    }
 }
 
 fn check_failed_error() -> DesktopError {
@@ -649,6 +664,22 @@ mod tests {
             ApplicationUpdateChannel::default(),
             ApplicationUpdateChannel::Beta
         );
+    }
+
+    #[test]
+    fn a_missing_feed_is_not_reported_as_a_connection_problem() {
+        let missing = check_error(&tauri_plugin_updater::Error::ReleaseNotFound);
+        assert!(!missing.message.contains("internet connection"));
+        assert!(missing.message.contains("update information"));
+        assert_eq!(
+            missing
+                .details
+                .get(crate::application_update_admission::REFUSAL_DETAIL),
+            Some(&"release-not-found".to_owned())
+        );
+        let offline = check_error(&tauri_plugin_updater::Error::Network("offline".into()));
+        assert_eq!(offline.message, check_failed_error().message);
+        assert!(offline.message.contains("internet connection"));
     }
 
     #[test]
