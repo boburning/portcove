@@ -296,8 +296,9 @@ For a pin conflict, generation writes a generated `download` hold into the
 listing projection ([8.3](#83-withdrawal-list-and-blocked-state)), so the
 existing listing download refuses the changed bytes too.
 Clients that already pinned it receive a `curated_transitions` entry
-(`distribution_withdrawn` or `revoked`) in the next signed policy. A
-whole-listing `download` hold blocks generation entirely. Typed
+(`distribution_withdrawn` or `revoked`) in the next signed policy. An
+authored whole-listing `download` hold blocks generation entirely; the
+generated pin-conflict hold does not. Typed
 `install`/`update` holds on generated definitions become a later slice after
 #8496 ([13](#13-staged-implementation-plan), slice 9).
 
