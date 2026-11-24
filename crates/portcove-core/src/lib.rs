@@ -548,8 +548,8 @@ pub use source_reuse::{
     SourceReuseReview,
 };
 pub use store_install::{
-    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
-    StoreOriginalFolder, SystemStoreInstallHost,
+    GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, StoreGameInstall,
+    StoreGameInstalls, StoreInstallHost, StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
