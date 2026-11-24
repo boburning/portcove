@@ -252,6 +252,10 @@ pub(super) fn signing_material(key: &tough::schema::key::Key) -> (&'static str, 
 #[serde(deny_unknown_fields)]
 struct PolicyDocument {
     policy_schema: u32,
+    /// Absent: decision schema 1, bound to the global index digest. `2`: bound
+    /// only to this subject's own exact indexed entry (see `DecisionBinding`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    decision_schema: Option<u32>,
     namespace: String,
     stable_id: String,
     policy_revision: u64,
@@ -327,13 +331,15 @@ pub(crate) enum CuratedArtifactOperation {
 enum PolicyDecision {
     Availability {
         definition_revision: u64,
-        index_sha256: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index_sha256: Option<String>,
         definition_sha256: String,
         template: String,
     },
     ManagedGithub {
         definition_revision: u64,
-        index_sha256: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index_sha256: Option<String>,
         definition_sha256: String,
         template: String,
         repository_id: u64,
@@ -355,12 +361,64 @@ enum PolicyDecision {
     },
     ManagedForgeV1 {
         definition_revision: u64,
-        index_sha256: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index_sha256: Option<String>,
         definition_sha256: String,
         template: String,
         selection: crate::reviewed_forge::ReviewedForgeSelection,
     },
     Revoked,
+}
+
+/// The newest policy decision binding schema this reader interprets.
+pub(crate) const MAX_POLICY_DECISION_SCHEMA: u64 = 2;
+
+/// The exact definition a positive decision authorizes.
+///
+/// Decision schema 1 also names the global definitions-index digest, so any
+/// index change (including an unrelated subject's addition) invalidates it.
+/// Decision schema 2 omits that digest. It is honored only for a projection
+/// interpreted from the same current verified index the caller is using, and
+/// that index must name this subject at this revision with this exact entry
+/// digest. Removal, revision and replay against another entry still defeat it.
+struct DecisionBinding<'a> {
+    definition_revision: u64,
+    index_sha256: Option<&'a str>,
+    definition_sha256: &'a str,
+    template: &'a str,
+}
+
+impl PolicyDecision {
+    fn binding(&self) -> Option<DecisionBinding<'_>> {
+        match self {
+            Self::Availability {
+                definition_revision,
+                index_sha256,
+                definition_sha256,
+                template,
+            }
+            | Self::ManagedGithub {
+                definition_revision,
+                index_sha256,
+                definition_sha256,
+                template,
+                ..
+            }
+            | Self::ManagedForgeV1 {
+                definition_revision,
+                index_sha256,
+                definition_sha256,
+                template,
+                ..
+            } => Some(DecisionBinding {
+                definition_revision: *definition_revision,
+                index_sha256: index_sha256.as_deref(),
+                definition_sha256,
+                template,
+            }),
+            Self::Revoked => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -388,6 +446,13 @@ pub struct AuthenticatedDefinitionPublisherPolicy {
     document: PolicyDocument,
     bytes: Vec<u8>,
     provenance: PolicyProvenance,
+}
+
+#[cfg(test)]
+impl AuthenticatedDefinitionPublisherPolicy {
+    pub(crate) fn target_sha256_for_test(&self) -> &str {
+        &self.provenance.target_sha256
+    }
 }
 
 fn digest(bytes: &[u8]) -> String {
@@ -472,6 +537,37 @@ impl PolicyDocument {
             ));
         }
         let raw: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(bytes)?;
+        // Read only the decision schema before the typed document: a newer
+        // binding shape needs a newer reader for this subject alone.
+        if let Some(schema) = raw.0.get("decision_schema") {
+            match schema.as_u64() {
+                Some(schema) if (2..=MAX_POLICY_DECISION_SCHEMA).contains(&schema) => {
+                    // The global binding is omitted, not nulled: one canonical form.
+                    if raw
+                        .0
+                        .get("decision")
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|decision| decision.contains_key("index_sha256"))
+                    {
+                        return Err(PortcoveError::verification(
+                            "an entry-bound decision must omit the index binding",
+                        ));
+                    }
+                }
+                Some(schema) if schema > MAX_POLICY_DECISION_SCHEMA => {
+                    return Err(
+                        crate::definition_capabilities::newer_policy_decision_schema(schema),
+                    );
+                }
+                // Schema 1 is expressed only by omission, so each decision has
+                // one canonical byte form.
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "invalid publisher policy decision schema",
+                    ));
+                }
+            }
+        }
         let value: Self = serde_json::from_slice(bytes)?;
         if raw
             .0
@@ -609,102 +705,83 @@ impl PolicyDocument {
                 "invalid publisher policy identity",
             ));
         }
-        if let PolicyDecision::Availability {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            template,
-        }
-        | PolicyDecision::ManagedGithub {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            template,
-            ..
-        }
-        | PolicyDecision::ManagedForgeV1 {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            template,
-            ..
-        } = &value.decision
-            && (*definition_revision == 0
-                || !valid_sha256(index_sha256)
-                || !valid_sha256(definition_sha256)
-                || !valid_identity(template))
-        {
-            return Err(PortcoveError::verification(
-                "invalid availability policy binding",
-            ));
+        match (value.decision_schema, value.decision.binding()) {
+            // A revocation binds nothing, so it stays in the form every
+            // released reader understands.
+            (Some(_), None) => {
+                return Err(PortcoveError::verification(
+                    "a revocation carries no decision binding schema",
+                ));
+            }
+            (None, None) => {}
+            (schema, Some(binding)) => {
+                let index_matches_schema = match (schema, binding.index_sha256) {
+                    (None, Some(index_sha256)) => valid_sha256(index_sha256),
+                    (Some(schema), None) => {
+                        (2..=MAX_POLICY_DECISION_SCHEMA).contains(&u64::from(schema))
+                    }
+                    _ => false,
+                };
+                if binding.definition_revision == 0
+                    || !index_matches_schema
+                    || !valid_sha256(binding.definition_sha256)
+                    || !valid_identity(binding.template)
+                {
+                    return Err(PortcoveError::verification(
+                        "invalid availability policy binding",
+                    ));
+                }
+            }
         }
         Ok(value)
     }
 
     fn binds(&self, candidate: &AuthenticatedDefinitionCandidate) -> Result<bool> {
-        let (PolicyDecision::Availability {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            ..
-        }
-        | PolicyDecision::ManagedGithub {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            ..
-        }
-        | PolicyDecision::ManagedForgeV1 {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            ..
-        }) = &self.decision
-        else {
+        let Some(binding) = self.decision.binding() else {
             return Ok(false);
         };
+        // Current-index membership: the candidate's verified index must name
+        // this subject. A removed subject has no entry here.
         let Some(entry) = candidate.index().definitions().iter().find(|entry| {
             entry.namespace() == self.namespace && entry.stable_id() == self.stable_id
         }) else {
             return Ok(false);
         };
-        if entry.revision() != *definition_revision
-            || candidate.provenance().index_sha256 != *index_sha256
-            || digest(candidate.content_bytes(entry.target())?) != *definition_sha256
+        let candidate_index_sha256 = &candidate.provenance().index_sha256;
+        if entry.revision() != binding.definition_revision
+            || binding
+                .index_sha256
+                .is_some_and(|index_sha256| index_sha256 != candidate_index_sha256)
+            || digest(candidate.content_bytes(entry.target())?) != binding.definition_sha256
         {
             return Ok(false);
         }
         let projection = candidate.inspect_catalog_projection(&self.namespace, &self.stable_id)?;
-        self.binds_projection(&projection, index_sha256)
+        self.binds_projection(&projection, candidate_index_sha256)
     }
 
+    /// `candidate_index_sha256` is the verified index the caller currently
+    /// relies on for this subject (a fresh candidate or a retained selection).
     fn binds_projection(
         &self,
         projection: &crate::DefinitionCatalogProjection,
         candidate_index_sha256: &str,
     ) -> Result<bool> {
-        let (PolicyDecision::Availability {
+        let Some(DecisionBinding {
             definition_revision,
             index_sha256,
             definition_sha256,
             template,
-        }
-        | PolicyDecision::ManagedGithub {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            template,
-            ..
-        }
-        | PolicyDecision::ManagedForgeV1 {
-            definition_revision,
-            index_sha256,
-            definition_sha256,
-            template,
-            ..
-        }) = &self.decision
+        }) = self.decision.binding()
         else {
             return Ok(false);
+        };
+        let index_bound = match index_sha256 {
+            // Decision schema 1: the decision itself names that whole index.
+            Some(index_sha256) => candidate_index_sha256 == index_sha256,
+            // Decision schema 2: the projection must have been interpreted from
+            // that same index, which verified the entry and contract digests.
+            None => projection.snapshot().index_sha256() == candidate_index_sha256,
         };
         let entry = projection.entry();
         if matches!(self.decision, PolicyDecision::ManagedGithub { .. }) {
@@ -747,10 +824,10 @@ impl PolicyDocument {
         }
         Ok(entry.namespace() == self.namespace
             && entry.port().id == self.stable_id
-            && entry.revision() == *definition_revision
-            && candidate_index_sha256 == index_sha256
-            && digest(entry.bytes()) == *definition_sha256
-            && serde_json::to_value(entry.port().adapter)?.as_str() == Some(template.as_str()))
+            && entry.revision() == definition_revision
+            && index_bound
+            && digest(entry.bytes()) == definition_sha256
+            && serde_json::to_value(entry.port().adapter)?.as_str() == Some(template))
     }
 }
 
@@ -942,13 +1019,106 @@ pub(crate) fn validate_stored_admissions(connection: &Connection) -> Result<()> 
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     for (namespace, stable_id) in identities {
-        let (_, provenance, _) = stored_admission(connection, &namespace, &stable_id)?
+        let provenance = swept_admission_provenance(connection, &namespace, &stable_id)?
             .ok_or_else(|| PortcoveError::state("publisher admission disappeared"))?;
         let floor =
             installed_authority_floor(connection, &provenance.anchor_sha256)?.ok_or_else(|| {
                 PortcoveError::state("admitted publisher authority has no replay floor")
             })?;
         floor.check_advance(&provenance)?;
+    }
+    Ok(())
+}
+
+/// Library-wide sweeps (authority review before every official refresh) read
+/// each stored admission's provenance. An admission whose exact authenticated
+/// bytes this reader cannot interpret, such as a newer decision schema stored
+/// by a later Portcove before an application rollback, stays refused for its
+/// own subject by every per-subject use of `stored_admission`. It does not
+/// stop the sweep for its siblings. Bytes that fail their recorded digest,
+/// provenance or authority still refuse the whole sweep.
+pub(super) fn swept_admission_provenance(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+) -> Result<Option<PolicyProvenance>> {
+    match stored_admission(connection, namespace, stable_id) {
+        Ok(admission) => Ok(admission.map(|(_, provenance, _)| provenance)),
+        Err(error) => uninterpretable_admission(connection, namespace, stable_id)?
+            .map(Some)
+            .ok_or(error),
+    }
+}
+
+/// The provenance of an intact stored admission whose document this reader
+/// cannot parse; `None` when the document parses (any error is semantic) or
+/// the stored row fails its integrity checks.
+fn uninterpretable_admission(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+) -> Result<Option<PolicyProvenance>> {
+    let row: Option<(String, String, String)> = connection
+        .query_row(
+            "SELECT anchor_sha256,policy_json,provenance_json FROM definition_publisher_admission
+         WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((anchor, document, provenance)) = row else {
+        return Ok(None);
+    };
+    if document.len() > MAX_POLICY_BYTES as usize
+        || provenance.len() > 16 * 1024
+        || PolicyDocument::parse(document.as_bytes()).is_ok()
+    {
+        return Ok(None);
+    }
+    let Ok(provenance) = serde_json::from_str::<PolicyProvenance>(&provenance) else {
+        return Ok(None);
+    };
+    if provenance.validate().is_err()
+        || provenance.anchor_sha256 != anchor
+        || provenance.target_sha256 != digest(document.as_bytes())
+    {
+        return Ok(None);
+    }
+    tracing::info!(
+        stable_id,
+        "stored publisher decision needs a newer Portcove; only its subject is refused"
+    );
+    Ok(Some(provenance))
+}
+
+/// Review-time validation of retained curated receipts. Like admissions, an
+/// intact receipt this reader cannot interpret is not treated as corruption
+/// here. Hold evaluation still reads every receipt strictly and fails closed.
+pub(crate) fn validate_retained_curated_transitions(connection: &Connection) -> Result<()> {
+    for (sha256, bytes, provenance) in
+        crate::curated_acquisition::retained_transition_receipts(connection)?
+    {
+        if bytes.len() > MAX_POLICY_BYTES as usize
+            || provenance.len() > 16 * 1024
+            || digest(bytes.as_bytes()) != sha256
+        {
+            return Err(PortcoveError::verification(
+                "retained curated transition receipt is invalid",
+            ));
+        }
+        let document = PolicyDocument::parse(bytes.as_bytes()).ok();
+        let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
+        provenance.validate()?;
+        if provenance.target_sha256 != sha256
+            || document
+                .as_ref()
+                .is_some_and(|document| document.curated_transitions.is_none())
+            || installed_authority_floor(connection, &provenance.anchor_sha256)?.is_none()
+        {
+            return Err(PortcoveError::state(
+                "retained curated transition lost its admitted authority",
+            ));
+        }
     }
     Ok(())
 }
@@ -1745,6 +1915,10 @@ pub(crate) fn allows_operation(
 }
 
 #[cfg(test)]
+#[path = "definition_policy_decision_tests.rs"]
+mod decision_schema_tests;
+
+#[cfg(test)]
 mod continuity_tests {
     use super::*;
 
@@ -1839,6 +2013,7 @@ mod continuity_tests {
     fn authorization_continuity_excludes_only_definition_bindings_and_revision() {
         let baseline = PolicyDocument {
             policy_schema: 2,
+            decision_schema: None,
             curated_transitions: None,
             namespace: "official".into(),
             stable_id: "owned-fixture".into(),
@@ -1846,7 +2021,7 @@ mod continuity_tests {
             grant_id: "managed-github-v1-fixture".into(),
             decision: PolicyDecision::ManagedGithub {
                 definition_revision: 7,
-                index_sha256: "a".repeat(64),
+                index_sha256: Some("a".repeat(64)),
                 definition_sha256: "b".repeat(64),
                 template: "n64recomp".into(),
                 repository_id: 1296269,

@@ -5701,6 +5701,13 @@
         },
         "type": "array"
       },
+      "definition_features": {
+        "description": "Named definition-delivery features, such as `catalog.policy-decision-v2`.\nA publisher emits a newer form only after a released reader lists it.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
       "engine_templates": {
         "description": "Installed engine contracts; these do not grant definition admission.",
         "items": {

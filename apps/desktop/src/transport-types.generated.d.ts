@@ -2746,6 +2746,11 @@ export interface OutputCapabilities {
   artwork_handoff_schema?: number | null;
   commands: string[];
   /**
+   * Named definition-delivery features, such as `catalog.policy-decision-v2`.
+   * A publisher emits a newer form only after a released reader lists it.
+   */
+  definition_features?: string[];
+  /**
    * Installed engine contracts; these do not grant definition admission.
    */
   engine_templates: EngineTemplateCapability[];

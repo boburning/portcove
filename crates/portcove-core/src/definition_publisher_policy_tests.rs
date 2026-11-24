@@ -13,6 +13,9 @@ mod authority_provisioning;
 #[path = "definition_refresh_tests.rs"]
 mod ordinary_refresh;
 
+#[path = "definition_policy_decision_schema_tests.rs"]
+mod decision_schema;
+
 #[cfg(feature = "qualification-fixtures")]
 #[path = "definition_compiled_client_tests.rs"]
 mod compiled_clients;
