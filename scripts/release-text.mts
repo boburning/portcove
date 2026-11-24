@@ -205,10 +205,10 @@ function withoutUrl(token: string): string {
  * not preceded by a letter or digit, to the token's end. Linear in the token.
  */
 function withoutWww(token: string): string {
-  const lower = token.toLowerCase();
-  for (let at = lower.indexOf("www."); at >= 0; at = lower.indexOf("www.", at + 1))
-    if (at === 0 || !/[A-Za-z0-9]/u.test(token[at - 1]!)) return `${token.slice(0, at)} `;
-  return token;
+  // Matched on the token itself: lowercasing can change a string's length
+  // (`İ`), which would shift every position after it.
+  const at = /(?<![A-Za-z0-9])www\./iu.exec(token)?.index;
+  return at === undefined ? token : `${token.slice(0, at)} `;
 }
 
 /**

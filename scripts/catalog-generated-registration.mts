@@ -7966,14 +7966,17 @@ export function gateListingWords(listing: Record<string, unknown>): string[] {
   return [...words].sort().slice(0, 64);
 }
 /**
- * An HTML comment, or a tag of an element GitHub renders (any case) whose
- * span holds no `<` and no blank line; restated from `withoutMarkup`.
+ * An HTML comment, or a tag of an element GitHub renders (any ASCII case)
+ * whose span holds no `<` and no blank line; restated from `withoutMarkup`.
+ * Names are matched letter by letter in ASCII, never by Unicode case folding
+ * (the Kelvin sign is no `k`, `ſ` no `s`).
  */
 const gateMarkup = new RegExp(
   `<!--[\\s\\S]*?-->|<\\/?(?:${[...renderedElements]
     .toSorted((left, right) => right.length - left.length)
+    .map((name) => name.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`))
     .join("|")})(?=[\\s/>])(?:(?!(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*(?:\\r\\n|\\r|\\n))[^<>])*>`,
-  "giu",
+  "gu",
 );
 /**
  * The prerelease statement token class a line of release text makes,

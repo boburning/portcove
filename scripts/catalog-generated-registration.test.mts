@@ -11570,6 +11570,13 @@ void test("only markup GitHub renders is removed; other angle brackets are text 
     ["Game <!-- beta --> 1.0", null],
     ["Game <beta> 1.0", "beta"],
     ["Game <b class=x\n>1.0", null],
+    // Found in review: `İ` lowercases to two characters, which once shifted
+    // the `www.` removal; and names match in ASCII only, never by Unicode
+    // case folding (`ſ` is no `s`, the Kelvin sign no `k`).
+    ["rc1=<İwww.v1...v2İ", "release-candidate"],
+    ["v2 İwww.rc1", null],
+    ["v1 <ſpan Beta 2> notes", "beta"],
+    ["v1 <\u212Abd Beta 2>", "beta"],
   ] as const) {
     assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
     assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
