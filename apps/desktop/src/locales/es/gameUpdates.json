@@ -5,6 +5,16 @@
     "stable": "Estable",
     "unknown": "Canal desconocido"
   },
+  "deferral": {
+    "resets": "Se restablece: {{time}}.",
+    "resetsEstimated": "Se restablece: hacia {{time}} (estimación de Portcove).",
+    "resetUnknown": "Se desconoce la hora de restablecimiento.",
+    "rowLabel": "Comprobación de actualización no realizada para {{port}}",
+    "rowNote": "Sin comprobar: límite de solicitudes.",
+    "summary_one": "{{count}} port aún sin comprobar porque se alcanzó un límite de solicitudes. La próxima comprobación empieza por este port.",
+    "summary_many": "{{count}} ports aún sin comprobar porque se alcanzó un límite de solicitudes. La próxima comprobación empieza por estos ports.",
+    "summary_other": "{{count}} ports aún sin comprobar porque se alcanzó un límite de solicitudes. La próxima comprobación empieza por estos ports."
+  },
   "releaseChannel": {
     "changeEffect": "Cambiar de canal selecciona las versiones para futuras comprobaciones y actualizaciones. Tu versión instalada no cambia.",
     "changing": "Cambiando el canal de actualización…",

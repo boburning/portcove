@@ -60,6 +60,19 @@ pub(crate) struct BatchOutcome<T> {
     pub(crate) error: Option<DesktopError>,
 }
 
+/// One game's result in a bulk update check. A `deferred` item was not checked:
+/// a provider allowance or throttle stopped it, its update state is unknown, and
+/// the next bulk check after `deferred.resets_at` starts with it.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct UpdateCheckOutcome {
+    pub(crate) port_id: String,
+    pub(crate) ok: bool,
+    pub(crate) result: Option<UpdateCheck>,
+    pub(crate) error: Option<DesktopError>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) deferred: Option<portcove_core::UpdateCheckDeferral>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct SourceBatchOutcome {
     pub(crate) profile_id: String,
@@ -487,7 +500,7 @@ pub fn export_transport_schemas() -> Value {
             "recipe_acquisition_step": output::<RecipeAcquisitionStep>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
-            "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
+            "update_check_outcome": output::<UpdateCheckOutcome>(),
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),

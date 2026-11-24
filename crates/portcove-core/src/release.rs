@@ -21,6 +21,7 @@ use crate::{
     auth::{
         delete_stored_token, environment_token, github_client_id, load_stored_token, store_token,
     },
+    github_request_budget::{GithubRequestBudget, RequestCredential, SharedObservations},
     library::HttpCacheEntry,
 };
 
@@ -157,6 +158,13 @@ pub trait ReleaseProvider: Send + Sync {
         Ok(crate::RequestCostForecast::default())
     }
 
+    /// The allowance an ordinary (unscoped) request for `port` draws from, named as
+    /// the `rate_limit_credential` failure detail names it. `None` when the provider
+    /// does not distinguish allowances by credential.
+    fn ordinary_allowance(&self, _port: &PortDefinition) -> Option<&'static str> {
+        None
+    }
+
     /// Provider request budget for a check that must enforce a reviewed package choice.
     fn forecast_saved_variant_request_cost(&self, _scoped: bool) -> crate::RequestCostForecast {
         crate::RequestCostForecast::default()
@@ -181,33 +189,6 @@ pub trait ReleaseProvider: Send + Sync {
     }
 }
 
-/// The request cost of one GitHub check from what is already cached. An ordinary request
-/// is conditional, so a cached resource answers 304 and is not counted. A managed-scope
-/// request is unconditional and unauthenticated: it always counts, and signing in never
-/// raises its limit. The forecast is a floor for managed-scope curated ports (an
-/// annotated tag adds peel requests), ignores pages beyond the first of a long release
-/// list and the five-minute in-memory selection cache, and reads the persisted cache
-/// without extending it. A provider that cannot forecast reports the default, which
-/// means unknown, not free.
-fn github_cost_forecast(
-    scoped: bool,
-    curated: bool,
-    repository_cached: bool,
-    first_releases_page_cached: bool,
-) -> crate::RequestCostForecast {
-    if scoped {
-        return crate::RequestCostForecast {
-            counted_requests: 2 + u32::from(curated),
-            sign_in_relief_requests: 0,
-        };
-    }
-    let uncached = u32::from(!repository_cached) + u32::from(!first_releases_page_cached);
-    crate::RequestCostForecast {
-        counted_requests: uncached,
-        sign_in_relief_requests: uncached,
-    }
-}
-
 #[derive(Clone)]
 pub struct GithubReleaseProvider {
     api_transport: reqwest::Client,
@@ -222,6 +203,8 @@ pub struct GithubReleaseProvider {
     credential: Arc<StdRwLock<GithubCredential>>,
     cache: Arc<RwLock<HashMap<ReleaseSelectionCacheKey, CachedRelease>>>,
     device_sessions: Arc<Mutex<HashMap<String, DeviceSession>>>,
+    /// Running per-credential GitHub allowance, learned from actual answers.
+    request_budget: GithubRequestBudget,
 }
 
 struct GithubCredential {
@@ -553,6 +536,7 @@ impl GithubReleaseProvider {
             credential: Arc::new(StdRwLock::new(credential.unwrap_or_else(load_credential))),
             cache: Arc::new(RwLock::new(HashMap::new())),
             device_sessions: Arc::new(Mutex::new(HashMap::new())),
+            request_budget: GithubRequestBudget::default(),
         })
     }
 
@@ -692,6 +676,8 @@ impl GithubReleaseProvider {
         cached: Option<&HttpCacheEntry>,
     ) -> impl std::future::Future<Output = Result<reqwest::Response>> + Send + 'static + use<> {
         let headers = self.metadata_headers(url, token, cached);
+        let credential = self.request_credential(url, token);
+        let budget = self.request_budget.clone();
         let url = reqwest::Url::parse(url);
         let transport = self.api_transport.clone();
         async move {
@@ -699,11 +685,24 @@ impl GithubReleaseProvider {
             // Only Core's explicit headers may authorize an API request.
             let mut request = reqwest::Request::new(reqwest::Method::GET, url);
             *request.headers_mut() = headers?;
-            transport
+            let response = transport
                 .execute(request)
                 .await
-                .map_err(github_request_error)
+                .map_err(github_request_error)?;
+            budget.observe(credential, response.status(), response.headers());
+            Ok(response)
         }
+    }
+
+    /// The allowance a request to `url` draws from: `metadata_headers` sends the
+    /// token only to the API origin.
+    fn request_credential(&self, url: &str, token: Option<&str>) -> RequestCredential {
+        RequestCredential::for_token(token.filter(|_| same_origin(url, &self.api_root)))
+    }
+
+    /// The allowance this provider's ordinary requests currently draw from.
+    fn ordinary_credential(&self) -> RequestCredential {
+        RequestCredential::for_token(self.active_token().as_deref())
     }
 
     async fn device_post(
@@ -804,11 +803,46 @@ impl GithubReleaseProvider {
         })
     }
 
+    /// An ordinary, conditional and (when signed in) authenticated metadata read.
+    /// Within a bulk update check, a repository several games name is read once.
     async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        let cached = self.cached_http_response(url);
-        let response = self
-            .metadata_request(url, self.active_token().as_deref(), cached.as_ref())
+        let token = self.active_token();
+        let Some(shared) = SharedObservations::current() else {
+            return self
+                .fetch_json_body(url, token.as_deref())
+                .await
+                .map(|(parsed, _)| parsed);
+        };
+        let credential = self.request_credential(url, token.as_deref());
+        let repository = repository_of_api_url(url, &self.api_root).unwrap_or_default();
+        let mut first = None;
+        let (body, _) = shared
+            .body(credential, &repository, url, || async {
+                let (parsed, body) = self.fetch_json_body::<T>(url, token.as_deref()).await?;
+                first = Some(parsed);
+                Ok(body)
+            })
             .await?;
+        match first {
+            Some(parsed) => Ok(parsed),
+            None => serde_json::from_str(&body)
+                .map_err(|error| PortcoveError::network(error.to_string())),
+        }
+    }
+
+    async fn fetch_json_body<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        token: Option<&str>,
+    ) -> Result<(T, Arc<str>)> {
+        let cached = self.cached_http_response(url);
+        let conditional = cached
+            .as_ref()
+            .is_some_and(|entry| entry.etag.is_some() || entry.last_modified.is_some());
+        let credential = self.request_credential(url, token);
+        let reservation = self.request_budget.admit(credential, conditional)?;
+        let response = self.metadata_request(url, token, cached.as_ref()).await?;
+        reservation.settle();
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
@@ -829,11 +863,12 @@ impl GithubReleaseProvider {
             {
                 tracing::warn!(%error, %url, "could not refresh GitHub HTTP cache age");
             }
-            return Ok(parsed);
+            return Ok((parsed, Arc::from(cached.body)));
         }
         let status = response.status();
         if !status.is_success() {
-            return Err(github_http_error(status, response.headers()));
+            return Err(github_http_error(status, response.headers())
+                .detail("rate_limit_credential", credential.label()));
         }
         let etag = header_text(response.headers(), header::ETAG);
         let last_modified = header_text(response.headers(), header::LAST_MODIFIED);
@@ -849,7 +884,7 @@ impl GithubReleaseProvider {
         {
             tracing::warn!(%error, %url, "could not persist GitHub HTTP cache");
         }
-        Ok(parsed)
+        Ok((parsed, Arc::from(body)))
     }
 
     async fn scoped_json<T: DeserializeOwned>(
@@ -879,9 +914,20 @@ impl GithubReleaseProvider {
         }
         // Authenticated cache and ambient credentials are not authority for a new
         // managed grant. Revalidate public repository identity on the actual API.
+        // The request is unconditional and anonymous, so it always draws from the
+        // anonymous allowance; an allowance GitHub reported exhausted is not asked.
+        let reservation = self
+            .request_budget
+            .admit(RequestCredential::Anonymous, false)?;
         let response = self.metadata_request(url, None, None).await?;
+        reservation.settle();
         if !response.status().is_success() {
-            return Err(github_http_error(response.status(), response.headers()));
+            return Err(
+                github_http_error(response.status(), response.headers()).detail(
+                    "rate_limit_credential",
+                    RequestCredential::Anonymous.label(),
+                ),
+            );
         }
         let bytes =
             bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
@@ -1421,12 +1467,24 @@ impl GithubReleaseProvider {
                 .get(&sidecar.browser_download_url)
                 .send()
                 .await
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
+                .map_err(|error| PortcoveError::from_transport(&error))?;
             if !response.status().is_success() {
-                return Err(PortcoveError::network(format!(
-                    "checksum download returned {}",
-                    response.status()
-                )));
+                // Recorded as an observed status, so a 5xx or a throttle here is
+                // temporary and a 404 stays lasting.
+                let status = response.status();
+                let mut error =
+                    PortcoveError::network(format!("checksum download returned {status}"))
+                        .with_upstream(Some(crate::failure::UpstreamObservation::Status(
+                            status.as_u16(),
+                        )));
+                if let Some(wait) = response
+                    .headers()
+                    .get(header::RETRY_AFTER)
+                    .and_then(|value| value.to_str().ok())
+                {
+                    error = error.detail("retry_after", wait.trim());
+                }
+                return Err(error);
             }
             let body =
                 bounded_response_bytes(response, CHECKSUM_MAX_BYTES, "checksum response").await?;
@@ -1651,6 +1709,15 @@ impl ReleaseProvider for GithubReleaseProvider {
         }
     }
 
+    /// The estimated cost of one check from what is already persisted, without any
+    /// network call. A managed-scope request is unconditional and unauthenticated:
+    /// it always counts against the anonymous allowance and signing in never moves
+    /// it (a floor for curated ports: an annotated tag adds peel requests). An
+    /// ordinary request is conditional when a validator is cached, but only an
+    /// authenticated `304` is exempt; anonymous cached reads still count. Release
+    /// pages beyond the first count when an earlier check persisted them. The
+    /// five-minute in-memory selection cache and resources that changed upstream
+    /// (one more authenticated request each) are not predicted.
     async fn forecast_request_cost(
         &self,
         port: &PortDefinition,
@@ -1660,37 +1727,59 @@ impl ReleaseProvider for GithubReleaseProvider {
         if port.release.provider != crate::ReleaseSource::Github {
             return Ok(crate::RequestCostForecast::default());
         }
+        if scoped {
+            let curated = u32::from(port.release.curated.contains_key(&platform));
+            return Ok(crate::github_request_budget::scoped_request_cost(
+                2 + curated,
+            ));
+        }
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
-        let releases_url = paginated_url(&repository_url, "releases", 1, PROVIDER_PAGE_SIZE)?;
-        Ok(github_cost_forecast(
-            scoped,
-            port.release.curated.contains_key(&platform),
-            self.has_conditional_cache(&repository_url),
-            self.has_conditional_cache(&releases_url),
+        let mut cached = vec![self.has_conditional_cache(&repository_url)];
+        for page in 1..=GITHUB_MAX_RELEASE_PAGES {
+            let url = paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE)?;
+            let entry = self.cached_http_response(&url);
+            if page > 1 && entry.is_none() {
+                break;
+            }
+            cached.push(
+                entry.is_some_and(|entry| entry.etag.is_some() || entry.last_modified.is_some()),
+            );
+        }
+        Ok(crate::github_request_budget::ordinary_request_cost(
+            self.ordinary_credential(),
+            &cached,
         ))
+    }
+
+    fn ordinary_allowance(&self, port: &PortDefinition) -> Option<&'static str> {
+        (port.release.provider == crate::ReleaseSource::Github)
+            .then(|| self.ordinary_credential().label())
     }
 
     fn forecast_saved_variant_request_cost(&self, scoped: bool) -> crate::RequestCostForecast {
         // Budget the full metadata path. Cached conditional responses can cost
         // less, and a stale inline list cannot predict which inventories we need.
-        let counted_requests = (1
+        let requests = (1
             + GITHUB_MAX_RELEASE_PAGES
             + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_FORECAST_ASSET_PAGES)
             as u32;
-        crate::RequestCostForecast {
-            counted_requests,
-            sign_in_relief_requests: if scoped { 0 } else { counted_requests },
+        if scoped {
+            crate::github_request_budget::scoped_request_cost(requests)
+        } else {
+            crate::github_request_budget::budgeted_request_cost(
+                self.ordinary_credential(),
+                requests,
+            )
         }
     }
 
     fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
         let inventory = self.forecast_saved_variant_request_cost(false);
         // The exact tag reference plus at most five annotated tag objects.
-        let counted_requests = inventory.counted_requests.saturating_add(6);
-        crate::RequestCostForecast {
-            counted_requests,
-            sign_in_relief_requests: counted_requests,
-        }
+        crate::github_request_budget::budgeted_request_cost(
+            self.ordinary_credential(),
+            inventory.counted_requests.saturating_add(6),
+        )
     }
 
     fn cached_release_notes(
@@ -2868,6 +2957,19 @@ fn same_origin(left: &str, right: &str) -> bool {
         && left.port_or_known_default() == right.port_or_known_default()
 }
 
+/// The `owner/name` an API URL under `{api_root}/repos/` addresses.
+fn repository_of_api_url(url: &str, api_root: &str) -> Option<String> {
+    let rest = url
+        .strip_prefix(api_root)?
+        .strip_prefix('/')?
+        .strip_prefix("repos/")?;
+    let path = rest.split(['?', '#']).next()?;
+    let mut segments = path.split('/');
+    let owner = segments.next().filter(|segment| !segment.is_empty())?;
+    let name = segments.next().filter(|segment| !segment.is_empty())?;
+    Some(format!("{owner}/{name}"))
+}
+
 fn load_credential() -> GithubCredential {
     if let Some((name, token)) = environment_token() {
         return GithubCredential {
@@ -2955,8 +3057,8 @@ fn github_request_error(error: reqwest::Error) -> PortcoveError {
         ResponseTestPhase::Headers,
         error.is_timeout(),
     ));
-    let observation = crate::failure::UpstreamObservation::from_reqwest(&error);
-    PortcoveError::network(error.to_string()).with_upstream(observation)
+    // A DNS, TLS, connect or reset failure before any answer is temporary.
+    PortcoveError::from_transport(&error)
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -2970,9 +3072,12 @@ fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> Portcov
         crate::failure::KnownFailureCause::ProviderRequest {
             provider: crate::failure::FailureProvider::Github,
             status: status.as_u16(),
+            // A secondary limit answers 403 with `retry-after` and no exhausted
+            // primary allowance.
             rate_limited: status == StatusCode::TOO_MANY_REQUESTS
                 || (status == StatusCode::FORBIDDEN
-                    && limit.as_ref().is_some_and(|limit| limit.remaining == 0)),
+                    && (limit.as_ref().is_some_and(|limit| limit.remaining == 0)
+                        || headers.contains_key(header::RETRY_AFTER))),
             resets_at: limit
                 .as_ref()
                 .and_then(|limit| i64::try_from(limit.resets_at).ok()),
@@ -3465,7 +3570,8 @@ pub(crate) async fn bounded_response_bytes(
                 ResponseTestPhase::Body,
                 error.is_timeout(),
             ));
-            PortcoveError::network(error.to_string())
+            // A body cut off mid-transfer is an interruption, not an answer.
+            PortcoveError::from_transport(&error)
         })?;
         if chunk.len() > limit.saturating_sub(body.len()) {
             return Err(PortcoveError::verification(format!(
@@ -7334,6 +7440,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn checksum_sidecar_statuses_classify_as_temporary_or_lasting_from_the_status() {
+        for (response, expected) in [
+            (
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                Some(crate::TemporaryCause::ServerUnavailable),
+            ),
+            (
+                "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 120\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                Some(crate::TemporaryCause::RateLimited),
+            ),
+            (
+                "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                None,
+            ),
+        ] {
+            let error = checksum_http_fixture(&["SHA256SUMS"], vec![response.into()])
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.temporary_cause().map(|(cause, _)| cause),
+                expected,
+                "{response}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_github_transport_failure_before_any_answer_is_temporary() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        // Nothing listens on a port that was just released: connection refused.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let error = runtime
+            .block_on(
+                reqwest::Client::builder()
+                    .no_proxy()
+                    .build()
+                    .unwrap()
+                    .get(format!("http://127.0.0.1:{port}/"))
+                    .send(),
+            )
+            .unwrap_err();
+        let converted = github_request_error(error);
+        assert_eq!(
+            converted.temporary_cause().map(|(cause, _)| cause),
+            Some(crate::TemporaryCause::Network)
+        );
+    }
+
+    #[tokio::test]
     async fn checksum_manifests_agree_or_fail_independently_of_asset_order() {
         let a = "a".repeat(64);
         let b = "b".repeat(64);
@@ -7489,110 +7651,150 @@ mod tests {
         assert_eq!(resolved.asset.sha256, "a".repeat(64));
     }
 
-    /// Counts what one check of a library actually asks of `api.github.com`, using the real
-    /// provider and its persisted ETag cache against a fake API that answers 304 when the
-    /// conditional header matches. GitHub does not count a 304 against the primary limit,
-    /// so only the 200 responses are "counted" requests. Results are recorded in
-    /// `docs/ARCHITECTURE.md` (anonymous update-check request cost).
-    #[tokio::test]
-    async fn measure_the_request_cost_of_checking_a_library() {
+    /// What one pass over a library asked of the simulated API.
+    #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+    struct SimulatedCost {
+        requests: usize,
+        releases_pages: usize,
+        /// Counted against the primary limit by GitHub's documented rule: every
+        /// answer except an authenticated `304`.
+        counted: usize,
+        not_modified: usize,
+    }
+
+    /// Drives the real provider, its persisted ETag cache and (when `shared`) one bulk
+    /// check's shared observations against a simulated GitHub API. The simulated API
+    /// answers `304` when the validator matches and applies GitHub's documented
+    /// accounting to its own log; it establishes Portcove's request behavior and the
+    /// counts that rule implies, not GitHub's real quota accounting. A fresh provider
+    /// per pass is a Portcove restart: only the persisted cache survives. Returns cold,
+    /// warm and one-repository-changed passes.
+    async fn simulate_library_checks(
+        games: usize,
+        games_per_repository: usize,
+        token: Option<&str>,
+        shared: bool,
+    ) -> [SimulatedCost; 3] {
         use std::sync::{Arc, Mutex};
-        #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
-        struct Cost {
-            requests: usize,
-            releases_pages: usize,
-            counted: usize,
-            not_modified: usize,
-        }
-        // Cost is exactly linear (a 50-game library was measured once at 100 requests), so two
-        // sizes pin the pattern without approaching the hosted harness budget.
-        for ports in [10_usize, 25] {
-            let releases = github_selector_releases();
-            let log: Arc<Mutex<Vec<(String, u16)>>> = Arc::default();
-            let changed: Arc<Mutex<Option<String>>> = Arc::default();
-            let handler_log = Arc::clone(&log);
-            let handler_changed = Arc::clone(&changed);
-            // 150 sequential requests with SQLite writes can outlast the 30s default accept
-            // budget on a slow hosted runner, so allow the finite maximum-friendly 180s.
-            let (api_root, _requests, server) = crate::test_http::serve_routed_http_with_budget(
-                100_000,
-                std::time::Duration::from_secs(180),
-                move |request| {
-                    let path = request
-                        .lines()
-                        .next()
-                        .and_then(|line| line.split_whitespace().nth(1))
-                        .unwrap_or("")
-                        .to_owned();
-                    // The ETag is derived from the resource, plus a revision once a repository changes.
-                    let revision = handler_changed
-                        .lock()
-                        .unwrap()
-                        .as_ref()
-                        .filter(|repository| {
-                            // Exact repository match: `repo-1` must not also match `repo-10`.
-                            path == format!("/repos/{repository}")
-                                || path.starts_with(&format!("/repos/{repository}/"))
-                        })
-                        .map_or(0, |_| 1);
-                    let etag = format!(
-                        "\"etag-{revision}-{}\"",
-                        path.replace(['/', '?', '=', '&'], "_")
+        let releases = github_selector_releases();
+        let log: Arc<Mutex<Vec<(bool, bool, u16)>>> = Arc::default();
+        let changed: Arc<Mutex<Option<String>>> = Arc::default();
+        let handler_log = Arc::clone(&log);
+        let handler_changed = Arc::clone(&changed);
+        let (api_root, requests, server) = crate::test_http::serve_routed_http_with_budget(
+            usize::MAX,
+            std::time::Duration::from_secs(600),
+            move |request| {
+                let path = request
+                    .lines()
+                    .next()
+                    .and_then(|line| line.split_whitespace().nth(1))
+                    .unwrap_or("")
+                    .to_owned();
+                let revision = handler_changed
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .filter(|repository| {
+                        path == format!("/repos/{repository}")
+                            || path.starts_with(&format!("/repos/{repository}/"))
+                    })
+                    .map_or(0, |_| 1);
+                let etag = format!(
+                    "\"etag-{revision}-{}\"",
+                    path.replace(['/', '?', '=', '&'], "_")
+                );
+                let lowered = request.to_ascii_lowercase();
+                let authenticated = lowered.contains("\r\nauthorization: bearer ");
+                let conditional =
+                    lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
+                handler_log.lock().unwrap().push((
+                    authenticated,
+                    path.contains("/releases?"),
+                    if conditional { 304 } else { 200 },
+                ));
+                if conditional {
+                    return format!(
+                        "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
                     );
-                    let lowered = request.to_ascii_lowercase();
-                    let conditional =
-                        lowered.contains(&format!("if-none-match: {}", etag.to_ascii_lowercase()));
-                    let status = if conditional { 304 } else { 200 };
-                    handler_log.lock().unwrap().push((path.clone(), status));
-                    if conditional {
-                        return format!(
-                            "HTTP/1.1 304 Not Modified\r\nETag: {etag}\r\nConnection: close\r\n\r\n"
-                        );
-                    }
-                    let body = if path.contains("/releases?") {
-                        releases.clone()
-                    } else {
-                        r#"{"archived":false}"#.to_owned()
-                    };
-                    ok_json(&body, &format!("ETag: {etag}\r\n"))
-                },
-            );
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path()).unwrap();
-            let catalog = crate::Catalog::embedded().unwrap();
-            let template = catalog.port("re-blue").unwrap().clone();
-            let library_ports = (0..ports)
-                .map(|index| {
-                    let mut port = template.clone();
-                    port.id = format!("measured-{index}");
-                    port.release.repository = format!("owner/repo-{index}");
-                    port.release.asset_hints.insert(
-                        Platform::WindowsX86_64,
-                        vec!["first".into(), "windows".into()],
-                    );
-                    port
-                })
-                .collect::<Vec<_>>();
-            let measure = |before: usize| {
-                let entries = log.lock().unwrap();
-                let slice = &entries[before..];
-                Cost {
-                    requests: slice.len(),
-                    releases_pages: slice
-                        .iter()
-                        .filter(|(path, _)| path.contains("/releases?"))
-                        .count(),
-                    counted: slice.iter().filter(|(_, status)| *status == 200).count(),
-                    not_modified: slice.iter().filter(|(_, status)| *status == 304).count(),
                 }
-            };
-            // A fresh provider per pass is a Portcove restart: only the persisted cache survives.
-            let check_all = || async {
-                let provider = GithubReleaseProvider::with_api_root_and_library(
-                    api_root.clone(),
-                    library.clone(),
-                )
-                .unwrap();
+                let body = if path.contains("/releases?") {
+                    releases.clone()
+                } else {
+                    r#"{"archived":false}"#.to_owned()
+                };
+                ok_json(&body, &format!("ETag: {etag}\r\n"))
+            },
+        );
+        // The routed fixture reports every request and requires a live receiver;
+        // this simulation reads its own log instead.
+        let _requests = requests;
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let template = catalog.port("re-blue").unwrap().clone();
+        let library_ports = (0..games)
+            .map(|index| {
+                let mut port = template.clone();
+                port.id = format!("measured-{index}");
+                port.release.repository =
+                    format!("owner/repo-{}", index / games_per_repository.max(1));
+                // Distinct games on one repository select their own packages, so
+                // they do not share the in-memory selection cache; the unmatched
+                // last term only makes each selector distinct.
+                port.release.asset_hints.insert(
+                    Platform::WindowsX86_64,
+                    vec![
+                        "first".into(),
+                        "windows".into(),
+                        format!("selector-{index}"),
+                    ],
+                );
+                port
+            })
+            .collect::<Vec<_>>();
+        let shared_repositories = || {
+            let mut counts = HashMap::<String, usize>::new();
+            for port in &library_ports {
+                *counts.entry(port.release.repository.clone()).or_default() += 1;
+            }
+            counts
+                .into_iter()
+                .filter(|(_, count)| *count > 1)
+                .map(|(repository, _)| repository)
+                .collect::<Vec<_>>()
+        };
+        let measure = |before: usize| {
+            let entries = log.lock().unwrap();
+            let slice = &entries[before..];
+            SimulatedCost {
+                requests: slice.len(),
+                releases_pages: slice.iter().filter(|(_, releases, _)| *releases).count(),
+                counted: slice
+                    .iter()
+                    .filter(|(authenticated, _, status)| {
+                        crate::github_request_budget::counted_against_primary_limit(
+                            if *authenticated {
+                                RequestCredential::for_token(Some("simulated"))
+                            } else {
+                                RequestCredential::Anonymous
+                            },
+                            StatusCode::from_u16(*status).unwrap(),
+                        )
+                    })
+                    .count(),
+                not_modified: slice.iter().filter(|(_, _, status)| *status == 304).count(),
+            }
+        };
+        let pass = || async {
+            let before = log.lock().unwrap().len();
+            let provider =
+                GithubReleaseProvider::with_api_root_and_library(api_root.clone(), library.clone())
+                    .unwrap();
+            if let Some(token) = token {
+                provider.set_credential(Some(token.into()), GithubAuthSource::CredentialStore);
+            }
+            let check_all = async {
                 for port in &library_ports {
                     provider
                         .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
@@ -7600,75 +7802,218 @@ mod tests {
                         .unwrap();
                 }
             };
-            let cold = {
-                let before = log.lock().unwrap().len();
-                check_all().await;
-                measure(before)
-            };
-            let warm = {
-                let before = log.lock().unwrap().len();
-                check_all().await;
-                measure(before)
-            };
-            let one_changed = {
-                *changed.lock().unwrap() = Some("owner/repo-0".into());
-                let before = log.lock().unwrap().len();
-                check_all().await;
-                measure(before)
-            };
-            server.join().unwrap();
-            // Each game costs two requests: one `releases` page and one repository-metadata call.
-            assert_eq!(
-                cold,
-                Cost {
-                    requests: 2 * ports,
-                    releases_pages: ports,
-                    counted: 2 * ports,
-                    not_modified: 0
-                },
-                "a cold check counts every request against the provider limit ({ports} games)"
-            );
-            // After a restart the persisted ETags answer everything with 304, which is not counted.
-            assert_eq!(
-                warm,
-                Cost {
-                    requests: 2 * ports,
-                    releases_pages: ports,
-                    counted: 0,
-                    not_modified: 2 * ports
-                },
-                "a warm check counts nothing ({ports} games)"
-            );
-            // A changed repository is re-fetched in full: its two requests count, the rest stay free.
-            assert_eq!(
-                one_changed,
-                Cost {
-                    requests: 2 * ports,
-                    releases_pages: ports,
-                    counted: 2,
-                    not_modified: 2 * ports - 2
-                },
-                "one changed repository counts two requests ({ports} games)"
-            );
+            if shared {
+                SharedObservations::new(shared_repositories())
+                    .scope(check_all)
+                    .await;
+            } else {
+                check_all.await;
+            }
+            measure(before)
+        };
+        let cold = pass().await;
+        let warm = pass().await;
+        *changed.lock().unwrap() = Some("owner/repo-0".into());
+        let one_changed = pass().await;
+        server.join().unwrap();
+        [cold, warm, one_changed]
+    }
+
+    /// Request counts for libraries with and without shared upstreams, anonymous and
+    /// signed in, before (each game checked independently, as bulk checks did) and
+    /// after (one bulk check shares its observations). Simulated API; see
+    /// `simulate_library_checks`. Counts are linear in the number of games: this test
+    /// pins 20 games, and the same harness measured the 100- and 1,000-game rows in
+    /// `docs/ARCHITECTURE.md` (update-check request cost).
+    #[tokio::test]
+    async fn simulated_api_counts_library_checks_by_credential_and_shared_upstreams() {
+        // Every read pair is one repository document and one `releases` page.
+        let cost = |requests: usize, counted, not_modified| SimulatedCost {
+            requests,
+            releases_pages: requests / 2,
+            counted,
+            not_modified,
+        };
+        let games = 20;
+        // With one game per repository there is nothing to share, so "after" takes
+        // exactly the "before" path; four games per repository exercises sharing.
+        for (per_repository, shares) in [(1, &[false][..]), (4, &[false, true][..])] {
+            let repositories = games / per_repository;
+            for &shared in shares {
+                let reads = if shared { repositories } else { games };
+                // Anonymous: every answer counts, including a 304 from the ETag cache.
+                let [cold, warm, changed] =
+                    simulate_library_checks(games, per_repository, None, shared).await;
+                // Within one cold pass, a second game on a repository already finds
+                // the first game's ETag and is answered 304.
+                assert_eq!(
+                    cold,
+                    cost(2 * reads, 2 * reads, 2 * reads - 2 * repositories),
+                    "anonymous cold, {per_repository} per repository, shared {shared}"
+                );
+                assert_eq!(
+                    warm,
+                    cost(2 * reads, 2 * reads, 2 * reads),
+                    "anonymous warm still counts every request"
+                );
+                assert_eq!(changed, cost(2 * reads, 2 * reads, 2 * reads - 2));
+                // Signed in: an authenticated 304 is exempt.
+                let [cold, warm, changed] =
+                    simulate_library_checks(games, per_repository, Some("fixture-token"), shared)
+                        .await;
+                assert_eq!(
+                    cold,
+                    cost(2 * reads, 2 * repositories, 2 * reads - 2 * repositories),
+                    "authenticated cold, {per_repository} per repository, shared {shared}"
+                );
+                assert_eq!(warm, cost(2 * reads, 0, 2 * reads));
+                assert_eq!(changed, cost(2 * reads, 2, 2 * reads - 2));
+            }
         }
     }
 
-    #[test]
-    fn cost_forecast_counts_only_what_is_uncached_and_never_relieves_a_managed_scope() {
-        let forecast = |scoped, curated, repository, releases| {
-            let value = github_cost_forecast(scoped, curated, repository, releases);
-            (value.counted_requests, value.sign_in_relief_requests)
+    /// Simulated API that reports a 60-request anonymous allowance and refuses once it
+    /// is spent. Establishes that the provider stops sending after GitHub reports the
+    /// allowance exhausted (it does not keep asking), that a signed-in read is not
+    /// stopped by the anonymous allowance, and that the refusal is a rate-limit
+    /// failure rather than an answer.
+    #[tokio::test]
+    async fn an_exhausted_allowance_stops_requests_for_that_credential_only() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
         };
-        // Ordinary path: a cached resource answers 304, which is not counted, and a token helps.
-        assert_eq!(forecast(false, false, false, false), (2, 2));
-        assert_eq!(forecast(false, false, true, false), (1, 1));
-        assert_eq!(forecast(false, false, false, true), (1, 1));
-        assert_eq!(forecast(false, false, true, true), (0, 0));
-        // A managed scope is unconditional and unauthenticated: it always counts, a cache
-        // changes nothing, and signing in never raises its limit. Curated adds a tag lookup.
-        assert_eq!(forecast(true, false, true, true), (2, 0));
-        assert_eq!(forecast(true, false, false, false), (2, 0));
-        assert_eq!(forecast(true, true, true, true), (3, 0));
+        let anonymous_answers = Arc::new(AtomicUsize::new(0));
+        let authenticated_answers = Arc::new(AtomicUsize::new(0));
+        let reset = Library::now() + 3_600;
+        let (handler_anonymous, handler_authenticated) = (
+            Arc::clone(&anonymous_answers),
+            Arc::clone(&authenticated_answers),
+        );
+        let releases = github_selector_releases();
+        let (api_root, _requests, server) = crate::test_http::serve_routed_http_with_budget(
+            1_000,
+            std::time::Duration::from_secs(120),
+            move |request| {
+                let authenticated = request
+                    .to_ascii_lowercase()
+                    .contains("\r\nauthorization: bearer ");
+                let (counter, limit) = if authenticated {
+                    (&handler_authenticated, 5_000)
+                } else {
+                    (&handler_anonymous, 60)
+                };
+                let used = counter.fetch_add(1, Ordering::SeqCst) + 1;
+                if used > limit {
+                    return format!(
+                        "HTTP/1.1 403 Forbidden\r\nX-RateLimit-Limit: {limit}\r\nX-RateLimit-Remaining: 0\r\nX-RateLimit-Used: {limit}\r\nX-RateLimit-Reset: {reset}\r\nX-RateLimit-Resource: core\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    );
+                }
+                let rate = format!(
+                    "X-RateLimit-Limit: {limit}\r\nX-RateLimit-Remaining: {}\r\nX-RateLimit-Used: {used}\r\nX-RateLimit-Reset: {reset}\r\nX-RateLimit-Resource: core\r\n",
+                    limit - used
+                );
+                let body = if request.contains("/releases?") {
+                    releases.clone()
+                } else {
+                    r#"{"archived":false}"#.to_owned()
+                };
+                ok_json(&body, &rate)
+            },
+        );
+        let catalog = crate::Catalog::embedded().unwrap();
+        let template = catalog.port("re-blue").unwrap().clone();
+        let port = |index: usize| {
+            let mut port = template.clone();
+            port.id = format!("budget-{index}");
+            port.release.repository = format!("owner/budget-{index}");
+            port.release.asset_hints.insert(
+                Platform::WindowsX86_64,
+                vec!["first".into(), "windows".into()],
+            );
+            port
+        };
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let mut resolved = 0;
+        let mut limited = 0;
+        for index in 0..40 {
+            match provider
+                .resolve(
+                    &port(index),
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                )
+                .await
+            {
+                Ok(_) => resolved += 1,
+                Err(error) => {
+                    assert!(crate::failure::is_rate_limited(&error), "{error:?}");
+                    assert_eq!(
+                        error.presentation().presentation_key,
+                        "provider_rate_limited"
+                    );
+                    limited += 1;
+                }
+            }
+        }
+        // Thirty games fit in sixty requests. The running budget reserved the last
+        // request locally, so the simulated API never had to refuse anything.
+        assert_eq!((resolved, limited), (30, 10));
+        assert_eq!(anonymous_answers.load(Ordering::SeqCst), 60);
+        let snapshot = provider
+            .request_budget
+            .snapshot(RequestCredential::Anonymous)
+            .unwrap();
+        assert_eq!(snapshot.remaining, Some(0));
+        assert_eq!(snapshot.limit, Some(60));
+        assert_eq!(snapshot.used, Some(60));
+        assert_eq!(snapshot.reset, Some(u64::try_from(reset).unwrap()));
+        // Signing in draws from the separate authenticated allowance.
+        provider.set_credential(
+            Some("fixture-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        provider
+            .resolve(&port(99), ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(authenticated_answers.load(Ordering::SeqCst), 2);
+        assert_eq!(anonymous_answers.load(Ordering::SeqCst), 60);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn a_secondary_limit_answer_is_a_rate_limit() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(header::RETRY_AFTER, header::HeaderValue::from_static("60"));
+        let error = github_http_error(StatusCode::FORBIDDEN, &headers);
+        assert!(crate::failure::is_rate_limited(&error));
+        assert_eq!(error.details["retry_after"], "60");
+        // A plain 403 is an answer, not a limit.
+        let error = github_http_error(StatusCode::FORBIDDEN, &header::HeaderMap::new());
+        assert!(!crate::failure::is_rate_limited(&error));
+    }
+
+    #[test]
+    fn api_urls_name_their_repository() {
+        let root = "https://api.github.com";
+        assert_eq!(
+            repository_of_api_url("https://api.github.com/repos/Owner/Name", root).as_deref(),
+            Some("Owner/Name")
+        );
+        assert_eq!(
+            repository_of_api_url(
+                "https://api.github.com/repos/owner/name/releases?page=2&per_page=100",
+                root
+            )
+            .as_deref(),
+            Some("owner/name")
+        );
+        assert_eq!(
+            repository_of_api_url("https://api.github.com/repos/owner?x", root),
+            None
+        );
+        assert_eq!(repository_of_api_url("https://other/repos/a/b", root), None);
     }
 
     #[tokio::test]
@@ -7689,48 +8034,109 @@ mod tests {
             let provider = provider.clone();
             let port = port.clone();
             async move {
-                provider
+                let value = provider
                     .forecast_request_cost(&port, platform, scoped)
                     .await
-                    .unwrap()
+                    .unwrap();
+                (value.counted_requests, value.sign_in_relief_requests)
             }
         };
-        assert_eq!(cost(&provider, &port, false).await.counted_requests, 2);
+        let signed_in = provider.clone();
+        signed_in.set_credential(
+            Some("fixture-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        let anonymous = GithubReleaseProvider::with_api_root_and_library(
+            "https://example.invalid",
+            library.clone(),
+        )
+        .unwrap();
+        // Cold: both reads count either way; only anonymous ones can be relieved.
+        assert_eq!(cost(&anonymous, &port, false).await, (2, 2));
+        assert_eq!(cost(&signed_in, &port, false).await, (2, 0));
         let repository = "https://example.invalid/repos/owner/forecast";
         let releases = paginated_url(repository, "releases", 1, PROVIDER_PAGE_SIZE).unwrap();
         library
             .store_http_cache(repository, Some("\"r\""), None, "{}")
             .unwrap();
-        assert_eq!(cost(&provider, &port, false).await.counted_requests, 1);
+        assert_eq!(cost(&signed_in, &port, false).await, (1, 0));
         library
             .store_http_cache(&releases, Some("\"p\""), None, "[]")
             .unwrap();
-        assert_eq!(
-            cost(&provider, &port, false).await,
-            crate::RequestCostForecast::default()
-        );
+        // Warm: an authenticated 304 is exempt; an anonymous one still counts.
+        assert_eq!(cost(&signed_in, &port, false).await, (0, 0));
+        assert_eq!(cost(&anonymous, &port, false).await, (2, 2));
         // A cached body with no validator is sent unconditionally, so it saves nothing.
         library
             .store_http_cache(repository, None, None, "{}")
             .unwrap();
-        assert_eq!(cost(&provider, &port, false).await.counted_requests, 1);
+        assert_eq!(cost(&signed_in, &port, false).await, (1, 0));
         library
             .store_http_cache(repository, Some("\"r\""), None, "{}")
             .unwrap();
-        // The same warm cache does not help a managed-scope port.
+        // A later release page an earlier check persisted is read again.
+        let second = paginated_url(repository, "releases", 2, PROVIDER_PAGE_SIZE).unwrap();
+        library
+            .store_http_cache(&second, Some("\"p2\""), None, "[]")
+            .unwrap();
+        assert_eq!(cost(&anonymous, &port, false).await, (3, 3));
+        assert_eq!(cost(&signed_in, &port, false).await, (0, 0));
+        // The same warm cache does not help a managed-scope port, signed in or not.
+        assert_eq!(cost(&signed_in, &port, true).await, (2, 0));
+        assert_eq!(cost(&anonymous, &port, true).await, (2, 0));
+        // A curated managed-scope port adds its tag-commit lookup.
+        let evidence =
+            serde_json::json!({"url": "https://example.invalid/e", "sha256": "0".repeat(64)});
+        let record: crate::CuratedAcquisitionRecord = serde_json::from_value(serde_json::json!({
+            "record_version": 1,
+            "repository": "owner/forecast",
+            "upstream_url": "https://github.com/owner/forecast",
+            "acquisition_host": "github.com",
+            "acquisition_url": "https://github.com/owner/forecast/releases/download/v1/game.zip",
+            "release_id": 1,
+            "tag": "v1",
+            "commit_sha1": "0".repeat(40),
+            "asset_id": 1,
+            "platform": platform,
+            "route": "github-release",
+            "filename": "game.zip",
+            "size": 1,
+            "sha256": "0".repeat(64),
+            "acquisition_evidence": evidence,
+            "distribution_basis": "fixture",
+            "distribution_evidence": evidence,
+            "independent_review": evidence,
+            "protected_acceptance": evidence,
+        }))
+        .unwrap();
+        let mut curated = port.clone();
+        curated.release.curated.insert(platform, record);
+        assert_eq!(cost(&signed_in, &curated, true).await, (3, 0));
+        assert_eq!(cost(&anonymous, &curated, true).await, (3, 0));
+        // Saved package choices budget the full path under the current credential.
+        let saved = signed_in.forecast_saved_variant_request_cost(false);
         assert_eq!(
-            cost(&provider, &port, true).await,
-            crate::RequestCostForecast {
-                counted_requests: 2,
-                sign_in_relief_requests: 0
-            }
+            (saved.counted_requests, saved.sign_in_relief_requests),
+            (41, 0)
         );
-        // A provider other than GitHub has no GitHub allowance to protect.
+        let saved = anonymous.forecast_saved_variant_request_cost(false);
+        assert_eq!(
+            (saved.counted_requests, saved.sign_in_relief_requests),
+            (41, 41)
+        );
+        let scoped = signed_in.forecast_saved_variant_request_cost(true);
+        assert_eq!(
+            (scoped.counted_requests, scoped.sign_in_relief_requests),
+            (41, 0)
+        );
+        let explicit = anonymous.forecast_explicit_variant_request_cost();
+        assert_eq!(
+            (explicit.counted_requests, explicit.sign_in_relief_requests),
+            (47, 47)
+        );
+        // Only GitHub ports are forecast.
         port.release.provider = crate::ReleaseSource::Gitlab;
-        assert_eq!(
-            cost(&provider, &port, false).await,
-            crate::RequestCostForecast::default()
-        );
+        assert_eq!(cost(&anonymous, &port, false).await, (0, 0));
     }
 
     #[tokio::test]
@@ -7773,6 +8179,24 @@ mod tests {
                 .store_http_cache(&releases, Some("\"p\""), None, "[]")
                 .unwrap();
         }
+        // Anonymous: a warm cache still sends (and counts) every conditional read.
+        let warm = service.forecast_update_checks(ids()).await.unwrap();
+        assert_eq!(warm.games, 6);
+        assert_eq!(warm.counted_requests, 12);
+        assert_eq!(warm.sign_in_relief_requests, 12);
+        assert!(warm.sign_in_would_help(11));
+        // Signed in, the same warm cache is expected to be answered with exempt 304s.
+        let signed_in = GithubReleaseProvider::with_api_root_and_library(
+            "https://example.invalid",
+            library.clone(),
+        )
+        .unwrap();
+        signed_in.set_credential(
+            Some("fixture-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        let service =
+            crate::PortcoveService::with_provider(library.clone(), Arc::new(signed_in)).unwrap();
         let warm = service.forecast_update_checks(ids()).await.unwrap();
         assert_eq!(warm.games, 6);
         assert_eq!(warm.counted_requests, 0);
@@ -7780,6 +8204,54 @@ mod tests {
             !warm.sign_in_would_help(0),
             "nothing counted, nothing to relieve"
         );
+    }
+
+    #[tokio::test]
+    async fn the_service_forecast_counts_a_shared_repository_once() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider = GithubReleaseProvider::with_api_root_and_library(
+            "https://example.invalid",
+            library.clone(),
+        )
+        .unwrap();
+        let service =
+            crate::PortcoveService::with_provider(library.clone(), Arc::new(provider)).unwrap();
+        let platform = Platform::current().unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut by_repository = HashMap::<String, Vec<String>>::new();
+        for port in catalog.ports() {
+            if port.release.provider == crate::ReleaseSource::Github
+                && !port.release.repository.is_empty()
+                && port.platforms.contains(&platform)
+                && port.release.curated.is_empty()
+            {
+                by_repository
+                    .entry(port.release.repository.to_ascii_lowercase())
+                    .or_default()
+                    .push(port.id.clone());
+            }
+        }
+        let shared = by_repository
+            .values()
+            .find(|ids| ids.len() > 1)
+            .cloned()
+            .expect("every supported platform has catalog games sharing a repository");
+        let mut costliest = 0;
+        let mut sum = 0;
+        for id in &shared {
+            let alone = service.forecast_update_checks([id.clone()]).await.unwrap();
+            costliest = costliest.max(alone.counted_requests);
+            sum += alone.counted_requests;
+        }
+        let together = service
+            .forecast_update_checks(shared.clone())
+            .await
+            .unwrap();
+        assert_eq!(together.games as usize, shared.len());
+        // One bulk check reads the shared repository once for all of its games.
+        assert_eq!(together.counted_requests, costliest);
+        assert!(together.counted_requests < sum);
     }
 
     #[test]
