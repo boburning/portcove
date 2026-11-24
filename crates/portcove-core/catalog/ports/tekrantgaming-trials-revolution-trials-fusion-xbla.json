@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "trials-fusion",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/Trials-ReVolution-Collection"
-      ],
+      "evidence_urls": ["https://github.com/TekRantGaming/Trials-ReVolution-Collection"],
       "source_editions": [
         {
           "id": "trials-fusion-xbox-360",
           "title": "Trials Fusion (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/TekRantGaming/Trials-ReVolution-Collection"
-          ]
+          "evidence_urls": ["https://github.com/TekRantGaming/Trials-ReVolution-Collection"]
         }
       ]
     },

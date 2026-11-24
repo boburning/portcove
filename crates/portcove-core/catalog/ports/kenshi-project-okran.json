@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "kenshi",
-      "evidence_urls": [
-        "https://github.com/brayniac6-glitch/Project-Okran"
-      ],
+      "evidence_urls": ["https://github.com/brayniac6-glitch/Project-Okran"],
       "source_editions": []
     },
     "original_game_title": "Kenshi"

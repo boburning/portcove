@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "syndicate",
-      "evidence_urls": [
-        "https://github.com/bni/freesynd"
-      ],
+      "evidence_urls": ["https://github.com/bni/freesynd"],
       "source_editions": []
     },
     "original_game_title": "Syndicate"

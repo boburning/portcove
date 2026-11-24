@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "parasite-eve-ii",
-      "evidence_urls": [
-        "https://github.com/khasinski/parasite-eve-ii-pc"
-      ],
+      "evidence_urls": ["https://github.com/khasinski/parasite-eve-ii-pc"],
       "source_editions": [
         {
           "id": "parasite-eve-ii-playstation",
           "title": "Parasite Eve II (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/khasinski/parasite-eve-ii-pc"
-          ]
+          "evidence_urls": ["https://github.com/khasinski/parasite-eve-ii-pc"]
         }
       ]
     },

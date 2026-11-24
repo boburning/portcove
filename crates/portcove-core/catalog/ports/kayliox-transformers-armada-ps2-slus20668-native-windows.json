@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "transformers",
-      "evidence_urls": [
-        "https://github.com/kayliox/transformers-armada-recomp"
-      ],
+      "evidence_urls": ["https://github.com/kayliox/transformers-armada-recomp"],
       "source_editions": [
         {
           "id": "transformers-playstation-2",
           "title": "Transformers (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/kayliox/transformers-armada-recomp"
-          ]
+          "evidence_urls": ["https://github.com/kayliox/transformers-armada-recomp"]
         }
       ]
     },

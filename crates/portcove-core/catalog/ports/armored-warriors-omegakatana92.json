@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "armored-warriors",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Armored-Warriors-Recomp-"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Armored-Warriors-Recomp-"],
       "source_editions": []
     },
     "original_game_title": "Armored Warriors"

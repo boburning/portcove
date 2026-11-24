@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "deep-3d-submarine-odyssey",
-      "evidence_urls": [
-        "https://github.com/TheWWWorm/abyssal"
-      ],
+      "evidence_urls": ["https://github.com/TheWWWorm/abyssal"],
       "source_editions": []
     },
     "original_game_title": "Deep 3D: Submarine Odyssey"

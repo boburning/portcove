@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "wizardry-proving-grounds-of-the-mad-overlord",
-      "evidence_urls": [
-        "https://github.com/davemoore22/sorcery"
-      ],
+      "evidence_urls": ["https://github.com/davemoore22/sorcery"],
       "source_editions": []
     },
     "original_game_title": "Wizardry: Proving Grounds of the Mad Overlord"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hack",
-      "evidence_urls": [
-        "https://github.com/Critlist/protoHack"
-      ],
+      "evidence_urls": ["https://github.com/Critlist/protoHack"],
       "source_editions": []
     },
     "original_game_title": "Hack"

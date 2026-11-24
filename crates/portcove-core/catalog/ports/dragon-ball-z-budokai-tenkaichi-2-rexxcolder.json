@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dragon-ball-z-budokai-tenkaichi-2",
-      "evidence_urls": [
-        "https://github.com/RexxColder/BT2-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/RexxColder/BT2-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 2"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "rascal",
-      "evidence_urls": [
-        "https://github.com/StevenH34/rascal-recomp"
-      ],
+      "evidence_urls": ["https://github.com/StevenH34/rascal-recomp"],
       "source_editions": [
         {
           "id": "rascal-playstation",
           "title": "Rascal (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/StevenH34/rascal-recomp"
-          ]
+          "evidence_urls": ["https://github.com/StevenH34/rascal-recomp"]
         }
       ]
     },

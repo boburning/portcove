@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-lion-king",
-      "evidence_urls": [
-        "https://github.com/kinduff/TLKRecomp"
-      ],
+      "evidence_urls": ["https://github.com/kinduff/TLKRecomp"],
       "source_editions": [
         {
           "id": "the-lion-king-super-nintendo",
           "title": "The Lion King (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/kinduff/TLKRecomp"
-          ]
+          "evidence_urls": ["https://github.com/kinduff/TLKRecomp"]
         }
       ]
     },

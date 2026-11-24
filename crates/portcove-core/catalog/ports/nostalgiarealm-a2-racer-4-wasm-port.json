@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "a2-racer-iv-de-politie-slaat-terug",
-      "evidence_urls": [
-        "https://github.com/NostalgiaRealm/A2-Racer-4"
-      ],
+      "evidence_urls": ["https://github.com/NostalgiaRealm/A2-Racer-4"],
       "source_editions": []
     },
     "original_game_title": "A2 Racer IV: De politie slaat terug!"

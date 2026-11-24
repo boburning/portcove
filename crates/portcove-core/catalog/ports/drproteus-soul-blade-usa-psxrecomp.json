@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "soul-blade",
-      "evidence_urls": [
-        "https://github.com/drproteus/soul-blade-recomp"
-      ],
+      "evidence_urls": ["https://github.com/drproteus/soul-blade-recomp"],
       "source_editions": [
         {
           "id": "soul-blade-playstation",
           "title": "Soul Blade (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/drproteus/soul-blade-recomp"
-          ]
+          "evidence_urls": ["https://github.com/drproteus/soul-blade-recomp"]
         }
       ]
     },

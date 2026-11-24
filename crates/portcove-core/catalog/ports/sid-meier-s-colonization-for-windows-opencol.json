@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sid-meiers-colonization-for-windows",
-      "evidence_urls": [
-        "https://github.com/OpenCol/win-port"
-      ],
+      "evidence_urls": ["https://github.com/OpenCol/win-port"],
       "source_editions": []
     },
     "original_game_title": "Sid Meier's Colonization for Windows"

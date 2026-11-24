@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "darius-gaiden-extra-arcade-ver-2-7j",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"],
       "source_editions": [
         {
           "id": "darius-gaiden-extra-arcade-ver-2-7j-nintendo-switch",
           "title": "Darius Gaiden — Extra arcade Ver 2.7J (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "toca-2-touring-cars",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"],
       "source_editions": [
         {
           "id": "toca-2-touring-cars-playstation",
           "title": "TOCA 2 Touring Cars (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"]
         }
       ]
     },

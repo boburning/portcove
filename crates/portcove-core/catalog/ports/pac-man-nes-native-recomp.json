@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pac-man",
-      "evidence_urls": [
-        "https://github.com/Mr-Shizzy/PacManRecomp"
-      ],
+      "evidence_urls": ["https://github.com/Mr-Shizzy/PacManRecomp"],
       "source_editions": [
         {
           "id": "pac-man-nes",
           "title": "Pac-Man (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/Mr-Shizzy/PacManRecomp"
-          ]
+          "evidence_urls": ["https://github.com/Mr-Shizzy/PacManRecomp"]
         }
       ]
     },

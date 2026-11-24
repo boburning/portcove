@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "call-of-duty-3",
-      "evidence_urls": [
-        "https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"
-      ],
+      "evidence_urls": ["https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"],
       "source_editions": [
         {
           "id": "call-of-duty-3-xbox-360",
           "title": "Call of Duty 3 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"
-          ]
+          "evidence_urls": ["https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"]
         }
       ]
     },

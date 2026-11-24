@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "outlaw-golf-2",
-      "evidence_urls": [
-        "https://github.com/projectedan/OutlawGolf2-XBE-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/projectedan/OutlawGolf2-XBE-Recomp"],
       "source_editions": [
         {
           "id": "outlaw-golf-2-xbox",
           "title": "Outlaw Golf 2 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/projectedan/OutlawGolf2-XBE-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/projectedan/OutlawGolf2-XBE-Recomp"]
         }
       ]
     },

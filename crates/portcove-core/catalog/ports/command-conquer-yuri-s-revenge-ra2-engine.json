@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "command-and-conquer-yuris-revenge",
-      "evidence_urls": [
-        "https://github.com/omarelarab/ra2-engine"
-      ],
+      "evidence_urls": ["https://github.com/omarelarab/ra2-engine"],
       "source_editions": []
     },
     "original_game_title": "Command & Conquer: Yuri's Revenge"

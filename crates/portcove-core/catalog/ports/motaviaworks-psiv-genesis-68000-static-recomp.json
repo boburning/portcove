@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "phantasy-star-iv-the-end-of-the-millennium",
-      "evidence_urls": [
-        "https://github.com/MotaviaWorks/PSIVRecomp"
-      ],
+      "evidence_urls": ["https://github.com/MotaviaWorks/PSIVRecomp"],
       "source_editions": []
     },
     "original_game_title": "Phantasy Star IV: The End of the Millennium"

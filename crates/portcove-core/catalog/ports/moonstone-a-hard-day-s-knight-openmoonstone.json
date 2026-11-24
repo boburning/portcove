@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "moonstone-a-hard-days-knight",
-      "evidence_urls": [
-        "https://github.com/joetsoi/OpenMoonstone"
-      ],
+      "evidence_urls": ["https://github.com/joetsoi/OpenMoonstone"],
       "source_editions": []
     },
     "original_game_title": "Moonstone: A Hard Day's Knight"

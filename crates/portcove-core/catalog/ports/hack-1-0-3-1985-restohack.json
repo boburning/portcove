@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hack-1-0-3",
-      "evidence_urls": [
-        "https://github.com/Critlist/restoHack"
-      ],
+      "evidence_urls": ["https://github.com/Critlist/restoHack"],
       "source_editions": []
     },
     "original_game_title": "Hack 1.0.3"

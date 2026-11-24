@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "bloodborne",
-      "evidence_urls": [
-        "https://github.com/ayozetr/bloodborne_linux"
-      ],
+      "evidence_urls": ["https://github.com/ayozetr/bloodborne_linux"],
       "source_editions": []
     },
     "original_game_title": "Bloodborne"

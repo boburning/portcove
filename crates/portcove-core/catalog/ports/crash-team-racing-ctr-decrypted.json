@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "crash-team-racing",
-      "evidence_urls": [
-        "https://github.com/Decryptu/ctr-decrypted"
-      ],
+      "evidence_urls": ["https://github.com/Decryptu/ctr-decrypted"],
       "source_editions": []
     },
     "original_game_title": "Crash Team Racing"

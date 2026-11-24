@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "deus-ex",
-      "evidence_urls": [
-        "https://github.com/jarmitage99/OpenDE"
-      ],
+      "evidence_urls": ["https://github.com/jarmitage99/OpenDE"],
       "source_editions": []
     },
     "original_game_title": "Deus Ex"

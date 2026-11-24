@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-and-luigi-brothership",
-      "evidence_urls": [
-        "https://github.com/Coaltergeist/Brothership-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Coaltergeist/Brothership-Recomp"],
       "source_editions": [
         {
           "id": "mario-and-luigi-brothership-nintendo-switch",
           "title": "Mario & Luigi: Brothership (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Coaltergeist/Brothership-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Coaltergeist/Brothership-Recomp"]
         }
       ]
     },

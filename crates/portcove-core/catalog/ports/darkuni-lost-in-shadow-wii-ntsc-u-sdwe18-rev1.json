@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "lost-in-shadow",
-      "evidence_urls": [
-        "https://github.com/darkuni/lost-in-shadow-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/lost-in-shadow-recomp"],
       "source_editions": [
         {
           "id": "lost-in-shadow-wii",
           "title": "Lost in Shadow (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/darkuni/lost-in-shadow-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/lost-in-shadow-recomp"]
         }
       ]
     },

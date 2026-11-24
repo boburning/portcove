@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "zoids-legacy",
-      "evidence_urls": [
-        "https://github.com/thearturord/ZoidsLegacyRecomp"
-      ],
+      "evidence_urls": ["https://github.com/thearturord/ZoidsLegacyRecomp"],
       "source_editions": [
         {
           "id": "zoids-legacy-game-boy-advance",
           "title": "Zoids Legacy (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/thearturord/ZoidsLegacyRecomp"
-          ]
+          "evidence_urls": ["https://github.com/thearturord/ZoidsLegacyRecomp"]
         }
       ]
     },

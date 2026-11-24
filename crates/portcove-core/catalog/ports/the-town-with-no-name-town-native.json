@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "the-town-with-no-name",
-      "evidence_urls": [
-        "https://github.com/akronman1/town-native"
-      ],
+      "evidence_urls": ["https://github.com/akronman1/town-native"],
       "source_editions": []
     },
     "original_game_title": "The Town With No Name"

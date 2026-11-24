@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "animal-crossing-city-folk",
-      "evidence_urls": [
-        "https://github.com/Cuyler36/suitcase"
-      ],
+      "evidence_urls": ["https://github.com/Cuyler36/suitcase"],
       "source_editions": []
     },
     "original_game_title": "Animal Crossing: City Folk"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mobile-suit-gundam-battle-operation-code-fairy",
-      "evidence_urls": [
-        "https://github.com/HekamiAeon/GBO-Code-Fairy-PS4RT"
-      ],
+      "evidence_urls": ["https://github.com/HekamiAeon/GBO-Code-Fairy-PS4RT"],
       "source_editions": []
     },
     "original_game_title": "Mobile Suit Gundam Battle Operation Code Fairy"

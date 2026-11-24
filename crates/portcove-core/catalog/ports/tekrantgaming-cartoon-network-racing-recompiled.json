@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "cartoon-network-racing",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/cartoon-network-racing-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/TekRantGaming/cartoon-network-racing-recompiled"],
       "source_editions": [
         {
           "id": "cartoon-network-racing-playstation-2",
           "title": "Cartoon Network Racing (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/TekRantGaming/cartoon-network-racing-recompiled"
-          ]
+          "evidence_urls": ["https://github.com/TekRantGaming/cartoon-network-racing-recompiled"]
         }
       ]
     },

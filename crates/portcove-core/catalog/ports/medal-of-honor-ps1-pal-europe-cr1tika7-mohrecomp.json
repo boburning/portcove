@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "medal-of-honor",
-      "evidence_urls": [
-        "https://github.com/Cr1TiKa7/MOHRecomp"
-      ],
+      "evidence_urls": ["https://github.com/Cr1TiKa7/MOHRecomp"],
       "source_editions": [
         {
           "id": "medal-of-honor-playstation",
           "title": "Medal of Honor (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Cr1TiKa7/MOHRecomp"
-          ]
+          "evidence_urls": ["https://github.com/Cr1TiKa7/MOHRecomp"]
         }
       ]
     },

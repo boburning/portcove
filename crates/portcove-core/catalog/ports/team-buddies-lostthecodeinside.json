@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "team-buddies-usa",
-      "evidence_urls": [
-        "https://github.com/LostTheCodeInside/team-buddies-revival-pc"
-      ],
+      "evidence_urls": ["https://github.com/LostTheCodeInside/team-buddies-revival-pc"],
       "source_editions": [
         {
           "id": "team-buddies-usa-playstation",
           "title": "Team Buddies USA (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/LostTheCodeInside/team-buddies-revival-pc"
-          ]
+          "evidence_urls": ["https://github.com/LostTheCodeInside/team-buddies-revival-pc"]
         }
       ]
     },

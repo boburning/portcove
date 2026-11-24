@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "killing-floor",
-      "evidence_urls": [
-        "https://github.com/Scronkfinkle/open-kf"
-      ],
+      "evidence_urls": ["https://github.com/Scronkfinkle/open-kf"],
       "source_editions": []
     },
     "original_game_title": "Killing Floor"

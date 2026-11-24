@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "breath-of-fire-iii",
-      "evidence_urls": [
-        "https://github.com/kerokline/BreathOfFire3PCPort"
-      ],
+      "evidence_urls": ["https://github.com/kerokline/BreathOfFire3PCPort"],
       "source_editions": []
     },
     "original_game_title": "Breath of Fire III"

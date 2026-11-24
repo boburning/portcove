@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jedi-knight-ii-jedi-outcast",
-      "evidence_urls": [
-        "https://github.com/mvdevs/jk2mv"
-      ],
+      "evidence_urls": ["https://github.com/mvdevs/jk2mv"],
       "source_editions": []
     },
     "original_game_title": "Jedi Knight II Jedi Outcast"

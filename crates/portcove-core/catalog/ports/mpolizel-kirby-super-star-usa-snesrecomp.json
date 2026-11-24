@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "kirby-super-star",
-      "evidence_urls": [
-        "https://github.com/mpolizel/KSSSNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mpolizel/KSSSNESRecomp"],
       "source_editions": [
         {
           "id": "kirby-super-star-super-nintendo",
           "title": "Kirby Super Star (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/mpolizel/KSSSNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mpolizel/KSSSNESRecomp"]
         }
       ]
     },

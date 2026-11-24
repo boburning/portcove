@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "metal-slug-4",
-      "evidence_urls": [
-        "https://github.com/AlmazProud/metal-slug-4-recomp"
-      ],
+      "evidence_urls": ["https://github.com/AlmazProud/metal-slug-4-recomp"],
       "source_editions": []
     },
     "original_game_title": "Metal Slug 4"

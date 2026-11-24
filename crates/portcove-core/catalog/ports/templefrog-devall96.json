@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "froggers-adventures-temple-of-the-frog",
-      "evidence_urls": [
-        "https://github.com/devall96/TempleFrog"
-      ],
+      "evidence_urls": ["https://github.com/devall96/TempleFrog"],
       "source_editions": [
         {
           "id": "froggers-adventures-temple-of-the-frog-game-boy-advance",
           "title": "Frogger's Adventures: Temple of the Frog (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/devall96/TempleFrog"
-          ]
+          "evidence_urls": ["https://github.com/devall96/TempleFrog"]
         }
       ]
     },

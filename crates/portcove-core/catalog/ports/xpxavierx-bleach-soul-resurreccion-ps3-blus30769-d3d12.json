@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "bleach-soul-resurrecci-n",
-      "evidence_urls": [
-        "https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"
-      ],
+      "evidence_urls": ["https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"],
       "source_editions": [
         {
           "id": "bleach-soul-resurrecci-n-playstation-3",
           "title": "Bleach: Soul Resurrección (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"
-          ]
+          "evidence_urls": ["https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"]
         }
       ]
     },

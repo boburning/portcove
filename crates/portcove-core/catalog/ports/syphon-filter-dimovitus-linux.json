@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "syphon-filter",
-      "evidence_urls": [
-        "https://github.com/dimovitus/SF-pc-port-linux"
-      ],
+      "evidence_urls": ["https://github.com/dimovitus/SF-pc-port-linux"],
       "source_editions": []
     },
     "original_game_title": "Syphon Filter"

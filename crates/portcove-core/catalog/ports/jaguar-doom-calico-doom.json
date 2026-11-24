@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jaguar-doom",
-      "evidence_urls": [
-        "https://github.com/team-eternity/calico-doom"
-      ],
+      "evidence_urls": ["https://github.com/team-eternity/calico-doom"],
       "source_editions": []
     },
     "original_game_title": "Jaguar Doom"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "intelligent-qube",
-      "evidence_urls": [
-        "https://github.com/foofly/KurushiRecomp"
-      ],
+      "evidence_urls": ["https://github.com/foofly/KurushiRecomp"],
       "source_editions": [
         {
           "id": "intelligent-qube-playstation",
           "title": "Intelligent Qube (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/foofly/KurushiRecomp"
-          ]
+          "evidence_urls": ["https://github.com/foofly/KurushiRecomp"]
         }
       ]
     },

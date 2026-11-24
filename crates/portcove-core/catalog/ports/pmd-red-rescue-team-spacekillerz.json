@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-mystery-dungeon-red-rescue-team",
-      "evidence_urls": [
-        "https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"
-      ],
+      "evidence_urls": ["https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"],
       "source_editions": [
         {
           "id": "pokemon-mystery-dungeon-red-rescue-team-game-boy-advance",
           "title": "Pokémon Mystery Dungeon: Red Rescue Team (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"
-          ]
+          "evidence_urls": ["https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"]
         }
       ]
     },

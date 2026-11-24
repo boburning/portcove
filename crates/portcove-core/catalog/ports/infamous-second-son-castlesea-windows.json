@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "infamous-second-son",
-      "evidence_urls": [
-        "https://github.com/Castlesea/infamous-second-son-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/Castlesea/infamous-second-son-pc-port"],
       "source_editions": [
         {
           "id": "infamous-second-son-playstation-4",
           "title": "inFAMOUS Second Son (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Castlesea/infamous-second-son-pc-port"
-          ]
+          "evidence_urls": ["https://github.com/Castlesea/infamous-second-son-pc-port"]
         }
       ]
     },

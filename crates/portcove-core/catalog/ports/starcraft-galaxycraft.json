@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "starcraft",
-      "evidence_urls": [
-        "https://github.com/cotizcesar/galaxycraft"
-      ],
+      "evidence_urls": ["https://github.com/cotizcesar/galaxycraft"],
       "source_editions": []
     },
     "original_game_title": "StarCraft"

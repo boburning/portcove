@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pro-evolution-soccer-2013",
-      "evidence_urls": [
-        "https://github.com/erikomis/pes2013-recomp"
-      ],
+      "evidence_urls": ["https://github.com/erikomis/pes2013-recomp"],
       "source_editions": [
         {
           "id": "pro-evolution-soccer-2013-playstation-3",
           "title": "Pro Evolution Soccer 2013 (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/erikomis/pes2013-recomp"
-          ]
+          "evidence_urls": ["https://github.com/erikomis/pes2013-recomp"]
         }
       ]
     },

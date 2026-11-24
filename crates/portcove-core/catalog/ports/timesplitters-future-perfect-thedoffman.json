@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "timesplitters-future-perfect",
-      "evidence_urls": [
-        "https://github.com/TheDoffman/timesplitters-future-perfect-pc"
-      ],
+      "evidence_urls": ["https://github.com/TheDoffman/timesplitters-future-perfect-pc"],
       "source_editions": [
         {
           "id": "timesplitters-future-perfect-xbox",
           "title": "TimeSplitters: Future Perfect (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/TheDoffman/timesplitters-future-perfect-pc"
-          ]
+          "evidence_urls": ["https://github.com/TheDoffman/timesplitters-future-perfect-pc"]
         }
       ]
     },

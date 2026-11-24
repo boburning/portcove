@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "air-hockey-usa",
-      "evidence_urls": [
-        "https://github.com/Bitsandbreakpoints/air-hockey-psx-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Bitsandbreakpoints/air-hockey-psx-pc-recomp"],
       "source_editions": [
         {
           "id": "air-hockey-usa-playstation",
           "title": "Air Hockey USA (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Bitsandbreakpoints/air-hockey-psx-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/air-hockey-psx-pc-recomp"]
         }
       ]
     },

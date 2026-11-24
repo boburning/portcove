@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One port covers Metal Gear Solid: Portable Ops and Portable Ops Plus.",
-    "evidence_urls": [
-      "https://github.com/zexk/portable-ops-native"
-    ]
+    "evidence_urls": ["https://github.com/zexk/portable-ops-native"]
   }
 }

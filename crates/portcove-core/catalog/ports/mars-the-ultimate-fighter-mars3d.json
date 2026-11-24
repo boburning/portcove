@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mars-the-ultimate-fighter",
-      "evidence_urls": [
-        "https://github.com/jval1972/Mars3D"
-      ],
+      "evidence_urls": ["https://github.com/jval1972/Mars3D"],
       "source_editions": []
     },
     "original_game_title": "Mars - The Ultimate Fighter"

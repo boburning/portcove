@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "gunslingers",
-      "evidence_urls": [
-        "https://github.com/darkuni/gunslingers-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/gunslingers-recomp"],
       "source_editions": [
         {
           "id": "gunslingers-wii",
           "title": "Gunslingers (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/darkuni/gunslingers-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/gunslingers-recomp"]
         }
       ]
     },

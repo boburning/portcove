@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pump-it-up-perfect-collection",
-      "evidence_urls": [
-        "https://github.com/bmbelo87/decomp-it-up-Perfect-Collection"
-      ],
+      "evidence_urls": ["https://github.com/bmbelo87/decomp-it-up-Perfect-Collection"],
       "source_editions": []
     },
     "original_game_title": "Pump It Up: Perfect Collection"

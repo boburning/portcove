@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "uniracers",
-      "evidence_urls": [
-        "https://github.com/baldosa/uniracers-recomp"
-      ],
+      "evidence_urls": ["https://github.com/baldosa/uniracers-recomp"],
       "source_editions": []
     },
     "original_game_title": "Uniracers"

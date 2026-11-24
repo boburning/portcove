@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "geometry-dash",
-      "evidence_urls": [
-        "https://github.com/mark20142026/cadence"
-      ],
+      "evidence_urls": ["https://github.com/mark20142026/cadence"],
       "source_editions": []
     },
     "original_game_title": "Geometry Dash"

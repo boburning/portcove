@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "chrono-cross-radical-dreamers",
-      "evidence_urls": [
-        "https://github.com/sp-hy/OpenCross"
-      ],
+      "evidence_urls": ["https://github.com/sp-hy/OpenCross"],
       "source_editions": []
     },
     "original_game_title": "Chrono Cross Radical Dreamers"

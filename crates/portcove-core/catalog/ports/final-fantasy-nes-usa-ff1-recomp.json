@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "final-fantasy",
-      "evidence_urls": [
-        "https://github.com/dr-pepper-408/ff1-recomp"
-      ],
+      "evidence_urls": ["https://github.com/dr-pepper-408/ff1-recomp"],
       "source_editions": [
         {
           "id": "final-fantasy-nes",
           "title": "Final Fantasy (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/dr-pepper-408/ff1-recomp"
-          ]
+          "evidence_urls": ["https://github.com/dr-pepper-408/ff1-recomp"]
         }
       ]
     },

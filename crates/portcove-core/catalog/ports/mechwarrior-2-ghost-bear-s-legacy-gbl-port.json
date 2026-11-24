@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mechwarrior-2-ghost-bears-legacy",
-      "evidence_urls": [
-        "https://github.com/BatMahn/GBL-Port"
-      ],
+      "evidence_urls": ["https://github.com/BatMahn/GBL-Port"],
       "source_editions": []
     },
     "original_game_title": "MechWarrior 2: Ghost Bear's Legacy"

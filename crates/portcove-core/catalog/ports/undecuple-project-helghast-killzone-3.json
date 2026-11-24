@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "killzone-3",
-      "evidence_urls": [
-        "https://github.com/undecuple/project-helghast"
-      ],
+      "evidence_urls": ["https://github.com/undecuple/project-helghast"],
       "source_editions": [
         {
           "id": "killzone-3-playstation-3",
           "title": "Killzone 3 (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/undecuple/project-helghast"
-          ]
+          "evidence_urls": ["https://github.com/undecuple/project-helghast"]
         }
       ]
     },

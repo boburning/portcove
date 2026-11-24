@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "persona-2-innocent-sin-psp",
-      "evidence_urls": [
-        "https://github.com/flmoraes01/Persona2ISRecompile"
-      ],
+      "evidence_urls": ["https://github.com/flmoraes01/Persona2ISRecompile"],
       "source_editions": []
     },
     "original_game_title": "Persona 2: Innocent Sin (PSP)"

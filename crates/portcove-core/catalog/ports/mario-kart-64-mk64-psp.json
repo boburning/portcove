@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-kart-64",
-      "evidence_urls": [
-        "https://github.com/beckerd/psp_mk64_portable"
-      ],
+      "evidence_urls": ["https://github.com/beckerd/psp_mk64_portable"],
       "source_editions": [
         {
           "id": "mario-kart-64-nintendo-64",
           "title": "Mario Kart 64 (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/beckerd/psp_mk64_portable"
-          ]
+          "evidence_urls": ["https://github.com/beckerd/psp_mk64_portable"]
         }
       ]
     },

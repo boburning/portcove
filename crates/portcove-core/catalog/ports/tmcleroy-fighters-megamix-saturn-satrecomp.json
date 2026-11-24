@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "fighters-megamix",
-      "evidence_urls": [
-        "https://github.com/tmcleroy/fighters-megamix-recomp"
-      ],
+      "evidence_urls": ["https://github.com/tmcleroy/fighters-megamix-recomp"],
       "source_editions": [
         {
           "id": "fighters-megamix-sega-saturn",
           "title": "Fighters Megamix (Sega Saturn)",
           "system": "sega-saturn",
-          "evidence_urls": [
-            "https://github.com/tmcleroy/fighters-megamix-recomp"
-          ]
+          "evidence_urls": ["https://github.com/tmcleroy/fighters-megamix-recomp"]
         }
       ]
     },

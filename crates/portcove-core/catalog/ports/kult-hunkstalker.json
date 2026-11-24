@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "kult-the-temple-of-flying-saucers",
-      "evidence_urls": [
-        "https://github.com/hunkstalker/kult-atari-st-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/hunkstalker/kult-atari-st-pc-port"],
       "source_editions": []
     },
     "original_game_title": "Kult: The Temple of Flying Saucers"

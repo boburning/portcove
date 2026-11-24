@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gothic-ii",
-      "evidence_urls": [
-        "https://github.com/Gothic-Unity-Project/Gothic-Unity"
-      ],
+      "evidence_urls": ["https://github.com/Gothic-Unity-Project/Gothic-Unity"],
       "source_editions": []
     },
     "original_game_title": "Gothic II"

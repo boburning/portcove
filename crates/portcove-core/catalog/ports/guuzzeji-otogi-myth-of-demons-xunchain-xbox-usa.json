@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "otogi-myth-of-demons",
-      "evidence_urls": [
-        "https://github.com/Guuzzeji/otogi-xunchain"
-      ],
+      "evidence_urls": ["https://github.com/Guuzzeji/otogi-xunchain"],
       "source_editions": [
         {
           "id": "otogi-myth-of-demons-xbox",
           "title": "Otogi: Myth of Demons (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/Guuzzeji/otogi-xunchain"
-          ]
+          "evidence_urls": ["https://github.com/Guuzzeji/otogi-xunchain"]
         }
       ]
     },

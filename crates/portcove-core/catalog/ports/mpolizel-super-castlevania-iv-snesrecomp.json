@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-castlevania-iv",
-      "evidence_urls": [
-        "https://github.com/mpolizel/SCIVRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mpolizel/SCIVRecomp"],
       "source_editions": [
         {
           "id": "super-castlevania-iv-super-nintendo",
           "title": "Super Castlevania IV (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/mpolizel/SCIVRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mpolizel/SCIVRecomp"]
         }
       ]
     },

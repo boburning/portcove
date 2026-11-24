@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "metal-slug-x-arcade",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Metal-Slug-X-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Metal-Slug-X-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Metal Slug X arcade"

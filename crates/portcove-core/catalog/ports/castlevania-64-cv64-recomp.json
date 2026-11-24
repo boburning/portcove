@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "castlevania-64",
-      "evidence_urls": [
-        "https://github.com/spacefarergames/CV64-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/spacefarergames/CV64-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Castlevania 64"

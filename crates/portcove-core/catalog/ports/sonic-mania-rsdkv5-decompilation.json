@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sonic-mania",
-      "evidence_urls": [
-        "https://github.com/RSDKModding/RSDKv5-Decompilation"
-      ],
+      "evidence_urls": ["https://github.com/RSDKModding/RSDKv5-Decompilation"],
       "source_editions": []
     },
     "original_game_title": "Sonic Mania"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-lord-of-the-rings-the-return-of-the-king-game-boy-advance",
-      "evidence_urls": [
-        "https://github.com/Lillypad-14/rotk-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/Lillypad-14/rotk-recompiled"],
       "source_editions": [
         {
           "id": "the-lord-of-the-rings-the-return-of-the-king-game-boy-advance",
           "title": "The Lord of the Rings: The Return of the King (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/Lillypad-14/rotk-recompiled"
-          ]
+          "evidence_urls": ["https://github.com/Lillypad-14/rotk-recompiled"]
         }
       ]
     },

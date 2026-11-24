@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "wario-world",
-      "evidence_urls": [
-        "https://github.com/BigSnek9/wario-world-recomp"
-      ],
+      "evidence_urls": ["https://github.com/BigSnek9/wario-world-recomp"],
       "source_editions": [
         {
           "id": "wario-world-nintendo-gamecube",
           "title": "Wario World (Nintendo GameCube)",
           "system": "nintendo-gamecube",
-          "evidence_urls": [
-            "https://github.com/BigSnek9/wario-world-recomp"
-          ]
+          "evidence_urls": ["https://github.com/BigSnek9/wario-world-recomp"]
         }
       ]
     },

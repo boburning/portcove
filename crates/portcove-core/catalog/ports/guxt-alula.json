@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "guxt",
-      "evidence_urls": [
-        "https://github.com/alula/guxtdecomp"
-      ],
+      "evidence_urls": ["https://github.com/alula/guxtdecomp"],
       "source_editions": []
     },
     "original_game_title": "Guxt"

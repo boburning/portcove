@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One recompilation covers several Street Fighter III arcade releases.",
-    "evidence_urls": [
-      "https://github.com/tmcleroy/sf3comp"
-    ]
+    "evidence_urls": ["https://github.com/tmcleroy/sf3comp"]
   }
 }

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "laser-lords",
-      "evidence_urls": [
-        "https://github.com/RandyVie/Laserlords"
-      ],
+      "evidence_urls": ["https://github.com/RandyVie/Laserlords"],
       "source_editions": []
     },
     "original_game_title": "Laser Lords"

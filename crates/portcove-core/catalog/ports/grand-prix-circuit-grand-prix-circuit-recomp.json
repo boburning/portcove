@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "grand-prix-circuit",
-      "evidence_urls": [
-        "https://github.com/UgaTEC/grand-prix-circuit-recomp"
-      ],
+      "evidence_urls": ["https://github.com/UgaTEC/grand-prix-circuit-recomp"],
       "source_editions": []
     },
     "original_game_title": "Grand Prix Circuit"

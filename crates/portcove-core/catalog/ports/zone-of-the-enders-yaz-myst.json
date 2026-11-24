@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "zone-of-the-enders",
-      "evidence_urls": [
-        "https://github.com/yaz-myst/zoe-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/yaz-myst/zoe-recompiled"],
       "source_editions": []
     },
     "original_game_title": "Zone of the Enders"

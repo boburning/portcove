@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "baroque",
-      "evidence_urls": [
-        "https://github.com/Arch61s/Baroque-Decomp"
-      ],
+      "evidence_urls": ["https://github.com/Arch61s/Baroque-Decomp"],
       "source_editions": [
         {
           "id": "baroque-playstation-2",
           "title": "Baroque (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/Arch61s/Baroque-Decomp"
-          ]
+          "evidence_urls": ["https://github.com/Arch61s/Baroque-Decomp"]
         }
       ]
     },

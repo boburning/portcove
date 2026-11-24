@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "turok-2-seeds-of-evil",
-      "evidence_urls": [
-        "https://github.com/SirBraga/turok2-recomp"
-      ],
+      "evidence_urls": ["https://github.com/SirBraga/turok2-recomp"],
       "source_editions": []
     },
     "original_game_title": "Turok 2: Seeds of Evil"

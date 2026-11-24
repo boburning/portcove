@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokepark-2",
-      "evidence_urls": [
-        "https://github.com/MildRain479/PokePark-2-Wiicompiled"
-      ],
+      "evidence_urls": ["https://github.com/MildRain479/PokePark-2-Wiicompiled"],
       "source_editions": [
         {
           "id": "pokepark-2-wii",
           "title": "PokéPark 2 (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/MildRain479/PokePark-2-Wiicompiled"
-          ]
+          "evidence_urls": ["https://github.com/MildRain479/PokePark-2-Wiicompiled"]
         }
       ]
     },

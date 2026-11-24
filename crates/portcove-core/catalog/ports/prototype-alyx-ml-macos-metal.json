@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "prototype",
-      "evidence_urls": [
-        "https://github.com/Alyx-ML/Prototype-MacOS-Metal"
-      ],
+      "evidence_urls": ["https://github.com/Alyx-ML/Prototype-MacOS-Metal"],
       "source_editions": []
     },
     "original_game_title": "Prototype"

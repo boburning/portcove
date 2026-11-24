@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-violet",
-      "evidence_urls": [
-        "https://github.com/Grunttanamo/KarPur"
-      ],
+      "evidence_urls": ["https://github.com/Grunttanamo/KarPur"],
       "source_editions": [
         {
           "id": "pokemon-violet-nintendo-switch",
           "title": "Pokémon Violet (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Grunttanamo/KarPur"
-          ]
+          "evidence_urls": ["https://github.com/Grunttanamo/KarPur"]
         }
       ]
     },

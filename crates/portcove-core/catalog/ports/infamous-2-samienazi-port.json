@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "infamous-2",
-      "evidence_urls": [
-        "https://github.com/SamiEnazi/infamous2-port"
-      ],
+      "evidence_urls": ["https://github.com/SamiEnazi/infamous2-port"],
       "source_editions": [
         {
           "id": "infamous-2-playstation-3",
           "title": "inFAMOUS 2 (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/SamiEnazi/infamous2-port"
-          ]
+          "evidence_urls": ["https://github.com/SamiEnazi/infamous2-port"]
         }
       ]
     },

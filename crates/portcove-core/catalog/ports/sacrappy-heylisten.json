@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-ocarina-of-time",
-      "evidence_urls": [
-        "https://github.com/Sacrappy/HeyListen"
-      ],
+      "evidence_urls": ["https://github.com/Sacrappy/HeyListen"],
       "source_editions": [
         {
           "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch",
           "title": "The Legend of Zelda: Ocarina of Time (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Sacrappy/HeyListen"
-          ]
+          "evidence_urls": ["https://github.com/Sacrappy/HeyListen"]
         }
       ]
     },

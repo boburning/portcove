@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "aces-of-the-pacific",
-      "evidence_urls": [
-        "https://github.com/kylofon/aces-of-the-pacific-sdl3"
-      ],
+      "evidence_urls": ["https://github.com/kylofon/aces-of-the-pacific-sdl3"],
       "source_editions": []
     },
     "original_game_title": "Aces of the Pacific"

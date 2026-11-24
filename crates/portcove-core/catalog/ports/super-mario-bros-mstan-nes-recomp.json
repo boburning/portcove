@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-bros",
-      "evidence_urls": [
-        "https://github.com/mstan/SuperMarioBrosNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/SuperMarioBrosNESRecomp"],
       "source_editions": [
         {
           "id": "super-mario-bros-nes",
           "title": "Super Mario Bros. (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/mstan/SuperMarioBrosNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/SuperMarioBrosNESRecomp"]
         }
       ]
     },

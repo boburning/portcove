@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "disciples-ii-rise-of-the-elves",
-      "evidence_urls": [
-        "https://github.com/Betreazen/disciples2-godot"
-      ],
+      "evidence_urls": ["https://github.com/Betreazen/disciples2-godot"],
       "source_editions": []
     },
     "original_game_title": "Disciples II: Rise of the Elves"

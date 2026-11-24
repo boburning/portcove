@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-land-2-6-golden-coins",
-      "evidence_urls": [
-        "https://github.com/patricksmill/sml2-rs"
-      ],
+      "evidence_urls": ["https://github.com/patricksmill/sml2-rs"],
       "source_editions": []
     },
     "original_game_title": "Super Mario Land 2: 6 Golden Coins"

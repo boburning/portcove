@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "caligo-chaser",
-      "evidence_urls": [
-        "https://github.com/rubble-za/Caligo-Chaser-DX"
-      ],
+      "evidence_urls": ["https://github.com/rubble-za/Caligo-Chaser-DX"],
       "source_editions": []
     },
     "original_game_title": "Caligo Chaser"

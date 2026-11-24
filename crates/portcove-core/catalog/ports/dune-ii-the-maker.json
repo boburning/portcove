@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dune-ii",
-      "evidence_urls": [
-        "https://github.com/stefanhendriks/Dune-II---The-Maker"
-      ],
+      "evidence_urls": ["https://github.com/stefanhendriks/Dune-II---The-Maker"],
       "source_editions": []
     },
     "original_game_title": "Dune II"

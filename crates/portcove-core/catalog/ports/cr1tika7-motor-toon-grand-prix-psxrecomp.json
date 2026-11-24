@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "motor-toon-grand-prix",
-      "evidence_urls": [
-        "https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"
-      ],
+      "evidence_urls": ["https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"],
       "source_editions": [
         {
           "id": "motor-toon-grand-prix-playstation",
           "title": "Motor Toon Grand Prix (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"
-          ]
+          "evidence_urls": ["https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"]
         }
       ]
     },

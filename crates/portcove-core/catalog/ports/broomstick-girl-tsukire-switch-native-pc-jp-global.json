@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tsukihime-a-piece-of-blue-glass-moon",
-      "evidence_urls": [
-        "https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"],
       "source_editions": [
         {
           "id": "tsukihime-a-piece-of-blue-glass-moon-nintendo-switch",
           "title": "Tsukihime -A piece of blue glass moon- (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"
-          ]
+          "evidence_urls": ["https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"]
         }
       ]
     },

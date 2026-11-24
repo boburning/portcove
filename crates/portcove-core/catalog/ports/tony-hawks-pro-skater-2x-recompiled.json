@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tony-hawks-pro-skater-2x",
-      "evidence_urls": [
-        "https://github.com/almost-drowned-rat/THPS2X-Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/almost-drowned-rat/THPS2X-Recompiled"],
       "source_editions": [
         {
           "id": "tony-hawks-pro-skater-2x-xbox",
           "title": "Tony Hawk's Pro Skater 2X (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/almost-drowned-rat/THPS2X-Recompiled"
-          ]
+          "evidence_urls": ["https://github.com/almost-drowned-rat/THPS2X-Recompiled"]
         }
       ]
     },

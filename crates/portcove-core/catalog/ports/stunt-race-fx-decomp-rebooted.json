@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "stunt-race-fx",
-      "evidence_urls": [
-        "https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"
-      ],
+      "evidence_urls": ["https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"],
       "source_editions": [
         {
           "id": "stunt-race-fx-super-nintendo",
           "title": "Stunt Race FX (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"
-          ]
+          "evidence_urls": ["https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"]
         }
       ]
     },

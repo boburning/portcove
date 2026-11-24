@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pilotwings-resort",
-      "evidence_urls": [
-        "https://github.com/thefixinhixon/woohoo-flight-school"
-      ],
+      "evidence_urls": ["https://github.com/thefixinhixon/woohoo-flight-school"],
       "source_editions": []
     },
     "original_game_title": "Pilotwings Resort"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "alone-in-the-dark",
-      "evidence_urls": [
-        "https://github.com/spacefarergames/AloneInTheDarkReHaunted"
-      ],
+      "evidence_urls": ["https://github.com/spacefarergames/AloneInTheDarkReHaunted"],
       "source_editions": []
     },
     "original_game_title": "Alone in the Dark"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-platinum",
-      "evidence_urls": [
-        "https://github.com/xgcModding/platinum"
-      ],
+      "evidence_urls": ["https://github.com/xgcModding/platinum"],
       "source_editions": []
     },
     "original_game_title": "Pokémon Platinum"

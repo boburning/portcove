@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "crash-bandicoot-the-wrath-of-cortex",
-      "evidence_urls": [
-        "https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"
-      ],
+      "evidence_urls": ["https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"],
       "source_editions": [
         {
           "id": "crash-bandicoot-the-wrath-of-cortex-playstation-2",
           "title": "Crash Bandicoot: The Wrath of Cortex (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"
-          ]
+          "evidence_urls": ["https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"]
         }
       ]
     },

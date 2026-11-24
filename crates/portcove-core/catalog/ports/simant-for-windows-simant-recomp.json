@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "simant-for-windows",
-      "evidence_urls": [
-        "https://github.com/Tim-campy/simant-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Tim-campy/simant-recomp"],
       "source_editions": []
     },
     "original_game_title": "SimAnt for Windows"

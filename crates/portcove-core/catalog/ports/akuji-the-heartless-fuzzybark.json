@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "akuji-the-heartless",
-      "evidence_urls": [
-        "https://github.com/fuzzybark/AkujiTheHeartlessRecomp"
-      ],
+      "evidence_urls": ["https://github.com/fuzzybark/AkujiTheHeartlessRecomp"],
       "source_editions": [
         {
           "id": "akuji-the-heartless-playstation",
           "title": "Akuji the Heartless (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/fuzzybark/AkujiTheHeartlessRecomp"
-          ]
+          "evidence_urls": ["https://github.com/fuzzybark/AkujiTheHeartlessRecomp"]
         }
       ]
     },

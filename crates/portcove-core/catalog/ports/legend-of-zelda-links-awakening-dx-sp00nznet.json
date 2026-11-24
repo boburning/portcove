@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-link-s-awakening-dx-hd",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/LinksAwakening"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/LinksAwakening"],
       "source_editions": [
         {
           "id": "the-legend-of-zelda-link-s-awakening-dx-hd-game-boy-color",
           "title": "The Legend of Zelda: Link's Awakening DX HD (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": [
-            "https://github.com/sp00nznet/LinksAwakening"
-          ]
+          "evidence_urls": ["https://github.com/sp00nznet/LinksAwakening"]
         }
       ]
     },

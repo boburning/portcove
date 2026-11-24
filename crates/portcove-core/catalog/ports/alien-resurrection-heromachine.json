@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "alien-resurrection",
-      "evidence_urls": [
-        "https://github.com/Heromachine/AlienResurrection-Recompilation"
-      ],
+      "evidence_urls": ["https://github.com/Heromachine/AlienResurrection-Recompilation"],
       "source_editions": []
     },
     "original_game_title": "Alien Resurrection"

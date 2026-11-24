@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tiny-toon-adventures-buster-busts-loose",
-      "evidence_urls": [
-        "https://github.com/Darhkfox/BusterBustsLoose"
-      ],
+      "evidence_urls": ["https://github.com/Darhkfox/BusterBustsLoose"],
       "source_editions": [
         {
           "id": "tiny-toon-adventures-buster-busts-loose-super-nintendo",
           "title": "Tiny Toon Adventures: Buster Busts Loose (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/Darhkfox/BusterBustsLoose"
-          ]
+          "evidence_urls": ["https://github.com/Darhkfox/BusterBustsLoose"]
         }
       ]
     },

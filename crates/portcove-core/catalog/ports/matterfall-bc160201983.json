@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "matterfall",
-      "evidence_urls": [
-        "https://github.com/bc160201983/Matterfall-PC-port"
-      ],
+      "evidence_urls": ["https://github.com/bc160201983/Matterfall-PC-port"],
       "source_editions": [
         {
           "id": "matterfall-playstation-4",
           "title": "Matterfall (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/bc160201983/Matterfall-PC-port"
-          ]
+          "evidence_urls": ["https://github.com/bc160201983/Matterfall-PC-port"]
         }
       ]
     },

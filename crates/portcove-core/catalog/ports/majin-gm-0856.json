@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "majin-and-the-forsaken-kingdom",
-      "evidence_urls": [
-        "https://github.com/GM-0856/majin-recompile"
-      ],
+      "evidence_urls": ["https://github.com/GM-0856/majin-recompile"],
       "source_editions": [
         {
           "id": "majin-and-the-forsaken-kingdom-xbox-360",
           "title": "Majin and the Forsaken Kingdom (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/GM-0856/majin-recompile"
-          ]
+          "evidence_urls": ["https://github.com/GM-0856/majin-recompile"]
         }
       ]
     },

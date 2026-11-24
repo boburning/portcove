@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "comic-jumper-the-adventures-of-captain-smiley",
-      "evidence_urls": [
-        "https://github.com/thefixinhixon/ComicJumperRecomp"
-      ],
+      "evidence_urls": ["https://github.com/thefixinhixon/ComicJumperRecomp"],
       "source_editions": [
         {
           "id": "comic-jumper-the-adventures-of-captain-smiley-xbox-360",
           "title": "Comic Jumper: The Adventures of Captain Smiley (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/thefixinhixon/ComicJumperRecomp"
-          ]
+          "evidence_urls": ["https://github.com/thefixinhixon/ComicJumperRecomp"]
         }
       ]
     },

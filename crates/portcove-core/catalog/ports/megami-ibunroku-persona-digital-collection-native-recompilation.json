@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "The Digital Collection bundles several Persona releases.",
-    "evidence_urls": [
-      "https://github.com/ACR-GD/persona-digital-collection-recomp"
-    ]
+    "evidence_urls": ["https://github.com/ACR-GD/persona-digital-collection-recomp"]
   }
 }

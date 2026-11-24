@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sid-meiers-civilization-for-windows",
-      "evidence_urls": [
-        "https://github.com/Buyukcaglar/Civ64"
-      ],
+      "evidence_urls": ["https://github.com/Buyukcaglar/Civ64"],
       "source_editions": []
     },
     "original_game_title": "Sid Meier's Civilization for Windows"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "resident-evil-2-dual-shock-ver",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"],
       "source_editions": [
         {
           "id": "resident-evil-2-dual-shock-ver-playstation",
           "title": "Resident Evil 2: Dual Shock Ver. (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"]
         }
       ]
     },

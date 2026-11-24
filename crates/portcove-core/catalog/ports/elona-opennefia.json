@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "elona",
-      "evidence_urls": [
-        "https://github.com/OpenNefia/OpenNefia"
-      ],
+      "evidence_urls": ["https://github.com/OpenNefia/OpenNefia"],
       "source_editions": []
     },
     "original_game_title": "Elona"

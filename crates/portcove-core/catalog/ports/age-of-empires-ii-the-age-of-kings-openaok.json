@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "age-of-empires-ii-the-age-of-kings",
-      "evidence_urls": [
-        "https://github.com/Zaydme/openaok"
-      ],
+      "evidence_urls": ["https://github.com/Zaydme/openaok"],
       "source_editions": []
     },
     "original_game_title": "Age of Empires II The Age of Kings"

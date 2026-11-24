@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "zoids-assault",
-      "evidence_urls": [
-        "https://github.com/LomoXSoft/ZoidsAssaultRecomp"
-      ],
+      "evidence_urls": ["https://github.com/LomoXSoft/ZoidsAssaultRecomp"],
       "source_editions": [
         {
           "id": "zoids-assault-xbox-360",
           "title": "Zoids Assault (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/LomoXSoft/ZoidsAssaultRecomp"
-          ]
+          "evidence_urls": ["https://github.com/LomoXSoft/ZoidsAssaultRecomp"]
         }
       ]
     },

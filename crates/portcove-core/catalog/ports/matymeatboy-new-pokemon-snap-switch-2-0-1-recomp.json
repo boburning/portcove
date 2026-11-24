@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "new-pokemon-snap",
-      "evidence_urls": [
-        "https://github.com/MatyMeatBoy/NewSnapRecomp"
-      ],
+      "evidence_urls": ["https://github.com/MatyMeatBoy/NewSnapRecomp"],
       "source_editions": [
         {
           "id": "new-pokemon-snap-nintendo-switch",
           "title": "New Pokémon Snap (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/MatyMeatBoy/NewSnapRecomp"
-          ]
+          "evidence_urls": ["https://github.com/MatyMeatBoy/NewSnapRecomp"]
         }
       ]
     },

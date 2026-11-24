@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "i-g-i-2-covert-strike",
-      "evidence_urls": [
-        "https://github.com/OpenIGI/OpenIGI"
-      ],
+      "evidence_urls": ["https://github.com/OpenIGI/OpenIGI"],
       "source_editions": []
     },
     "original_game_title": "I.G.I. 2: Covert Strike"

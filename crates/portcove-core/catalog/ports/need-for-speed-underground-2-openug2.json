@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "need-for-speed-underground-2",
-      "evidence_urls": [
-        "https://github.com/whoismept/OpenUG2"
-      ],
+      "evidence_urls": ["https://github.com/whoismept/OpenUG2"],
       "source_editions": []
     },
     "original_game_title": "Need for Speed: Underground 2"

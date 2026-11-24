@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "janes-fighters-anthology",
-      "evidence_urls": [
-        "https://github.com/john-overton/T.O.R.E-Fighters"
-      ],
+      "evidence_urls": ["https://github.com/john-overton/T.O.R.E-Fighters"],
       "source_editions": []
     },
     "original_game_title": "Jane's Fighters Anthology"

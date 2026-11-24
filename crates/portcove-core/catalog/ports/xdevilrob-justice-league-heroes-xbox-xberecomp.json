@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "justice-league-heroes",
-      "evidence_urls": [
-        "https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"
-      ],
+      "evidence_urls": ["https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"],
       "source_editions": [
         {
           "id": "justice-league-heroes-xbox",
           "title": "Justice League Heroes (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"
-          ]
+          "evidence_urls": ["https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"]
         }
       ]
     },

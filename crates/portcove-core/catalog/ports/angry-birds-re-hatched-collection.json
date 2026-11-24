@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One project bundles several Angry Birds games.",
-    "evidence_urls": [
-      "https://github.com/TekRantGaming/angry-birds-re-hatched-collection"
-    ]
+    "evidence_urls": ["https://github.com/TekRantGaming/angry-birds-re-hatched-collection"]
   }
 }

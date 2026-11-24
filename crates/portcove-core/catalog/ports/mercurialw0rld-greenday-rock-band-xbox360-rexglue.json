@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "green-day-rock-band",
-      "evidence_urls": [
-        "https://github.com/mercurialw0rld/greendayrockband-recomp"
-      ],
+      "evidence_urls": ["https://github.com/mercurialw0rld/greendayrockband-recomp"],
       "source_editions": [
         {
           "id": "green-day-rock-band-xbox-360",
           "title": "Green Day: Rock Band (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/mercurialw0rld/greendayrockband-recomp"
-          ]
+          "evidence_urls": ["https://github.com/mercurialw0rld/greendayrockband-recomp"]
         }
       ]
     },

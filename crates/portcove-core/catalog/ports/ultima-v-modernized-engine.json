@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ultima-v",
-      "evidence_urls": [
-        "https://github.com/synthwave-pixel/ultima5"
-      ],
+      "evidence_urls": ["https://github.com/synthwave-pixel/ultima5"],
       "source_editions": []
     },
     "original_game_title": "Ultima V"

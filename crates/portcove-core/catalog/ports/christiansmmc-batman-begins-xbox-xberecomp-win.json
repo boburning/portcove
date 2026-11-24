@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "batman-begins",
-      "evidence_urls": [
-        "https://github.com/christiansmmc/BatmanBeginsRecomp"
-      ],
+      "evidence_urls": ["https://github.com/christiansmmc/BatmanBeginsRecomp"],
       "source_editions": [
         {
           "id": "batman-begins-xbox",
           "title": "Batman Begins (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/christiansmmc/BatmanBeginsRecomp"
-          ]
+          "evidence_urls": ["https://github.com/christiansmmc/BatmanBeginsRecomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "hexic-hd",
-      "evidence_urls": [
-        "https://github.com/josiahg2502-glitch/HexicHDRecompiled"
-      ],
+      "evidence_urls": ["https://github.com/josiahg2502-glitch/HexicHDRecompiled"],
       "source_editions": [
         {
           "id": "hexic-hd-xbox",
           "title": "Hexic HD (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/josiahg2502-glitch/HexicHDRecompiled"
-          ]
+          "evidence_urls": ["https://github.com/josiahg2502-glitch/HexicHDRecompiled"]
         }
       ]
     },

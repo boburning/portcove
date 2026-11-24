@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-street-fighter-ii-x",
-      "evidence_urls": [
-        "https://github.com/andreoka-debug/ssf2xj-recomp"
-      ],
+      "evidence_urls": ["https://github.com/andreoka-debug/ssf2xj-recomp"],
       "source_editions": []
     },
     "original_game_title": "Super Street Fighter II X"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "wreckless-the-yakuza-missions",
-      "evidence_urls": [
-        "https://github.com/AntAir267/wreckless-recomp"
-      ],
+      "evidence_urls": ["https://github.com/AntAir267/wreckless-recomp"],
       "source_editions": [
         {
           "id": "wreckless-the-yakuza-missions-xbox",
           "title": "Wreckless: The Yakuza Missions (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/AntAir267/wreckless-recomp"
-          ]
+          "evidence_urls": ["https://github.com/AntAir267/wreckless-recomp"]
         }
       ]
     },

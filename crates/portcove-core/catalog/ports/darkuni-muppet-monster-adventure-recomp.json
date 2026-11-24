@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "muppet-monster-adventure",
-      "evidence_urls": [
-        "https://github.com/darkuni/muppet-monster-adventure-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/muppet-monster-adventure-recomp"],
       "source_editions": [
         {
           "id": "muppet-monster-adventure-playstation",
           "title": "Muppet Monster Adventure (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/darkuni/muppet-monster-adventure-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/muppet-monster-adventure-recomp"]
         }
       ]
     },

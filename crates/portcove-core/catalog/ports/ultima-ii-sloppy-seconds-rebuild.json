@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ultima-ii-revenge-of-the-enchantress",
-      "evidence_urls": [
-        "https://github.com/sloppy-seconds/ultima2-rebuild"
-      ],
+      "evidence_urls": ["https://github.com/sloppy-seconds/ultima2-rebuild"],
       "source_editions": []
     },
     "original_game_title": "Ultima II: Revenge of the Enchantress"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "animal-crossing",
-      "evidence_urls": [
-        "https://github.com/LiquidAzir/animal-crossing-vr"
-      ],
+      "evidence_urls": ["https://github.com/LiquidAzir/animal-crossing-vr"],
       "source_editions": []
     },
     "original_game_title": "Animal Crossing"

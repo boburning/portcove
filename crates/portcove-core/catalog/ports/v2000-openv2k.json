@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "v2000",
-      "evidence_urls": [
-        "https://github.com/xndbogdan/OpenV2K"
-      ],
+      "evidence_urls": ["https://github.com/xndbogdan/OpenV2K"],
       "source_editions": []
     },
     "original_game_title": "V2000"

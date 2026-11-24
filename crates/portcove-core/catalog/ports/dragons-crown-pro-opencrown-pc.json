@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dragon-s-crown-pro-ps4",
-      "evidence_urls": [
-        "https://github.com/Nezara/OpenCrown-PC"
-      ],
+      "evidence_urls": ["https://github.com/Nezara/OpenCrown-PC"],
       "source_editions": [
         {
           "id": "dragon-s-crown-pro-ps4-playstation-4",
           "title": "Dragon's Crown Pro (PS4) (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Nezara/OpenCrown-PC"
-          ]
+          "evidence_urls": ["https://github.com/Nezara/OpenCrown-PC"]
         }
       ]
     },

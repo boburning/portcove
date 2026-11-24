@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "star-wars-rogue-squadron-3d",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/rogue-squadron-recomp"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/rogue-squadron-recomp"],
       "source_editions": []
     },
     "original_game_title": "Star Wars Rogue Squadron 3D"

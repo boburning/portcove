@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "colin-mcrae-rally",
-      "evidence_urls": [
-        "https://github.com/akitaonrails/rea-colin-mcrae-recomp"
-      ],
+      "evidence_urls": ["https://github.com/akitaonrails/rea-colin-mcrae-recomp"],
       "source_editions": []
     },
     "original_game_title": "Colin McRae Rally"

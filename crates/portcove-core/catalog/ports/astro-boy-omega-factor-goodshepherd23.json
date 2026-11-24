@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "astro-boy-omega-factor",
-      "evidence_urls": [
-        "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"],
       "source_editions": [
         {
           "id": "astro-boy-omega-factor-game-boy-advance",
           "title": "Astro Boy: Omega Factor (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"]
         }
       ]
     },

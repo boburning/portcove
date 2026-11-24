@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "armored-core-master-of-arena",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Armored-Core-Master-of-Arena"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Master-of-Arena"],
       "source_editions": [
         {
           "id": "armored-core-master-of-arena-playstation",
           "title": "Armored Core: Master of Arena (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Armored-Core-Master-of-Arena"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Master-of-Arena"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "z",
-      "evidence_urls": [
-        "https://github.com/sha5b/Z-Steel-Soldiers"
-      ],
+      "evidence_urls": ["https://github.com/sha5b/Z-Steel-Soldiers"],
       "source_editions": []
     },
     "original_game_title": "Z"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "yoshis-story",
-      "evidence_urls": [
-        "https://github.com/damobeanrod/yoshis-story-recomp"
-      ],
+      "evidence_urls": ["https://github.com/damobeanrod/yoshis-story-recomp"],
       "source_editions": []
     },
     "original_game_title": "Yoshi's Story"

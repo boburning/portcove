@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "resident-evil-code-veronica-x",
-      "evidence_urls": [
-        "https://github.com/camybiohazard/Project-Veronica"
-      ],
+      "evidence_urls": ["https://github.com/camybiohazard/Project-Veronica"],
       "source_editions": []
     },
     "original_game_title": "Resident Evil Code: Veronica X"

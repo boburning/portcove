@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "beach-life",
-      "evidence_urls": [
-        "https://github.com/h4570/openbeach"
-      ],
+      "evidence_urls": ["https://github.com/h4570/openbeach"],
       "source_editions": []
     },
     "original_game_title": "Beach Life"

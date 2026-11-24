@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "crusader-of-centy",
-      "evidence_urls": [
-        "https://github.com/OriginalSwayze/crusader-of-centy-recomp"
-      ],
+      "evidence_urls": ["https://github.com/OriginalSwayze/crusader-of-centy-recomp"],
       "source_editions": [
         {
           "id": "crusader-of-centy-mega-drive-genesis",
           "title": "Crusader of Centy (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/OriginalSwayze/crusader-of-centy-recomp"
-          ]
+          "evidence_urls": ["https://github.com/OriginalSwayze/crusader-of-centy-recomp"]
         }
       ]
     },

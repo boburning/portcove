@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "rock-n-roll-racing",
-      "evidence_urls": [
-        "https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"],
       "source_editions": [
         {
           "id": "rock-n-roll-racing-super-nintendo",
           "title": "Rock n' Roll Racing (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"]
         }
       ]
     },

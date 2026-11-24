@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "castlevania-curse-of-darkness",
-      "evidence_urls": [
-        "https://github.com/Pazzi7054/CastlevaniaCOD-PC"
-      ],
+      "evidence_urls": ["https://github.com/Pazzi7054/CastlevaniaCOD-PC"],
       "source_editions": [
         {
           "id": "castlevania-curse-of-darkness-xbox",
           "title": "Castlevania: Curse of Darkness (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/Pazzi7054/CastlevaniaCOD-PC"
-          ]
+          "evidence_urls": ["https://github.com/Pazzi7054/CastlevaniaCOD-PC"]
         }
       ]
     },

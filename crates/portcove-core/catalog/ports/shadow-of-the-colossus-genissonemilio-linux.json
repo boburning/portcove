@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "shadow-of-the-colossus",
-      "evidence_urls": [
-        "https://github.com/GenissonEmilio/ShadowOfTheColossusPC"
-      ],
+      "evidence_urls": ["https://github.com/GenissonEmilio/ShadowOfTheColossusPC"],
       "source_editions": [
         {
           "id": "shadow-of-the-colossus-playstation-2",
           "title": "Shadow of the Colossus (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/GenissonEmilio/ShadowOfTheColossusPC"
-          ]
+          "evidence_urls": ["https://github.com/GenissonEmilio/ShadowOfTheColossusPC"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "virtua-nba",
-      "evidence_urls": [
-        "https://github.com/PocketLucho/Virtua-NBA---Recompilation"
-      ],
+      "evidence_urls": ["https://github.com/PocketLucho/Virtua-NBA---Recompilation"],
       "source_editions": []
     },
     "original_game_title": "Virtua NBA"

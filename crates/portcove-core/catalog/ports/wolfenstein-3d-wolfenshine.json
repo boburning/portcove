@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "wolfenstein-3d",
-      "evidence_urls": [
-        "https://github.com/deanthecoder/Wolfenshine"
-      ],
+      "evidence_urls": ["https://github.com/deanthecoder/Wolfenshine"],
       "source_editions": []
     },
     "original_game_title": "Wolfenstein 3D"

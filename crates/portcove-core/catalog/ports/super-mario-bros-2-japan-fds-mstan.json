@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-bros-2-japan-fds",
-      "evidence_urls": [
-        "https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"],
       "source_editions": [
         {
           "id": "super-mario-bros-2-japan-fds-nes",
           "title": "Super Mario Bros. 2 Japan FDS (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "amped-3",
-      "evidence_urls": [
-        "https://github.com/malinkicat/ReAmped3"
-      ],
+      "evidence_urls": ["https://github.com/malinkicat/ReAmped3"],
       "source_editions": [
         {
           "id": "amped-3-xbox-360",
           "title": "Amped 3 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/malinkicat/ReAmped3"
-          ]
+          "evidence_urls": ["https://github.com/malinkicat/ReAmped3"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dead-or-alive-1-ultimate",
-      "evidence_urls": [
-        "https://github.com/DeadlySync/doa1u"
-      ],
+      "evidence_urls": ["https://github.com/DeadlySync/doa1u"],
       "source_editions": [
         {
           "id": "dead-or-alive-1-ultimate-xbox",
           "title": "Dead or Alive 1 Ultimate (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/DeadlySync/doa1u"
-          ]
+          "evidence_urls": ["https://github.com/DeadlySync/doa1u"]
         }
       ]
     },

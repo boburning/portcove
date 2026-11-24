@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-punch-out",
-      "evidence_urls": [
-        "https://github.com/TanookiStudios/SuperPunchOutRecomp"
-      ],
+      "evidence_urls": ["https://github.com/TanookiStudios/SuperPunchOutRecomp"],
       "source_editions": [
         {
           "id": "super-punch-out-super-nintendo",
           "title": "Super Punch-Out!! (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/TanookiStudios/SuperPunchOutRecomp"
-          ]
+          "evidence_urls": ["https://github.com/TanookiStudios/SuperPunchOutRecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tubes",
-      "evidence_urls": [
-        "https://github.com/stev0760/tubes-port"
-      ],
+      "evidence_urls": ["https://github.com/stev0760/tubes-port"],
       "source_editions": []
     },
     "original_game_title": "Tubes"

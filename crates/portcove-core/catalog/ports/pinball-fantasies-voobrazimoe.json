@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pinball-fantasies",
-      "evidence_urls": [
-        "https://github.com/voobrazimoe/pinball-fantasies-native"
-      ],
+      "evidence_urls": ["https://github.com/voobrazimoe/pinball-fantasies-native"],
       "source_editions": []
     },
     "original_game_title": "Pinball Fantasies"

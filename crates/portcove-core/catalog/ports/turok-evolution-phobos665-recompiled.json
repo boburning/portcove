@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "turok-evolution",
-      "evidence_urls": [
-        "https://github.com/phobos665/turok-evolution-recomp"
-      ],
+      "evidence_urls": ["https://github.com/phobos665/turok-evolution-recomp"],
       "source_editions": [
         {
           "id": "turok-evolution-xbox",
           "title": "Turok: Evolution (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/phobos665/turok-evolution-recomp"
-          ]
+          "evidence_urls": ["https://github.com/phobos665/turok-evolution-recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "shortline-railroad",
-      "evidence_urls": [
-        "https://github.com/konovalov-aleks/reSL"
-      ],
+      "evidence_urls": ["https://github.com/konovalov-aleks/reSL"],
       "source_editions": []
     },
     "original_game_title": "Shortline railroad"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-house-of-the-dead-overkill",
-      "evidence_urls": [
-        "https://github.com/darkuni/house-of-the-dead-overkill-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/house-of-the-dead-overkill-recomp"],
       "source_editions": [
         {
           "id": "the-house-of-the-dead-overkill-wii",
           "title": "The House of the Dead: Overkill (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/darkuni/house-of-the-dead-overkill-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/house-of-the-dead-overkill-recomp"]
         }
       ]
     },

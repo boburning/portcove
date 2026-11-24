@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "The Nathan Drake Collection contains three Uncharted games.",
-    "evidence_urls": [
-      "https://github.com/truwa/nathan-drake-collection-macos"
-    ]
+    "evidence_urls": ["https://github.com/truwa/nathan-drake-collection-macos"]
   }
 }

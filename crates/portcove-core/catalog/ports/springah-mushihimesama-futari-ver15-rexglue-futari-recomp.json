@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mushihimesama-futari-ver-1-5",
-      "evidence_urls": [
-        "https://github.com/springah/futari_recomp"
-      ],
+      "evidence_urls": ["https://github.com/springah/futari_recomp"],
       "source_editions": [
         {
           "id": "mushihimesama-futari-ver-1-5-xbox-360",
           "title": "Mushihimesama Futari Ver 1.5 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/springah/futari_recomp"
-          ]
+          "evidence_urls": ["https://github.com/springah/futari_recomp"]
         }
       ]
     },

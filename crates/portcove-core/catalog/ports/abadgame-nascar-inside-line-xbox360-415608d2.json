@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "nascar-the-game-inside-line",
-      "evidence_urls": [
-        "https://github.com/ABadGame/nascar-inside-line-recomp"
-      ],
+      "evidence_urls": ["https://github.com/ABadGame/nascar-inside-line-recomp"],
       "source_editions": [
         {
           "id": "nascar-the-game-inside-line-xbox-360",
           "title": "NASCAR The Game: Inside Line (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/ABadGame/nascar-inside-line-recomp"
-          ]
+          "evidence_urls": ["https://github.com/ABadGame/nascar-inside-line-recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ssx-on-tour-psp",
-      "evidence_urls": [
-        "https://github.com/highcmd/ssx-on-tour-psp-recomp"
-      ],
+      "evidence_urls": ["https://github.com/highcmd/ssx-on-tour-psp-recomp"],
       "source_editions": [
         {
           "id": "ssx-on-tour-psp-playstation-portable",
           "title": "SSX On Tour PSP (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/highcmd/ssx-on-tour-psp-recomp"
-          ]
+          "evidence_urls": ["https://github.com/highcmd/ssx-on-tour-psp-recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tetris",
-      "evidence_urls": [
-        "https://github.com/etroimcasso/Kirpich"
-      ],
+      "evidence_urls": ["https://github.com/etroimcasso/Kirpich"],
       "source_editions": [
         {
           "id": "tetris-game-boy",
           "title": "Tetris (Game Boy)",
           "system": "game-boy",
-          "evidence_urls": [
-            "https://github.com/etroimcasso/Kirpich"
-          ]
+          "evidence_urls": ["https://github.com/etroimcasso/Kirpich"]
         }
       ]
     },

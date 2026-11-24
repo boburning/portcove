@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "star-wars-rogue-squadron",
-      "evidence_urls": [
-        "https://github.com/AndrewDiess/RogueSquadronRecomp"
-      ],
+      "evidence_urls": ["https://github.com/AndrewDiess/RogueSquadronRecomp"],
       "source_editions": [
         {
           "id": "star-wars-rogue-squadron-nintendo-64",
           "title": "Star Wars: Rogue Squadron (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/AndrewDiess/RogueSquadronRecomp"
-          ]
+          "evidence_urls": ["https://github.com/AndrewDiess/RogueSquadronRecomp"]
         }
       ]
     },

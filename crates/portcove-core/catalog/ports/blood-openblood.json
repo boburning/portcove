@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "blood",
-      "evidence_urls": [
-        "https://github.com/dagrigorev/OpenBlood"
-      ],
+      "evidence_urls": ["https://github.com/dagrigorev/OpenBlood"],
       "source_editions": []
     },
     "original_game_title": "Blood"

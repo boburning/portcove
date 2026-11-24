@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "airline-tycoon-deluxe",
-      "evidence_urls": [
-        "https://github.com/ModdingOldGames/OpenATDUnity"
-      ],
+      "evidence_urls": ["https://github.com/ModdingOldGames/OpenATDUnity"],
       "source_editions": []
     },
     "original_game_title": "Airline Tycoon Deluxe"

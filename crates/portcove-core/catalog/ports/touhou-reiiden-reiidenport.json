@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "touhou-reiiden-the-highly-responsive-to-prayers",
-      "evidence_urls": [
-        "https://github.com/Felipe-Gomes-Amorim/touhou-reiiden-port"
-      ],
+      "evidence_urls": ["https://github.com/Felipe-Gomes-Amorim/touhou-reiiden-port"],
       "source_editions": []
     },
     "original_game_title": "Touhou Reiiden: The Highly Responsive to Prayers"

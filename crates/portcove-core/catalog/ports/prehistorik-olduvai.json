@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "prehistorik",
-      "evidence_urls": [
-        "https://github.com/ksokolowski/olduvai"
-      ],
+      "evidence_urls": ["https://github.com/ksokolowski/olduvai"],
       "source_editions": []
     },
     "original_game_title": "Prehistorik"

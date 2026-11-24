@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "wwf-attitude",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/wwf-attitude-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/wwf-attitude-recomp"],
       "source_editions": [
         {
           "id": "wwf-attitude-playstation",
           "title": "WWF Attitude (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/wwf-attitude-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/wwf-attitude-recomp"]
         }
       ]
     },

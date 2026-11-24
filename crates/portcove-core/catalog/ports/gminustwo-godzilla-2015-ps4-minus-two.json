@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "godzilla",
-      "evidence_urls": [
-        "https://github.com/gminustwo/minustwo"
-      ],
+      "evidence_urls": ["https://github.com/gminustwo/minustwo"],
       "source_editions": [
         {
           "id": "godzilla-playstation-4",
           "title": "GODZILLA (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/gminustwo/minustwo"
-          ]
+          "evidence_urls": ["https://github.com/gminustwo/minustwo"]
         }
       ]
     },

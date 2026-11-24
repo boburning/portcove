@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "legoland",
-      "evidence_urls": [
-        "https://github.com/facundosterzerforino/legoland-port"
-      ],
+      "evidence_urls": ["https://github.com/facundosterzerforino/legoland-port"],
       "source_editions": []
     },
     "original_game_title": "LEGOLAND"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "nhl-19",
-      "evidence_urls": [
-        "https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"
-      ],
+      "evidence_urls": ["https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"],
       "source_editions": [
         {
           "id": "nhl-19-playstation-4",
           "title": "NHL 19 (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"
-          ]
+          "evidence_urls": ["https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"]
         }
       ]
     },

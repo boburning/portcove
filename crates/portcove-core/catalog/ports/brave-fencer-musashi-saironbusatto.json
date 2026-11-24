@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "brave-fencer-musashi",
-      "evidence_urls": [
-        "https://github.com/saironbusatto/MusashiRecomp"
-      ],
+      "evidence_urls": ["https://github.com/saironbusatto/MusashiRecomp"],
       "source_editions": [
         {
           "id": "brave-fencer-musashi-playstation",
           "title": "Brave Fencer Musashi (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/saironbusatto/MusashiRecomp"
-          ]
+          "evidence_urls": ["https://github.com/saironbusatto/MusashiRecomp"]
         }
       ]
     },

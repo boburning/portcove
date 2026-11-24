@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "double-dragon-iii-the-sacred-stones",
-      "evidence_urls": [
-        "https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"],
       "source_editions": [
         {
           "id": "double-dragon-iii-the-sacred-stones-nes",
           "title": "Double Dragon III: The Sacred Stones (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"]
         }
       ]
     },

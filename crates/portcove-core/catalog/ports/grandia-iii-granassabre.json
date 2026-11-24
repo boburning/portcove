@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "grandia-iii",
-      "evidence_urls": [
-        "https://github.com/granassabre/grandia3-pc"
-      ],
+      "evidence_urls": ["https://github.com/granassabre/grandia3-pc"],
       "source_editions": []
     },
     "original_game_title": "Grandia III"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "apocalypse-usa",
-      "evidence_urls": [
-        "https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"
-      ],
+      "evidence_urls": ["https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"],
       "source_editions": [
         {
           "id": "apocalypse-usa-playstation",
           "title": "Apocalypse USA (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"
-          ]
+          "evidence_urls": ["https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"]
         }
       ]
     },

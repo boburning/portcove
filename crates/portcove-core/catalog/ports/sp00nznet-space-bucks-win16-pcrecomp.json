@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "space-bucks",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/spacebucks-recomp"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/spacebucks-recomp"],
       "source_editions": []
     },
     "original_game_title": "Space Bucks"

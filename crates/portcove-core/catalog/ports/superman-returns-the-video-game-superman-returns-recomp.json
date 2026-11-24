@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "superman-returns-the-video-game",
-      "evidence_urls": [
-        "https://github.com/MrPowerUp82/superman_returns_recomp"
-      ],
+      "evidence_urls": ["https://github.com/MrPowerUp82/superman_returns_recomp"],
       "source_editions": [
         {
           "id": "superman-returns-the-video-game-xbox-360",
           "title": "Superman Returns: The Video Game (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/MrPowerUp82/superman_returns_recomp"
-          ]
+          "evidence_urls": ["https://github.com/MrPowerUp82/superman_returns_recomp"]
         }
       ]
     },

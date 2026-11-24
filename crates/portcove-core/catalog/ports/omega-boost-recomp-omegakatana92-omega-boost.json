@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "omega-boost",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Omega-Boost-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Omega-Boost-Recomp"],
       "source_editions": [
         {
           "id": "omega-boost-playstation",
           "title": "Omega Boost (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Omega-Boost-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Omega-Boost-Recomp"]
         }
       ]
     },

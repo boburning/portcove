@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ogre-battle-march-of-the-black-queen",
-      "evidence_urls": [
-        "https://github.com/hoyajavis/ogre-battle-pc"
-      ],
+      "evidence_urls": ["https://github.com/hoyajavis/ogre-battle-pc"],
       "source_editions": [
         {
           "id": "ogre-battle-march-of-the-black-queen-super-nintendo",
           "title": "Ogre Battle: March of the Black Queen (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/hoyajavis/ogre-battle-pc"
-          ]
+          "evidence_urls": ["https://github.com/hoyajavis/ogre-battle-pc"]
         }
       ]
     },

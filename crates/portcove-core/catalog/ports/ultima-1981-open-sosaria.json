@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ultima",
-      "evidence_urls": [
-        "https://github.com/delcodigo/open-sosaria"
-      ],
+      "evidence_urls": ["https://github.com/delcodigo/open-sosaria"],
       "source_editions": []
     },
     "original_game_title": "Ultima"

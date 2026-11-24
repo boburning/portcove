@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "goemons-great-adventure",
-      "evidence_urls": [
-        "https://github.com/StopSine/GGA64Recomp"
-      ],
+      "evidence_urls": ["https://github.com/StopSine/GGA64Recomp"],
       "source_editions": []
     },
     "original_game_title": "Goemon's Great Adventure"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "shadow-the-hedgehog",
-      "evidence_urls": [
-        "https://github.com/FoxWorkshop/ShadowRecomp"
-      ],
+      "evidence_urls": ["https://github.com/FoxWorkshop/ShadowRecomp"],
       "source_editions": [
         {
           "id": "shadow-the-hedgehog-xbox",
           "title": "Shadow the Hedgehog (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/FoxWorkshop/ShadowRecomp"
-          ]
+          "evidence_urls": ["https://github.com/FoxWorkshop/ShadowRecomp"]
         }
       ]
     },

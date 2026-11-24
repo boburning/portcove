@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "breakers",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Breakers-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Breakers-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Breakers"

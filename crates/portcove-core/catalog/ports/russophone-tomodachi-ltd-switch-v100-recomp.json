@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tomodachi-life-living-the-dream",
-      "evidence_urls": [
-        "https://github.com/RussoPhone/tomodachi-ltd-recomp"
-      ],
+      "evidence_urls": ["https://github.com/RussoPhone/tomodachi-ltd-recomp"],
       "source_editions": [
         {
           "id": "tomodachi-life-living-the-dream-nintendo-switch",
           "title": "Tomodachi Life: Living the Dream (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/RussoPhone/tomodachi-ltd-recomp"
-          ]
+          "evidence_urls": ["https://github.com/RussoPhone/tomodachi-ltd-recomp"]
         }
       ]
     },

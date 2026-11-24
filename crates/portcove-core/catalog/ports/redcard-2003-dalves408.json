@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "redcard-20-03",
-      "evidence_urls": [
-        "https://github.com/dalves408/redcard2003recomp"
-      ],
+      "evidence_urls": ["https://github.com/dalves408/redcard2003recomp"],
       "source_editions": [
         {
           "id": "redcard-20-03-xbox",
           "title": "RedCard 20-03 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/dalves408/redcard2003recomp"
-          ]
+          "evidence_urls": ["https://github.com/dalves408/redcard2003recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-64-ds",
-      "evidence_urls": [
-        "https://github.com/mstan/supermario64dsrecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/supermario64dsrecomp"],
       "source_editions": []
     },
     "original_game_title": "Super Mario 64 DS"

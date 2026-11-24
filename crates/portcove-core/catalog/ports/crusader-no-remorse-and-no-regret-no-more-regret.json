@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One port runs Crusader: No Remorse and Crusader: No Regret.",
-    "evidence_urls": [
-      "https://github.com/sparkstar/no-more-regret"
-    ]
+    "evidence_urls": ["https://github.com/sparkstar/no-more-regret"]
   }
 }

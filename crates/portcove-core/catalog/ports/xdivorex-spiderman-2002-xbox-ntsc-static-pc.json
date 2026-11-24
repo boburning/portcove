@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "spider-man",
-      "evidence_urls": [
-        "https://github.com/xdivorex-gif/spiderman-2002-pc"
-      ],
+      "evidence_urls": ["https://github.com/xdivorex-gif/spiderman-2002-pc"],
       "source_editions": [
         {
           "id": "spider-man-xbox",
           "title": "Spider-Man (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/xdivorex-gif/spiderman-2002-pc"
-          ]
+          "evidence_urls": ["https://github.com/xdivorex-gif/spiderman-2002-pc"]
         }
       ]
     },

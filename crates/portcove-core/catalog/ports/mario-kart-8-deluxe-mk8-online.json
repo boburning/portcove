@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-kart-8-deluxe",
-      "evidence_urls": [
-        "https://github.com/Vnnc1/MK8-online"
-      ],
+      "evidence_urls": ["https://github.com/Vnnc1/MK8-online"],
       "source_editions": []
     },
     "original_game_title": "Mario Kart 8 Deluxe"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "real-bout-fatal-fury",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Real Bout Fatal Fury"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "syndicate-plus",
-      "evidence_urls": [
-        "https://github.com/Buyukcaglar/synd"
-      ],
+      "evidence_urls": ["https://github.com/Buyukcaglar/synd"],
       "source_editions": []
     },
     "original_game_title": "Syndicate Plus"

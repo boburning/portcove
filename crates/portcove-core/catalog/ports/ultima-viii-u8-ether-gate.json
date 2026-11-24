@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ultima-viii-pagan",
-      "evidence_urls": [
-        "https://github.com/LostMystic/u8-ether-gate"
-      ],
+      "evidence_urls": ["https://github.com/LostMystic/u8-ether-gate"],
       "source_editions": []
     },
     "original_game_title": "Ultima VIII: Pagan"

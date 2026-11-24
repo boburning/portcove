@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "formula-one-championship-edition",
-      "evidence_urls": [
-        "https://github.com/mauricristiano95-hub/F1_CE_PS3"
-      ],
+      "evidence_urls": ["https://github.com/mauricristiano95-hub/F1_CE_PS3"],
       "source_editions": [
         {
           "id": "formula-one-championship-edition-playstation-3",
           "title": "Formula One Championship Edition (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/mauricristiano95-hub/F1_CE_PS3"
-          ]
+          "evidence_urls": ["https://github.com/mauricristiano95-hub/F1_CE_PS3"]
         }
       ]
     },

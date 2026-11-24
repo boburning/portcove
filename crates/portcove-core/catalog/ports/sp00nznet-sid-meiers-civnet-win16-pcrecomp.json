@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sid-meiers-civnet",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/civnet-recomp"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/civnet-recomp"],
       "source_editions": []
     },
     "original_game_title": "Sid Meier's CivNet"

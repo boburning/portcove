@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gunman-chronicles",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/gunman"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/gunman"],
       "source_editions": []
     },
     "original_game_title": "Gunman Chronicles"

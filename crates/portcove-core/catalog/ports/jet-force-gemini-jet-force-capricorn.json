@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "jet-force-gemini",
-      "evidence_urls": [
-        "https://github.com/riseio/Jet-Force-Capricorn"
-      ],
+      "evidence_urls": ["https://github.com/riseio/Jet-Force-Capricorn"],
       "source_editions": [
         {
           "id": "jet-force-gemini-nintendo-64",
           "title": "Jet Force Gemini (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/riseio/Jet-Force-Capricorn"
-          ]
+          "evidence_urls": ["https://github.com/riseio/Jet-Force-Capricorn"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "darkwing-duck",
-      "evidence_urls": [
-        "https://github.com/fabiotc/darkwing-duck-recomp"
-      ],
+      "evidence_urls": ["https://github.com/fabiotc/darkwing-duck-recomp"],
       "source_editions": []
     },
     "original_game_title": "Darkwing Duck"

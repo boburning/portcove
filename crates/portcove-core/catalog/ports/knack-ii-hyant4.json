@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "knack-ii",
-      "evidence_urls": [
-        "https://github.com/Hyant4/Knack-II-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/Hyant4/Knack-II-pc-port"],
       "source_editions": [
         {
           "id": "knack-ii-playstation-4",
           "title": "Knack II (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Hyant4/Knack-II-pc-port"
-          ]
+          "evidence_urls": ["https://github.com/Hyant4/Knack-II-pc-port"]
         }
       ]
     },

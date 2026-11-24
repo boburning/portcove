@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sim-theme-park",
-      "evidence_urls": [
-        "https://github.com/ThemeParkWorldDecomp/tpw-port"
-      ],
+      "evidence_urls": ["https://github.com/ThemeParkWorldDecomp/tpw-port"],
       "source_editions": []
     },
     "original_game_title": "Sim Theme Park"

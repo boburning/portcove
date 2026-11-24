@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-pokopia",
-      "evidence_urls": [
-        "https://github.com/drakolordx7/pokopia-recomp"
-      ],
+      "evidence_urls": ["https://github.com/drakolordx7/pokopia-recomp"],
       "source_editions": [
         {
           "id": "pokemon-pokopia-nintendo-switch",
           "title": "Pokémon Pokopia (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/drakolordx7/pokopia-recomp"
-          ]
+          "evidence_urls": ["https://github.com/drakolordx7/pokopia-recomp"]
         }
       ]
     },

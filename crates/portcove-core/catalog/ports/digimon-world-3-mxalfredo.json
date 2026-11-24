@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "digimon-world-2003",
-      "evidence_urls": [
-        "https://github.com/MxAlfredo/dw3_port"
-      ],
+      "evidence_urls": ["https://github.com/MxAlfredo/dw3_port"],
       "source_editions": []
     },
     "original_game_title": "Digimon World 3"

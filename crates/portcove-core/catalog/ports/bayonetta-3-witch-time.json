@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "bayonetta-3",
-      "evidence_urls": [
-        "https://github.com/Zexyen/Witch-Time"
-      ],
+      "evidence_urls": ["https://github.com/Zexyen/Witch-Time"],
       "source_editions": []
     },
     "original_game_title": "Bayonetta 3"

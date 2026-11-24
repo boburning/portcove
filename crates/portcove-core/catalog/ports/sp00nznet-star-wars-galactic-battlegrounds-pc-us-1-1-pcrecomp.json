@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "star-wars-galactic-battlegrounds",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/swgb-recomp"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/swgb-recomp"],
       "source_editions": []
     },
     "original_game_title": "Star Wars: Galactic Battlegrounds"

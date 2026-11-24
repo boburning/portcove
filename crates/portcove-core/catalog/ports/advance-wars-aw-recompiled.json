@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "advance-wars",
-      "evidence_urls": [
-        "https://github.com/sergiomanzur/AW-Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/sergiomanzur/AW-Recompiled"],
       "source_editions": []
     },
     "original_game_title": "Advance Wars"

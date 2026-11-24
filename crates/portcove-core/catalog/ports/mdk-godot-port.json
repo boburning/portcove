@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mdk",
-      "evidence_urls": [
-        "https://github.com/nautilusbits/mdk-godot"
-      ],
+      "evidence_urls": ["https://github.com/nautilusbits/mdk-godot"],
       "source_editions": []
     },
     "original_game_title": "MDK"

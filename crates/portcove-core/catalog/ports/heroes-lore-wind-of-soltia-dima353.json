@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "heroes-lore-wind-of-soltia",
-      "evidence_urls": [
-        "https://github.com/Dima353/heroes_lore_decomp"
-      ],
+      "evidence_urls": ["https://github.com/Dima353/heroes_lore_decomp"],
       "source_editions": []
     },
     "original_game_title": "Heroes Lore: Wind of Soltia"

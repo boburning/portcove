@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One port runs Might and Magic IV and V (World of Xeen).",
-    "evidence_urls": [
-      "https://github.com/carbiecarbie/MMModern"
-    ]
+    "evidence_urls": ["https://github.com/carbiecarbie/MMModern"]
   }
 }

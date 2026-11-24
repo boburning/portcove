@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "gta-chinatown-wars-psp",
-      "evidence_urls": [
-        "https://github.com/highcmd/chinatown-wars-psp-recomp"
-      ],
+      "evidence_urls": ["https://github.com/highcmd/chinatown-wars-psp-recomp"],
       "source_editions": [
         {
           "id": "gta-chinatown-wars-psp-playstation-portable",
           "title": "GTA Chinatown Wars PSP (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/highcmd/chinatown-wars-psp-recomp"
-          ]
+          "evidence_urls": ["https://github.com/highcmd/chinatown-wars-psp-recomp"]
         }
       ]
     },

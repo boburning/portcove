@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "medal-of-honor-european-assault",
-      "evidence_urls": [
-        "https://github.com/otavix010/moh-european-assault-pc"
-      ],
+      "evidence_urls": ["https://github.com/otavix010/moh-european-assault-pc"],
       "source_editions": [
         {
           "id": "medal-of-honor-european-assault-playstation-2",
           "title": "Medal of Honor: European Assault (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/otavix010/moh-european-assault-pc"
-          ]
+          "evidence_urls": ["https://github.com/otavix010/moh-european-assault-pc"]
         }
       ]
     },

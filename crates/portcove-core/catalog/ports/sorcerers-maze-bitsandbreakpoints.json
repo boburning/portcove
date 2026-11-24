@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "sorcerers-maze-usa",
-      "evidence_urls": [
-        "https://github.com/Bitsandbreakpoints/sorcerers-maze-psx-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Bitsandbreakpoints/sorcerers-maze-psx-pc-recomp"],
       "source_editions": [
         {
           "id": "sorcerers-maze-usa-playstation",
           "title": "Sorcerer's Maze USA (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Bitsandbreakpoints/sorcerers-maze-psx-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/sorcerers-maze-psx-pc-recomp"]
         }
       ]
     },

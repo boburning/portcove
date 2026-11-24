@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "street-fighter-alpha-warriors-dreams",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Street-Fighter-Alpha-Recomp-"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Street-Fighter-Alpha-Recomp-"],
       "source_editions": []
     },
     "original_game_title": "Street Fighter Alpha: Warriors Dreams"

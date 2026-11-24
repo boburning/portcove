@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "speed-haste",
-      "evidence_urls": [
-        "https://github.com/jval1972/Speed"
-      ],
+      "evidence_urls": ["https://github.com/jval1972/Speed"],
       "source_editions": []
     },
     "original_game_title": "Speed Haste"

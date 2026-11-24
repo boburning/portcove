@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jet-moto",
-      "evidence_urls": [
-        "https://github.com/GTTeancum/Jet-Moto-Anthology"
-      ],
+      "evidence_urls": ["https://github.com/GTTeancum/Jet-Moto-Anthology"],
       "source_editions": []
     },
     "original_game_title": "Jet Moto"

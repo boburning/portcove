@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "world-of-warcraft-wrath-of-the-lich-king",
-      "evidence_urls": [
-        "https://github.com/Kelsidavis/WoWee"
-      ],
+      "evidence_urls": ["https://github.com/Kelsidavis/WoWee"],
       "source_editions": []
     },
     "original_game_title": "World of Warcraft: Wrath of the Lich King"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "nanaca-crash",
-      "evidence_urls": [
-        "https://github.com/Nyaldee/nanaca-crash"
-      ],
+      "evidence_urls": ["https://github.com/Nyaldee/nanaca-crash"],
       "source_editions": []
     },
     "original_game_title": "NANACA CRASH"

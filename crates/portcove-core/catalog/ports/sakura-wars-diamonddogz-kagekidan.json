@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sakura-wars",
-      "evidence_urls": [
-        "https://github.com/DiamondDogz/Sakura-Wars-PS4RT-Windows"
-      ],
+      "evidence_urls": ["https://github.com/DiamondDogz/Sakura-Wars-PS4RT-Windows"],
       "source_editions": []
     },
     "original_game_title": "Sakura Wars"

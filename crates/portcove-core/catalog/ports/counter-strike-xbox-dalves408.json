@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "counter-strike",
-      "evidence_urls": [
-        "https://github.com/dalves408/CounterStrikeXB"
-      ],
+      "evidence_urls": ["https://github.com/dalves408/CounterStrikeXB"],
       "source_editions": [
         {
           "id": "counter-strike-xbox",
           "title": "Counter-Strike (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/dalves408/CounterStrikeXB"
-          ]
+          "evidence_urls": ["https://github.com/dalves408/CounterStrikeXB"]
         }
       ]
     },

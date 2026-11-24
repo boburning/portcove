@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "metroid",
-      "evidence_urls": [
-        "https://github.com/mstan/MetroidNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/MetroidNESRecomp"],
       "source_editions": [
         {
           "id": "metroid-nes",
           "title": "Metroid (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/mstan/MetroidNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/MetroidNESRecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "star-wars-rebellion",
-      "evidence_urls": [
-        "https://github.com/Open-SWR/Open-SWR"
-      ],
+      "evidence_urls": ["https://github.com/Open-SWR/Open-SWR"],
       "source_editions": []
     },
     "original_game_title": "Star Wars: Rebellion"

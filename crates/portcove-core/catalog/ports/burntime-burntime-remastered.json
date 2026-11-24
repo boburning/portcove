@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "burntime",
-      "evidence_urls": [
-        "https://github.com/jakobharder/burntime"
-      ],
+      "evidence_urls": ["https://github.com/jakobharder/burntime"],
       "source_editions": []
     },
     "original_game_title": "Burntime"

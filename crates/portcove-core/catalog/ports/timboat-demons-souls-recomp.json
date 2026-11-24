@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "demon-s-souls",
-      "evidence_urls": [
-        "https://github.com/timboat/demons-souls-recomp"
-      ],
+      "evidence_urls": ["https://github.com/timboat/demons-souls-recomp"],
       "source_editions": [
         {
           "id": "demon-s-souls-playstation-3",
           "title": "Demon's Souls (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/timboat/demons-souls-recomp"
-          ]
+          "evidence_urls": ["https://github.com/timboat/demons-souls-recomp"]
         }
       ]
     },

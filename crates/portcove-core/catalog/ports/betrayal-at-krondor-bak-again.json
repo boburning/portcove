@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "betrayal-at-krondor",
-      "evidence_urls": [
-        "https://github.com/stellargames/bakagain"
-      ],
+      "evidence_urls": ["https://github.com/stellargames/bakagain"],
       "source_editions": []
     },
     "original_game_title": "Betrayal at Krondor"

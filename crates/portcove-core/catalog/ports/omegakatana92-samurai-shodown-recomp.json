@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "samurai-shodown",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Samurai-Shodown-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Samurai-Shodown-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Samurai Shodown"

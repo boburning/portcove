@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "scooby-doo-mystery-mayhem",
-      "evidence_urls": [
-        "https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"
-      ],
+      "evidence_urls": ["https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"],
       "source_editions": [
         {
           "id": "scooby-doo-mystery-mayhem-playstation-2",
           "title": "Scooby-Doo! Mystery Mayhem (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"
-          ]
+          "evidence_urls": ["https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"]
         }
       ]
     },

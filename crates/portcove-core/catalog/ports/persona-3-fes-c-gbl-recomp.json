@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "persona-3-fes",
-      "evidence_urls": [
-        "https://github.com/C-GBL/P3FES-Decompilation"
-      ],
+      "evidence_urls": ["https://github.com/C-GBL/P3FES-Decompilation"],
       "source_editions": []
     },
     "original_game_title": "Persona 3 FES"

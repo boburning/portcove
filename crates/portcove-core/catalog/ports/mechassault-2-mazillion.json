@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mechassault-2-lone-wolf",
-      "evidence_urls": [
-        "https://github.com/Mazillion/MechAssault2-PC-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Mazillion/MechAssault2-PC-Recomp"],
       "source_editions": [
         {
           "id": "mechassault-2-lone-wolf-xbox",
           "title": "MechAssault 2: Lone Wolf (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/Mazillion/MechAssault2-PC-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Mazillion/MechAssault2-PC-Recomp"]
         }
       ]
     },

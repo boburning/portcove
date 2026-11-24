@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tecmo-world-cup-98",
-      "evidence_urls": [
-        "https://github.com/mapacheopi-blip/tecmo-world-cup-recomp-98"
-      ],
+      "evidence_urls": ["https://github.com/mapacheopi-blip/tecmo-world-cup-recomp-98"],
       "source_editions": []
     },
     "original_game_title": "Tecmo World Cup '98"

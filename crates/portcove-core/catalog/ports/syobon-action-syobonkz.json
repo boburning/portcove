@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "syobon-action",
-      "evidence_urls": [
-        "https://github.com/M0REKZ/SyobonKZ"
-      ],
+      "evidence_urls": ["https://github.com/M0REKZ/SyobonKZ"],
       "source_editions": []
     },
     "original_game_title": "Syobon Action"

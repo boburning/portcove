@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "god-of-war-iii-remastered",
-      "evidence_urls": [
-        "https://github.com/sonukumar-87/gow3_mac_port"
-      ],
+      "evidence_urls": ["https://github.com/sonukumar-87/gow3_mac_port"],
       "source_editions": []
     },
     "original_game_title": "God of War III Remastered"

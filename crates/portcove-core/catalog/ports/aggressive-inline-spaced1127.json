@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "aggressive-inline",
-      "evidence_urls": [
-        "https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"],
       "source_editions": [
         {
           "id": "aggressive-inline-nintendo-gamecube",
           "title": "Aggressive Inline (Nintendo GameCube)",
           "system": "nintendo-gamecube",
-          "evidence_urls": [
-            "https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"]
         }
       ]
     },

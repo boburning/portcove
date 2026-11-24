@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "metal-slug-5",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Metal-Slug-5-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Metal-Slug-5-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Metal Slug 5"

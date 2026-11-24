@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tapan-kaikki-4-bloodshed",
-      "evidence_urls": [
-        "https://github.com/suomipelit/tapankaikki4"
-      ],
+      "evidence_urls": ["https://github.com/suomipelit/tapankaikki4"],
       "source_editions": []
     },
     "original_game_title": "Tapan Kaikki 4: Bloodshed"

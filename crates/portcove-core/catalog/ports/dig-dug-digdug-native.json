@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dig-dug",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/digdug-native"
-      ],
+      "evidence_urls": ["https://github.com/TekRantGaming/digdug-native"],
       "source_editions": []
     },
     "original_game_title": "Dig Dug"

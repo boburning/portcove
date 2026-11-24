@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-tennis",
-      "evidence_urls": [
-        "https://github.com/Ieatzcrayonz/MarioTennisRecomp"
-      ],
+      "evidence_urls": ["https://github.com/Ieatzcrayonz/MarioTennisRecomp"],
       "source_editions": [
         {
           "id": "mario-tennis-nintendo-64",
           "title": "Mario Tennis (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/Ieatzcrayonz/MarioTennisRecomp"
-          ]
+          "evidence_urls": ["https://github.com/Ieatzcrayonz/MarioTennisRecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "conker-s-bad-fur-day",
-      "evidence_urls": [
-        "https://github.com/DevOldSchool/conkers-bfd-recomp"
-      ],
+      "evidence_urls": ["https://github.com/DevOldSchool/conkers-bfd-recomp"],
       "source_editions": []
     },
     "original_game_title": "Conker's Bad Fur Day"

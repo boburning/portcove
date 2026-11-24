@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "nba-unrivaled",
-      "evidence_urls": [
-        "https://github.com/dalves408/nbaunrivaledrc"
-      ],
+      "evidence_urls": ["https://github.com/dalves408/nbaunrivaledrc"],
       "source_editions": []
     },
     "original_game_title": "NBA Unrivaled"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-smash-bros-melee",
-      "evidence_urls": [
-        "https://github.com/Mwrnk/desktop-melee"
-      ],
+      "evidence_urls": ["https://github.com/Mwrnk/desktop-melee"],
       "source_editions": []
     },
     "original_game_title": "Super Smash Bros. Melee"

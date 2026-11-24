@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "battle-engine-aquila",
-      "evidence_urls": [
-        "https://github.com/dlprentice/onslaught-ce"
-      ],
+      "evidence_urls": ["https://github.com/dlprentice/onslaught-ce"],
       "source_editions": []
     },
     "original_game_title": "Battle Engine Aquila"

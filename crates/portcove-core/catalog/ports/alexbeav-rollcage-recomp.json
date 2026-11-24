@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "rollcage",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/rollcage-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/rollcage-recomp"],
       "source_editions": [
         {
           "id": "rollcage-playstation",
           "title": "Rollcage (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/rollcage-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/rollcage-recomp"]
         }
       ]
     },

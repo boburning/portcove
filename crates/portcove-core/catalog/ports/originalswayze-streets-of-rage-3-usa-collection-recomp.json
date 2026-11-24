@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "streets-of-rage-3",
-      "evidence_urls": [
-        "https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"],
       "source_editions": [
         {
           "id": "streets-of-rage-3-mega-drive-genesis",
           "title": "Streets of Rage 3 (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-bros",
-      "evidence_urls": [
-        "https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"],
       "source_editions": [
         {
           "id": "mario-bros-nes",
           "title": "Mario Bros. (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"]
         }
       ]
     },

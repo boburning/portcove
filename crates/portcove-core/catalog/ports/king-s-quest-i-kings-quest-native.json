@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "kings-quest-i",
-      "evidence_urls": [
-        "https://github.com/Gl0ttis/kings-quest-native"
-      ],
+      "evidence_urls": ["https://github.com/Gl0ttis/kings-quest-native"],
       "source_editions": []
     },
     "original_game_title": "King's Quest I"

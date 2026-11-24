@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "monopoly",
-      "evidence_urls": [
-        "https://github.com/josiahg2502-glitch/MonopolyRecompiled"
-      ],
+      "evidence_urls": ["https://github.com/josiahg2502-glitch/MonopolyRecompiled"],
       "source_editions": [
         {
           "id": "monopoly-xbox-360",
           "title": "Monopoly (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/josiahg2502-glitch/MonopolyRecompiled"
-          ]
+          "evidence_urls": ["https://github.com/josiahg2502-glitch/MonopolyRecompiled"]
         }
       ]
     },

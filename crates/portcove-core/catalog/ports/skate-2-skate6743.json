@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "skate-2",
-      "evidence_urls": [
-        "https://github.com/skate6743/skate2-rust-port"
-      ],
+      "evidence_urls": ["https://github.com/skate6743/skate2-rust-port"],
       "source_editions": []
     },
     "original_game_title": "Skate 2"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "toejam-and-earl-iii-mission-to-earth",
-      "evidence_urls": [
-        "https://github.com/orkosoftware/tje3-recomp"
-      ],
+      "evidence_urls": ["https://github.com/orkosoftware/tje3-recomp"],
       "source_editions": [
         {
           "id": "toejam-and-earl-iii-mission-to-earth-xbox",
           "title": "ToeJam & Earl III: Mission to Earth (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/orkosoftware/tje3-recomp"
-          ]
+          "evidence_urls": ["https://github.com/orkosoftware/tje3-recomp"]
         }
       ]
     },

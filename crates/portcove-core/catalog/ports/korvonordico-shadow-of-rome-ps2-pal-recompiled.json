@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "shadow-of-rome",
-      "evidence_urls": [
-        "https://github.com/Korvonordico/shadow-of-rome-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/Korvonordico/shadow-of-rome-recompiled"],
       "source_editions": [
         {
           "id": "shadow-of-rome-playstation-2",
           "title": "Shadow of Rome (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/Korvonordico/shadow-of-rome-recompiled"
-          ]
+          "evidence_urls": ["https://github.com/Korvonordico/shadow-of-rome-recompiled"]
         }
       ]
     },

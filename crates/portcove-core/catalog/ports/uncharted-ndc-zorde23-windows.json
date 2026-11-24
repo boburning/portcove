@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "The Nathan Drake Collection contains three Uncharted games.",
-    "evidence_urls": [
-      "https://github.com/zorde23/Uncharted_Collection_PC"
-    ]
+    "evidence_urls": ["https://github.com/zorde23/Uncharted_Collection_PC"]
   }
 }

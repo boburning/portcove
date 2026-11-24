@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "shining-soul-ii",
-      "evidence_urls": [
-        "https://github.com/MatyMeatBoy/SS2Recomp"
-      ],
+      "evidence_urls": ["https://github.com/MatyMeatBoy/SS2Recomp"],
       "source_editions": [
         {
           "id": "shining-soul-ii-game-boy-advance",
           "title": "Shining Soul II (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/MatyMeatBoy/SS2Recomp"
-          ]
+          "evidence_urls": ["https://github.com/MatyMeatBoy/SS2Recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-mystery-dungeon-red-rescue-team",
-      "evidence_urls": [
-        "https://github.com/Asphaltian/pmd-green"
-      ],
+      "evidence_urls": ["https://github.com/Asphaltian/pmd-green"],
       "source_editions": []
     },
     "original_game_title": "Pokémon Mystery Dungeon: Red Rescue Team"

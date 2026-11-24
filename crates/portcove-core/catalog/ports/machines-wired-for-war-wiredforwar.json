@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "machines-wired-for-war",
-      "evidence_urls": [
-        "https://github.com/WiredForWar/machines"
-      ],
+      "evidence_urls": ["https://github.com/WiredForWar/machines"],
       "source_editions": []
     },
     "original_game_title": "Machines: Wired for War"

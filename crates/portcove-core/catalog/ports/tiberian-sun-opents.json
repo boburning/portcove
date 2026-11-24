@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "command-and-conquer-tiberian-sun",
-      "evidence_urls": [
-        "https://github.com/OpenTS-Developers/OpenTS"
-      ],
+      "evidence_urls": ["https://github.com/OpenTS-Developers/OpenTS"],
       "source_editions": []
     },
     "original_game_title": "Command & Conquer: Tiberian Sun"

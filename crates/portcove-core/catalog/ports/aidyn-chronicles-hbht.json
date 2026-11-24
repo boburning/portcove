@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "aidyn-chronicles-the-first-mage",
-      "evidence_urls": [
-        "https://github.com/Aquatakat/hbht"
-      ],
+      "evidence_urls": ["https://github.com/Aquatakat/hbht"],
       "source_editions": [
         {
           "id": "aidyn-chronicles-the-first-mage-nintendo-64",
           "title": "Aidyn Chronicles: The First Mage (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/Aquatakat/hbht"
-          ]
+          "evidence_urls": ["https://github.com/Aquatakat/hbht"]
         }
       ]
     },

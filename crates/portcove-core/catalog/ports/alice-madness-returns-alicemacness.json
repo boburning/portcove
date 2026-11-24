@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "alice-madness-returns",
-      "evidence_urls": [
-        "https://github.com/TheCodeGuardian/AliceMacnessReturns"
-      ],
+      "evidence_urls": ["https://github.com/TheCodeGuardian/AliceMacnessReturns"],
       "source_editions": [
         {
           "id": "alice-madness-returns-xbox-360",
           "title": "Alice: Madness Returns (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/TheCodeGuardian/AliceMacnessReturns"
-          ]
+          "evidence_urls": ["https://github.com/TheCodeGuardian/AliceMacnessReturns"]
         }
       ]
     },

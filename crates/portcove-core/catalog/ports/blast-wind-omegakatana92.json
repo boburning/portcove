@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "blast-wind",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Blast-Wind-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Blast-Wind-Recomp"],
       "source_editions": [
         {
           "id": "blast-wind-sega-saturn",
           "title": "Blast Wind (Sega Saturn)",
           "system": "sega-saturn",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Blast-Wind-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Blast-Wind-Recomp"]
         }
       ]
     },

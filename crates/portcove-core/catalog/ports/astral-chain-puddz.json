@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "astral-chain",
-      "evidence_urls": [
-        "https://github.com/Puddz/AstralChain-PC"
-      ],
+      "evidence_urls": ["https://github.com/Puddz/AstralChain-PC"],
       "source_editions": []
     },
     "original_game_title": "Astral Chain"

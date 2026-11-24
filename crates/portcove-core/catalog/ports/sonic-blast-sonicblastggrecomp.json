@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sonic-blast",
-      "evidence_urls": [
-        "https://github.com/mstan/SonicBlastGGRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/SonicBlastGGRecomp"],
       "source_editions": []
     },
     "original_game_title": "Sonic Blast"

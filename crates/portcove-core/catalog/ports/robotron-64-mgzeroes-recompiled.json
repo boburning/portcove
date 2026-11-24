@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "robotron-64",
-      "evidence_urls": [
-        "https://github.com/MGZeroes/Robotron64Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/MGZeroes/Robotron64Recompiled"],
       "source_editions": [
         {
           "id": "robotron-64-nintendo-64",
           "title": "Robotron 64 (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/MGZeroes/Robotron64Recompiled"
-          ]
+          "evidence_urls": ["https://github.com/MGZeroes/Robotron64Recompiled"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "turok-dinosaur-hunter",
-      "evidence_urls": [
-        "https://github.com/n64hub/turok-recomp"
-      ],
+      "evidence_urls": ["https://github.com/n64hub/turok-recomp"],
       "source_editions": [
         {
           "id": "turok-dinosaur-hunter-nintendo-64",
           "title": "Turok: Dinosaur Hunter (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/n64hub/turok-recomp"
-          ]
+          "evidence_urls": ["https://github.com/n64hub/turok-recomp"]
         }
       ]
     },

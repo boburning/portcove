@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "medal-of-honor-frontline",
-      "evidence_urls": [
-        "https://github.com/goodshepherd23/MOHFrontline-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/goodshepherd23/MOHFrontline-Recomp"],
       "source_editions": [
         {
           "id": "medal-of-honor-frontline-nintendo-gamecube",
           "title": "Medal of Honor: Frontline (Nintendo GameCube)",
           "system": "nintendo-gamecube",
-          "evidence_urls": [
-            "https://github.com/goodshepherd23/MOHFrontline-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/goodshepherd23/MOHFrontline-Recomp"]
         }
       ]
     },

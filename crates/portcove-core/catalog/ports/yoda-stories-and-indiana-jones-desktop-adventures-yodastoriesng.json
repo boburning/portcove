@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One engine runs Yoda Stories and Indiana Jones and His Desktop Adventures.",
-    "evidence_urls": [
-      "https://github.com/sp00nznet/YodaStoriesNG"
-    ]
+    "evidence_urls": ["https://github.com/sp00nznet/YodaStoriesNG"]
   }
 }

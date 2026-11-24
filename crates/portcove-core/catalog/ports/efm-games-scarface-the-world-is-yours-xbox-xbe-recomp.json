@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "scarface-the-world-is-yours",
-      "evidence_urls": [
-        "https://github.com/efm-games/scarface-recomp"
-      ],
+      "evidence_urls": ["https://github.com/efm-games/scarface-recomp"],
       "source_editions": [
         {
           "id": "scarface-the-world-is-yours-xbox",
           "title": "Scarface: The World Is Yours (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/efm-games/scarface-recomp"
-          ]
+          "evidence_urls": ["https://github.com/efm-games/scarface-recomp"]
         }
       ]
     },

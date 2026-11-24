@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "carnevil",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/carnevil"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/carnevil"],
       "source_editions": []
     },
     "original_game_title": "CarnEvil"

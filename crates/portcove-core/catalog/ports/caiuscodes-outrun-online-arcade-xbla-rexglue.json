@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "outrun-online-arcade",
-      "evidence_urls": [
-        "https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"],
       "source_editions": [
         {
           "id": "outrun-online-arcade-xbox-360",
           "title": "OutRun Online Arcade (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"]
         }
       ]
     },

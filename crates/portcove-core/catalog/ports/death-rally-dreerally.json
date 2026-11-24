@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "death-rally",
-      "evidence_urls": [
-        "https://github.com/enriquesomolinos/DreeRally"
-      ],
+      "evidence_urls": ["https://github.com/enriquesomolinos/DreeRally"],
       "source_editions": []
     },
     "original_game_title": "Death Rally"

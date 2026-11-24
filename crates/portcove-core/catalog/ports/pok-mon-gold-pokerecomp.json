@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-gold",
-      "evidence_urls": [
-        "https://github.com/Decryptu/pokerecomp"
-      ],
+      "evidence_urls": ["https://github.com/Decryptu/pokerecomp"],
       "source_editions": [
         {
           "id": "pokemon-gold-game-boy-color",
           "title": "Pokémon Gold (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": [
-            "https://github.com/Decryptu/pokerecomp"
-          ]
+          "evidence_urls": ["https://github.com/Decryptu/pokerecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "commander-keen",
-      "evidence_urls": [
-        "https://github.com/CrossplayGaming/megarocket"
-      ],
+      "evidence_urls": ["https://github.com/CrossplayGaming/megarocket"],
       "source_editions": []
     },
     "original_game_title": "Commander Keen"

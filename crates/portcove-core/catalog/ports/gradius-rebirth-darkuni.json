@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gradius-rebirth",
-      "evidence_urls": [
-        "https://github.com/darkuni/gradius-rebirth-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/gradius-rebirth-recomp"],
       "source_editions": []
     },
     "original_game_title": "Gradius ReBirth"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "digimon-digital-card-battle",
-      "evidence_urls": [
-        "https://github.com/gascarcella/ddcb-pc_port"
-      ],
+      "evidence_urls": ["https://github.com/gascarcella/ddcb-pc_port"],
       "source_editions": []
     },
     "original_game_title": "Digimon Digital Card Battle"

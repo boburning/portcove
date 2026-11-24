@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "crash-team-racing",
-      "evidence_urls": [
-        "https://github.com/elipp/ctr-rs"
-      ],
+      "evidence_urls": ["https://github.com/elipp/ctr-rs"],
       "source_editions": [
         {
           "id": "crash-team-racing-playstation",
           "title": "Crash Team Racing (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/elipp/ctr-rs"
-          ]
+          "evidence_urls": ["https://github.com/elipp/ctr-rs"]
         }
       ]
     },

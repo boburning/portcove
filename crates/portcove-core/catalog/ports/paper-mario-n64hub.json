@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "paper-mario",
-      "evidence_urls": [
-        "https://github.com/n64hub/paper-mario-recomp"
-      ],
+      "evidence_urls": ["https://github.com/n64hub/paper-mario-recomp"],
       "source_editions": [
         {
           "id": "paper-mario-nintendo-64",
           "title": "Paper Mario (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/n64hub/paper-mario-recomp"
-          ]
+          "evidence_urls": ["https://github.com/n64hub/paper-mario-recomp"]
         }
       ]
     },

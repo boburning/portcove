@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "doom-3-bfg-edition",
-      "evidence_urls": [
-        "https://github.com/RobertBeckebans/RBDOOM-3-BFG"
-      ],
+      "evidence_urls": ["https://github.com/RobertBeckebans/RBDOOM-3-BFG"],
       "source_editions": []
     },
     "original_game_title": "Doom 3: BFG Edition"

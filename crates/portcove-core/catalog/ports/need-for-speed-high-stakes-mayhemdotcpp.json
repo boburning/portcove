@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "need-for-speed-high-stakes",
-      "evidence_urls": [
-        "https://github.com/mayhemdotcpp/nfs4-recomp"
-      ],
+      "evidence_urls": ["https://github.com/mayhemdotcpp/nfs4-recomp"],
       "source_editions": [
         {
           "id": "need-for-speed-high-stakes-playstation",
           "title": "Need for Speed High Stakes PS1 (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/mayhemdotcpp/nfs4-recomp"
-          ]
+          "evidence_urls": ["https://github.com/mayhemdotcpp/nfs4-recomp"]
         }
       ]
     },

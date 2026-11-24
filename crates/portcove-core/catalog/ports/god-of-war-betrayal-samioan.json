@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "god-of-war-betrayal",
-      "evidence_urls": [
-        "https://github.com/samioan/gow-betrayal-remastered"
-      ],
+      "evidence_urls": ["https://github.com/samioan/gow-betrayal-remastered"],
       "source_editions": []
     },
     "original_game_title": "God of War: Betrayal"

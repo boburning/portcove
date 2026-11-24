@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tokyo-jungle",
-      "evidence_urls": [
-        "https://github.com/SilvioDiaz/tokyojungle"
-      ],
+      "evidence_urls": ["https://github.com/SilvioDiaz/tokyojungle"],
       "source_editions": [
         {
           "id": "tokyo-jungle-playstation-3",
           "title": "Tokyo Jungle (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/SilvioDiaz/tokyojungle"
-          ]
+          "evidence_urls": ["https://github.com/SilvioDiaz/tokyojungle"]
         }
       ]
     },

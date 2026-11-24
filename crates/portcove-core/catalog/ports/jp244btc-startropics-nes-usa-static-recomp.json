@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "startropics",
-      "evidence_urls": [
-        "https://github.com/jp244btc/startropics-recomp"
-      ],
+      "evidence_urls": ["https://github.com/jp244btc/startropics-recomp"],
       "source_editions": [
         {
           "id": "startropics-nes",
           "title": "StarTropics (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/jp244btc/startropics-recomp"
-          ]
+          "evidence_urls": ["https://github.com/jp244btc/startropics-recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "d-generation",
-      "evidence_urls": [
-        "https://github.com/uosdwashi/DGenerationPort"
-      ],
+      "evidence_urls": ["https://github.com/uosdwashi/DGenerationPort"],
       "source_editions": []
     },
     "original_game_title": "D/Generation"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "parasite-eve-ii",
-      "evidence_urls": [
-        "https://github.com/Snaity-CORE/pe2-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/Snaity-CORE/pe2-pc-port"],
       "source_editions": [
         {
           "id": "parasite-eve-ii-playstation",
           "title": "Parasite Eve II (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Snaity-CORE/pe2-pc-port"
-          ]
+          "evidence_urls": ["https://github.com/Snaity-CORE/pe2-pc-port"]
         }
       ]
     },

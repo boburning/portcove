@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "serious-sam-classic",
-      "evidence_urls": [
-        "https://github.com/tx00100xt/SeriousSamClassic-VK"
-      ],
+      "evidence_urls": ["https://github.com/tx00100xt/SeriousSamClassic-VK"],
       "source_editions": []
     },
     "original_game_title": "Serious Sam Classic"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sangokushi-eiketsuden",
-      "evidence_urls": [
-        "https://github.com/jeiel85/eiketsuden-reloaded"
-      ],
+      "evidence_urls": ["https://github.com/jeiel85/eiketsuden-reloaded"],
       "source_editions": []
     },
     "original_game_title": "Sangokushi Eiketsuden"

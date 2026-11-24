@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "medal-of-honor-underground",
-      "evidence_urls": [
-        "https://github.com/madxbio97/mohu-pc-port"
-      ],
+      "evidence_urls": ["https://github.com/madxbio97/mohu-pc-port"],
       "source_editions": []
     },
     "original_game_title": "Medal of Honor Underground USA"

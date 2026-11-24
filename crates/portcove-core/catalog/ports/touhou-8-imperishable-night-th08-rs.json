@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "touhou-8-imperishable-night",
-      "evidence_urls": [
-        "https://github.com/kauri-off/th08-rs"
-      ],
+      "evidence_urls": ["https://github.com/kauri-off/th08-rs"],
       "source_editions": []
     },
     "original_game_title": "Touhou 8: Imperishable Night"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "donkey-kong-country",
-      "evidence_urls": [
-        "https://github.com/mpolizel/DK1SNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mpolizel/DK1SNESRecomp"],
       "source_editions": [
         {
           "id": "donkey-kong-country-super-nintendo",
           "title": "Donkey Kong Country (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/mpolizel/DK1SNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mpolizel/DK1SNESRecomp"]
         }
       ]
     },

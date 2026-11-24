@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "nhl-hitz-pro",
-      "evidence_urls": [
-        "https://github.com/dalves408/nhlhitzpro-recomp"
-      ],
+      "evidence_urls": ["https://github.com/dalves408/nhlhitzpro-recomp"],
       "source_editions": [
         {
           "id": "nhl-hitz-pro-xbox",
           "title": "NHL Hitz Pro (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/dalves408/nhlhitzpro-recomp"
-          ]
+          "evidence_urls": ["https://github.com/dalves408/nhlhitzpro-recomp"]
         }
       ]
     },

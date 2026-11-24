@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "james-pond-3",
-      "evidence_urls": [
-        "https://github.com/salmon85/James-Pond-3-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/salmon85/James-Pond-3-Recomp"],
       "source_editions": [
         {
           "id": "james-pond-3-mega-drive-genesis",
           "title": "James Pond 3 (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/salmon85/James-Pond-3-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/salmon85/James-Pond-3-Recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-land-2",
-      "evidence_urls": [
-        "https://github.com/mstan/SuperMarioLand2Recomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/SuperMarioLand2Recomp"],
       "source_editions": [
         {
           "id": "super-mario-land-2-game-boy",
           "title": "Super Mario Land 2 (Game Boy)",
           "system": "game-boy",
-          "evidence_urls": [
-            "https://github.com/mstan/SuperMarioLand2Recomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/SuperMarioLand2Recomp"]
         }
       ]
     },

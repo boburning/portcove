@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "half-minute-hero-psp",
-      "evidence_urls": [
-        "https://github.com/highcmd/half-minute-hero-psp-recomp"
-      ],
+      "evidence_urls": ["https://github.com/highcmd/half-minute-hero-psp-recomp"],
       "source_editions": [
         {
           "id": "half-minute-hero-psp-playstation-portable",
           "title": "Half-Minute Hero PSP (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/highcmd/half-minute-hero-psp-recomp"
-          ]
+          "evidence_urls": ["https://github.com/highcmd/half-minute-hero-psp-recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dust-a-tale-of-the-wired-west",
-      "evidence_urls": [
-        "https://github.com/twitchplayskh/Dust-a-tale-of-the-wired-west-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/twitchplayskh/Dust-a-tale-of-the-wired-west-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Dust: A Tale of the Wired West"

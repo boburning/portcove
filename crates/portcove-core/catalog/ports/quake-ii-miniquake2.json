@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "quake-ii",
-      "evidence_urls": [
-        "https://github.com/MiniLangProject/MiniQuake2"
-      ],
+      "evidence_urls": ["https://github.com/MiniLangProject/MiniQuake2"],
       "source_editions": []
     },
     "original_game_title": "Quake II"

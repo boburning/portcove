@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-odyssey",
-      "evidence_urls": [
-        "https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"],
       "source_editions": [
         {
           "id": "super-mario-odyssey-nintendo-switch",
           "title": "Super Mario Odyssey (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"]
         }
       ]
     },

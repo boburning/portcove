@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-monkey-ball-deluxe",
-      "evidence_urls": [
-        "https://github.com/timftw21/smbd-recompilation"
-      ],
+      "evidence_urls": ["https://github.com/timftw21/smbd-recompilation"],
       "source_editions": [
         {
           "id": "super-monkey-ball-deluxe-xbox",
           "title": "Super Monkey Ball Deluxe (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/timftw21/smbd-recompilation"
-          ]
+          "evidence_urls": ["https://github.com/timftw21/smbd-recompilation"]
         }
       ]
     },

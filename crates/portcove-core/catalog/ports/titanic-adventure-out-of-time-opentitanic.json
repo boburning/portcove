@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "titanic-adventure-out-of-time",
-      "evidence_urls": [
-        "https://github.com/wastelandgunner/OpenTitanic"
-      ],
+      "evidence_urls": ["https://github.com/wastelandgunner/OpenTitanic"],
       "source_editions": []
     },
     "original_game_title": "Titanic: Adventure Out of Time"

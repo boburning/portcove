@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "x-men-legends",
-      "evidence_urls": [
-        "https://github.com/GTTeancum/XML1-recomp"
-      ],
+      "evidence_urls": ["https://github.com/GTTeancum/XML1-recomp"],
       "source_editions": [
         {
           "id": "x-men-legends-xbox",
           "title": "X-Men Legends (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/GTTeancum/XML1-recomp"
-          ]
+          "evidence_urls": ["https://github.com/GTTeancum/XML1-recomp"]
         }
       ]
     },

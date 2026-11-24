@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "bloodborne",
-      "evidence_urls": [
-        "https://github.com/Wooloomooloo2/bloodborne_mac_port"
-      ],
+      "evidence_urls": ["https://github.com/Wooloomooloo2/bloodborne_mac_port"],
       "source_editions": [
         {
           "id": "bloodborne-playstation-4",
           "title": "Bloodborne (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Wooloomooloo2/bloodborne_mac_port"
-          ]
+          "evidence_urls": ["https://github.com/Wooloomooloo2/bloodborne_mac_port"]
         }
       ]
     },

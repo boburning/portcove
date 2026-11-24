@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "shadow-of-the-colossus",
-      "evidence_urls": [
-        "https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"
-      ],
+      "evidence_urls": ["https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"],
       "source_editions": [
         {
           "id": "shadow-of-the-colossus-playstation-4",
           "title": "Shadow of the Colossus (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"
-          ]
+          "evidence_urls": ["https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "contra",
-      "evidence_urls": [
-        "https://github.com/gabbycat4/ContraRecomp"
-      ],
+      "evidence_urls": ["https://github.com/gabbycat4/ContraRecomp"],
       "source_editions": [
         {
           "id": "contra-nes",
           "title": "Contra (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/gabbycat4/ContraRecomp"
-          ]
+          "evidence_urls": ["https://github.com/gabbycat4/ContraRecomp"]
         }
       ]
     },

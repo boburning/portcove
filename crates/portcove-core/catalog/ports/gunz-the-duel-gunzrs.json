@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gunz-the-duel",
-      "evidence_urls": [
-        "https://github.com/OpenRsG/GunZRs"
-      ],
+      "evidence_urls": ["https://github.com/OpenRsG/GunZRs"],
       "source_editions": []
     },
     "original_game_title": "GunZ: The Duel"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "elite-beat-agents",
-      "evidence_urls": [
-        "https://github.com/BehonArt/ebaouendan_musiclives"
-      ],
+      "evidence_urls": ["https://github.com/BehonArt/ebaouendan_musiclives"],
       "source_editions": [
         {
           "id": "elite-beat-agents-nintendo-ds",
           "title": "Elite Beat Agents (Nintendo DS)",
           "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/BehonArt/ebaouendan_musiclives"
-          ]
+          "evidence_urls": ["https://github.com/BehonArt/ebaouendan_musiclives"]
         }
       ]
     },

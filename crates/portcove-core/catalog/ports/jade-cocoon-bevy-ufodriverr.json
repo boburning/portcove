@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jade-cocoon",
-      "evidence_urls": [
-        "https://github.com/ufodriverr/jade-cocoon-bevy-public-v1"
-      ],
+      "evidence_urls": ["https://github.com/ufodriverr/jade-cocoon-bevy-public-v1"],
       "source_editions": []
     },
     "original_game_title": "Jade Cocoon"

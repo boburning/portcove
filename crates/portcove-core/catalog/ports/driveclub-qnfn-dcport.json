@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "driveclub",
-      "evidence_urls": [
-        "https://github.com/qnfn/Driveclub-Port"
-      ],
+      "evidence_urls": ["https://github.com/qnfn/Driveclub-Port"],
       "source_editions": [
         {
           "id": "driveclub-playstation-4",
           "title": "DriveClub (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/qnfn/Driveclub-Port"
-          ]
+          "evidence_urls": ["https://github.com/qnfn/Driveclub-Port"]
         }
       ]
     },

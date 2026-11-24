@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "courier-crisis",
-      "evidence_urls": [
-        "https://github.com/cesarboss2022/CourierCrisisRecomp"
-      ],
+      "evidence_urls": ["https://github.com/cesarboss2022/CourierCrisisRecomp"],
       "source_editions": [
         {
           "id": "courier-crisis-playstation",
           "title": "Courier Crisis (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/cesarboss2022/CourierCrisisRecomp"
-          ]
+          "evidence_urls": ["https://github.com/cesarboss2022/CourierCrisisRecomp"]
         }
       ]
     },

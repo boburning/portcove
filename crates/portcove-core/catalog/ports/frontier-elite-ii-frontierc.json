@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "frontier-elite-ii",
-      "evidence_urls": [
-        "https://github.com/Trugath/FrontierC"
-      ],
+      "evidence_urls": ["https://github.com/Trugath/FrontierC"],
       "source_editions": []
     },
     "original_game_title": "Frontier: Elite II"

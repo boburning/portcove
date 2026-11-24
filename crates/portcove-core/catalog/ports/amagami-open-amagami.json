@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "amagami-ebkore",
-      "evidence_urls": [
-        "https://github.com/hokagocafe/open-amagami"
-      ],
+      "evidence_urls": ["https://github.com/hokagocafe/open-amagami"],
       "source_editions": []
     },
     "original_game_title": "Amagami ebKore+"

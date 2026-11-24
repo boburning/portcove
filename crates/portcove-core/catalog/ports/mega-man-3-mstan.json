@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mega-man-3",
-      "evidence_urls": [
-        "https://github.com/mstan/Megaman3NESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/Megaman3NESRecomp"],
       "source_editions": [
         {
           "id": "mega-man-3-nes",
           "title": "Mega Man 3 (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/mstan/Megaman3NESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/Megaman3NESRecomp"]
         }
       ]
     },

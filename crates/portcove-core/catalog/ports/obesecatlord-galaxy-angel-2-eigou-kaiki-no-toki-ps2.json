@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "galaxy-angel-ii-eigou-kaiki-no-toki",
-      "evidence_urls": [
-        "https://github.com/ObeseCatLord/galaxy-angel-2-pc"
-      ],
+      "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"],
       "source_editions": [
         {
           "id": "galaxy-angel-ii-eigou-kaiki-no-toki-playstation-2",
           "title": "Galaxy Angel II: Eigou Kaiki no Toki (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/ObeseCatLord/galaxy-angel-2-pc"
-          ]
+          "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"]
         }
       ]
     },

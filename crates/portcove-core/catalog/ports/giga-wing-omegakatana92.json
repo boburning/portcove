@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "giga-wing",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Gigawing-Recomp-"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Gigawing-Recomp-"],
       "source_editions": []
     },
     "original_game_title": "Giga Wing"

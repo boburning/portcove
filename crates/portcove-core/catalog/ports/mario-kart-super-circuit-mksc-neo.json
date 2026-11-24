@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-kart-super-circuit",
-      "evidence_urls": [
-        "https://github.com/arcanite24/mksc-neo"
-      ],
+      "evidence_urls": ["https://github.com/arcanite24/mksc-neo"],
       "source_editions": []
     },
     "original_game_title": "Mario Kart: Super Circuit"

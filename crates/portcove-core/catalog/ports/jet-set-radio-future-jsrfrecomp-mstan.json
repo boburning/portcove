@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jet-set-radio-future",
-      "evidence_urls": [
-        "https://github.com/mstan/JSRFRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/JSRFRecomp"],
       "source_editions": []
     },
     "original_game_title": "Jet Set Radio Future"

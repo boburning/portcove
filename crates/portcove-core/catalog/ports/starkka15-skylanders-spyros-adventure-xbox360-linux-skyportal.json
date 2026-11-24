@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "skylanders-spyros-adventure",
-      "evidence_urls": [
-        "https://github.com/Starkka15/skylanders-sa-pc"
-      ],
+      "evidence_urls": ["https://github.com/Starkka15/skylanders-sa-pc"],
       "source_editions": [
         {
           "id": "skylanders-spyros-adventure-xbox-360",
           "title": "Skylanders: Spyro's Adventure (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/Starkka15/skylanders-sa-pc"
-          ]
+          "evidence_urls": ["https://github.com/Starkka15/skylanders-sa-pc"]
         }
       ]
     },

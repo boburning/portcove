@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "strike-commander",
-      "evidence_urls": [
-        "https://github.com/remileonard/libRealSpace"
-      ],
+      "evidence_urls": ["https://github.com/remileonard/libRealSpace"],
       "source_editions": []
     },
     "original_game_title": "Strike Commander"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "c-12-final-resistance",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"],
       "source_editions": [
         {
           "id": "c-12-final-resistance-playstation",
           "title": "C-12: Final Resistance (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"]
         }
       ]
     },

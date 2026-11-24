@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "def-jam-fight-for-ny",
-      "evidence_urls": [
-        "https://github.com/comoria08/defjam_recomp"
-      ],
+      "evidence_urls": ["https://github.com/comoria08/defjam_recomp"],
       "source_editions": [
         {
           "id": "def-jam-fight-for-ny-xbox",
           "title": "Def Jam: Fight for NY (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/comoria08/defjam_recomp"
-          ]
+          "evidence_urls": ["https://github.com/comoria08/defjam_recomp"]
         }
       ]
     },

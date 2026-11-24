@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-magical-quest-starring-mickey-mouse",
-      "evidence_urls": [
-        "https://github.com/RetroForgeBR/MagicalQuest-SNES-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/RetroForgeBR/MagicalQuest-SNES-Recomp"],
       "source_editions": [
         {
           "id": "the-magical-quest-starring-mickey-mouse-super-nintendo",
           "title": "The Magical Quest Starring Mickey Mouse (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/RetroForgeBR/MagicalQuest-SNES-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/RetroForgeBR/MagicalQuest-SNES-Recomp"]
         }
       ]
     },

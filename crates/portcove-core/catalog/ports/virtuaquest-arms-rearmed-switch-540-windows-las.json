@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "arms",
-      "evidence_urls": [
-        "https://github.com/VirtuaQuest/Arms-Rearmed"
-      ],
+      "evidence_urls": ["https://github.com/VirtuaQuest/Arms-Rearmed"],
       "source_editions": []
     },
     "original_game_title": "ARMS"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "space-rangers-hd-a-war-apart",
-      "evidence_urls": [
-        "https://github.com/pakompom/SpaceRangersHD_FPC"
-      ],
+      "evidence_urls": ["https://github.com/pakompom/SpaceRangersHD_FPC"],
       "source_editions": []
     },
     "original_game_title": "Space Rangers HD: A War Apart"

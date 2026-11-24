@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "black",
-      "evidence_urls": [
-        "https://github.com/portingpete/Black-2006-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/portingpete/Black-2006-Recomp"],
       "source_editions": [
         {
           "id": "black-xbox",
           "title": "BLACK (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/portingpete/Black-2006-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/portingpete/Black-2006-Recomp"]
         }
       ]
     },

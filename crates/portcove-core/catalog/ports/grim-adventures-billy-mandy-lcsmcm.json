@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-grim-adventures-of-billy-mandy",
-      "evidence_urls": [
-        "https://github.com/lcsmcm/re-adventures-billy-mandy"
-      ],
+      "evidence_urls": ["https://github.com/lcsmcm/re-adventures-billy-mandy"],
       "source_editions": [
         {
           "id": "the-grim-adventures-of-billy-mandy-playstation-2",
           "title": "The Grim Adventures of Billy & Mandy (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/lcsmcm/re-adventures-billy-mandy"
-          ]
+          "evidence_urls": ["https://github.com/lcsmcm/re-adventures-billy-mandy"]
         }
       ]
     },

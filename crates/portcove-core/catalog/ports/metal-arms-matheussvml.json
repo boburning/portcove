@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "metal-arms-glitch-in-the-system",
-      "evidence_urls": [
-        "https://github.com/matheussvml/Metal-Arms-Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/matheussvml/Metal-Arms-Recompiled"],
       "source_editions": []
     },
     "original_game_title": "Metal Arms: Glitch in the System"

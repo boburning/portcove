@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "marvel-ultimate-alliance-3-the-black-order",
-      "evidence_urls": [
-        "https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"
-      ],
+      "evidence_urls": ["https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"],
       "source_editions": [
         {
           "id": "marvel-ultimate-alliance-3-the-black-order-nintendo-switch",
           "title": "Marvel Ultimate Alliance 3: The Black Order (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"
-          ]
+          "evidence_urls": ["https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"]
         }
       ]
     },

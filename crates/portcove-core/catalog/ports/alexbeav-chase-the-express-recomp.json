@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "chase-the-express",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"],
       "source_editions": [
         {
           "id": "chase-the-express-playstation",
           "title": "Chase the Express (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"
-          ]
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"]
         }
       ]
     },

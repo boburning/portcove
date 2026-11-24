@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "drift-city",
-      "evidence_urls": [
-        "https://github.com/MagicIbrar/driftcity-unity"
-      ],
+      "evidence_urls": ["https://github.com/MagicIbrar/driftcity-unity"],
       "source_editions": []
     },
     "original_game_title": "Drift City"

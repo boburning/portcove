@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-blue",
-      "evidence_urls": [
-        "https://github.com/Decryptu/pokerecomp"
-      ],
+      "evidence_urls": ["https://github.com/Decryptu/pokerecomp"],
       "source_editions": [
         {
           "id": "pokemon-blue-game-boy-color",
           "title": "Pokémon Blue (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": [
-            "https://github.com/Decryptu/pokerecomp"
-          ]
+          "evidence_urls": ["https://github.com/Decryptu/pokerecomp"]
         }
       ]
     },

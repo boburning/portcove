@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "sid-meiers-civilization",
-      "evidence_urls": [
-        "https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"],
       "source_editions": [
         {
           "id": "sid-meiers-civilization-super-nintendo",
           "title": "Sid Meier's Civilization (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"]
         }
       ]
     },

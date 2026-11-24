@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "goldeneye-007",
-      "evidence_urls": [
-        "https://github.com/ysrdevs/goldeneye-metal"
-      ],
+      "evidence_urls": ["https://github.com/ysrdevs/goldeneye-metal"],
       "source_editions": []
     },
     "original_game_title": "GoldenEye 007"

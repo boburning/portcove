@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "stunt-race-fx-remastered",
-      "evidence_urls": [
-        "https://github.com/jeff-strutb/stuntracefx"
-      ],
+      "evidence_urls": ["https://github.com/jeff-strutb/stuntracefx"],
       "source_editions": []
     },
     "original_game_title": "Stunt Race FX Remastered"

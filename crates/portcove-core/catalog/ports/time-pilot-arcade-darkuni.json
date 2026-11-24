@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "time-pilot",
-      "evidence_urls": [
-        "https://github.com/darkuni/time-pilot-arcade-landscape-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/time-pilot-arcade-landscape-recomp"],
       "source_editions": []
     },
     "original_game_title": "Time Pilot"

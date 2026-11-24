@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-spyro-dawn-of-the-dragon",
-      "evidence_urls": [
-        "https://github.com/Starkka15/spyro-dotd-pc"
-      ],
+      "evidence_urls": ["https://github.com/Starkka15/spyro-dotd-pc"],
       "source_editions": [
         {
           "id": "the-legend-of-spyro-dawn-of-the-dragon-xbox-360",
           "title": "The Legend of Spyro: Dawn of the Dragon (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/Starkka15/spyro-dotd-pc"
-          ]
+          "evidence_urls": ["https://github.com/Starkka15/spyro-dotd-pc"]
         }
       ]
     },

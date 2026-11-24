@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hotel-mario",
-      "evidence_urls": [
-        "https://github.com/antonretro/HotelMario-Decomp"
-      ],
+      "evidence_urls": ["https://github.com/antonretro/HotelMario-Decomp"],
       "source_editions": []
     },
     "original_game_title": "Hotel Mario"

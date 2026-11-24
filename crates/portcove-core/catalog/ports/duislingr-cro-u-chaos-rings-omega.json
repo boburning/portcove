@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "chaos-rings-omega",
-      "evidence_urls": [
-        "https://github.com/DuIslingr/CRO-U"
-      ],
+      "evidence_urls": ["https://github.com/DuIslingr/CRO-U"],
       "source_editions": []
     },
     "original_game_title": "Chaos Rings Omega"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-sword-and-fairy-3",
-      "evidence_urls": [
-        "https://github.com/0x7c13/Pal3.Unity"
-      ],
+      "evidence_urls": ["https://github.com/0x7c13/Pal3.Unity"],
       "source_editions": []
     },
     "original_game_title": "The Legend of Sword and Fairy 3"

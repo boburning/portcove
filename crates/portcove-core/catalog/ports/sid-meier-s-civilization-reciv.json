@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sid-meiers-civilization",
-      "evidence_urls": [
-        "https://github.com/sjmelia/reciv"
-      ],
+      "evidence_urls": ["https://github.com/sjmelia/reciv"],
       "source_editions": []
     },
     "original_game_title": "Sid Meier's Civilization"

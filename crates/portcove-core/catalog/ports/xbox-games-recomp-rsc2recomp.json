@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "rallisport-challenge-2",
-      "evidence_urls": [
-        "https://github.com/xbox-games-recomp/rsc2recomp"
-      ],
+      "evidence_urls": ["https://github.com/xbox-games-recomp/rsc2recomp"],
       "source_editions": [
         {
           "id": "rallisport-challenge-2-xbox",
           "title": "RalliSport Challenge 2 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/xbox-games-recomp/rsc2recomp"
-          ]
+          "evidence_urls": ["https://github.com/xbox-games-recomp/rsc2recomp"]
         }
       ]
     },

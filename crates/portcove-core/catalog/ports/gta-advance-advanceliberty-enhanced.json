@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "grand-theft-auto-advance",
-      "evidence_urls": [
-        "https://github.com/AnriTool/AdvanceLiberty-Enhanced"
-      ],
+      "evidence_urls": ["https://github.com/AnriTool/AdvanceLiberty-Enhanced"],
       "source_editions": []
     },
     "original_game_title": "Grand Theft Auto Advance"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "snatcher",
-      "evidence_urls": [
-        "https://github.com/aitorcachero/Snatcher-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/aitorcachero/Snatcher-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Snatcher"

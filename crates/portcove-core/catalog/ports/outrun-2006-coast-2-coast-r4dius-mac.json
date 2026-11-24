@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "outrun-2006-coast-2-coast",
-      "evidence_urls": [
-        "https://github.com/r4dius/outrun2-decomp"
-      ],
+      "evidence_urls": ["https://github.com/r4dius/outrun2-decomp"],
       "source_editions": []
     },
     "original_game_title": "OutRun 2006: Coast 2 Coast"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dogs-of-war",
-      "evidence_urls": [
-        "https://github.com/voodatari/Dogs-of-War-Atari-ST-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/voodatari/Dogs-of-War-Atari-ST-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Dogs of War"

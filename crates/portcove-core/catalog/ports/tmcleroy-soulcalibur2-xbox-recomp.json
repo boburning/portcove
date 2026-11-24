@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "soulcalibur-ii",
-      "evidence_urls": [
-        "https://github.com/tmcleroy/soulcalibur2-recomp"
-      ],
+      "evidence_urls": ["https://github.com/tmcleroy/soulcalibur2-recomp"],
       "source_editions": [
         {
           "id": "soulcalibur-ii-xbox",
           "title": "Soulcalibur II (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/tmcleroy/soulcalibur2-recomp"
-          ]
+          "evidence_urls": ["https://github.com/tmcleroy/soulcalibur2-recomp"]
         }
       ]
     },

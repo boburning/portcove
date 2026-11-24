@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tiger-woods-pga-tour-2004",
-      "evidence_urls": [
-        "https://github.com/projectedan/TigerWoods2004-XBE-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/projectedan/TigerWoods2004-XBE-Recomp"],
       "source_editions": [
         {
           "id": "tiger-woods-pga-tour-2004-xbox",
           "title": "Tiger Woods PGA Tour 2004 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/projectedan/TigerWoods2004-XBE-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/projectedan/TigerWoods2004-XBE-Recomp"]
         }
       ]
     },

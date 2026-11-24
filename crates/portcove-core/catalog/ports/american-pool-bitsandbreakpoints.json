@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "american-pool-usa",
-      "evidence_urls": [
-        "https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"],
       "source_editions": [
         {
           "id": "american-pool-usa-playstation",
           "title": "American Pool USA (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "darius-gaiden-original-arcade-ver-2-5o",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"],
       "source_editions": [
         {
           "id": "darius-gaiden-original-arcade-ver-2-5o-nintendo-switch",
           "title": "Darius Gaiden — Original arcade Ver 2.5O (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"]
         }
       ]
     },

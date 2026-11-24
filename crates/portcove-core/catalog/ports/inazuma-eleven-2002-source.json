@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "inazuma-eleven",
-      "evidence_urls": [
-        "https://github.com/2002-source/InazumaElevenRecomp"
-      ],
+      "evidence_urls": ["https://github.com/2002-source/InazumaElevenRecomp"],
       "source_editions": []
     },
     "original_game_title": "Inazuma Eleven"

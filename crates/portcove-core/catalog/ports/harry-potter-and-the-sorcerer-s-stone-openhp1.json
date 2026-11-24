@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "harry-potter-and-the-sorcerers-stone",
-      "evidence_urls": [
-        "https://github.com/SplittyDev/openhp1"
-      ],
+      "evidence_urls": ["https://github.com/SplittyDev/openhp1"],
       "source_editions": []
     },
     "original_game_title": "Harry Potter and the Sorcerer's Stone"

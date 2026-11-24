@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tfx-tactical-fighter-experiment",
-      "evidence_urls": [
-        "https://github.com/Buyukcaglar/tfx-enh"
-      ],
+      "evidence_urls": ["https://github.com/Buyukcaglar/tfx-enh"],
       "source_editions": []
     },
     "original_game_title": "TFX: Tactical Fighter Experiment"

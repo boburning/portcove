@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "rise-of-nations-rise-of-legends",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/rol"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/rol"],
       "source_editions": []
     },
     "original_game_title": "Rise of Nations: Rise of Legends"

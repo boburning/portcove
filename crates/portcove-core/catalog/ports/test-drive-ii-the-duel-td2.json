@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "test-drive-ii-the-duel",
-      "evidence_urls": [
-        "https://github.com/Buyukcaglar/TD2"
-      ],
+      "evidence_urls": ["https://github.com/Buyukcaglar/TD2"],
       "source_editions": [
         {
           "id": "test-drive-ii-the-duel-nintendo-switch",
           "title": "Test Drive II: The Duel (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Buyukcaglar/TD2"
-          ]
+          "evidence_urls": ["https://github.com/Buyukcaglar/TD2"]
         }
       ]
     },

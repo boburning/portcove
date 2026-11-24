@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "links-2004",
-      "evidence_urls": [
-        "https://github.com/cgpartlow/Links2004-XBERecomp"
-      ],
+      "evidence_urls": ["https://github.com/cgpartlow/Links2004-XBERecomp"],
       "source_editions": [
         {
           "id": "links-2004-xbox",
           "title": "Links 2004 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/cgpartlow/Links2004-XBERecomp"
-          ]
+          "evidence_urls": ["https://github.com/cgpartlow/Links2004-XBERecomp"]
         }
       ]
     },

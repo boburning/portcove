@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "fire-emblem-engage",
-      "evidence_urls": [
-        "https://github.com/imalti0r/engage-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/imalti0r/engage-pc-recomp"],
       "source_editions": [
         {
           "id": "fire-emblem-engage-nintendo-switch",
           "title": "Fire Emblem Engage (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/imalti0r/engage-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/imalti0r/engage-pc-recomp"]
         }
       ]
     },

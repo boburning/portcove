@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "galaxy-angel-ii-zettai-ryouiki-no-tobira",
-      "evidence_urls": [
-        "https://github.com/ObeseCatLord/galaxy-angel-2-pc"
-      ],
+      "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"],
       "source_editions": [
         {
           "id": "galaxy-angel-ii-zettai-ryouiki-no-tobira-playstation-2",
           "title": "Galaxy Angel II: Zettai Ryouiki no Tobira (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/ObeseCatLord/galaxy-angel-2-pc"
-          ]
+          "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"]
         }
       ]
     },

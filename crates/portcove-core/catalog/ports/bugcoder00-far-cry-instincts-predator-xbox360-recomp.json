@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "far-cry-instincts-predator",
-      "evidence_urls": [
-        "https://github.com/bugcoder00/FarCryInstinctsPredatorRecomp"
-      ],
+      "evidence_urls": ["https://github.com/bugcoder00/FarCryInstinctsPredatorRecomp"],
       "source_editions": [
         {
           "id": "far-cry-instincts-predator-xbox-360",
           "title": "Far Cry Instincts Predator (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/bugcoder00/FarCryInstinctsPredatorRecomp"
-          ]
+          "evidence_urls": ["https://github.com/bugcoder00/FarCryInstinctsPredatorRecomp"]
         }
       ]
     },

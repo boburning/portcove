@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "paper-mario-the-thousand-year-door",
-      "evidence_urls": [
-        "https://github.com/LLCOOLT/paper-cut"
-      ],
+      "evidence_urls": ["https://github.com/LLCOOLT/paper-cut"],
       "source_editions": [
         {
           "id": "paper-mario-the-thousand-year-door-nintendo-gamecube",
           "title": "Paper Mario: The Thousand-Year Door (Nintendo GameCube)",
           "system": "nintendo-gamecube",
-          "evidence_urls": [
-            "https://github.com/LLCOOLT/paper-cut"
-          ]
+          "evidence_urls": ["https://github.com/LLCOOLT/paper-cut"]
         }
       ]
     },

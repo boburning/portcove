@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sonic-the-hedgehog-master-system",
-      "evidence_urls": [
-        "https://github.com/mstan/SonicTheHedgehogSMSRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/SonicTheHedgehogSMSRecomp"],
       "source_editions": []
     },
     "original_game_title": "Sonic the Hedgehog (Master System)"

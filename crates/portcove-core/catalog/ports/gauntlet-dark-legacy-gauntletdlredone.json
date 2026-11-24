@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "gauntlet-dark-legacy",
-      "evidence_urls": [
-        "https://github.com/jeddhor/GauntletDLRedone"
-      ],
+      "evidence_urls": ["https://github.com/jeddhor/GauntletDLRedone"],
       "source_editions": [
         {
           "id": "gauntlet-dark-legacy-playstation-2",
           "title": "Gauntlet: Dark Legacy (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/jeddhor/GauntletDLRedone"
-          ]
+          "evidence_urls": ["https://github.com/jeddhor/GauntletDLRedone"]
         }
       ]
     },

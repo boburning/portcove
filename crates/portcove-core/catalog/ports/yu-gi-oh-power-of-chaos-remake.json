@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "yu-gi-oh-power-of-chaos",
-      "evidence_urls": [
-        "https://github.com/Johanfer12/Yu-Gi-Oh-Power-of-Chaos-Remake"
-      ],
+      "evidence_urls": ["https://github.com/Johanfer12/Yu-Gi-Oh-Power-of-Chaos-Remake"],
       "source_editions": []
     },
     "original_game_title": "Yu-Gi-Oh! Power of Chaos"

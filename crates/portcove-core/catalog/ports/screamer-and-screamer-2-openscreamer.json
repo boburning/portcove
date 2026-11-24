@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One reimplementation runs Screamer and Screamer 2.",
-    "evidence_urls": [
-      "https://github.com/ItsDanik/openscreamer"
-    ]
+    "evidence_urls": ["https://github.com/ItsDanik/openscreamer"]
   }
 }

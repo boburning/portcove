@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "nicktoons-racing",
-      "evidence_urls": [
-        "https://github.com/leoxcho/nicktoons-racing-recomp"
-      ],
+      "evidence_urls": ["https://github.com/leoxcho/nicktoons-racing-recomp"],
       "source_editions": []
     },
     "original_game_title": "Nicktoons Racing"

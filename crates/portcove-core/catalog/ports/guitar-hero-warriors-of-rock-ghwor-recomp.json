@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "guitar-hero-warriors-of-rock",
-      "evidence_urls": [
-        "https://github.com/ElGuslml/GHWoRRecomp"
-      ],
+      "evidence_urls": ["https://github.com/ElGuslml/GHWoRRecomp"],
       "source_editions": [
         {
           "id": "guitar-hero-warriors-of-rock-xbox-360",
           "title": "Guitar Hero: Warriors of Rock (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/ElGuslml/GHWoRRecomp"
-          ]
+          "evidence_urls": ["https://github.com/ElGuslml/GHWoRRecomp"]
         }
       ]
     },

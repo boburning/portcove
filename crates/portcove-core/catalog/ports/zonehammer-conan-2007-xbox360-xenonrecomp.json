@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "conan",
-      "evidence_urls": [
-        "https://github.com/zonehammer/conan-recomp"
-      ],
+      "evidence_urls": ["https://github.com/zonehammer/conan-recomp"],
       "source_editions": [
         {
           "id": "conan-xbox-360",
           "title": "Conan (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/zonehammer/conan-recomp"
-          ]
+          "evidence_urls": ["https://github.com/zonehammer/conan-recomp"]
         }
       ]
     },

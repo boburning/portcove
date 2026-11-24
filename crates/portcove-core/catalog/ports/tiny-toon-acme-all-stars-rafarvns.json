@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tiny-toon-adventures-acme-all-stars",
-      "evidence_urls": [
-        "https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"
-      ],
+      "evidence_urls": ["https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"],
       "source_editions": [
         {
           "id": "tiny-toon-adventures-acme-all-stars-mega-drive-genesis",
           "title": "Tiny Toon Adventures: ACME All-Stars (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"
-          ]
+          "evidence_urls": ["https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"]
         }
       ]
     },

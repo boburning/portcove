@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "theme-park",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/themepark-recomp"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/themepark-recomp"],
       "source_editions": []
     },
     "original_game_title": "Theme Park"

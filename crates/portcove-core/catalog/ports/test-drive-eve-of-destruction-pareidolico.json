@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "test-drive-eve-of-destruction",
-      "evidence_urls": [
-        "https://github.com/pareidolico/eod-recomp"
-      ],
+      "evidence_urls": ["https://github.com/pareidolico/eod-recomp"],
       "source_editions": []
     },
     "original_game_title": "Test Drive: Eve of Destruction"

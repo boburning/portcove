@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dragon-age-origins",
-      "evidence_urls": [
-        "https://github.com/xoreos/xoreos"
-      ],
+      "evidence_urls": ["https://github.com/xoreos/xoreos"],
       "source_editions": []
     },
     "original_game_title": "Dragon Age: Origins"

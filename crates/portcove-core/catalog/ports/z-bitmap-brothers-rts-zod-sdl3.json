@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "z",
-      "evidence_urls": [
-        "https://github.com/fenio/zod"
-      ],
+      "evidence_urls": ["https://github.com/fenio/zod"],
       "source_editions": []
     },
     "original_game_title": "Z"

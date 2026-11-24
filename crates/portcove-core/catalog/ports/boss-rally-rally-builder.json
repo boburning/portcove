@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "boss-rally",
-      "evidence_urls": [
-        "https://github.com/jeff-strutb/brally"
-      ],
+      "evidence_urls": ["https://github.com/jeff-strutb/brally"],
       "source_editions": []
     },
     "original_game_title": "Boss Rally"

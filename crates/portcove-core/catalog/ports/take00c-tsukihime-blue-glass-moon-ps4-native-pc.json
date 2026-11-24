@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tsukihime-a-piece-of-blue-glass-moon",
-      "evidence_urls": [
-        "https://github.com/Take00C/Tsukihime-Native-PC-Port"
-      ],
+      "evidence_urls": ["https://github.com/Take00C/Tsukihime-Native-PC-Port"],
       "source_editions": [
         {
           "id": "tsukihime-a-piece-of-blue-glass-moon-playstation-4",
           "title": "Tsukihime -A piece of blue glass moon- (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Take00C/Tsukihime-Native-PC-Port"
-          ]
+          "evidence_urls": ["https://github.com/Take00C/Tsukihime-Native-PC-Port"]
         }
       ]
     },

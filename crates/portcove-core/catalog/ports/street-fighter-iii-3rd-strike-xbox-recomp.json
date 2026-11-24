@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "street-fighter-iii-3rd-strike",
-      "evidence_urls": [
-        "https://github.com/Manya3084/SF33RDSXBRecompo"
-      ],
+      "evidence_urls": ["https://github.com/Manya3084/SF33RDSXBRecompo"],
       "source_editions": [
         {
           "id": "street-fighter-iii-3rd-strike-xbox",
           "title": "Street Fighter III: 3rd Strike (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/Manya3084/SF33RDSXBRecompo"
-          ]
+          "evidence_urls": ["https://github.com/Manya3084/SF33RDSXBRecompo"]
         }
       ]
     },

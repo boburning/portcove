@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "sled-storm-pal",
-      "evidence_urls": [
-        "https://github.com/PeriBluGaming/SledStormPSXRecomp"
-      ],
+      "evidence_urls": ["https://github.com/PeriBluGaming/SledStormPSXRecomp"],
       "source_editions": [
         {
           "id": "sled-storm-pal-playstation",
           "title": "Sled Storm PAL (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/PeriBluGaming/SledStormPSXRecomp"
-          ]
+          "evidence_urls": ["https://github.com/PeriBluGaming/SledStormPSXRecomp"]
         }
       ]
     },

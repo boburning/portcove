@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "fight-night-champion",
-      "evidence_urls": [
-        "https://github.com/zonehammer/fightnight-recomp"
-      ],
+      "evidence_urls": ["https://github.com/zonehammer/fightnight-recomp"],
       "source_editions": [
         {
           "id": "fight-night-champion-xbox-360",
           "title": "Fight Night Champion (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/zonehammer/fightnight-recomp"
-          ]
+          "evidence_urls": ["https://github.com/zonehammer/fightnight-recomp"]
         }
       ]
     },

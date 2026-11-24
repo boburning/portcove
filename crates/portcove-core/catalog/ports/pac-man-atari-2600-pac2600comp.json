@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pac-man",
-      "evidence_urls": [
-        "https://github.com/coprsegrinder/Pac2600Comp"
-      ],
+      "evidence_urls": ["https://github.com/coprsegrinder/Pac2600Comp"],
       "source_editions": []
     },
     "original_game_title": "Pac-Man"

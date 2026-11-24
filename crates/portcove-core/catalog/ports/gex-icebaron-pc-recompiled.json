@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "gex",
-      "evidence_urls": [
-        "https://github.com/IceBaronTwinAcc/gex-pc-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/IceBaronTwinAcc/gex-pc-recompiled"],
       "source_editions": [
         {
           "id": "gex-dreamcast",
           "title": "Gex (Dreamcast)",
           "system": "dreamcast",
-          "evidence_urls": [
-            "https://github.com/IceBaronTwinAcc/gex-pc-recompiled"
-          ]
+          "evidence_urls": ["https://github.com/IceBaronTwinAcc/gex-pc-recompiled"]
         }
       ]
     },

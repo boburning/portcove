@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "biohazard-outbreak",
-      "evidence_urls": [
-        "https://github.com/HAB3X/Biohazard-Outbreak-Mac"
-      ],
+      "evidence_urls": ["https://github.com/HAB3X/Biohazard-Outbreak-Mac"],
       "source_editions": []
     },
     "original_game_title": "Biohazard Outbreak"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "killzone-2",
-      "evidence_urls": [
-        "https://github.com/undecuple/project-pyrrhus"
-      ],
+      "evidence_urls": ["https://github.com/undecuple/project-pyrrhus"],
       "source_editions": [
         {
           "id": "killzone-2-playstation-3",
           "title": "Killzone 2 (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/undecuple/project-pyrrhus"
-          ]
+          "evidence_urls": ["https://github.com/undecuple/project-pyrrhus"]
         }
       ]
     },

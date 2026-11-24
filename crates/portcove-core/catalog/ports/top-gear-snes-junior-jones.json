@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "top-gear",
-      "evidence_urls": [
-        "https://github.com/Junior-Jones/Top-Gear-SNES-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Junior-Jones/Top-Gear-SNES-Static-Recomp"],
       "source_editions": [
         {
           "id": "top-gear-super-nintendo",
           "title": "Top Gear (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/Junior-Jones/Top-Gear-SNES-Static-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/Junior-Jones/Top-Gear-SNES-Static-Recomp"]
         }
       ]
     },

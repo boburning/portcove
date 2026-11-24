@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "draconus-cult-of-the-wyrm",
-      "evidence_urls": [
-        "https://github.com/GnomeChimpsky/Draconus-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/GnomeChimpsky/Draconus-Recomp"],
       "source_editions": [
         {
           "id": "draconus-cult-of-the-wyrm-dreamcast",
           "title": "Draconus: Cult of the Wyrm (Dreamcast)",
           "system": "dreamcast",
-          "evidence_urls": [
-            "https://github.com/GnomeChimpsky/Draconus-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/GnomeChimpsky/Draconus-Recomp"]
         }
       ]
     },

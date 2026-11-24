@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "goemons-great-adventure",
-      "evidence_urls": [
-        "https://github.com/DreaXer/GGARecomp"
-      ],
+      "evidence_urls": ["https://github.com/DreaXer/GGARecomp"],
       "source_editions": []
     },
     "original_game_title": "Goemon's Great Adventure"

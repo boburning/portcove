@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "bloodborne",
-      "evidence_urls": [
-        "https://github.com/visy/bloodborne_pc_windows_port"
-      ],
+      "evidence_urls": ["https://github.com/visy/bloodborne_pc_windows_port"],
       "source_editions": []
     },
     "original_game_title": "Bloodborne"

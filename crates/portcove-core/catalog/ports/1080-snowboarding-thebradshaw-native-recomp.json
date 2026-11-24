@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "1080-snowboarding",
-      "evidence_urls": [
-        "https://github.com/thebradshaw/1080-Snowboarding-decomp"
-      ],
+      "evidence_urls": ["https://github.com/thebradshaw/1080-Snowboarding-decomp"],
       "source_editions": []
     },
     "original_game_title": "1080° Snowboarding"

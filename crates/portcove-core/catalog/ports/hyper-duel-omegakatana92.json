@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "hyper-duel",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Hyper-Duel-Recomp-"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Hyper-Duel-Recomp-"],
       "source_editions": [
         {
           "id": "hyper-duel-sega-saturn",
           "title": "Hyper Duel (Sega Saturn)",
           "system": "sega-saturn",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Hyper-Duel-Recomp-"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Hyper-Duel-Recomp-"]
         }
       ]
     },

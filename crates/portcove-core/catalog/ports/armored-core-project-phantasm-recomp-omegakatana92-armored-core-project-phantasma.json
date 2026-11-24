@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "armored-core-project-phantasma",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Armored-Core-Project-Phantasm-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Project-Phantasm-Recomp"],
       "source_editions": [
         {
           "id": "armored-core-project-phantasma-playstation",
           "title": "Armored Core: Project Phantasma (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Armored-Core-Project-Phantasm-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Project-Phantasm-Recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sly-2-band-of-thieves",
-      "evidence_urls": [
-        "https://github.com/menaman123/Sly-2-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/menaman123/Sly-2-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Sly 2: Band of Thieves"

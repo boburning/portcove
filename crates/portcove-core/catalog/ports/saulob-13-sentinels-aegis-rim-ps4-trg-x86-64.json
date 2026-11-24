@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "13-sentinels-aegis-rim",
-      "evidence_urls": [
-        "https://github.com/saulob/13-sentinels-aegis-rim-pc"
-      ],
+      "evidence_urls": ["https://github.com/saulob/13-sentinels-aegis-rim-pc"],
       "source_editions": [
         {
           "id": "13-sentinels-aegis-rim-playstation-4",
           "title": "13 Sentinels: Aegis Rim (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/saulob/13-sentinels-aegis-rim-pc"
-          ]
+          "evidence_urls": ["https://github.com/saulob/13-sentinels-aegis-rim-pc"]
         }
       ]
     },

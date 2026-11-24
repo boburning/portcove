@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "space-empires-iv-deluxe",
-      "evidence_urls": [
-        "https://github.com/lowlevelmetal/OpenSE4"
-      ],
+      "evidence_urls": ["https://github.com/lowlevelmetal/OpenSE4"],
       "source_editions": []
     },
     "original_game_title": "Space Empires IV Deluxe"

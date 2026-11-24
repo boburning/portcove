@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "star-trek-voyager-elite-force",
-      "evidence_urls": [
-        "https://github.com/imjustadudegamer/VoyagerSP-Android"
-      ],
+      "evidence_urls": ["https://github.com/imjustadudegamer/VoyagerSP-Android"],
       "source_editions": []
     },
     "original_game_title": "Star Trek: Voyager – Elite Force"

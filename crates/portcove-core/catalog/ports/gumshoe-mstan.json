@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "gumshoe",
-      "evidence_urls": [
-        "https://github.com/mstan/GumshoeNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/GumshoeNESRecomp"],
       "source_editions": [
         {
           "id": "gumshoe-nes",
           "title": "Gumshoe (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/mstan/GumshoeNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/GumshoeNESRecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ace-combat-04-shattered-skies",
-      "evidence_urls": [
-        "https://github.com/shana2203/Mobius01"
-      ],
+      "evidence_urls": ["https://github.com/shana2203/Mobius01"],
       "source_editions": []
     },
     "original_game_title": "Ace Combat 04: Shattered Skies"

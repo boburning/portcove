@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "doom",
-      "evidence_urls": [
-        "https://github.com/atsb/NakedLinuxDoom"
-      ],
+      "evidence_urls": ["https://github.com/atsb/NakedLinuxDoom"],
       "source_editions": []
     },
     "original_game_title": "Doom"

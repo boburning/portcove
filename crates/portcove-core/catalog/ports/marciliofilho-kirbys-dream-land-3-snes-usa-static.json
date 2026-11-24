@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "kirbys-dream-land-3",
-      "evidence_urls": [
-        "https://github.com/marciliofilho/KirbysDreamLand3Recomp"
-      ],
+      "evidence_urls": ["https://github.com/marciliofilho/KirbysDreamLand3Recomp"],
       "source_editions": [
         {
           "id": "kirbys-dream-land-3-super-nintendo",
           "title": "Kirby's Dream Land 3 (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/marciliofilho/KirbysDreamLand3Recomp"
-          ]
+          "evidence_urls": ["https://github.com/marciliofilho/KirbysDreamLand3Recomp"]
         }
       ]
     },

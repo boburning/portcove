@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "civilization-iii-conquests",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/civ3"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/civ3"],
       "source_editions": []
     },
     "original_game_title": "Civilization III: Conquests"

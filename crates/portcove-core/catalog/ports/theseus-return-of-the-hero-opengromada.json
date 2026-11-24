@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "theseus-return-of-the-hero",
-      "evidence_urls": [
-        "https://github.com/siohaza/OpenGromada"
-      ],
+      "evidence_urls": ["https://github.com/siohaza/OpenGromada"],
       "source_editions": []
     },
     "original_game_title": "Theseus: Return of the Hero"

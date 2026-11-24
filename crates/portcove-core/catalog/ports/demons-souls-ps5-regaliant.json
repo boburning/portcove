@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "demon-s-souls",
-      "evidence_urls": [
-        "https://github.com/SulphurS16/Regaliant"
-      ],
+      "evidence_urls": ["https://github.com/SulphurS16/Regaliant"],
       "source_editions": []
     },
     "original_game_title": "Demon's Souls"

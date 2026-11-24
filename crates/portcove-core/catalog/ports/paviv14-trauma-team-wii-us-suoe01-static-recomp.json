@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "trauma-team",
-      "evidence_urls": [
-        "https://github.com/paviv14/TraumaTeam-Resuscitated"
-      ],
+      "evidence_urls": ["https://github.com/paviv14/TraumaTeam-Resuscitated"],
       "source_editions": [
         {
           "id": "trauma-team-wii",
           "title": "Trauma Team (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/paviv14/TraumaTeam-Resuscitated"
-          ]
+          "evidence_urls": ["https://github.com/paviv14/TraumaTeam-Resuscitated"]
         }
       ]
     },

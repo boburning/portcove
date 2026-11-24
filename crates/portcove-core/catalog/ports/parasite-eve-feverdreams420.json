@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "parasite-eve",
-      "evidence_urls": [
-        "https://github.com/FeverDreams420/parasite-eve-pc-port/releases/tag/v0.5"
-      ],
+      "evidence_urls": ["https://github.com/FeverDreams420/parasite-eve-pc-port/releases/tag/v0.5"],
       "source_editions": [
         {
           "id": "parasite-eve-playstation",

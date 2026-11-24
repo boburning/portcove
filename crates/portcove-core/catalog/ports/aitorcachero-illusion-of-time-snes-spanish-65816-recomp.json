@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "illusion-of-time",
-      "evidence_urls": [
-        "https://github.com/aitorcachero/Illusion-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/aitorcachero/Illusion-Recomp"],
       "source_editions": [
         {
           "id": "illusion-of-time-super-nintendo",
           "title": "Illusion of Time (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/aitorcachero/Illusion-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/aitorcachero/Illusion-Recomp"]
         }
       ]
     },

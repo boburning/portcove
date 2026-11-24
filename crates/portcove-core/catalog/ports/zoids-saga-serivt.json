@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "zoids-saga",
-      "evidence_urls": [
-        "https://github.com/serivt/re-zoids-saga"
-      ],
+      "evidence_urls": ["https://github.com/serivt/re-zoids-saga"],
       "source_editions": [
         {
           "id": "zoids-saga-game-boy-advance",
           "title": "Zoids Saga (Game Boy Advance)",
           "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/serivt/re-zoids-saga"
-          ]
+          "evidence_urls": ["https://github.com/serivt/re-zoids-saga"]
         }
       ]
     },

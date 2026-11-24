@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "apocalypse",
-      "evidence_urls": [
-        "https://github.com/RFarrow9/ApocalypseRecomp"
-      ],
+      "evidence_urls": ["https://github.com/RFarrow9/ApocalypseRecomp"],
       "source_editions": []
     },
     "original_game_title": "Apocalypse"

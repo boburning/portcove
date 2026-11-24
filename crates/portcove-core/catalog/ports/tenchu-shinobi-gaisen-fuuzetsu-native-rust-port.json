@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tenchu-shinobi-gaisen",
-      "evidence_urls": [
-        "https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"
-      ],
+      "evidence_urls": ["https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"],
       "source_editions": [
         {
           "id": "tenchu-shinobi-gaisen-playstation",
           "title": "Tenchu: Shinobi Gaisen (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"
-          ]
+          "evidence_urls": ["https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"]
         }
       ]
     },

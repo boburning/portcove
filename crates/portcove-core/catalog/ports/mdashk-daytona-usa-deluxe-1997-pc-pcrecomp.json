@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "daytona-usa-deluxe",
-      "evidence_urls": [
-        "https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"],
       "source_editions": [
         {
           "id": "daytona-usa-deluxe-playstation",
           "title": "Daytona USA Deluxe (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"]
         }
       ]
     },

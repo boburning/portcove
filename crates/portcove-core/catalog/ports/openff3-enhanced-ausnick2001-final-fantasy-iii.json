@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "final-fantasy-iii",
-      "evidence_urls": [
-        "https://github.com/ausnick2001/OpenFF3-Enhanced"
-      ],
+      "evidence_urls": ["https://github.com/ausnick2001/OpenFF3-Enhanced"],
       "source_editions": []
     },
     "original_game_title": "Final Fantasy III"

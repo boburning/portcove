@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-scarlet",
-      "evidence_urls": [
-        "https://github.com/Grunttanamo/KarPur"
-      ],
+      "evidence_urls": ["https://github.com/Grunttanamo/KarPur"],
       "source_editions": [
         {
           "id": "pokemon-scarlet-nintendo-switch",
           "title": "Pokémon Scarlet (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Grunttanamo/KarPur"
-          ]
+          "evidence_urls": ["https://github.com/Grunttanamo/KarPur"]
         }
       ]
     },

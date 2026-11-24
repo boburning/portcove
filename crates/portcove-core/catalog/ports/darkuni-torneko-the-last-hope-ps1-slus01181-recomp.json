@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "world-of-dragon-warrior-torneko-the-last-hope",
-      "evidence_urls": [
-        "https://github.com/darkuni/Torneko-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/Torneko-recomp"],
       "source_editions": [
         {
           "id": "world-of-dragon-warrior-torneko-the-last-hope-playstation",
           "title": "World of Dragon Warrior: Torneko — The Last Hope (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/darkuni/Torneko-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/Torneko-recomp"]
         }
       ]
     },

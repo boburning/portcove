@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tomb-raider-underworld",
-      "evidence_urls": [
-        "https://github.com/sergen213/openunderworld"
-      ],
+      "evidence_urls": ["https://github.com/sergen213/openunderworld"],
       "source_editions": []
     },
     "original_game_title": "Tomb Raider: Underworld"

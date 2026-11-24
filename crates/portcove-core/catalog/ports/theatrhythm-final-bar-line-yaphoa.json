@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "theatrhythm-final-bar-line",
-      "evidence_urls": [
-        "https://github.com/YAPhoa/theatrhythm-fbl-pc"
-      ],
+      "evidence_urls": ["https://github.com/YAPhoa/theatrhythm-fbl-pc"],
       "source_editions": []
     },
     "original_game_title": "Theatrhythm Final Bar Line"

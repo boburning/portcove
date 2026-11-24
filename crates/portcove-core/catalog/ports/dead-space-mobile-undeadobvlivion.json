@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dead-space",
-      "evidence_urls": [
-        "https://github.com/UndeadObvlivion/dead-space-mobile-pc"
-      ],
+      "evidence_urls": ["https://github.com/UndeadObvlivion/dead-space-mobile-pc"],
       "source_editions": []
     },
     "original_game_title": "Dead Space"

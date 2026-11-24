@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "conker-live-reloaded",
-      "evidence_urls": [
-        "https://github.com/rashevskyv/conker-lr-recomp"
-      ],
+      "evidence_urls": ["https://github.com/rashevskyv/conker-lr-recomp"],
       "source_editions": [
         {
           "id": "conker-live-reloaded-xbox",
           "title": "Conker: Live & Reloaded (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/rashevskyv/conker-lr-recomp"
-          ]
+          "evidence_urls": ["https://github.com/rashevskyv/conker-lr-recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "aliens-versus-predator",
-      "evidence_urls": [
-        "https://github.com/Bassquake/Aliens-Versus-Predator-VR"
-      ],
+      "evidence_urls": ["https://github.com/Bassquake/Aliens-Versus-Predator-VR"],
       "source_editions": []
     },
     "original_game_title": "Aliens versus Predator"

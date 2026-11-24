@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "playstation-all-stars-battle-royale",
-      "evidence_urls": [
-        "https://github.com/samuelMadureira23/allstars-port"
-      ],
+      "evidence_urls": ["https://github.com/samuelMadureira23/allstars-port"],
       "source_editions": [
         {
           "id": "playstation-all-stars-battle-royale-playstation-3",
           "title": "PlayStation All-Stars Battle Royale (PlayStation 3)",
           "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/samuelMadureira23/allstars-port"
-          ]
+          "evidence_urls": ["https://github.com/samuelMadureira23/allstars-port"]
         }
       ]
     },

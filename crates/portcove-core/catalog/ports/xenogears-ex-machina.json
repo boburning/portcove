@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "xenogears",
-      "evidence_urls": [
-        "https://github.com/brianblakely/xenogears-ex-machina"
-      ],
+      "evidence_urls": ["https://github.com/brianblakely/xenogears-ex-machina"],
       "source_editions": []
     },
     "original_game_title": "Xenogears"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "touhou-6-the-embodiment-of-scarlet-devil",
-      "evidence_urls": [
-        "https://github.com/CNTianQi233/th06-sdl2"
-      ],
+      "evidence_urls": ["https://github.com/CNTianQi233/th06-sdl2"],
       "source_editions": []
     },
     "original_game_title": "Touhou 6: The Embodiment of Scarlet Devil"

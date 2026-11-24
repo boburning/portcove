@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "re-volt",
-      "evidence_urls": [
-        "https://github.com/Bastl34/rustl-volt"
-      ],
+      "evidence_urls": ["https://github.com/Bastl34/rustl-volt"],
       "source_editions": []
     },
     "original_game_title": "Re-Volt"

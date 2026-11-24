@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "alien-vs-predator",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Alien-vs-Predator-arcade-Recomp-"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Alien-vs-Predator-arcade-Recomp-"],
       "source_editions": []
     },
     "original_game_title": "Alien vs. Predator"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gt2-pc",
-      "evidence_urls": [
-        "https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"
-      ],
+      "evidence_urls": ["https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"],
       "source_editions": []
     },
     "original_game_title": "GT2 PC"

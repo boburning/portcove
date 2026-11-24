@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "resident-evil",
-      "evidence_urls": [
-        "https://github.com/ecruells/resident-evil-pc-decomp"
-      ],
+      "evidence_urls": ["https://github.com/ecruells/resident-evil-pc-decomp"],
       "source_editions": []
     },
     "original_game_title": "Resident Evil"

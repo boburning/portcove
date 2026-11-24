@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "teenage-mutant-ninja-turtles",
-      "evidence_urls": [
-        "https://github.com/cheviman/tmnt-port"
-      ],
+      "evidence_urls": ["https://github.com/cheviman/tmnt-port"],
       "source_editions": [
         {
           "id": "teenage-mutant-ninja-turtles-nintendo-switch",
           "title": "Teenage Mutant Ninja Turtles (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/cheviman/tmnt-port"
-          ]
+          "evidence_urls": ["https://github.com/cheviman/tmnt-port"]
         }
       ]
     },

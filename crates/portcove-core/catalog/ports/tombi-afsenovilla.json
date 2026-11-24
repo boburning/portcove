@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "tombi",
-      "evidence_urls": [
-        "https://github.com/afsenovilla/tombi-decomp"
-      ],
+      "evidence_urls": ["https://github.com/afsenovilla/tombi-decomp"],
       "source_editions": [
         {
           "id": "tombi-playstation",
           "title": "Tombi! (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/afsenovilla/tombi-decomp"
-          ]
+          "evidence_urls": ["https://github.com/afsenovilla/tombi-decomp"]
         }
       ]
     },

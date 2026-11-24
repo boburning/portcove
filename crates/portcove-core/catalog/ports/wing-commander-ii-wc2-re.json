@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "wing-commander-ii",
-      "evidence_urls": [
-        "https://github.com/neuromancer/wc2-re"
-      ],
+      "evidence_urls": ["https://github.com/neuromancer/wc2-re"],
       "source_editions": []
     },
     "original_game_title": "Wing Commander II"

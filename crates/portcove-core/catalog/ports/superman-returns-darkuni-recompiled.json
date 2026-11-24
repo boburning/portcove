@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "superman-returns",
-      "evidence_urls": [
-        "https://github.com/darkuni/superman-returns-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/superman-returns-recomp"],
       "source_editions": []
     },
     "original_game_title": "Superman Returns"

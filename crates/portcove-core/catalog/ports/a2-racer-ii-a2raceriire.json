@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "a2-racer-ii",
-      "evidence_urls": [
-        "https://github.com/jjmhalew/A2RacerIIRE"
-      ],
+      "evidence_urls": ["https://github.com/jjmhalew/A2RacerIIRE"],
       "source_editions": []
     },
     "original_game_title": "A2 Racer II"

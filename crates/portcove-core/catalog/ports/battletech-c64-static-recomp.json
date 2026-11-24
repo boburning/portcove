@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "battletech-the-crescent-hawks-inception",
-      "evidence_urls": [
-        "https://github.com/Junior-Jones/BattleTech-C64-Static-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/Junior-Jones/BattleTech-C64-Static-Recomp"],
       "source_editions": []
     },
     "original_game_title": "BattleTech: The Crescent Hawk's Inception"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "detana-twinbee-yahho-deluxe-pack",
-      "evidence_urls": [
-        "https://github.com/switchmaxfx/DetanaTwinBeeRecomp"
-      ],
+      "evidence_urls": ["https://github.com/switchmaxfx/DetanaTwinBeeRecomp"],
       "source_editions": [
         {
           "id": "detana-twinbee-yahho-deluxe-pack-playstation",
           "title": "Detana TwinBee Yahho Deluxe Pack (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/switchmaxfx/DetanaTwinBeeRecomp"
-          ]
+          "evidence_urls": ["https://github.com/switchmaxfx/DetanaTwinBeeRecomp"]
         }
       ]
     },

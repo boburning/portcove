@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "turok-2-seeds-of-evil",
-      "evidence_urls": [
-        "https://github.com/n64hub/turok-2-recomp"
-      ],
+      "evidence_urls": ["https://github.com/n64hub/turok-2-recomp"],
       "source_editions": [
         {
           "id": "turok-2-seeds-of-evil-nintendo-64",
           "title": "Turok 2: Seeds of Evil (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/n64hub/turok-2-recomp"
-          ]
+          "evidence_urls": ["https://github.com/n64hub/turok-2-recomp"]
         }
       ]
     },

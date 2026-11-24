@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "deadpool",
-      "evidence_urls": [
-        "https://github.com/thegh0sts/Deadpool-PS4-PORT"
-      ],
+      "evidence_urls": ["https://github.com/thegh0sts/Deadpool-PS4-PORT"],
       "source_editions": [
         {
           "id": "deadpool-playstation-4",
           "title": "Deadpool (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/thegh0sts/Deadpool-PS4-PORT"
-          ]
+          "evidence_urls": ["https://github.com/thegh0sts/Deadpool-PS4-PORT"]
         }
       ]
     },

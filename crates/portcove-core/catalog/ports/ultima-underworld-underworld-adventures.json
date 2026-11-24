@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "ultima-underworld-the-stygian-abyss",
-      "evidence_urls": [
-        "https://github.com/vividos/UnderworldAdventures"
-      ],
+      "evidence_urls": ["https://github.com/vividos/UnderworldAdventures"],
       "source_editions": []
     },
     "original_game_title": "Ultima Underworld: The Stygian Abyss"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "call-of-duty-2-big-red-one",
-      "evidence_urls": [
-        "https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"
-      ],
+      "evidence_urls": ["https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"],
       "source_editions": [
         {
           "id": "call-of-duty-2-big-red-one-xbox",
           "title": "Call of Duty 2: Big Red One (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"
-          ]
+          "evidence_urls": ["https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"]
         }
       ]
     },

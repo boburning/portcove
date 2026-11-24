@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "amnesia",
-      "evidence_urls": [
-        "https://github.com/OSS-Cosmic/AmnesiaTheDarkDescent"
-      ],
+      "evidence_urls": ["https://github.com/OSS-Cosmic/AmnesiaTheDarkDescent"],
       "source_editions": []
     },
     "original_game_title": "Amnesia"

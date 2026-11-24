@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "glory-of-rome",
-      "evidence_urls": [
-        "https://github.com/dannyheskett/openbounty"
-      ],
+      "evidence_urls": ["https://github.com/dannyheskett/openbounty"],
       "source_editions": []
     },
     "original_game_title": "Glory of Rome"

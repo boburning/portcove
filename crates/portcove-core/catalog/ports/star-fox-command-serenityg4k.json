@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "star-fox-command",
-      "evidence_urls": [
-        "https://github.com/SerenityG4K/starfox-command-native"
-      ],
+      "evidence_urls": ["https://github.com/SerenityG4K/starfox-command-native"],
       "source_editions": [
         {
           "id": "star-fox-command-nintendo-ds",
           "title": "Star Fox Command (Nintendo DS)",
           "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/SerenityG4K/starfox-command-native"
-          ]
+          "evidence_urls": ["https://github.com/SerenityG4K/starfox-command-native"]
         }
       ]
     },

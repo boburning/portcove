@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "persona-3-dancing-in-moonlight",
-      "evidence_urls": [
-        "https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"
-      ],
+      "evidence_urls": ["https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"],
       "source_editions": [
         {
           "id": "persona-3-dancing-in-moonlight-playstation-4",
           "title": "Persona 3: Dancing in Moonlight (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"
-          ]
+          "evidence_urls": ["https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"]
         }
       ]
     },

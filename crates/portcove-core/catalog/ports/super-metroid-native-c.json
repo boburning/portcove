@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-metroid-native-c",
-      "evidence_urls": [
-        "https://github.com/MrJackSpade/SuperMetroidDecomp"
-      ],
+      "evidence_urls": ["https://github.com/MrJackSpade/SuperMetroidDecomp"],
       "source_editions": []
     },
     "original_game_title": "Super Metroid native C#"

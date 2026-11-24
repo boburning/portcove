@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "zoo-tycoon",
-      "evidence_urls": [
-        "https://github.com/AlexC1991/zt1-engine"
-      ],
+      "evidence_urls": ["https://github.com/AlexC1991/zt1-engine"],
       "source_editions": []
     },
     "original_game_title": "Zoo Tycoon"

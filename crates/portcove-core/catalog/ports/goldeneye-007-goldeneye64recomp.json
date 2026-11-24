@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "goldeneye-007",
-      "evidence_urls": [
-        "https://github.com/cblock85/GoldenEye64Recomp"
-      ],
+      "evidence_urls": ["https://github.com/cblock85/GoldenEye64Recomp"],
       "source_editions": [
         {
           "id": "goldeneye-007-nintendo-64",
           "title": "GoldenEye 007 (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/cblock85/GoldenEye64Recomp"
-          ]
+          "evidence_urls": ["https://github.com/cblock85/GoldenEye64Recomp"]
         }
       ]
     },

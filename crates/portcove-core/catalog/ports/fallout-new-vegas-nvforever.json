@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "fallout-new-vegas",
-      "evidence_urls": [
-        "https://github.com/LootJunkieAzza/NVForever"
-      ],
+      "evidence_urls": ["https://github.com/LootJunkieAzza/NVForever"],
       "source_editions": []
     },
     "original_game_title": "Fallout: New Vegas"

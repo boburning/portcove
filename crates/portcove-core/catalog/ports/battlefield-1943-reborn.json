@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "battlefield-1943",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/Battlefield-1943-Reborn"
-      ],
+      "evidence_urls": ["https://github.com/TekRantGaming/Battlefield-1943-Reborn"],
       "source_editions": [
         {
           "id": "battlefield-1943-xbox-360",
           "title": "Battlefield 1943 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/TekRantGaming/Battlefield-1943-Reborn"
-          ]
+          "evidence_urls": ["https://github.com/TekRantGaming/Battlefield-1943-Reborn"]
         }
       ]
     },

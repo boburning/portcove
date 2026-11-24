@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "blake-stone",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/blakestone"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/blakestone"],
       "source_editions": []
     },
     "original_game_title": "Blake Stone"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "moto-racer",
-      "evidence_urls": [
-        "https://github.com/segovia-no/MotoRacerRecomp"
-      ],
+      "evidence_urls": ["https://github.com/segovia-no/MotoRacerRecomp"],
       "source_editions": [
         {
           "id": "moto-racer-playstation-portable",
           "title": "Moto Racer (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/segovia-no/MotoRacerRecomp"
-          ]
+          "evidence_urls": ["https://github.com/segovia-no/MotoRacerRecomp"]
         }
       ]
     },

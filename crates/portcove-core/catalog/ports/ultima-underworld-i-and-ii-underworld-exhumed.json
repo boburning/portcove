@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One port runs Ultima Underworld I and II.",
-    "evidence_urls": [
-      "https://github.com/abedegno/underworld-exhumed"
-    ]
+    "evidence_urls": ["https://github.com/abedegno/underworld-exhumed"]
   }
 }

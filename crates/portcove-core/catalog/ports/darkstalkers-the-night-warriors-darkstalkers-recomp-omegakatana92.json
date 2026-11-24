@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "darkstalkers-the-night-warriors",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Darkstalkers-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Darkstalkers-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Darkstalkers: The Night Warriors"

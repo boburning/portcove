@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "midnight-club-los-angeles-complete-edition",
-      "evidence_urls": [
-        "https://github.com/robertoaraujo77/MC_LA_Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/robertoaraujo77/MC_LA_Recompiled"],
       "source_editions": []
     },
     "original_game_title": "Midnight Club: Los Angeles - Complete Edition"

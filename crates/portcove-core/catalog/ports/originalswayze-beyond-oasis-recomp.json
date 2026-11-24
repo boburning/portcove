@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "beyond-oasis",
-      "evidence_urls": [
-        "https://github.com/OriginalSwayze/beyond-oasis-recomp"
-      ],
+      "evidence_urls": ["https://github.com/OriginalSwayze/beyond-oasis-recomp"],
       "source_editions": [
         {
           "id": "beyond-oasis-mega-drive-genesis",
           "title": "Beyond Oasis (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/OriginalSwayze/beyond-oasis-recomp"
-          ]
+          "evidence_urls": ["https://github.com/OriginalSwayze/beyond-oasis-recomp"]
         }
       ]
     },

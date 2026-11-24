@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "cosmology-of-kyoto",
-      "evidence_urls": [
-        "https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"],
       "source_editions": [
         {
           "id": "cosmology-of-kyoto-nintendo-switch",
           "title": "Cosmology of Kyoto (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"
-          ]
+          "evidence_urls": ["https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"]
         }
       ]
     },

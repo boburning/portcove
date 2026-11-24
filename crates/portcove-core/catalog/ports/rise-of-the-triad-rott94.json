@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "rise-of-the-triad",
-      "evidence_urls": [
-        "https://github.com/h4mu/rott94"
-      ],
+      "evidence_urls": ["https://github.com/h4mu/rott94"],
       "source_editions": []
     },
     "original_game_title": "Rise of the Triad"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-all-stars",
-      "evidence_urls": [
-        "https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"
-      ],
+      "evidence_urls": ["https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"],
       "source_editions": [
         {
           "id": "super-mario-all-stars-super-nintendo",
           "title": "Super Mario All-Stars (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"
-          ]
+          "evidence_urls": ["https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"]
         }
       ]
     },

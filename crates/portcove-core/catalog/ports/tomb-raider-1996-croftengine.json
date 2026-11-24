@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "tomb-raider",
-      "evidence_urls": [
-        "https://github.com/stohrendorf/CroftEngine"
-      ],
+      "evidence_urls": ["https://github.com/stohrendorf/CroftEngine"],
       "source_editions": []
     },
     "original_game_title": "Tomb Raider"

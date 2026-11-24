@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dragon-warrior-iv",
-      "evidence_urls": [
-        "https://github.com/arichmondphoto/DragonWarrior4NESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/arichmondphoto/DragonWarrior4NESRecomp"],
       "source_editions": [
         {
           "id": "dragon-warrior-iv-nes",
           "title": "Dragon Warrior IV (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/arichmondphoto/DragonWarrior4NESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/arichmondphoto/DragonWarrior4NESRecomp"]
         }
       ]
     },

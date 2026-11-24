@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mortal-kombat-shaolin-monks",
-      "evidence_urls": [
-        "https://github.com/lagando/MKSM"
-      ],
+      "evidence_urls": ["https://github.com/lagando/MKSM"],
       "source_editions": [
         {
           "id": "mortal-kombat-shaolin-monks-playstation-2",
           "title": "Mortal Kombat: Shaolin Monks (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/lagando/MKSM"
-          ]
+          "evidence_urls": ["https://github.com/lagando/MKSM"]
         }
       ]
     },

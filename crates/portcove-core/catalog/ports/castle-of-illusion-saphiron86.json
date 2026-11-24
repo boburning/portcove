@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "castle-of-illusion",
-      "evidence_urls": [
-        "https://github.com/saphiron86/castle-of-illusion-port"
-      ],
+      "evidence_urls": ["https://github.com/saphiron86/castle-of-illusion-port"],
       "source_editions": [
         {
           "id": "castle-of-illusion-mega-drive-genesis",
           "title": "Castle of Illusion (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/saphiron86/castle-of-illusion-port"
-          ]
+          "evidence_urls": ["https://github.com/saphiron86/castle-of-illusion-port"]
         }
       ]
     },

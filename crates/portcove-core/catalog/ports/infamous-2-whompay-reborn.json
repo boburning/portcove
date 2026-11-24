@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "infamous-2",
-      "evidence_urls": [
-        "https://github.com/whompay/inFAMOUS2reborn"
-      ],
+      "evidence_urls": ["https://github.com/whompay/inFAMOUS2reborn"],
       "source_editions": []
     },
     "original_game_title": "inFAMOUS 2"

@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One port covers the three Road Rash games.",
-    "evidence_urls": [
-      "https://github.com/BTr-RJ/RoadRashTrilogy_Recomp"
-    ]
+    "evidence_urls": ["https://github.com/BTr-RJ/RoadRashTrilogy_Recomp"]
   }
 }

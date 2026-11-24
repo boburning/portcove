@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "mega-man-8",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Mega-Man-8-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Mega-Man-8-Recomp"],
       "source_editions": [
         {
           "id": "mega-man-8-playstation",
           "title": "Mega Man 8 (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Mega-Man-8-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/omegakatana92/Mega-Man-8-Recomp"]
         }
       ]
     },

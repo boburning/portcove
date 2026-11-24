@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "sword-of-the-samurai",
-      "evidence_urls": [
-        "https://github.com/ToolAssisted-run/OpenSamurai"
-      ],
+      "evidence_urls": ["https://github.com/ToolAssisted-run/OpenSamurai"],
       "source_editions": []
     },
     "original_game_title": "Sword of the Samurai"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "t-r-a-g",
-      "evidence_urls": [
-        "https://github.com/darkuni/trag-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/trag-recomp"],
       "source_editions": [
         {
           "id": "t-r-a-g-playstation",
           "title": "T.R.A.G. (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/darkuni/trag-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/trag-recomp"]
         }
       ]
     },

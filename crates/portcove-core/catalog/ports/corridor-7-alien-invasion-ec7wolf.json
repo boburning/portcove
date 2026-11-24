@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "corridor-7-alien-invasion",
-      "evidence_urls": [
-        "https://github.com/jeddhor/EC7Wolf"
-      ],
+      "evidence_urls": ["https://github.com/jeddhor/EC7Wolf"],
       "source_editions": []
     },
     "original_game_title": "Corridor 7: Alien Invasion"

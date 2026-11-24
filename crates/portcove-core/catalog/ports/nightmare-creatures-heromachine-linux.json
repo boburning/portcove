@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "nightmare-creatures",
-      "evidence_urls": [
-        "https://github.com/Heromachine/NightmareCreatures-Recompilation"
-      ],
+      "evidence_urls": ["https://github.com/Heromachine/NightmareCreatures-Recompilation"],
       "source_editions": [
         {
           "id": "nightmare-creatures-playstation",
           "title": "Nightmare Creatures (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Heromachine/NightmareCreatures-Recompilation"
-          ]
+          "evidence_urls": ["https://github.com/Heromachine/NightmareCreatures-Recompilation"]
         }
       ]
     },

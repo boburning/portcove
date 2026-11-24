@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "rogue-galaxy-usa",
-      "evidence_urls": [
-        "https://github.com/victor-takai/rogue-galaxy-recomp"
-      ],
+      "evidence_urls": ["https://github.com/victor-takai/rogue-galaxy-recomp"],
       "source_editions": [
         {
           "id": "rogue-galaxy-usa-playstation-2",
           "title": "Rogue Galaxy USA (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/victor-takai/rogue-galaxy-recomp"
-          ]
+          "evidence_urls": ["https://github.com/victor-takai/rogue-galaxy-recomp"]
         }
       ]
     },

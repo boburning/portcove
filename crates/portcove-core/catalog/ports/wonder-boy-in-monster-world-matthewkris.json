@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "wonder-boy-in-monster-world",
-      "evidence_urls": [
-        "https://github.com/matthewkris/wbmw-decomp"
-      ],
+      "evidence_urls": ["https://github.com/matthewkris/wbmw-decomp"],
       "source_editions": [
         {
           "id": "wonder-boy-in-monster-world-mega-drive-genesis",
           "title": "Wonder Boy in Monster World (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/matthewkris/wbmw-decomp"
-          ]
+          "evidence_urls": ["https://github.com/matthewkris/wbmw-decomp"]
         }
       ]
     },

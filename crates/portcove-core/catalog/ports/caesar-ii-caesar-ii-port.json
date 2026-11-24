@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "caesar-ii",
-      "evidence_urls": [
-        "https://github.com/second-impressions/caesar2-port"
-      ],
+      "evidence_urls": ["https://github.com/second-impressions/caesar2-port"],
       "source_editions": []
     },
     "original_game_title": "Caesar II"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "digimon-story-super-xros-wars-red",
-      "evidence_urls": [
-        "https://github.com/aoxzh/digimon-super-xros-wars-recomp"
-      ],
+      "evidence_urls": ["https://github.com/aoxzh/digimon-super-xros-wars-recomp"],
       "source_editions": [
         {
           "id": "digimon-story-super-xros-wars-red-nintendo-ds",
           "title": "Digimon Story: Super Xros Wars Red (Nintendo DS)",
           "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/aoxzh/digimon-super-xros-wars-recomp"
-          ]
+          "evidence_urls": ["https://github.com/aoxzh/digimon-super-xros-wars-recomp"]
         }
       ]
     },

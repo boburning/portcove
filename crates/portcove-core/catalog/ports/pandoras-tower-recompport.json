@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pandoras-tower",
-      "evidence_urls": [
-        "https://github.com/RecompPort/pandora-tower-pc"
-      ],
+      "evidence_urls": ["https://github.com/RecompPort/pandora-tower-pc"],
       "source_editions": []
     },
     "original_game_title": "Pandora's Tower"

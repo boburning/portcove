@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "project-gotham-racing-4",
-      "evidence_urls": [
-        "https://github.com/zer0ducksgiven/PGR4-ReGPU"
-      ],
+      "evidence_urls": ["https://github.com/zer0ducksgiven/PGR4-ReGPU"],
       "source_editions": []
     },
     "original_game_title": "Project Gotham Racing 4"

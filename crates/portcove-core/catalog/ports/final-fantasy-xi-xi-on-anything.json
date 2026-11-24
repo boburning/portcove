@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "final-fantasy-xi",
-      "evidence_urls": [
-        "https://github.com/rubymatrix/xi-on-anything"
-      ],
+      "evidence_urls": ["https://github.com/rubymatrix/xi-on-anything"],
       "source_editions": []
     },
     "original_game_title": "Final Fantasy XI"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "star-wars-episode-i-racer",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/racer"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/racer"],
       "source_editions": [
         {
           "id": "star-wars-episode-i-racer-nintendo-64",
           "title": "Star Wars Episode I: Racer (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/sp00nznet/racer"
-          ]
+          "evidence_urls": ["https://github.com/sp00nznet/racer"]
         }
       ]
     },

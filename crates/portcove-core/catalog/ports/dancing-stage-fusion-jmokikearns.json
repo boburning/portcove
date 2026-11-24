@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dancing-stage-fusion-pal",
-      "evidence_urls": [
-        "https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"
-      ],
+      "evidence_urls": ["https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"],
       "source_editions": [
         {
           "id": "dancing-stage-fusion-pal-playstation",
           "title": "Dancing Stage Fusion PAL (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"
-          ]
+          "evidence_urls": ["https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"]
         }
       ]
     },

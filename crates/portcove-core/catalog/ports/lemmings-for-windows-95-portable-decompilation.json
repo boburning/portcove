@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "lemmings-for-windows-95",
-      "evidence_urls": [
-        "https://github.com/NitrosGits/Lemmings-For-Windows-95"
-      ],
+      "evidence_urls": ["https://github.com/NitrosGits/Lemmings-For-Windows-95"],
       "source_editions": []
     },
     "original_game_title": "Lemmings for Windows 95"

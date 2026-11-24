@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "thexder-for-windows-95",
-      "evidence_urls": [
-        "https://github.com/iFocsy/thexder-rev"
-      ],
+      "evidence_urls": ["https://github.com/iFocsy/thexder-rev"],
       "source_editions": []
     },
     "original_game_title": "Thexder for Windows 95"

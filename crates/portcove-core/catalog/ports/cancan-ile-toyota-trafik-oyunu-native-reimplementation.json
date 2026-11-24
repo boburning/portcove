@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "cancan-ile-toyota-trafik-oyunu",
-      "evidence_urls": [
-        "https://github.com/sergen213/toyota-trafik-oyunu"
-      ],
+      "evidence_urls": ["https://github.com/sergen213/toyota-trafik-oyunu"],
       "source_editions": []
     },
     "original_game_title": "Cancan ile Toyota Trafik Oyunu"

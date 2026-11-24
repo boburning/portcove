@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-mystery-dungeon-explorers-of-sky",
-      "evidence_urls": [
-        "https://github.com/DarthMDev/pmd-sky-recomp"
-      ],
+      "evidence_urls": ["https://github.com/DarthMDev/pmd-sky-recomp"],
       "source_editions": [
         {
           "id": "pokemon-mystery-dungeon-explorers-of-sky-nintendo-ds",
           "title": "Pokémon Mystery Dungeon: Explorers of Sky (Nintendo DS)",
           "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/DarthMDev/pmd-sky-recomp"
-          ]
+          "evidence_urls": ["https://github.com/DarthMDev/pmd-sky-recomp"]
         }
       ]
     },

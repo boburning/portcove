@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "crash-of-the-titans",
-      "evidence_urls": [
-        "https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"
-      ],
+      "evidence_urls": ["https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"],
       "source_editions": [
         {
           "id": "crash-of-the-titans-wii",
           "title": "Crash of the Titans (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"
-          ]
+          "evidence_urls": ["https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "spider-man-edge-of-time",
-      "evidence_urls": [
-        "https://github.com/GenryTheFox0/Project-2099"
-      ],
+      "evidence_urls": ["https://github.com/GenryTheFox0/Project-2099"],
       "source_editions": []
     },
     "original_game_title": "Spider-Man: Edge of Time"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ea-sports-nhl-20",
-      "evidence_urls": [
-        "https://github.com/thegh0sts/NHL-20-PS4-PORT"
-      ],
+      "evidence_urls": ["https://github.com/thegh0sts/NHL-20-PS4-PORT"],
       "source_editions": [
         {
           "id": "ea-sports-nhl-20-playstation-4",
           "title": "EA SPORTS NHL 20 (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/thegh0sts/NHL-20-PS4-PORT"
-          ]
+          "evidence_urls": ["https://github.com/thegh0sts/NHL-20-PS4-PORT"]
         }
       ]
     },

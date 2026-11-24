@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "castlevania",
-      "evidence_urls": [
-        "https://github.com/RevoSucks/CV64Recomp"
-      ],
+      "evidence_urls": ["https://github.com/RevoSucks/CV64Recomp"],
       "source_editions": [
         {
           "id": "castlevania-nintendo-64",
           "title": "Castlevania (Nintendo 64)",
           "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/RevoSucks/CV64Recomp"
-          ]
+          "evidence_urls": ["https://github.com/RevoSucks/CV64Recomp"]
         }
       ]
     },

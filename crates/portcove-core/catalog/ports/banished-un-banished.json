@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "banished",
-      "evidence_urls": [
-        "https://github.com/tanepiper/unbanished"
-      ],
+      "evidence_urls": ["https://github.com/tanepiper/unbanished"],
       "source_editions": []
     },
     "original_game_title": "Banished"

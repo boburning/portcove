@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hyperblade",
-      "evidence_urls": [
-        "https://github.com/zach2good/hyperblade-20XX"
-      ],
+      "evidence_urls": ["https://github.com/zach2good/hyperblade-20XX"],
       "source_editions": []
     },
     "original_game_title": "HyperBlade"

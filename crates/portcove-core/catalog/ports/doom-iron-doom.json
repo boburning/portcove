@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "doom",
-      "evidence_urls": [
-        "https://github.com/Henrique194/iron-doom"
-      ],
+      "evidence_urls": ["https://github.com/Henrique194/iron-doom"],
       "source_editions": []
     },
     "original_game_title": "Doom"

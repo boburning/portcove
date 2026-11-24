@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dragon-ball-z-budokai-tenkaichi-4",
-      "evidence_urls": [
-        "https://github.com/recomp-code/dbz-bt4-recomp"
-      ],
+      "evidence_urls": ["https://github.com/recomp-code/dbz-bt4-recomp"],
       "source_editions": []
     },
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 4"

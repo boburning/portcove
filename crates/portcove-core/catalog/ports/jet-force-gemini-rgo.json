@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "jet-force-gemini",
-      "evidence_urls": [
-        "https://github.com/ravenx444/RGO-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/ravenx444/RGO-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Jet Force Gemini"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "terranigma",
-      "evidence_urls": [
-        "https://github.com/aitorcachero/ark-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/aitorcachero/ark-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Terranigma"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-the-wind-waker-hd",
-      "evidence_urls": [
-        "https://github.com/centollOS/SwitchWakerHD"
-      ],
+      "evidence_urls": ["https://github.com/centollOS/SwitchWakerHD"],
       "source_editions": [
         {
           "id": "the-legend-of-zelda-the-wind-waker-hd-wii-u",
           "title": "The Legend of Zelda: The Wind Waker HD (Wii U)",
           "system": "wii-u",
-          "evidence_urls": [
-            "https://github.com/centollOS/SwitchWakerHD"
-          ]
+          "evidence_urls": ["https://github.com/centollOS/SwitchWakerHD"]
         }
       ]
     },

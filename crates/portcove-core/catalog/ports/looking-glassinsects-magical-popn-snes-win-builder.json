@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "magical-popn",
-      "evidence_urls": [
-        "https://github.com/looking-glassinsects/MagicalPopnRecomp"
-      ],
+      "evidence_urls": ["https://github.com/looking-glassinsects/MagicalPopnRecomp"],
       "source_editions": [
         {
           "id": "magical-popn-super-nintendo",
           "title": "Magical Pop'n (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/looking-glassinsects/MagicalPopnRecomp"
-          ]
+          "evidence_urls": ["https://github.com/looking-glassinsects/MagicalPopnRecomp"]
         }
       ]
     },

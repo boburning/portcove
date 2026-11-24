@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dodonpachi",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Dodonpachi-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Dodonpachi-Recomp"],
       "source_editions": []
     },
     "original_game_title": "DoDonPachi"

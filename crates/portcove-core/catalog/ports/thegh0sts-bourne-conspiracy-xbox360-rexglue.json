@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "robert-ludlums-the-bourne-conspiracy",
-      "evidence_urls": [
-        "https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"
-      ],
+      "evidence_urls": ["https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"],
       "source_editions": [
         {
           "id": "robert-ludlums-the-bourne-conspiracy-xbox-360",
           "title": "Robert Ludlum's The Bourne Conspiracy (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"
-          ]
+          "evidence_urls": ["https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"]
         }
       ]
     },

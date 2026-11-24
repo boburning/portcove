@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "neo-drift-out-new-technology",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/neodriftout"
-      ],
+      "evidence_urls": ["https://github.com/sp00nznet/neodriftout"],
       "source_editions": []
     },
     "original_game_title": "Neo Drift Out: New Technology"

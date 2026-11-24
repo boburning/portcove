@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "kether",
-      "evidence_urls": [
-        "https://github.com/tools81/kether-static-recomp"
-      ],
+      "evidence_urls": ["https://github.com/tools81/kether-static-recomp"],
       "source_editions": []
     },
     "original_game_title": "Kether"

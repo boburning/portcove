@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "american-mcgees-alice",
-      "evidence_urls": [
-        "https://github.com/looking-glass-project/LookingGlass"
-      ],
+      "evidence_urls": ["https://github.com/looking-glass-project/LookingGlass"],
       "source_editions": []
     },
     "original_game_title": "American McGee's Alice"

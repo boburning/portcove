@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "spongebob-squarepants-battle-for-bikini-bottom",
-      "evidence_urls": [
-        "https://github.com/Ray-m-w/Bikini-Bottom-Rust"
-      ],
+      "evidence_urls": ["https://github.com/Ray-m-w/Bikini-Bottom-Rust"],
       "source_editions": []
     },
     "original_game_title": "SpongeBob SquarePants: Battle for Bikini Bottom"

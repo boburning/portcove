@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-the-minish-cap",
-      "evidence_urls": [
-        "https://github.com/MatheoVignaud/tmc"
-      ],
+      "evidence_urls": ["https://github.com/MatheoVignaud/tmc"],
       "source_editions": []
     },
     "original_game_title": "The Legend of Zelda: The Minish Cap"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dirt-2",
-      "evidence_urls": [
-        "https://github.com/otavix010/dirt-2-pc"
-      ],
+      "evidence_urls": ["https://github.com/otavix010/dirt-2-pc"],
       "source_editions": [
         {
           "id": "dirt-2-xbox-360",
           "title": "DiRT 2 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/otavix010/dirt-2-pc"
-          ]
+          "evidence_urls": ["https://github.com/otavix010/dirt-2-pc"]
         }
       ]
     },

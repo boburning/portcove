@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "top-gear-2",
-      "evidence_urls": [
-        "https://github.com/vittau/top-gear-2-genesis-pc"
-      ],
+      "evidence_urls": ["https://github.com/vittau/top-gear-2-genesis-pc"],
       "source_editions": [
         {
           "id": "top-gear-2-mega-drive-genesis",
           "title": "Top Gear 2 (Mega Drive / Genesis)",
           "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/vittau/top-gear-2-genesis-pc"
-          ]
+          "evidence_urls": ["https://github.com/vittau/top-gear-2-genesis-pc"]
         }
       ]
     },

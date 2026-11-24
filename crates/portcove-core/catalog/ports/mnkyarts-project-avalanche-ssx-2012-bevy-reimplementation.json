@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ssx-xbox-360",
-      "evidence_urls": [
-        "https://github.com/MnkyArts/ProjectAvalanche"
-      ],
+      "evidence_urls": ["https://github.com/MnkyArts/ProjectAvalanche"],
       "source_editions": [
         {
           "id": "ssx-xbox-360-xbox-360",
           "title": "SSX Xbox 360 (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/MnkyArts/ProjectAvalanche"
-          ]
+          "evidence_urls": ["https://github.com/MnkyArts/ProjectAvalanche"]
         }
       ]
     },

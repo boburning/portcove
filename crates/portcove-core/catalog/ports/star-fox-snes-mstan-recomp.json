@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "star-fox",
-      "evidence_urls": [
-        "https://github.com/mstan/StarFoxSNESRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/StarFoxSNESRecomp"],
       "source_editions": [
         {
           "id": "star-fox-super-nintendo",
           "title": "Star Fox (Super Nintendo)",
           "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/mstan/StarFoxSNESRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/StarFoxSNESRecomp"]
         }
       ]
     },

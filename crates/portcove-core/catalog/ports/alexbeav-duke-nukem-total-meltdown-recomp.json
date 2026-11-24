@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "duke-nukem-total-meltdown",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/duke-nukem-total-meltdown-recomp"
-      ],
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/duke-nukem-total-meltdown-recomp"],
       "source_editions": [
         {
           "id": "duke-nukem-total-meltdown-playstation",

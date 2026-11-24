@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "drug-wars",
-      "evidence_urls": [
-        "https://github.com/benmwebb/dopewars"
-      ],
+      "evidence_urls": ["https://github.com/benmwebb/dopewars"],
       "source_editions": []
     },
     "original_game_title": "Drug Wars"

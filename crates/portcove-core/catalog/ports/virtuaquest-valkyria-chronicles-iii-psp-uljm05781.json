@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "valkyria-chronicles-iii",
-      "evidence_urls": [
-        "https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"
-      ],
+      "evidence_urls": ["https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"],
       "source_editions": [
         {
           "id": "valkyria-chronicles-iii-playstation-portable",
           "title": "Valkyria Chronicles III (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"
-          ]
+          "evidence_urls": ["https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"]
         }
       ]
     },

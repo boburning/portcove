@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "trials-hd",
-      "evidence_urls": [
-        "https://github.com/trev82usa/TrialsHD-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/trev82usa/TrialsHD-Recomp"],
       "source_editions": [
         {
           "id": "trials-hd-xbox-360",
           "title": "Trials HD (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/trev82usa/TrialsHD-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/trev82usa/TrialsHD-Recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "power-drift",
-      "evidence_urls": [
-        "https://github.com/hojoworks/likethewind"
-      ],
+      "evidence_urls": ["https://github.com/hojoworks/likethewind"],
       "source_editions": []
     },
     "original_game_title": "Power Drift"

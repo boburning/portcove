@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-black-and-white",
-      "evidence_urls": [
-        "https://github.com/Project-Holon/eidos"
-      ],
+      "evidence_urls": ["https://github.com/Project-Holon/eidos"],
       "source_editions": []
     },
     "original_game_title": "Pokémon Black and White"

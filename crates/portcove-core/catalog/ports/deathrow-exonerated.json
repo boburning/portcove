@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "deathrow",
-      "evidence_urls": [
-        "https://github.com/AsukaNeo/Exonerated"
-      ],
+      "evidence_urls": ["https://github.com/AsukaNeo/Exonerated"],
       "source_editions": [
         {
           "id": "deathrow-xbox",
           "title": "Deathrow (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/AsukaNeo/Exonerated"
-          ]
+          "evidence_urls": ["https://github.com/AsukaNeo/Exonerated"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dune-2000",
-      "evidence_urls": [
-        "https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"
-      ],
+      "evidence_urls": ["https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"],
       "source_editions": [
         {
           "id": "dune-2000-playstation",
           "title": "Dune 2000 (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"
-          ]
+          "evidence_urls": ["https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"]
         }
       ]
     },

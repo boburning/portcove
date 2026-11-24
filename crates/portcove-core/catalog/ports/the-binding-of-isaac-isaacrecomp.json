@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "the-binding-of-isaac",
-      "evidence_urls": [
-        "https://github.com/whylurking/IsaacRecomp"
-      ],
+      "evidence_urls": ["https://github.com/whylurking/IsaacRecomp"],
       "source_editions": [
         {
           "id": "the-binding-of-isaac-nintendo-switch",
           "title": "The Binding of Isaac (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/whylurking/IsaacRecomp"
-          ]
+          "evidence_urls": ["https://github.com/whylurking/IsaacRecomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "fallout",
-      "evidence_urls": [
-        "https://github.com/mikyowski-ui/vault-engine"
-      ],
+      "evidence_urls": ["https://github.com/mikyowski-ui/vault-engine"],
       "source_editions": []
     },
     "original_game_title": "Fallout"

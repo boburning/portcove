@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-hang-on",
-      "evidence_urls": [
-        "https://github.com/ElFDA/SuperHangOn-MD-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/ElFDA/SuperHangOn-MD-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Super Hang-On"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "720-degrees",
-      "evidence_urls": [
-        "https://github.com/PlasticCog/720_Degrees-PC_Port"
-      ],
+      "evidence_urls": ["https://github.com/PlasticCog/720_Degrees-PC_Port"],
       "source_editions": []
     },
     "original_game_title": "720 Degrees"

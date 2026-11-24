@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "far-cry-instincts",
-      "evidence_urls": [
-        "https://github.com/bassobr/Far-Cry-Instincts-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Recomp"],
       "source_editions": [
         {
           "id": "far-cry-instincts-xbox",
           "title": "Far Cry Instincts (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/bassobr/Far-Cry-Instincts-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Recomp"]
         }
       ]
     },

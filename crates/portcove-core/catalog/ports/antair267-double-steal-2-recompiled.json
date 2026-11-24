@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "double-s-t-e-a-l-the-second-clash",
-      "evidence_urls": [
-        "https://github.com/AntAir267/double-steal-2-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/AntAir267/double-steal-2-recompiled"],
       "source_editions": [
         {
           "id": "double-s-t-e-a-l-the-second-clash-xbox",
           "title": "Double-S.T.E.A.L: The Second Clash (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/AntAir267/double-steal-2-recompiled"
-          ]
+          "evidence_urls": ["https://github.com/AntAir267/double-steal-2-recompiled"]
         }
       ]
     },

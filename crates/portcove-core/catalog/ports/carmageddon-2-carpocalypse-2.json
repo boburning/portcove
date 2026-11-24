@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "carmageddon-2",
-      "evidence_urls": [
-        "https://github.com/Link4Electronics/Carpocalypse2"
-      ],
+      "evidence_urls": ["https://github.com/Link4Electronics/Carpocalypse2"],
       "source_editions": []
     },
     "original_game_title": "Carmageddon 2"

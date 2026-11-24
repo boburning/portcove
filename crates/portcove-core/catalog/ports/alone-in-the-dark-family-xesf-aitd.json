@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One reimplementation targets several Alone in the Dark games.",
-    "evidence_urls": [
-      "https://github.com/xesf/aitd"
-    ]
+    "evidence_urls": ["https://github.com/xesf/aitd"]
   }
 }

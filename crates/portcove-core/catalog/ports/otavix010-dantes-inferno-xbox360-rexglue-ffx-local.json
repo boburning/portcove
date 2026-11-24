@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dante-s-inferno",
-      "evidence_urls": [
-        "https://github.com/otavix010/dantes-inferno-pc"
-      ],
+      "evidence_urls": ["https://github.com/otavix010/dantes-inferno-pc"],
       "source_editions": [
         {
           "id": "dante-s-inferno-xbox-360",
           "title": "Dante's Inferno (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/otavix010/dantes-inferno-pc"
-          ]
+          "evidence_urls": ["https://github.com/otavix010/dantes-inferno-pc"]
         }
       ]
     },

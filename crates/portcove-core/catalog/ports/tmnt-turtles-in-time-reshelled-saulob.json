@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "teenage-mutant-ninja-turtles-turtles-in-time-re-shelled",
-      "evidence_urls": [
-        "https://github.com/saulob/tmnt-turtles-in-time-reshelled-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/saulob/tmnt-turtles-in-time-reshelled-recompiled"],
       "source_editions": []
     },
     "original_game_title": "Teenage Mutant Ninja Turtles: Turtles in Time Re-Shelled"

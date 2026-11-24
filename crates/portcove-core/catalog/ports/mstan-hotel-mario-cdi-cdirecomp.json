@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hotel-mario",
-      "evidence_urls": [
-        "https://github.com/mstan/HotelMarioRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/HotelMarioRecomp"],
       "source_editions": []
     },
     "original_game_title": "Hotel Mario"

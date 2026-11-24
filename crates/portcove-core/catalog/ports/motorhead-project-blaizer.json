@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "motorhead",
-      "evidence_urls": [
-        "https://github.com/Sinirlan/Project-Blaizer"
-      ],
+      "evidence_urls": ["https://github.com/Sinirlan/Project-Blaizer"],
       "source_editions": []
     },
     "original_game_title": "Motorhead"

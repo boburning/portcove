@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "starcraft-brood-war",
-      "evidence_urls": [
-        "https://github.com/Mad-Man-Dan/hyperion-public"
-      ],
+      "evidence_urls": ["https://github.com/Mad-Man-Dan/hyperion-public"],
       "source_editions": []
     },
     "original_game_title": "StarCraft: Brood War"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gunboat-river-combat-simulation",
-      "evidence_urls": [
-        "https://github.com/PlasticCog/Gunboat"
-      ],
+      "evidence_urls": ["https://github.com/PlasticCog/Gunboat"],
       "source_editions": []
     },
     "original_game_title": "Gunboat River Combat Simulation"

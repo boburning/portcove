@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "bounce-evolution",
-      "evidence_urls": [
-        "https://github.com/alox-dev/redbound"
-      ],
+      "evidence_urls": ["https://github.com/alox-dev/redbound"],
       "source_editions": []
     },
     "original_game_title": "Bounce Evolution"

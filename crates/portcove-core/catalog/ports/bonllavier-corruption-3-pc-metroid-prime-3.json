@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "metroid-prime-3-corruption",
-      "evidence_urls": [
-        "https://github.com/bonllavier/Corruption_3-PC"
-      ],
+      "evidence_urls": ["https://github.com/bonllavier/Corruption_3-PC"],
       "source_editions": [
         {
           "id": "metroid-prime-3-corruption-wii",
           "title": "Metroid Prime 3: Corruption (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/bonllavier/Corruption_3-PC"
-          ]
+          "evidence_urls": ["https://github.com/bonllavier/Corruption_3-PC"]
         }
       ]
     },

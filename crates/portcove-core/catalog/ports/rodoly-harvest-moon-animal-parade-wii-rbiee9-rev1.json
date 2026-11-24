@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "harvest-moon-animal-parade",
-      "evidence_urls": [
-        "https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"
-      ],
+      "evidence_urls": ["https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"],
       "source_editions": [
         {
           "id": "harvest-moon-animal-parade-wii",
           "title": "Harvest Moon: Animal Parade (Wii)",
           "system": "wii",
-          "evidence_urls": [
-            "https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"
-          ]
+          "evidence_urls": ["https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"]
         }
       ]
     },

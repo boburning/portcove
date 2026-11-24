@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "fallout-tactics-brotherhood-of-steel",
-      "evidence_urls": [
-        "https://github.com/rerunreactor/fallout-tactics-ce"
-      ],
+      "evidence_urls": ["https://github.com/rerunreactor/fallout-tactics-ce"],
       "source_editions": []
     },
     "original_game_title": "Fallout Tactics: Brotherhood of Steel"

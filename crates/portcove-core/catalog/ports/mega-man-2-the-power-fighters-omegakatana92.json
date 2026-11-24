@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mega-man-2-the-power-fighters",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Mega-Man-The-Power-Fighters-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Mega-Man-The-Power-Fighters-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Mega Man 2: The Power Fighters"

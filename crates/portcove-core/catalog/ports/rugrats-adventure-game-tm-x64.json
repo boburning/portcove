@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "rugrats-adventure-game",
-      "evidence_urls": [
-        "https://github.com/tm-developments/rugrats_port"
-      ],
+      "evidence_urls": ["https://github.com/tm-developments/rugrats_port"],
       "source_editions": []
     },
     "original_game_title": "Rugrats Adventure Game"

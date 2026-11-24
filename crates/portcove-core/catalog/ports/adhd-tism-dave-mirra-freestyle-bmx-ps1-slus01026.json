@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "dave-mirra-freestyle-bmx",
-      "evidence_urls": [
-        "https://github.com/ADHD-TISM/Dave-Mirra-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/ADHD-TISM/Dave-Mirra-Recomp"],
       "source_editions": [
         {
           "id": "dave-mirra-freestyle-bmx-playstation",
           "title": "Dave Mirra Freestyle BMX (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/ADHD-TISM/Dave-Mirra-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/ADHD-TISM/Dave-Mirra-Recomp"]
         }
       ]
     },

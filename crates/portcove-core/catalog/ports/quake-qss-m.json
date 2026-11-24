@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "quake",
-      "evidence_urls": [
-        "https://github.com/timbergeron/QSS-M"
-      ],
+      "evidence_urls": ["https://github.com/timbergeron/QSS-M"],
       "source_editions": []
     },
     "original_game_title": "Quake"

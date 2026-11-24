@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "army-of-two-the-devils-cartel",
-      "evidence_urls": [
-        "https://github.com/BrewSparrow/ArmyOfTwoTDC-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/BrewSparrow/ArmyOfTwoTDC-Recomp"],
       "source_editions": [
         {
           "id": "army-of-two-the-devils-cartel-xbox-360",
           "title": "Army of Two: The Devil's Cartel (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/BrewSparrow/ArmyOfTwoTDC-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/BrewSparrow/ArmyOfTwoTDC-Recomp"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-shield",
-      "evidence_urls": [
-        "https://github.com/raulzrrs/swsh-recomp"
-      ],
+      "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"],
       "source_editions": [
         {
           "id": "pokemon-shield-nintendo-switch",
           "title": "Pokémon Shield (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/raulzrrs/swsh-recomp"
-          ]
+          "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"]
         }
       ]
     },

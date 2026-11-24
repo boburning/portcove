@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "this-is-football-2",
-      "evidence_urls": [
-        "https://github.com/LetsPlaymaker/TIF2-Enhanced"
-      ],
+      "evidence_urls": ["https://github.com/LetsPlaymaker/TIF2-Enhanced"],
       "source_editions": [
         {
           "id": "this-is-football-2-playstation",
           "title": "This Is Football 2 (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/LetsPlaymaker/TIF2-Enhanced"
-          ]
+          "evidence_urls": ["https://github.com/LetsPlaymaker/TIF2-Enhanced"]
         }
       ]
     },

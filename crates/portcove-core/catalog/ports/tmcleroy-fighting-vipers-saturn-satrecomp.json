@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "fighting-vipers",
-      "evidence_urls": [
-        "https://github.com/tmcleroy/fighting-vipers-recomp"
-      ],
+      "evidence_urls": ["https://github.com/tmcleroy/fighting-vipers-recomp"],
       "source_editions": [
         {
           "id": "fighting-vipers-sega-saturn",
           "title": "Fighting Vipers (Sega Saturn)",
           "system": "sega-saturn",
-          "evidence_urls": [
-            "https://github.com/tmcleroy/fighting-vipers-recomp"
-          ]
+          "evidence_urls": ["https://github.com/tmcleroy/fighting-vipers-recomp"]
         }
       ]
     },

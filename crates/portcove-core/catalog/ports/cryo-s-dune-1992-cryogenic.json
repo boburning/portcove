@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "cryos-dune",
-      "evidence_urls": [
-        "https://github.com/OpenRakis/Cryogenic"
-      ],
+      "evidence_urls": ["https://github.com/OpenRakis/Cryogenic"],
       "source_editions": []
     },
     "original_game_title": "Cryo's Dune"

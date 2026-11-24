@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "total-annihilation-kingdoms",
-      "evidence_urls": [
-        "https://github.com/OpenKingdoms/OpenKingdoms"
-      ],
+      "evidence_urls": ["https://github.com/OpenKingdoms/OpenKingdoms"],
       "source_editions": []
     },
     "original_game_title": "Total Annihilation: Kingdoms"

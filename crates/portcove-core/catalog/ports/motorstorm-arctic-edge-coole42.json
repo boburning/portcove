@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "motorstorm-arctic-edge",
-      "evidence_urls": [
-        "https://github.com/coole42-pixel/PSPRecomp-MSAE"
-      ],
+      "evidence_urls": ["https://github.com/coole42-pixel/PSPRecomp-MSAE"],
       "source_editions": [
         {
           "id": "motorstorm-arctic-edge-playstation-portable",
           "title": "MotorStorm Arctic Edge (PlayStation Portable)",
           "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/coole42-pixel/PSPRecomp-MSAE"
-          ]
+          "evidence_urls": ["https://github.com/coole42-pixel/PSPRecomp-MSAE"]
         }
       ]
     },

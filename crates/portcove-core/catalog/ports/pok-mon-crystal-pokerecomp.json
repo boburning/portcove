@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-crystal",
-      "evidence_urls": [
-        "https://github.com/Decryptu/pokerecomp"
-      ],
+      "evidence_urls": ["https://github.com/Decryptu/pokerecomp"],
       "source_editions": [
         {
           "id": "pokemon-crystal-game-boy-color",
           "title": "Pokémon Crystal (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": [
-            "https://github.com/Decryptu/pokerecomp"
-          ]
+          "evidence_urls": ["https://github.com/Decryptu/pokerecomp"]
         }
       ]
     },

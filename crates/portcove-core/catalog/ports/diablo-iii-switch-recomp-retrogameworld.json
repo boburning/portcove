@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "diablo-iii-eternal-collection",
-      "evidence_urls": [
-        "https://github.com/retrogameworld/Diablo-III-Switch-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/retrogameworld/Diablo-III-Switch-Recomp"],
       "source_editions": [
         {
           "id": "diablo-iii-eternal-collection-nintendo-switch",
           "title": "Diablo III: Eternal Collection (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/retrogameworld/Diablo-III-Switch-Recomp"
-          ]
+          "evidence_urls": ["https://github.com/retrogameworld/Diablo-III-Switch-Recomp"]
         }
       ]
     },

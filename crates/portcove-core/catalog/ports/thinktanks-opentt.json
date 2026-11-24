@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "thinktanks",
-      "evidence_urls": [
-        "https://github.com/okkindel/OpenTT"
-      ],
+      "evidence_urls": ["https://github.com/okkindel/OpenTT"],
       "source_editions": []
     },
     "original_game_title": "ThinkTanks"

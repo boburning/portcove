@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "abuse",
-      "evidence_urls": [
-        "https://github.com/metinc/abuse"
-      ],
+      "evidence_urls": ["https://github.com/metinc/abuse"],
       "source_editions": []
     },
     "original_game_title": "Abuse"

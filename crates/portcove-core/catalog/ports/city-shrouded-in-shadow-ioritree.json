@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "city-shrouded-in-shadow",
-      "evidence_urls": [
-        "https://github.com/ioritree/kyoei_toshi_pc"
-      ],
+      "evidence_urls": ["https://github.com/ioritree/kyoei_toshi_pc"],
       "source_editions": [
         {
           "id": "city-shrouded-in-shadow-playstation-4",
           "title": "City Shrouded in Shadow (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/ioritree/kyoei_toshi_pc"
-          ]
+          "evidence_urls": ["https://github.com/ioritree/kyoei_toshi_pc"]
         }
       ]
     },

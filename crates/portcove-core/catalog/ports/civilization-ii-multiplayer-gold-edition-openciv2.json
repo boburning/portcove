@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "civilization-ii-multiplayer-gold-edition",
-      "evidence_urls": [
-        "https://github.com/richardpenman/civ2"
-      ],
+      "evidence_urls": ["https://github.com/richardpenman/civ2"],
       "source_editions": []
     },
     "original_game_title": "Civilization II Multiplayer Gold Edition"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "solomons-key-2",
-      "evidence_urls": [
-        "https://github.com/dvilelaf/opendana"
-      ],
+      "evidence_urls": ["https://github.com/dvilelaf/opendana"],
       "source_editions": [
         {
           "id": "solomons-key-2-nes",
           "title": "Solomon's Key 2 (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/dvilelaf/opendana"
-          ]
+          "evidence_urls": ["https://github.com/dvilelaf/opendana"]
         }
       ]
     },

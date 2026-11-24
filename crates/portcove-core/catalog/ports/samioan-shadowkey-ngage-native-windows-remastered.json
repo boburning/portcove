@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "the-elder-scrolls-travels-shadowkey",
-      "evidence_urls": [
-        "https://github.com/samioan/shadowkey-remastered"
-      ],
+      "evidence_urls": ["https://github.com/samioan/shadowkey-remastered"],
       "source_editions": []
     },
     "original_game_title": "The Elder Scrolls Travels: Shadowkey"

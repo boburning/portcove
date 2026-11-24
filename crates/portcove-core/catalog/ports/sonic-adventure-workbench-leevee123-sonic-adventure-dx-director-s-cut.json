@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "sonic-adventure-dx-directors-cut",
-      "evidence_urls": [
-        "https://github.com/leevee123/sonic-adventure-workbench"
-      ],
+      "evidence_urls": ["https://github.com/leevee123/sonic-adventure-workbench"],
       "source_editions": [
         {
           "id": "sonic-adventure-dx-directors-cut-xbox",
           "title": "Sonic Adventure DX: Director's Cut (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/leevee123/sonic-adventure-workbench"
-          ]
+          "evidence_urls": ["https://github.com/leevee123/sonic-adventure-workbench"]
         }
       ]
     },

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "r4-ridge-racer-type-4",
-      "evidence_urls": [
-        "https://github.com/khasinski/ridge-racer-type-4-pc"
-      ],
+      "evidence_urls": ["https://github.com/khasinski/ridge-racer-type-4-pc"],
       "source_editions": [
         {
           "id": "r4-ridge-racer-type-4-playstation",
           "title": "R4: Ridge Racer Type 4 (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/khasinski/ridge-racer-type-4-pc"
-          ]
+          "evidence_urls": ["https://github.com/khasinski/ridge-racer-type-4-pc"]
         }
       ]
     },

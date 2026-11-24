@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dave-mirra-freestyle-bmx",
-      "evidence_urls": [
-        "https://github.com/DenzoNL/open-freestyle-bmx"
-      ],
+      "evidence_urls": ["https://github.com/DenzoNL/open-freestyle-bmx"],
       "source_editions": []
     },
     "original_game_title": "Dave Mirra Freestyle BMX"

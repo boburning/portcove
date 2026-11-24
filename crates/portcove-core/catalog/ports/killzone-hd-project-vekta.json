@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "killzone-hd",
-      "evidence_urls": [
-        "https://github.com/gustavomorinaga/project-vekta"
-      ],
+      "evidence_urls": ["https://github.com/gustavomorinaga/project-vekta"],
       "source_editions": []
     },
     "original_game_title": "Killzone HD"

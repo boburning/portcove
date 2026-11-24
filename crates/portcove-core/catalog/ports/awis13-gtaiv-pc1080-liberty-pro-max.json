@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "grand-theft-auto-iv",
-      "evidence_urls": [
-        "https://github.com/Awis13/liberty-pro-max"
-      ],
+      "evidence_urls": ["https://github.com/Awis13/liberty-pro-max"],
       "source_editions": []
     },
     "original_game_title": "Grand Theft Auto IV"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ghost-rider",
-      "evidence_urls": [
-        "https://github.com/otavix010/ghost-rider-pc"
-      ],
+      "evidence_urls": ["https://github.com/otavix010/ghost-rider-pc"],
       "source_editions": [
         {
           "id": "ghost-rider-playstation-2",
           "title": "Ghost Rider (PlayStation 2)",
           "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/otavix010/ghost-rider-pc"
-          ]
+          "evidence_urls": ["https://github.com/otavix010/ghost-rider-pc"]
         }
       ]
     },

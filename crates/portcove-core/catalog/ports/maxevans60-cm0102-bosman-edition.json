@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "championship-manager-01-02",
-      "evidence_urls": [
-        "https://github.com/maxevans60/cm0102-bosman-edition"
-      ],
+      "evidence_urls": ["https://github.com/maxevans60/cm0102-bosman-edition"],
       "source_editions": []
     },
     "original_game_title": "Championship Manager 01/02"

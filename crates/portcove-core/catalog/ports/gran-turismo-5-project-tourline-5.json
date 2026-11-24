@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "gran-turismo-5",
-      "evidence_urls": [
-        "https://github.com/mathewdouglas/Project-Tourline-5"
-      ],
+      "evidence_urls": ["https://github.com/mathewdouglas/Project-Tourline-5"],
       "source_editions": []
     },
     "original_game_title": "Gran Turismo 5"

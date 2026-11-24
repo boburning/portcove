@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "p-n-03",
-      "evidence_urls": [
-        "https://github.com/wwesun2000/PN03-WinPort"
-      ],
+      "evidence_urls": ["https://github.com/wwesun2000/PN03-WinPort"],
       "source_editions": [
         {
           "id": "p-n-03-xbox",
           "title": "P.N.03 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/wwesun2000/PN03-WinPort"
-          ]
+          "evidence_urls": ["https://github.com/wwesun2000/PN03-WinPort"]
         }
       ]
     },

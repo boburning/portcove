@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "marvel-super-heroes",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Marvel-Super-Heroes-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/omegakatana92/Marvel-Super-Heroes-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Marvel Super Heroes"

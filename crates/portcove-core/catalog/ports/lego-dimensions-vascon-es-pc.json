@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "lego-dimensions",
-      "evidence_urls": [
-        "https://github.com/vascon-es/lego-dimensions-pc"
-      ],
+      "evidence_urls": ["https://github.com/vascon-es/lego-dimensions-pc"],
       "source_editions": [
         {
           "id": "lego-dimensions-playstation-4",
           "title": "LEGO Dimensions (PlayStation 4)",
           "system": "playstation-4",
-          "evidence_urls": [
-            "https://github.com/vascon-es/lego-dimensions-pc"
-          ]
+          "evidence_urls": ["https://github.com/vascon-es/lego-dimensions-pc"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "rent-a-hero",
-      "evidence_urls": [
-        "https://github.com/Taktloss/RentaHeroNativ"
-      ],
+      "evidence_urls": ["https://github.com/Taktloss/RentaHeroNativ"],
       "source_editions": []
     },
     "original_game_title": "Rent-A-Hero"

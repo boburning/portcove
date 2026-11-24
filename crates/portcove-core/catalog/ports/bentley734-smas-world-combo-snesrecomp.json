@@ -11,8 +11,6 @@
   "original_game_review": {
     "disposition": "multi-game",
     "reason": "One recompilation runs Super Mario All-Stars and Super Mario World.",
-    "evidence_urls": [
-      "https://github.com/Bentley734/Mario-All-Stars-World-Recomp"
-    ]
+    "evidence_urls": ["https://github.com/Bentley734/Mario-All-Stars-World-Recomp"]
   }
 }

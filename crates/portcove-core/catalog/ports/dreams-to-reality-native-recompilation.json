@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dreams-to-reality",
-      "evidence_urls": [
-        "https://github.com/jlagedo/dreams-to-reality-re"
-      ],
+      "evidence_urls": ["https://github.com/jlagedo/dreams-to-reality-re"],
       "source_editions": []
     },
     "original_game_title": "Dreams to Reality"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "ninja-gaiden",
-      "evidence_urls": [
-        "https://github.com/gabbycat4/NinjaGaiden1Recomp"
-      ],
+      "evidence_urls": ["https://github.com/gabbycat4/NinjaGaiden1Recomp"],
       "source_editions": [
         {
           "id": "ninja-gaiden-nes",
           "title": "Ninja Gaiden (NES)",
           "system": "nes",
-          "evidence_urls": [
-            "https://github.com/gabbycat4/NinjaGaiden1Recomp"
-          ]
+          "evidence_urls": ["https://github.com/gabbycat4/NinjaGaiden1Recomp"]
         }
       ]
     },

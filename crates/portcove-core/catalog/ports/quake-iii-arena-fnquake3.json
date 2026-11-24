@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "quake-iii-arena",
-      "evidence_urls": [
-        "https://github.com/themuffinator/FnQ3"
-      ],
+      "evidence_urls": ["https://github.com/themuffinator/FnQ3"],
       "source_editions": []
     },
     "original_game_title": "Quake III Arena"

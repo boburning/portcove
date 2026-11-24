@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "chaos-rings",
-      "evidence_urls": [
-        "https://github.com/DuIslingr/CR1-U"
-      ],
+      "evidence_urls": ["https://github.com/DuIslingr/CR1-U"],
       "source_editions": []
     },
     "original_game_title": "Chaos Rings"

@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "afro-samurai",
-      "evidence_urls": [
-        "https://github.com/LomoXSoft/AfroSamuraiRecomp"
-      ],
+      "evidence_urls": ["https://github.com/LomoXSoft/AfroSamuraiRecomp"],
       "source_editions": [
         {
           "id": "afro-samurai-xbox-360",
           "title": "Afro Samurai (Xbox 360)",
           "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/LomoXSoft/AfroSamuraiRecomp"
-          ]
+          "evidence_urls": ["https://github.com/LomoXSoft/AfroSamuraiRecomp"]
         }
       ]
     },

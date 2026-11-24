@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "spider-man-2",
-      "evidence_urls": [
-        "https://github.com/SickSartori/sm2port"
-      ],
+      "evidence_urls": ["https://github.com/SickSartori/sm2port"],
       "source_editions": [
         {
           "id": "spider-man-2-xbox",
           "title": "Spider-Man 2 (Xbox)",
           "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/SickSartori/sm2port"
-          ]
+          "evidence_urls": ["https://github.com/SickSartori/sm2port"]
         }
       ]
     },

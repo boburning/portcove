@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-yellow",
-      "evidence_urls": [
-        "https://github.com/Decryptu/pokerecomp"
-      ],
+      "evidence_urls": ["https://github.com/Decryptu/pokerecomp"],
       "source_editions": [
         {
           "id": "pokemon-yellow-game-boy-color",
           "title": "Pokémon Yellow (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": [
-            "https://github.com/Decryptu/pokerecomp"
-          ]
+          "evidence_urls": ["https://github.com/Decryptu/pokerecomp"]
         }
       ]
     },

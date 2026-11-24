@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mad-tv",
-      "evidence_urls": [
-        "https://github.com/dennisbohn/madtv-recompiled"
-      ],
+      "evidence_urls": ["https://github.com/dennisbohn/madtv-recompiled"],
       "source_editions": []
     },
     "original_game_title": "Mad TV"

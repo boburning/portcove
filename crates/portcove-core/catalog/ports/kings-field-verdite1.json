@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "kings-field-japan",
-      "evidence_urls": [
-        "https://github.com/Voicedrew11/verdite1"
-      ],
+      "evidence_urls": ["https://github.com/Voicedrew11/verdite1"],
       "source_editions": []
     },
     "original_game_title": "King's Field Japan"

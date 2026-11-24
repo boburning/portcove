@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "skipper-and-skeeto-in-pretpark",
-      "evidence_urls": [
-        "https://github.com/jjmhalew/SkipperRE"
-      ],
+      "evidence_urls": ["https://github.com/jjmhalew/SkipperRE"],
       "source_editions": []
     },
     "original_game_title": "Skipper & Skeeto in Pretpark"

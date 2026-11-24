@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-red",
-      "evidence_urls": [
-        "https://github.com/mstan/PokemonRedAndBlueRecomp"
-      ],
+      "evidence_urls": ["https://github.com/mstan/PokemonRedAndBlueRecomp"],
       "source_editions": [
         {
           "id": "pokemon-red-game-boy",
           "title": "Pokémon Red (Game Boy)",
           "system": "game-boy",
-          "evidence_urls": [
-            "https://github.com/mstan/PokemonRedAndBlueRecomp"
-          ]
+          "evidence_urls": ["https://github.com/mstan/PokemonRedAndBlueRecomp"]
         }
       ]
     },

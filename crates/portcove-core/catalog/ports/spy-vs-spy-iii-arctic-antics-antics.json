@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "spy-vs-spy-iii-arctic-antics",
-      "evidence_urls": [
-        "https://github.com/LyndonBlack/antics"
-      ],
+      "evidence_urls": ["https://github.com/LyndonBlack/antics"],
       "source_editions": []
     },
     "original_game_title": "Spy vs. Spy III: Arctic Antics"

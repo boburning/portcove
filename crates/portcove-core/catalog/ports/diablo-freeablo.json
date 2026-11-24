@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "diablo",
-      "evidence_urls": [
-        "https://github.com/wheybags/freeablo"
-      ],
+      "evidence_urls": ["https://github.com/wheybags/freeablo"],
       "source_editions": []
     },
     "original_game_title": "Diablo"

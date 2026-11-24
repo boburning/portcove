@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "astral-chain",
-      "evidence_urls": [
-        "https://github.com/captainj-sparrow/astral-chain-pc-recomp"
-      ],
+      "evidence_urls": ["https://github.com/captainj-sparrow/astral-chain-pc-recomp"],
       "source_editions": [
         {
           "id": "astral-chain-nintendo-switch",
           "title": "Astral Chain (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/captainj-sparrow/astral-chain-pc-recomp"
-          ]
+          "evidence_urls": ["https://github.com/captainj-sparrow/astral-chain-pc-recomp"]
         }
       ]
     },

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "celeste-classic",
-      "evidence_urls": [
-        "https://github.com/lemon32767/ccleste"
-      ],
+      "evidence_urls": ["https://github.com/lemon32767/ccleste"],
       "source_editions": []
     },
     "original_game_title": "Celeste Classic"

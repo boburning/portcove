@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "medal-of-honor-underground",
-      "evidence_urls": [
-        "https://github.com/FractalEngineer/Medal-Of-Honor-Underground-PSX-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/FractalEngineer/Medal-Of-Honor-Underground-PSX-Recomp"],
       "source_editions": []
     },
     "original_game_title": "Medal of Honor Underground USA"

@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "nox",
-      "evidence_urls": [
-        "https://github.com/sookyboo/nox-decomp"
-      ],
+      "evidence_urls": ["https://github.com/sookyboo/nox-decomp"],
       "source_editions": []
     },
     "original_game_title": "Nox"

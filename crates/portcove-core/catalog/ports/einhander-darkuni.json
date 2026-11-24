@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "einhander",
-      "evidence_urls": [
-        "https://github.com/darkuni/einhander-recomp"
-      ],
+      "evidence_urls": ["https://github.com/darkuni/einhander-recomp"],
       "source_editions": [
         {
           "id": "einhander-playstation",
           "title": "Einhänder (PlayStation)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/darkuni/einhander-recomp"
-          ]
+          "evidence_urls": ["https://github.com/darkuni/einhander-recomp"]
         }
       ]
     },

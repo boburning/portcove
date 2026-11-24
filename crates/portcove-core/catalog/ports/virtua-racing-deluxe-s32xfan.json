@@ -10,9 +10,7 @@
     "original_game": {
       "format_version": 1,
       "id": "virtua-racing-deluxe",
-      "evidence_urls": [
-        "https://github.com/s32xfan/virtuaracing"
-      ],
+      "evidence_urls": ["https://github.com/s32xfan/virtuaracing"],
       "source_editions": []
     },
     "original_game_title": "Virtua Racing Deluxe"

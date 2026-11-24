@@ -10,17 +10,13 @@
     "original_game": {
       "format_version": 1,
       "id": "illusion-of-gaia",
-      "evidence_urls": [
-        "https://github.com/mrOt4/babel-recomp"
-      ],
+      "evidence_urls": ["https://github.com/mrOt4/babel-recomp"],
       "source_editions": [
         {
           "id": "illusion-of-gaia-nintendo-switch",
           "title": "Illusion of Gaia (Nintendo Switch)",
           "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/mrOt4/babel-recomp"
-          ]
+          "evidence_urls": ["https://github.com/mrOt4/babel-recomp"]
         }
       ]
     },
