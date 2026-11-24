@@ -4230,7 +4230,15 @@ relief for a person to hand-check first.
   the repository `saboteur2` carries the `II` of "Saboteur II". A different
   value never does (`saboteur3-…` still drops it), nor does a digit run carry
   a lone `V` or `X`, which may be a letter's name ("Mega Man X"), or a word
-  outside `romanNumbers`. A platform name split by camel case (`PlayStation 2`)
+  outside `romanNumbers`. Also since generator 29 an architecture word in the
+  name's annotation (one of `programArchitectureWords`, its pieces in one
+  chunk or joined by `-` or `_`: `x86-64`, `x86_64`, `x64`, `Win64`,
+  `amd64`, `i386`, `64-bit`) names the build, so its numbers are no sequel
+  numbers and never stop the annotation being omitted: the same archive
+  enrolls for the listed name "Saboteur II: Avenging Angel (Saboteur II
+  x86-64 recomp)". Only the annotation: in the title proper "Mario 64 (x86-64
+  recomp)" still needs its `64`, and a bare annotation `64` or `x65` is still
+  a number. A platform name split by camel case (`PlayStation 2`)
   makes its number mandatory: the cost is stated.
 - **Initialism** (`initialism`). A product of three to six letters, or two
   to six with a number of the name among its initials, may be the
@@ -4451,8 +4459,13 @@ one that keeps the segment shows the name holds its words, so
 Bustin' Out - Static Recompilation)" and `hardcorpsuprising` for "Hard
 Corps: Uprising (Hard Corps: Uprising Recompiled)" are not listed, although
 each could also be spelled with the annotation's copy of the subtitle; a name
-that lacks the subtitle (`HardCorps`) still is. The same holds for
-`subtitle_dropped_by_repository_name`.
+that lacks the subtitle (`HardCorps`) still is. Only a spelling that keeps
+the first title segment counts, so `lantern` still drops "The Lantern" from
+"Lantern: The Lantern" although it can spell the subtitle alone. The same
+holds for `subtitle_dropped_by_repository_name`, whose fallback (the
+longest leading run of title segments the literal spells) compares numbers
+by value too: `saboteur2` drops "Avenging Angel" from "Saboteur II:
+Avenging Angel" as from "Saboteur 2: Avenging Angel".
 Since generator 28 an offered archive or accepted program name that drops a
 later title segment of the listing's name while equal to its repository or
 id name (modulo descriptors), and so is not relieved, is listed in
@@ -5266,8 +5279,10 @@ numeral of any size and spelled number beyond twenty in a later title
 segment as sequel numbers, numbers compared by value from 1 to 3999 with
 `1` and a lone `I` only after a title's product words, and the
 `subtitle_dropped_by_repository_name` queue; generator 29: a carried number
-compared by value with a roman number of two or more letters, and a title
-segment queued as dropped only when every accepted spelling omits it;
+compared by value with a roman number of two or more letters, an
+annotation's architecture word read as no sequel number, and a title
+segment queued as dropped only when every accepted spelling that keeps the
+first title segment omits it;
 generator 22 and parser 23: the
 ordered archive grammar, folder numbers by the same grammar, relief only for
 recognised forms and the listing's own names, a `.wad` as a competing

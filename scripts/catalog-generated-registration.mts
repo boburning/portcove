@@ -3994,8 +3994,10 @@ export interface NameFormWord {
   sequel: boolean;
   /**
    * A number glued inside an annotation token of two or more letters
-   * (`BT2`, `OpenKai2`, an author handle such as `oric212`): it names the
-   * token, not a sequel, and never stops the annotation being omitted.
+   * (`BT2`, `OpenKai2`, an author handle such as `oric212`), or in an
+   * annotation's architecture word (`x86-64`, `x64`, `win64`:
+   * `annotationArchitecture`): it names the token or the build, not a
+   * sequel, and never stops the annotation being omitted.
    */
   token: boolean;
   /**
@@ -4230,16 +4232,49 @@ export function nameForm(value: string, handles: ReadonlySet<string> = noHandles
     word.optional = trailing && (word.descriptor || editionSuffixSet.has(word.word));
     word.pinned = word.descriptor && !word.optional;
   }
+  const architecture = annotationArchitecture(form, before);
   form.forEach((word, index) => {
     const next = form[index + 1];
     word.token =
       word.ordinal &&
       word.annotation &&
-      (word.glued || next?.glued === true) &&
-      chunkLetters[index]! >= 2;
+      (architecture.has(index) ||
+        ((word.glued || next?.glued === true) && chunkLetters[index]! >= 2));
     word.sequel = sequelOrdinal(form, index, before);
   });
   return form;
+}
+const programArchitectureSet = new Set<string>(programArchitectureWords);
+/**
+ * The positions of an annotation's architecture words (`programArchitectureWords`):
+ * a run of one chunk's pieces, or of pieces joined only by `-` or `_`, that
+ * spells one of them (`x86-64`, `x86_64`, `x64`, `win64`, `amd64`, `i386`).
+ * Their numbers name the build, not a sequel, so "Saboteur II: Avenging
+ * Angel (Saboteur II x86-64 recomp)" may omit its annotation like "Saboteur
+ * II (Saboteur II recomp)". Only an annotation: in the title proper "Mario
+ * 64" and "Rush 2049" keep every number rule.
+ */
+function annotationArchitecture(
+  form: readonly NameFormWord[],
+  before: readonly string[],
+): Set<number> {
+  const positions = new Set<number>();
+  for (let start = 0; start < form.length; start++) {
+    if (!form[start]!.annotation || form[start]!.glued) continue;
+    let joined = "";
+    let end = -1;
+    for (let at = start; at < form.length && at < start + 3; at++) {
+      const word = form[at]!;
+      if (at > start && !word.glued && before[at] !== "-" && before[at] !== "_") break;
+      joined += word.word;
+      if (form[at + 1]?.glued === true) continue;
+      if (programArchitectureSet.has(joined)) end = at;
+    }
+    if (end < 0) continue;
+    for (let at = start; at <= end; at++) positions.add(at);
+    start = end;
+  }
+  return positions;
 }
 /**
  * Whether a word of a name is a sequel number (N2): a number of one to three
@@ -4459,6 +4494,12 @@ const optionalBit = 32;
  */
 const droppedSegmentBit = (segment: number) => 1 << (6 + Math.min(segment, 24));
 /**
+ * The first title segment omitted whole: no subtitle, so it never takes a
+ * later segment off the D1 and F3 queues (`reliefDetail`). It uses segment
+ * 0's bit, which `droppedSegmentBit` never sets for a later segment.
+ */
+const firstSegmentOmittedBit = droppedSegmentBit(0);
+/**
  * The later title segments of a name (not the first, not an annotation)
  * that hold a word other than an optional trailing one: the subtitles a
  * partial name or an initialism may drop (D1).
@@ -4480,13 +4521,23 @@ function laterTitleSegments(form: readonly NameFormWord[]): Map<number, string> 
   return segments;
 }
 /**
+ * A name word as the digits a literal carries for it (`carriesNumber`): a
+ * roman sequel number of two or more letters whose value the literal writes
+ * in digits becomes that digit run; any other word is unchanged.
+ */
+function carriedByValue(carried: ReadonlySet<string>, word: NameFormWord): NameFormWord {
+  if (carried.has(word.word) || !carriesNumber(carried, word.word)) return word;
+  return { ...word, word: String(romanValue(word.word)), numeric: true };
+}
+/**
  * The later title segments of a listing's name that an accepted archive or
  * program literal drops (F3, `subtitle_dropped_by_repository_name`), for an
  * enrollment accepted because the literal equals the repository or id name
  * (modulo descriptors), so not relieved and not queued by D1: the segments a
  * relieved spelling of the listing name omits, or, when the name's own rules
  * refuse every spelling (a sequel subtitle), the segments after the longest
- * leading run of title segments the literal spells. Reporting only.
+ * leading run of title segments the literal spells, its numbers compared by
+ * value (`carriesNumber`). Reporting only.
  */
 export function subtitleDroppedByName(literal: string, listing: Record<string, unknown>): string[] {
   if (typeof listing.name !== "string" || literal === "") return [];
@@ -4497,8 +4548,15 @@ export function subtitleDroppedByName(literal: string, listing: Record<string, u
   const detail = reliefDetail(literal, digits, form);
   if (detail !== null) return detail.relieved ? detail.droppedSegments : [];
   const segments = [...later.keys()].toSorted((left, right) => right - left);
+  const carried = new Set(
+    [...digits].map(([start, length]) => literal.slice(start, start + length)),
+  );
   for (const segment of segments) {
-    const head = form.filter((word) => word.segment < segment && !word.annotation);
+    // A head number compares by value (`carriesNumber`): `saboteur2` spells
+    // the "Saboteur II" of "Saboteur II: Avenging Angel".
+    const head = form
+      .filter((word) => word.segment < segment && !word.annotation)
+      .map((word) => carriedByValue(carried, word));
     if (head.length && reliefDetail(literal, digits, head) !== null)
       return segments
         .filter((each) => each >= segment)
@@ -4536,7 +4594,8 @@ export function subtitleDroppedByName(literal: string, listing: Record<string, u
  * (`descriptorPlaces`) may stand anywhere their place allows. Leniently, the
  * number rules flag `droppedNumberBit` instead of refusing, and a digit run
  * may stand for no word; a number the literal `carried` is never flagged.
- * A later title segment omitted whole sets its `droppedSegmentBit` (D1).
+ * A later title segment omitted whole sets its `droppedSegmentBit` (D1),
+ * the first title segment omitted whole `firstSegmentOmittedBit`.
  */
 function subsequenceMasks(
   literal: string,
@@ -4589,6 +4648,7 @@ function subsequenceMasks(
       }
       if (state !== 2 && subtitles.has(previous.segment))
         ended |= droppedSegmentBit(previous.segment);
+      if (state !== 2 && previous.segment === 0) ended |= firstSegmentOmittedBit;
     }
     if (position === literal.length && index === form.length) masks.add(ended);
     const run = digits.get(position);
@@ -4957,8 +5017,14 @@ export function reliefDetail(
     // keeps the segment shows the literal holds its words, as `hardcorpsuprising`
     // holds "Uprising" although it can also spell "Hard Corps" with the
     // annotation's "Uprising" in "Hard Corps: Uprising (Hard Corps: Uprising
-    // Recompiled)".
-    const omitted = masks.reduce((common, mask) => common & mask, ~0);
+    // Recompiled)". Only a spelling that keeps the first title segment counts:
+    // `lantern` spelling only the subtitle of "Lantern: The Lantern" still
+    // drops it.
+    const keepFirst = masks.filter((mask) => !(mask & firstSegmentOmittedBit));
+    const omitted = (keepFirst.length ? keepFirst : masks).reduce(
+      (common, mask) => common & mask,
+      ~0,
+    );
     return {
       reliefs: masks.some((mask) => mask & descriptorBit)
         ? ["descriptor", "partial-name"]
@@ -8199,6 +8265,23 @@ function gateNameLists(listing: Record<string, unknown>, repository: string) {
     }
   return lists;
 }
+/** The architecture words a program name may carry, restated: see `programArchitectureWords`. */
+const gateArchitecture = [
+  "x86",
+  "x64",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+  "64bit",
+  "32bit",
+  "win32",
+  "win64",
+  "universal",
+  "universal2",
+];
 /** The neutral archive words, restated: see `neutralArchiveWords`. */
 const gateNeutral = [
   ...gateTargets.filter((word) => word !== "32bit" && word !== "64bit"),
@@ -8596,7 +8679,10 @@ interface GateFormWord {
   article: boolean;
   /** A sequel number, restated: see `sequelOrdinal`. */
   sequel: boolean;
-  /** A number glued inside an annotation token of two or more letters. */
+  /**
+   * A number glued inside an annotation token of two or more letters, or in
+   * an annotation's architecture word (`x86-64`).
+   */
   token: boolean;
   /** The first word, an author handle: no initial from it (D3). */
   handle: boolean;
@@ -8857,6 +8943,24 @@ function gateForm(value: string, handles: readonly string[] = []): GateFormWord[
     const later = words[at + 1];
     const glued = word.glued || (later !== undefined && later.glued);
     word.token = word.number && word.annotation && glued && chunkLetterCounts[at]! >= 2;
+  }
+  // An annotation's architecture word (`x86-64`, `x64`, `win64`): its pieces
+  // in one chunk or joined by `-` or `_`. Its numbers name the build.
+  for (let start = 0; start < words.length; start++) {
+    if (!words[start]!.annotation || words[start]!.glued) continue;
+    let joined = "";
+    let end = -1;
+    for (let at = start; at < words.length && at < start + 3; at++) {
+      const word = words[at]!;
+      if (at > start && !word.glued && separators[at] !== "-" && separators[at] !== "_") break;
+      joined += word.text;
+      const later = words[at + 1];
+      if (later !== undefined && later.glued) continue;
+      if (gateArchitecture.includes(joined)) end = at;
+    }
+    if (end < 0) continue;
+    for (let at = start; at <= end; at++) if (words[at]!.number) words[at]!.token = true;
+    start = end;
   }
   for (let at = 0; at < words.length; at++) {
     const word = words[at]!;
@@ -9849,22 +9953,7 @@ export function gateProgramAccounted(
   if (file.endsWith(".exe")) file = file.slice(0, -4);
   let literal = "";
   for (const character of file) if (/[a-z0-9]/u.test(character)) literal += character;
-  const architecture = [
-    "x86",
-    "x64",
-    "x8664",
-    "amd64",
-    "arm64",
-    "aarch64",
-    "i386",
-    "i686",
-    "64bit",
-    "32bit",
-    "win32",
-    "win64",
-    "universal",
-    "universal2",
-  ];
+  const architecture = gateArchitecture;
   // Whether a rest is a run of architecture words, tried left to right.
   const architectureRun = (rest: string): boolean => {
     if (rest === "") return true;
