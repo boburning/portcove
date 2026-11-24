@@ -192,6 +192,7 @@ mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
 mod support_bundle_stage;
+mod temporary_failure;
 #[cfg(test)]
 mod test_fixture;
 #[cfg(test)]
@@ -199,7 +200,10 @@ mod test_http;
 mod thunderstore;
 mod tool_process;
 mod transfer_copy;
+pub use temporary_failure::{TemporaryCause, TemporaryFailure, TemporaryRetry};
 mod transfer_journal;
+mod transfer_progress;
+pub use transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch};
 mod types;
 mod windows_runtime;
 #[cfg(windows)]

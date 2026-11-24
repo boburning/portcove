@@ -575,6 +575,22 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
           ...Object.entries(report.registration_queues.inspection_failures).map(([cause, ids]) =>
             row(`repeated inspection failure: ${cause}`, ids.length),
           ),
+          row(
+            "other package forms attributed to the archive's product (review; names with --json)",
+            Object.keys(report.registration_queues.same_product_forms).length,
+          ),
+          row(
+            "with a source or third-party source archive",
+            Object.keys(report.registration_queues.source_archives).length,
+          ),
+          row(
+            "with a release whose own text states a prerelease",
+            Object.keys(report.registration_queues.release_statements).length,
+          ),
+          row(
+            "offered release text not reported by the observer (UNKNOWN)",
+            report.registration_queues.release_text_unobserved.length,
+          ),
         ]
       : []),
   ];

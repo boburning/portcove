@@ -1126,6 +1126,41 @@ uninstalling, choose a mode again before the game can be set up or reported.
 
 Portcove retries a failed setup on a later pass while the game is ready, up to
 three failed attempts for the same plan. A changed plan becomes eligible again.
+Only lasting failures count, such as a rejected download or an unsupported file.
+A temporary failure never counts: a network problem, a download site's rate
+limit or server error, too little free space, another task or program holding
+the game or a needed file, an incomplete list from the download site, or an
+interrupted run. Portcove records it with a next-attempt time and runs the same
+plan again after that time. The output shows it as `Next attempt:` with a UTC
+time. The wait starts at five minutes and doubles up to six hours while the
+same cause repeats. A rate limit waits at least until the reset the site stated,
+up to one day. No new upstream version is needed. Folder setup follows the same
+rules.
+
+Closing or restarting Portcove, or interrupting `games setup-ready` with
+Ctrl+C, stops the running setup cleanly: Portcove records the stop before it
+exits, and the game continues on the next pass. A clean stop never counts.
+When Portcove instead ends without settling the run (a crash, a forced end or a
+power loss), the next start retries it on the next pass, then backs off. Three
+such stops of the same setup in a row, with no download progress between them,
+make the failure lasting, so a setup that keeps ending Portcove does not repeat
+forever. Received bytes of that setup's own downloads that grew since the last
+stop show the run was moving, and the count starts again; another game's
+download does not. Once Portcove starts closing, no further game's setup starts
+in that pass. An operating-system shutdown or sign-out that ends Portcove before
+it can record the stop may count as an unclean stop. That is harmless while the
+download keeps progressing; three in a row with no progress make the failure
+lasting.
+
+Each pass gives one game at most four hours, for set-up-when-ready games and
+folder setup alike. Then Portcove stops that game's setup at its next safe point,
+keeps the received bytes, and moves on. The game continues on the next pass
+without spending an attempt. A game with a pending retry goes after the games
+without one, oldest attempt first, so the same slow game never goes first every
+pass. Installs you start yourself are never under this limit. A choice that
+reached three failures in a Portcove version before this rule gets exactly one
+more attempt: a temporary failure then waits as usual, and a lasting one
+reaches the limit.
 If an earlier Portcove version spent all three attempts while your registered
 original was offline, reconnect it and repeat
 `games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed
@@ -1139,7 +1174,8 @@ recovering stays in progress and waits with that reason; nothing new starts for
 it and nothing is counted. Only batches whose in-progress games are all
 set-up-when-ready games are settled this way; other interrupted batches stay in
 progress for you to continue with `games batch-resume`. An interruption for a
-set-up-when-ready game counts as one failed attempt for that plan. Batches
+set-up-when-ready game is recorded as a temporary failure for that plan: a
+clean stop, or an unclean one counted as described above. Batches
 another process is still running, and games another operation holds, are left
 alone.
 The same pass also applies eligible mod updates for setups that allow them; see
