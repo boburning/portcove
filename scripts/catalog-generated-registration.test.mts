@@ -74,6 +74,17 @@ import {
   gateArchiveAccount,
   programNameUnaccounted,
   gateProgramAccounted,
+  nameForm,
+  nameInitialisms,
+  reliefSpelling,
+  digitRuns,
+  initialismVetoWords,
+  gateInitialismVeto,
+  portDescriptorWords,
+  regionDescriptorWords,
+  nameReliefs,
+  reliefForms,
+  hashToken,
   gateProviderRepository,
   neutralArchiveWords,
   nonAsciiName,
@@ -7919,4 +7930,836 @@ void test("any product word or short integer after a version or neutral token wi
     } else assert.ok("product" in fit, `accounted ${name}`);
   }
   assert.ok(late > 1000);
+});
+
+// ---------------------------------------------------------------------------
+// Name reliefs (generator 23): partial names, initialisms, measured port
+// descriptors, build identifiers and folders spelled like the archive. Each
+// relief only accounts for tokens; every contradiction still withholds.
+
+/** A listing whose id spells nothing an archive below uses, bound to its own repository. */
+function reliefRecord(key: string, name: string, repository: string) {
+  return listing(`zz-relief-${key}`, {
+    name,
+    original_game_title: name,
+    project_url: `https://github.com/fixture-owner/${repository}`,
+  });
+}
+/** The archive account in fit and gate, which must agree on the product. */
+function reliefAccount(
+  name: string,
+  repository: string,
+  archive: string,
+  others: readonly AuthoredPort[] = [],
+) {
+  const record = reliefRecord("account", name, repository);
+  const lists = others.map((other) => other.listing as Record<string, unknown>);
+  const fit = archiveNameAccount(archive, record.listing, `fixture-owner/${repository}`, lists);
+  const gate = gateArchiveAccount(archive, record.listing, `fixture-owner/${repository}`, lists);
+  assert.equal("product" in fit ? fit.product : null, gate, `fit and gate agree on ${archive}`);
+  return fit;
+}
+/** A whole Windows decision in fit and gate for one archive holding one program. */
+function reliefDecision(
+  key: string,
+  name: string,
+  repository: string,
+  archive: string,
+  programs: readonly string[],
+  options: { extra?: ArtifactFactV2[]; others?: AuthoredPort[] } = {},
+) {
+  const record = reliefRecord(key, name, repository);
+  const facts = entry(
+    [
+      named(
+        archive,
+        programs.map((path) => player(path)),
+        11,
+        "windows",
+      ),
+      ...(options.extra ?? []),
+    ],
+    {},
+    record.listing.id,
+    { repository: `fixture-owner/${repository}`, listing_words: listingWords(record.listing) },
+  );
+  const others = options.others ?? [];
+  const decision = fitDecision(record, facts, generatedAt, fitContext([record, ...others]));
+  return { record, facts, decision, gate: gateOn(record, facts, { others }) };
+}
+
+void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gate, and record their relief", () => {
+  // Archive accounts: [listing title, repository, archive, reliefs].
+  const accounted: [string, string, string, string[]][] = [
+    // (a) the archive spells part of an accepted name.
+    [
+      "Crackdown (Crackdown Recompiled)",
+      "crackdown-xbox360-recompiled",
+      "Crackdown-v0.6.2-windows-x64.zip",
+      ["partial-name"],
+    ],
+    ["Dead or Alive 3 (DOA3 Recomp)", "doa3-recomp", "DOA3-v1.0.7-win64.zip", ["partial-name"]],
+    [
+      "The Sims (Original Xbox Static Recompilation)",
+      "sims1-recomp",
+      "Sims1-win64.zip",
+      ["descriptor"],
+    ],
+    [
+      "Crusader: No Remorse / SDL port",
+      "crusader-no-remorse-decomp",
+      "crusader-no-remorse-1.69.0-windows-x64.zip",
+      ["partial-name"],
+    ],
+    [
+      "SEAL Team / SealTeam Source Port",
+      "SealTeam-Source-Port",
+      "SealTeam-0.6.1-windows-x64.zip",
+      ["partial-name"],
+    ],
+    [
+      "Earthworm Jim HD Recompiled",
+      "earthworm-jim-hd-recompiled",
+      "EarthwormJimHD-v0.9.6-windows-x64.zip",
+      ["descriptor"],
+    ],
+    [
+      "CyberMage: Darklight Re-Awakening",
+      "cybermage-darklight-re-awakening",
+      "cybermage-windows-x64.zip",
+      ["partial-name"],
+    ],
+    // The title as measured already spells these exactly.
+    ["The Bigs 2", "The-Bigs-2-Recompiled", "TheBigs2-windows-x64.zip", []],
+    ["Bust A Groove", "BustAGrooveRecompiled-Releases", "BustAGroove-v0.1.0-windows-x64.zip", []],
+    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", ["initialism"]],
+    // (b) the archive adds a measured port descriptor.
+    ["Dark Rift", "DarkRiftRecomp", "DarkRiftRecompiled-macOS-arm64.zip", ["descriptor"]],
+    ["F-Zero X", "f-zero-x-recomp", "FZeroXRecompiled-v0.1.16-windows-x64.zip", ["descriptor"]],
+    ["Killer Instinct", "ki-recomp", "KIRecompiled-macOS-arm64.zip", ["initialism", "descriptor"]],
+    [
+      "Gears of War 2",
+      "gears-of-war-2-pc-port",
+      "gow2-recomp-0.4.7-linux-x86_64.tar.gz",
+      ["initialism", "descriptor"],
+    ],
+    [
+      "MechAssault 2: Lone Wolf",
+      "mechassault-2-recomp",
+      "MechAssault2-PC-v0.1.0-win-x64.zip",
+      ["partial-name", "descriptor"],
+    ],
+    ["Skate 2", "skate2-recomp", "Skate2-PC-v0.2.0.zip", ["descriptor"]],
+    ["Skate", "skate1-recomp", "Skate1-PC-v0.2.0.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-native-1.4-win64.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-1.4-windows-native.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-1.4-macos-uni.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-uni-macOS-1.4.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-USA-1.0-win64.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-1.0-ntsc-win64.zip", ["descriptor"]],
+    ["Lantern", "lantern", "Lantern-PAL-1.0-win64.zip", ["descriptor"]],
+    // (c) initialisms of an accepted name.
+    ["Tony Hawk's Pro Skater", "skater-port", "thps-1.0-win64.zip", ["initialism"]],
+    ["Midtown Madness", "madness-port", "mm-v1.0-windows-x64.zip", ["initialism"]],
+    ["Sega Superstars Tennis", "tennis-port", "sst-1.0-win64.zip", ["initialism"]],
+    ["RalliSport Challenge", "challenge-port", "rsc-1.0-win64.zip", ["initialism"]],
+    ["God Hand Rearmed", "rearmed-port", "ghr-1.0-win64.zip", ["initialism"]],
+    ["Gears of War", "war-port", "gow-1.0-win64.zip", ["initialism"]],
+    ["Monster Hunter Generations Ultimate", "ultimate-port", "mhgu-1.0-win64.zip", ["initialism"]],
+    ["Digimon World 2", "world-port", "dw2-1.0-win64.zip", ["initialism"]],
+    ["Wayne Gretzky's 3D Hockey", "hockey-port", "wg3d-1.0-win64.zip", ["initialism"]],
+    ["Dead or Alive 3", "alive-port", "doa3-1.0-win64.zip", ["initialism"]],
+    ["Killer Instinct", "instinct-port", "ki-1.0-win64.zip", ["initialism"]],
+    ["OpenTESArena", "arena-port", "otesa-1.0-win64.zip", ["initialism"]],
+    // (f) build identifiers.
+    ["Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", ["build-id"]],
+    ["Lantern", "lantern", "Lantern-0.79.0c97cca-windows-x64.zip", ["build-id"]],
+    ["Symphony", "SymphonyRecomp", "SymphonyRecomp-v1.2.0p-windows-x64.zip", ["build-id"]],
+    ["Condemned 2", "condemned2recomp", "condemned2recompV0.6.1_windows.zip", ["build-id"]],
+  ];
+  for (const [name, repository, archive, reliefs] of accounted) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok("product" in fit, `${archive}: ${JSON.stringify(fit)}`);
+    assert.deepEqual(
+      fit.reliefs.toSorted(),
+      reliefs.toSorted(),
+      `${archive} is accounted under ${reliefs.join(", ") || "exact names"}`,
+    );
+  }
+  // Whole decisions on Windows: the archive and its program enroll, in fit and gate.
+  const decisions: [string, string, string, string, string[]][] = [
+    [
+      "Crackdown (Crackdown Recompiled)",
+      "crackdown-xbox360-recompiled",
+      "Crackdown-v0.6.2-windows-x64.zip",
+      "Crackdown.exe",
+      ["partial-name"],
+    ],
+    [
+      "Dead or Alive 3 (DOA3 Recomp)",
+      "doa3-recomp",
+      "DOA3-v1.0.7-win64.zip",
+      "DOA3.exe",
+      ["partial-name"],
+    ],
+    [
+      "Crusader: No Remorse / SDL port",
+      "crusader-no-remorse-decomp",
+      "crusader-no-remorse-1.69.0-windows-x64.zip",
+      "crusader.exe",
+      ["partial-name"],
+    ],
+    [
+      "SEAL Team / SealTeam Source Port",
+      "SealTeam-Source-Port",
+      "SealTeam-0.6.1-windows-x64.zip",
+      "SealTeam.exe",
+      ["partial-name"],
+    ],
+    [
+      "CyberMage: Darklight Re-Awakening",
+      "cybermage-darklight-re-awakening",
+      "cybermage-windows-x64.zip",
+      "CyberMage.exe",
+      ["partial-name"],
+    ],
+    [
+      "F-Zero X",
+      "f-zero-x-recomp",
+      "FZeroXRecompiled-v0.1.16-windows-x64.zip",
+      "FZeroX.exe",
+      ["descriptor"],
+    ],
+    [
+      "MechAssault 2: Lone Wolf",
+      "mechassault-2-recomp",
+      "MechAssault2-PC-v0.1.0-win-x64.zip",
+      "MechAssault2.exe",
+      ["partial-name", "descriptor"],
+    ],
+    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", "itc.exe", ["initialism"]],
+    ["Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", "Lantern.exe", ["build-id"]],
+    [
+      "Condemned 2",
+      "condemned2recomp",
+      "condemned2recompV0.6.1_windows.zip",
+      "Condemned2.exe",
+      ["build-id", "partial-name"],
+    ],
+  ];
+  for (const [index, [name, repository, archive, program, reliefs]] of decisions.entries()) {
+    const { decision, gate } = reliefDecision(`d${index}`, name, repository, archive, [program]);
+    assert.ok(decision.fit, `${archive}: ${JSON.stringify(decision)}`);
+    assert.deepEqual(decision.reliefs.toSorted(), reliefs.toSorted(), archive);
+    assert.equal(gate, "accepted", archive);
+  }
+});
+
+void test("program and folder names use the reliefs, beside no other package form (d, e)", () => {
+  // (d) programs that spell part of an accepted name, a descriptor or an initialism.
+  const programs: [string, string, string, string][] = [
+    ["Star Wars: Shadows of the Empire", "sote-port", "shadowsoftheempire.exe", "partial-name"],
+    ["Silent Hill: Origins Recompiled", "sho-port", "silenthillorigins.exe", "descriptor"],
+    [
+      "Final Fantasy Crystal Chronicles: Crystal Defenders",
+      "ffcd-port",
+      "crystaldefenders.exe",
+      "partial-name",
+    ],
+    ["Dragon's Crown Pro Recompiled", "dcp-port", "dragonscrownpro.exe", "descriptor"],
+    ["Ogre Battle 64: Person of Lordly Caliber", "ob-port", "ogrebattle64.exe", "partial-name"],
+    ["Tony Hawk's Proving Ground", "thpg-port", "provingground.exe", "partial-name"],
+    ["Rampage: Total Destruction", "rtd-port", "rampage.exe", "partial-name"],
+    ["Brogue CE", "bce-port", "brogue.exe", "partial-name"],
+    ["Digimon World 2", "dmw-port", "dw2.exe", "initialism"],
+    ["Wayne Gretzky's 3D Hockey", "wgh-port", "wg3d.exe", "initialism"],
+    ["OpenTESArena", "ota-port", "otesa.exe", "initialism"],
+    ["Battle Arena Toshinden", "bat-port", "battlearenatoshindenrecompiled.exe", "descriptor"],
+    ["Macross VF-X2", "vfx-port", "macrossvfx2recompiled.exe", "descriptor"],
+    ["Naruto: The Broken Bond", "ntbb-port", "narutothebrokenbondpc.exe", "descriptor"],
+    ["Ogre Battle 64: Person of Lordly Caliber", "ob-port", "ogrebattle64-x64.exe", "partial-name"],
+  ];
+  for (const [name, repository, path, relief] of programs) {
+    const record = reliefRecord("program", name, repository);
+    const names = new Set([repository.replace(/[^a-z0-9]/gu, "")]);
+    const forms = reliefForms(record.listing, `fixture-owner/${repository}`, "");
+    const used = new Set<(typeof nameReliefs)[number]>();
+    assert.equal(programNameUnaccounted(path, names, new Set(), false, forms, used), null, path);
+    assert.ok(used.has(relief as (typeof nameReliefs)[number]), `${path} under ${relief}`);
+    assert.ok(gateProgramAccounted(path, [...names], [], false, forms), `gate ${path}`);
+    // Beside another package form the literal stays strict.
+    assert.equal(programNameUnaccounted(path, names, new Set(), true, forms), literalOf(path));
+    assert.equal(gateProgramAccounted(path, [...names], [], true, forms), false, `strict ${path}`);
+  }
+  // Whole decisions: a relieved program enrolls.
+  const shadows = reliefDecision(
+    "shadows",
+    "Star Wars: Shadows of the Empire",
+    "shadows-recomp",
+    "ShadowsRecomp-1.0-win64.zip",
+    ["shadowsoftheempire.exe"],
+  );
+  assert.ok(shadows.decision.fit, JSON.stringify(shadows.decision));
+  assert.deepEqual(shadows.decision.reliefs, ["partial-name"]);
+  assert.equal(shadows.gate, "accepted");
+  // (e) folders that are the accepted product, versions and neutral words.
+  const folders: [string, string, string, string][] = [
+    [
+      "Amped 2",
+      "Amped2-Recomp",
+      "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
+      "Amped2-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
+    ],
+    [
+      "SSX 3",
+      "SSX3-Recomp",
+      "SSX3-Recomp-v0.3.0-windows-x86_64.zip",
+      "SSX3-Recomp-v0.3.0-windows-x86_64/SSX3Recomp.exe",
+    ],
+    [
+      "Dora 64 3",
+      "Dora64-3",
+      "Dora64-3-1.0.0-Windows-x64.zip",
+      "Dora64-3-1.0.0-Windows-x64/Dora643.exe",
+    ],
+  ];
+  for (const [index, [name, repository, archive, path]] of folders.entries()) {
+    const { decision, gate } = reliefDecision(`f${index}`, name, repository, archive, [path]);
+    assert.ok(decision.fit, `${path}: ${JSON.stringify(decision)}`);
+    assert.deepEqual(decision.reliefs, ["folder"], path);
+    assert.equal(gate, "accepted", path);
+  }
+  // A folder of the product's name with a wrong number, another word or a
+  // channel word still withholds.
+  for (const path of [
+    "Amped3-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
+    "Amped2-Recomp-Server-v0.2.0/Amped2Recomp.exe",
+    "Amped2-Recomp-beta-v0.2.0/Amped2Recomp.exe",
+    "Amped2-Recomp-v0.2.0-uni/Amped2Recomp.exe",
+  ]) {
+    const { decision, gate } = reliefDecision(
+      "fx",
+      "Amped 2",
+      "Amped2-Recomp",
+      "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
+      [path],
+    );
+    assert.ok(!decision.fit, path);
+    assert.notEqual(gate, "accepted", path);
+  }
+});
+
+/** A program's literal name, as the fit reports it unaccounted. */
+function literalOf(path: string) {
+  return path
+    .slice(path.lastIndexOf("/") + 1)
+    .toLowerCase()
+    .replace(/\.exe$/u, "")
+    .replace(/[^a-z0-9]+/gu, "");
+}
+
+void test("what the reliefs do not cover stays withheld: channel, variant and role words, numbers, generic partial names (stay withheld)", () => {
+  const withheld: [string, string, string][] = [
+    // Channel and prerelease words, glued or apart.
+    ["Conan", "conan", "Conan.Beta1.FIXED.zip"],
+    ["OpenH3M", "OpenH3M", "OpenH3M-beta-0.8-win-x64.zip"],
+    ["PaxDino", "paxdino", "PaxDino-0.1.6-beta-windows.zip"],
+    ["Lantern", "lantern", "Lantern-1.0-preview-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.2.0b2-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.2.0rc1-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0a-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0b-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0r-win64.zip"],
+    ["Lantern", "lantern", "Lantern-v1.0-beta2-win64.zip"],
+    // Variant words that are no descriptors.
+    ["Lantern", "lantern", "Lantern-mods-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-deck-1.0-linux.tar.gz"],
+    ["Lantern", "lantern", "Lantern-Extended-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0-fixed-win64.zip"],
+    ["Lantern", "lantern", "Lantern-HD-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-Remastered-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-Classic-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-Lite-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-nightly-win64.zip"],
+    // Descriptors cannot smuggle a variant.
+    ["Lantern", "lantern", "Lantern-PC-Demo-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-Recompiled-Server-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-Recomp-Trial-1.0-win64.zip"],
+    ["Lantern", "lantern", "Lantern-1.0-win64-native-dev.zip"],
+    // `uni` only beside a macOS word.
+    ["Lantern", "lantern", "Lantern-1.4-uni.zip"],
+    ["Lantern", "lantern", "Lantern-1.4-windows-uni.zip"],
+    // A hash before the product, or a short hex word, is no build identifier.
+    ["Lantern", "lantern", "e1625759-Lantern-win64.zip"],
+    ["Lantern", "lantern", "Lantern-abc12-win64.zip"],
+    // A partial name of generic words only.
+    ["The Game", "the-game", "game-1.0.zip"],
+    ["Star Wars: The Game", "star-wars-the-game", "The-Game-1.0-win64.zip"],
+    ["Super Mario Edition", "sme", "Edition-1.0-win64.zip"],
+    ["Lantern Recompiled", "lantern-recompiled", "Recompiled-1.0-win64.zip"],
+    // Numbers are never optional, in either direction and across names.
+    ["Doom 2", "zz-doom", "Doom-1.0-win64.zip"],
+    ["Doom 2", "zz-doom", "doom-2.1.0-win64.zip"],
+    ["Doom 2", "zz-doom", "Doom3-win64.zip"],
+    ["Doom", "zz-doom", "Doom-2-win64.zip"],
+    ["Doom", "doom-port", "Doom2-PC-win64.zip"],
+    ["Skate 2", "skate-port", "Skate-PC-v0.2.0.zip"],
+    ["Skate", "skate-recomp", "Skate2-PC-v0.2.0.zip"],
+    ["The Sims 2", "sims1-recomp", "Sims1-win64.zip"],
+    ["MechAssault 2: Lone Wolf", "mechassault-recomp", "MechAssault-PC-v0.1.0-win-x64.zip"],
+    ["Digimon World 2", "world-port", "dw-1.0-win64.zip"],
+    ["Digimon World 2", "world-port", "dw3-1.0-win64.zip"],
+    // Initialisms that are deny, edition or neutral words, or no initials.
+    ["Hyper Drive", "hyper-port", "hd-1.0-win64.zip"],
+    ["Deluxe Xtreme", "xtreme-port", "dx-1.0-win64.zip"],
+    ["Crystal Dungeon", "dungeon-port", "cd-1.0-win64.zip"],
+    ["Rogue Escape", "escape-port", "re-1.0-win64.zip"],
+    ["Data Editor Bundle Utility Group", "group-port", "debug-1.0-win64.zip"],
+    ["Dead Easy Mode Overture", "overture-port", "demo-1.0-win64.zip"],
+    ["Space Game", "space-port", "sc-1.0-win64.zip"],
+    ["Dead or Alive 3", "alive-port", "do-1.0-win64.zip"],
+    ["Wayne Gretzky's 3D Hockey", "hockey-port", "wg3-1.0-win64.zip"],
+    ["The Game", "the-port", "tg-1.0-win64.zip"],
+    ["Earthworm Jim", "jim-port", "ewj-1.0-win64.zip"],
+    // Older must-withhold rows.
+    ["Super Game", "super-port", "SuperGame2-1.0-win64.zip"],
+    ["Super Game", "super-port", "Super-Other-1.0-win64.zip"],
+    ["Super Game", "super-port", "SuperGame-Trial-1.0-win64.zip"],
+    ["Game 2", "game-port", "Game-1.0-2-win64.zip"],
+    ["Game", "game", "Game-b2-win64.zip"],
+    ["Game", "game", "Game-bin-1.0-win64.zip"],
+  ];
+  for (const [name, repository, archive] of withheld) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok(!("product" in fit), `${archive} for ${name}: ${JSON.stringify(fit)}`);
+  }
+  // A real initialism no list holds is one: `sc` for "Super Contra".
+  assert.ok("product" in reliefAccount("Super Contra", "contra-port", "sc-1.0-win64.zip"));
+  for (const word of ["sc", "dx", "hd", "cd", "re"])
+    assert.equal(
+      nameInitialisms(nameForm(`${word[0]!.toUpperCase()}ame ${word[1]!.toUpperCase()}ore`)).has(
+        word,
+      ),
+      !["dx", "hd", "cd", "re"].includes(word),
+      word,
+    );
+  // A year in brackets and a console number apart from a kept word may go.
+  assert.ok("product" in reliefAccount("Lantern (1998)", "lantern-port", "Lantern-1.0-win64.zip"));
+  assert.ok(
+    "product" in reliefAccount("Lantern: Xbox 360 Edition", "x-port", "Lantern-1.0-win64.zip"),
+  );
+  // Whole decisions on a relieved archive: launcher entries, role programs,
+  // split packages and another package form still withhold.
+  const crackdown = (programs: string[], extra: ArtifactFactV2[] = []) =>
+    reliefDecision(
+      "c",
+      "Crackdown (Crackdown Recompiled)",
+      "crackdown-xbox360-recompiled",
+      "Crackdown-v0.6.2-windows-x64.zip",
+      programs,
+      { extra },
+    );
+  const launcher = crackdown(["CrackdownLauncher.exe"]);
+  assert.equal(reasonOf(launcher.decision), "launcher-entry");
+  assert.notEqual(launcher.gate, "accepted");
+  // Core's tool veto or the role rule excludes a server program first.
+  const server = crackdown(["Crackdown-server.exe"]);
+  assert.ok(!server.decision.fit);
+  assert.notEqual(server.gate, "accepted");
+  const folderRole = crackdown(["server/Crackdown.exe"]);
+  assert.equal(reasonOf(folderRole.decision), "role-program");
+  assert.notEqual(folderRole.gate, "accepted");
+  const recompiledServer = crackdown(["CrackdownRecompiledServer.exe"]);
+  assert.ok(!recompiledServer.decision.fit);
+  assert.notEqual(recompiledServer.gate, "accepted");
+  const split = crackdown(["Crackdown.exe"], [named("Crackdown-data-0.6.2.zip", [], 12)]);
+  assert.equal(reasonOf(split.decision), "split-package");
+  assert.notEqual(split.gate, "accepted");
+  const other = crackdown(["Other.exe"]);
+  assert.equal(reasonOf(other.decision), "program-name-unaccounted");
+  assert.notEqual(other.gate, "accepted");
+  const debug = crackdown(["Crackdown-debug.exe"]);
+  assert.ok(!debug.decision.fit);
+  assert.notEqual(debug.gate, "accepted");
+  const nonAscii = reliefDecision(
+    "n",
+    "Crackdown (Crackdown Recompiled)",
+    "crackdown-xbox360-recompiled",
+    "Сrackdown-v0.6.2-windows-x64.zip",
+    ["Crackdown.exe"],
+  );
+  assert.equal(reasonOf(nonAscii.decision), "non-ascii-name");
+  assert.notEqual(nonAscii.gate, "accepted");
+});
+
+void test("a relieved name that spells another catalog listing's complete name is a contradiction, in fit and gate", () => {
+  const starWars = listing("zz-star-wars", {
+    name: "Star Wars",
+    original_game_title: "Star Wars",
+    project_url: "https://github.com/fixture-owner/star-wars-port",
+  });
+  const battlefront = (others: AuthoredPort[]) =>
+    reliefDecision(
+      "battlefront",
+      "Star Wars Battlefront",
+      "battlefront-recomp",
+      "StarWars-1.0-win64.zip",
+      ["StarWars.exe"],
+      { others },
+    );
+  // Alone, `StarWars` is a partial name of "Star Wars Battlefront".
+  const alone = battlefront([]);
+  assert.ok(alone.decision.fit, JSON.stringify(alone.decision));
+  assert.deepEqual(alone.decision.reliefs, ["partial-name"]);
+  assert.equal(alone.gate, "accepted");
+  // Beside a listing named "Star Wars" it names that listing instead.
+  const beside = battlefront([starWars]);
+  assert.equal(reasonOf(beside.decision), "archive-names-another-listing");
+  assert.deepEqual((beside.decision as { evidence?: string[] }).evidence, [
+    "windows-x86-64: StarWars-1.0-win64.zip (zz-star-wars)",
+  ]);
+  assert.match(beside.gate, /spells another catalog listing/u);
+  assert.equal(
+    gateArchiveAccount(
+      "StarWars-1.0-win64.zip",
+      reliefRecord("battlefront", "Star Wars Battlefront", "battlefront-recomp").listing,
+      "fixture-owner/battlefront-recomp",
+      [starWars.listing as Record<string, unknown>],
+    ),
+    null,
+  );
+  // Through the other listing's repository name, with descriptors, too.
+  const portNamed = listing("zz-other", {
+    name: "Classic Space",
+    original_game_title: "Classic Space",
+    project_url: "https://github.com/fixture-owner/StarWars-Recomp",
+  });
+  const viaRepository = battlefront([portNamed]);
+  assert.equal(reasonOf(viaRepository.decision), "archive-names-another-listing");
+  assert.notEqual(viaRepository.gate, "accepted");
+  // An initialism equal to another listing's whole name is one too.
+  const gow = listing("zz-gow", {
+    name: "GOW",
+    original_game_title: "GOW",
+    project_url: "https://github.com/fixture-owner/gow-engine",
+  });
+  assert.ok(
+    "anotherListing" in
+      archiveNameAccount(
+        "gow-1.0-win64.zip",
+        reliefRecord("gears", "Gears of War", "war-port").listing,
+        "fixture-owner/war-port",
+        [gow.listing],
+      ),
+  );
+  // An exact spelling of the listing's own name is no relief and is not compared.
+  const exact = reliefDecision(
+    "exact",
+    "Star Wars Battlefront",
+    "battlefront-recomp",
+    "StarWars-Battlefront-1.0-win64.zip",
+    ["StarWarsBattlefront.exe"],
+    { others: [starWars] },
+  );
+  assert.ok(exact.decision.fit);
+  assert.deepEqual(exact.decision.reliefs, []);
+  assert.equal(exact.gate, "accepted");
+});
+
+void test("relieved enrollments are listed by relief for a person to hand-check first", () => {
+  const rows: [string, string, string, string, string][] = [
+    [
+      "a",
+      "Crackdown (Crackdown Recompiled)",
+      "crackdown-xbox360-recompiled",
+      "Crackdown-v0.6.2-windows-x64.zip",
+      "Crackdown.exe",
+    ],
+    ["b", "Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", "itc.exe"],
+    ["c", "Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", "Lantern.exe"],
+    [
+      "d",
+      "Amped 2",
+      "Amped2-Recomp",
+      "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
+      "Amped2-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
+    ],
+    ["e", "F-Zero X", "f-zero-x-recomp", "FZeroXRecompiled-v0.1.16-windows-x64.zip", "FZeroX.exe"],
+    ["f", "Lantern Two", "lantern-two", "Lantern-Two-1.0-win64.zip", "LanternTwo.exe"],
+  ];
+  const records: AuthoredPort[] = [];
+  const entries: ListingFactsEntry[] = [];
+  for (const [key, name, repository, archive, program] of rows) {
+    const record = reliefRecord(key, name, repository);
+    records.push(record);
+    entries.push(
+      entry([named(archive, [player(program)], 11, "windows")], {}, record.listing.id, {
+        repository: `fixture-owner/${repository}`,
+        listing_words: listingWords(record.listing),
+      }),
+    );
+  }
+  const generation = generateRegistrations(records, table(...entries));
+  assert.equal(generation.enrollments.length, rows.length);
+  gateGeneration(null, generation);
+  const queues = registrationQueues(generation);
+  assert.deepEqual(queues.enrollment_reliefs, {
+    "zz-relief-a": ["partial-name"],
+    "zz-relief-b": ["initialism"],
+    "zz-relief-c": ["build-id"],
+    "zz-relief-d": ["folder"],
+    "zz-relief-e": ["descriptor"],
+    "zz-relief-f": [],
+  });
+  assert.deepEqual(queues.relieved_enrollments, {
+    "partial-name": ["zz-relief-a"],
+    initialism: ["zz-relief-b"],
+    descriptor: ["zz-relief-e"],
+    "build-id": ["zz-relief-c"],
+    folder: ["zz-relief-d"],
+  });
+  // The existing queues stay.
+  assert.ok(Array.isArray(queues.accepted_by_repository_name_only));
+  assert.ok(Array.isArray(queues.numbered_products));
+  assert.ok(Array.isArray(queues.year_as_version));
+});
+
+void test("the gate restates the relief vocabularies and the tokeniser's build identifiers", () => {
+  assert.deepEqual([...gateInitialismVeto], [...initialismVetoWords]);
+  // Every descriptor and region word is listed with its measured example in docs.
+  const docs = readFileSync(join(root, "docs/CATALOG.md"), "utf8");
+  for (const word of [...portDescriptorWords, ...regionDescriptorWords])
+    assert.match(docs, new RegExp(`\`${word}\``, "u"), `docs list ${word}`);
+  for (const word of [
+    "beta",
+    "alpha",
+    "rc",
+    "preview",
+    "nightly",
+    "dev",
+    "test",
+    "demo",
+    "trial",
+    "lite",
+    "deck",
+    "mods",
+    "extended",
+    "fixed",
+    "hd",
+    "remaster",
+    "remastered",
+    "classic",
+  ])
+    assert.ok(
+      !(portDescriptorWords as readonly string[]).includes(word) &&
+        initialismVetoWords.includes(word),
+      `${word} is no descriptor and never an initialism`,
+    );
+  assert.deepEqual(
+    archiveNameTokens("SymphonyRecomp-v1.2.0p-win64.zip").tokens.map((t) => t.kind),
+    ["word", "word", "build", "neutral"],
+  );
+  assert.deepEqual(
+    archiveNameTokens("Game-e1625759-x64.zip").tokens.map((t) => t.kind),
+    ["word", "build", "neutral"],
+  );
+  assert.deepEqual(
+    archiveNameTokens("Game-1.2.0b2-x64.zip").tokens.map((t) => t.word),
+    ["game", "v0", "b", "2", "x64"],
+  );
+  assert.ok(hashToken("e1625759") && !hashToken("abc12") && !hashToken("deadbeef"));
+  assert.deepEqual(
+    [...digitRuns("ogrebattle64x2")],
+    [
+      [10, 2],
+      [13, 1],
+    ],
+  );
+  assert.deepEqual(reliefSpelling("doom", digitRuns("doom"), nameForm("Doom 2")), null);
+  assert.deepEqual(reliefSpelling("skate2pc", digitRuns("skate2pc"), nameForm("Skate 2")), [
+    "descriptor",
+  ]);
+});
+
+void test("random archive names: any token outside product subsequence, initialism, descriptor, version, build id or neutral withholds, and fit and gate agree (relief property)", () => {
+  let seed = 8_569_023;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const letters = "bcfghjklmnqvwxz";
+  const extraToken = () => {
+    for (;;) {
+      const word = Array.from({ length: 3 + Math.floor(random() * 4) }, () =>
+        pick(letters.split("")),
+      ).join("");
+      if (
+        !initialismVetoWords.includes(word) &&
+        !(neutralArchiveWords as readonly string[]).includes(word)
+      )
+        return word;
+    }
+  };
+  const titles: [string, string][] = [
+    ["Crackdown (Crackdown Recompiled)", "crackdown-xbox360-recompiled"],
+    ["MechAssault 2: Lone Wolf", "mechassault-2-recomp"],
+    ["Gears of War 2", "gears-of-war-2-pc-port"],
+    ["Star Wars: Shadows of the Empire", "sote-port"],
+    ["Digimon World 2", "world-port"],
+  ];
+  const others = [
+    listing("zz-star-wars", {
+      name: "Star Wars",
+      original_game_title: "Star Wars",
+      project_url: "https://github.com/fixture-owner/star-wars-port",
+    }),
+  ].map((other) => other.listing as Record<string, unknown>);
+  const products: Record<string, string[][]> = {
+    "Crackdown (Crackdown Recompiled)": [
+      ["Crackdown"],
+      ["Crackdown", "Recompiled"],
+      ["Crackdown", "PC"],
+    ],
+    "MechAssault 2: Lone Wolf": [
+      ["MechAssault2"],
+      ["MechAssault", "2", "PC"],
+      ["Lone", "Wolf"],
+      ["MechAssault"],
+    ],
+    "Gears of War 2": [
+      ["gow2"],
+      ["gow2", "recomp"],
+      ["Gears", "of", "War", "2"],
+      ["gow"],
+      ["War", "2"],
+    ],
+    "Star Wars: Shadows of the Empire": [
+      ["Shadows"],
+      ["StarWars"],
+      ["Shadows", "of", "the", "Empire"],
+      ["sote"],
+      ["The", "Empire"],
+    ],
+    "Digimon World 2": [["dw2"], ["Digimon", "World", "2"], ["Digimon"], ["dw"]],
+  };
+  const tails = [
+    "v1.0",
+    "1.2.3",
+    "win64",
+    "x64",
+    "linux",
+    "x86_64",
+    "macos",
+    "native",
+    "usa",
+    "e1625759",
+    "2024",
+    "portable",
+  ];
+  const separators = ["-", "_", ".", " "];
+  let withheld = 0;
+  let accounted = 0;
+  for (let round = 0; round < 2500; round++) {
+    const [title, repository] = pick(titles);
+    const parts = [...pick(products[title]!)];
+    const tailCount = Math.floor(random() * 3);
+    for (let index = 0; index < tailCount; index++) parts.push(pick(tails));
+    const extra = random() < 0.5 ? extraToken() : null;
+    if (extra !== null) parts.splice(Math.floor(random() * (parts.length + 1)), 0, extra);
+    const name = `${parts.join(pick(separators))}.${pick(["zip", "tar.gz"])}`;
+    const record = reliefRecord("p", title, repository);
+    const fit = archiveNameAccount(name, record.listing, `fixture-owner/${repository}`, others);
+    const gate = gateArchiveAccount(name, record.listing, `fixture-owner/${repository}`, others);
+    assert.equal("product" in fit ? fit.product : null, gate, `parity ${name}`);
+    if (extra !== null) {
+      assert.ok(!("product" in fit), `extra ${extra} withholds ${name}`);
+      withheld++;
+    } else if ("product" in fit) accounted++;
+  }
+  assert.ok(withheld > 1000, `withheld ${withheld}`);
+  assert.ok(accounted > 500, `accounted ${accounted}`);
+  // Programs: random relieved literals, with and without an extra token.
+  for (let round = 0; round < 2500; round++) {
+    const [title, repository] = pick(titles);
+    const record = reliefRecord("q", title, repository);
+    const forms = reliefForms(record.listing, `fixture-owner/${repository}`, "");
+    const core = pick(products[title]!).join("");
+    const extra = random() < 0.5 ? extraToken() : null;
+    const file = `${extra !== null && random() < 0.5 ? extra : ""}${core}${extra !== null && random() < 0.5 ? extra : ""}${pick(["", "-x64", "recompiled", "PC"])}${pick([".exe", ""])}`;
+    const folder = random() < 0.3 ? `${pick(["bin", `${core}-v1.0-win64`, extra ?? "x64"])}/` : "";
+    const path = folder + file;
+    const strict = random() < 0.2;
+    const names = new Set([repository.replace(/[^a-z0-9]/gu, "")]);
+    const fit = programNameUnaccounted(path, names, new Set(), strict, forms);
+    assert.equal(
+      gateProgramAccounted(path, [...names], [], strict, forms),
+      fit === null,
+      `parity ${path}`,
+    );
+    if (extra !== null && path.includes(extra))
+      assert.notEqual(fit, null, `extra ${extra} withholds ${path}`);
+  }
+});
+
+void test("forced enrollments over random relieved names: the gate never accepts what the fit withholds (relief parity)", () => {
+  let seed = 8_569_230;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const archives = [
+    "Crackdown-v0.6.2-windows-x64.zip",
+    "Crackdown-Recompiled-1.0-win64.zip",
+    "Crackdown-Beta-1.0-win64.zip",
+    "Crackdown2-1.0-win64.zip",
+    "cdr-1.0-win64.zip",
+    "Crackdown-PC-Demo-win64.zip",
+    "Crackdown-e1625759-win64.zip",
+    "Crackdown-1.0b2-win64.zip",
+    "Crackdown-1.0p-win64.zip",
+    "Xbox-1.0-win64.zip",
+    "Recompiled-1.0-win64.zip",
+    "Crackdown-native-usa-win64.zip",
+    "Crackdown-uni-win64.zip",
+  ];
+  const programs = [
+    "Crackdown.exe",
+    "CrackdownRecompiled.exe",
+    "crackdown-x64.exe",
+    "CrackdownServer.exe",
+    "Other.exe",
+    "Crackdown-v0.6.2-windows-x64/Crackdown.exe",
+    "Crackdown2-v0.6.2/Crackdown.exe",
+    "tools/Crackdown.exe",
+    "Crackdown-debug.exe",
+    "cd.exe",
+  ];
+  const starWars = listing("zz-crackdown-other", {
+    name: "Crackdown",
+    original_game_title: "Crackdown",
+    project_url: "https://github.com/fixture-owner/crackdown-other",
+  });
+  let refused = 0;
+  let enrolled = 0;
+  for (let round = 0; round < 200; round++) {
+    const others = random() < 0.3 ? [starWars] : [];
+    const { decision, gate } = reliefDecision(
+      "r",
+      "Crackdown (Crackdown Recompiled)",
+      "crackdown-xbox360-recompiled",
+      pick(archives),
+      [pick(programs)],
+      { others },
+    );
+    if (decision.fit) {
+      assert.equal(gate, "accepted", JSON.stringify(decision));
+      enrolled++;
+    } else {
+      assert.notEqual(gate, "accepted", `${decision.reason}: ${decision.detail}`);
+      refused++;
+    }
+  }
+  assert.ok(refused > 50 && enrolled > 10, `${refused} refused, ${enrolled} enrolled`);
 });

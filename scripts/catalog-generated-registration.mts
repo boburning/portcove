@@ -103,7 +103,12 @@
 //     that name (with architecture words only where no other package form
 //     ships) in folders of accounted words (`programNameUnaccounted`), else
 //     `program-name-unaccounted`. Anything unaccounted withholds; nothing
-//     enrolls by being absent from a deny-list.
+//     enrolls by being absent from a deny-list. Measured name reliefs only
+//     ACCOUNT for tokens (`nameReliefs`): a partial name with a distinctive
+//     word and every adjacent number, an initialism, a measured port
+//     descriptor, a build identifier, and a folder spelled like the archive.
+//     A relieved product that spells another catalog listing's complete name
+//     is `archive-names-another-listing`.
 // A source-named archive holding programs counts in rules 7b, 7c and 9 as an
 // ordinary candidate (`countedArchive`) and is never itself offered.
 // The route's platforms are every P satisfying 8 to 10.
@@ -120,7 +125,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 22;
+export const GENERATOR_VERSION = 23;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 23;
@@ -2100,6 +2105,8 @@ export function listedRepositories(listing: Record<string, unknown>): string[] {
 export interface FitContext {
   /** Lowercase GitHub repository -> every identity naming it, with its bound line. */
   repositories: Map<string, { port_id: string; line: string | null }[]>;
+  /** Every catalog listing, for the cross-listing contradiction of a relieved name. */
+  listings: readonly Record<string, unknown>[];
 }
 export function fitContext(records: readonly AuthoredPort[]): FitContext {
   const repositories = new Map<string, { port_id: string; line: string | null }[]>();
@@ -2109,7 +2116,10 @@ export function fitContext(records: readonly AuthoredPort[]): FitContext {
         ...(repositories.get(key) ?? []),
         { port_id: record.listing.id, line: boundReleaseLine(record) },
       ]);
-  return { repositories };
+  return {
+    repositories,
+    listings: records.map((record) => record.listing as Record<string, unknown>),
+  };
 }
 
 /** Why the observed releases do not tie this identity to one product's release, if they do not. */
@@ -2763,6 +2773,20 @@ function ownJoinedNames(listing: Record<string, unknown>, repository: string): S
   return new Set(accountNames(listing, repository).map((words) => words.join("")));
 }
 /**
+ * The raw names a program or folder may spell under the reliefs (R4): the
+ * listing's id and name, the repository name and the accepted archive
+ * product.
+ */
+export function reliefForms(
+  listing: Record<string, unknown>,
+  repository: string,
+  product: string,
+): string[] {
+  return [listing.id, listing.name, repository.split("/")[1], product].filter(
+    (value): value is string => typeof value === "string" && value !== "",
+  );
+}
+/**
  * The closed list of words an archive name may carry besides its product
  * and version: platform and operating-system words, architecture words and
  * packaging words. It grows only from measured evidence with a recorded
@@ -2824,6 +2848,28 @@ export const programArchitectureWords = [
  * bundle's `Game.app/Contents/MacOS/`.
  */
 export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win64"] as const;
+/** The chunk a build identifier or patch-lettered version becomes before tokenising. */
+const buildPlaceholder = "vbuild0";
+/**
+ * A name with its build identifiers marked (R6): a `V`-glued dotted version
+ * after a letter (`recompV0.6.1`) and a dotted version with one glued patch
+ * letter other than `a`, `b` or `r` (`1.2.0p`) become a build chunk, and a
+ * dotted version glued to a prerelease marker (`1.2.0b2`, `1.0rc1`, `1.0a`)
+ * becomes a version chunk followed by the marker as its own chunk, which
+ * then withholds as a word after the version.
+ */
+function buildIdentifiers(base: string): string {
+  return base
+    .replace(/(?<=[A-Za-z])[vV][0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, `-${buildPlaceholder}-`)
+    .replace(
+      /(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+((?:alpha|beta|pre|rc|a|b|r)[0-9]*)(?![A-Za-z0-9])/giu,
+      "-v0-$1-",
+    )
+    .replace(
+      /(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+[c-qs-zC-QS-Z](?![A-Za-z0-9])/gu,
+      `-${buildPlaceholder}-`,
+    );
+}
 /**
  * An archive name's tokens, in order: the package form or another file
  * extension (and an `.app` suffix) is removed, `x86_64`, `x86-64` and
@@ -2835,9 +2881,22 @@ export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win
  * chunk is split into whole words (`nameWords`), each a `neutral` token or a
  * `word` token, digits glued to letters included (`Doom3` is `doom`, `3`).
  * `chunk` names the chunk a token came from, for evidence.
+ *
+ * Build identifiers (R6) are `build` tokens, read like versions: a chunk of
+ * 7 to 40 hex characters with a letter and a digit (`e1625759`, the
+ * `0c97cca` of `0.79.0c97cca`), a dotted version with one glued patch
+ * letter other than `a`, `b` or `r` (`1.2.0p`), and a dotted version glued
+ * by `v` or `V` to a product word (`condemned2recompV0.6.1`). A dotted
+ * version glued to `a`, `b`, `r`, `rc`, `alpha`, `beta` or `pre`, with or
+ * without a number (`1.2.0b2`, `1.0rc1`, `1.0a`), is a prerelease marker: the
+ * marker stays a word after the version and withholds.
  */
 export function archiveNameTokens(name: string): {
-  tokens: { word: string; kind: "word" | "integer" | "version" | "neutral"; chunk: string }[];
+  tokens: {
+    word: string;
+    kind: "word" | "integer" | "version" | "neutral" | "build";
+    chunk: string;
+  }[];
 } {
   let base = name;
   const form = packageFormOf(name);
@@ -2848,20 +2907,23 @@ export function archiveNameTokens(name: string): {
       base = base.slice(0, -extension.length);
   }
   if (/\.app$/iu.test(base)) base = base.slice(0, -4);
-  const normalized = base
+  const widened = base
     .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
-    .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit")
+    .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit");
+  const normalized = buildIdentifiers(widened)
     // A dotted version becomes one version chunk.
     .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-v0-");
   const neutral = neutralArchiveWords as readonly string[];
   const tokens: {
     word: string;
-    kind: "word" | "integer" | "version" | "neutral";
+    kind: "word" | "integer" | "version" | "neutral" | "build";
     chunk: string;
   }[] = [];
   for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean)) {
     const lower = chunk.toLowerCase();
-    if (neutral.includes(lower)) tokens.push({ word: lower, kind: "neutral", chunk: lower });
+    if (lower === buildPlaceholder || hashToken(lower))
+      tokens.push({ word: lower, kind: "build", chunk: lower });
+    else if (neutral.includes(lower)) tokens.push({ word: lower, kind: "neutral", chunk: lower });
     else if (/^[0-9]+$/u.test(lower)) tokens.push({ word: lower, kind: "integer", chunk: lower });
     else if (/^[vr][0-9]+$/u.test(lower))
       tokens.push({ word: lower, kind: "version", chunk: lower });
@@ -2869,6 +2931,17 @@ export function archiveNameTokens(name: string): {
       for (const word of nameWords(chunk))
         tokens.push({ word, kind: neutral.includes(word) ? "neutral" : "word", chunk: lower });
   }
+  // `uni` directly beside a macOS word is a universal-build marker.
+  const macos = (token: { word: string } | undefined) =>
+    token !== undefined && ["macos", "mac", "osx", "darwin"].includes(token.word);
+  tokens.forEach((token, index) => {
+    if (
+      token.kind === "word" &&
+      token.word === universalMarker &&
+      (macos(tokens[index - 1]) || macos(tokens[index + 1]))
+    )
+      token.kind = "neutral";
+  });
   return { tokens };
 }
 /**
@@ -2918,14 +2991,31 @@ const yearShaped = (word: string) => /^(?:19[7-9][0-9]|20[0-9][0-9])$/u.test(wor
  * `Game-1.0-2-…`, `Game-v1-2-…`, `Game-2024-2-…` and `Game-win64-2.zip`; for
  * `Super Game`, `Super-1.0-Game.zip`, `Super-Game-2-…` and `SuperGame-Lite`;
  * for `Doom 2`, `Doom3` and `doom-2.1.0-…`; for `Doom`, `Doom-2-…`.
+ *
+ * The measured reliefs only account for more tokens (`reliefs` records
+ * which): after the product a port descriptor or region word may stand, and
+ * `uni` beside a macOS word (`descriptor`); build identifiers are versions
+ * (`build-id`); and where no name is spelled exactly, the product may spell
+ * one under `reliefSpelling` (`partial-name`, `descriptor`, `initialism`),
+ * the listing's names first, then the repository's. Such a product that
+ * spells another catalog listing's complete name (`others`,
+ * `otherListingsSpelled`) is a contradiction (`anotherListing`).
  */
 export function archiveNameAccount(
   name: string,
   listing: Record<string, unknown>,
   repository: string,
+  others: readonly Record<string, unknown>[] = [],
 ):
-  | { product: string; repositoryOnly: boolean; numbered: boolean; yearAsVersion: boolean }
-  | { unaccounted: string[] } {
+  | {
+      product: string;
+      repositoryOnly: boolean;
+      numbered: boolean;
+      yearAsVersion: boolean;
+      reliefs: NameRelief[];
+    }
+  | { unaccounted: string[] }
+  | { anotherListing: string[] } {
   const names = accountNames(listing, repository);
   const repositoryWords = nameWords(repository.split("/")[1] ?? "").join("");
   const listingNames = accountNames(listing, "").map((words) => words.join(""));
@@ -2937,8 +3027,17 @@ export function archiveNameAccount(
   const after = tokens.slice(end);
   const evidence = (token: { word: string; chunk: string }) =>
     /^[a-z][0-9]+$/u.test(token.chunk) ? token.chunk : token.word;
-  const late = after.filter((token) => token.kind === "word");
+  const late = after.filter((token) => token.kind === "word" && !descriptorWord(token.word));
   if (late.length) return { unaccounted: [...new Set(late.map(evidence))] };
+  const reliefs = new Set<NameRelief>();
+  if (
+    after.some((token) => token.kind === "word") ||
+    tokens.some((token) => token.word === universalMarker)
+  )
+    reliefs.add("descriptor");
+  if (tokens.some((token) => token.kind === "build")) reliefs.add("build-id");
+  const sorted = (more: readonly NameRelief[] = []) =>
+    nameReliefs.filter((relief) => reliefs.has(relief) || more.includes(relief));
   // A short integer after a version or neutral token is no product number
   // and no recognisable version: it withholds. Four or more digits (a date
   // or build number) stay versions.
@@ -2966,11 +3065,61 @@ export function archiveNameAccount(
         repositoryOnly: joined === repositoryWords && !listingNames.includes(joined),
         numbered: kept.some((token) => token.kind === "integer"),
         yearAsVersion: cut < prefix.length && yearShaped(prefix[cut]!.word),
+        reliefs: sorted(),
       };
     }
   }
+  // The measured reliefs, on the same cuts: the listing's names first.
+  const listingRaw = [listing.id, listing.name].filter(
+    (value): value is string => typeof value === "string",
+  );
+  const repositoryRaw = repository.split("/")[1];
+  for (const cut of cuts) {
+    const kept = prefix.slice(0, cut);
+    if (!kept.length) continue;
+    const literal = kept.map((token) => token.word).join("");
+    const digits = new Map<number, number>();
+    let offset = 0;
+    for (const token of kept) {
+      if (/^[0-9]+$/u.test(token.word)) digits.set(offset, token.word.length);
+      offset += token.word.length;
+    }
+    let found: { reliefs: NameRelief[]; repositoryOnly: boolean } | undefined;
+    for (const raw of listingRaw) {
+      const reliefsOf = reliefSpelling(literal, digits, nameForm(raw));
+      if (reliefsOf) {
+        found = { reliefs: reliefsOf, repositoryOnly: false };
+        break;
+      }
+    }
+    if (!found && repositoryRaw !== undefined) {
+      const reliefsOf = reliefSpelling(literal, digits, nameForm(repositoryRaw));
+      if (reliefsOf) found = { reliefs: reliefsOf, repositoryOnly: true };
+    }
+    if (!found) continue;
+    // A number another accepted name links to a kept word is never optional.
+    if (
+      dropsLinkedNumber(
+        literal,
+        digits,
+        [...listingRaw, ...(repositoryRaw === undefined ? [] : [repositoryRaw])].map(nameForm),
+      )
+    )
+      continue;
+    const another = otherListingsSpelled(literal, digits, others, listing.id);
+    if (another.length) return { anotherListing: another };
+    return {
+      product: literal,
+      repositoryOnly: found.repositoryOnly,
+      numbered: kept.some((token) => token.kind === "integer"),
+      yearAsVersion: cut < prefix.length && yearShaped(prefix[cut]!.word),
+      reliefs: sorted(found.reliefs),
+    };
+  }
   const nameWordSet = new Set(names.flat());
-  const extra = prefix.filter((token) => token.kind === "word" && !nameWordSet.has(token.word));
+  const extra = prefix.filter(
+    (token) => token.kind === "word" && !nameWordSet.has(token.word) && !descriptorWord(token.word),
+  );
   if (extra.length) return { unaccounted: [...new Set(extra.map(evidence))] };
   const numbers = prefix
     .filter((token) => token.kind === "integer" && token.word.length < 4)
@@ -3008,8 +3157,11 @@ export function programNameUnaccounted(
   names: ReadonlySet<string>,
   words: ReadonlySet<string>,
   strict: boolean,
+  forms: readonly string[] = [],
+  used: Set<NameRelief> = new Set(),
 ): string | null {
   const literal = literalProgramName(path);
+  const parsed = forms.map(nameForm).filter((form) => form.length > 0);
   if (!names.has(literal)) {
     const architecture = programArchitectureWords as readonly string[];
     const suffixed = (rest: string): boolean =>
@@ -3018,7 +3170,23 @@ export function programNameUnaccounted(
     const base = strict
       ? undefined
       : [...names].find((name) => literal.startsWith(name) && suffixed(literal.slice(name.length)));
-    if (base === undefined) return literal;
+    if (base === undefined) {
+      // R4: beside no other package form, the literal name may spell an
+      // accepted name or the accepted archive product under the reliefs,
+      // optionally followed by architecture words.
+      let relieved: NameRelief[] | null = null;
+      for (let cut = literal.length; !strict && relieved === null && cut > 0; cut--) {
+        if (!suffixed(literal.slice(cut))) continue;
+        const core = literal.slice(0, cut);
+        if (dropsLinkedNumber(core, digitRuns(core), parsed)) continue;
+        for (const form of parsed) {
+          relieved = reliefSpelling(core, digitRuns(core), form);
+          if (relieved) break;
+        }
+      }
+      if (relieved === null) return literal;
+      for (const relief of relieved) used.add(relief);
+    }
   }
   const allowed = new Set<string>([
     ...words,
@@ -3031,7 +3199,7 @@ export function programNameUnaccounted(
   // integer of one to three digits only where the segment's words before it
   // and the number spell an accounted name (`Doom-2/` for `Doom 2`, never for
   // `Doom`); digits glued to letters only as a whole accounted name.
-  for (const segment of path.split("/").slice(0, -1)) {
+  const segmentAccounted = (segment: string): boolean => {
     const normalized = segment
       .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
       .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-v0-");
@@ -3046,7 +3214,7 @@ export function programNameUnaccounted(
       if ((neutralArchiveWords as readonly string[]).includes(lower)) boundary = true;
       if (/^[0-9]{1,3}$/u.test(lower)) {
         // A product number follows the product words directly.
-        if (boundary || !names.has(before + lower)) return `${segment}/`;
+        if (boundary || !names.has(before + lower)) return false;
         before += lower;
         continue;
       }
@@ -3055,12 +3223,55 @@ export function programNameUnaccounted(
         continue;
       }
       const parts = nameWords(chunk);
-      if (!parts.every((word) => !/^[0-9]+$/u.test(word) && allowed.has(word)))
-        return `${segment}/`;
+      if (!parts.every((word) => !/^[0-9]+$/u.test(word) && allowed.has(word))) return false;
       before += parts.join("");
     }
+    return true;
+  };
+  for (const segment of path.split("/").slice(0, -1)) {
+    if (segmentAccounted(segment)) continue;
+    // R5: the whole segment read as the accepted product, versions and
+    // neutral words.
+    if (!folderSpellsProduct(segment, names, parsed)) return `${segment}/`;
+    used.add("folder");
   }
   return null;
+}
+/**
+ * Whether a folder segment is the accepted product, versions and neutral
+ * words (R5): read by the archive grammar (`archiveNameTokens`), its product
+ * prefix joined is one of `names` or spells an accepted name form under the
+ * reliefs (`reliefSpelling`), and every later token is a version, build
+ * identifier, neutral word, four-digit-or-longer number, descriptor, or `uni`
+ * beside a macOS word. `Amped2-Recomp-v0.2.0-windows-x86_64/`,
+ * `SSX3-Recomp-v0.3.0-windows-x86_64/` and `Dora64-3-1.0.0-Windows-x64/`
+ * failed the per-word folder rule only for their glued digits.
+ */
+function folderSpellsProduct(
+  segment: string,
+  names: ReadonlySet<string>,
+  forms: readonly NameFormWord[][],
+): boolean {
+  if (!forms.length) return false;
+  const { tokens } = archiveNameTokens(`${segment}.zip`);
+  let end = 0;
+  while (end < tokens.length && (tokens[end]!.kind === "word" || tokens[end]!.kind === "integer"))
+    end++;
+  if (end === 0) return false;
+  for (const token of tokens.slice(end))
+    if (token.kind === "word" && !descriptorWord(token.word)) return false;
+    else if (token.kind === "integer" && token.word.length < 4) return false;
+  const kept = tokens.slice(0, end);
+  const literal = kept.map((token) => token.word).join("");
+  if (names.has(literal)) return true;
+  const digits = new Map<number, number>();
+  let offset = 0;
+  for (const token of kept) {
+    if (/^[0-9]+$/u.test(token.word)) digits.set(offset, token.word.length);
+    offset += token.word.length;
+  }
+  if (dropsLinkedNumber(literal, digits, forms)) return false;
+  return forms.some((form) => reliefSpelling(literal, digits, form) !== null);
 }
 /** Whether a name holds any character outside ASCII: a homoglyph or full-width evasion. */
 export function nonAsciiName(name: string): boolean {
@@ -3286,6 +3497,546 @@ export function programRoleWord(path: string, names: Iterable<string> = []): str
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Name reliefs (generator 23). The product attribution of an archive comes
+// from the catalog binding (the listing names its own repository, a shared
+// repository is withheld, more than one surviving archive is ambiguous);
+// names detect contradictions. Each relief below only ACCOUNTS for tokens
+// that exact name equality could not: it never overrides a deny list, an
+// ambiguity, a split package, a wrong number or any token still unaccounted.
+// Every relief was measured on real upstream data (main at 157d6be2,
+// generator 22) with the recorded example beside it; the lists grow only so.
+
+/** The reliefs an enrollment can depend on, each listed for a person to hand-check. */
+export const nameReliefs = [
+  "partial-name",
+  "initialism",
+  "descriptor",
+  "build-id",
+  "folder",
+] as const;
+export type NameRelief = (typeof nameReliefs)[number];
+/**
+ * Port-descriptor words: a word that says how a port was made, not which
+ * game it is. An archive or program name may carry one the accepted name
+ * lacks, and may omit one the accepted name has. A descriptor is never the
+ * distinctive word of a partial name. Each has its measured example.
+ */
+export const portDescriptorWords = [
+  // `gow2-recomp-0.4.7-linux-x86_64.tar.gz` (repository gears-of-war-2-pc-port);
+  // repositories `doa3-recomp`, `ki-recomp`, `f-zero-x-recomp`.
+  "recomp",
+  // `FZeroXRecompiled-v0.1.16-windows-x64.zip` (repository f-zero-x-recomp),
+  // `DarkRiftRecompiled-macOS-arm64.zip` (repository DarkRiftRecomp).
+  "recompiled",
+  // Listing "The Sims (Original Xbox Static Recompilation)", `Sims1-win64.zip`.
+  "recompilation",
+  // Repository crusader-no-remorse-decomp, `crusader-no-remorse-1.69.0-windows-x64.zip`.
+  "decomp",
+  // Owner-listed in the `decomp` family; no separate archive measured.
+  "decompiled",
+  // Repository SealTeam-Source-Port, `SealTeam-0.6.1-windows-x64.zip`.
+  "port",
+  // `MechAssault2-PC-v0.1.0-win-x64.zip`, `Skate2-PC-v0.2.0.zip`, `Skate1-PC-v0.2.0.zip`.
+  "pc",
+  // Two measured archive names carry `native` beside the port's product.
+  "native",
+  // "Static Recompilation" in a listing title (`Sims1-win64.zip`).
+  "static",
+  // Owner-listed in the same family; no separate archive measured.
+  "unofficial",
+] as const;
+/**
+ * Region words of the original the player must supply, read like
+ * descriptors: `usa` and `ntsc` were measured on archive names; `pal` is
+ * owner-listed in the same family.
+ */
+export const regionDescriptorWords = ["usa", "ntsc", "pal"] as const;
+/**
+ * `uni` is a macOS universal-build marker (two measured macOS archives), and
+ * only directly beside a macOS platform word of the same name (`macos`,
+ * `mac`, `osx`, `darwin`): `Game-1.4-macos-uni.zip`, `Game-uni-macOS.zip`.
+ * Anywhere else it is unaccounted.
+ */
+export const universalMarker = "uni";
+const descriptorSet = new Set<string>([...portDescriptorWords, ...regionDescriptorWords]);
+/** Whether a word is a port descriptor or region word (`portDescriptorWords`, `regionDescriptorWords`). */
+export const descriptorWord = (word: string) => descriptorSet.has(word);
+/**
+ * Words that never count as the distinctive word a partial name keeps:
+ * articles and connectors, generic nouns and edition words, and platform
+ * and console words. Descriptors, neutral words, numbers and single letters
+ * never count either.
+ */
+export const nonDistinctiveWords = [
+  "the",
+  "a",
+  "an",
+  "of",
+  "and",
+  "or",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "with",
+  "from",
+  "by",
+  "vs",
+  "versus",
+  "de",
+  "la",
+  "le",
+  "el",
+  "les",
+  "los",
+  "das",
+  "der",
+  "die",
+  "no",
+  "game",
+  "games",
+  "edition",
+  "collection",
+  "series",
+  "remake",
+  "remaster",
+  "remastered",
+  "version",
+  "project",
+  "engine",
+  "source",
+  "sdl",
+  "original",
+  "classic",
+  "complete",
+  "definitive",
+  "deluxe",
+  "ultimate",
+  "special",
+  "anniversary",
+  "trilogy",
+  "episode",
+  "part",
+  "chapter",
+  "vol",
+  "volume",
+  "hd",
+  "xbox",
+  "playstation",
+  "ps",
+  "ps1",
+  "ps2",
+  "ps3",
+  "ps4",
+  "psx",
+  "psp",
+  "vita",
+  "nintendo",
+  "n64",
+  "gamecube",
+  "gc",
+  "wii",
+  "wiiu",
+  "switch",
+  "ds",
+  "nds",
+  "gba",
+  "gb",
+  "gbc",
+  "snes",
+  "nes",
+  "sfc",
+  "famicom",
+  "genesis",
+  "megadrive",
+  "dreamcast",
+  "saturn",
+  "sega",
+  "sony",
+  "arcade",
+  "dos",
+  "console",
+] as const;
+const nonDistinctiveSet = new Set<string>([
+  ...nonDistinctiveWords,
+  ...neutralArchiveWords,
+  ...descriptorSet,
+]);
+/** Whether a word can be the distinctive word of a partial name. */
+const distinctiveWord = (word: string) =>
+  word.length >= 2 && !/^[0-9]+$/u.test(word) && !nonDistinctiveSet.has(word);
+/**
+ * Short words that already mean an edition, medium or variant, so an
+ * initialism equal to one is never accepted, even where it really is the
+ * initials: `hd`, `sd`, `dx`, `cd`, `re` and the like.
+ */
+export const editionShortWords = [
+  "hd",
+  "sd",
+  "uhd",
+  "dx",
+  "cd",
+  "dvd",
+  "ex",
+  "se",
+  "ce",
+  "le",
+  "re",
+  "mp",
+  "sp",
+  "vr",
+  "xl",
+] as const;
+/**
+ * Words that are never an initialism: the neutral, descriptor, layout and
+ * package-form words, every deny list (archive role, program role, launcher,
+ * channel, tool and non-desktop words), the variant words that stay
+ * unaccounted (`beta`, `demo`, `lite`, `deck`, `mods`, `extended`, `fixed`,
+ * …) and `editionShortWords`.
+ */
+export const initialismVetoWords = [
+  ...new Set<string>([
+    ...neutralArchiveWords,
+    ...portDescriptorWords,
+    ...regionDescriptorWords,
+    universalMarker,
+    ...programLayoutWords,
+    ...packageFormWords,
+    ...archiveRoleTokens,
+    ...programRoleWords,
+    ...launcherWords,
+    ...channelWords,
+    ...conditionalChannelWords,
+    ...rollingChannelWords,
+    ...variantWords,
+    ...nonDesktopNameWords,
+    ...sourceArchiveWords,
+    ...editionShortWords,
+    "test",
+    "demo",
+    "trial",
+    "lite",
+    "deck",
+    "mods",
+    "mod",
+    "extended",
+    "fixed",
+    "remaster",
+    "remastered",
+    "classic",
+    "tool",
+    "tools",
+    "cli",
+    "data",
+    "assets",
+    "bin",
+    "sdk",
+  ]),
+].toSorted(compareCodePoints);
+const initialismVeto = new Set<string>(initialismVetoWords);
+
+/** One word of an accepted name with what the reliefs need to know about it. */
+export interface NameFormWord {
+  word: string;
+  numeric: boolean;
+  /** A port descriptor or region word: never kept, never required. */
+  descriptor: boolean;
+  /** Glued to the previous word or joined by a space, `-`, `_` or `.` only. */
+  linked: boolean;
+  /** Glued to the previous word in one chunk (`3D`, `OpenTESArena`). */
+  glued: boolean;
+  /** An `s` after an apostrophe (`Hawk's`): it adds no initial. */
+  possessive: boolean;
+  /** Two to five capitals (`TES`, `DOA`): as an initial it may stand whole. */
+  acronym: boolean;
+}
+/**
+ * An accepted name's words (`nameWords` splitting) with their links: a word
+ * is `linked` to the previous one when glued to it or joined only by a
+ * space, `-`, `_` or `.`, so `Skate 2` links `2` to `skate`, while `Game
+ * (1998)` and `Crackdown: Xbox 360` do not link across the bracket or colon.
+ */
+export function nameForm(value: string): NameFormWord[] {
+  const form: NameFormWord[] = [];
+  const parts = value.split(/([^A-Za-z0-9]+)/u);
+  let separator = "";
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index]!;
+    if (index % 2 === 1) {
+      separator = part;
+      continue;
+    }
+    const pieces = part
+      .split(
+        /(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])/u,
+      )
+      .filter(Boolean);
+    pieces.forEach((piece, at) => {
+      const word = piece.toLowerCase();
+      form.push({
+        word,
+        numeric: /^[0-9]+$/u.test(word),
+        descriptor: descriptorSet.has(word),
+        linked: form.length > 0 && (at > 0 || /^[ ._-]+$/u.test(separator)),
+        glued: at > 0,
+        possessive: at === 0 && word === "s" && /^['’]$/u.test(separator),
+        acronym: /^[A-Z]{2,5}$/u.test(piece),
+      });
+    });
+    if (pieces.length) separator = "";
+  }
+  return form;
+}
+const formCache = new WeakMap<object, NameFormWord[][]>();
+/** The forms of a listing's complete accepted names: its id, its name and its GitHub repository's name. */
+function listingForms(listing: Record<string, unknown>): NameFormWord[][] {
+  const cached = formCache.get(listing);
+  if (cached) return cached;
+  const identity = listingProviderIdentity(listing);
+  const repository = identity?.provider === "github" ? identity.repository : undefined;
+  const forms = [listing.id, listing.name, repository?.split("/")[1]]
+    .filter((value): value is string => typeof value === "string")
+    .map(nameForm)
+    .filter((form) => form.length > 0);
+  formCache.set(listing, forms);
+  return forms;
+}
+/** The start of every maximal digit run of a literal, with its length. */
+export function digitRuns(literal: string): Map<number, number> {
+  const runs = new Map<number, number>();
+  for (const match of literal.matchAll(/[0-9]+/gu)) runs.set(match.index, match[0].length);
+  return runs;
+}
+const omittedBit = 1;
+const distinctBit = 2;
+const descriptorBit = 4;
+const keptBit = 8;
+const droppedNumberBit = 16;
+/**
+ * Every way a literal (lowercase letters and digits) spells an ordered
+ * subsequence of an accepted name's words with descriptors anywhere, as
+ * bit masks: a core word omitted, a distinctive word kept, a descriptor
+ * spelled, a word kept. A numeric word must spell exactly one digit run of
+ * the literal (`digits`: start to length), so every number of the literal
+ * is a number of the name. A numeric word linked to a kept word that is no
+ * number must be kept too: `Doom` does not spell `Doom 2`, nor `Skate` for
+ * `Skate 2`, while `Crackdown` omits the `360` linked only to an omitted
+ * `xbox`, and a year in brackets may go. Descriptor words of the name are
+ * never kept and never required.
+ */
+function subsequenceMasks(
+  literal: string,
+  digits: ReadonlyMap<number, number>,
+  form: readonly NameFormWord[],
+  lenient = false,
+): Set<number> {
+  const memo = new Map<string, Set<number>>();
+  const visit = (position: number, index: number, previousKept: boolean): Set<number> => {
+    const key = `${position}:${index}:${previousKept ? 1 : 0}`;
+    const known = memo.get(key);
+    if (known) return known;
+    const masks = new Set<number>();
+    memo.set(key, masks);
+    if (position === literal.length && index === form.length) masks.add(0);
+    // Leniently, a digit run of the literal may stand for no word.
+    const run = digits.get(position);
+    if (lenient && run !== undefined)
+      for (const mask of visit(position + run, index, previousKept)) masks.add(mask);
+    if (position < literal.length)
+      for (const descriptor of descriptorSet)
+        if (literal.startsWith(descriptor, position))
+          for (const mask of visit(position + descriptor.length, index, previousKept))
+            masks.add(mask | descriptorBit);
+    if (index < form.length) {
+      const word = form[index]!;
+      const previous = form[index - 1];
+      if (word.descriptor) for (const mask of visit(position, index + 1, false)) masks.add(mask);
+      else {
+        const spelled = word.numeric
+          ? digits.get(position) === word.word.length && literal.startsWith(word.word, position)
+          : literal.startsWith(word.word, position);
+        // A kept word may not leave its own linked number behind.
+        const stranded =
+          !word.numeric &&
+          word.linked &&
+          previous !== undefined &&
+          previous.numeric &&
+          !previous.descriptor &&
+          !previousKept;
+        if (spelled && (!stranded || lenient))
+          for (const mask of visit(position + word.word.length, index + 1, true))
+            masks.add(
+              mask |
+                keptBit |
+                (distinctiveWord(word.word) ? distinctBit : 0) |
+                (stranded ? droppedNumberBit : 0),
+            );
+        const orphaned =
+          word.numeric &&
+          word.linked &&
+          previous !== undefined &&
+          !previous.numeric &&
+          previousKept;
+        if (!orphaned || lenient)
+          for (const mask of visit(position, index + 1, false))
+            masks.add(mask | omittedBit | (orphaned ? droppedNumberBit : 0));
+      }
+    }
+    return masks;
+  };
+  return visit(0, 0, false);
+}
+/** Whether a literal is a run of descriptor words (`descriptorWord`), empty included. */
+function descriptorRun(literal: string): boolean {
+  const reachable = new Set<number>([0]);
+  for (let position = 0; position <= literal.length; position++) {
+    if (!reachable.has(position)) continue;
+    if (position === literal.length) return true;
+    for (const descriptor of descriptorSet)
+      if (literal.startsWith(descriptor, position)) reachable.add(position + descriptor.length);
+  }
+  return false;
+}
+/**
+ * The initialisms of an accepted name (R2): the initials of a run of its
+ * words from its first word on, covering more than half of its words and
+ * at least two of them, with two to six letters. A word gives its first
+ * letter, an acronym (`TES` in `OpenTESArena`) its first letter or all of
+ * it, a number all its digits (`wg3d` for `Wayne Gretzky's 3D Hockey`), a
+ * possessive `s` nothing. A run may not stop before a number linked to its
+ * last word (`dw2` for `Digimon World 2`, never `dw`) or inside a glued
+ * chunk (`wg3d`, never `wg3`), and a descriptor ends it. The run keeps a distinctive word, and an initialism that is a deny,
+ * neutral, descriptor, channel, variant or edition word (`initialismVetoWords`:
+ * `hd`, `dx`, `cd`, `re`, `demo`, …) is never one.
+ */
+export function nameInitialisms(form: readonly NameFormWord[]): Set<string> {
+  const initialisms = new Set<string>();
+  const counted = form.filter((word) => !word.possessive && !word.descriptor).length;
+  let start = 0;
+  while (start < form.length && form[start]!.descriptor) start++;
+  let options = new Set<string>([""]);
+  let words = 0;
+  let distinct = false;
+  for (let index = start; index < form.length; index++) {
+    const word = form[index]!;
+    if (word.descriptor) break;
+    if (word.possessive) continue;
+    const initials = word.numeric
+      ? [word.word]
+      : word.acronym
+        ? [word.word[0]!, word.word]
+        : [word.word[0]!];
+    const next = new Set<string>();
+    for (const option of options)
+      for (const initial of initials)
+        if (option.length + initial.length <= 12) next.add(option + initial);
+    options = next;
+    words++;
+    distinct ||= distinctiveWord(word.word);
+    // A run never stops inside a glued chunk (`3D`) or before its own
+    // linked number.
+    const following = form[index + 1];
+    if (
+      following !== undefined &&
+      !following.descriptor &&
+      (following.glued || (following.numeric && following.linked))
+    )
+      continue;
+    if (words < 2 || words * 2 <= counted || !distinct) continue;
+    for (const option of options) {
+      const letters = option.replace(/[0-9]/gu, "").length;
+      if (letters < 2 || letters > 6) continue;
+      if (initialismVeto.has(option) || initialismVeto.has(option.replace(/[0-9]+$/u, "")))
+        continue;
+      initialisms.add(option);
+    }
+  }
+  return initialisms;
+}
+/**
+ * The reliefs (`partial-name`, `descriptor`, `initialism`) under which a
+ * literal spells one accepted name, or null: the whole name modulo
+ * descriptors (`descriptor`); else an ordered subsequence that keeps a
+ * distinctive word and every linked number (`partial-name`, R1); else
+ * descriptors around one initialism of the name (`initialism`, R2).
+ */
+export function reliefSpelling(
+  literal: string,
+  digits: ReadonlyMap<number, number>,
+  form: readonly NameFormWord[],
+): NameRelief[] | null {
+  if (!literal) return null;
+  const masks = [...subsequenceMasks(literal, digits, form)].filter((mask) => mask & keptBit);
+  if (masks.some((mask) => !(mask & omittedBit))) return ["descriptor"];
+  const partial = masks.filter((mask) => mask & omittedBit && mask & distinctBit);
+  if (partial.length)
+    return partial.some((mask) => mask & descriptorBit)
+      ? ["descriptor", "partial-name"]
+      : ["partial-name"];
+  for (const initialism of nameInitialisms(form)) {
+    for (let at = literal.indexOf(initialism); at >= 0; at = literal.indexOf(initialism, at + 1)) {
+      const before = literal.slice(0, at);
+      const after = literal.slice(at + initialism.length);
+      if (/^[0-9]/u.test(after) || /[0-9]$/u.test(before)) continue;
+      if (descriptorRun(before) && descriptorRun(after))
+        return before || after ? ["descriptor", "initialism"] : ["initialism"];
+    }
+  }
+  return null;
+}
+/**
+ * Whether a relieved literal drops a number one of the listing's own
+ * accepted names links to a word the literal keeps (numbers are never
+ * optional, across names too): for a listing named "Doom 2" whose id is
+ * `doom`, `Doom-1.0-win64.zip` spells the id but drops the name's `2`, and
+ * `Sims1-…` drops the `2` of "The Sims 2". A name the literal spells under
+ * the reliefs is no contradiction.
+ */
+export function dropsLinkedNumber(
+  literal: string,
+  digits: ReadonlyMap<number, number>,
+  forms: readonly NameFormWord[][],
+): boolean {
+  return forms.some((form) => {
+    const valid = (mask: number) =>
+      (mask & keptBit) !== 0 && (!(mask & omittedBit) || (mask & distinctBit) !== 0);
+    if ([...subsequenceMasks(literal, digits, form)].some(valid)) return false;
+    return [...subsequenceMasks(literal, digits, form, true)].some(
+      (mask) => valid(mask) && (mask & droppedNumberBit) !== 0,
+    );
+  });
+}
+/**
+ * The other catalog listings whose complete accepted name (id, name or
+ * GitHub repository name, modulo descriptors) a relieved literal spells:
+ * `StarWars-1.0.zip` in the repository of a listing named "Star Wars
+ * Battlefront" spells the listing "Star Wars", a contradiction
+ * (`archive-names-another-listing`).
+ */
+export function otherListingsSpelled(
+  literal: string,
+  digits: ReadonlyMap<number, number>,
+  others: readonly Record<string, unknown>[],
+  ownId: unknown,
+): string[] {
+  const spelled = new Set<string>();
+  for (const other of others) {
+    if (other.id === ownId) continue;
+    for (const form of listingForms(other)) {
+      const first = form.find((word) => !word.descriptor);
+      if (first === undefined || !literal.includes(first.word)) continue;
+      if (
+        [...subsequenceMasks(literal, digits, form)].some(
+          (mask) => mask & keptBit && !(mask & omittedBit),
+        )
+      )
+        spelled.add(String(other.id));
+    }
+  }
+  return [...spelled].toSorted(compareCodePoints);
+}
 /**
  * The other archives of a release that may be parts of the game offered on a
  * platform: every archive but the offered one whose listing shows no
@@ -3493,6 +4244,7 @@ export const blockedReasons = [
   "split-package",
   "role-program",
   "non-ascii-name",
+  "archive-names-another-listing",
   "archive-name-unaccounted",
   "program-name-unaccounted",
   "route-held",
@@ -3517,6 +4269,7 @@ export const evidenceReasons = [
   "launcher-entry",
   "split-package",
   "non-ascii-name",
+  "archive-names-another-listing",
   "archive-name-unaccounted",
   "program-name-unaccounted",
 ] as const satisfies readonly BlockedReason[];
@@ -3532,7 +4285,13 @@ export interface GeneratedEnrollment {
   runtimes: PlatformRuntime[];
 }
 export type FitDecision =
-  | { port_id: string; fit: true; enrollment: GeneratedEnrollment }
+  | {
+      port_id: string;
+      fit: true;
+      enrollment: GeneratedEnrollment;
+      /** The measured name reliefs that accounted for an offered archive, program or folder. */
+      reliefs: NameRelief[];
+    }
   | {
       port_id: string;
       fit: false;
@@ -3737,6 +4496,8 @@ export function fitDecision(
   const unaccountedPrograms: string[] = [];
   const programTokens: string[] = [];
   const splitPackages: string[] = [];
+  const namesAnother: string[] = [];
+  const reliefs = new Set<NameRelief>();
   // Beside another package form the program name stays strictly literal.
   const strict = entry.other_packages.length > 0;
   for (const platform of platforms) {
@@ -3752,20 +4513,38 @@ export function fitDecision(
     // alone may not be the whole game.
     for (const other of splitParts(entry, platform, found.runtime.asset_id))
       splitPackages.push(`${platform}: ${found.runtime.asset_name} + ${other.name}`);
-    const account = archiveNameAccount(found.runtime.asset_name, record.listing, entry.repository);
-    if ("unaccounted" in account) {
+    const account = archiveNameAccount(
+      found.runtime.asset_name,
+      record.listing,
+      entry.repository,
+      context.listings,
+    );
+    if ("anotherListing" in account)
+      namesAnother.push(
+        `${platform}: ${found.runtime.asset_name} (${account.anotherListing.join(", ")})`,
+      );
+    else if ("unaccounted" in account) {
       unaccountedArchives.push(
         `${platform}: ${found.runtime.asset_name} (${account.unaccounted.join(", ")})`,
       );
       archiveTokens.push(...account.unaccounted);
     } else {
+      for (const relief of account.reliefs) reliefs.add(relief);
       const names = new Set([...ownJoinedNames(record.listing, entry.repository), account.product]);
       const words = new Set([
         ...nameWords(found.runtime.asset_name),
         ...accountNames(record.listing, entry.repository).flat(),
       ]);
+      const forms = reliefForms(record.listing, entry.repository, account.product);
       for (const item of found.runtime.players) {
-        const leftover = programNameUnaccounted(item.display_path, names, words, strict);
+        const leftover = programNameUnaccounted(
+          item.display_path,
+          names,
+          words,
+          strict,
+          forms,
+          reliefs,
+        );
         if (leftover !== null) {
           unaccountedPrograms.push(`${platform}: ${item.display_path} (${leftover})`);
           programTokens.push(leftover);
@@ -3800,6 +4579,17 @@ export function fitDecision(
         1000,
       ),
       splitPackages,
+    );
+  // A relieved archive product that spells another catalog listing's
+  // complete name contradicts this listing's binding.
+  if (namesAnother.length)
+    return blocked(
+      "archive-names-another-listing",
+      `The archive offered on ${namesAnother.join(", ")} spells, under a name relief, the complete name of another catalog listing.`.slice(
+        0,
+        1000,
+      ),
+      namesAnother,
     );
   // Every token of the offered archive's name is a product word, a version
   // or a neutral word, and the product is the listing's or repository's
@@ -3849,6 +4639,7 @@ export function fitDecision(
   return {
     port_id,
     fit: true,
+    reliefs: nameReliefs.filter((relief) => reliefs.has(relief)),
     enrollment: {
       port_id,
       platforms: runtimes.map((runtime) => runtime.platform),
@@ -4036,6 +4827,18 @@ export interface RegistrationQueues {
    * order: the count the lead measures.
    */
   tool_only_archives_beside: string[];
+  /**
+   * Every enrolled identity, in port_id order, with the measured name
+   * reliefs (`nameReliefs`) that accounted for its offered archive,
+   * program or folder names; an empty list when exact names did.
+   */
+  enrollment_reliefs: Record<string, NameRelief[]>;
+  /**
+   * The relieved enrollments by relief, each in port_id order: the queue a
+   * person hand-checks first (`partial-name`, `initialism`, `descriptor`,
+   * `build-id`, `folder`).
+   */
+  relieved_enrollments: Record<NameRelief, string[]>;
   unaccounted_tokens: Record<
     "archive-name-unaccounted" | "program-name-unaccounted",
     { token: string; count: number; identities: string[] }[]
@@ -4176,6 +4979,22 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       })
       .map((enrollment) => enrollment.port_id)
       .toSorted(compareCodePoints),
+    enrollment_reliefs: Object.fromEntries(
+      generation.decisions
+        .flatMap((decision): [string, NameRelief[]][] =>
+          decision.fit ? [[decision.port_id, [...decision.reliefs]]] : [],
+        )
+        .toSorted(([left], [right]) => compareCodePoints(left, right)),
+    ),
+    relieved_enrollments: Object.fromEntries(
+      nameReliefs.map((relief) => [
+        relief,
+        generation.decisions
+          .filter((decision) => decision.fit && decision.reliefs.includes(relief))
+          .map((decision) => decision.port_id)
+          .toSorted(compareCodePoints),
+      ]),
+    ) as Record<NameRelief, string[]>,
     unaccounted_tokens: unaccountedTokens,
     unread_forms: grouped(
       generation.facts.entries.flatMap((entry) =>
@@ -6033,44 +6852,675 @@ const gateNeutral = [
   "release",
   "appimage",
 ];
+/** The port-descriptor and region words, restated: see `portDescriptorWords`, `regionDescriptorWords`. */
+const gateDescriptors = [
+  "recomp",
+  "recompiled",
+  "recompilation",
+  "decomp",
+  "decompiled",
+  "port",
+  "pc",
+  "native",
+  "static",
+  "unofficial",
+  "usa",
+  "ntsc",
+  "pal",
+];
+/** The words that never count as distinctive, restated: see `nonDistinctiveWords`. */
+const gateUndistinctive = [
+  "the",
+  "a",
+  "an",
+  "of",
+  "and",
+  "or",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "with",
+  "from",
+  "by",
+  "vs",
+  "versus",
+  "de",
+  "la",
+  "le",
+  "el",
+  "les",
+  "los",
+  "das",
+  "der",
+  "die",
+  "no",
+  "game",
+  "games",
+  "edition",
+  "collection",
+  "series",
+  "remake",
+  "remaster",
+  "remastered",
+  "version",
+  "project",
+  "engine",
+  "source",
+  "sdl",
+  "original",
+  "classic",
+  "complete",
+  "definitive",
+  "deluxe",
+  "ultimate",
+  "special",
+  "anniversary",
+  "trilogy",
+  "episode",
+  "part",
+  "chapter",
+  "vol",
+  "volume",
+  "hd",
+  "xbox",
+  "playstation",
+  "ps",
+  "ps1",
+  "ps2",
+  "ps3",
+  "ps4",
+  "psx",
+  "psp",
+  "vita",
+  "nintendo",
+  "n64",
+  "gamecube",
+  "gc",
+  "wii",
+  "wiiu",
+  "switch",
+  "ds",
+  "nds",
+  "gba",
+  "gb",
+  "gbc",
+  "snes",
+  "nes",
+  "sfc",
+  "famicom",
+  "genesis",
+  "megadrive",
+  "dreamcast",
+  "saturn",
+  "sega",
+  "sony",
+  "arcade",
+  "dos",
+  "console",
+];
+/** Whether a word can be the distinctive word a partial name keeps, restated. */
+function gateDistinctive(word: string) {
+  if (word.length < 2 || /^\d+$/u.test(word)) return false;
+  return (
+    !gateUndistinctive.includes(word) &&
+    !gateNeutral.includes(word) &&
+    !gateDescriptors.includes(word)
+  );
+}
+/** The words that are never an initialism, restated: see `initialismVetoWords`. Exported for its unit table only. */
+export const gateInitialismVeto = [
+  "32",
+  "32bit",
+  "3ds",
+  "64",
+  "64bit",
+  "86",
+  "aarch64",
+  "alpha",
+  "amd64",
+  "android",
+  "androidtv",
+  "app",
+  "appimage",
+  "arm",
+  "arm64",
+  "assets",
+  "auto",
+  "autobuild",
+  "beta",
+  "bin",
+  "bit",
+  "build",
+  "builds",
+  "canary",
+  "cd",
+  "ce",
+  "cfg",
+  "ci",
+  "classic",
+  "cli",
+  "config",
+  "configure",
+  "console",
+  "contents",
+  "continuous",
+  "daily",
+  "darwin",
+  "data",
+  "dbg",
+  "debug",
+  "deck",
+  "decomp",
+  "decompiled",
+  "ded",
+  "dedicated",
+  "delta",
+  "demo",
+  "dev",
+  "devel",
+  "develop",
+  "development",
+  "dvd",
+  "dx",
+  "edge",
+  "editor",
+  "ex",
+  "exe",
+  "experimental",
+  "extended",
+  "fix",
+  "fixed",
+  "freebsd",
+  "game",
+  "haiku",
+  "hd",
+  "head",
+  "headless",
+  "hotfix",
+  "i386",
+  "i686",
+  "incremental",
+  "install",
+  "installer",
+  "ios",
+  "ipad",
+  "ipados",
+  "iphone",
+  "latest",
+  "launch",
+  "launcher",
+  "le",
+  "linux",
+  "linux32",
+  "linux64",
+  "lite",
+  "loader",
+  "mac",
+  "macos",
+  "main",
+  "master",
+  "mod",
+  "mods",
+  "mp",
+  "native",
+  "nds",
+  "netbsd",
+  "new",
+  "nightlies",
+  "nightly",
+  "ntsc",
+  "openbsd",
+  "osx",
+  "pal",
+  "patch",
+  "pc",
+  "port",
+  "portable",
+  "portmaster",
+  "pre",
+  "prealpha",
+  "prerelease",
+  "preview",
+  "ps3",
+  "ps4",
+  "ps5",
+  "psp",
+  "psvita",
+  "rc",
+  "re",
+  "recomp",
+  "recompilation",
+  "recompiled",
+  "rel",
+  "release",
+  "releases",
+  "remaster",
+  "remastered",
+  "rev",
+  "revision",
+  "sd",
+  "sdk",
+  "se",
+  "server",
+  "settings",
+  "setup",
+  "shareware",
+  "snapshot",
+  "source",
+  "sources",
+  "sp",
+  "src",
+  "srv",
+  "stable",
+  "start",
+  "static",
+  "switch",
+  "symbols",
+  "test",
+  "tester",
+  "testing",
+  "tool",
+  "tools",
+  "trial",
+  "trunk",
+  "tvos",
+  "uhd",
+  "uni",
+  "universal",
+  "universal2",
+  "unofficial",
+  "unstable",
+  "update",
+  "updater",
+  "usa",
+  "ver",
+  "version",
+  "visionos",
+  "vita",
+  "vr",
+  "watchos",
+  "weekly",
+  "wii",
+  "wiiu",
+  "win",
+  "win32",
+  "win64",
+  "windows",
+  "wip",
+  "x64",
+  "x86",
+  "x8664",
+  "x86_64",
+  "xbox",
+  "xl",
+];
+/** One word of an accepted name for the reliefs, restated: see `NameFormWord`. */
+interface GateFormWord {
+  text: string;
+  digits: boolean;
+  descriptor: boolean;
+  linked: boolean;
+  glued: boolean;
+  possessive: boolean;
+  capitals: boolean;
+}
+/** An accepted name's words with their links, restated: see `nameForm`. */
+function gateForm(value: string): GateFormWord[] {
+  const words: GateFormWord[] = [];
+  let index = 0;
+  let separator = "";
+  while (index < value.length) {
+    if (!/[A-Za-z0-9]/u.test(value[index]!)) {
+      separator += value[index]!;
+      index++;
+      continue;
+    }
+    let chunkEnd = index;
+    while (chunkEnd < value.length && /[A-Za-z0-9]/u.test(value[chunkEnd]!)) chunkEnd++;
+    const chunk = value.slice(index, chunkEnd);
+    // The same humps as `gateNameWords`, keeping the original letters.
+    const pieces: string[] = [];
+    let current = "";
+    for (let at = 0; at < chunk.length; at++) {
+      const character = chunk[at]!;
+      const before = chunk[at - 1] ?? "";
+      const after = chunk[at + 1] ?? "";
+      const isUpper = /[A-Z]/u.test(character);
+      const isDigit = /\d/u.test(character);
+      const beforeDigit = /\d/u.test(before);
+      const cut =
+        current !== "" &&
+        ((/[a-z]/u.test(before) && isUpper) ||
+          (/[A-Z]/u.test(before) && isUpper && /[a-z]/u.test(after)) ||
+          (beforeDigit && !isDigit) ||
+          (!beforeDigit && isDigit));
+      if (cut) {
+        pieces.push(current);
+        current = "";
+      }
+      current += character;
+    }
+    if (current) pieces.push(current);
+    for (let at = 0; at < pieces.length; at++) {
+      const text = pieces[at]!.toLowerCase();
+      words.push({
+        text,
+        digits: /^\d+$/u.test(text),
+        descriptor: gateDescriptors.includes(text),
+        linked: words.length > 0 && (at > 0 || /^[ ._-]+$/u.test(separator)),
+        glued: at > 0,
+        possessive: at === 0 && text === "s" && (separator === "'" || separator === "’"),
+        capitals: /^[A-Z]{2,5}$/u.test(pieces[at]!),
+      });
+    }
+    separator = "";
+    index = chunkEnd;
+  }
+  return words;
+}
+/**
+ * The outcomes of spelling a literal as an ordered subsequence of a name's
+ * words with descriptors anywhere, restated: see `subsequenceMasks`. Each
+ * outcome is a string of flags: `o` a word omitted, `d` a distinctive word
+ * kept, `k` a word kept, `x` a descriptor spelled, and, only when lenient,
+ * `n` a linked number dropped (a digit run of the literal may then also
+ * stand for no word).
+ */
+function gateSubsequence(
+  literal: string,
+  digitStarts: ReadonlyMap<number, number>,
+  form: readonly GateFormWord[],
+  lenient = false,
+): string[] {
+  const memo = new Map<string, string[]>();
+  const flags = (...parts: string[]) =>
+    ["o", "d", "k", "x", "n"].filter((flag) => parts.some((part) => part.includes(flag))).join("");
+  const walk = (at: number, word: number, keptBefore: boolean): string[] => {
+    const key = `${at}/${word}/${keptBefore}`;
+    if (memo.has(key)) return memo.get(key)!;
+    const out = new Set<string>();
+    memo.set(key, []);
+    if (at === literal.length && word === form.length) out.add("");
+    if (lenient && digitStarts.has(at))
+      for (const rest of walk(at + digitStarts.get(at)!, word, keptBefore)) out.add(rest);
+    for (const descriptor of gateDescriptors)
+      if (literal.slice(at, at + descriptor.length) === descriptor)
+        for (const rest of walk(at + descriptor.length, word, keptBefore))
+          out.add(flags(rest, "x"));
+    const current = form[word];
+    if (current !== undefined) {
+      const prior = form[word - 1];
+      if (current.descriptor) for (const rest of walk(at, word + 1, false)) out.add(rest);
+      else {
+        let spells = literal.slice(at, at + current.text.length) === current.text;
+        if (current.digits) spells &&= digitStarts.get(at) === current.text.length;
+        const leavesNumber =
+          !current.digits &&
+          current.linked &&
+          prior !== undefined &&
+          prior.digits &&
+          !prior.descriptor &&
+          !keptBefore;
+        if (spells && (lenient || !leavesNumber))
+          for (const rest of walk(at + current.text.length, word + 1, true))
+            out.add(
+              flags(rest, "k", gateDistinctive(current.text) ? "d" : "", leavesNumber ? "n" : ""),
+            );
+        const dropsNumber =
+          current.digits && current.linked && prior !== undefined && !prior.digits && keptBefore;
+        if (lenient || !dropsNumber)
+          for (const rest of walk(at, word + 1, false))
+            out.add(flags(rest, "o", dropsNumber ? "n" : ""));
+      }
+    }
+    const result = [...out];
+    memo.set(key, result);
+    return result;
+  };
+  return walk(0, 0, false);
+}
+/**
+ * Whether a relieved literal drops a number one of the listing's accepted
+ * names links to a word it keeps, restated: see `dropsLinkedNumber`.
+ */
+function gateDropsNumber(
+  literal: string,
+  digitStarts: ReadonlyMap<number, number>,
+  raws: readonly string[],
+): boolean {
+  return gateDropsNumberForms(literal, digitStarts, raws.map(gateForm));
+}
+function gateDropsNumberForms(
+  literal: string,
+  digitStarts: ReadonlyMap<number, number>,
+  forms: readonly GateFormWord[][],
+): boolean {
+  const acceptable = (outcome: string) =>
+    outcome.includes("k") && (!outcome.includes("o") || outcome.includes("d"));
+  for (const form of forms) {
+    if (gateSubsequence(literal, digitStarts, form).some(acceptable)) continue;
+    if (
+      gateSubsequence(literal, digitStarts, form, true).some(
+        (outcome) => acceptable(outcome) && outcome.includes("n"),
+      )
+    )
+      return true;
+  }
+  return false;
+}
+/** Whether a literal is made only of descriptor words, restated. */
+function gateDescriptorsOnly(literal: string): boolean {
+  if (literal === "") return true;
+  return gateDescriptors.some(
+    (descriptor) =>
+      literal.startsWith(descriptor) && gateDescriptorsOnly(literal.slice(descriptor.length)),
+  );
+}
+/** The initialisms of a name, restated: see `nameInitialisms`. */
+function gateInitialisms(form: readonly GateFormWord[]): string[] {
+  const total = form.filter((word) => !word.descriptor && !word.possessive).length;
+  const found: string[] = [];
+  let first = 0;
+  while (first < form.length && form[first]!.descriptor) first++;
+  let spellings = [""];
+  let used = 0;
+  let distinct = false;
+  for (let index = first; index < form.length; index++) {
+    const word = form[index]!;
+    if (word.descriptor) break;
+    if (word.possessive) continue;
+    let initials = [word.text.slice(0, 1)];
+    if (word.digits) initials = [word.text];
+    else if (word.capitals) initials = [word.text.slice(0, 1), word.text];
+    const grown: string[] = [];
+    for (const spelling of spellings)
+      for (const initial of initials)
+        if ((spelling + initial).length <= 12 && !grown.includes(spelling + initial))
+          grown.push(spelling + initial);
+    spellings = grown;
+    used += 1;
+    if (gateDistinctive(word.text)) distinct = true;
+    const next = form[index + 1];
+    if (next && !next.descriptor && (next.glued || (next.digits && next.linked))) continue;
+    if (used < 2 || used * 2 <= total || !distinct) continue;
+    for (const spelling of spellings) {
+      const letters = spelling.replace(/\d/gu, "");
+      if (letters.length < 2 || letters.length > 6) continue;
+      if (
+        gateInitialismVeto.includes(spelling) ||
+        gateInitialismVeto.includes(spelling.replace(/\d+$/u, ""))
+      )
+        continue;
+      if (!found.includes(spelling)) found.push(spelling);
+    }
+  }
+  return found;
+}
+/**
+ * Whether a literal spells a name under the reliefs, restated: see
+ * `reliefSpelling`. Exported for its unit table only.
+ */
+export function gateRelief(
+  literal: string,
+  digitStarts: ReadonlyMap<number, number>,
+  form: readonly GateFormWord[],
+): boolean {
+  if (literal === "") return false;
+  for (const outcome of gateSubsequence(literal, digitStarts, form)) {
+    if (!outcome.includes("k")) continue;
+    if (!outcome.includes("o")) return true;
+    if (outcome.includes("d")) return true;
+  }
+  for (const initialism of gateInitialisms(form)) {
+    let at = literal.indexOf(initialism);
+    while (at >= 0) {
+      const head = literal.slice(0, at);
+      const tail = literal.slice(at + initialism.length);
+      if (gateDescriptorsOnly(head) && gateDescriptorsOnly(tail)) return true;
+      at = literal.indexOf(initialism, at + 1);
+    }
+  }
+  return false;
+}
+/** A literal's digit runs, start to length, restated. */
+function gateDigitStarts(literal: string) {
+  const starts = new Map<number, number>();
+  let index = 0;
+  while (index < literal.length) {
+    if (!/\d/u.test(literal[index]!)) {
+      index++;
+      continue;
+    }
+    let end = index;
+    while (end < literal.length && /\d/u.test(literal[end]!)) end++;
+    starts.set(index, end - index);
+    index = end;
+  }
+  return starts;
+}
+/**
+ * Whether a relieved literal spells the complete accepted name (id, name or
+ * GitHub repository name, modulo descriptors) of another listing, restated:
+ * see `otherListingsSpelled`.
+ */
+function gateSpellsAnotherListing(
+  literal: string,
+  digitStarts: ReadonlyMap<number, number>,
+  listings: readonly Record<string, unknown>[],
+  ownId: unknown,
+): boolean {
+  for (const listing of listings) {
+    if (listing.id === ownId) continue;
+    const repository = gateProviderRepository(listing);
+    for (const raw of [listing.id, listing.name, repository?.split("/")[1]]) {
+      if (typeof raw !== "string") continue;
+      const form = gateForm(raw);
+      if (!form.length) continue;
+      if (
+        gateSubsequence(literal, digitStarts, form).some(
+          (outcome) => outcome.includes("k") && !outcome.includes("o"),
+        )
+      )
+        return true;
+    }
+  }
+  return false;
+}
+/**
+ * A name base with its build identifiers marked, restated: see
+ * `buildIdentifiers`. A `V`-glued dotted version after a letter and a dotted
+ * version with one glued patch letter (not `a`, `b` or `r`) become the build
+ * chunk; a prerelease marker glued to a dotted version stands apart after it.
+ */
+function gateBuildMarks(base: string): string {
+  let marked = base.replace(/([A-Za-z])[vV]\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-vbuild0-");
+  marked = marked.replace(
+    /(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(alpha|beta|pre|rc|a|b|r)(\d*)(?=$|[^A-Za-z0-9])/giu,
+    "$1-v0-$3$4-",
+  );
+  return marked.replace(
+    /(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+[c-qs-zC-QS-Z](?=$|[^A-Za-z0-9])/gu,
+    "$1-vbuild0-",
+  );
+}
+/**
+ * A name base's tokens for the archive grammar, restated: see
+ * `archiveNameTokens`. Build identifiers and dotted versions are marked
+ * first; a build chunk, neutral chunk, `v<N>` or `r<N>` is a `version` or
+ * `neutral` boundary, digits alone an `integer`, and every other chunk's
+ * words are `neutral` or `word`; `uni` directly beside a macOS word is
+ * `neutral`.
+ */
+function gateGrammarTokens(base: string) {
+  let marked = gateBuildMarks(base);
+  marked = marked.replace(/(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-v0-");
+  const tokens: { text: string; kind: "word" | "integer" | "boundary" }[] = [];
+  for (const chunk of marked.split(/[^A-Za-z0-9]+/u)) {
+    if (chunk === "") continue;
+    const low = chunk.toLowerCase();
+    if (gateBuildChunk(low) || gateNeutral.includes(low) || /^[vr]\d+$/u.test(low))
+      tokens.push({ text: low, kind: "boundary" });
+    else if (/^\d+$/u.test(low)) tokens.push({ text: low, kind: "integer" });
+    else
+      for (const word of gateNameWords(chunk))
+        tokens.push({ text: word, kind: gateNeutral.includes(word) ? "boundary" : "word" });
+  }
+  const apple = ["macos", "mac", "osx", "darwin"];
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index]!;
+    if (token.kind !== "word" || token.text !== "uni") continue;
+    if (
+      apple.includes(tokens[index - 1]?.text ?? "") ||
+      apple.includes(tokens[index + 1]?.text ?? "")
+    )
+      token.kind = "boundary";
+  }
+  return tokens;
+}
+/** Whether a chunk is a commit hash or the build chunk, restated: see `hashToken`. */
+function gateBuildChunk(low: string) {
+  if (low === "vbuild0") return true;
+  return (
+    low.length >= 7 &&
+    low.length <= 40 &&
+    /^[0-9a-f]+$/u.test(low) &&
+    /\d/u.test(low) &&
+    /[a-f]/u.test(low)
+  );
+}
 /**
  * How an archive name is accounted for against the listing, restated: see
  * `archiveNameAccount`. Only whether it is accounted, and the joined product,
- * matter to the gate. Exported for its unit table only.
+ * matter to the gate: the joined name for an exact spelling, the archive's own
+ * product for a relieved one. A relieved product that spells another
+ * listing's complete name (`listings`) is not accounted. Exported for its unit
+ * table only.
  */
 export function gateArchiveAccount(
   name: string,
   listing: Record<string, unknown>,
   repository: string,
+  listings: readonly Record<string, unknown>[] = [],
 ): string | null {
-  // Dotted digit runs (`1.0.2`, `v2.1.0`) are one version chunk.
-  let base = gateNameBase(name);
-  base = base.replace(/(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-v0-");
-  // PRODUCT (VERSION | NEUTRAL)*: the product is the leading run of words and
-  // integers; after it, no word may appear, and integers are versions.
+  // PRODUCT (VERSION | NEUTRAL | DESCRIPTOR)*: the product is the leading run
+  // of words and integers; after it, no other word may appear, and integers
+  // are versions.
   const product: { word: string; integer: boolean }[] = [];
   let productEnded = false;
-  for (const chunk of base.split(/[^A-Za-z0-9]+/u)) {
-    if (chunk === "") continue;
-    const low = chunk.toLowerCase();
-    if (gateNeutral.includes(low) || /^[vr]\d+$/u.test(low)) {
+  for (const token of gateGrammarTokens(gateNameBase(name))) {
+    if (token.kind === "boundary") {
       productEnded = true;
       continue;
     }
-    if (/^\d+$/u.test(low)) {
-      if (!productEnded) product.push({ word: low, integer: true });
-      // After the product only a date or build number may stand.
-      else if (low.length < 4) return null;
+    if (!productEnded) {
+      product.push({ word: token.text, integer: token.kind === "integer" });
       continue;
     }
-    for (const word of gateNameWords(chunk)) {
-      if (gateNeutral.includes(word)) {
-        productEnded = true;
-        continue;
-      }
-      if (productEnded) return null;
-      product.push({ word, integer: false });
-    }
+    // After the product only a date or build number, or a descriptor, may stand.
+    if (token.kind === "integer" ? token.text.length < 4 : !gateDescriptors.includes(token.text))
+      return null;
   }
   // The whole product, or cut at a long integer followed only by integers.
   const cuts = [product.length];
@@ -6105,22 +7555,85 @@ export function gateArchiveAccount(
       if (aligned) return words.join("");
     }
   }
+  // The reliefs on the same cuts: the archive's own product, when it spells
+  // an accepted name under them and no other listing's complete name.
+  const raws = [listing.id, listing.name, repository.split("/")[1]].filter(
+    (value): value is string => typeof value === "string",
+  );
+  for (const cut of cuts) {
+    const kept = product.slice(0, cut);
+    if (kept.length === 0) continue;
+    let literal = "";
+    const digitStarts = new Map<number, number>();
+    for (const token of kept) {
+      if (/^\d+$/u.test(token.word)) digitStarts.set(literal.length, token.word.length);
+      literal += token.word;
+    }
+    if (!raws.some((raw) => gateRelief(literal, digitStarts, gateForm(raw)))) continue;
+    if (gateDropsNumber(literal, digitStarts, raws)) continue;
+    if (gateSpellsAnotherListing(literal, digitStarts, listings, listing.id)) return null;
+    return literal;
+  }
   return null;
+}
+/** The raw names a program or folder may spell under the reliefs, restated: see `reliefForms`. */
+function gateReliefForms(listing: Record<string, unknown>, repository: string, product: string) {
+  const forms: string[] = [];
+  for (const value of [listing.id, listing.name, repository.split("/")[1], product])
+    if (typeof value === "string" && value !== "") forms.push(value);
+  return forms;
 }
 /** The words a program's folders may use besides neutral, layout and version words, restated. */
 function gateAccountWords(archive: string, listing: Record<string, unknown>, repository: string) {
   return [...gateNameWords(archive), ...gateNameLists(listing, repository).flat()];
 }
 /**
+ * Whether a folder segment is the accepted product, versions and neutral
+ * words, restated: see `folderSpellsProduct`.
+ */
+function gateFolderProduct(
+  segment: string,
+  names: readonly string[],
+  forms: readonly GateFormWord[][],
+): boolean {
+  if (forms.length === 0) return false;
+  let literal = "";
+  const digitStarts = new Map<number, number>();
+  let ended = false;
+  for (const token of gateGrammarTokens(gateNameBase(`${segment}.zip`))) {
+    if (token.kind === "boundary") {
+      ended = true;
+      continue;
+    }
+    if (ended) {
+      if (token.kind === "integer" ? token.text.length < 4 : !gateDescriptors.includes(token.text))
+        return false;
+      continue;
+    }
+    if (/^\d+$/u.test(token.text)) digitStarts.set(literal.length, token.text.length);
+    literal += token.text;
+  }
+  if (literal === "") return false;
+  if (names.includes(literal)) return true;
+  if (gateDropsNumberForms(literal, digitStarts, forms)) return false;
+  return forms.some((form) => gateRelief(literal, digitStarts, form));
+}
+/**
  * Whether a program is accounted for, restated: see `programNameUnaccounted`.
- * Exported for its unit table only.
+ * Beside no other package form, the literal name (before architecture words)
+ * may also spell one of `forms` (the listing's id and name, the repository
+ * name and the accepted archive product) under the reliefs, and a folder may
+ * be the accepted product, versions and neutral words. Exported for its unit
+ * table only.
  */
 export function gateProgramAccounted(
   path: string,
   names: readonly string[],
   words: readonly string[],
   strict: boolean,
+  forms: readonly string[] = [],
 ): boolean {
+  const parsedForms = forms.map(gateForm).filter((form) => form.length > 0);
   let file = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
   if (file.endsWith(".exe")) file = file.slice(0, -4);
   let literal = "";
@@ -6154,13 +7667,20 @@ export function gateProgramAccounted(
       (name) =>
         name !== "" && literal.startsWith(name) && architectureRun(literal.slice(name.length)),
     );
+  if (!named && !strict)
+    for (let end = 1; end <= literal.length && !named; end++) {
+      if (!architectureRun(literal.slice(end))) continue;
+      const core = literal.slice(0, end);
+      if (gateDropsNumberForms(core, gateDigitStarts(core), parsedForms)) continue;
+      named = parsedForms.some((form) => gateRelief(core, gateDigitStarts(core), form));
+    }
   if (!named) return false;
   const layout = ["bin", "game", "app", "contents", "x64", "win64"];
   const segments = path.split("/");
   segments.pop();
   const known = (word: string) =>
     words.includes(word) || gateNeutral.includes(word) || layout.includes(word);
-  for (const segment of segments) {
+  const segmentKnown = (segment: string): boolean => {
     let normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
     normalized = normalized.replace(
       /(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu,
@@ -6191,7 +7711,10 @@ export function gateProgramAccounted(
       for (const word of parts) if (/^\d+$/u.test(word) || !known(word)) return false;
       spelled += parts.join("");
     }
-  }
+    return true;
+  };
+  for (const segment of segments)
+    if (!segmentKnown(segment) && !gateFolderProduct(segment, names, parsedForms)) return false;
   return true;
 }
 /**
@@ -6523,10 +8046,12 @@ function gateEnrollmentProblems(
       problems.push(
         `${id} offers ${offered.name} on ${platform} beside ${part.name}, an archive without programs that may hold the rest of the game, so no platform of the identity may enroll.`,
       );
-    const accepted = gateArchiveAccount(offered.name, own, entry.repository);
+    const accepted = gateArchiveAccount(offered.name, own, entry.repository, listings);
     if (accepted === null)
       problems.push(
-        `${id} offers ${offered.name} on ${platform}, whose name holds an unaccounted token, so no platform of the identity may enroll.`,
+        gateArchiveAccount(offered.name, own, entry.repository) === null
+          ? `${id} offers ${offered.name} on ${platform}, whose name holds an unaccounted token, so no platform of the identity may enroll.`
+          : `${id} offers ${offered.name} on ${platform}, whose relieved name spells another catalog listing, so no platform of the identity may enroll.`,
       );
     else if (
       players.some(
@@ -6536,6 +8061,7 @@ function gateEnrollmentProblems(
             [...gateJoinedNames(own, entry.repository), accepted],
             gateAccountWords(offered.name, own, entry.repository),
             strict,
+            gateReliefForms(own, entry.repository, accepted),
           ),
       )
     )
@@ -6621,10 +8147,12 @@ function gateEnrollmentProblems(
     );
     if (splitPart)
       problems.push(`${where} rests on a release that splits the game into ${splitPart.name}.`);
-    const runtimeAccepted = gateArchiveAccount(artifact.name, own, entry.repository);
+    const runtimeAccepted = gateArchiveAccount(artifact.name, own, entry.repository, listings);
     if (runtimeAccepted === null)
       problems.push(
-        `${where} rests on archive ${artifact.name}, whose name holds an unaccounted token.`,
+        gateArchiveAccount(artifact.name, own, entry.repository) === null
+          ? `${where} rests on archive ${artifact.name}, whose name holds an unaccounted token.`
+          : `${where} rests on archive ${artifact.name}, whose relieved name spells another catalog listing.`,
       );
     else if (
       runtime.players.some(
@@ -6634,6 +8162,7 @@ function gateEnrollmentProblems(
             [...gateJoinedNames(own, entry.repository), runtimeAccepted],
             gateAccountWords(artifact.name, own, entry.repository),
             strict,
+            gateReliefForms(own, entry.repository, runtimeAccepted),
           ),
       )
     )
