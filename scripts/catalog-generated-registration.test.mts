@@ -87,6 +87,7 @@ import {
   romanOf,
   laterRomanNumber,
   subtitleDroppedByName,
+  literalProgramName,
   nameInitialisms,
   reliefSpelling,
   dropsLinkedNumber,
@@ -11159,8 +11160,10 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
+// Re-pinned for generator 29: only each enrollment's recorded
+// `generator_version` changed (with 28 the digest stays b028f2e7…).
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "b028f2e7b0cd5045f2dc92a123f1f8c7993d3276fe2b36b8954b806d1ebdc4b0";
+  "08de812658c875b0236a6a3c640d7de1dd7de947c8122f20d0ab497b91492094";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };
@@ -11198,4 +11201,366 @@ void test("a relieved name joins integer_as_version under the same condition as 
     "fixture-owner/zz-lantern",
   );
   assert.ok("product" in account && account.integerAsVersion && account.reliefs.length > 0);
+});
+
+/** The archive account of a measured identity in fit and gate, which must agree on the product. */
+function measuredAccount(
+  id: string,
+  name: string,
+  repository: string,
+  archive: string,
+  others: readonly Record<string, unknown>[] = [],
+) {
+  const record = listing(id, {
+    name,
+    original_game_title: name,
+    project_url: `https://github.com/${repository}`,
+  });
+  const fit = archiveNameAccount(archive, record.listing, repository, others);
+  const gate = gateArchiveAccount(archive, record.listing, repository, others);
+  assert.equal("product" in fit ? fit.product : null, gate, `fit and gate agree on ${archive}`);
+  return fit;
+}
+
+void test("generator 29: a carried number compares by value with a roman number of two or more letters, and nothing else gets through, in fit and gate (measured Saboteur II)", () => {
+  // Measured: "Saboteur II" in `petarov/saboteur2` was withheld
+  // `archive-name-unaccounted` (`saboteur-2`) while "Saboteur 2" enrolled.
+  for (const name of ["Saboteur II", "Saboteur 2"]) {
+    const fit = measuredAccount(
+      "petarov-saboteur2",
+      name,
+      "petarov/saboteur2",
+      "saboteur2-1.1-windows-x86_64.zip",
+    );
+    assert.ok("product" in fit && fit.product === "saboteur2", `${name}: ${JSON.stringify(fit)}`);
+  }
+  const literal = "saboteur2";
+  assert.equal(dropsLinkedNumber(literal, digitRuns(literal), [nameForm("Saboteur II")]), false);
+  // A different value, an absent number, a lone `V` or `X` (a letter's name)
+  // still drop the number.
+  const drops = (value: string, name: string) =>
+    dropsLinkedNumber(value, digitRuns(value), [nameForm(name)]);
+  assert.equal(drops("saboteur2", "Saboteur III"), true);
+  assert.equal(drops("saboteur3", "Saboteur II"), true);
+  assert.equal(drops("saboteur", "Saboteur II"), true);
+  assert.equal(drops("megaman10", "Mega Man X"), true);
+  assert.equal(drops("saboteur5", "Saboteur V"), true);
+  const rows: [string, string, string][] = [
+    ["Saboteur III", "saboteur2", "saboteur2-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur3", "saboteur3-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur", "saboteur-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur", "saboteur3-1.1-windows-x86_64.zip"],
+    ["Saboteur V", "saboteur5", "saboteur5-1.1-windows-x86_64.zip"],
+    ["Mega Man X", "megaman10", "megaman10-1.0-windows.zip"],
+    ["Doom II", "doom", "doom-1.0-win64.zip"],
+    ["Doom XIX", "doom91", "doom91-1.0-win64.zip"],
+  ];
+  for (const [name, repository, archive] of rows) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok(!("product" in fit), `${archive} for ${name} must withhold: ${JSON.stringify(fit)}`);
+  }
+});
+
+void test("generator 29: a title segment is queued as dropped only when every accepted spelling omits it (measured Bustin' Out and Hard Corps: Uprising)", () => {
+  const listed = (
+    parseCatalogSource(readFileSync(join(catalogRoot, "listings.json"), "utf8")) as {
+      listings: Record<string, unknown>[];
+    }
+  ).listings;
+  const measured = (id: string) => {
+    const found = listed.find((each) => each.id === id);
+    assert.ok(found, id);
+    return found;
+  };
+  const bustin = measured("abilliontokens-bustinout-recomp");
+  const hardCorps = measured("hard-corps-uprising-hard-corps-uprising-recompiled");
+  assert.equal(
+    bustin.name,
+    "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
+  );
+  assert.equal(hardCorps.name, "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)");
+  // The literal holds the subtitle (also as the program `hard_corps_uprising.exe`): not queued.
+  for (const literal of ["simsbustinout", "thesimsbustinout"])
+    assert.deepEqual(subtitleDroppedByName(literal, bustin), [], literal);
+  for (const path of ["hard_corps_uprising.exe", "HardCorpsUprising.exe"])
+    assert.deepEqual(subtitleDroppedByName(literalProgramName(path), hardCorps), [], path);
+  // The literal lacks the subtitle: still queued.
+  assert.deepEqual(subtitleDroppedByName("hardcorps", hardCorps), ["uprising"]);
+  assert.deepEqual(subtitleDroppedByName("sims", bustin), ["bustin out"]);
+  const cases: [Record<string, unknown>, string, string, string[]][] = [
+    [bustin, "abilliontokens/bustinout-recomp", "SimsBustinOut-windows-x64.zip", []],
+    [bustin, "abilliontokens/bustinout-recomp", "TheSimsBustinOut-windows-x64.zip", []],
+    [
+      hardCorps,
+      "saulob/hard-corps-uprising-recompiled",
+      "HardCorpsUprising-v0.7.1-windows-x64.zip",
+      [],
+    ],
+    [
+      hardCorps,
+      "saulob/hard-corps-uprising-recompiled",
+      "HardCorps-v0.7.1-windows-x64.zip",
+      ["uprising"],
+    ],
+  ];
+  for (const [record, repository, archive, dropped] of cases) {
+    const fit = measuredAccount(String(record.id), String(record.name), repository, archive);
+    assert.ok("product" in fit, `${archive}: ${JSON.stringify(fit)}`);
+    assert.deepEqual(fit.dropped, dropped, archive);
+    assert.equal(fit.franchise, dropped.length > 0, archive);
+  }
+});
+
+void test("random titles with a roman or digit number, and with an annotation repeating the subtitle: fit and gate agree, a carried number enrolls only at the same value, and a subtitle is queued exactly when the literal lacks it (generator 29 property)", () => {
+  let seed = 8_569_029;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const camel = (words: readonly string[]) =>
+    words.map((word) => word[0]!.toUpperCase() + word.slice(1)).join("");
+  let enrolled = 0;
+  let withheld = 0;
+  let queued = 0;
+  let unqueued = 0;
+  for (let round = 0; round < 800; round++) {
+    const head = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ];
+    // The title's number in roman or digits, the archive's and repository's
+    // in digits, the same value or another.
+    const value = 2 + Math.floor(random() * 19);
+    const roman = romanOf(value);
+    const written = pick(["roman", "digits"] as const);
+    const titleNumber = written === "roman" ? pick([roman.toUpperCase(), roman]) : String(value);
+    const archiveValue = random() < 0.5 ? value : 2 + Math.floor(random() * 19);
+    const repository = `${head.join("")}${archiveValue}`;
+    const archive = `${camel(head)}${archiveValue}-1.1-windows-x86_64.zip`;
+    const title = `${camel(head)} ${titleNumber}`;
+    const fit = reliefAccount(title, repository, archive);
+    // A lone `V` or `X` is never carried by digits.
+    const expected = archiveValue === value && !(written === "roman" && roman.length < 2);
+    assert.equal("product" in fit, expected, `${archive} for ${title}: ${JSON.stringify(fit)}`);
+    if (expected) enrolled++;
+    else withheld++;
+    // A subtitle the annotation repeats: queued exactly when the literal lacks it.
+    const subtitle = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ].filter((word) => !head.includes(word));
+    if (!subtitle.length) continue;
+    const name = `${camel(head)}: ${camel(subtitle)} (${camel(head)}: ${camel(subtitle)} ${pick(["Recompiled", "Port", "Static Recompilation"])})`;
+    const keeps = random() < 0.5;
+    const literal = (keeps ? [...head, ...subtitle] : head).join("");
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name }),
+      keeps ? [] : [subtitle.join(" ")],
+      `${literal} for ${name}`,
+    );
+    const account = reliefAccount(
+      name,
+      `zz-p${round}-port`,
+      `${camel(keeps ? [...head, ...subtitle] : head)}-1.0-win64.zip`,
+    );
+    if ("product" in account) {
+      assert.deepEqual(account.dropped, keeps ? [] : [subtitle.join(" ")], `${literal} ${name}`);
+      if (keeps) unqueued++;
+      else queued++;
+    }
+  }
+  assert.ok(enrolled > 100 && withheld > 100, `${enrolled} enrolled, ${withheld} withheld`);
+  assert.ok(queued > 50 && unqueued > 50, `${queued} queued, ${unqueued} not queued`);
+});
+
+void test("an architecture word in a listing name's annotation names the build, not a sequel, in fit and gate (real petarov-saboteur2 listing)", () => {
+  const listed = (
+    parseCatalogSource(readFileSync(join(catalogRoot, "listings.json"), "utf8")) as {
+      listings: Record<string, unknown>[];
+    }
+  ).listings;
+  const saboteur = listed.find((each) => each.id === "petarov-saboteur2");
+  assert.ok(saboteur);
+  assert.equal(saboteur.name, "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)");
+  assert.equal(saboteur.project_url, "https://github.com/petarov/saboteur2");
+  for (const archive of ["saboteur2-1.1-windows-x86_64.zip", "saboteur2-1.0-win64.zip"]) {
+    const fit = archiveNameAccount(archive, saboteur, "petarov/saboteur2", listed);
+    const gate = gateArchiveAccount(archive, saboteur, "petarov/saboteur2", listed);
+    assert.ok(
+      "product" in fit && fit.product === "saboteur2",
+      `${archive}: ${JSON.stringify(fit)}`,
+    );
+    assert.equal(gate, "saboteur2", archive);
+  }
+  // The two other listed names whose annotation holds an architecture word
+  // (assumed archive names, not measured release assets).
+  for (const [id, repository, archive, product] of [
+    ["petarov-alleycat-exe", "petarov/alleycat.exe", "alleycat-1.0-windows-x86_64.zip", "alleycat"],
+    ["touhou-4-lotus-land-story-portable64", "N0zoM1z0/th04", "touhou4-1.0-win64.zip", "touhou4"],
+  ] as const) {
+    const record = listed.find((each) => each.id === id);
+    assert.ok(record, id);
+    const fit = archiveNameAccount(archive, record, repository, listed);
+    assert.ok("product" in fit && fit.product === product, `${archive}: ${JSON.stringify(fit)}`);
+    assert.equal(gateArchiveAccount(archive, record, repository, listed), product, archive);
+  }
+  // Every spelling of the architecture word, and the digit form of the title.
+  for (const name of [
+    "Saboteur 2: Avenging Angel (Saboteur 2 x86-64 recomp)",
+    "Saboteur II: Avenging Angel (Saboteur II x86_64 recomp)",
+    "Saboteur II (Saboteur II x64 recomp)",
+    "Saboteur II (Saboteur II Win64 port)",
+    "Saboteur II — amd64 recomp",
+    "Saboteur II (i386 build)",
+    "Saboteur II — Portable 64-bit",
+  ]) {
+    const fit = reliefAccount(name, "saboteur2", "saboteur2-1.1-windows-x86_64.zip");
+    assert.ok("product" in fit && fit.product === "saboteur2", `${name}: ${JSON.stringify(fit)}`);
+  }
+  // The title proper keeps every number rule, and an annotation number that
+  // spells no architecture word is still a number.
+  const rows: [string, string, string][] = [
+    ["Mario 64 (x86-64 recomp)", "mario", "mario-1.0-win64.zip"],
+    ["Lantern 64 (x64 recomp)", "lantern", "lantern-1.0-win64.zip"],
+    ["Rush 2049 (x64)", "rush", "rush-1.0-win64.zip"],
+    ["Lantern 64 (N64 recomp)", "lantern", "lantern-1.0-win64.zip"],
+    [
+      "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+      "saboteur",
+      "saboteur-1.1-win64.zip",
+    ],
+    [
+      "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+      "saboteur3",
+      "saboteur3-1.1-win64.zip",
+    ],
+    ["Saboteur II (Saboteur II 64 recomp)", "saboteur2", "saboteur2-1.1-win64.zip"],
+    ["Saboteur II (Saboteur II x65 recomp)", "saboteur2", "saboteur2-1.1-win64.zip"],
+  ];
+  for (const [name, repository, archive] of rows) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok(!("product" in fit), `${archive} for ${name} must withhold: ${JSON.stringify(fit)}`);
+  }
+});
+
+void test("the F3 fallback compares a head number by value, and a subtitle spelled only without the first title segment stays queued", () => {
+  const rows: [string, string, string[]][] = [
+    ["Saboteur II: Avenging Angel", "saboteur2", ["avenging angel"]],
+    ["Saboteur 2: Avenging Angel", "saboteur2", ["avenging angel"]],
+    ["Lantern II: Storm", "lantern2", ["storm"]],
+    ["Rocky IV: The Return", "rocky4", ["the return"]],
+    ["Hunter XVII: Castle", "hunter17", ["castle"]],
+    // A different value or no number spells no head: nothing to report.
+    ["Lantern II: Storm", "lantern3", []],
+    ["Lantern II: Storm", "lantern", []],
+    // A lone `V` or `X` is never carried by digits.
+    ["Hunter X: Castle", "hunter10", []],
+    // The literal holds the subtitle.
+    ["Lantern II: Storm", "lantern2storm", []],
+    // "The Lantern" spelled with the head omitted is no spelling of the title.
+    ["Lantern: The Lantern", "lantern", ["the lantern"]],
+    ["Lantern: The Lantern", "lanternthelantern", []],
+  ];
+  for (const [name, literal, dropped] of rows)
+    assert.deepEqual(subtitleDroppedByName(literal, { name }), dropped, `${literal} for ${name}`);
+  assert.deepEqual(
+    subtitleDroppedByName("saboteur2", {
+      name: "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+    }),
+    ["avenging angel"],
+  );
+});
+
+void test("random titles with a roman number of two or more letters and a subtitle: the F3 fallback queues the subtitle exactly when the literal carries the number by value and lacks the subtitle (generator 29 property)", () => {
+  let seed = 8_658_029;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const camel = (words: readonly string[]) =>
+    words.map((word) => word[0]!.toUpperCase() + word.slice(1)).join(" ");
+  const values = Array.from({ length: 19 }, (_, at) => at + 2).filter(
+    (value) => romanOf(value).length >= 2,
+  );
+  const outcomes = { queued: 0, kept: 0, other: 0 };
+  for (let round = 0; round < 600; round++) {
+    const head = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ];
+    const subtitle = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ].filter((word) => !head.includes(word));
+    if (!subtitle.length) continue;
+    const value = pick(values);
+    const roman = romanOf(value);
+    const name = `${camel(head)} ${pick([roman.toUpperCase(), roman])}: ${camel(subtitle)}`;
+    const kind = pick(["queued", "kept", "other"] as const);
+    const literalValue = kind === "other" ? pick(values.filter((each) => each !== value)) : value;
+    const literal = `${head.join("")}${literalValue}${kind === "kept" ? subtitle.join("") : ""}`;
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name }),
+      kind === "queued" ? [subtitle.join(" ")] : [],
+      `${literal} for ${name}`,
+    );
+    // The digit form of the same name answers alike.
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name: `${camel(head)} ${value}: ${camel(subtitle)}` }),
+      kind === "queued" ? [subtitle.join(" ")] : [],
+      `${literal} for the digit form of ${name}`,
+    );
+    outcomes[kind]++;
+  }
+  assert.ok(
+    outcomes.queued > 100 && outcomes.kept > 100 && outcomes.other > 100,
+    JSON.stringify(outcomes),
+  );
+});
+
+void test("random names with an architecture word or a bare number in the annotation: fit and gate agree, and only the title's number decides (generator 29 property)", () => {
+  let seed = 8_658_064;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const architecture = [
+    "x86-64",
+    "x86_64",
+    "x64",
+    "Win64",
+    "win32",
+    "amd64",
+    "arm64",
+    "i386",
+    "64-bit",
+  ];
+  const counts = { enrolled: 0, withheld: 0 };
+  for (let round = 0; round < 500; round++) {
+    const word = pick(vocabulary);
+    const title = word[0]!.toUpperCase() + word.slice(1);
+    const value = 2 + Math.floor(random() * 18);
+    const numbered = random() < 0.6;
+    const number = numbered ? ` ${pick([String(value), romanOf(value).toUpperCase()])}` : "";
+    const lone = numbered && !/^\d/u.test(number.trim()) && romanOf(value).length < 2;
+    const architectural = random() < 0.7;
+    const tail = architectural ? pick(architecture) : pick(["64", "x65", "86"]);
+    const name = `${title}${number} (${title}${number} ${tail} ${pick(["recomp", "port"])})`;
+    const carried = numbered ? pick([value, value + 1]) : null;
+    const product = `${word}${carried ?? ""}`;
+    const fit = reliefAccount(name, product, `${product}-1.0-windows-x86_64.zip`);
+    // The annotation's architecture word never decides; a bare annotation
+    // number is a number the literal must carry.
+    const expected = architectural && (!numbered || (carried === value && !lone));
+    if (expected) {
+      assert.ok("product" in fit, `${product} for ${name}: ${JSON.stringify(fit)}`);
+      counts.enrolled++;
+    } else {
+      assert.ok(!("product" in fit), `${product} for ${name}: ${JSON.stringify(fit)}`);
+      counts.withheld++;
+    }
+  }
+  assert.ok(counts.enrolled > 100 && counts.withheld > 100, JSON.stringify(counts));
 });
