@@ -149,7 +149,7 @@ fn enforces_schema_and_all_resource_bounds() {
     }
     let mut value = fixture();
     value["definitions"] = json!(
-        (0..MAX_DEFINITIONS)
+        (0..=RELEASED_READER_MAX_DEFINITIONS)
             .map(|n| {
                 let mut entry = value["definitions"][0].clone();
                 entry["stable_id"] = json!(format!("port-{n}"));
@@ -157,11 +157,11 @@ fn enforces_schema_and_all_resource_bounds() {
             })
             .collect::<Vec<_>>()
     );
-    assert_eq!(parse(&value).unwrap().definitions().len(), MAX_DEFINITIONS);
-    let mut extra = value["definitions"][0].clone();
-    extra["stable_id"] = json!("port-over-count-bound");
-    value["definitions"].as_array_mut().unwrap().push(extra);
-    assert!(parse(&value).is_err());
+    // No lifetime count: every identity within the index byte bound is read.
+    assert_eq!(
+        parse(&value).unwrap().definitions().len(),
+        RELEASED_READER_MAX_DEFINITIONS + 1
+    );
     let mut bytes = serde_json::to_vec(&fixture()).unwrap();
     bytes.resize(MAX_INDEX_BYTES, b' ');
     assert!(DefinitionContentIndex::parse(&bytes).is_ok());

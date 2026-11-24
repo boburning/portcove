@@ -33,14 +33,25 @@ pub struct InvalidCarrier;
 /// Decode one bounded gzip stream and check the identity declared in its carrier.
 /// Callers independently verify the enclosing signed transport before use.
 pub fn decode(bytes: &[u8]) -> Result<(Vec<u8>, String), InvalidCarrier> {
-    if bytes.len() > MAX_BYTES {
+    decode_within(bytes, MAX_BYTES, MAX_COMPACT_DECODED_BYTES)
+}
+
+/// `decode` under a caller-stated wire and decoded working-memory budget.
+/// The decoded allocation never exceeds `max_decoded`, whatever the carrier
+/// declares, so the budget is also the decompression-ratio protection.
+/// Readers use [`decode`]; this form exists for measurement scenarios.
+#[doc(hidden)]
+pub fn decode_within(
+    bytes: &[u8],
+    max_wire: usize,
+    max_decoded: usize,
+) -> Result<(Vec<u8>, String), InvalidCarrier> {
+    if bytes.len() > max_wire {
         return Err(InvalidCarrier);
     }
     let carrier: CompactListingCarrier =
         serde_json::from_slice(bytes).map_err(|_| InvalidCarrier)?;
-    if carrier.carrier != COMPACT_CARRIER
-        || !(1..=MAX_COMPACT_DECODED_BYTES).contains(&carrier.decoded_bytes)
-    {
+    if carrier.carrier != COMPACT_CARRIER || !(1..=max_decoded).contains(&carrier.decoded_bytes) {
         return Err(InvalidCarrier);
     }
     let compressed = STANDARD

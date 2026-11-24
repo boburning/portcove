@@ -12,6 +12,7 @@ import {
   publicCatalogUnchanged,
   retainPublicCatalogCapture,
 } from "./public-catalog.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const revision = "e57f3296a94a2e914293ecc6da315f0294beef00";
 const observedAt = "2026-11-18T02:00:00Z";
@@ -245,7 +246,7 @@ void test("public projection validates stable identities, duplicates, UTF-8, bou
   assert.throws(
     () =>
       projectPublicCatalog({
-        listings: Buffer.alloc(32 * 1024 ** 2 + 1),
+        listings: Buffer.alloc(listingDirectoryTextMaximum + 1),
         catalog: Buffer.from("{}"),
         revision,
         observedAt,
@@ -262,6 +263,14 @@ void test("public projection validates stable identities, duplicates, UTF-8, bou
       }),
     /exact revision/u,
   );
+});
+
+void test("the projection has no entry count; site output keeps its own file and byte bounds", async () => {
+  const listings = Array.from({ length: 10_001 }, (_, index) => entry(`project-${index}`));
+  const projection = fixture(listings);
+  assert.equal(projection.entries.length, 10_001);
+  // One page per project: the site's existing 6,000-file output bound binds.
+  await assert.rejects(() => publicCatalogFiles(projection), /bound/u);
 });
 
 void test("new-directory output is reproducible, leaves an existing result intact and contains no live provider reads", async (t) => {

@@ -7,6 +7,10 @@ export const compactListingDeliveryTarget = "policy/official/catalog.listings.co
 export const listingDeliveryMaximum = 8 * 1024 ** 2;
 export const compactListingDecodedMaximum = 32 * 1024 ** 2;
 export const compactListingCarrier = "gzip-base64-json-v1";
+/** Core's `MAX_LISTING_DIRECTORY_TEXT_BYTES`: the working-memory bound for the
+ * authored listing directory text. Tooling that reads the canonical
+ * `listings.json` uses it, never a delivery bound; a test pins it to Core. */
+export const listingDirectoryTextMaximum = 64 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function encodeCompactListing(bytes: Buffer) {

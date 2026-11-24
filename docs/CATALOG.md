@@ -989,7 +989,12 @@ its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
 XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
 Managed CorsixTH gives its Windows and Linux player the neutral name
 `PLAYER` for the upstream blank-name fallback. It leaves the name already
-stored in the player's external profile to CorsixTH.
+stored in the player's external profile to CorsixTH. This `PLAYER` value is a
+separate title-bound launch behavior, not part of the external-profile policy:
+an equivalent definition under another identity keeps the profile guard but not
+the name. It cannot move to the definition's `launch_environment` because
+external-profile policies forbid launch environment, so moving it to data needs
+a catalog contract change.
 
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
@@ -1021,6 +1026,10 @@ The universal Mac disk image remains an upstream package.
 Surge the Rabbit uses the publisher’s Windows portable ZIP. The selected
 32-bit player runs on the Windows x64 host route with the bundled game data.
 Portcove sets `OPENSURGE_USER_PATH` to the existing per-title data directory.
+On Windows, any native portable definition that declares this environment
+refuses a non-ASCII data directory, because the player reads it through the
+narrow CRT environment; the declared environment, not the title identity,
+selects that check.
 The normal launch uses the bundled game and its separate writable data directory.
 Native portable definitions with a managed userdata environment use their
 declared arguments, since an alternate game-folder argument can change the
@@ -1029,6 +1038,16 @@ Separately opened project folders retain their own files and backup ownership.
 
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
+A policy is bound to the authenticated definition that satisfies its structural
+layout (adapter, permitted platforms, launch and data constraints, and the
+exact upstream package and executable shape its validator requires), not to a
+compiled list of port identities. Every delivered definition is already signed
+individually: its delivery binds the exact definition bytes (`definition_sha256`)
+and, for a managed GitHub subject, the numeric `repository_id`. The Dune Dynasty
+and fheroes2 policies have no package-shape validator, so they keep their
+reviewed identity and repository pins until the maintainers decide whether that
+per-definition signature is a sufficient binding or add a package-shape
+validator for them.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a
@@ -4662,17 +4681,22 @@ sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`. A
 manual dispatch defaults to a dry run, which may run while disabled: it
 derives, generates and verifies the batch with read-only permissions, reports
 it in the job summary and artifacts, and saves no worker state, branch, pull
-request or issue. The job uses only the built-in workflow token, no secret,
-no paid runner and no external service other than GitHub and the upstream
-release downloads the worker already reads. The dispatch input bypasses
-nothing: without the variable it can only dry-run.
+request or issue. Its only credential beyond the built-in workflow token is a
+short-lived token of the job's own GitHub App, minted by the two jobs that
+write ([credentials](#credentials-the-app-token-and-the-built-in-token)); it
+uses no paid runner and no external service other than GitHub and the
+upstream release downloads the worker already reads. The dispatch input
+bypasses nothing: without the variable it can only dry-run, and a dry run
+never reaches the jobs that hold the App's key.
 
 Each run, in one concurrency group (`listing-facts-batch`):
 
 1. Any open issue titled `Listing facts batch stopped: …` stops the run.
 2. An open batch pull request is evaluated instead of starting another. Only
-   a pull request the workflow token opened from a batch branch of this
-   repository counts, so a fork or a person cannot hold or stop the job. When
+   a pull request a GitHub App opened from a batch branch of this repository
+   counts, so a fork, a person or another workflow's built-in token cannot
+   hold or stop the job; before it merges, the `merge` job requires the
+   author to be exactly its own App's bot login. When
    all five required checks (`catalog`, `dependency-review`, `frontend`,
    `rust`, `rust-quality`) passed on its exact head, the job composes it onto
    the current `main` tip as the squash will be, requires that composition to
@@ -4720,9 +4744,11 @@ Each run, in one concurrency group (`listing-facts-batch`):
    summary and counted in the pull request body, never as complete or
    settled. Entries that need no reproduction always land.
 4. A ready batch is pushed as the one-commit branch
-   `automation/listing-facts-batch-<run id>` and opened as a pull request,
-   after the deliver job checks that the applied patch and facts table are
-   the ones the outputs record names. Only then is the worker state saved.
+   `automation/listing-facts-batch-<run id>` and opened as a pull request by
+   the job's App, after the deliver job checks, before it mints the token,
+   that the applied patch and facts table are the ones the outputs record
+   names. Its required checks start on their own. Only then is the worker
+   state saved.
 5. Stop conditions and the freshness alert are filed; a deriving run also
    publishes the exception queues.
 
@@ -4877,15 +4903,25 @@ pull request, the check refuses the batch, never passes it.
 
 ###### Reproduction quota
 
-The REST requests use the built-in `GITHUB_TOKEN`, whose quota is 1,000
+The REST requests of reproduction use the built-in `GITHUB_TOKEN`, in the
+batch job and in the batch pull request's CI alike, whose quota is 1,000
 requests an hour per repository
-(`githubTokenHourlyRequests`), shared by every workflow of the repository (an
-App installation token has its own larger quota; nothing assumes one). The
-quota is the real constraint, so reproduction plans only half of it
+(`githubTokenHourlyRequests`), shared by every workflow of the repository.
+The job's App installation has its own quota, at least 5,000 requests an
+hour ([GitHub documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#primary-rate-limit-for-github-app-installations)),
+which only `deliver` and `merge` spend: per batch one request to open the
+pull request and one to merge it (the two `git push` calls are not REST
+requests), 2 of 5,000. Reproduction cannot use that quota: a token minted in
+a reproduction shard would put the App's key in a job that runs Core over
+downloaded bytes, and GitHub does not pass a token between jobs. Pull-request
+CI runs with its own built-in token whoever opened the pull request. So the
+built-in quota is the real constraint, and reproduction plans only half of it
 (`reproductionHourlyRequests`, 500 an hour): the other workflows spend the
 same quota while reproduction runs (CI's other jobs, the upstream observer,
-discovery, the batch job's own gate, merge and issue calls), and their use is
-not measured here (UNKNOWN), so no smaller reserve is justified. Reproduction
+discovery, the batch job's own gate and issue calls and the merge's reads),
+and their use is not measured here (UNKNOWN), so no smaller reserve is
+justified. Moving the pull request and merge writes to the App frees two
+built-in requests per batch, too few to change the share. Reproduction
 makes at most one request per entry (one per repository per shard), and the
 downloads are not REST requests.
 
@@ -4953,7 +4989,11 @@ refused entries and why, as inert code text. The conditions are `gate-refused`, 
 [catalog capacity](#catalog-capacity)), `reproduction-refused`,
 `reproduction-transient` (a reproduction that ended only transiently on two
 consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
-well-formed one-commit pull request), `batch-waiting` (an open batch whose
+well-formed one-commit pull request), `foreign-batch-author` (a batch-shaped
+pull request another GitHub App opened; see
+[credentials](#credentials-the-app-token-and-the-built-in-token)),
+`batch-app-slug-unset` (a batch passed its checks while
+`PORTCOVE_FACTS_BATCH_APP_SLUG` is unset), `batch-waiting` (an open batch whose
 required checks have not all finished more than 15 days after it was opened,
 most likely because its runs wait for approval: a reconfirmation proposed at
 15 days must merge within the rest of the 30-day facts age),
@@ -5012,7 +5052,7 @@ limit, with the worker's deadline set to that limit less the shard's other
 steps (330 minutes); each `reproduce` shard 125 minutes, the sum of its
 steps, whose reproduction step (90) outlasts the shared
 `reproductionDeadlineMinutes` (85); `combine` 80; `decide` 80; the deliver
-job 40; `gate` 20; `notify` 30.
+job 45; `merge` 45; `gate` 20; `notify` 30.
 
 When a stop issue cannot be filed (a spent quota, the step's deadline),
 `notify` fails with that cause and keeps the unfiled issues in the Actions
@@ -5027,53 +5067,131 @@ Every deriving run publishes `catalog-route-fit.mts --json` as the
 blocked reason, the most frequent unread package forms and the most frequent
 name vetoes. That report stays computed from the committed catalog and facts.
 
-###### What the built-in token does
+###### Credentials: the App token and the built-in token
 
-Events the built-in `GITHUB_TOKEN` causes create no workflow run, with two
-exceptions
-([GitHub documentation](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs)):
-`workflow_dispatch` and `repository_dispatch` always do, and a `pull_request`
-event with the `opened`, `synchronize` or `reopened` activity type creates
-its runs in an approval-required state, which a user with write access starts
-with **Approve workflows to run**. CI declares `pull_request`, so a batch pull
-request the job opens gets CI runs that wait for that approval; the job waits
-with it, and an approval counts as a human intervention. Whether the
-`pull_request_target` `closing-inventory` check runs for such a pull request
-is not stated there; the guarded merge needs it only when it falls back from
-GitHub's GraphQL closing inventory to the REST reconstruction. Approving the
-runs is CI permission, not merge eligibility: the guarded merge separately
-requires the five exact-head contexts, a complete closing inventory and the
-composition checks. The `Protect main` ruleset requires the five contexts,
-zero approving reviews and no required workflow. GitHub matches a required
-context by its name only, so a check run of that name from any source with
-`checks: write` on the repository satisfies it; the job's own merge is
-stricter, because it is bound to the five jobs of the head's CI run. Its extra approval applies
-only to Copilot pull requests not attributed to a person and has no effect
-when the ruleset requires zero approvals
-([GitHub documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#additional-approval-for-unattributed-copilot-pull-requests)),
-so it adds no requirement for a batch. A push with the built-in token, including its merge,
-starts no `push` run, so `main` CI, and the catalog publication that follows
-a green `main` run, pick the batch up only with the next ordinary qualifying
-`main` run. Runs without approval need a GitHub App installation token or a
-personal token, which is an owner decision and a new secret.
+The owner decided on [#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7106469487)
+to deliver and merge batches with a dedicated GitHub App rather than the
+built-in token: events the built-in `GITHUB_TOKEN` causes create no workflow
+run (its pull request's `pull_request` runs wait for a person to approve them,
+and its merge starts no `push` run;
+[GitHub documentation](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs)),
+while an App's events start them like a person's. So a batch pull request is
+an ordinary pull request: its required checks and the `pull_request_target`
+`closing-inventory` check start on their own, and a merged batch starts
+`main` CI and the catalog publication that follows a green `main` run. There
+is one CI path, with no second trigger, personal token or recurring dispatch.
 
-The first authorized pilot batch records, on that pull request: whether the
-approval banner appears; which of the five required gates and
-`closing-inventory` start and attach to the exact bot head; whether the
-guarded merge is eligible, confirmed separately from the CI approval; every
-actual approval or other intervention; and whether the next ordinary
-qualifying `main` run selects and publishes the batch. Only
-that publication makes the batch delivered.
+- Only `deliver` and `merge` declare the `facts-batch` environment, whose
+  deployment-branch policy admits only `main`, and only they can read its
+  variable `FACTS_BATCH_APP_ID` and secret `FACTS_BATCH_APP_PRIVATE_KEY`. In
+  each, one step (`actions/create-github-app-token`, pinned by commit SHA)
+  references the key and mints a token with only `contents: write` and
+  `pull-requests: write`, after every check that needs no credential and
+  immediately before the first step that uses it. The step sets no `owner` or
+  `repositories` input, so the pinned action scopes the token to the current
+  repository (`GITHUB_REPOSITORY`) on every trigger; an input taken from
+  `github.event.repository` would be empty on `schedule` and widen the token
+  to every repository of the installation. The action revokes the token when
+  the job ends.
+- Neither job ever executes batch or artifact content. `$GITHUB_WORKSPACE`
+  stays the untouched `main` checkout, and every check runs its scripts:
+  `deliver` applies the patch with `git am` in a separate worktree (Git
+  without system or global configuration, hooks, attribute files or
+  fsmonitor, so no filter, diff or merge driver runs) and checks the commit
+  as Git objects with main's `paths` and `outputs-check --revision`, then
+  pushes that commit by id and opens the pull request with main's script.
+  `merge` composes the batch onto the current `main` tip with
+  `git merge-tree` (objects only), checks both diffs with main's `paths`,
+  and runs `generate-catalog.mts --check` in a checkout of the `main` tip
+  that received only the allowlisted data files of the composition, proven
+  equal to it; the guarded merge reads a head worktree that writes no file.
+  `deliver` downloads only data (the patch, its outputs record, the delta,
+  the worker report and the worker state); `merge` downloads nothing.
+- `deliver` pushes the batch branch with it and opens the pull request;
+  `merge` merges through the guarded route and deletes the branch. Each push
+  gets the token as an HTTP header through that one `git` command's
+  environment, never through the git configuration, the remote URL or a
+  persisted checkout credential. The token reaches only the steps that write,
+  through `env:`; it is never echoed, cached or uploaded.
+- In `merge`, the built-in token reads the evidence (check runs, the CI
+  workflow run and its jobs, statuses, the closing inventory) and the App
+  token is used for the merge mutation alone (`scripts/pr-delivery.mts`,
+  `PORTCOVE_MERGE_TOKEN`), since the App has no Checks, Actions or Issues
+  permission. The merge stays bound with `--run`/`--attempt` to the head's
+  CI run and goes through the `Protect main` ruleset (five required contexts,
+  zero approving reviews); the App is on no bypass list.
+- `gate` and `notify` keep the built-in token (`notify` files the stop
+  issues; the App has no Issues permission). `prepare`, `inspect`, `combine`,
+  `reproduce` and `decide` run Core over downloaded bytes and never see the
+  key, the App id or a write token; they declare no environment.
+- The path allowlist is the control on what a batch may change. The App has
+  no Workflows permission, so GitHub would also refuse a batch push touching
+  `.github/workflows`: defense in depth, never relied on.
 
-###### Planned App token (intent only)
+A dry run never reaches `deliver` or `merge` (both require the variable and
+no dry run), so it works with the environment unset or the App unavailable.
 
-Not implemented here; this states the intended arrangement for when a
-GitHub App replaces the built-in token's writes. Only `deliver` (push the
-batch branch, open its pull request) and `merge` (the guarded merge) would
-ever receive a short-lived App installation token, minted in that job for
-that job. `gate` and `notify` stay on the built-in `GITHUB_TOKEN`. `prepare`,
-`inspect`, `combine`, `reproduce` and `decide` never see a write token or the
-App's private key.
+- The owner sets the required, non-secret repository variable
+  `PORTCOVE_FACTS_BATCH_APP_SLUG` to the App's slug before enabling the job;
+  the job never sets it. With it, the keyless `gate` makes another App's
+  batch-shaped pull request the named `foreign-batch-author` stop, so the
+  key-holding `merge` job never processes that pull request's data. Without
+  it (or malformed), `gate` never reports a batch green: a batch whose checks
+  pass is the named `batch-app-slug-unset` stop and is not merged. `merge`
+  still binds the author to the minted App's `app-slug` before any write and
+  raises `foreign-batch-author` on a mismatch.
+
+What the repository cannot show: the App's actual permission set,
+installation scope and absence from every bypass list (UNKNOWN). A
+successful mint does not confirm them: the action requests only the listed
+permissions and the current repository, and a broader App or installation
+grants them just the same. The owner verifies once in the App's settings
+that its permissions are exactly Contents and Pull requests (read and write)
+plus Metadata (read), that it is installed on this repository only and that
+it is on no ruleset bypass list, and records that on
+[#1422](https://github.com/boburning/portcove/issues/1422). The first live
+batch then records these observations:
+
+- the mint step's log names exactly this repository ("Creating token for
+  this repository"), never "all repositories owned by";
+- the pull request's author is the App's bot, and its CI starts without
+  anyone approving it;
+- no unexpected `push` workflow runs on the batch branch: every workflow's
+  `push` trigger names `main` or `v*` tags only, none matches
+  `automation/**`;
+- the merge succeeds only with the five required checks green, and the
+  `Protect main` ruleset's additional approval for unattributed changes does
+  not refuse it (expected inert with zero required approvals; see
+  [Repository settings](REPOSITORY-SETTINGS.md)). The batch commit is
+  authored and committed as `github-actions[bot]` (the patch's author is
+  fixed by `combine` and bound by the outputs record, and the App's bot
+  identity is known only after the mint), while the App pushes it;
+- `main` CI and the catalog publication start on the merge commit;
+- the branch deletion succeeds, and the post-job step revokes each token.
+
+A push to a path outside the allowlist is refused by the job itself, before
+GitHub sees it.
+
+The residual trust, plainly: the App's key, or any step that runs in
+`deliver` or `merge`, is equivalent to unattended write to `main` for
+anything that is not a workflow file, subject only to the five required
+checks, because the ruleset requires no approving review and a merged batch
+is then signed and published automatically. The `facts-batch` environment
+admits only `main`, so anything merged to `main` could use the key.
+
+Two further residual risks:
+
+- `main` may advance between the job's last check of the composition and
+  the merge request. The merge API takes the head SHA but no base-SHA
+  precondition, and the `Protect main` ruleset's status-check policy is not
+  strict, so GitHub merges onto whatever `main` is then. The `main` CI run on
+  the merge commit is the backstop.
+- `contents: write` is broader than the job's use of it. Beyond pushing the
+  batch branch, the token could create other branches, releases and tags.
+  The `Protect release tags` ruleset restricts update and deletion of `v*`
+  tags but not their creation (see
+  [Repository settings](REPOSITORY-SETTINGS.md)), and a `v*` tag push starts
+  `.github/workflows/app-release.yml`.
 
 ###### Migration and steady state
 
@@ -5092,10 +5210,10 @@ or changed entry from its exact bytes, and the stop conditions, including
 `withdrawal-held`. The schedule runs every 6 hours: that decides how soon a
 new release is seen, never how much lands. A run derives only while no batch
 is open, so each landed batch costs two runs (the one that derives it and
-the one that merges it) plus the wait until a person approves its workflow
-runs. A quiet catalog proposes a reconfirmation batch once an offered entry
-was last confirmed 15 days earlier (`refreshAfterDays`, half the facts age),
-which leaves the other half of the 30-day facts age for its approval.
+the one that merges it) plus its pull request's CI. A quiet catalog proposes
+a reconfirmation batch once an offered entry was last confirmed 15 days
+earlier (`refreshAfterDays`, half the facts age), which leaves the other half
+of the 30-day facts age for its checks and merge.
 
 ###### Catalog capacity
 
@@ -5131,37 +5249,38 @@ separate change.
 Every number that remains in the worker, the generator, the gate and the job
 is a correctness rule or comes from a real constraint:
 
-| Constant                                                                     | Value                                                     | Constraint                                                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `maxFactsAgeDays`                                                            | 30 days                                                   | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                                                           |
-| `lastGoodRetentionDays`                                                      | 14 days                                                   | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                                    |
-| `maxDistinctPrograms`                                                        | 1                                                         | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                                       |
-| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)           | 4 releases, 32 assets                                     | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                                      |
-| `coreInspectedFileBound` (players per archive)                               | 16,384                                                    | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                                               |
-| `maximumNameBytes`, `chunkNames`, `chunkBytes`                               | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes            | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                                                |
-| `guideBound` (`guide-bound`)                                                 | 8 entries                                                 | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                                      |
-| `displayableName`                                                            | 120 characters, 3 programs                                | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                                                                 |
-| `matrixJobLimit`                                                             | 256                                                       | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                                                           |
-| `reproductionDeadlineMinutes`                                                | 85 of 120 minutes                                         | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                                                                 |
-| `identityBudgetMinutes`                                                      | (85 − expected quota wait) / ceil(entries / 256) minutes  | The CI deadline, less the quota reset CI must expect past one hour's reproduction share (`expectedQuotaWaitMinutes`), shared by the entries one CI shard holds. The worker passes the entries one batch can land (at most 500): 85 up to 256, 42.5 from 257 on. A hand-made change of about 1,100 entries gets (85 − 60) / 5 = 5.                  |
-| Inspect shard deadline                                                       | 330 of 360 minutes                                        | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                                                                       |
-| Runner disk                                                                  | about 14 GB free                                          | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                                                             |
-| `githubTokenHourlyRequests`, `reproductionHourlyRequests`                    | 1,000 and 500 requests an hour                            | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows (an App installation token has its own larger quota, not assumed); reproduction plans half and leaves half for the other workflows, whose use is not measured (UNKNOWN). Reproduction spends at most one request per entry.                                   |
-| `reproductionParallelism`                                                    | 500 / entries per shard                                   | The shards whose requests fit one hour's reproduction share: 250 at about 400 entries, 100 for a hand-made change of about 1,100.                                                                                                                                                                                                                  |
-| `reproductionsPerBatch`, `reproductionBatchEntries`, `quotaResetWaitMinutes` | 2 reproductions, 250 entries, 60 minutes                  | The batch job and the batch pull request's CI each reproduce every entry, possibly in one hour, so both count against one hour's share: a batch lands at most 500 ÷ 2 entries that need reproduction and carries the rest (reported as `carried`), so neither waits; GitHub resets the primary quota hourly, so a spent quota waits up to an hour. |
-| `githubFirstRetryMs`, `--deadline-minutes`                                   | 1 minute, then doubling; the step's timeout less 1 minute | GitHub's retry guidance for a refusal that states no wait; every call ends at its step's deadline with a clear transient cause.                                                                                                                                                                                                                    |
-| `githubResponseBytes`, `githubRequestMs`                                     | 8 MiB, 30 seconds                                         | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                                                        |
-| Open pull request listing                                                    | 10 pages of 100                                           | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                                                                  |
-| Observer handoff lookup                                                      | 20 newest observer runs                                   | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                                                          |
-| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`)    | 16 MiB and 8 MiB, each at 85% (16 KiB reserve)            | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                                                           |
-| Provider asset size                                                          | 2 GiB                                                     | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                                                                    |
-| `releaseListPage`                                                            | 100                                                       | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                                                                    |
-| `refreshAfterDays`, `freshnessAlertDays`                                     | 15 days                                                   | Half the facts age, leaving the other half for a reconfirmation batch and its approval.                                                                                                                                                                                                                                                            |
-| `batchWaitDays`                                                              | 15 days                                                   | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                                                           |
-| `clockSkewMs`                                                                | 0                                                         | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                                                                      |
-| Artifact retention                                                           | 30 days                                                   | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                                                                     |
-| Retained-artifact ZIP bounds                                                 | 64 MiB compressed, 128 MiB expanded                       | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                                                                     |
-| Stop-issue reads                                                             | 1,000 issues                                              | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                                                               |
+| Constant                                                                     | Value                                                     | Constraint                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `maxFactsAgeDays`                                                            | 30 days                                                   | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                                                                                                                                       |
+| `lastGoodRetentionDays`                                                      | 14 days                                                   | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                                                                                                                |
+| `maxDistinctPrograms`                                                        | 1                                                         | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                                                                                                                   |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)           | 4 releases, 32 assets                                     | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                                                                                                                  |
+| `coreInspectedFileBound` (players per archive)                               | 16,384                                                    | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                                                                                                                           |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                               | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes            | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                                                                                                                            |
+| `guideBound` (`guide-bound`)                                                 | 8 entries                                                 | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                                                                                                                  |
+| `displayableName`                                                            | 120 characters, 3 programs                                | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                                                                                                                                             |
+| `matrixJobLimit`                                                             | 256                                                       | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                                                                                                                                       |
+| `reproductionDeadlineMinutes`                                                | 85 of 120 minutes                                         | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                                                                                                                                             |
+| `identityBudgetMinutes`                                                      | (85 − expected quota wait) / ceil(entries / 256) minutes  | The CI deadline, less the quota reset CI must expect past one hour's reproduction share (`expectedQuotaWaitMinutes`), shared by the entries one CI shard holds. The worker passes the entries one batch can land (at most 500): 85 up to 256, 42.5 from 257 on. A hand-made change of about 1,100 entries gets (85 − 60) / 5 = 5.                                                                                              |
+| Inspect shard deadline                                                       | 330 of 360 minutes                                        | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                                                                                                                                                   |
+| Runner disk                                                                  | about 14 GB free                                          | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                                                                                                                                         |
+| `githubTokenHourlyRequests`, `reproductionHourlyRequests`                    | 1,000 and 500 requests an hour                            | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows and used by every reproduction (the batch job's and its pull request's CI); reproduction plans half and leaves half for the other workflows, whose use is not measured (UNKNOWN). Reproduction spends at most one request per entry.                                                                                                      |
+| App installation quota                                                       | at least 5,000 requests an hour                           | The job's GitHub App, used only by `deliver` and `merge`: 2 REST requests per batch (open the pull request, merge it), so 2 of 5,000. It never serves reproduction, which would need the App's key in a job that runs Core over downloaded bytes, so it does not change the reproduction share.                                                                                                                                |
+| `reproductionParallelism`                                                    | 500 / entries per shard                                   | The shards whose requests fit one hour's reproduction share: 250 at about 400 entries, 100 for a hand-made change of about 1,100.                                                                                                                                                                                                                                                                                              |
+| `reproductionsPerBatch`, `reproductionBatchEntries`, `quotaResetWaitMinutes` | 2 reproductions, 250 entries, 60 minutes                  | The batch job and the batch pull request's CI each reproduce every entry on the built-in token, possibly in one hour, so both count against one hour's share: a batch lands at most 500 ÷ 2 = 250 entries that need reproduction and carries the rest (reported as `carried`), so neither waits; the App's own quota does not add to this share. GitHub resets the primary quota hourly, so a spent quota waits up to an hour. |
+| `githubFirstRetryMs`, `--deadline-minutes`                                   | 1 minute, then doubling; the step's timeout less 1 minute | GitHub's retry guidance for a refusal that states no wait; every call ends at its step's deadline with a clear transient cause.                                                                                                                                                                                                                                                                                                |
+| `githubResponseBytes`, `githubRequestMs`                                     | 8 MiB, 30 seconds                                         | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                                                                                                                                    |
+| Open pull request listing                                                    | 10 pages of 100                                           | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                                                                                                                                              |
+| Observer handoff lookup                                                      | 20 newest observer runs                                   | One page of the observer's completed `main` runs; none retaining a handoff fails the run.                                                                                                                                                                                                                                                                                                                                      |
+| `MAX_CATALOG_BYTES`, `MAX_LISTING_BYTES` (`retainedContractReserveBytes`)    | 16 MiB and 8 MiB, each at 85% (16 KiB reserve)            | What released readers accept: see [catalog capacity](#catalog-capacity). The embedded listing directory binds first, at roughly 450 to 500 more generated routes (about 300 at the 90th percentile); the job checks both before it opens a pull request.                                                                                                                                                                       |
+| Provider asset size                                                          | 2 GiB                                                     | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                                                                                                                                                |
+| `releaseListPage`                                                            | 100                                                       | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                                                                                                                                                |
+| `refreshAfterDays`, `freshnessAlertDays`                                     | 15 days                                                   | Half the facts age, leaving the other half for a reconfirmation batch's checks and merge.                                                                                                                                                                                                                                                                                                                                      |
+| `batchWaitDays`                                                              | 15 days                                                   | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                                                                                                                                       |
+| `clockSkewMs`                                                                | 0                                                         | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                                                                                                                                                  |
+| Artifact retention                                                           | 30 days                                                   | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                                                                                                                                                 |
+| Retained-artifact ZIP bounds                                                 | 64 MiB compressed, 128 MiB expanded                       | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                                                                                                                                                 |
+| Stop-issue reads                                                             | 1,000 issues                                              | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                                                                                                                                           |
 
 The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
 512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
@@ -5177,8 +5296,7 @@ ten-name report cap are removed.
 The job stays disabled until the real cohort, independent review, exact
 gates and an activation decision are in place. Switching it on starts the
 migration: the first run proposes one pull request with every identity
-that fits, possibly hundreds. Before
-activation, the owner decides the path scope: the recorded direction on
+that fits, possibly hundreds. The path scope: the recorded direction on
 [#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
 names only the facts and enrollment tables, while a batch that enrolls also
 rewrites `catalog.json` and `listings.json`, because catalog generation
@@ -5187,39 +5305,38 @@ listing's other platforms in the discovery directory. Those two paths are
 never authored by the batch: CI requires each of them, and the enrollment
 table, to be the byte-for-byte output of `generate-catalog.mts` from the
 facts table and the unchanged sources (`derivedBatchPaths`). Without them a
-batch could not offer a route. Then the owner, in the repository settings:
+batch could not offer a route. A hand-written pull request changing both the
+facts checker and the facts table is held only by review (the separation
+refusal above catches accidents); whether the checker paths should need a
+review stays an owner decision.
 
-1. Accept that a hand-written pull request changing both the facts checker
-   and the facts table is held only by review (the separation refusal above
-   catches accidents), and decide whether the checker paths should need a
-   review.
-2. Actions, General, Workflow permissions: allow GitHub Actions to create and
-   approve pull requests (the built-in token cannot open the batch pull
-   request otherwise). This setting is repository-wide: it lets every
-   workflow's built-in token in this repository create and approve pull
-   requests, not only this job's. The job requests its own write permissions
-   per job.
-3. Optionally dispatch the workflow once with the default dry run and read
-   its summary and artifacts: the dry run derives the same migration batch
-   and reports its size, its exception queues and its stop conditions.
-4. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true` (unset
-   or any other value is off).
-5. For each batch pull request, approve its workflow runs (**Approve
-   workflows to run**), including the migration pull request, whose
-   reproduction matrix may run up to 256 jobs. That approval is a human intervention, and it grants
-   CI permission only: the job merges later through the guarded route when
-   the exact-head checks pass. A merged batch reaches `main` CI and catalog
-   publication with the next ordinary qualifying `main` run. The pilot
-   records what else, if anything, a batch needs; close and reopen is not
-   documented as required unless the pilot shows it.
-6. Watch the first live batch and record the actual behaviour, including
-   whether the guarded merge of a bot-authored squash is eligible.
-7. Removing the per-batch approval needs a GitHub App installation or another
-   credential: an owner decision, not part of this job.
+The App and its `facts-batch` environment already exist
+([credentials](#credentials-the-app-token-and-the-built-in-token)); no
+Actions setting that lets the built-in token create pull requests is needed.
+The owner or lead then:
 
-Nothing else changes: no ruleset, required check, environment, secret or
-signing setting. To switch it off, delete the variable or set it to anything
-else.
+1. Dispatches the workflow once with the default dry run and reviews its
+   summary and artifacts: the dry run derives the same migration batch and
+   reports its size, its exception queues and its stop conditions. It needs
+   neither the environment nor the App.
+2. Exercises a throwaway pull request of a few facts entries, to see CI's
+   reproduction shards and their aggregate run on real entries before the
+   migration's matrix of up to 256 jobs.
+3. Sets the required repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to
+   the job's App's slug; without it no batch is ever merged
+   (`batch-app-slug-unset`).
+4. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
+   (unset or any other value is off).
+
+The first live batch then records the observations that confirm the App's
+scope (above): the token mint succeeds for Contents and Pull requests only,
+the pull request shows the App as author and its CI starts unattended, the
+guarded merge succeeds on green exact-head checks, and `main` CI starts on
+the merged commit and publishes the catalog. No person approves, closes or
+reopens a batch pull request.
+
+Nothing else changes: no ruleset, required check or signing setting. To
+switch it off, delete the variable or set it to anything else.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
@@ -5693,74 +5810,30 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 Optional authoring-only `n64_recomp_persistence_v1` expands the reviewed
 root-level N64Recomp persistence layout for managed GitHub packages. Use `true`
 for the shared mod, save and settings paths with the declared
-`runtime_source_filename`. Dinosaur Planet's `config-directory` adds `config`
-after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
-`technical.json.bak` before the original file. Keep the source profile, ROM
-filename, repository, asset selectors and executable hints in the integration.
-Dinosaur Planet and Donkey Kong 64 require their named variants when using the
-recipe. A nested layout, different provider, optional settings declaration or
-different writer set uses an explicit integration. URL preparation proposes the
-family form when its expanded integration reproduces the reviewed explicit bytes.
+`runtime_source_filename`. A record whose player also writes a `config`
+directory declares `config-directory`, which adds `config` after `saves`; one
+whose player writes technical settings declares `technical-settings`, which
+adds `technical.json` and `technical.json.bak` before the original file. The
+variant is the record's declaration, not its identity. Keep the source profile,
+ROM filename, repository, asset selectors and executable hints in the
+integration. A nested layout, different provider, optional settings
+declaration or different writer set uses an explicit integration, and the
+refusal names the missing precondition. URL preparation proposes the variant
+whose expanded integration reproduces the reviewed explicit bytes.
 
-Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
-shared portable-root persistence list for the reviewed ReflectionHLE route.
-Keep the original editions, platform packages, launch arguments and reviewed
-package layouts explicit. Preparation proposes the shared form only when it
-can reproduce the exact reviewed integration bytes. A different writer scope
-or additional runtime layout declaration uses explicit paths.
+#### Retired single-upstream shorthands
 
-Optional authoring-only `crispy_doom_windows_persistence_v1: true` expands the
-reviewed Windows persistent paths and filename patterns shared by the Crispy
-Doom, Heretic, Hexen and Strife player routes. Keep each game mode, package
-selector, executable, original edition, launch values and qualification
-explicit. Preparation compacts only integrations that expand byte for byte.
-A fork or a different writer layout uses explicit paths.
-
-Optional authoring-only `chocolate_family_windows_persistence_v1: true`
-expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
-The recipe keeps each title's configuration and screenshots with its saves
-and treats the two engine logs as runtime output. Keep each official package
-selector, executable, original IWAD profile and launch arguments explicit.
-Preparation compacts a route only when expansion reproduces its exact bytes.
-
-The authoring-only `gen2recomp_windows_persistence_v1: true` expands the
-reviewed Windows player data and generated import paths for the Gold, Silver
-and Crystal routes. Each original profile, release selector, executable and
-edition launch value stays explicit. URL preparation uses the recipe when
-expansion reproduces the existing integration byte for byte.
-
-The authoring-only `rsdkv4_portable_data_v1: true` supplies the reviewed
-portable data paths for Sonic the Hedgehog and Sonic the Hedgehog 2 (2013).
-Each game keeps its own identity, original-file instructions, official package
-selector, executable and installed data. URL preparation uses the recipe when
-its expansion reproduces the reviewed integration byte for byte. A different
-writer layout uses explicit paths.
-
-Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
-Jak trilogy setup. The generator supplies the extractor, launcher, and setup
-and portable data paths from the matching game identity. Keep the reviewed
-disc profile, release authority, support and presentation in each record.
-URL preparation compacts an exact match. A reviewed setup that differs uses
-the explicit integration fields.
-
-The authoring-only `openmohaa_portable_v1` generates the official stable
-OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
-It supplies the four platform selectors, shared Windows archive layout,
-edition-specific Unix launcher checks, and original-data paths. Keep each
-edition’s original requirements, instructions, support and qualification
-explicit. The engine still owns the external player profile. Preparation
-compacts a route only when the generated integration reproduces it byte for
-byte. A different source, package, launcher or writer layout uses an explicit
-integration.
-
-Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
-(as a string) for portable routes with matching GitHub lineage,
-reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
-TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
-path. Each title keeps its original-data picker instructions, executable,
-reviewed package layout, external SDL profile and qualification explicit.
-URL preparation uses the recipe only when it reproduces the full integration
-byte for byte.
+Shorthands must expand by declared fields, never by a repository or identity
+literal, so a new title that fits a mechanism needs data only. Eleven earlier
+shorthands carried the facts of exactly one upstream: Aleph One pinned Windows,
+Chocolate and Crispy Doom Windows persistence, Gen2Recomped persistence, the
+BStone/DevilutionX managed profile, OpenGOAL setup, OpenMoHAA, OpenX, Raze,
+ReflectionHLE and RSDKv4. Their records now author those integration fields
+explicitly, with byte-identical generated output. `checkedAuthoredPort` refuses
+the retired `*_v1` fields so a stale declaration cannot silently drop the
+fields it used to supply. A GitHub-hosted Direct pin must be a canonical
+`<project_url>/releases/download/<tag>/<file>` URL of the record's own project,
+with no query or fragment.
 
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
@@ -5784,15 +5857,12 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
-single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
-`psx_crash.txt`. Their remaining split-mods fields are the same.
-Use `"split-mods-diagnostics"` for the reviewed MediEvil and Mortal Kombat 4
-kits. It retains `diagnostics-location.txt` alongside the standard split-mods
-paths. Keep the exact selectors, executables, discs and retail SCPH-1001 BIOS
-explicit. MediEvil keeps managed Windows and Linux routes with separate Mac
-setup. Mortal Kombat 4 keeps its two declared managed Mac routes and existing
-qualification limits.
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for reviewed
+single-disc kits with SCPH-1001 BIOS whose writer omits `psx_crash.txt`; the
+release repository must be the listing project. Their remaining split-mods
+fields are the same. The MediEvil and Mortal Kombat 4 routes, whose writers
+also keep `diagnostics-location.txt`, author their complete integrations
+explicitly.
 `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
@@ -5804,16 +5874,18 @@ split mod rules still apply. For the reviewed retail multidisc split-mods kits,
 keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
 integration.
 
-Use `"technically-computers"` for the reviewed TechnicallyComputers GitHub
-kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
+Use `"technically-computers"` for GitHub kits with the TechnicallyComputers
+layout: Windows x64, Intel macOS and Apple silicon macOS platforms in that
+order with the `windows-x64`, `macos-x64` and `macos-arm64` selectors. This
 variant supplies only the `build-portcove` runtime root and eight persistent
 paths. Each record retains its repository, asset selectors, executable hints,
-original disc profile, guide and qualification. A different upstream or writer
-layout uses explicit fields. Bomberman Party Edition and Final Fantasy VII can
-use `"technically-computers-input-files"` for the same eight persistent paths
-plus `input.ini` and `keybinds.ini`. Both keep the runtime root and mutable
-files explicit. Final Fantasy VII also keeps its three-disc source
-materialization and launch arguments explicit.
+original disc profile, guide and qualification. A different writer layout uses
+explicit fields. Kits that declare their `build-portcove` runtime root and
+`runtime_mutable_paths` use `"technically-computers-input-files"` for the same
+eight persistent paths plus `input.ini` and `keybinds.ini`. A raw disc set also
+declares its `runtime-discs` source, `psx-raw-set` materialization and launch
+arguments. No variant depends on the kit's repository or identity; a refusal
+names the missing precondition.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
@@ -6134,21 +6206,6 @@ folder, and player or upstream ownership in the authored record. Use explicit
 `user_prepared` entries for accepted packages and per-platform distinctions.
 The CPS2Recomp routes use this shared registration form.
 
-The `alephone_pinned_windows_v1` recipe supplies the reviewed bundled-scenario
-launch arguments, environment, Windows path policy and external profile
-ownership for Marathon, Marathon 2 and Marathon Infinity. Each integration
-keeps its exact Direct archive pin and scenario executable. Each listing keeps
-its game, setup instructions and release-maintenance conditions.
-`prepare-port.mts` compacts only an exact match. The pins offer no automatic
-updates, and Portcove backups exclude the upstream profiles.
-
-The `native_managed_profile_v1` recipe supplies the managed `profile`
-directory, Windows temporary directory and relative-file path policy for the
-reviewed BStone and DevilutionX routes. The official selector, original-file
-contract, launch arguments and package-layout review remain explicit.
-`prepare-port.mts` compacts an exact match. Use the explicit integration when
-the title uses a different writer path or a player-owned profile.
-
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
@@ -6204,15 +6261,6 @@ Shared upstream families retain independent per-ID records. The authoring tests
 compare Raze's platform, profile and update guide facts and Namco's common upstream
 and platform links. Original-file requirements, canonical issues, identities and
 independently reviewed acquisition restrictions stay local to each record.
-
-For the reviewed stable `ZDoom/Raze` Windows x64 native-portable route,
-`raze_windows_profile_v1: true` expands the shared release asset selector,
-executable, package layout, portable marker and persistent paths. Keep the
-repository, platforms, channels, support tier, qualification and guide explicit.
-A different repository, package or write scope requires an explicit integration.
-Preparation proposes the compact profile when it regenerates the existing
-integration byte for byte. Core receives each complete definition through the
-existing catalog validation.
 
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation

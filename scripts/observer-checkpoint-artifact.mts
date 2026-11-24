@@ -38,6 +38,7 @@ import {
   decodeStoredObserverCheckpoint,
   encodeStoredObserverCheckpoint,
 } from "./observer-checkpoint-storage.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
@@ -920,7 +921,7 @@ async function initializeApprovedBaseline(
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
     ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
-    ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
+    ["listings", "crates/portcove-core/catalog/listings.json", listingDirectoryTextMaximum],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
     const local = (await readBoundedEvidenceFile(path.join(root, filename), limit)).bytes;
@@ -956,7 +957,7 @@ async function initializeApprovedBaseline(
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
     ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
-    ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
+    ["listings", "crates/portcove-core/catalog/listings.json", listingDirectoryTextMaximum],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source readback");
     requireValue(
