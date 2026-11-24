@@ -261,6 +261,7 @@ function memoryStore() {
   const leads = new Map<number, unknown>();
   const leadWrites: number[] = [];
   let loads = 0;
+  let committer: string | undefined;
   const known: (number | undefined)[] = [];
   const store: DiscoveryStore = {
     acquire(owner, request) {
@@ -270,7 +271,8 @@ function memoryStore() {
       if (
         request.known?.revision === revision &&
         request.known.generation === 1 &&
-        request.known.definition === discoveryDefinitionDigest
+        request.known.definition === discoveryDefinitionDigest &&
+        request.known.attempt === committer
       )
         return {
           revision,
@@ -280,8 +282,9 @@ function memoryStore() {
           acquisition: commits.length + 1,
           generation: 1,
           unchanged: true,
+          received_bytes: 200,
         };
-      return {
+      const full = {
         revision,
         state: structuredClone(state),
         state_sha256: hex("0"),
@@ -289,6 +292,7 @@ function memoryStore() {
         acquisition: commits.length + 1,
         generation: 1,
       };
+      return { ...full, received_bytes: Buffer.byteLength(JSON.stringify(full)) };
     },
     commit(owner, expected, input) {
       if (refuse || owner.token !== holder || expected !== revision)
@@ -300,6 +304,7 @@ function memoryStore() {
       leadWrites.push(input.leadRecords.length);
       commits.push({ observations: input.observations.length, watches: input.watches.length });
       state = JSON.parse(JSON.stringify(input.state)) as Record<string, unknown>;
+      committer = owner.attempt;
       return { revision: ++revision, bytes: 100 };
     },
     loadLeadRecords() {
@@ -490,11 +495,29 @@ void test("a pass reuses what this run committed only while the store still hold
     (retained.state.leads as { records: Record<string, unknown> }).records,
   ).length;
   assert.equal(records, memory.leads.size, "the retained state carries every stored record");
+  // Exactly what the store holds at that revision: its document and its rows.
+  const stored = memory.state() as { leads: Record<string, unknown> };
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(retained.state)),
+    JSON.parse(
+      JSON.stringify({
+        ...stored,
+        leads: {
+          ...stored.leads,
+          records: Object.fromEntries([...memory.leads].map(([id, r]) => [String(id), r])),
+        },
+      }),
+    ),
+  );
+  assert.ok(
+    (first.committed.received_bytes ?? 0) > 200,
+    "the first pass receives the stored document",
+  );
   // The store still holds that revision: nothing is read again.
   const second = await pass();
   assert.notEqual(second.outcome, "failed", second.reason ?? "");
   assert.equal(memory.loads(), 1);
-  assert.ok((second.committed.received_bytes ?? 0) < 1024, "only the short grant is received");
+  assert.equal(second.committed.received_bytes, 200, "only the short grant is received");
   // Another writer advanced the revision: the next pass reads what is stored.
   memory.advance(memory.state());
   const third = await pass();
@@ -780,7 +803,12 @@ void test(
     const grant = store.acquire(first, options);
     assert.equal(commit(store, first, grant.revision, { cursor: 1 }).revision, 1);
     store.finish(first, "partial", {});
-    const held = { revision: 1, generation: grant.generation, definition: hex("d") };
+    const held = {
+      revision: 1,
+      generation: grant.generation,
+      definition: hex("d"),
+      attempt: first.attempt,
+    };
     const reused = store.acquire(lease("2"), { ...options, known: held });
     assert.equal(reused.unchanged, true);
     assert.deepEqual(reused.state, {}, "the held state is not sent again");
@@ -790,8 +818,10 @@ void test(
       ["revision", { ...held, revision: 0 }],
       ["generation", { ...held, generation: held.generation + 1 }],
       ["definition", { ...held, definition: hex("e") }],
+      // Another store that reached the same revision through other commits.
+      ["attempt", { ...held, attempt: lease("9").attempt }],
     ] as const) {
-      const owner = lease(name === "revision" ? "3" : name === "generation" ? "4" : "5");
+      const owner = lease({ revision: "3", generation: "4", definition: "5", attempt: "6" }[name]);
       const full = store.acquire(owner, { ...options, known });
       assert.equal(full.unchanged, undefined, name);
       assert.deepEqual(full.state, { cursor: 1 }, `a different ${name} reads the stored state`);

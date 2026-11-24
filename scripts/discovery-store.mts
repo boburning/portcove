@@ -57,6 +57,8 @@ export interface DiscoveryKnownRevision {
   revision: number;
   generation: number;
   definition: string;
+  /** The attempt whose commit produced this revision; unique across restores. */
+  attempt: string;
 }
 
 export interface DiscoveryLease {
@@ -141,15 +143,20 @@ export function postgresDiscoveryStore(
             ${uuid(lease.token)}, ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
             ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)})`;
         const { known } = options;
-        // Only a revision this caller committed, in the same activation generation
-        // and under the same definition, is omitted: every commit advances the
-        // revision under the lease, and a restore advances the generation.
+        // Only a revision this caller committed is omitted: the same revision,
+        // activation generation and definition, and the scope's latest committing
+        // attempt is the caller's own. Attempt ids are random, so a restored or
+        // branched store that reached the same revision through other commits
+        // does not match.
         const output = runSql(
           environment,
           known
             ? `SELECT (CASE WHEN (g->>'revision')::bigint = ${known.revision}
                  AND (g->>'generation')::bigint = ${known.generation}
                  AND g->>'definition_sha256' = ${sqlLiteral(known.definition)}
+                 AND (SELECT attempt_id FROM portcove_maintenance.discovery_collection_attempts
+                      WHERE scope = ${sqlLiteral(lease.scope)} AND committed_pages > 0
+                      ORDER BY acquisition DESC LIMIT 1) = ${uuid(known.attempt)}
                  THEN (g - 'state') || '{"unchanged": true}'::jsonb ELSE g END)::text
                FROM ${acquire} AS g;`
             : `SELECT ${acquire}::text;`,

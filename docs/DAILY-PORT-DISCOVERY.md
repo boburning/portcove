@@ -1007,12 +1007,16 @@ sized from the stored state and the previous pass, plus its own lease and
 attempt. Neon meters only what the database sends to the client, so a pass's
 transfer is its responses: the acquire read of the state and lead records, and
 each commit's short acknowledgement. What a commit sends is recorded as
-`sent_bytes` but is not charged. A later pass of the same run offers the
-revision, generation and definition it committed. When the store still holds
-exactly that revision, the store omits the state, and the pass reuses its own
-copy and lead records instead of reading them again. Any other writer's commit or a
-restore changes the revision or generation, and the pass reads the stored
-state in full. A pass ends when its work is done, when provider quota runs out,
+`sent_bytes` but is not charged. A later pass of the same run offers the revision, generation and definition it
+committed, with the attempt that committed it. The store omits the state only
+when it still holds exactly that revision and that attempt is the scope's latest
+committing attempt. The pass then reuses its own copy and lead records instead
+of reading them again. Attempt ids are random, so another writer's commit, a
+restore or a branched store that reached the same revision through other commits
+does not match, and the pass reads the stored state in full. While a pass runs,
+it also keeps the retained copy, so unattended collection holds up to two
+copies of its state, each within the runner bound below.
+A pass ends when its work is done, when provider quota runs out,
 when its admitted transfer could no longer cover the next commit's and the
 final one's responses, or when its admission window or the job deadline nears. When quota or transfer
 ended a productive pass, the worker holds nothing while it waits for the

@@ -325,6 +325,7 @@ export async function runDiscoveryWorker(
               revision: known.revision,
               generation: known.generation,
               definition: known.definition,
+              attempt: known.attempt,
             },
           }
         : {}),
@@ -426,6 +427,7 @@ export async function runDiscoveryWorker(
   });
   let lastCommit = now();
   let committedDefinition = grantDefinition;
+  let committedAttempt = reused?.attempt;
   // The state document of the last commit, which with the committed lead
   // records is exactly what the store holds at `revision`.
   let committedDocument: Record<string, unknown> | undefined;
@@ -517,6 +519,7 @@ export async function runDiscoveryWorker(
       });
       revision = saved.revision;
       committedDefinition = discoveryDefinitionDigest;
+      committedAttempt = lease.attempt;
       committedDocument = next;
       committed.received_bytes += saved.received_bytes ?? 0;
       committed.pages++;
@@ -631,11 +634,12 @@ export async function runDiscoveryWorker(
   if (!stale && !halted && !dirty) {
     const document = committedDocument ?? (reused ? undefined : null);
     if (document === undefined) options.retain?.(reused);
-    else if (document !== null)
+    else if (document !== null && committedAttempt)
       options.retain?.({
         revision,
         generation: grant.generation,
         definition: committedDefinition,
+        attempt: committedAttempt,
         state: structuredClone({
           ...document,
           leads: { ...(document.leads as Record<string, unknown>), records: host.leads.records },
@@ -1259,8 +1263,9 @@ export async function discoveryWorkerMain(argv: string[]) {
         // read of the state and lead records (omitted when a later pass reuses
         // what this run committed), then a short acknowledgement for a commit
         // every half lease across the admission window and the final commit.
-        // The previous pass's response bytes cover growth. The admission meters
-        // 70% of a reservation as payload.
+        // The largest response any pass of this run or a recent run received
+        // covers growth, including a full read after another writer's commit.
+        // The admission meters 70% of a reservation as payload.
         const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
         const reservationBytes = Math.ceil(
           (acquireBytes + commits * commitResponseAllowance + previousTransfer) / 0.7 + 1024 * 1024,
@@ -1278,7 +1283,7 @@ export async function discoveryWorkerMain(argv: string[]) {
               completed: (value) => value.outcome !== "failed",
             },
           );
-          previousTransfer = result.committed.received_bytes;
+          previousTransfer = Math.max(previousTransfer, result.committed.received_bytes);
           acquireBytes = Math.max(acquireBytes, result.committed.state_bytes);
           return result;
         } catch (error) {
