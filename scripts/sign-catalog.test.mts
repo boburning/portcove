@@ -397,6 +397,139 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   assert.equal(accepted.stdout.trim().split("\n").length, 3);
 });
 
+void test("listing directory guard measures every delivery consumer, not an embedded ceiling", async () => {
+  const {
+    capacityConstant,
+    catalogSizeGuard,
+    definitionIndexMeasures,
+    legacyRowProjection,
+    listingDeliveryBounds,
+    listingDirectoryMeasures,
+    signedObservations,
+  } = await import("./catalog-capacity.mts");
+  const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
+  assert.equal(capacityConstant("const N: usize = 10_000;", "N"), 10000);
+  const listingsSource = readFileSync(
+    new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
+    "utf8",
+  );
+  // Tooling that reads the canonical directory follows Core's text bound.
+  assert.equal(
+    listingDirectoryTextMaximum,
+    capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+  );
+  const bounds = listingDeliveryBounds(
+    readFileSync(new URL("../crates/portcove-listing-carrier/src/lib.rs", import.meta.url), "utf8"),
+    listingsSource,
+    readFileSync(
+      new URL("../crates/portcove-core/src/listing_delivery.rs", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(bounds, {
+    wire: 8388608,
+    decoded: 33554432,
+    record: 1048576,
+    entries: 10000,
+    text: 67108864,
+    publisherText: 8388608,
+    elementBudget: 41943040,
+    listingCharge: 4027,
+    withdrawalCharge: 68,
+  });
+  const row = (id: string, summary = "Description") => ({
+    id,
+    name: "Listing",
+    summary,
+    project_url: "https://example.org",
+  });
+  const text = Buffer.from(
+    JSON.stringify({ format_version: 15, listings: [row("one"), row("two")] }, null, 2),
+  );
+  const measures = listingDirectoryMeasures(text, bounds);
+  assert.deepEqual(
+    measures.map(([name, , bound]) => [name, bound]),
+    [
+      ["generated listings.json bytes", 67108864],
+      ["canonical listings.json read by listing-observation-delivery", 8388608],
+      ["complete legacy listing target bytes (without observations)", 8388608],
+      ["compact listing directory decoded bytes (without observations)", 33554432],
+      ["compact listing carrier bytes (without observations)", 8388608],
+      ["largest listing record bytes", 1048576],
+      ["listing records", 10000],
+      ["listing element charge", 41943040],
+    ],
+  );
+  assert.equal(measures[0]![1], text.length);
+  assert.equal(measures[1]![1], text.length);
+  assert.equal(measures[6]![1], 2);
+  // Observations from a signed target enlarge both carriers.
+  const observation = { provider: "github", repository: "owner/repo", payload: "x".repeat(4096) };
+  const observed = listingDirectoryMeasures(
+    text,
+    bounds,
+    signedObservations({
+      directory: { listings: [{ id: "one", upstream_observation: observation }, { id: "x" }] },
+    }),
+  );
+  assert.match(observed[2]![0], /with signed observations/u);
+  for (const index of [2, 3, 4]) assert.ok(observed[index]![1] > measures[index]![1]);
+  // The format-11 projection drops only format-12+ facts.
+  assert.deepEqual(
+    legacyRowProjection({
+      ...row("one"),
+      restrictions: [{}],
+      implementation: {},
+      upstream_observation: {},
+      media: [{ role: "screenshot", igdb: { image_id: "a" } }],
+      original_game: { id: "game", source_editions: [{ id: "e", verified_sources: [] }] },
+    }),
+    { ...row("one"), original_game: { id: "game", source_editions: [{ id: "e" }] } },
+  );
+  const definitionSource = readFileSync(
+    new URL("../crates/portcove-core/src/definition_index.rs", import.meta.url),
+    "utf8",
+  );
+  assert.deepEqual(
+    definitionIndexMeasures(
+      Buffer.from(JSON.stringify({ contents: [{ length: 10 }, { length: 32 }] })),
+      definitionSource,
+    ).map(([name, value, bound]) => [name, value, bound]),
+    [
+      ["definition index bytes", 42, 4194304],
+      ["definition content aggregate bytes", 42, 33554432],
+    ],
+  );
+  const catalogBounds = { current: 16777216, percent: 85 };
+  assert.equal(catalogSizeGuard(100, { ports: [] }, catalogBounds, measures).ok, true);
+  // One oversized record fails its own row while the whole directory still fits.
+  const large = Buffer.from(
+    JSON.stringify({ format_version: 15, listings: [row("one", "x".repeat(900_000))] }),
+  );
+  const guarded = catalogSizeGuard(
+    100,
+    { ports: [] },
+    catalogBounds,
+    listingDirectoryMeasures(large, bounds),
+  );
+  assert.deepEqual(
+    guarded.rows.map((entry) => [entry.name, entry.ok]),
+    [
+      ["generated catalog.json bytes", true],
+      ["compact catalog bytes", true],
+      ["escaped signed envelope bytes (unsigned placeholder)", true],
+      ["generated listings.json bytes", true],
+      ["canonical listings.json read by listing-observation-delivery", true],
+      ["complete legacy listing target bytes (without observations)", true],
+      ["compact listing directory decoded bytes (without observations)", true],
+      ["compact listing carrier bytes (without observations)", true],
+      ["largest listing record bytes", false],
+      ["listing records", true],
+      ["listing element charge", true],
+    ],
+  );
+});
+
 void test("legacy signer refuses reviewed package choices before key access", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));

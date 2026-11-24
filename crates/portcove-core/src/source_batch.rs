@@ -139,7 +139,9 @@ impl PortcoveService {
             self.catalog().source_profile(id)?;
         }
         let started = Instant::now();
-        checkpoint(operation, started, limits)?;
+        // The deadline is enforced per original below, so running out of time
+        // yields not-yet-checked rows rather than an error.
+        operation.checkpoint()?;
         let library = self.library().identity_record()?;
         let catalog_sha256 = fingerprint(&self.catalog().authoritative_document())?;
         let (effective, catalog_binding_sha256) = effective_binding(self.library())?;
@@ -165,7 +167,7 @@ impl PortcoveService {
         let mut observations = Vec::new();
         let mut response_bytes = 0usize;
         for profile_id in &ids {
-            checkpoint(operation, started, limits)?;
+            operation.checkpoint()?;
             let observation = match registrations
                 .iter()
                 .find(|record| &record.profile_id == profile_id)
@@ -174,23 +176,27 @@ impl PortcoveService {
                     profile_id: profile_id.clone(),
                 },
                 Some(record) => {
-                    let inspection =
-                        if self.catalog().source_profile(profile_id)?.kind == SourceKind::FileSet {
-                            inspect_directory_set(
-                                record,
-                                InspectionScope {
-                                    service: self,
-                                    limits,
-                                    started,
-                                },
-                                &mut budget,
-                                &mut cache,
-                                &mut directories,
-                                &mut inventory_budget,
-                            )
-                        } else {
-                            inspect_raw(self, record, limits, started, &mut budget, &mut cache)
-                        };
+                    let inspection = if time_budget_reached(started, limits) {
+                        // Later originals are reported as not yet checked
+                        // instead of failing the originals already checked.
+                        Err(time_budget_error())
+                    } else if self.catalog().source_profile(profile_id)?.kind == SourceKind::FileSet
+                    {
+                        inspect_directory_set(
+                            record,
+                            InspectionScope {
+                                service: self,
+                                limits,
+                                started,
+                            },
+                            &mut budget,
+                            &mut cache,
+                            &mut directories,
+                            &mut inventory_budget,
+                        )
+                    } else {
+                        inspect_raw(self, record, limits, started, &mut budget, &mut cache)
+                    };
                     let report = match inspection {
                         Ok(inspection) => crate::source_report::available_report(
                             self.catalog(),
@@ -198,7 +204,14 @@ impl PortcoveService {
                             inspection,
                         )?,
                         Err(error) => {
-                            checkpoint(operation, started, limits)?;
+                            operation.checkpoint()?;
+                            // An interrupted read past the deadline is
+                            // unfinished work, not a missing or unreadable file.
+                            let error = if is_time_budget_error(&error) {
+                                time_budget_error()
+                            } else {
+                                error
+                            };
                             let health = if error.details.get("observed_health").map(String::as_str)
                                 == Some("changed")
                             {
@@ -228,7 +241,7 @@ impl PortcoveService {
                     }
                 }
             };
-            checkpoint(operation, started, limits)?;
+            operation.checkpoint()?;
             response_bytes = response_bytes.saturating_add(serde_json::to_vec(&observation)?.len());
             if response_bytes > MAX_RESPONSE_BYTES {
                 return Err(PortcoveError::unsupported(
@@ -257,6 +270,13 @@ impl PortcoveService {
         // This batch is still private and unaccepted. Projection may read context,
         // but source fences below must pass before its result can be returned.
         let result = project(batch)?;
+        // The fences below only recheck what this batch retained (bounded by
+        // the retained-file and directory-entry budgets). They must finish
+        // even past the deadline, so they honor cancellation only.
+        let limits = &RegisteredSourceInspectionLimits {
+            max_elapsed_ms: u64::MAX,
+            ..limits.clone()
+        };
         checkpoint(operation, started, limits)?;
         // Registration changes invalidate the whole observation set, including unregistered rows.
         for (key, observed) in &cache {
@@ -357,11 +377,30 @@ fn checkpoint(
 ) -> Result<()> {
     operation.checkpoint()?;
     if started.elapsed() >= Duration::from_millis(limits.max_elapsed_ms) {
-        return Err(PortcoveError::unsupported(
-            "registered-source inspection cooperative time budget reached",
-        ));
+        return Err(time_budget_error());
     }
     Ok(())
+}
+
+/// Only the cooperative deadline itself (a checkpoint, or the deadline reader
+/// refusing the next read) means "not yet checked". A filesystem or
+/// verification error that merely arrives late keeps its own meaning.
+fn is_time_budget_error(error: &PortcoveError) -> bool {
+    error.details.get("scan_limit").map(String::as_str) == Some("time")
+        || error.message.contains(DEADLINE_READ_MESSAGE)
+}
+
+fn time_budget_reached(started: Instant, limits: &RegisteredSourceInspectionLimits) -> bool {
+    started.elapsed() >= Duration::from_millis(limits.max_elapsed_ms)
+}
+
+/// The time budget ran out before this original was checked: not yet checked,
+/// never missing, unreadable or unsupported.
+fn time_budget_error() -> PortcoveError {
+    PortcoveError::unsupported(
+        "registered-source inspection time budget ran out before these files were checked",
+    )
+    .detail("scan_limit", "time")
 }
 
 struct RawObservation {
@@ -668,6 +707,8 @@ fn observe_raw_bytes<'a>(
     Ok(&cache.get(&key).expect("raw identity was retained").identity)
 }
 
+const DEADLINE_READ_MESSAGE: &str = "registered-source inspection time budget reached";
+
 struct DeadlineReader<'a> {
     file: &'a mut File,
     started: Instant,
@@ -679,7 +720,7 @@ impl Read for DeadlineReader<'_> {
         if self.started.elapsed() >= self.maximum {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
-                "registered-source inspection time budget reached",
+                DEADLINE_READ_MESSAGE,
             ));
         }
         self.file.read(buffer)

@@ -1097,7 +1097,12 @@ fn cleanup_original(
         return Ok(Some(quarantine));
     }
     if source_exists {
-        if let Err(error) = revalidate_source(service, plan, source) {
+        if let Err(error) = revalidate_source(service, plan, source)
+            .and_then(|_| service.refuse_store_install_move(&plan.profile_id, source))
+        {
+            // Store ownership is checked again from current records: a store
+            // may have installed here since the plan, or its records may now
+            // be unreadable. Either way the original is kept.
             operation.last_error = Some(error.message);
             store.put(operation)?;
             return Ok(Some(source.clone()));
@@ -1119,6 +1124,19 @@ fn cleanup_original(
         && inspect_admitted_source(service, plan, &quarantine)
             .is_ok_and(|record| cleanup_source_equivalent(&quarantine, &plan.source, &record));
     if !identity_matches {
+        return Ok(Some(quarantine));
+    }
+    if let Err(error) = service.refuse_store_install_move(&plan.profile_id, &quarantine) {
+        // Put the original back under its own name so a store game that
+        // uses it keeps working; keep the quarantine name only if that fails.
+        operation.last_error = Some(error.message);
+        store.put(operation)?;
+        // An unknown original name keeps the earlier, safe outcome.
+        if !source.try_exists().unwrap_or(true)
+            && crate::durability::rename_noreplace(&quarantine, source).is_ok()
+        {
+            return Ok(Some(source.clone()));
+        }
         return Ok(Some(quarantine));
     }
     if let Err(error) = service

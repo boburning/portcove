@@ -7,7 +7,9 @@ use crate::Library;
 struct FixtureHost {
     steam: Vec<PathBuf>,
     gog: Vec<RegisteredStoreInstall>,
+    gog_unread: u32,
     epic: Vec<PathBuf>,
+    unread_locations: Vec<(GameStore, String)>,
 }
 
 impl StoreInstallHost for FixtureHost {
@@ -15,13 +17,24 @@ impl StoreInstallHost for FixtureHost {
         self.steam.clone()
     }
 
-    fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
-        self.gog.clone()
+    fn gog_registered_installs(&self) -> RegisteredStoreInstalls {
+        RegisteredStoreInstalls {
+            installs: self.gog.clone(),
+            unread_records: self.gog_unread,
+        }
     }
 
     fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
         self.epic.clone()
     }
+
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        self.unread_locations.clone()
+    }
+}
+
+fn detect(host: &dyn StoreInstallHost) -> Detection<'static> {
+    detect_for_profile(host, None)
 }
 
 fn vdf_escape(path: &Path) -> String {
@@ -131,7 +144,9 @@ fn steam_libraries_gog_and_epic_installs_are_listed_read_only() {
                 path: temporary.path().join("missing"),
             },
         ],
+        gog_unread: 0,
         epic: vec![manifests],
+        unread_locations: Vec::new(),
     };
     let detection = detect(&host);
     let report = &detection.report;
@@ -165,13 +180,25 @@ fn steam_libraries_gog_and_epic_installs_are_listed_read_only() {
         vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
     );
     assert!(!report.limited);
-    assert!(
-        detection
-            .protected
-            .iter()
-            .any(|(store, folder)| *store == GameStore::Steam
-                && *folder == canonical(&second.join("steamapps")))
-    );
+    // The listed library is protected; a path no record covers is not yet
+    // known to be safe, because some of these records could not be read.
+    assert!(matches!(
+        store_folder_ownership(&host, &canonical(&second.join("steamapps")).join("x")),
+        StoreFolderOwnership::StoreOwned {
+            store: GameStore::Steam,
+            ..
+        }
+    ));
+    let StoreFolderOwnership::Undetermined { unread } =
+        store_folder_ownership(&host, &canonical(temporary.path()).join("elsewhere"))
+    else {
+        panic!("unreadable store records must not establish safety");
+    };
+    let stores = unread
+        .iter()
+        .map(|(store, _)| *store)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(stores, BTreeSet::from([GameStore::Steam, GameStore::Epic]));
 }
 
 #[test]
@@ -180,13 +207,10 @@ fn vdf_reader_accepts_escapes_comments_and_the_older_library_layout() {
         steam_library_paths(
             "// comment\n\"LibraryFolders\"\n{\n\t\"TimeNextStatsReport\"\t\"1\"\n\t\"1\"\t\t\"D:\\\\Steam \\\"Library\\\"\"\n}\n"
         ),
-        vec![PathBuf::from("D:\\Steam \"Library\"")]
+        Some(vec![PathBuf::from("D:\\Steam \"Library\"")])
     );
-    assert_eq!(
-        steam_library_paths("\"libraryfolders\" { \"0\" {"),
-        Vec::<PathBuf>::new()
-    );
-    assert_eq!(steam_library_paths("unquoted"), Vec::<PathBuf>::new());
+    assert_eq!(steam_library_paths("\"libraryfolders\" { \"0\" {"), None);
+    assert_eq!(steam_library_paths("unquoted"), None);
     assert_eq!(
         steam_app_manifest("\"AppState\" { \"installdir\" \"Game\" }"),
         Some((String::new(), "Game".into(), None))
@@ -216,10 +240,13 @@ fn the_install_limit_marks_the_list_incomplete() {
             path: folder,
         });
     }
-    let report = detect(&FixtureHost {
-        gog,
-        ..FixtureHost::default()
-    })
+    let report = detect_for_profile(
+        &FixtureHost {
+            gog,
+            ..FixtureHost::default()
+        },
+        None,
+    )
     .report;
     assert_eq!(report.installs.len(), MAX_INSTALLS);
     assert!(report.limited);
@@ -459,18 +486,24 @@ fn linked_steam_install_is_protected_without_an_original_folder_hint() {
     fs::create_dir_all(elsewhere.join("Game")).unwrap();
     steam_app(&steam, 32400, "Dark Forces", "Classic", false);
     std::os::unix::fs::symlink(&elsewhere, steam.join("steamapps/common/Classic")).unwrap();
-    let detection = detect(&FixtureHost {
+    let host = FixtureHost {
         steam: vec![steam],
         ..FixtureHost::default()
-    });
+    };
+    let detection = detect(&host);
     let row = &detection.report.installs[0];
     assert_eq!(row.path, canonical(&elsewhere));
     assert_eq!(row.product_id.as_deref(), Some("32400"));
     assert!(row.original_folder.is_none());
-    assert!(
-        detection
-            .protected
-            .contains(&(GameStore::Steam, row.path.clone()))
+    // The linked game folder is outside `steamapps`, so only its manifest
+    // protects it.
+    assert_eq!(
+        store_folder_ownership(&host, &row.path.join("Game")),
+        StoreFolderOwnership::StoreOwned {
+            store: GameStore::Steam,
+            folder: row.path.clone(),
+            evidence: OwnershipEvidence::StoreRecord,
+        }
     );
 }
 
@@ -723,7 +756,7 @@ fn unknown_store_profile_refuses_before_host_metadata_is_read() {
         fn steam_client_roots(&self) -> Vec<PathBuf> {
             panic!("unknown profile must not read Steam");
         }
-        fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
+        fn gog_registered_installs(&self) -> RegisteredStoreInstalls {
             panic!("unknown profile must not read GOG");
         }
         fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
@@ -915,17 +948,11 @@ fn a_linked_steamapps_folder_is_read_and_protected_as_its_real_folder() {
         steam: vec![client],
         ..FixtureHost::default()
     };
-    let detection = detect(&host);
+    let detection = detect_for_profile(&host, None);
     assert_eq!(detection.report.installs.len(), 1);
     assert_eq!(
         detection.report.installs[0].path,
         canonical(&real.join("common").join("Quake"))
-    );
-    assert!(
-        detection
-            .protected
-            .iter()
-            .any(|(_, folder)| *folder == canonical(&real))
     );
     let service = service_with(temporary.path(), host);
     // The real folder has no `steamapps` name, so only detection protects it.
@@ -958,4 +985,317 @@ fn folders_that_hold_the_library_or_are_roots_are_not_suggested() {
     let report = service.store_game_installs().unwrap();
     assert!(report.installs.is_empty());
     assert_eq!(report.skipped_entries, 2);
+}
+
+/// One Steam library list naming every given library folder.
+fn library_list(client: &Path, libraries: &[PathBuf]) {
+    let mut text = String::from("\"libraryfolders\"\n{\n");
+    for (index, library) in libraries.iter().enumerate() {
+        text.push_str(&format!(
+            "\t\"{index}\"\n\t{{\n\t\t\"path\"\t\t\"{}\"\n\t}}\n",
+            vdf_escape(library)
+        ));
+    }
+    text.push_str("}\n");
+    fs::create_dir_all(client.join("steamapps")).unwrap();
+    fs::write(client.join("steamapps").join("libraryfolders.vdf"), text).unwrap();
+}
+
+fn refusal(service: &PortcoveService, path: &Path) -> Option<(String, String)> {
+    let error = service.refuse_store_install_move("profile", path).err()?;
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    Some((
+        error.details["store_ownership"].clone(),
+        error
+            .details
+            .get("store")
+            .or_else(|| error.details.get("unchecked_stores"))
+            .cloned()
+            .unwrap_or_default(),
+    ))
+}
+
+#[test]
+fn ownership_reads_every_steam_library_beyond_the_old_listing_bounds() {
+    let temporary = tempfile::tempdir().unwrap();
+    let client = temporary.path().join("Steam");
+    // 65 libraries was one past the old 64-library bound; 100 is well beyond.
+    let libraries = (0..100)
+        .map(|index| temporary.path().join(format!("Library {index}")))
+        .collect::<Vec<_>>();
+    for library in &libraries {
+        fs::create_dir_all(library.join("steamapps").join("common")).unwrap();
+    }
+    library_list(&client, &libraries);
+    // The last library's game is a link to a folder outside `steamapps`.
+    let last = libraries.last().unwrap();
+    let linked = temporary.path().join("Linked Game");
+    fs::create_dir_all(&linked).unwrap();
+    steam_app(last, 77, "Linked", "Linked", false);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&linked, last.join("steamapps/common/Linked")).unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![client],
+            ..FixtureHost::default()
+        },
+    );
+    // A folder holding the 65th and 100th library is refused from records.
+    for index in [64, 99] {
+        assert_eq!(
+            refusal(&service, &canonical(&libraries[index])),
+            Some(("store_owned".into(), "Steam".into())),
+            "library {index}"
+        );
+    }
+    #[cfg(unix)]
+    assert_eq!(
+        refusal(&service, &canonical(&linked).join("data.pak")),
+        Some(("store_owned".into(), "Steam".into()))
+    );
+    let outside = temporary.path().join("Downloads");
+    fs::create_dir_all(&outside).unwrap();
+    assert_eq!(refusal(&service, &canonical(&outside)), None);
+}
+
+#[test]
+fn ownership_reads_every_epic_manifest_and_gog_record_beyond_the_old_bounds() {
+    let temporary = tempfile::tempdir().unwrap();
+    let manifests = temporary.path().join("Manifests");
+    fs::create_dir_all(&manifests).unwrap();
+    // One past the old 16,384-entry manifest bound, all naming removed games.
+    for index in 0..16_385 {
+        fs::write(
+            manifests.join(format!("{index:05}.item")),
+            serde_json::json!({
+                "DisplayName": "Removed",
+                "InstallLocation": temporary.path().join("removed").join(index.to_string()),
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+    let epic = temporary.path().join("Epic Games").join("Last");
+    fs::create_dir_all(&epic).unwrap();
+    fs::write(
+        manifests.join("99999.item"),
+        serde_json::json!({"DisplayName": "Last", "InstallLocation": epic}).to_string(),
+    )
+    .unwrap();
+    // One past the old 4,096-key registry bound; the selected game is last.
+    let mut gog = (0..=4_096)
+        .map(|index| RegisteredStoreInstall {
+            product_id: None,
+            title: index.to_string(),
+            path: temporary.path().join("gone").join(index.to_string()),
+        })
+        .collect::<Vec<_>>();
+    let gog_game = temporary.path().join("GOG Games").join("Last");
+    fs::create_dir_all(&gog_game).unwrap();
+    gog.push(RegisteredStoreInstall {
+        product_id: None,
+        title: "Last".into(),
+        path: gog_game.clone(),
+    });
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog,
+            epic: vec![manifests],
+            ..FixtureHost::default()
+        },
+    );
+    assert_eq!(
+        refusal(&service, &canonical(&epic).join("x")),
+        Some(("store_owned".into(), "Epic".into()))
+    );
+    assert_eq!(
+        refusal(&service, &canonical(&gog_game)),
+        Some(("store_owned".into(), "GOG".into()))
+    );
+    // A folder genuinely outside every store is allowed.
+    let outside = temporary.path().join("Originals");
+    fs::create_dir_all(&outside).unwrap();
+    assert_eq!(refusal(&service, &canonical(&outside)), None);
+}
+
+#[test]
+fn unreadable_store_records_block_a_move_as_not_yet_checked() {
+    let temporary = tempfile::tempdir().unwrap();
+    let outside = temporary.path().join("Originals");
+    fs::create_dir_all(&outside).unwrap();
+    let outside = canonical(&outside);
+
+    // A Steam library list that cannot be read hides library locations.
+    let client = temporary.path().join("Steam");
+    fs::create_dir_all(client.join("steamapps")).unwrap();
+    fs::write(
+        client.join("steamapps/libraryfolders.vdf"),
+        "\"libraryfolders\" { \"0\" {",
+    )
+    .unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![client.clone()],
+            ..FixtureHost::default()
+        },
+    );
+    let error = service
+        .refuse_store_install_move("profile", &outside)
+        .unwrap_err();
+    assert_eq!(error.details["store_ownership"], "not_checked");
+    assert_eq!(error.details["unchecked_stores"], "Steam");
+    assert!(error.details["unread_record"].ends_with("libraryfolders.vdf"));
+    assert!(
+        error
+            .message
+            .contains("couldn’t read every game location Steam recorded")
+    );
+    // A file larger than any real list is unreadable too.
+    fs::write(
+        client.join("steamapps/libraryfolders.vdf"),
+        vec![b' '; MAX_METADATA_BYTES as usize + 1],
+    )
+    .unwrap();
+    assert_eq!(
+        refusal(&service, &outside),
+        Some(("not_checked".into(), "Steam".into()))
+    );
+    // A readable list restores the decision.
+    library_list(&client, std::slice::from_ref(&client));
+    assert_eq!(refusal(&service, &outside), None);
+    // So does a malformed app manifest: its game folder could be a link.
+    fs::write(client.join("steamapps/appmanifest_5.acf"), "\"AppState\" {").unwrap();
+    assert_eq!(
+        refusal(&service, &outside),
+        Some(("not_checked".into(), "Steam".into()))
+    );
+
+    // A malformed Epic manifest and an unread GOG registry record.
+    let manifests = temporary.path().join("Manifests");
+    fs::create_dir_all(&manifests).unwrap();
+    fs::write(manifests.join("broken.item"), "{").unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog_unread: 1,
+            epic: vec![manifests.clone()],
+            ..FixtureHost::default()
+        },
+    );
+    let error = service
+        .refuse_store_install_move("profile", &outside)
+        .unwrap_err();
+    assert_eq!(error.details["unchecked_stores"], "GOG,Epic");
+    assert_eq!(error.details["unread_records"], "2");
+    assert!(error.message.contains("GOG and Epic"));
+    // A record that does name a covering folder still decides ownership.
+    let epic = temporary.path().join("Epic Game");
+    fs::create_dir_all(&epic).unwrap();
+    fs::write(
+        manifests.join("good.item"),
+        serde_json::json!({"DisplayName": "Game", "InstallLocation": epic}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        refusal(&service, &canonical(&epic)),
+        Some(("store_owned".into(), "Epic".into()))
+    );
+    // A relative recorded location cannot be placed.
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog: vec![RegisteredStoreInstall {
+                product_id: None,
+                title: "Relative".into(),
+                path: PathBuf::from("Games/Relative"),
+            }],
+            ..FixtureHost::default()
+        },
+    );
+    assert_eq!(
+        refusal(&service, &outside),
+        Some(("not_checked".into(), "GOG".into()))
+    );
+}
+
+#[test]
+fn missing_and_unfinished_store_records_are_definite_facts() {
+    let temporary = tempfile::tempdir().unwrap();
+    let manifests = temporary.path().join("Manifests");
+    fs::create_dir_all(&manifests).unwrap();
+    let partial = temporary.path().join("Partial");
+    fs::create_dir_all(&partial).unwrap();
+    // An unfinished Epic install still holds Epic's files.
+    fs::write(
+        manifests.join("partial.item"),
+        serde_json::json!({
+            "DisplayName": "Partial",
+            "InstallLocation": partial,
+            "bIsIncompleteInstall": true,
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            // An absent Steam client, a removed GOG game and a missing Epic
+            // folder are all known: nothing is installed there.
+            steam: vec![temporary.path().join("No Steam")],
+            gog: vec![RegisteredStoreInstall {
+                product_id: None,
+                title: "Removed".into(),
+                path: temporary.path().join("Removed"),
+            }],
+            epic: vec![manifests, temporary.path().join("No Manifests")],
+            ..FixtureHost::default()
+        },
+    );
+    assert_eq!(
+        refusal(&service, &canonical(&partial)),
+        Some(("store_owned".into(), "Epic".into()))
+    );
+    let outside = temporary.path().join("Originals");
+    fs::create_dir_all(&outside).unwrap();
+    assert_eq!(refusal(&service, &canonical(&outside)), None);
+}
+
+#[test]
+fn store_names_are_listed_in_reading_order() {
+    assert_eq!(store_list(&[GameStore::Steam]), "Steam");
+    assert_eq!(
+        store_list(&[GameStore::Gog, GameStore::Epic]),
+        "GOG and Epic"
+    );
+    assert_eq!(
+        store_list(&[GameStore::Steam, GameStore::Gog, GameStore::Epic]),
+        "Steam, GOG and Epic"
+    );
+}
+
+#[test]
+fn an_unreadable_host_location_blocks_a_move_as_not_yet_checked() {
+    let temporary = tempfile::tempdir().unwrap();
+    let outside = temporary.path().join("Originals");
+    fs::create_dir_all(&outside).unwrap();
+    // For example Steam's registry install path exists but cannot be read.
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            unread_locations: vec![(
+                GameStore::Steam,
+                "HKCU\\Software\\Valve\\Steam\\SteamPath".into(),
+            )],
+            ..FixtureHost::default()
+        },
+    );
+    let error = service
+        .refuse_store_install_move("profile", &canonical(&outside))
+        .unwrap_err();
+    assert_eq!(error.details["store_ownership"], "not_checked");
+    assert_eq!(error.details["unchecked_stores"], "Steam");
+    assert!(error.details["unread_record"].ends_with("SteamPath"));
 }

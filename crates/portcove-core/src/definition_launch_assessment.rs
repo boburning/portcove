@@ -568,7 +568,7 @@ pub(super) fn validate_retained_baselines(connection: &Connection) -> Result<()>
         let document = Document::parse(bytes.as_bytes())?;
         let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
         provenance.validate()?;
-        let (_, admission, _) = super::stored_admission(connection, &namespace, &stable_id)?
+        let admission = super::swept_admission_provenance(connection, &namespace, &stable_id)?
             .ok_or_else(|| PortcoveError::state("launch baseline lost its policy"))?;
         if document.namespace != namespace
             || document.stable_id != stable_id

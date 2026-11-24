@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 78;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 79;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -489,6 +489,12 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 78,
+        name: "retained-build retirement records",
+        apply: crate::retained_build::migrate_retirements,
+        verify: crate::retained_build::verify_retirements,
+    },
+    Migration {
+        version: 79,
         name: "supported setup revision bound",
         apply: crate::profile::migrate_revision_bound,
         verify: crate::profile::verify_revision_bound,
@@ -4277,7 +4283,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 77).unwrap();
+        migrate_to(root, 78).unwrap();
         let connection = connect(root).unwrap();
         connection
             .execute_batch(
@@ -4288,7 +4294,7 @@ mod tests {
             )
             .unwrap();
         let large = format!("{{\"x\":\"{}\"}}", "y".repeat(300 * 1024));
-        // The schema-77 check refuses a revision past 256 KiB.
+        // The schema-78 check (unchanged since 77) refuses a revision past 256 KiB.
         assert!(
             connection
                 .execute(
@@ -4300,7 +4306,7 @@ mod tests {
         assert!(crate::profile::verify_revision_bound(&connection).is_err());
         drop(connection);
 
-        migrate_to(root, 78).unwrap();
+        migrate_to(root, 79).unwrap();
         let connection = connect(root).unwrap();
         crate::profile::verify_revision_bound(&connection).unwrap();
         let kept = connection
@@ -4331,7 +4337,7 @@ mod tests {
                 [&large],
             )
             .unwrap();
-        let beyond = "y".repeat(crate::profile::REVISION_BOUND_V78 + 1);
+        let beyond = "y".repeat(crate::profile::REVISION_BOUND_V79 + 1);
         assert!(
             connection
                 .execute(
@@ -4655,6 +4661,7 @@ mod tests {
         schema_75: 75,
         schema_76: 76,
         schema_77: 77,
+        schema_78: 78,
     }
 
     #[test]

@@ -1341,6 +1341,10 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * Why an offered recovery build stopped being offered.
+ */
+export type RetainedBuildRetirementReason = "retention_policy" | "player";
 export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
@@ -2747,6 +2751,11 @@ export interface OutputCapabilities {
   artwork_handoff_schema?: number | null;
   commands: string[];
   /**
+   * Named definition-delivery features, such as `catalog.policy-decision-v2`.
+   * A publisher emits a newer form only after a released reader lists it.
+   */
+  definition_features?: string[];
+  /**
    * Installed engine contracts; these do not grant definition admission.
    */
   engine_templates: EngineTemplateCapability[];
@@ -2755,6 +2764,11 @@ export interface OutputCapabilities {
    * Independently negotiated signed-directory transport representations.
    */
   listing_delivery_carriers?: string[];
+  /**
+   * Reader limits for signed descriptive delivery. Absent on older readers,
+   * which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+   */
+  listing_delivery_limits?: ListingDeliveryLimits | null;
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2773,6 +2787,41 @@ export interface OutputCapabilities {
 export interface EngineTemplateCapability {
   contract_version: number;
   template: AdapterKind;
+}
+/**
+ * Limits a client applies to signed descriptive delivery. Instead of the
+ * released 10,000-entry count, each listing and withdrawal is charged against
+ * one measured working-memory element budget per admission.
+ */
+export interface ListingDeliveryLimits {
+  /**
+   * Largest decoded compact directory admitted and retained.
+   */
+  decoded_bytes: number;
+  /**
+   * Largest signed definition index.
+   */
+  definition_index_bytes: number;
+  /**
+   * Working-memory element budget of one directory admission.
+   */
+  element_budget_bytes: number;
+  /**
+   * Charge per listing against the element budget.
+   */
+  listing_charge_bytes: number;
+  /**
+   * Largest single compact listing record.
+   */
+  record_bytes: number;
+  /**
+   * Largest authenticated listing target body, either carrier.
+   */
+  target_bytes: number;
+  /**
+   * Charge per withdrawal against the element budget.
+   */
+  withdrawal_charge_bytes: number;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];
@@ -7508,6 +7557,11 @@ export interface OutputRetainedBuildBindingPreview {
   build: RetainedBuildIdentity;
   preview_sha256: string;
   previous: RetainedBuildReference | null;
+  /**
+   * Offered recovery builds this binding retires under the retention policy.
+   * The installations stay registered; only the offer ends.
+   */
+  retires?: RetainedBuildRevision[];
   setup_id: string;
   [k: string]: unknown;
 }
@@ -7541,6 +7595,10 @@ export interface RetainedBuildResolution {
   history: RetainedBuildHistoryResolution[];
   install: InstallRecord | null;
   reference: RetainedBuildReference;
+  /**
+   * Offers this setup no longer makes, newest first.
+   */
+  retired?: RetainedBuildRetirement[];
   [k: string]: unknown;
 }
 /**
@@ -7552,6 +7610,19 @@ export interface RetainedBuildHistoryResolution {
   install: InstallRecord | null;
   revision: RetainedBuildRevision;
   [k: string]: unknown;
+}
+/**
+ * Durable record of one retirement (library schema 78). The installation was
+ * not removed; only the offer ended.
+ */
+export interface RetainedBuildRetirement {
+  /**
+   * The reference revision that no longer offers the build.
+   */
+  binding_revision: number;
+  reason: RetainedBuildRetirementReason;
+  retired: RetainedBuildRevision;
+  retired_at: number;
 }
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;

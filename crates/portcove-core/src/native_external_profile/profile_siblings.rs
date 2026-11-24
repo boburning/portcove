@@ -45,29 +45,23 @@ pub(crate) fn matches_openloco_zip(port: &PortDefinition, platform: Platform, na
 pub(super) fn validate(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
     const LINUX: Platform = Platform::LinuxX86_64;
     const MAC: Platform = Platform::MacosAarch64;
-    let (id, repo, routes): (_, _, &[(Platform, [&str; 2], &str)]) = match policy {
-        ExternalProfilePolicy::CorsixthLinuxV1 => (
-            "corsixth-corsixth",
-            "CorsixTH/CorsixTH",
-            &[(LINUX, CORSIXTH_APPIMAGE, "corsix-th.AppImage")],
-        ),
-        ExternalProfilePolicy::OpenlocoUnixV1 => (
-            "openloco-openloco",
-            "OpenLoco/OpenLoco",
-            &[
-                (LINUX, OPENLOCO_APPIMAGE, "OpenLoco.AppImage"),
-                (MAC, OPENLOCO_MAC, "OpenLoco.app/Contents/MacOS/OpenLoco"),
-            ],
-        ),
+    // The exact upstream package and executable bind the policy; the
+    // authenticated definition supplies its own identity and repository.
+    let routes: &[(Platform, [&str; 2], &str)] = match policy {
+        ExternalProfilePolicy::CorsixthLinuxV1 => {
+            &[(LINUX, CORSIXTH_APPIMAGE, "corsix-th.AppImage")]
+        }
+        ExternalProfilePolicy::OpenlocoUnixV1 => &[
+            (LINUX, OPENLOCO_APPIMAGE, "OpenLoco.AppImage"),
+            (MAC, OPENLOCO_MAC, "OpenLoco.app/Contents/MacOS/OpenLoco"),
+        ],
         _ => unreachable!("only the reviewed external-profile siblings are validated here"),
     };
     let mut checked = routes
         .iter()
         .filter(|(platform, _, _)| port.platforms.contains(platform))
         .peekable();
-    if port.id != id
-        || !port.release.repository.eq_ignore_ascii_case(repo)
-        || port.channels != [crate::ReleaseChannel::Stable]
+    if port.channels != [crate::ReleaseChannel::Stable]
         || port.source_profile.is_some()
         || checked.peek().is_none()
         || checked.any(|(platform, asset, executable)| {

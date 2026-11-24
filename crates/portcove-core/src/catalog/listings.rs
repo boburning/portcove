@@ -14,7 +14,15 @@ pub(crate) fn embedded_listings_sha256() -> String {
     use sha2::Digest;
     hex::encode(sha2::Sha256::digest(EMBEDDED_LISTINGS.as_bytes()))
 }
-const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
+/// Working-memory bound for listing directory text from outside this binary
+/// (`catalog inspect-listings`). Twice the largest decoded directory any
+/// supported reader admits, so authoring formatting (1.20x for the committed
+/// file) never binds before delivery does. Measured basis: SIGNED-CATALOG.md
+/// "Size bounds and older clients". The embedded directory has no byte bound.
+pub const MAX_LISTING_DIRECTORY_TEXT_BYTES: usize = 64 * 1024 * 1024;
+const _: () = assert!(
+    MAX_LISTING_DIRECTORY_TEXT_BYTES == 2 * portcove_listing_carrier::MAX_COMPACT_DECODED_BYTES
+);
 /// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
@@ -353,12 +361,20 @@ impl CatalogListingDocument {
         })
     }
 
+    /// Parse listing text from outside this binary under its working-memory bound.
     pub fn from_json(content: &str) -> Result<Self> {
-        if content.len() > MAX_LISTING_BYTES {
+        if content.len() > MAX_LISTING_DIRECTORY_TEXT_BYTES {
             return Err(PortcoveError::usage(
                 "listing document exceeds its byte limit",
             ));
         }
+        Self::from_trusted_text(content)
+    }
+
+    /// The directory compiled into this binary is already resident and trusted
+    /// with the binary itself, so no byte ceiling applies to it. Strict
+    /// duplicate-key parsing and record validation still do.
+    fn from_trusted_text(content: &str) -> Result<Self> {
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_str(content)?;
         let document: Self = serde_json::from_str(content)?;
         document.validate()?;
@@ -513,11 +529,8 @@ impl CatalogListingDocument {
                 "setup references require listing format 6",
             ));
         }
-        if self.listings.len() > 10_000 {
-            return Err(PortcoveError::usage(
-                "listing document exceeds its entry limit",
-            ));
-        }
+        // No lifetime count: each input path bounds the directory's bytes, and
+        // the bundled directory is part of this binary.
         let mut ids = HashSet::new();
         for listing in &self.listings {
             if !ids.insert(&listing.id) {
@@ -1031,9 +1044,11 @@ impl Catalog {
     }
 
     pub fn listing(&self, id: &str) -> Result<&PortListing> {
-        self.listings()
-            .iter()
-            .find(|listing| listing.id == id)
+        #[cfg(test)]
+        crate::scaling_profile_tests::count_lookup(crate::scaling_profile_tests::Lookup::Listing);
+        self.listings
+            .position(id)
+            .map(|index| &self.listings.listings[index])
             .ok_or_else(|| PortcoveError::not_found(format!("unknown listing id: {id}")))
     }
 
@@ -1122,19 +1137,20 @@ impl Catalog {
                 });
             }
         }
+        let listed = document
+            .listings
+            .iter()
+            .map(|listing| listing.id.as_str())
+            .collect::<HashSet<_>>();
         for port in self.ports() {
-            if !document
-                .listings
-                .iter()
-                .any(|listing| listing.id == port.id)
-            {
+            if !listed.contains(port.id.as_str()) {
                 return Err(PortcoveError::usage(format!(
                     "listing directory omits operational port {}",
                     port.id
                 )));
             }
         }
-        self.listings = Arc::new(document);
+        self.listings = Arc::new(Indexed::new(document));
         Ok(self)
     }
 
@@ -1142,10 +1158,10 @@ impl Catalog {
         // Strict duplicate-key parsing plus validation of the bundled directory
         // is a fixed cost; reuse the validated document and project onto a clone.
         static EMBEDDED_DOCUMENT: LazyLock<Option<CatalogListingDocument>> =
-            LazyLock::new(|| CatalogListingDocument::from_json(EMBEDDED_LISTINGS).ok());
+            LazyLock::new(|| CatalogListingDocument::from_trusted_text(EMBEDDED_LISTINGS).ok());
         let mut document = match EMBEDDED_DOCUMENT.as_ref() {
             Some(document) => document.clone(),
-            None => CatalogListingDocument::from_json(EMBEDDED_LISTINGS)?,
+            None => CatalogListingDocument::from_trusted_text(EMBEDDED_LISTINGS)?,
         };
         let embedded_managed = EMBEDDED_MANAGED_PLATFORMS
             .as_ref()
@@ -1279,14 +1295,25 @@ impl Catalog {
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
         if has_extended_media(&listing) {
-            Arc::make_mut(&mut catalog.listings).format_version = 5;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 5;
         } else if listing.original_game.is_some() || !listing.media.is_empty() {
-            Arc::make_mut(&mut catalog.listings).format_version = 3;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 3;
         } else if listing.download_block_reason.is_some() {
-            Arc::make_mut(&mut catalog.listings).format_version = 2;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 2;
         }
-        Arc::make_mut(&mut catalog.listings).listings.push(listing);
-        Arc::make_mut(&mut catalog.listings).promote_projected_format();
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .listings
+            .push(listing);
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .promote_projected_format();
         catalog.user_selected_listing = true;
         Ok(catalog)
     }
@@ -2566,5 +2593,59 @@ mod observation_metadata_tests {
                 "descriptions never create a managed port"
             );
         }
+    }
+
+    #[test]
+    fn directory_text_has_a_byte_bound_and_no_listing_count() {
+        // Past the former 10,000-listing ceiling, within the text bound.
+        let listings = (0..10_001)
+            .map(|index| {
+                json!({
+                    "id": format!("listing-{index}"),
+                    "name": "Listing",
+                    "summary": "Description.",
+                    "project_url": "https://example.org/project",
+                })
+            })
+            .collect::<Vec<_>>();
+        let text = json!({"format_version": 15, "listings": listings}).to_string();
+        assert_eq!(
+            CatalogListingDocument::from_json(&text)
+                .unwrap()
+                .listings
+                .len(),
+            10_001
+        );
+        let oversized = format!("{text}{}", " ".repeat(MAX_LISTING_DIRECTORY_TEXT_BYTES));
+        assert!(
+            CatalogListingDocument::from_json(&oversized)
+                .unwrap_err()
+                .message
+                .contains("exceeds its byte limit")
+        );
+        // The bundled directory is parsed without the external text bound,
+        // including above the former 8 MiB ceiling.
+        assert!(CatalogListingDocument::from_trusted_text(&text).is_ok());
+        let summary = "A descriptive listing summary sentence for scale. ".repeat(18);
+        let large = json!({
+            "format_version": 15,
+            "listings": (0..10_001)
+                .map(|index| json!({
+                    "id": format!("listing-{index}"),
+                    "name": "Listing",
+                    "summary": summary.trim(),
+                    "project_url": "https://example.org/project",
+                }))
+                .collect::<Vec<_>>(),
+        })
+        .to_string();
+        assert!(large.len() > 8 * 1024 * 1024);
+        assert_eq!(
+            CatalogListingDocument::from_trusted_text(&large)
+                .unwrap()
+                .listings
+                .len(),
+            10_001
+        );
     }
 }

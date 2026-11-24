@@ -86,6 +86,7 @@ import {
   parseVersionClassification,
   classifyApplicationVersion,
   compareApplicationVersionPrecedence,
+  publishedAllocationBasis,
 } from "../apps/desktop/scripts/release-version-policy.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import {
@@ -424,16 +425,6 @@ async function prepare() {
     beforeWrite,
   );
   const publicationReader = await openApplicationSourcePublicationInventory();
-  const releases = await publicationReader.releases();
-  const publishedHistory = releases
-    .filter(
-      (value) => !value.draft && value.published_at !== null && value.tag_name.startsWith("v"),
-    )
-    .map((value) => {
-      const version = value.tag_name.slice(1);
-      classifyApplicationVersion(version);
-      return version;
-    });
   const retained = registration.custody.preparation;
   if (retained)
     assert.deepEqual(
@@ -441,13 +432,32 @@ async function prepare() {
       parseVersionClassification(selected.opportunity.classification),
       "reserved source classification changed; no reallocation",
     );
-  const history = retained?.published_versions ?? publishedHistory;
+  // A retained preparation already froze the history its version was decided
+  // against. Otherwise the complete single-pass Release inventory proves that
+  // nothing newer than the base is published; only the resulting allocation
+  // basis (at most two versions) is retained and transported.
+  const history =
+    retained?.published_versions ??
+    publishedAllocationBasis(
+      selected.opportunity.classification,
+      (await publicationReader.releases())
+        .filter(
+          (value) => !value.draft && value.published_at !== null && value.tag_name.startsWith("v"),
+        )
+        .map((value) => {
+          const version = value.tag_name.slice(1);
+          classifyApplicationVersion(version);
+          return version;
+        }),
+    );
   // Reuse/retirement of a previously published prepared source is handled by the
-  // immutable-release recovery path, never by allocating the source twice.
-  const tags = await publicationReader.namespaceTags("portcove-production");
-  const allocations = await publicationReader.readAllocations(tags, "portcove-production");
-  assert.ok(
-    !allocations.allocations.some((value) => value.source_commit === run.head_sha),
+  // immutable-release recovery path, never by allocating the source twice. The
+  // provider answers this exact receipt name authoritatively, independent of
+  // how many receipts the namespace holds.
+  assert.match(run.head_sha, /^[a-f0-9]{40}$/u);
+  assert.equal(
+    await publicationReader.tag(`portcove-production-prepared-source/${run.head_sha}`),
+    null,
     "source already allocated: use immutable release/feed recovery",
   );
   assert.ok(process.env.RUNNER_TEMP);

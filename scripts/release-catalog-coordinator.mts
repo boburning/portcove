@@ -333,8 +333,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         requireAuthenticatedCatalogControlSource(controls, "coordinator");
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog controls required");
-        const read = () =>
-          controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        const read = () => {
+          // Catalog publication facts rely on historical receipt pair identity.
+          controls.receiptProtection(authorities.namespace);
+          return controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        };
         const observed = await read(),
           stable = catalogCoordinatorMaintenanceIdentity(observed);
         let current = observed,
@@ -611,7 +614,12 @@ export async function runFixedCatalogCoordinatorConfiguration(
         const readInventory = async (reader: NonNullable<typeof publicationReader>) => {
           const tags = await reader.tags();
           const releases = await reader.releases();
-          const { allocations } = await reader.readAllocations(tags, authorities.namespace);
+          // Publication facts use receipt pair identities only.
+          const { receipts: allocations } = await reader.readAllocations(
+            tags,
+            authorities.namespace,
+            [],
+          );
           return { tags, releases, allocations };
         };
         const inventory = publicationReader && (await readInventory(publicationReader));
@@ -901,7 +909,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const publicationReader = await openPublicationReader();
       const tags = await publicationReader.tags();
       const releases = await publicationReader.releases();
-      const { allocations } = await publicationReader.readAllocations(tags, authorities.namespace);
+      const { receipts: allocations } = await publicationReader.readAllocations(
+        tags,
+        authorities.namespace,
+        [],
+      );
       const now = reviewClaim?.clock ?? new Date().toISOString(),
         publication = deriveCoordinatorPublication(tags, releases, allocations, now);
       let frozen: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>> | null = null,
@@ -1010,9 +1022,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog source/configuration changed before mutation");
         const currentTags = await publicationReader.tags(),
           currentReleases = await publicationReader.releases(),
-          { allocations: currentAllocations } = await publicationReader.readAllocations(
+          { receipts: currentAllocations } = await publicationReader.readAllocations(
             currentTags,
             authorities.namespace,
+            [],
           );
         // The signing exchange owns and verifies this predecessor's intent.
         // Its creation must not invalidate the separate publication inventory.

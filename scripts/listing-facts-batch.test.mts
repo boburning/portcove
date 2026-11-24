@@ -77,6 +77,8 @@ import {
   modeViolations,
   outputsProblems,
   collectConditions,
+  expectedBatchAuthor,
+  isExpectedBatchAuthor,
   freshnessAlertDays,
   refreshAfterDays,
   reproductionDetails,
@@ -1703,7 +1705,8 @@ void test("a batch waiting for its checks for days, and a failed gate job, file 
     const [condition, ...rest] = waiting(state, "2026-11-07T00:00:00.000Z");
     assert.deepEqual(rest, []);
     assert.equal(condition!.name, "batch-waiting");
-    assert.match(condition!.detail, /#12 has waited 16 days .*Approve workflows to run/u);
+    assert.match(condition!.detail, /#12 has waited 16 days .*look at its CI runs/u);
+    assert.doesNotMatch(condition!.detail, /Approve workflows|reopen/u);
   }
   // A green, failed or absent batch, or an unknown opening time, never waits.
   for (const state of ["green", "failed", "none"])
@@ -1863,7 +1866,8 @@ void test("a batch merges only when all five required checks pass on its exact h
   );
   const pull = {
     head_ref: `${batchBranchPrefix}123`,
-    author: "github-actions[bot]",
+    author: "portcove-facts-batch[bot]",
+    author_type: "Bot",
     base_ref: "main",
     commits: 1,
     draft: false,
@@ -1871,12 +1875,92 @@ void test("a batch merges only when all five required checks pass on its exact h
   assert.deepEqual(batchPullProblems(pull), []);
   for (const changed of [
     { head_ref: "feature/x" },
-    { author: "someone" },
+    { author: "someone", author_type: "User" },
+    { author_type: "User" },
+    // The built-in token no longer delivers: another workflow cannot pose as the job.
+    { author: workflowLogin },
     { base_ref: "release" },
     { commits: 2 },
     { draft: true },
   ])
     assert.equal(batchPullProblems({ ...pull, ...changed }).length, 1, JSON.stringify(changed));
+});
+
+void test("another App's batch-shaped pull request is the named foreign-batch-author stop (F3)", () => {
+  assert.equal(expectedBatchAuthor(undefined), undefined);
+  assert.equal(expectedBatchAuthor(""), undefined);
+  assert.equal(expectedBatchAuthor("bad slug[bot]"), undefined);
+  assert.equal(expectedBatchAuthor("portcove-facts-batch"), "portcove-facts-batch[bot]");
+  // Unknown slug: any App's bot is evaluated; `merge` binds it to the minted App.
+  assert.ok(isExpectedBatchAuthor("other-app[bot]", undefined));
+  assert.ok(isExpectedBatchAuthor("Portcove-Facts-Batch[bot]", "portcove-facts-batch"));
+  assert.ok(!isExpectedBatchAuthor("other-app[bot]", "portcove-facts-batch"));
+  assert.ok(stopConditionNames.includes("foreign-batch-author"));
+  const { conditions } = collectConditions(
+    { conditions: [], freshness: null },
+    {
+      prState: "foreign",
+      prNumber: "7",
+      foreignAuthor: "other-app[bot]",
+      jobs: { merge: "success", gate: "success" },
+    },
+  );
+  assert.deepEqual(
+    conditions.map((condition) => condition.name),
+    ["foreign-batch-author"],
+  );
+  assert.match(conditions[0]!.detail, /#7 was opened by other-app\[bot\]/u);
+  // A stop issue already open files nothing more.
+  assert.deepEqual(
+    collectConditions(
+      { conditions: [], freshness: null },
+      { blocked: true, prState: "foreign", prNumber: "7", foreignAuthor: "x[bot]", jobs: {} },
+    ).conditions,
+    [],
+  );
+  // Without the slug, the keyless gate never calls a batch green: it is the
+  // named batch-app-slug-unset stop, so `merge` never sees that batch.
+  assert.ok(stopConditionNames.includes("batch-app-slug-unset"));
+  const unbound = collectConditions(
+    { conditions: [], freshness: null },
+    { prState: "unbound", prNumber: "9", jobs: { merge: "skipped" } },
+  ).conditions;
+  assert.deepEqual(
+    unbound.map((condition) => condition.name),
+    ["batch-app-slug-unset"],
+  );
+  assert.match(unbound[0]!.detail, /#9 .*PORTCOVE_FACTS_BATCH_APP_SLUG/u);
+  const source = readFileSync(join(root, "scripts/listing-facts-batch.mts"), "utf8");
+  assert.match(
+    source,
+    /if \(state\.state === "green" && expectedBatchAuthor\(appSlug\) === undefined\)\n\s*state = \{ state: "unbound" \};/u,
+  );
+  // The workflow wires both detections to `notify`, and the merge job never
+  // merges or deletes for a foreign author.
+  const text = readFileSync(join(root, batchWorkflowPath), "utf8");
+  const workflow = parse(text) as {
+    jobs: Record<
+      string,
+      {
+        outputs?: Record<string, string>;
+        steps: { id?: string; if?: string; run?: string; env?: Record<string, string> }[];
+      }
+    >;
+  };
+  const gatePull = workflow.jobs.gate!.steps.find((step) => step.id === "pull")!;
+  assert.equal(
+    gatePull.env!.PORTCOVE_FACTS_BATCH_APP_SLUG,
+    "${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}",
+  );
+  assert.equal(workflow.jobs.merge!.outputs!.foreign_author, "${{ steps.author.outputs.foreign }}");
+  for (const step of workflow.jobs.merge!.steps.filter((item) =>
+    /pr-delivery\.mts"? merge|:refs\/heads\/\$\{BRANCH\}/u.test(item.run ?? ""),
+  ))
+    assert.equal(step.if, "steps.author.outputs.foreign == ''");
+  const notify = workflow.jobs.notify!.steps.find((step) => /collect/u.test(step.run ?? ""))!;
+  assert.match(notify.env!.FOREIGN_AUTHOR!, /needs\.merge\.outputs\.foreign_author/u);
+  assert.match(notify.env!.FOREIGN_AUTHOR!, /needs\.gate\.outputs\.pr_state == 'foreign'/u);
+  assert.match(notify.run!, /--foreign-author "\$\{FOREIGN_AUTHOR:-\}"/u);
 });
 
 void test("the enrollment delta and the batch pull request body state what changed and the owner's action", () => {
@@ -1908,14 +1992,16 @@ void test("the enrollment delta and the batch pull request body state what chang
     assert.ok(body.includes(heading), heading);
   assert.match(body, /Refs #8569/u);
   assert.doesNotMatch(body, /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #/iu);
-  assert.match(body, /Approve workflows to run/u);
-  assert.doesNotMatch(body, /reopen/u);
+  // The App opened it: its checks start without a person (#1422 owner decision).
+  assert.match(body, /opened by the job's GitHub App/u);
+  assert.doesNotMatch(body, /Approve workflows|approval-required/u);
+  assert.match(body, /no person needs to approve, close or reopen it/u);
 });
 
 void test("only the job's own batch pull requests count; a fork or a person cannot hold the job (D6)", () => {
   const pull = (fields: Record<string, unknown> = {}, head: Record<string, unknown> = {}) => ({
     number: 1,
-    user: { login: workflowLogin },
+    user: { login: "portcove-facts-batch[bot]", type: "Bot" },
     head: {
       ref: `${batchBranchPrefix}1`,
       repo: { full_name: "boburning/portcove" },
@@ -1926,7 +2012,10 @@ void test("only the job's own batch pull requests count; a fork or a person cann
   assert.equal(jobBatches([pull()], "boburning/portcove").length, 1);
   for (const other of [
     pull({}, { repo: { full_name: "someone/portcove" } }),
-    pull({ user: { login: "someone" } }),
+    pull({ user: { login: "someone", type: "User" } }),
+    pull({ user: { login: "someone[bot]", type: "User" } }),
+    pull({ user: { login: workflowLogin, type: "Bot" } }),
+    pull({ user: { login: "portcove-facts-batch[bot]" } }),
     pull({}, { ref: "feature/x" }),
     pull({}, { repo: null }),
   ])
@@ -2052,6 +2141,7 @@ void test("the workflow does nothing until the owner enables it and writes nothi
       string,
       {
         if?: string;
+        environment?: string;
         "timeout-minutes"?: number;
         permissions?: Record<string, string>;
         steps: {
@@ -2095,7 +2185,8 @@ void test("the workflow does nothing until the owner enables it and writes nothi
     }
     assert.ok(sum <= job["timeout-minutes"], `${name}: steps may take ${sum} minutes`);
     const writes = Object.entries(job.permissions ?? {}).filter(([, access]) => access === "write");
-    if (writes.length) {
+    // A job holding the App's key writes with it, whatever its built-in token may do.
+    if (writes.length || job.environment !== undefined) {
       // A writing job runs only when enabled and never on a dry run.
       assert.ok(job.if.includes(enabled), `${name} writes without the variable`);
       assert.ok(job.if.includes(`!(${dryRun})`), `${name} writes on a dry run`);
@@ -2135,8 +2226,8 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   assert.match(text, /--target "\$TARGET" --tree "\$TREE"/u);
   // The freshness alert is evaluated on every enabled run, also while stopped.
   assert.doesNotMatch(workflow.jobs.notify!.if!, /blocked/u);
-  // Only the built-in token: no secrets, no personal tokens.
-  assert.doesNotMatch(text, /secrets\./u);
+  // The only secret is the App's key, in its mint steps (see the App token test).
+  assert.equal(text.match(/secrets\./gu)?.length, 2);
   // No expression is interpolated into a shell script: every value reaches
   // `run:` through `env:` as a shell variable (F6).
   for (const [name, job] of Object.entries(workflow.jobs))
@@ -2160,7 +2251,7 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   assert.match(String((save as { if?: string }).if), /steps\.ready\.outputs\.ready != 'true'/u);
   // The delivered patch is the one this run recorded, and the outputs
   // record is retained for the pull-request check (F5).
-  assert.match(text, /outputs-check --record/u);
+  assert.match(text, /outputs-check --revision "\$commit" \\\n\s*--record/u);
   assert.match(text, /name: listing-facts-batch-outputs-\$\{\{ github\.run_id \}\}/u);
   // The merge binds to the head's CI run (F10) and cleans up its branch.
   assert.match(text, /--run "\$CI_RUN" --attempt "\$CI_ATTEMPT"/u);
@@ -2171,6 +2262,280 @@ void test("the workflow does nothing until the owner enables it and writes nothi
   // Merges go through the guarded route only, never an API shortcut.
   assert.match(text, /scripts\/pr-delivery\.mts"? merge[^\n]*\n[^\n]*--verify-local-composition/u);
   assert.doesNotMatch(text, /pulls\/[^\s]*\/merge|gh pr merge|enable_pr_auto_merge|--admin/u);
+});
+
+void test("only deliver and merge mint the App token, in the facts-batch environment (#1422)", () => {
+  const text = readFileSync(join(root, batchWorkflowPath), "utf8");
+  type Step = {
+    id?: string;
+    name?: string;
+    run?: string;
+    uses?: string;
+    if?: string;
+    env?: Record<string, string>;
+    with?: Record<string, string>;
+    "timeout-minutes"?: number;
+  };
+  type Job = {
+    if?: string;
+    environment?: unknown;
+    needs?: string | string[];
+    permissions?: Record<string, string>;
+    strategy?: unknown;
+    "timeout-minutes"?: number;
+    steps: Step[];
+  };
+  const workflow = parse(text) as { on: Record<string, unknown>; jobs: Record<string, Job> };
+  // Triggers unchanged: the schedule and a manual dispatch only.
+  assert.deepEqual(Object.keys(workflow.on).sort(), ["schedule", "workflow_dispatch"]);
+  const mint = "actions/create-github-app-token@";
+  const pinned = /^actions\/create-github-app-token@[0-9a-f]{40}$/u;
+  const appJobs = ["deliver", "merge"];
+  const enabled = "vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true'";
+  const dryRun = "github.event_name == 'workflow_dispatch' && inputs.dry_run";
+  for (const [name, job] of Object.entries(workflow.jobs)) {
+    const serialized = JSON.stringify(job);
+    const mints = job.steps.filter((step) => step.uses?.startsWith(mint));
+    if (appJobs.includes(name)) {
+      assert.equal(job.environment, "facts-batch", name);
+      // A dry run never reaches the mint step: the job itself is skipped.
+      assert.ok(job.if?.includes(enabled), `${name} runs without the variable`);
+      assert.ok(job.if?.includes(`!(${dryRun})`), `${name} runs on a dry run`);
+      assert.equal(mints.length, 1, `${name} mints exactly one token`);
+      const [step] = mints;
+      assert.match(step!.uses!, pinned, `${name}: the mint action is pinned by commit SHA`);
+      assert.match(
+        text,
+        new RegExp(`${step!.uses!.replace(/[.]/gu, "\\.")} # v\\d+\\.\\d+\\.\\d+`, "u"),
+      );
+      // The narrowest token: this repository, Contents and Pull requests only.
+      // No `owner`/`repositories` input, so the pinned action scopes the
+      // token to `GITHUB_REPOSITORY` on every trigger. A `schedule` event has
+      // no `github.event.repository`: an input derived from it would be
+      // empty and widen the token to every repository of the installation.
+      assert.deepEqual(step!.with, {
+        "app-id": "${{ vars.FACTS_BATCH_APP_ID }}",
+        "private-key": "${{ secrets.FACTS_BATCH_APP_PRIVATE_KEY }}",
+        "permission-contents": "write",
+        "permission-pull-requests": "write",
+      });
+      assert.doesNotMatch(JSON.stringify(step!.with), /github\.event|owner|repositories/u, name);
+      assert.equal(step!.id, "app");
+      // The built-in token of an App job writes nothing.
+      assert.ok(
+        Object.values(job.permissions ?? {}).every((access) => access === "read"),
+        `${name}: the built-in token only reads`,
+      );
+      // The key reaches the mint step alone; the token only the steps that write.
+      for (const other of job.steps.filter((candidate) => candidate !== step)) {
+        assert.doesNotMatch(JSON.stringify(other), /secrets\.|FACTS_BATCH_APP/u, name);
+        if (JSON.stringify(other).includes("steps.app.outputs.token"))
+          assert.match(
+            JSON.stringify(other.env ?? {}),
+            /steps\.app\.outputs\.token/u,
+            `${name}: the token reaches a step through env only`,
+          );
+      }
+      // Every check that needs no credential runs before the token exists.
+      const minted = job.steps.indexOf(step!);
+      const firstUse = job.steps.findIndex((candidate) =>
+        JSON.stringify(candidate).includes("steps.app.outputs"),
+      );
+      assert.ok(firstUse > minted, `${name} uses the token after minting it`);
+      // Pushes carry a step-scoped credential, never a persisted one or a URL token.
+      for (const candidate of job.steps.filter((item) => /git push/u.test(item.run ?? ""))) {
+        assert.match(
+          candidate.run!,
+          /GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http\.https:\/\/github\.com\/\.extraheader/u,
+        );
+        assert.doesNotMatch(
+          candidate.run!,
+          /x-access-token:\$\{?[A-Z_]+\}?@|git config|credential\.helper/u,
+        );
+        assert.equal(candidate.env?.APP_TOKEN, "${{ steps.app.outputs.token }}", name);
+      }
+    } else {
+      // Every other job, above all those that run Core over downloaded bytes
+      // and every matrix shard, never sees the key, the App id or its token.
+      assert.equal(job.environment, undefined, `${name} declares an environment`);
+      assert.equal(mints.length, 0, `${name} mints a token`);
+      assert.doesNotMatch(
+        serialized,
+        /FACTS_BATCH_APP_ID|FACTS_BATCH_APP_PRIVATE_KEY|steps\.app\.outputs|secrets\.|PORTCOVE_MERGE_TOKEN/u,
+        `${name} references the App`,
+      );
+    }
+    // Every checkout keeps no credential; no expression is interpolated into a script.
+    for (const step of job.steps) {
+      if (step.uses?.startsWith("actions/checkout@"))
+        assert.equal(
+          (step.with as Record<string, unknown> | undefined)?.["persist-credentials"],
+          false,
+          name,
+        );
+      assert.doesNotMatch(step.run ?? "", /\$\{\{/u, `${name}: ${step.name}`);
+    }
+  }
+  // `gate` and `notify` stay on the built-in token; notify files the issues.
+  assert.equal(workflow.jobs.notify!.permissions!.issues, "write");
+  for (const name of ["gate", "notify"])
+    assert.match(JSON.stringify(workflow.jobs[name]), /github\.token/u, name);
+  // The App token is never written out: not to an artifact, a cache, or the log.
+  for (const job of Object.values(workflow.jobs))
+    for (const step of job.steps.filter(
+      (item) =>
+        item.uses?.startsWith("actions/upload-artifact@") ||
+        item.uses?.startsWith("actions/cache/save@"),
+    ))
+      assert.doesNotMatch(JSON.stringify(step), /steps\.app|TOKEN/u);
+  assert.doesNotMatch(text, /echo[^\n]*\$\{?(?:APP_TOKEN|PORTCOVE_MERGE_TOKEN|GITHUB_TOKEN)\b/u);
+  // The merge job reads its evidence with the built-in token and merges with
+  // the App token, only after binding the batch to the App's own login.
+  const merge = workflow.jobs.merge!;
+  const guarded = merge.steps.find((step) => /pr-delivery\.mts"? merge/u.test(step.run ?? ""))!;
+  assert.equal(guarded.env!.GITHUB_TOKEN, "${{ github.token }}");
+  assert.equal(guarded.env!.PORTCOVE_MERGE_TOKEN, "${{ steps.app.outputs.token }}");
+  assert.match(guarded.run!, /--run "\$CI_RUN" --attempt "\$CI_ATTEMPT"/u);
+  const bound = merge.steps.findIndex((step) => /\$\{APP_SLUG\}\[bot\]/u.test(step.run ?? ""));
+  assert.ok(
+    bound >= 0 && bound < merge.steps.indexOf(guarded),
+    "the author binding precedes the merge",
+  );
+  // The App token opens the pull request; the state is saved only after.
+  const deliver = workflow.jobs.deliver!;
+  const opened = deliver.steps.find((step) => /open-pull-request/u.test(step.run ?? ""))!;
+  assert.equal(opened.env!.GITHUB_TOKEN, "${{ steps.app.outputs.token }}");
+  // No documentation or code path asks a person to approve, close or reopen a batch.
+  assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
+});
+
+void test("deliver and merge never execute batch or artifact content; the mint comes last (F1)", () => {
+  const text = readFileSync(join(root, batchWorkflowPath), "utf8");
+  type Step = { id?: string; name?: string; run?: string; uses?: string; with?: unknown };
+  const workflow = parse(text) as { jobs: Record<string, { steps: Step[] }> };
+  const mint = "actions/create-github-app-token@";
+  // A script of the untouched main checkout, the only code these jobs run.
+  const trusted = /^"\$GITHUB_WORKSPACE\/scripts\/[a-z0-9-]+\.mts"$/u;
+  // Comments are prose, not commands; a continued line is one command.
+  const code = (step: Step) =>
+    (step.run ?? "")
+      .split("\n")
+      .filter((line) => !/^\s*#/u.test(line))
+      .join("\n")
+      .replace(/\\\n\s*/gu, " ");
+  for (const name of ["deliver", "merge"]) {
+    const steps = workflow.jobs[name]!.steps;
+    // The first step that brings batch or artifact content into the job.
+    const untrusted = steps.findIndex(
+      (step) =>
+        step.uses?.startsWith("actions/download-artifact@") ||
+        /refs\/pull\/|\bam\b/u.test(code(step)),
+    );
+    assert.ok(untrusted > 0, name);
+    // Dependencies are installed from main's lockfile, before any batch content.
+    const install = steps.findIndex((step) => /pnpm install --frozen-lockfile/u.test(code(step)));
+    assert.ok(install >= 0 && install < untrusted, `${name} installs before batch content`);
+    for (const step of steps.slice(untrusted)) {
+      const body = code(step);
+      const label = `${name}: ${step.name ?? step.uses}`;
+      // No local action, package manager, shell script or relative program.
+      assert.ok(!step.uses?.startsWith("./"), label);
+      assert.doesNotMatch(
+        body,
+        /\b(?:pnpm|npm|npx|yarn|corepack|cargo|make|source)\b|(?:^|[\s;&|(])(?:bash|sh|\.)\s+\S|(?:^|[\s;&|(])\.\//u,
+        label,
+      );
+      assert.doesNotMatch(
+        body,
+        /\bcd "\$RUNNER_TEMP\/batch"|\$RUNNER_TEMP\/(?:batch|head)\/\S*\.(?:m?[jt]s|sh)\b/u,
+      );
+      for (const match of body.matchAll(/(?:^|[\s;&|(=])node\s+(\S+)/gu)) {
+        const script = match[1]!;
+        if (trusted.test(script)) continue;
+        // The one exception: catalog generation in a checkout of main's tip
+        // that received only the allowlisted data files of the composition,
+        // proven equal to it before anything runs there.
+        assert.equal(name, "merge", `${label} runs ${script}`);
+        assert.equal(script, '"$RUNNER_TEMP/main/scripts/generate-catalog.mts"', label);
+        const checked = body.indexOf(
+          `test "$(git -C "$RUNNER_TEMP/main" rev-parse 'HEAD^{tree}')" = "$tree"`,
+        );
+        assert.ok(checked >= 0 && checked < match.index, `${label}: data-only composition first`);
+        assert.match(
+          body,
+          /isolated_git worktree add --quiet --detach "\$RUNNER_TEMP\/main" "\$target"/u,
+        );
+        assert.match(
+          body,
+          /git cat-file blob "\$\{tree\}:\$\{file\}" > "\$RUNNER_TEMP\/main\/\$\{file\}"/u,
+        );
+        assert.doesNotMatch(body, /git (?:-C \S+ )?(?:merge|checkout|switch|am)(?![\w-])/u, label);
+      }
+      // Git that writes batch files runs without ambient configuration,
+      // hooks, attribute files or fsmonitor.
+      if (/isolated_git/u.test(body))
+        for (const setting of [
+          "GIT_CONFIG_NOSYSTEM=1",
+          "GIT_CONFIG_GLOBAL=/dev/null",
+          "GIT_ATTR_NOSYSTEM=1",
+          "-c core.hooksPath=/dev/null",
+          "-c core.attributesFile=/dev/null",
+          "-c core.fsmonitor=false",
+        ])
+          assert.ok(body.includes(setting), `${label}: ${setting}`);
+      for (const line of body.split("\n").filter((item) => /\bam\b/u.test(item)))
+        assert.match(line, /^\s*isolated_git -C "\$RUNNER_TEMP\/batch"/u, label);
+      for (const line of body.split("\n").filter((item) => /\bworktree add\b/u.test(item)))
+        assert.match(line, /isolated_git worktree add|--no-checkout/u, label);
+      for (const line of body.split("\n").filter((item) => /\bgit\b[^\n]*\bpush\b/u.test(item)))
+        assert.match(line, /-c core\.hooksPath=\/dev\/null push --quiet --no-verify/u, label);
+    }
+    // The workspace itself is never patched or merged: batch content goes
+    // to a separate worktree or stays Git objects.
+    assert.doesNotMatch(
+      steps.map(code).join("\n"),
+      /^\s*git (?:-c \S+ \\?\s*)*(?:am|merge|checkout|switch|apply)(?![\w-])/mu,
+      name,
+    );
+    // The mint is the last step before the steps that use its outputs, and
+    // nothing that reads batch content runs after it except the push of the
+    // already-checked commit.
+    const minted = steps.findIndex((step) => step.uses?.startsWith(mint));
+    const users = steps.flatMap((step, index) =>
+      JSON.stringify(step).includes("steps.app.outputs") ? [index] : [],
+    );
+    assert.equal(users[0], minted + 1, `${name}: the mint immediately precedes its first use`);
+    assert.deepEqual(
+      users,
+      Array.from({ length: users.length }, (_, index) => minted + 1 + index),
+      `${name}: every step between the mint and the last token use needs it`,
+    );
+    for (const step of steps.slice(minted + 1))
+      assert.doesNotMatch(
+        code(step),
+        /\bam\b|worktree add|merge-tree|outputs-check|\bpaths --base|generate-catalog/u,
+        `${name}: ${step.name ?? step.uses} reads batch content after the mint`,
+      );
+    // Every check runs before the mint.
+    const checks = steps.flatMap((step, index) =>
+      /outputs-check|\bpaths --base|generate-catalog|merge-intent/u.test(code(step)) ? [index] : [],
+    );
+    assert.ok(checks.length && checks.every((index) => index < minted), name);
+    // Downloads are data only: none is a program, and none lands in the checkout's code.
+    for (const step of steps.filter((item) => item.uses?.startsWith("actions/download-artifact@")))
+      assert.match(
+        String((step.with as { path?: string }).path),
+        /^work\/listing-facts-batch(?:\/outputs)?$/u,
+      );
+  }
+  assert.equal(
+    workflow.jobs.merge!.steps.some((step) => step.uses?.startsWith("actions/download-artifact@")),
+    false,
+    "merge downloads no artifact",
+  );
+  // deliver pushes the checked commit by id from the untouched checkout.
+  assert.match(text, /"\$\{COMMIT\}:refs\/heads\/\$\{branch\}"/u);
+  assert.match(text, /open-pull-request --revision "\$COMMIT"/u);
 });
 
 // ---------------------------------------------------------------------------

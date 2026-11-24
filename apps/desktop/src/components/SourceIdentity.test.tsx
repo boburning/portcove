@@ -61,6 +61,7 @@ describe("source identity presentation", () => {
     ["source_changed", "Files changed since they were added"],
     ["source_missing", "Files not found"],
     ["source_could_not_be_checked", "Files couldn't be checked"],
+    ["source_not_checked_yet", "Not checked yet"],
   ])("renders %s without collapsing its meaning", (state, expected) => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />).replaceAll(
       "&#x27;",

@@ -211,8 +211,7 @@ fn selected_catalog(
     // bundled discovery directory alongside that selection without changing its
     // authoritative document, retained snapshots or operation permissions.
     let catalog = catalog.with_embedded_listings()?;
-    let catalog_sha256 =
-        signed_catalog::digest(&serde_json::to_vec(&catalog.authoritative_document())?);
+    let catalog_sha256 = catalog.document_digest()?.sha256.clone();
     Ok((
         catalog,
         CatalogProvenance {

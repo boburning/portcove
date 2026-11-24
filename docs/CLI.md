@@ -443,10 +443,21 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. `capabilities` advertises `port_capability_schema`
+current or retained listing. `port-capabilities-batch --port PORT_ID ...`
+reads several in one process: format 1 with `reports[]` in argument order, each
+`{port_id, ok, report}` or `{port_id, ok: false, error: {code, message}}`. Each
+report, or refusal code and message, is what the single-port command returns
+for that port (the refusal's `details` and `presentation` are omitted); one
+port's refusal never fails the others. Maintenance collection uses it to load the
+catalog once per batch instead of once per port. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
 `listing_delivery_carriers` identifies the independently versioned signed
-directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+directory carriers a client consumes. `listing_delivery_limits` states the
+target, decoded-directory, per-record and definition-index byte bounds the
+client applies, and the working-memory element budget with its per-listing and
+per-withdrawal charges that replace the released 10,000-entry count. Older clients omit
+it and enforce the released bounds in
+[Reader generations](SIGNED-CATALOG.md#reader-generations). The `gzip-base64-json-v1` carrier
 authenticates the compressed envelope under the existing delegated policy role.
 The client checks the bounded decoded length and digest and applies the same
 directory revision and replay rules as `json-v1`. It reads the legacy carrier
@@ -458,6 +469,10 @@ reports the independently authenticated carrier digest. The optional compact dir
 legacy record share one transaction and authority floor. Older releases with a
 compatible library schema can continue to read and renew their genuine legacy
 record. The higher admitted directory revision governs a capable reader.
+`definition_features` lists the named definition-delivery features this client
+implements, including `catalog.policy-decision-v2` for
+[entry-bound policy decisions](DEFINITION-DELIVERY.md#decision-binding-schemas).
+A publisher's released-reader gate reads it.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1347,9 +1362,9 @@ and other launchers are not read.
 The list is a suggestion only: it never saves a folder, registers files,
 records setup intent or changes anything in a store's folder, and the store's
 title is a label, not an identity. Exact source checks decide whether any file
-matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
-libraries and 4,096 games are listed, and these are skipped and counted in
-`skipped_entries`: an `installdir` that is not a single folder name, a library
+matches. Store metadata files are read up to 1 MiB each, at most 4,096 games are
+listed and 16,384 entries are read from each manifest folder, and these are
+skipped and counted in `skipped_entries`: an `installdir` that is not a single folder name, a library
 listed by Steam or a game location that is relative or missing, unreadable
 metadata, and a folder that is a filesystem root, your home folder or contains
 this Portcove library. `limited` reports a reached bound. A store that cannot be
@@ -1362,15 +1377,25 @@ PK4 set before registration. Use the file picker if the store provides no
 unambiguous compatible folder suggestion.
 
 Files inside a game a store installed can be copied into Portcove or used where
-they are, but not moved. A Move import is refused with a `conflict` error naming
-the store when its original is inside a listed game folder or a Steam library's
-`steamapps` folder, when it is a folder that contains one of those (a folder Move
-removes the whole folder at the end), or when any folder on its path is named
-`steamapps`, because the store's game would lose the files. Protection otherwise
-depends on the stores' metadata: a GOG or Epic game whose registry entry or
-manifest cannot be read, a Steam library beyond the 64-library bound outside a
-`steamapps` folder, or an unlisted folder that merely holds such a game, is not
-recognized, so choose Copy for files from a store's folder.
+they are, but not moved. Before a Move, Portcove reads every install record of
+each store this system can check, with no count limit: every Steam library and
+app manifest, every GOG registry entry and every Epic manifest. The suggestion
+list bounds above do not apply. A Move import is refused with a `conflict`
+error when its original is inside a recorded game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder
+Move removes the whole folder at the end), or when any folder on its path is
+named `steamapps`. These refusals carry `store_ownership: store_owned` and name
+the store, because the store's game would lose the files. An unfinished Epic
+install is protected too.
+
+If any record cannot be read, Portcove cannot confirm that the files are safe
+to move. The Move is then refused with `store_ownership: not_checked`,
+`unchecked_stores`, the first `unread_record` and the `unread_records` count.
+Unreadable records include a damaged or oversized `libraryfolders.vdf`, app
+manifest or Epic manifest, a relative or inaccessible recorded location, and a
+GOG registry entry that cannot be read. A record whose folder no longer exists
+is not a problem: nothing is installed there. Copy and Use current location
+remain available, and Move works again once the records can be read.
 
 ### Disc formats and optional tools
 
@@ -1826,8 +1851,13 @@ Apply requires both flags, recomputes the plan, acquires exclusive library acces
 copies without replacing existing files, restores metadata transactionally, and
 verifies the copied manifests against current platform executable and persistence
 rules. Active, previous, and staged identity and source references survive the
-round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs;
-metadata JSON is limited to 16 MiB and the recoverable inventory to 64 MiB. Source
+round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs.
+Metadata JSON is written and read as a stream with no whole-document size
+ceiling, so any library Portcove can create exports and imports; each profile,
+revision and retained-build reference keeps its own byte bound. The recovery
+journal that carries the reviewed plan and content inventory has no size
+ceiling either and is read as a stream, so import and move recovery work at any
+size the library reaches. Source
 references remain subject to normal validation and relinking. If interrupted,
 use the [destination-specific recovery route](#recover-an-interrupted-transfer).
 
@@ -2614,9 +2644,18 @@ database schema 62 requires Desktop and CLI versions that coordinate this
 change. Other profiles launch the exact build their revisions name, so a game
 update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
-When Default reaches its recovery-build limit, `installation reference-retire`
-can retire a superseded offer after review. Retirement keeps the recorded setup
-revision and progress. A build still used by the selected setup must stay retained.
+Default keeps up to 16 superseded builds offered for recovery. An update past
+that retires Default's oldest offer in the same transaction, so updates never
+stop at the bound. The build the selected setup projects and the newest offer
+(the rollback target) are never retired by this policy, and an interrupted
+setup switch must finish first; the update then refuses before it publishes.
+Retirement keeps the recorded setup revision, its exact build identity and
+progress, and library schema 78 records it under `retired` in
+`installation reference`. Retirement only ends the offer: the installation stays
+on disk and can be bound again. Portcove has no command yet that removes one
+superseded installation on its own; removing the whole port is the only
+cleanup route, so superseded installations accumulate on disk. A player can also
+retire a chosen offer earlier with `installation reference-retire`.
 Stale `--expected-revision` values fail as `conflict`.
 
 Clients can offer `profile create-clean` when `capabilities.commands` includes
@@ -3271,8 +3310,13 @@ The superseded build becomes an offered recovery revision in the reference's
 `history`, keeps its runtime bytes protected from cleanup, refresh and port
 removal, and is listed under `offered_by` in `installation.retained`. Binding an
 offered build again promotes it back to current instead of duplicating it. A
-setup offers at most 16 earlier builds; binding another refuses with a conflict
-until one is retired, so retention is never discarded silently.
+setup offers up to 16 earlier builds. Binding a further build retires the oldest
+offer that the selected setup does not use, as a deliberate retention policy:
+`installation.reference-plan` lists it under `retires`, the review fingerprint
+covers it, binding refuses if the retired set differs from the review, and the
+build stays registered and re-bindable. The retired build stays named by every
+setup revision that used it, and `installation.reference` lists each retirement
+under `retired` with its reason.
 
 ```text
 portcove --library PATH --json installation reference PORT_ID SETUP_ID
@@ -3597,7 +3641,9 @@ The observation age defaults to 300 seconds and is bounded to 1–1800 seconds.
 `--max-file-bytes`, `--max-hash-bytes` and `--max-elapsed-ms` may reduce the
 respective 2 GiB, 32 GiB and 30-second caps; larger or zero limits are refused.
 The elapsed limit is cooperative and cannot interrupt an individual filesystem
-call. A game-file state does not grant setup or launch authority.
+call. The same deadline also bounds projecting and publishing the routes, so a
+query that runs out of time still fails and discards its result. A game-file state
+does not grant setup or launch authority.
 
 ### Qualified Ghostship recovery (API 69)
 

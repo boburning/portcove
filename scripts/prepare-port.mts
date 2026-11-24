@@ -36,29 +36,10 @@ import {
 } from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
-import { compactOpenXPortable } from "./catalog-openx-portable.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import {
-  compactRazeWindowsProfile,
-  projectRazeWindowsProfile,
-} from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
-import {
-  compactOpenMohaaPortable,
-  projectOpenMohaaPortable,
-} from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
-import { compactNativeManagedProfile } from "./catalog-native-managed-profile.mts";
-import { compactAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
-import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
-import { compactRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
-import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
-import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
-import {
-  compactReflectionHlePortablePaths,
-  projectReflectionHlePortablePaths,
-} from "./catalog-portable-reflectionhle.mts";
 import {
   createIgdbInspector,
   createCoreImageValidator,
@@ -74,10 +55,6 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
-import {
-  compactCrispyDoomWindowsPersistence,
-  projectCrispyDoomWindowsPersistence,
-} from "./catalog-crispy-doom-windows-persistence.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
 import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
@@ -115,10 +92,7 @@ type PackageFacts = Pick<
   Partial<Pick<Awaited<ReturnType<typeof collectPortFacts>>, "release">>;
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
-export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
-  const record = projectOpenMohaaPortable(
-    projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input)),
-  );
+export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -145,7 +119,7 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
       next: "Review the exact declared archive pin, native headers, working directory, process lifetime and data ownership. GitHub hint uniqueness does not apply to this Direct selection.",
     }));
   }
-  const persistentPaths = projectReflectionHlePortablePaths(record).integration?.persistent_paths;
+  const persistentPaths = record.integration.persistent_paths;
   return {
     ...selection,
     pinned_releases: direct
@@ -181,13 +155,6 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
-  if (record.alephone_pinned_windows_v1) {
-    projections.push({
-      field: "alephone_pinned_windows_v1",
-      scope: "Reviewed Windows launch of the bundled Aleph One scenario with upstream profiles.",
-      next: "Keep each exact Direct archive pin, scenario executable, platform and setup instructions explicit. A different launch layout or profile owner uses an explicit integration.",
-    });
-  }
   if (record.reviewed_flat_package_layout_v1) {
     projections.push({
       field: "reviewed_flat_package_layout_v1",
@@ -212,13 +179,6 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
     });
   }
-  if (record.reflectionhle_portable_paths_v1) {
-    projections.push({
-      field: "reflectionhle_portable_paths_v1",
-      scope: "Shared reviewed ReflectionHLE file and configuration paths in the portable root.",
-      next: "Keep each game's original editions, package selection, lifecycle qualification and launch facts explicit. Keep a different writer layout explicit.",
-    });
-  }
   if (record.psx_managed_windows_v1 === "technically-computers") {
     projections.push({
       field: "psx_managed_windows_v1",
@@ -230,14 +190,8 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope:
-        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
-      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
-    });
-  } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
-    projections.push({
-      field: "psx_managed_windows_v1",
-      scope: "Reviewed MediEvil and Mortal Kombat 4 split-mods and diagnostic location paths.",
-      next: "Keep each exact kit selector, generated executable, disc, retail BIOS and managed platform explicit. Keep the separate Mac setup for MediEvil and the existing qualification limits for Mortal Kombat 4.",
+        "Reviewed TechnicallyComputers persistent settings and input files for kits that declare their runtime root and mutable files.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. A raw disc set keeps its runtime-discs source, materialization and launch arguments explicit.",
     });
   } else if (record.psx_managed_windows_v1) {
     projections.push({
@@ -253,74 +207,11 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
     });
   }
-  if (record.native_managed_profile_v1) {
-    projections.push({
-      field: "native_managed_profile_v1",
-      scope: "Reviewed Portcove-managed BStone or DevilutionX profile and Windows path policy.",
-      next: "Keep the original files, selector and launch arguments explicit. Use an explicit integration for a different profile.",
-    });
-  }
   if (record.external_registration_v1) {
     projections.push({
       field: "external_registration_v1",
       scope: "Register a player-selected external runtime on the declared platforms.",
       next: "Keep original-file instructions and upstream or player ownership explicit. An exact prepared package or per-platform exception needs an explicit integration.",
-    });
-  }
-  if (record.opengoal_setup_v1) {
-    projections.push({
-      field: "opengoal_setup_v1",
-      scope: "Reviewed OpenGOAL extractor, launcher and per-game portable data paths.",
-      next: "Keep the official release selector, reviewed disc profile and support evidence explicit. A different setup command or writer path needs an explicit integration.",
-    });
-  }
-  if (record.openmohaa_portable_v1) {
-    projections.push({
-      field: "openmohaa_portable_v1",
-      scope: "Official stable OpenMoHAA archives and the reviewed edition launcher and data paths.",
-      next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
-    });
-  }
-  if (record.openx_portable_v1) {
-    projections.push({
-      field: "openx_portable_v1",
-      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
-      next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
-    });
-  }
-  if (record.raze_windows_profile_v1) {
-    projections.push({
-      field: "raze_windows_profile_v1",
-      scope: "Shared stable Raze Windows archive, executable and portable data layout.",
-      next: "Keep the original edition, support, qualification and external routes explicit. A different runtime layout needs its own reviewed declaration.",
-    });
-  }
-  if (record.crispy_doom_windows_persistence_v1) {
-    projections.push({
-      field: "crispy_doom_windows_persistence_v1",
-      scope: "Shared reviewed Crispy Doom Windows persistent paths and filename patterns.",
-      next: "Keep each package selector, executable, game arguments, originals and temporary directory explicit. A different writer layout needs explicit paths.",
-    });
-  }
-  if (record.chocolate_family_windows_persistence_v1) {
-    projections.push({
-      field: "chocolate_family_windows_persistence_v1",
-      scope: "Reviewed Chocolate Windows persistent paths, screenshots and runtime logs.",
-      next: "Keep each original IWAD profile, package selector, executable and local game arguments explicit. A different runtime layout needs explicit paths.",
-    });
-  }
-  if (record.gen2recomp_windows_persistence_v1) {
-    projections.push({
-      field: "gen2recomp_windows_persistence_v1",
-      scope: "Reviewed Gen2Recomped Windows player data and local generated import paths.",
-      next: "Keep each original edition, source selector, executable and selected game explicit. A different writer layout needs explicit paths.",
-    });
-  }
-  if (record.rsdkv4_portable_data_v1) {
-    projections.push({
-      field: "rsdkv4_portable_data_v1",
-      scope: "Reviewed RSDKv4 originals, settings, saves and mods in each portable game root.",
-      next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
   const releaseAdvice = managedSetupReleaseAdvice(
@@ -1212,31 +1103,9 @@ export async function preparePort(options: PrepareOptions) {
       }
     }
     const compact = compactReviewedFlatPackageLayout(
-      compactRazeWindowsProfile(
-        compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
-      ),
+      compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
-    const compactNativeProfile = compactNativeManagedProfile(record);
-    if (compactNativeProfile !== record) record = checkedAuthoredPort(compactNativeProfile);
-    const compactAlephOne = compactAlephOnePinnedWindows(record);
-    if (compactAlephOne !== record) record = checkedAuthoredPort(compactAlephOne);
-    const compactReflection = compactReflectionHlePortablePaths(record);
-    if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
-    const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
-    if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
-    const compactChocolate = compactChocolateFamilyWindowsPersistence(record);
-    if (compactChocolate !== record) record = checkedAuthoredPort(compactChocolate);
-    const compactGen2 = compactGen2RecompWindowsPersistence(record);
-    if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
-    const compactOpenMohaa = compactOpenMohaaPortable(record);
-    if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
-    const compactOpenX = compactOpenXPortable(record);
-    if (compactOpenX !== record) record = checkedAuthoredPort(compactOpenX);
-    const compactOpenGoal = compactOpenGoalSetup(record);
-    if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
-    const compactRsdkv4 = compactRsdkv4PortableData(record);
-    if (compactRsdkv4 !== record) record = checkedAuthoredPort(compactRsdkv4);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

@@ -507,7 +507,7 @@ pub(crate) fn provenance(
     let (fallback_codes, fallback_reasons) = fallbacks.into_iter().unzip();
     Ok(CatalogProvenance {
         origin,
-        catalog_sha256: digest(&serde_json::to_vec(&catalog.authoritative_document())?),
+        catalog_sha256: catalog.document_digest()?.sha256.clone(),
         sequence: verified.map(|value| value.payload.sequence),
         key_id: verified.map(|value| value.envelope.key_id.clone()),
         expires_at: verified.map(|value| value.payload.expires_at),

@@ -1903,12 +1903,6 @@ impl PortcoveService {
             created_at: 0,
             digest: String::new(),
         };
-        let connection = self.library.connection()?;
-        if profile::profile_count(&connection, &port_id)? >= profile::MAX_PROFILES {
-            return Err(PortcoveError::state(
-                "this port has the maximum number of profiles",
-            ));
-        }
         let profile = profile::new_profile(&port_id, display_name, false);
         let created = self.publish_new_profile(
             &profile,

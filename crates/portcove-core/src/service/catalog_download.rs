@@ -554,6 +554,21 @@ impl PortcoveService {
             .map(|stored| (stored.record, stored.record_json)))
     }
 
+    /// Ports that have a pending manual setup row, optionally for one port.
+    /// A read observation only; mutations recheck inside their transactions.
+    pub(crate) fn pending_download_port_ids_from(
+        connection: &rusqlite::Connection,
+        port_id: Option<&str>,
+    ) -> Result<std::collections::HashSet<String>> {
+        let mut statement = connection.prepare(
+            "SELECT DISTINCT port_id FROM catalog_downloads WHERE ?1 IS NULL OR port_id=?1",
+        )?;
+        let ports = statement
+            .query_map([port_id], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(ports)
+    }
+
     pub(crate) fn require_no_pending_setup(&self, port_id: &str) -> Result<()> {
         let exists: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",

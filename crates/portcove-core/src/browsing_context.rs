@@ -97,6 +97,19 @@ fn serialized_size(value: &impl Serialize, limit: usize) -> Result<Option<usize>
     Ok(Some(limit - writer.remaining))
 }
 
+/// `fingerprint(&catalog.authoritative_document())`, from the revision's
+/// cached digest. The binding byte budget still applies to the same bytes.
+fn definition_fingerprint(catalog: &Catalog) -> Result<String> {
+    let digest = catalog.document_digest()?;
+    if digest.canonical_bytes > MAX_BINDING_BYTES {
+        return Err(serde_json::Error::io(std::io::Error::other(
+            "browsing serialization budget reached",
+        ))
+        .into());
+    }
+    Ok(digest.sha256.clone())
+}
+
 fn fingerprint(value: &impl Serialize) -> Result<String> {
     let mut writer = BindingWriter {
         remaining: MAX_BINDING_BYTES,
@@ -105,6 +118,25 @@ fn fingerprint(value: &impl Serialize) -> Result<String> {
     };
     serde_json::to_writer(&mut writer, value)?;
     Ok(hex::encode(writer.hash.finalize()))
+}
+
+/// Whether `[document,statuses,sources,library]` serializes within `limit`
+/// bytes. That array is exactly one byte (the comma) longer than
+/// `[statuses,sources,library]` plus the revision's cached document length.
+fn binding_input_fits(
+    catalog: &Catalog,
+    statuses: &[PortStatus],
+    sources: &[SourceRecord],
+    library: &LibraryIdentity,
+    limit: usize,
+) -> Result<bool> {
+    let Some(remaining) = limit
+        .checked_sub(catalog.document_digest()?.document_bytes)
+        .and_then(|remaining| remaining.checked_sub(1))
+    else {
+        return Ok(false);
+    };
+    Ok(serialized_size(&(statuses, sources, library), remaining)?.is_some())
 }
 
 /// Conservative upper bound before cloning any per-context strings. JSON can
@@ -118,12 +150,7 @@ fn projection_fits(
 ) -> Result<bool> {
     // Leave room in the binding ceiling for retained definition digests and
     // envelope fields; those are bounded by MAX_CONTEXTS, not source strings.
-    if serialized_size(
-        &(catalog.document(), statuses, sources, library),
-        MAX_BINDING_BYTES / 2,
-    )?
-    .is_none()
-    {
+    if !binding_input_fits(catalog, statuses, sources, library, MAX_BINDING_BYTES / 2)? {
         return Ok(false);
     }
     let Some(mut bytes) = serialized_size(library, MAX_RESPONSE_BYTES)? else {
@@ -279,11 +306,7 @@ pub(crate) fn project_browsing_contexts(
             && (status.external_runtime.is_none()
                 || facts.is_some_and(|facts| facts.external_observed))
     });
-    let definition = |catalog: Option<&Catalog>| {
-        catalog
-            .map(|catalog| fingerprint(&catalog.authoritative_document()))
-            .transpose()
-    };
+    let definition = |catalog: Option<&Catalog>| catalog.map(definition_fingerprint).transpose();
     let retained_binding: Vec<_> = catalog
         .ports()
         .iter()
@@ -304,14 +327,14 @@ pub(crate) fn project_browsing_contexts(
         .collect();
     let binding = fingerprint(&(
         &library,
-        catalog.authoritative_document(),
+        catalog.authoritative_view(),
         statuses,
         sources,
         host_platform,
         retained_metadata_complete,
         retained_binding,
     ))?;
-    let current_definition = fingerprint(&catalog.authoritative_document())?;
+    let current_definition = definition_fingerprint(catalog)?;
     let indexed: HashMap<_, _> = statuses
         .iter()
         .map(|status| (&status.port_id, status))
@@ -472,6 +495,36 @@ mod tests {
 
     use super::*;
     use crate::{ArtifactIdentity, ExternalRuntimeRecord, InstallRecord, UpdatePolicy};
+
+    #[test]
+    fn binding_input_budget_matches_whole_serialization_at_its_boundary() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            crate::PortcoveService::new(crate::Library::open(temporary.path()).unwrap()).unwrap();
+        let catalog = service.catalog();
+        let statuses = service.statuses().unwrap();
+        let library = service.library().identity_record().unwrap();
+        for (statuses, sources) in [
+            (&statuses[..], &[][..]),
+            (&statuses[..1], &[][..]),
+            (&[][..], &[][..]),
+        ] {
+            let whole = serde_json::to_vec(&(catalog.document(), statuses, sources, &library))
+                .unwrap()
+                .len();
+            for limit in [whole + 1, whole, whole - 1, 0] {
+                assert_eq!(
+                    binding_input_fits(catalog, statuses, sources, &library, limit).unwrap(),
+                    serialized_size(&(catalog.document(), statuses, sources, &library), limit)
+                        .unwrap()
+                        .is_some(),
+                    "limit {limit} for {whole} bytes"
+                );
+            }
+            assert!(binding_input_fits(catalog, statuses, sources, &library, whole).unwrap());
+            assert!(!binding_input_fits(catalog, statuses, sources, &library, whole - 1).unwrap());
+        }
+    }
 
     #[test]
     fn streaming_binding_preserves_existing_digest_and_stops_at_limit() {

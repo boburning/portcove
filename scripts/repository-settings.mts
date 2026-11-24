@@ -10,6 +10,7 @@ import {
   validateRepositorySettings,
   reconcileRepositorySettings,
   planReleaseRulesets,
+  requireReceiptTagProtection,
 } from "./repository-settings-policy.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -248,6 +249,9 @@ Example:
     const { next } = before.plan;
     if (releaseCheck || !next) {
       if (next) throw new Error("Permanent release ruleset migration is pending");
+      // Reduced historical receipt verification relies on this protection;
+      // check its effect directly as well as the policy contract.
+      requireReceiptTagProtection(before.rows);
       console.log(`Release rulesets match the contract (${before.plan.count} policies).`);
       return;
     }
