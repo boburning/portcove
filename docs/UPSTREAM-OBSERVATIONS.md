@@ -1389,12 +1389,11 @@ like any other fact. Managed sources keep no release text: their facts,
 checkpoints and Core projections are unchanged. The text travels beside the
 candidates, never inside `upstream_observation`, whose shape Core's signed
 listing accepts: each listing projection carries `listing_release_text`
-bound to its observation's facts digest, and the handoff carries it once per
-source as `descriptive_listing_release_text` (format 1), keyed by listing ID;
-`catalog_policies` omit it. The checkpoint's `last_complete_policies` keep
-it with each projection, which is where the facts batch reads it. A reader
-attaches text only to the observation whose digest it names; a projection or
-handoff without it reads as unobserved text. The text is unsigned, untrusted upstream content, never shown to
+(format 1) bound to its observation's facts digest. The checkpoint's
+`last_complete_policies` keep it with each projection, which is where the
+facts batch reads it; the handoff's `catalog_policies` omit it. A reader
+attaches text only to the observation whose digest it names; a projection
+without it reads as unobserved text. The text is unsigned, untrusted upstream content, never shown to
 players and never accepted into a listing
 ([release text statements](CATALOG.md#release-text-statements)).
 

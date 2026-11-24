@@ -11,8 +11,7 @@ export const listingObservationPolicy = "provider-listing-window-v2";
 export const listingReleaseLimit = releaseTextWindow;
 /**
  * The format of a listing projection's release text beside its observation
- * (`listing_release_text`) and of the handoff map that carries it
- * (`descriptive_listing_release_text`). The text stays outside
+ * (`listing_release_text`), kept in the observer's checkpoint. The text stays outside
  * `upstream_observation`, whose shape Core's signed listing accepts.
  */
 export const listingReleaseTextFormat = 1;
@@ -480,32 +479,11 @@ function projectDescriptiveListing<Listing extends Record<string, unknown>>(
   };
 }
 
-/** A projection without its release text, which the handoff carries once, by listing. */
+/** A projection without its release text, which only the observer's checkpoint keeps. */
 export function withoutListingReleaseText(policy: unknown): unknown {
   if (!isRecord(policy) || !Object.hasOwn(policy, "listing_release_text")) return policy;
   const { listing_release_text: _text, ...rest } = policy;
   return rest;
-}
-
-/**
- * The release text of a source's listing projections, by listing id, for the
- * handoff (`descriptive_listing_release_text`). Each entry names the facts
- * digest of the observation it belongs to, so a reader attaches it only to
- * that observation. Historical projections carry the text of their own facts.
- */
-export function listingReleaseTextForReport(
-  policies: readonly unknown[],
-): Record<string, ListingReleaseText> {
-  return Object.fromEntries(
-    policies.flatMap((policy) =>
-      isRecord(policy) &&
-      typeof policy.port_id === "string" &&
-      isRecord(policy.listing_release_text) &&
-      policy.listing_release_text.format === listingReleaseTextFormat
-        ? [[policy.port_id, policy.listing_release_text as unknown as ListingReleaseText]]
-        : [],
-    ),
-  );
 }
 
 /** A failed attempt annotates retained facts without advancing their success/freshness clocks. */

@@ -1,5 +1,4 @@
 import {
-  listingReleaseTextForReport,
   listingUpdatesForReport,
   withoutListingReleaseText,
 } from "./listing-upstream-observation.mts";
@@ -525,7 +524,7 @@ export async function runCatalogUpstreams(
           },
           source_port_ids: source.ports.map((p) => p.id),
           observations,
-          // Release text travels once, in `descriptive_listing_release_text`.
+          // Release text stays in the checkpoint's projections, never in the handoff.
           catalog_policies: policies.map(withoutListingReleaseText),
           descriptive_listing_candidates: listingUpdatesForReport(
             policies,
@@ -533,9 +532,6 @@ export async function runCatalogUpstreams(
             new Date(now()).toISOString(),
             source,
           ),
-          // The listed releases' own text, beside the candidates whose shape
-          // Core's signed listing accepts: read by the facts batch only.
-          descriptive_listing_release_text: listingReleaseTextForReport(policies),
           descriptive_listing_preimages: Object.fromEntries(
             source.ports.flatMap((consumer) =>
               consumer.listing
@@ -608,7 +604,7 @@ export async function runCatalogUpstreams(
             run_attempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
           },
           source_port_ids: source.ports.map((port) => port.id),
-          // Release text travels once, in `descriptive_listing_release_text`.
+          // Release text stays in the checkpoint's projections, never in the handoff.
           catalog_policies: policies.map(withoutListingReleaseText),
           descriptive_listing_candidates: listingUpdatesForReport(
             policies,
@@ -616,9 +612,6 @@ export async function runCatalogUpstreams(
             new Date(now()).toISOString(),
             source,
           ),
-          // The listed releases' own text, beside the candidates whose shape
-          // Core's signed listing accepts: read by the facts batch only.
-          descriptive_listing_release_text: listingReleaseTextForReport(policies),
           descriptive_listing_preimages: Object.fromEntries(
             source.ports.flatMap((consumer) =>
               consumer.listing

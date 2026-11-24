@@ -4832,8 +4832,7 @@ listing accepts. The observer's checkpoint retains it with the projection
 retained before the observer kept text (until its source is next observed)
 leaves those releases' text unobserved. A port with more than one completed
 projection in one source is reported in the read's `gaps`, never chosen
-between. The handoff also carries the text once per source as
-`descriptive_listing_release_text`.
+between. The handoff does not carry the text.
 
 Unobserved text is UNKNOWN optional evidence, never a statement either way,
 and the fit never offers a release on it: an offered release whose text is
