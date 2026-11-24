@@ -3,11 +3,14 @@
 // pull-request side that holds every facts-table change to the same rules.
 //
 // The job runs the facts worker (`scripts/listing-package-facts.mts`) over
-// the whole candidate set, sharded across a job matrix, regenerates the
-// catalog and proposes one batch: every entry that needs no reproduction, and
-// at most half an hour's reproduction share of those that do (`carryOver`:
-// the job and the batch's CI each reproduce them, possibly in one hour); the
-// rest is carried to the next batch, never dropped. Nothing here is a
+// the whole candidate set, with every listing observation the observer's
+// checkpoint has accumulated (`scripts/listing-facts-observations.mts`),
+// sharded across a job matrix, regenerates the catalog and proposes one
+// batch: every entry that needs no reproduction, and those that do while
+// their reproduction requests fit one batch's share of the hourly quota
+// (`carryOver`: the job and the batch's CI each reproduce them, possibly in
+// one hour). The rest is carried to the next batch, longest wait first, with
+// its inspection receipts, never dropped. Nothing here is a
 // second status or backlog authority: the facts table, the enrollment table
 // and `catalog-route-fit.mts --json` stay the record; the job keeps only the
 // worker state and a short run history in its cache.
@@ -50,15 +53,16 @@
 //     [--reproduce false | --shard I] [--deadline-minutes M]
 //   node scripts/listing-facts-batch.mts worker-shards --needs FILE --directory DIR
 //   node scripts/listing-facts-batch.mts paths [--base REV] [--head REV]
-//   node scripts/listing-facts-batch.mts observations --handoff DIR --output FILE
 //   node scripts/listing-facts-batch.mts inputs --observations FILE --state FILE \
-//     --observer-run ID --source-commit SHA --run-id ID --output FILE
+//     --observer-run REVISION --source-commit SHA --run-id ID --output FILE
+//     (the observations come from `scripts/listing-facts-observations.mts`:
+//     every listing the observer's checkpoint has accumulated)
 //   node scripts/listing-facts-batch.mts assess --worker-report FILE --history FILE \
 //     --run-id ID [--gate ok|refused] [--paths ok|violated] [--reproduction ok|refused] \
 //     [--facts FILE] [--now ISO]
-//   node scripts/listing-facts-batch.mts carry --report FILE [--base REV]
+//   node scripts/listing-facts-batch.mts carry --report FILE --state FILE [--base REV]
 //   node scripts/listing-facts-batch.mts capacity --output FILE
-//   node scripts/listing-facts-batch.mts delta|versions|observer-run|open-pull-request …
+//   node scripts/listing-facts-batch.mts delta|versions|open-pull-request …
 //   node scripts/listing-facts-batch.mts merge-intent|collect …   (job plumbing)
 //   node scripts/listing-facts-batch.mts queues --route-fit FILE [--output FILE]
 //   node scripts/listing-facts-batch.mts issues --conditions FILE [--unfiled FILE]  (GitHub writes)
@@ -110,6 +114,7 @@ import {
   githubTokenHourlyRequests,
   reproductionBatchEntries,
   reproductionHourlyRequests,
+  reproductionsPerBatch,
   toolchainNames,
   listingCounts,
   reproductionPlan,
@@ -146,12 +151,12 @@ import {
   type ByteInspector,
   type NameClassifier,
   type ObservedAsset,
+  type CarriedItem,
   type ObservedRelease,
+  type WorkerState,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
-import { listingReleaseTextFormat } from "./listing-upstream-observation.mts";
-import { releaseTextFact, type ReleaseTextFact } from "./upstream-observer.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -1169,22 +1174,30 @@ class OversizedResponseError extends Error {}
 /** A provider answer with a non-success status that no retry applies to. */
 export class GithubStatusError extends Error {
   readonly status: number;
-  constructor(message: string, status: number) {
+  /** The provider's own `message`, when its answer states one. */
+  readonly providerMessage: string | null;
+  constructor(message: string, status: number, providerMessage: string | null = null) {
     super(message);
     this.status = status;
+    this.providerMessage = providerMessage;
   }
 }
 /** Provider data that does not have the shape the provider states it in. */
 export class ProviderDataError extends Error {}
 /**
  * Whether a failed release-list read states something about the
- * repository's own data: it is gone (404, 410) or the provider answered
- * malformed records. Any other failure (a permission refusal, a fault in the
- * job's own code) is no verdict on the identity (`job-fault`).
+ * repository's own data: it is gone (404, 410), blocked for legal reasons
+ * (451) or by the provider ("Repository access blocked", 403), its answer
+ * is larger than any release page, or its records are malformed. Any other
+ * failure (an authorization refusal, a fault in the job's own code) is no
+ * verdict on the identity (`job-fault`).
  */
 export const providerStatement = (error: unknown) =>
-  (error instanceof GithubStatusError && [404, 410].includes(error.status)) ||
-  error instanceof ProviderDataError;
+  (error instanceof GithubStatusError &&
+    ([404, 410, 451].includes(error.status) ||
+      (error.status === 403 && /repository access blocked/iu.test(error.providerMessage ?? "")))) ||
+  error instanceof ProviderDataError ||
+  error instanceof OversizedResponseError;
 /**
  * The refusal reason of a failed inspection: Core's permanent verdict
  * (`core-refused`), the runner's or provider's condition (`transient`), the
@@ -1323,8 +1336,20 @@ export async function githubRequest(
       stated = false;
       continue;
     }
-    if (!response.ok)
-      throw new GithubStatusError(`${method} ${url} answered ${response.status}.`, response.status);
+    if (!response.ok) {
+      let providerSays: string | null = null;
+      try {
+        const parsed: unknown = JSON.parse(body.toString("utf8"));
+        if (isRecord(parsed) && typeof parsed.message === "string") providerSays = parsed.message;
+      } catch {
+        providerSays = null;
+      }
+      throw new GithubStatusError(
+        `${method} ${url} answered ${response.status}.`,
+        response.status,
+        providerSays,
+      );
+    }
     if (!body.length) return null;
     try {
       return JSON.parse(body.toString("utf8")) as unknown;
@@ -1704,87 +1729,6 @@ export function artifactFiles(archive: Buffer, allowed: readonly string[]): Map<
 export const inputsArtifactFiles = (archive: Buffer) =>
   artifactFiles(archive, ["inputs.json", "observations.json", "state-before.json"]);
 
-// ---------------------------------------------------------------------------
-// Observations: the observer's retained handoff, as the worker's report.
-
-/**
- * The listing observations of an observer handoff directory (one JSON file
- * per provider source, each with `descriptive_listing_candidates`), as a
- * worker report `{ listings }`. Files are read in name order; a listing seen
- * twice keeps its first observation. The handoff is this repository's own
- * observer artifact; its size is the observer's, with no bound of its own.
- */
-export function handoffObservations(directory: string) {
-  const listings: unknown[] = [];
-  const seen = new Set<string>();
-  const files = readdirSync(directory)
-    .filter((name) => name.endsWith(".json") && name !== "summary.json")
-    .toSorted();
-  for (const name of files) {
-    const file = path.join(directory, name);
-    const report: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (!isRecord(report) || !Array.isArray(report.descriptive_listing_candidates)) continue;
-    const texts = isRecord(report.descriptive_listing_release_text)
-      ? report.descriptive_listing_release_text
-      : {};
-    for (const candidate of report.descriptive_listing_candidates as unknown[]) {
-      if (!isRecord(candidate) || typeof candidate.id !== "string" || seen.has(candidate.id))
-        continue;
-      seen.add(candidate.id);
-      listings.push({
-        id: candidate.id,
-        upstream_observation: withReleaseText(
-          candidate.upstream_observation,
-          Object.hasOwn(texts, candidate.id) ? texts[candidate.id] : undefined,
-        ),
-      });
-    }
-  }
-  return { listings };
-}
-
-/**
- * The observation with each release's own text attached in the worker's
- * release shape (`name`, `body`, `body_truncated`), only where the handoff's
- * text names this observation's exact facts digest and a release id of it.
- * A handoff without text (an older observer), text of other facts, or a
- * malformed row leaves those releases without text: UNKNOWN, which the fit
- * withholds (`release-text-unobserved`), never a statement either way.
- */
-export function withReleaseText(observation: unknown, text: unknown): unknown {
-  if (
-    !isRecord(observation) ||
-    !Array.isArray(observation.releases) ||
-    !isRecord(text) ||
-    text.format !== listingReleaseTextFormat ||
-    typeof text.facts_sha256 !== "string" ||
-    text.facts_sha256 !== observation.facts_sha256 ||
-    !Array.isArray(text.releases)
-  )
-    return observation;
-  const rows = new Map<number, ReleaseTextFact>();
-  for (const row of text.releases as unknown[]) {
-    if (!isRecord(row) || !Number.isSafeInteger(row.id) || rows.has(Number(row.id))) continue;
-    try {
-      const { id: _id, ...fields } = row;
-      const fact = releaseTextFact({ text: fields });
-      if (fact) rows.set(Number(row.id), fact);
-    } catch {
-      // A malformed row reads as unobserved text.
-    }
-  }
-  return {
-    ...observation,
-    releases: (observation.releases as unknown[]).map((release) => {
-      const fact =
-        isRecord(release) && typeof release.id === "number" ? rows.get(release.id) : undefined;
-      return fact && isRecord(release)
-        ? { ...release, name: fact.title, body: fact.body, body_truncated: fact.body_truncated }
-        : release;
-    }),
-  };
-}
-
 /**
  * Reconfirmed facts older than this are refreshed by a batch even when
  * nothing else changed: half the facts age, so the batch and the person who
@@ -1950,24 +1894,50 @@ export function batchPullBody(input: {
 // Carry-over: a batch lands only what its pull-request CI can reproduce.
 
 /**
- * The batch a run may propose: at most `limit` entries that need reproduction
- * (`reproductionBatchEntries`: one hour's reproduction share of the quota
- * divided by the two reproductions each entry gets, the job's own and the
- * batch pull request's CI, which may fall in one hour), so neither waits for
- * a quota reset and each CI shard
- * keeps its whole deadline. Entries past the limit, in port_id order, are
- * carried: each keeps its baseline entry (or stays absent when it is new), so
- * the next run derives it again and a later batch lands it. Carried work is
- * never dropped and never reported complete (`carriedSummary`). Entries that
- * need no reproduction (reconfirmations, ineligible verdicts) always land.
+ * REST requests one entry's reproduction costs: its repository's release
+ * list, read once per repository per shard (`githubReleaseLister`), so at
+ * most one per entry. Downloads are not REST requests.
+ */
+export const reproductionRequestsPerEntry = 1;
+/**
+ * The REST requests one batch's reproductions may spend: one hour's
+ * reproduction share of the built-in token's quota
+ * (`reproductionHourlyRequests`) divided by the reproductions each batch
+ * gets (`reproductionsPerBatch`: the job's own and its pull request's CI,
+ * which may fall in one hour). Within it neither waits for a quota reset,
+ * so each CI shard keeps its whole deadline and the worker's per-identity
+ * budget (`identityBudgetMinutes`) stays what CI can reproduce. A class 3
+ * budget of an external resource (docs/RESTRICTION-REGISTER.md DM-07).
+ */
+export const reproductionBatchRequests = reproductionHourlyRequests / reproductionsPerBatch;
+
+/**
+ * The batch a run may propose: entries that need reproduction while their
+ * requests fit `requests` (`reproductionBatchRequests`). Entries carried by
+ * an earlier run go first, longest wait first (`waiting`, the worker state's
+ * `carried`), then the rest in port_id order, so an identity late in the
+ * alphabet is never starved by newer ones: each batch lands the oldest
+ * waiting entries, and every carried entry lands within its queue position
+ * divided by one batch's entries. The rest is carried: each keeps its
+ * baseline entry (or stays absent when it is new), so the next scheduled run
+ * derives it again, reusing its inspection receipts (`waiting` returned,
+ * saved as the worker state's `carried`), and a later batch lands it.
+ * Carried work is never dropped and never reported complete
+ * (`carriedSummary`). Entries that need no reproduction (reconfirmations,
+ * ineligible verdicts) always land.
  */
 export function carryOver(
   baseline: unknown,
   current: ListingFactsTable,
-  limit: number = reproductionBatchEntries,
-): { table: ListingFactsTable; carried: string[] } {
+  requests: number = reproductionBatchRequests,
+  waiting: readonly CarriedItem[] = [],
+): { table: ListingFactsTable; carried: string[]; waiting: CarriedItem[] } {
   const plan = reproductionPlan(baseline, current);
-  if (plan.entries.length <= limit) return { table: current, carried: [] };
+  const since = new Map(waiting.map((item) => [item.entry.port_id, item.since] as const));
+  const order = (id: string) => {
+    const at = since.get(id);
+    return at === undefined ? Number.POSITIVE_INFINITY : Date.parse(at);
+  };
   const before = new Map(
     (isRecord(baseline) && Array.isArray(baseline.entries)
       ? (baseline.entries as ListingFactsEntry[])
@@ -1975,7 +1945,8 @@ export function carryOver(
     ).map((entry) => [entry.port_id, entry]),
   );
   // An entry whose same release reproduction already refused waits behind
-  // every other: a refusal that recurs never holds another identity's slot.
+  // every other, however long it has waited: a refusal that recurs never
+  // holds another identity's slot.
   const refusedAgain = (entry: ListingFactsEntry) => {
     const prior = before.get(entry.port_id);
     return (
@@ -1983,11 +1954,16 @@ export function carryOver(
       prior.observation.release_id === entry.observation.release_id
     );
   };
-  const ordered = [
-    ...plan.entries.filter((entry) => !refusedAgain(entry)),
-    ...plan.entries.filter(refusedAgain),
-  ];
-  const carried = new Set(ordered.slice(limit).map((entry) => entry.port_id));
+  const ordered = plan.entries.toSorted(
+    (left, right) =>
+      Number(refusedAgain(left)) - Number(refusedAgain(right)) ||
+      order(left.port_id) - order(right.port_id) ||
+      compareCodePoints(left.port_id, right.port_id),
+  );
+  const admitted = Math.max(0, Math.floor(requests / reproductionRequestsPerEntry));
+  const carriedEntries = ordered.slice(admitted);
+  if (!carriedEntries.length) return { table: current, carried: [], waiting: [] };
+  const carried = new Set(carriedEntries.map((entry) => entry.port_id));
   const entries = current.entries.flatMap((entry) => {
     if (!carried.has(entry.port_id)) return [entry];
     const prior = before.get(entry.port_id);
@@ -1995,7 +1971,14 @@ export function carryOver(
   });
   const table = { ...current, entries, entries_sha256: digestOf(entries) };
   checkListingFactsTable(table);
-  return { table, carried: [...carried].toSorted(compareCodePoints) };
+  return {
+    table,
+    carried: [...carried].toSorted(compareCodePoints),
+    waiting: carriedEntries.map((entry) => ({
+      since: since.get(entry.port_id) ?? current.generated_at,
+      entry,
+    })),
+  };
 }
 /**
  * The worker summary with carried identities marked: each carried row's
@@ -3414,14 +3397,6 @@ async function main(argv: string[]): Promise<string> {
       output("shards", JSON.stringify(shards.map((_, index) => index)));
       return `${needs.length} identities need bytes in ${shards.length} shard(s).\n`;
     }
-    case "observations": {
-      if (!option.handoff || !option.output)
-        throw new Error("observations needs --handoff and --output.");
-      const report = handoffObservations(option.handoff);
-      writeFileSync(option.output, `${JSON.stringify(report)}\n`);
-      output("observed", String(report.listings.length));
-      return `${report.listings.length} listing observations.\n`;
-    }
     case "inputs": {
       for (const name of [
         "observations",
@@ -3563,12 +3538,29 @@ async function main(argv: string[]): Promise<string> {
       // Before generation: keep in this batch only what its pull-request CI
       // and the job can both reproduce within one hour's reproduction share.
       if (!option.report) throw new Error("carry needs --report.");
-      const { table, carried } = carryOver(baselineFacts(option.base), currentFacts());
+      const state = option.state
+        ? (JSON.parse(readFileSync(option.state, "utf8")) as WorkerState)
+        : undefined;
+      const { table, carried, waiting } = carryOver(
+        baselineFacts(option.base),
+        currentFacts(),
+        reproductionBatchRequests,
+        state?.carried ?? [],
+      );
+      if (state && option.state) {
+        // The carried entries, with their first carry time and receipts,
+        // are the next run's queue; an empty queue leaves no field.
+        const { carried: _previous, ...rest } = state;
+        writeFileSync(
+          option.state,
+          `${JSON.stringify(waiting.length ? { ...rest, carried: waiting } : rest)}\n`,
+        );
+      }
       if (carried.length) {
         writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
         writeFileSync(option.report, carriedSummary(readFileSync(option.report, "utf8"), carried));
         summary(
-          `Carried ${carried.length} entries to the next batch: this batch lands at most ${reproductionBatchEntries} entries that need reproduction.`,
+          `Carried ${carried.length} entries to the next batch, longest-waiting first: this batch's reproductions spend at most ${reproductionBatchRequests} REST requests (${reproductionBatchEntries} entries).`,
         );
       }
       output("carried", String(carried.length));
@@ -3844,36 +3836,6 @@ async function main(argv: string[]): Promise<string> {
       output("changed", String(delta.added + delta.withdrawn + delta.changed > 0));
       output("material", String(materialChange(baselineFacts(base), currentFacts(), delta)));
       return `${JSON.stringify(delta)}\n`;
-    }
-    case "observer-run": {
-      // The newest main observer run that retained a catalog handoff.
-      const runs = await githubJson(
-        `https://api.github.com/repos/${repository()}/actions/workflows/configured-upstream-observer.yml/runs?branch=main&status=completed&per_page=20`,
-        token(),
-      );
-      const list = isRecord(runs) && Array.isArray(runs.workflow_runs) ? runs.workflow_runs : [];
-      for (const run of list as unknown[]) {
-        if (!isRecord(run) || !Number.isSafeInteger(run.id) || run.head_branch !== "main") continue;
-        const artifacts = await githubJson(
-          `https://api.github.com/repos/${repository()}/actions/runs/${Number(run.id)}/artifacts?per_page=100`,
-          token(),
-        );
-        const handoff = (
-          isRecord(artifacts) && Array.isArray(artifacts.artifacts) ? artifacts.artifacts : []
-        ).find(
-          (artifact: unknown) =>
-            isRecord(artifact) &&
-            typeof artifact.name === "string" &&
-            artifact.name.startsWith(`catalog-upstream-observations-${Number(run.id)}-`) &&
-            artifact.expired !== true,
-        ) as Record<string, unknown> | undefined;
-        if (handoff) {
-          output("run_id", String(run.id));
-          output("artifact", String(handoff.name));
-          return `${JSON.stringify({ run_id: run.id, artifact: handoff.name })}\n`;
-        }
-      }
-      throw new Error("No recent main observer run retained a catalog observation handoff.");
     }
     case "open-pull-request": {
       for (const name of ["branch", "run-url", "delta", "reproduced"])

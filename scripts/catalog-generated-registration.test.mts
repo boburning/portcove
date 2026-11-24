@@ -135,12 +135,16 @@ import {
 import { routeFitReport } from "./catalog-route-fit.mts";
 import {
   listingProviderIdentity,
-  listingReleaseTextForReport,
-  listingUpdatesForReport,
   projectListingObservation,
   withoutListingReleaseText,
 } from "./listing-upstream-observation.mts";
-import { handoffObservations, withholdRefused } from "./listing-facts-batch.mts";
+import { withholdRefused } from "./listing-facts-batch.mts";
+import { accumulatedObservations } from "./listing-facts-observations.mts";
+import {
+  checkpoint as observerCheckpoint,
+  keyOf as observerKeyOf,
+  progress as observerProgress,
+} from "./fixtures/upstream-checkpoint-fixture.mts";
 import { observationHash, type ProviderObservation } from "./upstream-observer.mts";
 import {
   artifactFact,
@@ -1750,6 +1754,129 @@ void test("a sharded run plans, inspects each shard and combines to the unsharde
   assert.equal(combined.settled, whole.settled);
   assert.deepEqual(combined.ineligible, whole.ineligible);
   assert.throws(() => combineShards(plan, [results[0]!, { ...results[0]! }]), /is in two shards/u);
+});
+
+void test("a cohort past one batch's reproduction budget completes by automatic continuation, oldest wait first, each archive read once", async () => {
+  const { carryOver, reproductionBatchRequests, reproductionRequestsPerEntry } =
+    await import("./listing-facts-batch.mts");
+  const perBatch = reproductionBatchRequests / reproductionRequestsPerEntry;
+  // The full cohort is larger than one batch, and a second wave of
+  // identities that sort before it arrives while it is still carried.
+  const late = Array.from(
+    { length: 600 },
+    (_, index) => `zz-cohort-${String(index).padStart(3, "0")}`,
+  );
+  const early = Array.from(
+    { length: 250 },
+    (_, index) => `aa-cohort-${String(index).padStart(3, "0")}`,
+  );
+  assert.ok(late.length > perBatch);
+  const records = [...early, ...late].map((id) => listing(id));
+  const reads = new Map<string, number>();
+  const inspect: TestInspector = async (asset) => {
+    const id = /fixture-owner\/([^/]+)\//u.exec(asset.url)![1]!;
+    reads.set(id, (reads.get(id) ?? 0) + 1);
+    return [player("Game/Game.exe")];
+  };
+  // One scheduled run: the worker derives over the accumulated observations,
+  // the carry step keeps one batch's budget and queues the rest, and the
+  // batch merges (its table becomes the baseline). No person acts.
+  let baseline = emptyFactsTable("2026-11-01T00:00:00.000Z");
+  let state: WorkerState = { format: 3, pending: [], retry: [] };
+  const run = async (day: number, observed: readonly string[], waiting = state.carried ?? []) => {
+    const result = await derive(
+      records,
+      observerReport(Object.fromEntries(observed.map((id) => [id, {}]))),
+      baseline,
+      { state, inspect, now: `2026-11-${String(day).padStart(2, "0")}T00:00:00.000Z` },
+    );
+    const batch = carryOver(baseline, result.table, reproductionBatchRequests, waiting);
+    const { carried: _queue, ...rest } = result.state;
+    return {
+      result,
+      batch,
+      state: batch.waiting.length ? { ...rest, carried: batch.waiting } : rest,
+    };
+  };
+  const land = (step: Awaited<ReturnType<typeof run>>) => {
+    baseline = step.batch.table;
+    state = step.state;
+    return step.batch;
+  };
+  const first = land(await run(2, late));
+  assert.equal(first.carried.length, late.length - perBatch);
+  assert.equal(enrolledIds(records, baseline).length, perBatch);
+  // The second wave arrives. Ordered by name alone, the identities carried
+  // since the first run would wait behind it.
+  const step = await run(3, [...early, ...late]);
+  const byName = carryOver(baseline, step.result.table, reproductionBatchRequests, []);
+  assert.ok(byName.carried.includes(late[perBatch]!));
+  // Oldest wait first: the identities carried since the first run land
+  // before the newer wave, which waits its turn.
+  const second = land(step);
+  assert.deepEqual(second.carried, [...early, ...late.slice(2 * perBatch)].toSorted());
+  const enrolled = new Set(enrolledIds(records, baseline));
+  assert.ok(late.slice(0, 2 * perBatch).every((id) => enrolled.has(id)));
+  let day = 4;
+  while (state.carried?.length) {
+    land(await run(day, [...early, ...late]));
+    day++;
+    assert.ok(day < 10, "the cohort completes in a bounded number of runs");
+  }
+  // Every identity is enrolled, nothing stays queued, and each archive was
+  // downloaded exactly once: carried entries reused their receipts.
+  assert.deepEqual(enrolledIds(records, baseline).toSorted(), [...early, ...late].toSorted());
+  assert.equal(state.carried, undefined);
+  assert.equal(day, 6);
+  assert.deepEqual(new Set(reads.values()), new Set([1]));
+  assert.equal(reads.size, early.length + late.length);
+});
+
+void test("a carried entry's receipts are reused only for its repository id and parser version", async () => {
+  const id = "zz-receipt";
+  const records = [listing(id)];
+  const report = observerReport({ [id]: {} });
+  const reads: string[] = [];
+  const inspect: TestInspector = async (asset) => {
+    reads.push(asset.name);
+    return [player("Game/Game.exe")];
+  };
+  const first = await derive(records, report, undefined, { inspect });
+  const entry = first.table.entries.find((row) => row.port_id === id)!;
+  assert.deepEqual(reads, [windowsZip]);
+  const again = async (carried: unknown[]) => {
+    reads.length = 0;
+    const result = await derive(records, report, undefined, {
+      inspect,
+      state: { format: 3, pending: [], retry: [], carried } as WorkerState,
+    });
+    return { reads: [...reads], entry: result.table.entries.find((row) => row.port_id === id) };
+  };
+  const since = "2026-11-02T00:00:00.000Z";
+  // The same release under the same id and parser version: nothing is read,
+  // and the entry is the one the bytes produced.
+  const reused = await again([{ since, entry }]);
+  assert.deepEqual(reused.reads, []);
+  assert.deepEqual(reused.entry!.artifacts, entry.artifacts);
+  // A sharded run carries the queue through its plan to the combined state,
+  // which the job's carry step then rewrites.
+  const plan = await derive(records, report, undefined, {
+    inspect,
+    plan: true,
+    state: { format: 3, pending: [], retry: [], carried: [{ since, entry }] },
+  });
+  assert.deepEqual(plan.state.carried, [{ since, entry }]);
+  assert.deepEqual(combineShards(plan, []).state.carried, [{ since, entry }]);
+  // Another repository id, another parser version or a malformed item: read again.
+  assert.deepEqual((await again([{ since, entry: { ...entry, repository_id: 9 } }])).reads, [
+    windowsZip,
+  ]);
+  assert.deepEqual(
+    (await again([{ since, entry: { ...entry, parser_version: entry.parser_version - 1 } }])).reads,
+    [windowsZip],
+  );
+  assert.deepEqual((await again([{ since: "not a time", entry }])).reads, [windowsZip]);
+  assert.deepEqual((await again([{ since, entry: { port_id: id } }])).reads, [windowsZip]);
 });
 
 void test("an authored listing guide stays first and gains the generated selection step", () => {
@@ -11214,33 +11341,32 @@ function textObservation(
     authority: "provider-observation-only",
   } as unknown as ProviderObservation;
 }
-/** The observer's handoff for one listing, read back as the batch job reads it. */
+/**
+ * One listing's projection retained in the observer's checkpoint, read back
+ * as the batch job reads it (`accumulatedObservations`). Without `withText`,
+ * the projection is one an observer retained before it kept release text.
+ */
 function throughHandoff(record: AuthoredPort, observation: ProviderObservation, withText = true) {
   const policy = projectListingObservation(record.listing, observation, 12);
-  const directory = mkdtempSync(join(tmpdir(), "release-text-handoff-"));
-  try {
-    writeFileSync(
-      join(directory, "source.json"),
-      JSON.stringify({
-        catalog_policies: [withoutListingReleaseText(policy)],
-        descriptive_listing_candidates: listingUpdatesForReport(
-          [policy],
-          {},
-          "2026-11-20T00:00:00.000Z",
-          {
-            repository: observation.facts.repository.full_name,
-            ports: [{ listing: record.listing }],
-          },
-        ),
-        ...(withText
-          ? { descriptive_listing_release_text: listingReleaseTextForReport([policy]) }
-          : {}),
+  const retained = withText ? policy : withoutListingReleaseText(policy);
+  const repository = observation.facts.repository.full_name;
+  const handed = accumulatedObservations(
+    {
+      revision: "upstream-observer-run:1-1@fixture",
+      config_sha256: "a".repeat(64),
+      checkpoint: observerCheckpoint({
+        [observerKeyOf(repository)]: observerProgress(repository, [], {
+          repository_id: observation.facts.repository.id,
+          last_complete_facts_sha256: observation.facts_sha256,
+          last_complete_policies: [retained],
+        }),
       }),
-    );
-    return handoffObservations(directory);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
+      catalog: { ports: [], listings: [record.listing] },
+    },
+    { format_version: 11, listings: [record.listing] },
+  );
+  assert.deepEqual(handed.gaps, []);
+  return { listings: handed.listings };
 }
 
 void test("youkaicountry-yknytt: releases titled as betas are withheld once their text is observed (#1422 1)", async () => {

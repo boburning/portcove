@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
-import { observationHash, releaseTextWindow } from "./upstream-observer.mts";
+import { observationHash, releaseTextFact, releaseTextWindow } from "./upstream-observer.mts";
 import type { ProviderObservation, ReleaseTextFact } from "./upstream-observer.mts";
 
 // A bounded descriptive window, never a complete-history or compatibility claim.
@@ -576,4 +576,46 @@ export function listingUpdatesForReport(
       },
     ];
   });
+}
+
+/**
+ * The observation with each release's own text attached in the worker's
+ * release shape (`name`, `body`, `body_truncated`), only where the text
+ * (`listing_release_text`) names this observation's exact facts digest and a
+ * release id of it. A projection without text (one an older observer
+ * retained), text of other facts, or a malformed row leaves those releases without text: UNKNOWN, which the fit
+ * withholds (`release-text-unobserved`), never a statement either way.
+ */
+export function withReleaseText(observation: unknown, text: unknown): unknown {
+  if (
+    !isRecord(observation) ||
+    !Array.isArray(observation.releases) ||
+    !isRecord(text) ||
+    text.format !== listingReleaseTextFormat ||
+    typeof text.facts_sha256 !== "string" ||
+    text.facts_sha256 !== observation.facts_sha256 ||
+    !Array.isArray(text.releases)
+  )
+    return observation;
+  const rows = new Map<number, ReleaseTextFact>();
+  for (const row of text.releases as unknown[]) {
+    if (!isRecord(row) || !Number.isSafeInteger(row.id) || rows.has(Number(row.id))) continue;
+    try {
+      const { id: _id, ...fields } = row;
+      const fact = releaseTextFact({ text: fields });
+      if (fact) rows.set(Number(row.id), fact);
+    } catch {
+      // A malformed row reads as unobserved text.
+    }
+  }
+  return {
+    ...observation,
+    releases: (observation.releases as unknown[]).map((release) => {
+      const fact =
+        isRecord(release) && typeof release.id === "number" ? rows.get(release.id) : undefined;
+      return fact && isRecord(release)
+        ? { ...release, name: fact.title, body: fact.body, body_truncated: fact.body_truncated }
+        : release;
+    }),
+  };
 }
