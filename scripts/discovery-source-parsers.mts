@@ -346,9 +346,9 @@ export function parseUnbakedGame(textValue: string, slug: string): ParsedExterna
       }),
     });
   }
-  if (!rows.length && !excluded)
-    // A game with no listed project is a research candidate, not an empty read.
-    return { entries: [], unlinked: 0, excluded: 0 };
+  // A game with no listed project is a research candidate, and one whose only
+  // projects are general tools is out of scope: both are complete, empty reads.
+  if (!rows.length) return { entries: [], unlinked: 0, excluded };
   return group(rows, { excluded });
 }
 
