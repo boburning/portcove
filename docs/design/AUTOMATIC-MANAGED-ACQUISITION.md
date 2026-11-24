@@ -1,0 +1,953 @@
+# Automatic managed acquisition from upstream releases (design, November 24, 2026)
+
+> **Status: PROPOSED design, revision 1.** Nothing here is implemented or
+> activated. The [catalog contract](../CATALOG.md), the
+> [definition delivery contract](../DEFINITION-DELIVERY.md), the
+> [signed catalog contract](../SIGNED-CATALOG.md), the
+> [upstream observation contract](../UPSTREAM-OBSERVATIONS.md) and the
+> [architecture](../ARCHITECTURE.md) stay the current contracts until each
+> slice below lands through its own pull request. Several slices change what
+> Portcove downloads, verifies, refuses or trusts. The owner sees each of
+> those changes in plain language before it merges
+> ([section 12](#12-for-the-owner-what-changes-in-plain-language)).
+
+- **Owning work:** [#1422](https://github.com/boburning/portcove/issues/1422),
+  owner direction of 2026-11-24 ([comment 7137177977](https://github.com/boburning/portcove/issues/1422#issuecomment-7137177977)),
+  mechanisms 1 to 3. Mechanisms 4 to 6 of that direction are out of scope.
+- **Rights basis:** the tier policy of
+  [#1129](https://github.com/boburning/portcove/issues/1129) in
+  [rights basis for upstream-hosted packages](../CATALOG.md#rights-basis-for-upstream-hosted-packages).
+  This design changes none of its rules.
+- **Source:** `main` at `534652ab2`. Core paths are relative to
+  `crates/portcove-core/src/`; catalog files are in `crates/portcove-core/catalog/`.
+- **Measurements:** committed catalog data at `534652ab2`, plus the scheduled
+  release content scan report of run
+  [45381027365](https://github.com/boburning/portcove/actions/runs/45381027365)
+  (source `cb29b0b8`, 2026-11-24). The method is in the
+  [appendix](#appendix-measurement-method).
+
+## Contents
+
+- [Summary](#summary)
+- [1. Owner goal and the mechanism for each requirement](#1-owner-goal-and-the-mechanism-for-each-requirement)
+- [2. Where Portcove is today](#2-where-portcove-is-today)
+- [3. Ownership](#3-ownership)
+- [4. Data model](#4-data-model)
+- [5. Mechanism 1: pin at first observation](#5-mechanism-1-pin-at-first-observation)
+- [6. Mechanism 2: the player chooses the file](#6-mechanism-2-the-player-chooses-the-file)
+- [7. Rights-relevant release wording](#7-rights-relevant-release-wording)
+- [8. Mechanism 3: timed update hold](#8-mechanism-3-timed-update-hold)
+- [9. Update flow](#9-update-flow)
+- [10. Failure modes](#10-failure-modes)
+- [11. Limits this design adds, keeps or removes](#11-limits-this-design-adds-keeps-or-removes)
+- [12. For the owner: what changes, in plain language](#12-for-the-owner-what-changes-in-plain-language)
+- [13. Staged implementation plan](#13-staged-implementation-plan)
+- [14. Alternatives considered](#14-alternatives-considered)
+- [15. Open risks and UNKNOWNs](#15-open-risks-and-unknowns)
+- [Appendix: measurement method](#appendix-measurement-method)
+
+## Summary
+
+- **Goal.** Offer tier 3 (Portcove downloads the upstream's own release
+  asset, verifies it and installs it) for as many listings as the tier rule
+  allows, automatically. Tier 2 (the player registers their own copy) stays
+  the floor. The tier rule itself does not change.
+- **Mechanism 1: pin at first observation.** The facts job already downloads
+  and hashes every release package. It also runs the content scan on those
+  same bytes, completely. A listing whose package was inspected, scanned
+  clean and is not held gets a generated managed definition. The definition
+  is pinned to the SHA-256 that the facts job recorded the first time it saw
+  that asset. Different bytes behind the same asset are a new, unverified
+  artifact. They are blocked, never accepted silently.
+- **Mechanism 2: the player chooses the file.** When the name rules cannot
+  account for an archive or program, the listing is still offered. The player
+  picks among the release's inspected, pinned, scanned files and, where
+  needed, the program inside. Name rules only nominate a default and detect
+  contradictions. A player's explicit choice supplies the missing product
+  meaning; a name never does.
+- **Rights wording.** A closed phrase list over release text, such as "from my
+  disc", nominates a recorded note. It blocks automatic tier 3 until every
+  package in the release has a complete content scan. No AI service reads
+  the text.
+- **Mechanism 3: timed update hold.** A newly pinned artifact is offered only
+  after a waiting period, measured from its first observation on Portcove's
+  own runners. The proposed value is **72 hours**, kept as owner-editable
+  data. Withdrawals use the existing typed restrictions and policy
+  transitions. A blocked release is never offered; installed copies keep
+  working.
+- **Measured starting point.** 1,649 listings: 452 operational definitions
+  (362 managed downloads or setups from upstream, 90 player registrations)
+  and 1,197 listing-only. The committed facts table holds **0 entries**, so
+  mechanism 1 can promote **0** listings from committed data today. The
+  newest content scan covered all targeted packages for only 4 listing-only
+  identities, and every package it read this run was only partly
+  byte-checked (its candidate list was cut at 64 files). The candidate pool
+  for mechanism 1 is at most the 992 unheld listing-only identities that are
+  neither ScummVM nor already enrolled; how many of them pass is UNKNOWN until
+  the facts job runs on real data.
+- **Mechanism 2 scope.** The owner's real-data run reports 63 of 131
+  hand-verified identities withheld by name rules. Under mechanism 2, 61 of
+  them become offerable with a player choice (53 in slice 4, 8 split packages
+  in slice 6). 2 (`bundled-toolchain`) stay blocked. This run is not
+  reproducible from committed data; the next real-data run must restate it.
+- **Owner decisions** are listed in [12.3](#123-open-decisions-that-are-the-owners).
+  The central one: allowing automation to create pinned acquisition records
+  without per-artifact human review.
+
+## 1. Owner goal and the mechanism for each requirement
+
+| Owner requirement (2026-11-24)                                                      | Mechanism                                                                                                                                                                   | Section |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| As many ports as possible on tier 3, with little setup friction                     | Generated managed definitions from observed facts; the player's only setup steps are their original files and, where names are unsure, one choice.                          | 5, 6    |
+| The written tier rule stands                                                        | Promotion requires every condition of the rule. Recompiled code is a note; bundled game data, explicit prohibition and unknown contents block. Re-hosting is never offered. | 5.2, 7  |
+| Tier 2 is the floor                                                                 | A blocked identity keeps its generated or authored registration route. No block removes a registration.                                                                     | 5.3     |
+| Automatic by default; exceptions in grouped queues with a reason                    | Each block has a stable reason code mapped to one queue. Every queue lists complete identity sets and evidence, computed from committed data.                               | 5.3     |
+| Mechanisms over per-game work                                                       | No title, id or hand-kept list in the rules. Person-confirmed exceptions use the existing typed restrictions and accounting records.                                        | 3, 4    |
+| No AI service in the release or delivery pipeline                                   | Every rule is deterministic code over recorded bytes and text: closed vocabularies, digests and signals.                                                                    | 5, 7    |
+| No arbitrary limits                                                                 | Every number is classified in section 11. The scan's 64-file cut becomes a complete read for promotion.                                                                     | 11      |
+| Pin at first observation; a later byte change is a new unverified artifact          | An append-only pin ledger keyed by repository, release and asset. Clients also retain the first identity per asset (library schema 36).                                     | 4.3, 5  |
+| Player chooses the file when the rules are unsure                                   | Choice offer over inspected, pinned files and players. Heuristics nominate and detect contradictions only.                                                                  | 6       |
+| Timed update hold with a withdrawal list and a blocked state                        | Hold measured from first observation at publish time, not on the player's clock. Withdrawals reuse typed holds and `curated_transitions`.                                   | 8       |
+| Waiting period is product policy, justified and owner-configurable                  | 72 hours, in a committed policy file only the owner's reviewed change may edit.                                                                                             | 8.2     |
+| Release wording such as "from my disc" nominates a note and blocks automatic tier 3 | Closed phrase classes over the release title and body; data-class phrases block until every package of the release is completely scanned.                                   | 7       |
+| No second durable authority                                                         | Inputs stay where they are owned today; the tier table is a pure projection with a `--check`. Core keeps installation, update and rollback.                                 | 3, 4.1  |
+
+## 2. Where Portcove is today
+
+All numbers come from committed data at `534652ab2` unless a row says
+otherwise. The [appendix](#appendix-measurement-method) gives each method.
+UNKNOWN means the repository holds no data that settles the number.
+
+### 2.1 Listings and operational routes
+
+| Measure                                                   | Count | How it was computed                                                                                                                     |
+| --------------------------------------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Listings in `listings.json`                               | 1,649 | Rows of `listings`.                                                                                                                     |
+| Operational definitions in `catalog.json`                 |   452 | Rows of `ports`; every one has a listing.                                                                                               |
+| Listing-only identities                                   | 1,197 | Listings without a definition.                                                                                                          |
+| Listing-only identities enrolled by a reviewed route fact |     8 | `catalog-route-fit.mts` disposition `enrolled` with adapter `listing` (`route_facts_v1` registration). 2 of them carry a download hold. |
+| Generated registrations                                   |     0 | `generated-registration.generated.json` `enrollments`.                                                                                  |
+
+Operational definitions by route kind (`adapter` and release provider):
+
+| Route kind                                     | Adapter and provider                                       | Count | Tier |
+| ---------------------------------------------- | ---------------------------------------------------------- | ----: | ---- |
+| Managed download and install from upstream     | `native-portable` GitHub 145, direct manifest 5            |   150 | 3    |
+|                                                | `psx-recomp-managed` GitHub                                |   119 | 3    |
+|                                                | `staged-source-portable` GitHub 42, direct manifest 1      |    43 | 3    |
+|                                                | `n64-recomp-portable` GitHub 29, GitLab 2                  |    31 | 3    |
+|                                                | `libultraship-portable` GitHub                             |     8 | 3    |
+|                                                | `generated-cache` GitHub                                   |     6 | 3    |
+|                                                | `referenced-disc` GitHub                                   |     1 | 3    |
+| Managed upstream setup                         | `upstream-managed-setup` GitHub                            |     4 | 3    |
+| Player registration (Portcove fetches nothing) | `staged-source-portable` with the `user-prepared` provider |    90 | 2    |
+| **Total**                                      |                                                            |   452 |      |
+
+5 of the 362 managed definitions carry a whole-definition
+`managed_acquisition_hold`.
+
+Listing downloads (the tier 3 listing download from the upstream's own
+releases, offered where no Install route exists for the host) are resolved by
+Core at request time, not recorded in data. So the number actually offered
+today is UNKNOWN. The data bound is: listing-only, not held, release or
+project URL on GitHub or GitLab, availability `packages`: **203** (201
+GitHub, 2 GitLab). Another 795 unheld GitHub listings have availability
+`unknown`; Core may still offer them a download.
+
+### 2.2 Package facts
+
+| Measure                                                   |     Count | Method and limits                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------- | --------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entries in `listing-package-facts.generated.json`         |         0 | `entries` length (format 17, `generated_at` 2026-11-23).                                                                                                                                                                                                                                                                                          |
+| Listing-only identities with inspected package facts      |         0 | Same table. The facts batch job is off (`PORTCOVE_FACTS_BATCH_ENABLED` unset).                                                                                                                                                                                                                                                                    |
+| Route-fit `needs-bytes-worker` (packages known, no facts) |       265 | `catalog-route-fit.mts --json`; 182 unheld, 83 held.                                                                                                                                                                                                                                                                                              |
+| Route-fit `unobserved`                                    |       847 | Same; 810 unheld, 37 held.                                                                                                                                                                                                                                                                                                                        |
+| Hand-verified identities withheld by name rules           | 63 of 131 | **Not reproducible from committed data.** Reported in the owner direction of 2026-11-24 from a real-data run at generator 28. By reason: `archive-name-unaccounted` 36, `split-package` 8, `program-name-unaccounted` 8, `archive-names-another-listing` 5, `name-not-unique` 2, `bundled-toolchain` 2, `launcher-entry` 1, `ambiguous-player` 1. |
+
+The live dry run of the facts job at `0316192e` enrolled nothing on the real
+path ([#1422 comment 7137177977](https://github.com/boburning/portcove/issues/1422#issuecomment-7137177977)):
+it read only the newest observer handoff, the observer carried no release
+text, and one reproduction refusal stopped the whole job. Repairs are in
+progress. This design depends on that job running.
+
+### 2.3 Content scan results
+
+The release content scan is a scheduled workflow, not committed data. Its
+report is a 30-day artifact. The newest scheduled `main` report (run
+45381027365, rules version 2):
+
+| Measure                                               | Count | Notes                                                                                                                     |
+| ----------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------- |
+| Targets (listing, platform, hinted asset)             | 1,081 | Over 427 identities: 273 operational, 154 listing-only. Held listings are not targeted (0 held identities among targets). |
+| Packages scanned in this run                          |   160 | The run's asset budget.                                                                                                   |
+| Packages reused from the checkpoint                   |   160 | Scanned in earlier runs.                                                                                                  |
+| Findings                                              |     0 | No unaccounted signal in any scanned or reused package.                                                                   |
+| Not scanned                                           |   761 | `asset-budget` 617 (continues later), `no-single-asset` 138, `no-release` 4, `release-unavailable` 2.                     |
+| Scanned packages whose byte check was cut at 64 files |   160 | All of them (`heads_truncated`). Name signals covered every member; content signals covered only the first 64 candidates. |
+| Listing-only identities with every target scanned     |     4 | 2 scanned this run (both cut at 64 files), 2 reused (cut status not in the report: UNKNOWN).                              |
+| Accounting entries (confirmed false positives)        |     2 | `.github/release-content-accounting.json`; neither matched a finding in this run.                                         |
+
+So today no listing-only identity has a scan result that this design would
+accept as complete ([5.2](#52-the-promotion-rule), P5).
+
+### 2.4 Holds
+
+| Carrier and reason                    | Listing-only | Operational |   Total |
+| ------------------------------------- | -----------: | ----------: | ------: |
+| Listing `bundled-game-data`           |           56 |           3 |      59 |
+| Listing `upstream-owned-route`        |           38 |           2 |      40 |
+| Listing `package-facts-unresolved`    |           23 |           0 |      23 |
+| Listing `legacy-rights-review`        |           17 |           0 |      17 |
+| Listing `no-useful-route`             |            5 |           0 |       5 |
+| Listing `third-party-component-terms` |            5 |           0 |       5 |
+| Listing `upstream-prohibition`        |            2 |           0 |       2 |
+| Listing `safety-evidence-mismatch`    |            1 |           0 |       1 |
+| Managed `managed_acquisition_hold`    |            — |           5 |       5 |
+| **Identities with a hold**            |      **147** |      **10** | **157** |
+
+Every listing hold is a whole-listing `download` hold; one listing also has an
+artifact-scoped permit (`chameleon-twist-recompiled`, v0.1 ZIP by SHA-256).
+`catalog-route-fit.mts` reports 146 listing-only identities with download
+held, because that permit cancels the hold for one artifact. No listing hold
+names `register-external` or `launch`: the listing carrier can express only
+`download` ([acquisition restrictions](../CATALOG.md#acquisition-restrictions)).
+
+### 2.5 What mechanisms 1 and 2 could do, by cause
+
+Listing-only identities, by route-fit disposition and hold:
+
+| Disposition                        | Unheld | Held | What this design does                                                                                                                          |
+| ---------------------------------- | -----: | ---: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needs-bytes-worker`               |    182 |   83 | Unheld ones are mechanism 1 and 2 candidates once the facts job inspects them. Held ones stay blocked until their hold is lifted by its owner. |
+| `unobserved`                       |    810 |   37 | Candidates once the observer covers them; today UNKNOWN whether they publish desktop packages.                                                 |
+| `upstream-condition`               |     22 |    6 | Blocked by the upstream (no stable release, gone). Re-evaluated automatically.                                                                 |
+| `missing-capability`               |      5 |   19 | Not a GitHub release (other host): blocked as `no-readable-upstream` until a provider adapter exists.                                          |
+| `excluded-scummvm`                 |     25 |    0 | Out of scope (ScummVM project's own route).                                                                                                    |
+| `enrolled` (reviewed registration) |      6 |    2 | Already tier 2 by reviewed facts; candidates for promotion like any other identity.                                                            |
+| **Total**                          |  1,050 |  147 |                                                                                                                                                |
+
+- **Mechanism 1 promotes 0 today** from committed data (no facts, no
+  complete scan). Its candidate pool is the 992 unheld identities in the
+  first two rows. How many pass is UNKNOWN until the facts job inspects them.
+- **Mechanism 2** newly offers identities withheld only by name uncertainty.
+  The one real-data measurement (63 of 131, above) gives 61 offerable with
+  a player choice and 2 still blocked. The share among the other candidates
+  is UNKNOWN.
+- **Blocked by cause, known today:** 147 by holds, 28 by upstream
+  conditions, 24 by missing provider capability, 25 ScummVM. Everything else
+  is UNKNOWN until observed.
+
+## 3. Ownership
+
+| Piece                                                            | Owner                                                                                                        | Notes                                                                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Observed release facts, pins, scan results, release text         | Facts worker (`scripts/listing-package-facts.mts`) and its committed tables; reproduced by CI                | One download per artifact, read once by Core's inspection and once by the scan rules. Repository tooling, not a player authority. |
+| Tier decision and its reasons                                    | Catalog generation (`scripts/generate-catalog.mts`), pure over committed inputs, restated by the gate        | A projection with `--check`, like the generated registration table. It decides nothing that its inputs do not.                    |
+| Person decisions (holds, false-positive dismissals, withdrawals) | Existing typed restrictions in `listings.json` and `catalog.json`; `.github/release-content-accounting.json` | No new hold vocabulary for person decisions. Derived blocks are separate and never authored.                                      |
+| Policy values (waiting period)                                   | Committed `acquisition-policy.json`, owner-reviewed                                                          | Read by generation only. Clients never read a clock-based policy.                                                                 |
+| Signed delivery                                                  | Catalog publisher: `official-definitions` (definitions) and `official-policy` (policy decisions, listings)   | Unchanged roles, keys, thresholds and floors.                                                                                     |
+| Acquisition, verification, installation, update, rollback        | Core (`native-portable` managed transaction, immutable game-update acquisition, staged activation)           | The generated route reuses the existing template. Core alone resolves, downloads, verifies, stages and activates.                 |
+| Player choice                                                    | Core records it in the installation; Desktop and CLI present Core's offer                                    | React keeps only the ephemeral selection before submission.                                                                       |
+| Runtime replacement                                              | One owner per installation: Portcove for a generated managed install; the player for a registration          | A package that ships its own updater stays tier 2 ([5.3](#53-blocks-and-their-queues), `upstream-updater`).                       |
+
+**No second authority.** The design adds two committed generated files and
+one committed policy file. The pin ledger is append-only evidence of first
+observation; it is not an acceptance authority by itself. Acceptance happens
+only when the signed policy decision binds the pinned identity, exactly as for
+curated records under policy schema 4
+([acquisition decision](../DEFINITION-DELIVERY.md#acquisition-decision)).
+
+**Relation to typed acquisition restrictions.** Person-decided holds stay
+typed restrictions. Two measured gaps matter here:
+
+1. The listing carrier names only `download`. So no per-identity hold can
+   express `register-external` or `launch` for a generated listing, and none
+   can name `install` or `update` for a generated managed definition either,
+   because that definition has no authored integration.
+2. Typed integration restrictions are not yet deliverable in definitions: the
+   managed wire format carries only the whole-definition
+   `managed_acquisition_hold` until named definition features
+   ([#8496](https://github.com/boburning/portcove/pull/8496)) give a reader gate.
+
+This design closes the gap without a new carrier. Generation reads a
+listing's artifact- or release-scoped `download` hold as "never offer this
+artifact for acquisition", and leaves it out of the generated definition.
+Clients that already pinned it receive a `curated_transitions` entry
+(`distribution_withdrawn` or `revoked`) in the next signed policy. A
+whole-listing `download` hold blocks generation entirely. Typed
+`install`/`update` holds on generated definitions become a later slice after
+#8496 ([13](#13-staged-implementation-plan), slice 9).
+
+## 4. Data model
+
+### 4.1 Inputs, outputs and who writes each
+
+| File                                         | Kind                                    | Writer                         | New?                 |
+| -------------------------------------------- | --------------------------------------- | ------------------------------ | -------------------- |
+| `listing-package-facts.generated.json`       | Observed facts per identity             | Facts worker, reproduced by CI | Extended (format 18) |
+| `artifact-pins.generated.json`               | Append-only first observation per asset | Facts worker                   | New                  |
+| `acquisition-policy.json`                    | Owner policy values                     | Owner-reviewed change          | New                  |
+| `listings.json`, `catalog.json` restrictions | Person decisions                        | Reviewed change                | Unchanged            |
+| `.github/release-content-accounting.json`    | Person-confirmed false positives        | Reviewed change                | Unchanged            |
+| `acquisition-tiers.generated.json`           | Tier, reasons, notes per identity       | `generate-catalog.mts`         | New, pure projection |
+| `catalog.json` generated managed records     | Generated definitions                   | `generate-catalog.mts`         | New record kind      |
+
+### 4.2 Facts format 18
+
+Each artifact entry of the offered release gains:
+
+- `asset_id` (the provider's numeric id) and `release_id`, beside the existing
+  name, size and provider SHA-256.
+- `observed_sha256`: the worker's own digest of the bytes it read. It must
+  equal the provider digest; otherwise the artifact is refused
+  (`digest-mismatch`, existing).
+- `content_scan`: `{ rules, complete, members, heads_read, signals,
+  nested }`. `complete` is true only when every member was listed, every
+  regular file's head was read, and no nested container was left unexpanded
+  ([5.2](#52-the-promotion-rule), P5).
+- `players`: unchanged (path, SHA-256, platform-true machine), now kept for
+  every candidate archive, not only the offered one, so mechanism 2 can offer
+  them.
+
+Each identity entry gains `release_text`: the release title and the first
+4,096 bytes of the body as observed, with their SHA-256. The size is the
+same class as the observer's other bounded fields (class 3: one record; the
+rest of the body is hashed, so a rule that needs more is UNKNOWN, never
+assumed clean). The worker records the phrase classes it matched
+([7](#7-rights-relevant-release-wording)).
+
+### 4.3 The pin ledger
+
+`artifact-pins.generated.json` has one row per asset ever observed for a
+listing-only or generated identity:
+
+```json
+{
+  "repository_id": 123456789,
+  "release_id": 987654321,
+  "asset_id": 192837465,
+  "release_tag": "v1.2.0",
+  "asset_name": "Game-1.2.0-win64.zip",
+  "size": 48123904,
+  "sha256": "…64 lowercase hex…",
+  "first_observed_at": "2026-11-24T06:00:00Z",
+  "facts_run": 45390000000,
+  "state": "pinned"
+}
+```
+
+Rules:
+
+- **Append-only.** CI refuses a change that removes a row or edits its
+  identity, digest, size or `first_observed_at`. Only `state` may move, and
+  only forward: `pinned` → `conflict`, `replaced`, `deleted`.
+- **Two keys.** A row is matched by `(repository_id, asset_id)` and by
+  `(repository_id, release_id, asset_name)`. If either key sees different
+  bytes or size later, the row becomes `conflict` (same asset id) or
+  `replaced` (same release and name, new asset id). The new bytes get no pin.
+  Nothing offers them until a person reviews them
+  ([5.3](#53-blocks-and-their-queues), `pin-conflict`).
+- **Deleted assets** become `deleted` when a complete observation of the
+  release no longer lists them. The row stays as evidence.
+- **Repository identity.** A different numeric repository id is a different
+  repository (`repository-identity-changed`, existing). Pins never move between
+  repository ids.
+- The ledger grows by one row per new asset, about 400 bytes each. Its size is
+  measured in each batch like the other capacity measures
+  ([11](#11-limits-this-design-adds-keeps-or-removes)).
+
+### 4.4 The tier table
+
+`acquisition-tiers.generated.json` records, per identity and platform:
+
+| Field     | Meaning                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tier`    | 1 (listing only), 2 (registration), 3 (managed). The highest the inputs allow.                                            |
+| `route`   | `managed-authored`, `managed-generated`, `registration-authored`, `registration-generated`, `listing-download` or `none`. |
+| `choice`  | `automatic` or `player` (mechanism 2), with the nominated default when there is one.                                      |
+| `blocks`  | Derived reasons that stop tier 3, each with evidence and the condition that lifts it.                                     |
+| `holds`   | The authored restriction ids that apply, by reference. Never copied.                                                      |
+| `notes`   | Recorded-note codes for the listing warning (`recompiled-code`, `upstream-states-original-material`, owner exceptions).   |
+| `offered` | Pinned artifact keys the generated definition offers, and the newest pinned artifact still in its waiting period.         |
+
+A block is never authored and never stored as a decision. Each generation
+recomputes it from inputs. So a block lifts automatically when its reason
+clears: new facts, a complete scan, an accounting entry or the end of the
+waiting period. An authored hold lifts only by its owner's reviewed change,
+as today.
+
+### 4.5 The generated managed definition
+
+A promoted identity gets a generated record in `catalog.json`:
+
+- `adapter`: `native-portable` (the managed transaction with staged
+  activation, retained manifest, and the unknown-file carry of
+  [tier 2](../ARCHITECTURE.md#unknown-player-side-files)).
+- `release`: GitHub provider, the bound repository and its numeric id, and
+  an **exact artifact selector** per platform: release id and tag, asset id,
+  name, size and pinned SHA-256. No live "latest" resolution.
+- `executable`: the one inspected program path for an automatic choice, or
+  `player_choice_v1` with the inspected candidate list (mechanism 2).
+- No declared persistent paths. Save ownership is unknown, so Portcove offers
+  no backup and no save migration. Files the game writes into its folder are
+  kept by the existing unknown-file rules.
+- The listing guide keeps its authored steps; generation adds one generic
+  step about original game files, the ownership note and the provenance
+  reference within the eight-entry bound (`guide-bound`, existing).
+
+### 4.6 How it travels through signed delivery
+
+Nothing in the trust chain changes. The pinned identity travels the way
+curated records travel today:
+
+1. The batch pull request changes the facts table, the pin ledger, the tier
+   table and the generated records. Required CI reproduces every changed
+   entry from upstream bytes (existing reproduction), checks the ledger is
+   append-only and runs the gate.
+2. The catalog publisher prepares the definition as a content-addressed leaf
+   under `official-definitions`, at a higher revision than any previous one
+   for that stable id.
+3. The `official-policy` decision for the definition uses policy schema 4 with
+   a curated record map that binds each offered artifact: repository id,
+   release, asset id, platform, size, SHA-256, acquisition evidence (the facts
+   run and reproduction run) and acceptance provenance (`automatic-first-observation-v1`).
+4. The client verifies the TUF chain, the revision floors and expiry as today,
+   admits the definition, and retains the first immutable identity per
+   repository and asset id (library schema 36). A later decision that names
+   other bytes for the same asset fails on the client too.
+5. Withdrawal of a pinned artifact: the next policy carries a
+   `curated_transitions` entry (`distribution_withdrawn` for an upstream
+   deletion, `revoked` for a person's withdrawal). Installed versions keep
+   their retained contracts and stay playable.
+
+Generated definitions that need new reader behavior (player choice) name a
+required feature in definition entry schema 4. Older clients isolate those
+entries and keep the tier 2 route. Rollback to an earlier installed version
+uses the retained definition of that version, as today.
+
+## 5. Mechanism 1: pin at first observation
+
+### 5.1 Flow
+
+1. The observer reports a stable release for a listing's bound repository.
+2. The facts worker downloads every desktop package of the release once,
+   checks the provider digest, records the pin row if the asset is new, runs
+   Core's inspection and the content scan on the same bytes, and deletes the
+   bytes.
+3. Generation evaluates the promotion rule per platform. A passing platform
+   gets a generated managed record; a failing one keeps its tier 2 route or
+   listing download, with its blocks in the tier table.
+4. The batch job delivers the change through its existing pull request,
+   reproduction and guarded merge. Publication follows.
+
+### 5.2 The promotion rule
+
+An identity I is promoted to a generated managed route on platform p, with
+artifact a of release R, when **all** of these hold. The first that fails is
+the block reason.
+
+- **P1. Route slot.** I has no authored integration that offers Install on p
+  (one fresh route per host). An authored registration or reviewed
+  `route_facts_v1` enrollment does not prevent promotion; the registration
+  stays offered beside the managed route.
+- **P2. Upstream and release.** Conditions 2 to 8 of
+  [generated user-selected registration](../CATALOG.md#generated-user-selected-registration)
+  hold: GitHub repository, current facts, complete observation, fresh within
+  `maxFactsAgeDays`, the offered release on the listing's release line, stable
+  by rule and by its own text.
+- **P3. Pinned bytes.** a has a provider SHA-256, the worker's digest equals
+  it, and the pin ledger row for a is `pinned` with that digest. No row for
+  the same release and asset name is `conflict` or `replaced`.
+- **P4. Package fit.** Conditions 9 to 11 of generated registration hold for
+  a on p, or mechanism 2 applies ([6](#6-mechanism-2-the-player-chooses-the-file)).
+  `bundled-toolchain`, `non-desktop-platform`, `unknown-platform`,
+  `wrong-host`, `other-package-form-beside-archive` and the role and
+  launcher deny-lists stay blocks; mechanism 2 does not lift them.
+- **P5. Complete content scan, clean.** For a, and for every other package of
+  R that the player could choose on p: `content_scan.complete` is true under
+  the current rules version, and every signal is accounted for in
+  `.github/release-content-accounting.json` for that exact SHA-256 and rules
+  version. A nested archive or installer counts as unknown contents until
+  the scan expands it.
+- **P6. No hold.** No authored restriction holds `download` on I at any scope
+  that matches a or R, and no `upstream-prohibition` hold exists at any scope.
+- **P7. Release wording.** No data-class phrase in R's text is unresolved
+  ([7](#7-rights-relevant-release-wording)).
+- **P8. One replacement owner.** The package ships no updater program
+  (players vetoed with `updater` or `autoupdater`) and no launcher the facts
+  identify as replacing the runtime. Such a package stays tier 2 with
+  upstream as the replacement owner.
+- **P9. Waiting period.** `first_observed_at` of a is at least the policy's
+  `first_offer_hold_hours` before the generation time
+  ([8](#8-mechanism-3-timed-update-hold)).
+- **P10. Capacity.** The batch stays within the
+  [catalog capacity](../CATALOG.md#catalog-capacity) ceilings. A batch past a
+  ceiling carries the identity; it is not refused.
+
+Promotion never removes a tier 2 route, and nothing here re-hosts bytes.
+Clients download a only from the upstream's release URL.
+
+### 5.3 Blocks and their queues
+
+Each block maps to one queue in `catalog-route-fit.mts --json`
+(`acquisition_queues`), with complete identity lists in port id order and
+evidence. "Lifts" says what clears it with no person involved, or names the
+person step.
+
+| Block reason                                         | Source                                  | Lifts automatically when                                                  | Queue                     |
+| ---------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------- | ------------------------- |
+| `authored-route`                                     | P1                                      | Never (an authored Install is already tier 3)                             | none (informational)      |
+| Registration reasons (P2)                            | Existing generated-registration reasons | The upstream or facts change, as today                                    | Existing `reasons` queues |
+| `no-provider-digest`                                 | P3                                      | Upstream publishes a digest for a new asset                               | `missing-digest`          |
+| `pin-conflict`                                       | P3: same asset, different bytes         | Never; a person reviews the new bytes                                     | `pin-conflicts`           |
+| `asset-replaced`                                     | P3: same release and name, new asset    | Never; a person reviews                                                   | `pin-conflicts`           |
+| Name uncertainty (6.1)                               | P4, mechanism 2 not yet available       | Mechanism 2 ships; then the identity is offered with a choice             | `player-choice`           |
+| `bundled-toolchain` and the other fit contradictions | P4                                      | The release changes                                                       | Existing `reasons` queues |
+| `scan-incomplete`                                    | P5                                      | A later run completes the scan                                            | `scan-incomplete`         |
+| `nested-unscanned`                                   | P5                                      | Scan rules expand that container type                                     | `scan-incomplete`         |
+| `scan-finding`                                       | P5                                      | A person adds an accounting entry, or confirms a `bundled-game-data` hold | `scan-findings`           |
+| Authored hold (any reason)                           | P6                                      | Its owner's reviewed change, as today                                     | `holds` grouped by reason |
+| `rights-wording`                                     | P7                                      | Every package of the release has a complete clean scan                    | `rights-wording`          |
+| `upstream-updater`                                   | P8                                      | The release stops shipping the updater                                    | `replacement-owner`       |
+| `waiting-period`                                     | P9                                      | Time passes                                                               | `waiting` (count only)    |
+| `capacity-carried`                                   | P10                                     | A later batch has room                                                    | `carried`                 |
+| `older-client`                                       | Required feature unknown to a client    | The player updates Portcove                                               | Client-side only          |
+
+Every queue reports the count in the job summary. A queue in which one rule
+blocks many real games means the rule needs fixing, not each game.
+
+## 6. Mechanism 2: the player chooses the file
+
+### 6.1 Which reasons it relieves
+
+Name rules today withhold the whole listing when they cannot account for a
+name. Under mechanism 2 these reasons stop withholding. They only decide
+whether there is an automatic default:
+
+| Reason                          | Real-data count | Under mechanism 2                                                                                         |
+| ------------------------------- | --------------: | --------------------------------------------------------------------------------------------------------- |
+| `archive-name-unaccounted`      |              36 | Offered; the player picks the archive. A nominated default only if the closed vocabulary accounts for it. |
+| `program-name-unaccounted`      |               8 | Offered; the player picks the program among inspected players.                                            |
+| `split-package`                 |               8 | Offered in slice 6: the player picks the game archive and any data archives to unpack beside it.          |
+| `archive-names-another-listing` |               5 | Offered with the contradiction shown ("This file is named for another game in the catalog").              |
+| `name-not-unique-in-catalog`    |               2 | Offered with the colliding listings shown.                                                                |
+| `launcher-entry`                |               1 | Offered; the player picks the launcher or the game program.                                               |
+| `ambiguous-player`              |               1 | Offered; the player picks the program.                                                                    |
+| `bundled-toolchain`             |               2 | **Not relieved.** Building on first start is a property of the package, not of its name.                  |
+
+`ambiguous-artifact`, `role-program` and `contradictory-role` are relieved the
+same way when every choice is otherwise valid. The role, launcher and
+archive-role deny-lists still remove a candidate (a `server` or `update`
+archive is never a choice), but they no longer withhold the identity when
+another candidate remains.
+
+### 6.2 What the player can choose
+
+The offer comes only from the signed definition. It lists:
+
+- **Files:** every archive of the offered release that the worker read,
+  that permits p by its platform-true players, whose bytes are pinned and
+  completely scanned clean, and that no deny-list removed.
+- **Programs:** for the chosen file, every inspected player whose machine
+  runs on p, with its path and SHA-256.
+
+The player cannot type a path or pick an uninspected file. So the program
+that runs is always one the signed definition names by digest. A choice of
+zero candidates is impossible: an identity with no valid candidate stays
+blocked.
+
+### 6.3 What heuristics may do
+
+- **Nominate** a default when the closed vocabulary accounts for exactly one
+  archive and one program. The offer shows it first.
+- **Detect contradictions:** a name that spells another catalog game, a role
+  word, a non-ASCII look-alike. The offer shows the contradiction beside the
+  candidate.
+- **Withhold an automatic choice** when anything is unaccounted. The player
+  then chooses; Portcove never picks silently.
+
+Heuristics never add a candidate, never hide the only remaining one, and
+never decide that a file is the game.
+
+### 6.4 Player copy
+
+Following [content design](../CONTENT-DESIGN.md): lead with the task, one
+action per instruction, name the property checked.
+
+- Choice heading: "Choose the game file to install".
+- Body: "This release has more than one file for your computer. Portcove
+  can't tell from the names which one is the game. Each file below comes from
+  the project's own release and matches the SHA-256 Portcove recorded."
+- A nominated default: "Suggested: its name matches this game."
+- A contradiction: "This file's name matches another game in the catalog:
+  {other listing}."
+- Program choice: "Choose the program that starts the game."
+- After a choice: "Portcove installs this file. You can choose again when you
+  reinstall."
+- Update needs a choice: "A new version is ready, but its files changed.
+  Choose the game file again to update."
+
+The exact strings live in the localized message catalog; this design fixes
+their meaning, not their final words.
+
+### 6.5 Recording and reusing the choice
+
+Core stores the choice in the installation record: chosen asset key, chosen
+program path and SHA-256, and the definition revision it came from. The
+installed manifest binds the selected executable as it does today
+(install transaction step 7), so launch, verification and rollback need no
+new interpretation.
+
+On an update Core carries the choice only when the new release has **exactly
+one** candidate file that holds a player at the same relative path, after
+removing one top-level folder whose name differs only by a version token.
+Otherwise the update waits for the player (`choice-required`). Carrying is
+a convenience for an identical layout, never a guess.
+
+## 7. Rights-relevant release wording
+
+Release text can state what the package contains. The worker matches the
+release title and recorded body against closed phrase classes, split into
+words like the [release text](../CATALOG.md#release-text-statements) rules
+(word boundaries, no substring matches):
+
+| Class                  | Example phrases (closed list, grown only from measured examples)                                                                                                  | Effect                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `own-copy-source`      | "from my disc", "from my copy", "dumped from my", "ripped from my", "from my cartridge"                                                                           | Data class: blocks automatic tier 3 until every package of the release is scanned clean. |
+| `includes-original`    | "includes the game data", "assets included", "game files included", "no ROM needed", "no need for the original", "BIOS included", "ISO included", "pre-extracted" | Data class, same effect.                                                                 |
+| `code-derived`         | "recompiled from", "decompiled", "translated from the original code", "static recompilation"                                                                      | Note only: `recompiled-code`. Never a block (tier rule).                                 |
+| `redistribution-terms` | "do not redistribute", "not for redistribution", "no mirrors", "do not reupload", "personal use only"                                                             | Blocks automatic tier 3 and queues for a person: it may be an explicit prohibition.      |
+
+Rules:
+
+- A data-class phrase is resolved only when **every** desktop package of the
+  release has `content_scan.complete` and no unaccounted signal. The listing
+  then carries the note `upstream-states-original-material`: "The project's
+  release notes say the build was made using material from the original game.
+  Portcove's content check found no game files in the package it downloads."
+- A scan finding with a data-class phrase is a `scan-finding` block, as in
+  5.3. A person confirms it or dismisses it.
+- `redistribution-terms` never resolves automatically. A person either adds
+  an `upstream-prohibition` hold or records that the terms do not cover
+  Portcove's acquisition (an artifact-scoped permit), through the existing
+  typed restrictions.
+- Text beyond the recorded 4,096 bytes is UNKNOWN for this rule. An identity
+  whose body was cut and which has no complete scan of every package is
+  blocked as `rights-wording-unread`.
+- The observer does not carry release text today. Slice 1 adds it.
+
+The phrase list is a nominator, not a judge. A false positive costs one
+complete scan, which the promotion rule already requires.
+
+## 8. Mechanism 3: timed update hold
+
+### 8.1 Rule
+
+A pinned artifact becomes offerable (for a first install on a newly promoted
+identity, or as an update) only after its waiting period:
+
+```text
+offerable(a) = state(a) == "pinned"
+           and now_generation >= first_observed_at(a) + hold_hours
+           and no block and no hold applies to a
+```
+
+- `now_generation` is the generation time on the hosted runner, recorded in
+  the batch. The client never compares the waiting period with its own clock.
+  So a wrong player clock cannot shorten or extend it.
+- An update is offered when the newest offerable artifact on p is newer than
+  the installed one (release identity and publication time, as Core compares
+  candidates today).
+- While the newest release waits, the definition keeps offering the previous
+  offerable release. Players see "A newer version is being checked. It
+  becomes available on {date}." in update details, from the tier table.
+- Any change to a pinned asset during the wait (bytes, deletion,
+  replacement) moves it to the blocked state; it never becomes offerable.
+
+### 8.2 The value: 72 hours
+
+**Proposal:** `update_hold_hours: 72` and `first_offer_hold_hours: 72` in
+`crates/portcove-core/catalog/acquisition-policy.json`.
+
+**Why 72 hours:**
+
+- **Upstream retractions.** Broken or mistaken release assets are usually
+  pulled or replaced within a day or two. Package registries use a similar
+  window: npm lets a publisher unpublish within 72 hours, and dependency bots
+  commonly wait three days before proposing a release. Portcove has no
+  measurement of its own upstreams' retraction times yet (UNKNOWN); slice 8
+  adds one from the pin ledger's `replaced`/`deleted` transitions.
+- **Pipeline fit.** The content scan runs every six hours and the facts batch
+  runs on its own schedule with reproduction and a guarded merge. 72 hours
+  gives at least 12 scheduled scan runs and several batches. A block that
+  appears after first observation is in place before the bytes reach players.
+- **Cost.** Every update reaches players 3 days later. An urgent upstream
+  hotfix waits too. A person can shorten one artifact's wait only through the
+  owner's decision in [12.3](#123-open-decisions-that-are-the-owners) (D5);
+  the default design has no bypass.
+
+**Configurable data.** The file is read only by generation. A change is an
+owner-reviewed pull request; it applies at the next generation. Values are
+whole hours from 0 upward. 0 is allowed and means "offer at the next
+publication". The value is not a client setting.
+
+### 8.3 Withdrawal list and blocked state
+
+There is no new list. The withdrawal list is the set of authored typed holds
+with artifact or release scope plus the pin ledger states:
+
+| Situation                         | Recorded as                                                                | Effect                                                                       |
+| --------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| A person withdraws an artifact    | Listing `download` hold, artifact scope, reason `known-defective-artifact` | Left out of the definition; `revoked` transition for clients that pinned it. |
+| Upstream deletes the asset        | Ledger `deleted`                                                           | Left out; `distribution_withdrawn` transition.                               |
+| Bytes change under the same asset | Ledger `conflict`                                                          | Blocked; new bytes never offered; the old pin stays for installed copies.    |
+| Same release and name, new asset  | Ledger `replaced`                                                          | Blocked until a person reviews.                                              |
+| A rights holder's request         | Existing request route; listing hold `upstream-prohibition`                | Whole identity blocked; transitions for pinned artifacts.                    |
+
+A blocked newest release does not block the previous offerable one, unless a
+whole-listing hold applies.
+
+## 9. Update flow
+
+1. **Observe and pin.** New release seen; new pins recorded; waiting starts.
+2. **Generate.** After the wait, generation adds the artifact to the
+   generated definition at a higher revision; the policy decision binds it.
+3. **Publish and admit.** Clients admit the signed definition and policy.
+4. **Review.** Core's `plan_game_update_acquisition` shows the update, the
+   exact pinned identity and its release notes. The player's update policy
+   applies as for any managed port.
+5. **Acquire.** `acquire_game_update` downloads from the upstream release URL
+   under the per-port acquisition lock, checks size and pinned SHA-256 while
+   streaming and after, and keeps the bytes private. A digest mismatch
+   refuses before extraction and quarantines the bytes (existing curated
+   refusal).
+6. **Apply.** Under the exclusive per-port lock: copy into private staging,
+   run the archive preflight, extract, resolve the selected program (carried
+   choice or new choice), seal the manifest, carry undeclared player files by
+   the [unknown-file rules](../ARCHITECTURE.md#unknown-player-side-files), and
+   activate atomically. A running game blocks Apply.
+7. **Rollback.** The previous version folder and its retained definition
+   stay. Rollback activates it with the same carry rules. Nothing upstream is
+   needed.
+8. **Saves and persistent data.** No path is declared, so nothing is moved or
+   migrated. Files in the version folder are carried or kept per version and
+   reported when they diverge. Files outside the folder (user profile,
+   documents) are never touched. Removal uses the existing removal review and
+   never deletes a file it cannot prove it installed.
+
+**When upstream replaces or deletes a file** after a player installed it:
+installed copies keep working. Fresh installs stop offering that artifact. If
+an earlier pinned release is still offerable, fresh installs use it; if not,
+the identity falls back to its tier 2 route with the reason shown. Retained
+local bytes are never re-served to anyone.
+
+**Locking.** Acquisition, Apply, rollback and removal use the existing
+per-port locks. Different ports stay independent. A player choice is
+submitted with the Apply request and checked again under the lock against
+the current definition.
+
+## 10. Failure modes
+
+Every outcome is typed. Each recovers automatically when its cause clears;
+none deletes installed data.
+
+| Outcome                                  | Where        | Cause                                             | What the player sees                                      | Automatic recovery                                             |
+| ---------------------------------------- | ------------ | ------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| `waiting-period`                         | Generation   | Artifact newer than the hold                      | "A newer version is being checked."                       | Offered at the first generation after the hold.                |
+| `scan-incomplete`                        | Generation   | Budget, deadline, nested container                | Tier 2 route; no message beyond the listing               | Next facts run continues the scan.                             |
+| `scan-finding`                           | Generation   | Unaccounted signal                                | Tier 2 route                                              | Accounting entry or confirmed hold, then regeneration.         |
+| `pin-conflict`, `asset-replaced`         | Facts worker | Upstream changed bytes                            | Update not offered; installed copy unaffected             | None by design; a person reviews. Older pins stay offered.     |
+| `asset-deleted`                          | Facts worker | Upstream removed the asset                        | Fresh install uses an older pin or tier 2                 | A new release is pinned normally.                              |
+| `upstream-unreachable`                   | Client       | Network, rate limit, server error                 | "Couldn't reach the project's download. Try again."       | Retry; partial bytes resume (existing temporary-failure rule). |
+| `digest-mismatch`                        | Client       | Bytes differ from the pin                         | "The downloaded file doesn't match the recorded SHA-256." | Quarantine; a later attempt fetches again.                     |
+| `choice-required`                        | Client       | Update layout changed                             | "Choose the game file again to update."                   | Completes when the player chooses.                             |
+| `choice-stale`                           | Client       | Definition changed between offer and Apply        | Offer refreshed                                           | Re-offer from the new definition.                              |
+| `stale-facts`, `observation-unavailable` | Generation   | Facts older than 30 days or upstream down 14 days | Fresh install falls back to tier 2                        | A complete observation restores the route.                     |
+| `repository-identity-changed`            | Facts worker | Numeric repository id changed                     | Fresh install falls back to tier 2                        | A reviewed listing change binds the new repository.            |
+| `capacity-carried`                       | Batch        | Catalog ceiling reached                           | Nothing new; existing offers stay                         | A later batch lands it.                                        |
+| `older-client`                           | Client       | Required feature unknown                          | Tier 2 route; "Update Portcove to install this game."     | Application update.                                            |
+| `withdrawn`                              | Policy       | Hold or transition                                | "This version is no longer offered: {reason}."            | A later release or the hold's removal.                         |
+
+## 11. Limits this design adds, keeps or removes
+
+Classes follow the [restriction register](../RESTRICTION-REGISTER.md#how-to-read-this-register).
+
+| Limit                                                                | Class                  | Disposition and reason                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Waiting period, 72 hours                                             | 2                      | Integrity: time for upstream retraction and scan findings to surface before bytes reach players. Policy value, owner-set. Not a content ceiling: every artifact continues.                                                                                                      |
+| Scan head read: first 64 candidates per package                      | 4 (for promotion)      | Removed for promotion. The facts worker reads the head of every regular file; the cost is a few KiB per file of bytes already downloaded.                                                                                                                                       |
+| Scan head candidates exclude files over 64 MiB and listed extensions | 4 (for promotion)      | Removed for promotion: a renamed disc image must not escape the content check.                                                                                                                                                                                                  |
+| Scan asset budget, 160 packages per run                              | 3                      | Kept for the scheduled scan of operational routes; its checkpoint continues. Listing-only identities are scanned by the facts worker instead.                                                                                                                                   |
+| Nested containers not expanded                                       | 2                      | Correctness: unknown contents stay held. Expanding a container type is a later rules change.                                                                                                                                                                                    |
+| Release text recorded: title plus 4,096 body bytes                   | 3                      | One record; the rest is hashed. A cut body without a complete scan blocks (`rights-wording-unread`).                                                                                                                                                                            |
+| Facts window: 4 releases, 32 assets per release                      | 1                      | The observer's own window. A release with more assets is incomplete coverage, so it is not promoted (UNKNOWN, not clean).                                                                                                                                                       |
+| Pin ledger growth                                                    | 3                      | One row per asset; measured each batch against the listing directory text bound.                                                                                                                                                                                                |
+| Catalog bytes per generated route (about 8.7 KB)                     | 1 for released readers | Released readers' 16 MiB catalog bound at 85% leaves about 1,100 more routes. The definition content budget (32 MiB) is reached at about 1,900 definitions. Batches carry rather than drop. Raising either is the [distribution scaling](CATALOG-DISTRIBUTION-SCALING.md) work. |
+| `curated_transitions`: at most 64 per policy decision                | UNKNOWN                | Existing schema-4 bound. A generated definition that accumulates more than 64 withdrawn artifacts over its life would not fit. Settle in slice 8 by measuring transitions per identity; drop transitions for artifacts no retained install can hold, or page them.              |
+| `maxDistinctPrograms` = 1                                            | 2                      | Kept for automatic choice. Under mechanism 2 several programs become a player choice instead of a withhold.                                                                                                                                                                     |
+| Guide bound, 8 entries                                               | 1                      | Core's guide schema. Unchanged.                                                                                                                                                                                                                                                 |
+
+## 12. For the owner: what changes, in plain language
+
+### 12.1 Changes to what Portcove downloads, verifies, refuses or trusts
+
+Each item is a verification-rule change. Each slice that makes it shows it to
+you again before merge.
+
+1. **Automatic pins replace a person's review of each file.** Today a file
+   without a project-published checksum is accepted only after a person
+   reviews it. After this change, the facts job records the file's SHA-256
+   the first time it sees it, CI downloads it again to confirm, and the
+   signed catalog then accepts that exact file. No person looks at each file.
+2. **Portcove installs and updates games it has never reviewed by name.** A
+   listing becomes a managed install when the rules in section 5 pass. Today
+   only reviewed definitions do this.
+3. **Portcove refuses changed files.** If a project replaces the bytes behind
+   a file it already published, Portcove never offers the new bytes until a
+   person looks. Today a listing download takes whatever the project
+   currently publishes.
+4. **Portcove waits 72 hours before offering a new file.** Updates reach
+   players three days after the project publishes them.
+5. **The content check reads every file for promotion.** Today it reads the
+   start of only the first 64 candidate files per package. A package checked
+   only partly is not promoted.
+6. **Release notes are read for wording such as "from my disc".** Such
+   wording blocks the managed route until every file of the release passes
+   the full content check. It never blocks registration.
+7. **The player can run a program Portcove did not pick.** When names are
+   unclear, the player chooses among the files and programs Portcove
+   inspected. The program still has to be one that the signed catalog names
+   by SHA-256.
+8. **Withdrawn files stay installed.** If Portcove withdraws a file, players
+   who installed it keep playing it. Only new downloads stop.
+
+Unchanged: the signing keys, roles, thresholds, root and bootstrap; the
+client's checks of signatures, revisions and expiry; the archive safety
+checks; who may publish. Re-hosting stays forbidden.
+
+### 12.2 Residual risks
+
+- **The content check finds only what it knows.** It finds ROM and disc
+  files, headers, disc images and console BIOS. It does not find extracted
+  textures, music or text. A package that bundles those is promoted unless
+  the release text says so or a person reports it. Today's listing download
+  has the same gap.
+- **First observation can pin bad bytes.** If a project's first upload is
+  malicious, the pin locks in that file. The 72-hour wait and the release's
+  own later replacement (which blocks) reduce this; nothing removes it. A
+  signature says who published the file, not that it is safe.
+- **Unreviewed games get managed installs.** Saves are not managed (no
+  backup, no migration). Files in the game folder are carried between
+  versions by the existing rules, but a game that keeps saves somewhere
+  unusual could lose them if the player deletes the folder outside Portcove.
+- **Name contradictions shown to the player can be ignored.** The player can
+  choose a file named for another game. The bytes still come from this
+  listing's own repository and pass the same checks.
+- **Capacity.** At today's sizes about 1,100 more generated routes fit the
+  released readers' catalog bound. Beyond that, batches carry identities
+  until the distribution scaling work raises it.
+- **Facts job readiness.** Everything here depends on the facts job, which
+  is off and enrolled nothing in its last dry run.
+
+### 12.3 Open decisions that are the owner's
+
+| Id  | Decision                                                                                                                                      | Recommendation                                                                                                                                                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | May automation create pinned acquisition records without per-file review (#315 currently requires independent review)?                        | **Yes**, with CI reproduction from upstream bytes as the independent check, provenance `automatic-first-observation-v1` in every record, and the existing required approval on the job's scripts. Without this, mechanism 1 cannot exist.   |
+| D2  | May the same publisher roles sign generated definitions, or should generated definitions use a separate delegated role?                       | **Same roles, separate grant id** (`managed-github-generated-v1-`), so a later revocation or a different signing rule can target generated definitions without touching reviewed ones. A new role is a signing change and adds owner steps. |
+| D3  | Is a complete name-signal and head scan enough to call contents "listed" for the "unknown contents stay held" rule?                           | **Yes for automatic tier 3**, with the residual risk in 12.2 stated on the listing ("Portcove's content check found no game files"). The alternative, a person per package, contradicts "mechanisms over per-game work".                    |
+| D4  | Waiting period value.                                                                                                                         | **72 hours** for both first offer and updates, reviewed after slice 8 measures real retraction times.                                                                                                                                       |
+| D5  | May a person shorten one artifact's wait (for example a security fix)?                                                                        | **Not in the first slices.** If needed later, an artifact-scoped `permit` naming the operation and SHA-256, through the existing typed restriction route, so it stays visible and reviewed.                                                 |
+| D6  | Should today's listing download (no pin, provider digest only when present, no scan) also move to pins?                                       | **Not in this design.** It would narrow what players get today, and the owner's direction adopts no rule that moves listings down. Report it as a separate decision with its measured effect once pins exist.                               |
+| D7  | Existing `package-facts-unresolved` (23) and `legacy-rights-review` (17) listing holds: lift by machine when the facts and scan satisfy them? | **Report, don't lift.** The rights policy says each existing hold stays until re-reviewed. `restriction-recheck.mts` lists the satisfied ones for a person, grouped; the person's reviewed change lifts them.                               |
+| D8  | Who may merge batches that promote identities: the batch job's App alone, as today for registration?                                          | **The App, as today**, since every promotion is reproduced by required CI and is reversible by regeneration. The owner sees the first promoting batch before it merges.                                                                     |
+
+## 13. Staged implementation plan
+
+Each slice is one pull request, mergeable alone, with its own independent
+review and required CI. "Readback" means a released client reads the result
+from the live signed catalog. Slices that change verification rules (marked
+**V**) are shown to the owner before merge.
+
+| Slice | Content                                                                                                                                                             | Acceptance evidence                                                                                                                                                                 | Depends on        |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 0     | Facts job repairs in progress (real observer path, release text in the observer, per-entry reproduction refusal, carry fairness).                                   | A real-path dry run that enrolls registrations and reports the fate of the 131 identities.                                                                                          | —                 |
+| 1     | Facts format 18: asset and release ids, observed digest, every archive's players, release text with phrase classes. No behavior change.                             | Fixture and real dry-run tables validate; reproduction re-derives every new field.                                                                                                  | 0                 |
+| 2     | Complete content scan in the facts worker over the bytes it already reads (all heads, no 64-file cut), recorded per artifact. **V** (what "complete" means).        | Parity with `release-content-scan.mts` signals on its fixtures and on the 320 packages of run 45381027365; every record `complete` or a typed reason.                               | 1                 |
+| 3     | Pin ledger, append-only CI check, `acquisition-policy.json`, tier table and `acquisition_queues` as reporting only. **V** (pin conflict refusal).                   | Ledger append-only test (removal, edit, backward state refused); queue counts on a real dry run; owner sees the first measured funnel.                                              | 1, 2              |
+| 4     | Core: `player_choice_v1` definition feature and the choice offer, record and carry rule; CLI and Desktop present it. Named required feature; older clients isolate. | Core tests for offer, record, carry, `choice-required`, `choice-stale`; machine-contract fixtures; Desktop browser tests; native Windows run of a fixture choice.                   | #8496 reader gate |
+| 5     | Generation of managed records and schema-4 curated records with `automatic-first-observation-v1`; publisher accepts them. **V** (D1, D2).                           | Gate parity; a canary generated definition published; **released-client readback**: a fresh library on the current preview installs, updates, rolls back and removes it on Windows. | 3; 4 for choices  |
+| 6     | Split packages: multi-archive choice unpacked into one version folder with collision refusal.                                                                       | Core collision and order tests; readback of one real split-package identity.                                                                                                        | 5                 |
+| 7     | Waiting period and blocked state in generation; update details copy. **V** (72-hour wait).                                                                          | Generation tests at the boundary hour; a real update observed waiting and then offered; readback shows the previous release while waiting.                                          | 5                 |
+| 8     | Withdrawal: artifact-scoped holds exclude artifacts; ledger `deleted`/`conflict` produce `curated_transitions`; retraction-time measurement report.                 | Transition tests; readback on a client that pinned a withdrawn artifact: still playable, no fresh download.                                                                         | 5                 |
+| 9     | Typed `install`/`update` holds on generated definitions.                                                                                                            | Restriction evaluation tests across both carriers; readback.                                                                                                                        | #8496 delivered   |
+| 10    | Switch on promotion in the batch job.                                                                                                                               | Owner sees the first promoting batch; batch merged; publication readback; queue report published.                                                                                   | 5, 7, 8           |
+
+**Parallel work.** Slices 1 and 4 can run in parallel (data versus Core).
+Slice 2 and the Core half of slice 6 can run in parallel with slice 4.
+Slices 7 and 8 can run in parallel after 5. Slice 0 is owned by the repair
+sessions already running and blocks everything that needs real data.
+
+## 14. Alternatives considered
+
+| Alternative                                                   | Decision                                                                                                                                                                              |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trust the provider digest at download time, no pin            | Rejected: a replaced asset with a new provider digest would be accepted silently. The owner's rule forbids that.                                                                      |
+| Re-host verified bytes                                        | Rejected: tier 4 is never offered.                                                                                                                                                    |
+| Client-side waiting period on the player's clock              | Rejected: the signed-catalog contract does not trust the host clock; a wrong clock would bypass the wait.                                                                             |
+| A person reviews each promoted package                        | Rejected as the default: per-game work. Kept for conflicts, findings and wording that names terms.                                                                                    |
+| Let names choose the file when one candidate is "most likely" | Rejected: names may only nominate and detect contradictions. A guess could install the wrong program.                                                                                 |
+| A new carrier for generated holds                             | Rejected: the typed restriction model already covers person decisions; generation-time exclusion and policy transitions cover withdrawal until #8496 delivers typed definition holds. |
+| An AI reading of release notes                                | Rejected: no AI service in the pipeline; a closed phrase list is reproducible.                                                                                                        |
+
+## 15. Open risks and UNKNOWNs
+
+- How many of the 992 candidate identities publish a stable desktop package
+  with a provider digest: UNKNOWN until the facts job inspects them.
+- How many fail the complete content scan or its rules: UNKNOWN.
+- How mechanism 2 changes the count beyond the 131-identity sample: UNKNOWN.
+- Upstream retraction times for the waiting-period review: UNKNOWN until
+  slice 8 measures them.
+- Whether `native-portable` validates a definition with no persistent paths
+  and a player-chosen executable without a new capability: to be confirmed in
+  slice 4 against `adapter.rs` and the capability negotiation.
+- Released readers older than the minimum supported preview never see
+  generated definitions with required features; they keep tier 2.
+- The listing download inconsistency in D6 stays until the owner decides it.
+
+## Appendix: measurement method
+
+All commands ran on `main` at `534652ab2` in a clean checkout.
+
+1. **Listings, definitions, route kinds.** Python over
+   `crates/portcove-core/catalog/listings.json` (`listings`) and
+   `catalog.json` (`ports`): counts, `adapter`, and `release.provider`
+   (`github` when absent and `release.repository` is set). Listing-only means
+   a listing id with no port id.
+2. **Dispositions.** `node scripts/catalog-route-fit.mts --json` with no
+   observer report (`observer_report: "absent"`), so every observation state
+   is `none`. Its `identities[].disposition` and `family` give section 2.1's
+   enrolled listings and section 2.5's table, joined with the hold rows of
+   step 3.
+3. **Holds.** Every `restrictions[]` row with `effect: "hold"` in
+   `listings.json`, grouped by `reason` and by whether the listing has a
+   definition; plus every `managed_acquisition_hold` in `catalog.json`. Every
+   listing hold has `operations: ["download"]` and no scope.
+4. **Listing download bound.** Listing-only, no `download` hold, host of
+   `release_url` or else `project_url` equal to `github.com` or containing
+   `gitlab`, grouped by `availability`.
+5. **Facts.** `listing-package-facts.generated.json`: `entries` is empty,
+   format 17, `generated_at` 2026-11-23T00:00:00Z.
+6. **Content scan.** The artifact `release-content-scan-45381027365-1` (id
+   14914002010, SHA-256 `66ceb526…94b09ab`, which matched the artifact
+   record) holds `report.json` format 3. Counts are lengths of `scanned`,
+   `reused_targets`, `findings`, `unscanned` (grouped by `code`) and
+   `accounting_unmatched`. `heads_truncated` is true when the candidate list
+   exceeded 64 files (`scripts/release-content-scan.mts`, the
+   `heads_truncated` assignment). An identity's targets are all rows with its
+   id; "every target scanned" means at least one scanned or reused row and no
+   unscanned row. Reused rows carry no truncation field, so their cut status
+   is UNKNOWN.
+7. **Name-rule withholds (63 of 131).** Taken from the owner direction of
+   2026-11-24. The run's tables are not committed, so this repository cannot
+   reproduce them.
