@@ -777,6 +777,42 @@ void test("a failed Neon meter read names each failing read and Neon's reason", 
     return true;
   });
   assert.equal(neonDiagnostic("x".repeat(500), ""), "x".repeat(200));
+  // A project invisible to every read names whose credential it is.
+  const missing = () => Response.json({ message: "project not found" }, { status: 404 });
+  answers[""] = missing;
+  answers["/branches/br-frosty-bar-bbaitwbu"] = missing;
+  answers["/endpoints"] = missing;
+  let identity: Record<string, () => Response> = {
+    "/users/me": () => Response.json({ id: "user-1", email: "private@example.com" }),
+    "/users/me/organizations": () => Response.json({ organizations: [{ id: "org-other" }] }),
+  };
+  const projectFetch = globalThis.fetch;
+  globalThis.fetch = async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    const path = url.slice(url.indexOf("/api/v2") + "/api/v2".length);
+    return identity[path] ? identity[path]() : projectFetch(input);
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon project read returned HTTP 404: project not found/u);
+    assert.match(
+      message,
+      /credential belongs to Neon user user-1, not a member of org-polished-frog-23199890 \(member of org-other\)/u,
+    );
+    assert.doesNotMatch(message, /private@example\.com/u, "no email is retained");
+    return true;
+  });
+  identity = {
+    "/users/me": () => Response.json({ message: "not allowed for org keys" }, { status: 403 }),
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(
+      message,
+      /credential is not a personal key \(users\/me HTTP 403: not allowed for org keys\)/u,
+    );
+    return true;
+  });
 });
 
 void test(
