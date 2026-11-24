@@ -6,6 +6,13 @@
     "name": "Big Red Racing / Big Red Report",
     "summary": "Big Red Racing PC Port",
     "issue_number": 5762,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "big-red-racing",
+      "evidence_urls": ["https://github.com/BigRedReport/bigredreport"],
+      "source_editions": []
+    },
+    "original_game_title": "Big Red Racing"
   }
 }

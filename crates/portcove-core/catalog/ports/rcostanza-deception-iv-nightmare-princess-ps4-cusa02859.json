@@ -6,6 +6,20 @@
     "name": "Deception IV: The Nightmare Princess (PS4) / rcostanza PS4 native execution",
     "summary": "Deception IV: The Nightmare Princess (PS4) - Recompiled to PC",
     "issue_number": 4933,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "deception-iv-the-nightmare-princess",
+      "evidence_urls": ["https://github.com/rcostanza/Deception-IV-NightmarePrincess-recomp"],
+      "source_editions": [
+        {
+          "id": "deception-iv-the-nightmare-princess-playstation-4",
+          "title": "Deception IV: The Nightmare Princess (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/rcostanza/Deception-IV-NightmarePrincess-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Deception IV: The Nightmare Princess"
   }
 }

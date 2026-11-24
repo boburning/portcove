@@ -6,6 +6,20 @@
     "name": "Ratchet & Clank Future: Tools of Destruction (PS3 EU BCES00052) / Re-TeRo17 recomp",
     "summary": "Ratchet & Clank: Tools of Destruction native PC port (PS3 static recompilation) – 4K, 60 fps, DualSense, Windows",
     "issue_number": 4268,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-future-tools-of-destruction",
+      "evidence_urls": ["https://github.com/Re-TeRo17/ratchet-tod-recomp"],
+      "source_editions": [
+        {
+          "id": "ratchet-and-clank-future-tools-of-destruction-playstation-3",
+          "title": "Ratchet & Clank Future: Tools of Destruction (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/Re-TeRo17/ratchet-tod-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Ratchet & Clank Future: Tools of Destruction"
   }
 }

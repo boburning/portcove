@@ -6,6 +6,13 @@
     "name": "Test Drive Unlimited / Open Test Drive Unlimited (OpenTDU) (opentestdriveunlimited)",
     "summary": "Open source port of Test Drive Unlimited (2006)",
     "issue_number": 6863,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "test-drive-unlimited",
+      "evidence_urls": ["https://github.com/opentestdriveunlimited/OpenTestDriveUnlimited"],
+      "source_editions": []
+    },
+    "original_game_title": "Test Drive Unlimited"
   }
 }

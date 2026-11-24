@@ -6,6 +6,13 @@
     "name": "Halo: Combat Evolved / ChupathingyCE (ChupathingyCE)",
     "summary": "Halo CE: Ported for Everyone. Windows, Mac, Linux, Steam Deck, Android and FreeBSD, with online play and stats. Bring your own copy of the game.",
     "issue_number": 6981,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-combat-evolved",
+      "evidence_urls": ["https://github.com/ChupathingyCE/chupathingyce"],
+      "source_editions": []
+    },
+    "original_game_title": "Halo: Combat Evolved"
   }
 }

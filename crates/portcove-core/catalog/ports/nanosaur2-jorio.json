@@ -6,6 +6,13 @@
     "name": "Nanosaur 2: Hatchling",
     "summary": "Pangea Software’s Nanosaur II for modern systems",
     "issue_number": 5648,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nanosaur-2-hatchling",
+      "evidence_urls": ["https://github.com/jorio/Nanosaur2"],
+      "source_editions": []
+    },
+    "original_game_title": "Nanosaur 2: Hatchling"
   }
 }

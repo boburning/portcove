@@ -6,6 +6,13 @@
     "name": "Pokémon SoulSilver (ssrecomp)",
     "summary": "A recomp of Pokemon Soul Silver for single screen devices. macOS support thanks to DarthMDev.",
     "issue_number": 2761,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-soulsilver",
+      "evidence_urls": ["https://github.com/ClickingMaster/ssrecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon SoulSilver"
   }
 }

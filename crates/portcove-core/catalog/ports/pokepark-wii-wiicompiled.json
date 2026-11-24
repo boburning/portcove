@@ -6,6 +6,20 @@
     "name": "PokéPark Wii: Pikachu's Adventure / WiiCompiled",
     "summary": "A native PC port of PokePark Wii: Pikachu's Adventure by static recompilation (open beta). No game data included.",
     "issue_number": 6554,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokepark-wii-pikachus-adventure",
+      "evidence_urls": ["https://github.com/MildRain479/PokePark-Wiicompiled"],
+      "source_editions": [
+        {
+          "id": "pokepark-wii-pikachus-adventure-wii",
+          "title": "PokéPark Wii: Pikachu's Adventure (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/MildRain479/PokePark-Wiicompiled"]
+        }
+      ]
+    },
+    "original_game_title": "PokéPark Wii: Pikachu's Adventure"
   }
 }

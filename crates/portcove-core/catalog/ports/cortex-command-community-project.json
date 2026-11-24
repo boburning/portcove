@@ -6,6 +6,15 @@
     "name": "Cortex Command / Community Project",
     "summary": "Cortex Command - Open Source under GNU AGPL v3",
     "issue_number": 6049,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cortex-command",
+      "evidence_urls": [
+        "https://github.com/cortex-command-community/Cortex-Command-Community-Project"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Cortex Command"
   }
 }

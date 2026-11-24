@@ -6,6 +6,20 @@
     "name": "Donkey Kong Bananza / DKB Recomp (Lucas-blip-png)",
     "summary": "Static recompilation of Donkey Kong Bananza (Switch 2) to native Windows and Linux with Vulkan. 0.5.2 out: TOTK to DKB rename, Feast Layer muck fix, 4 GB cards, Switch 2 controllers on USB; one-file Windows launcher. Requirements: docs/requirements.md. Roadmap: #10. No game files included.",
     "issue_number": 7206,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-bananza",
+      "evidence_urls": ["https://github.com/Lucas-blip-png/dkb-pc-recomp"],
+      "source_editions": [
+        {
+          "id": "donkey-kong-bananza-nintendo-switch",
+          "title": "Donkey Kong Bananza (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/Lucas-blip-png/dkb-pc-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Donkey Kong Bananza"
   }
 }

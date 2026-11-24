@@ -6,6 +6,13 @@
     "name": "Billy Frontier",
     "summary": "Pangea Software’s Billy Frontier for modern systems",
     "issue_number": 5641,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "billy-frontier",
+      "evidence_urls": ["https://github.com/jorio/BillyFrontier"],
+      "source_editions": []
+    },
+    "original_game_title": "Billy Frontier"
   }
 }

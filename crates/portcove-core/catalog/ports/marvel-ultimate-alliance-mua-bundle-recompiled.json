@@ -6,6 +6,13 @@
     "name": "Marvel: Ultimate Alliance / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
     "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
     "issue_number": 7190,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "marvel-ultimate-alliance",
+      "evidence_urls": ["https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Marvel: Ultimate Alliance"
   }
 }

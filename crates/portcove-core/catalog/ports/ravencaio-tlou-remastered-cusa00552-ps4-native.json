@@ -6,6 +6,20 @@
     "name": "The Last of Us Remastered (PS4 CUSA00552 update 1.11) / ravencaio PS4 host port",
     "summary": "Unnoficial Native Windows PC port of The Last of Us Remastered (PS4, CUSA00552). Runs the game’s own x86-64 code on a custom runtime, with PS4 system libraries reimplemented and a Vulkan renderer based on shadPS4. Includes a launcher. No game files included: you need your own copy.",
     "issue_number": 4222,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-last-of-us-remastered",
+      "evidence_urls": ["https://github.com/ravencaio/tlou-remastered-pc"],
+      "source_editions": [
+        {
+          "id": "the-last-of-us-remastered-playstation-4",
+          "title": "The Last of Us Remastered (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/ravencaio/tlou-remastered-pc"]
+        }
+      ]
+    },
+    "original_game_title": "The Last of Us Remastered"
   }
 }

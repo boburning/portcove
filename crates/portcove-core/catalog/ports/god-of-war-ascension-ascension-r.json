@@ -6,6 +6,20 @@
     "name": "God of War: Ascension / Ascension-R",
     "summary": "God of War: Ascension PC port: an unofficial, native Windows port of the PS3 game by static recompilation, no emulator. No game files included: you build it from your own copy.",
     "issue_number": 6686,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ascension",
+      "evidence_urls": ["https://github.com/rigaz29/Ascension-R"],
+      "source_editions": [
+        {
+          "id": "god-of-war-ascension-playstation-3",
+          "title": "God of War: Ascension (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/rigaz29/Ascension-R"]
+        }
+      ]
+    },
+    "original_game_title": "God of War: Ascension"
   }
 }

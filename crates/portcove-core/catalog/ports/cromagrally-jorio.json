@@ -6,6 +6,13 @@
     "name": "Cro-Mag Rally",
     "summary": "The wildest racing game since man invented the wheel!",
     "issue_number": 5645,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cro-mag-rally",
+      "evidence_urls": ["https://github.com/jorio/CroMagRally"],
+      "source_editions": []
+    },
+    "original_game_title": "Cro-Mag Rally"
   }
 }

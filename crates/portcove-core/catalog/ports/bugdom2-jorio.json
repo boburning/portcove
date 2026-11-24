@@ -6,6 +6,13 @@
     "name": "Bugdom 2",
     "summary": "Pangea Software’s Bugdom 2 for modern systems 🦗",
     "issue_number": 5643,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bugdom-2",
+      "evidence_urls": ["https://github.com/jorio/Bugdom2"],
+      "source_editions": []
+    },
+    "original_game_title": "Bugdom 2"
   }
 }

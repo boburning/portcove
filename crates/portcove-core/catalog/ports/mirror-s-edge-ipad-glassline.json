@@ -6,6 +6,13 @@
     "name": "Mirror's Edge (iPad) / Glassline (MoonCellar-Team)",
     "summary": "Unofficial port of Mirror's Edge (iPad, 2010) to Linux, Windows, Steam Deck and Android",
     "issue_number": 7213,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mirrors-edge-ios",
+      "evidence_urls": ["https://github.com/MoonCellar-Team/Glassline"],
+      "source_editions": []
+    },
+    "original_game_title": "Mirror's Edge"
   }
 }

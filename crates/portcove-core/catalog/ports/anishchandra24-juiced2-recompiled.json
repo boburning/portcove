@@ -6,6 +6,20 @@
     "name": "Juiced 2: Hot Import Nights (Xbox 360) / Juiced2-Recompiled (anishchandra24)",
     "summary": "Unofficial native Windows port of Juiced 2: Hot Import Nights for the Xbox 360, made with static recompilation via the ReXGlue SDK. Early preview. Contains no game files.",
     "issue_number": 3993,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "juiced-2-hot-import-nights",
+      "evidence_urls": ["https://github.com/anishchandra24/Juiced2-Recompiled"],
+      "source_editions": [
+        {
+          "id": "juiced-2-hot-import-nights-xbox-360",
+          "title": "Juiced 2: Hot Import Nights (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/anishchandra24/Juiced2-Recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Juiced 2: Hot Import Nights"
   }
 }

@@ -6,6 +6,13 @@
     "name": "NBA Street Vol. 2 / Streetball Revival",
     "summary": "Complete NBA Street Vol. 2 Rust Remake",
     "issue_number": 5598,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-street-vol-2",
+      "evidence_urls": ["https://github.com/luckvj/streetball-revival"],
+      "source_editions": []
+    },
+    "original_game_title": "NBA Street Vol. 2"
   }
 }

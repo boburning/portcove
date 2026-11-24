@@ -6,6 +6,20 @@
     "name": "Tom Clancy's Ghost Recon 2 / Ghost Recon 2 recomp (ElKev118)",
     "summary": "Native Windows port of Tom Clancy's Ghost Recon 2 (Xbox) via static recompilation — Vulkan renderer, up to 6x resolution, SMAA, FSR 1. Bring your own game files",
     "issue_number": 7225,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-ghost-recon-2",
+      "evidence_urls": ["https://github.com/ElKev118/ghostrecon2-recomp"],
+      "source_editions": [
+        {
+          "id": "tom-clancys-ghost-recon-2-xbox",
+          "title": "Tom Clancy's Ghost Recon 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/ElKev118/ghostrecon2-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Tom Clancy's Ghost Recon 2"
   }
 }

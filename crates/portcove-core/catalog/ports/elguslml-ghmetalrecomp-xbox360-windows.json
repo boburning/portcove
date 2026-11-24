@@ -6,6 +6,20 @@
     "name": "Guitar Hero: Metallica (Xbox 360 USA/Europe) / ElGuslml GHMetalRecomp",
     "summary": "Guitar Hero: Metallica (Xbox 360) recompiled to run natively on PC. Xbox 360 guitars, singing with any PC microphone, up to 240 FPS, ultrawide, achievements, and a launcher that installs the game from your own ISO.",
     "issue_number": 4571,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-metallica",
+      "evidence_urls": ["https://github.com/ElGuslml/GHMetalRecomp"],
+      "source_editions": [
+        {
+          "id": "guitar-hero-metallica-xbox-360",
+          "title": "Guitar Hero: Metallica (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/ElGuslml/GHMetalRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Guitar Hero: Metallica"
   }
 }

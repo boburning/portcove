@@ -6,6 +6,20 @@
     "name": "Need for Speed: Most Wanted (2005, Xbox 360) / SpeedBreaker",
     "summary": "Unofficial static recompilation of the Xbox 360 version of Need for Speed: Most Wanted (2005): a native port for Steam Deck, Steam Machine, Steam Frame, Linux and Mac (iPhone/iPad: sideload the experimental IPA or build it yourself). Bring your own disc: no game files included. Not affiliated with EA or Valve.",
     "issue_number": 8273,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-most-wanted",
+      "evidence_urls": ["https://github.com/SpeedBreakerProject/speedbreaker"],
+      "source_editions": [
+        {
+          "id": "need-for-speed-most-wanted-xbox-360",
+          "title": "Need for Speed: Most Wanted (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/SpeedBreakerProject/speedbreaker"]
+        }
+      ]
+    },
+    "original_game_title": "Need for Speed: Most Wanted"
   }
 }

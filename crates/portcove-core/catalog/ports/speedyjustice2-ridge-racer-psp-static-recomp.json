@@ -6,6 +6,20 @@
     "name": "Ridge Racer (PSP) / SpeedyJustice2 static recomp",
     "summary": "This is a fan made static recomp of Ridge Racer for the PSP!",
     "issue_number": 4269,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer",
+      "evidence_urls": ["https://github.com/SpeedyJustice2/Ridge-Racer-PSP-Static-Recomp"],
+      "source_editions": [
+        {
+          "id": "ridge-racer-playstation-portable",
+          "title": "Ridge Racer (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": ["https://github.com/SpeedyJustice2/Ridge-Racer-PSP-Static-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Ridge Racer"
   }
 }

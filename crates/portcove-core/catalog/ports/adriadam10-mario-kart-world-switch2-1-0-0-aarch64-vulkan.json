@@ -6,6 +6,20 @@
     "name": "Mario Kart World (Nintendo Switch 2, 1.0.0) / adriadam10 mkw-recomp",
     "summary": "Static recompilation of Mario Kart World (Nintendo Switch 2) to a native PC program",
     "issue_number": 4931,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-world",
+      "evidence_urls": ["https://github.com/adriadam10/mkw-recomp"],
+      "source_editions": [
+        {
+          "id": "mario-kart-world-nintendo-switch",
+          "title": "Mario Kart World (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/adriadam10/mkw-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Mario Kart World"
   }
 }

@@ -6,6 +6,20 @@
     "name": "Harry Potter and the Chamber of Secrets / original Xbox native port",
     "summary": "Recompilation of Harry Potter and the Chamber of Secrets (Xbox) for PC",
     "issue_number": 6566,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-chamber-of-secrets-console-2002",
+      "evidence_urls": ["https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-chamber-of-secrets-console-2002-xbox",
+          "title": "Harry Potter and the Chamber of Secrets (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Harry Potter and the Chamber of Secrets"
   }
 }

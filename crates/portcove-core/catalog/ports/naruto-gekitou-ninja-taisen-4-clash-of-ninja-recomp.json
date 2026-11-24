@@ -6,6 +6,20 @@
     "name": "Naruto: Gekitou Ninja Taisen! 4 / Naruto: Clash of Ninja recomp (mapleleafjack)",
     "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
     "issue_number": 7201,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-gekitou-ninja-taisen-4",
+      "evidence_urls": ["https://github.com/mapleleafjack/ClashOfNinja-recomp"],
+      "source_editions": [
+        {
+          "id": "naruto-gekitou-ninja-taisen-4-nintendo-gamecube",
+          "title": "Naruto: Gekitou Ninja Taisen! 4 (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": ["https://github.com/mapleleafjack/ClashOfNinja-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Naruto: Gekitou Ninja Taisen! 4"
   }
 }

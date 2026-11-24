@@ -6,6 +6,20 @@
     "name": "God of War / God of War PC Port / danielalves96",
     "summary": "Unofficial native PC port of God of War (2005, PS2) for Windows, with experimental Linux support. Statically recompiled to C++, not an emulator. OpenGL renderer, launcher, cheat menu, widescreen, 60 FPS. Bring your own game dump: no game files included.",
     "issue_number": 6705,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war",
+      "evidence_urls": ["https://github.com/danielalves96/gow-pc-port"],
+      "source_editions": [
+        {
+          "id": "god-of-war-playstation-2",
+          "title": "God of War (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/danielalves96/gow-pc-port"]
+        }
+      ]
+    },
+    "original_game_title": "God of War"
   }
 }

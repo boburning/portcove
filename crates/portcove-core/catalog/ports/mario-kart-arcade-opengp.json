@@ -7,5 +7,10 @@
     "summary": "A native PC port of Mario Kart Arcade GP and GP 2 by static recompilation. Builds the games from your own disc images.",
     "issue_number": 5499,
     "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One reimplementation covers both Mario Kart Arcade GP and GP 2.",
+    "evidence_urls": ["https://github.com/OpenGP-dev/OpenGP"]
   }
 }

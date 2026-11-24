@@ -6,6 +6,20 @@
     "name": "Top Spin / Max Spin",
     "summary": "Experimental native PC recompilation of the original Xbox Top Spin for Linux and Windows. Requires original game files.",
     "issue_number": 5969,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "top-spin",
+      "evidence_urls": ["https://github.com/djultra64/Max-Spin"],
+      "source_editions": [
+        {
+          "id": "top-spin-xbox",
+          "title": "Top Spin (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/djultra64/Max-Spin"]
+        }
+      ]
+    },
+    "original_game_title": "Top Spin"
   }
 }

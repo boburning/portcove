@@ -6,6 +6,20 @@
     "name": "Odin Sphere Leifthrasir / saulob native port",
     "summary": "Odin Sphere Leifthrasir native PC port for Windows, with direct PS4 PKG installation, TRG launcher and modern graphics options",
     "issue_number": 6032,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "odin-sphere-leifthrasir",
+      "evidence_urls": ["https://github.com/saulob/odin-sphere-leifthrasir-pc"],
+      "source_editions": [
+        {
+          "id": "odin-sphere-leifthrasir-playstation-4",
+          "title": "Odin Sphere Leifthrasir (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/saulob/odin-sphere-leifthrasir-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Odin Sphere Leifthrasir"
   }
 }

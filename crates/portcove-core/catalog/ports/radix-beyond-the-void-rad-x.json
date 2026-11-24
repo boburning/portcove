@@ -6,6 +6,13 @@
     "name": "Radix: Beyond the Void / RAD (Radix remake) (jval1972)",
     "summary": "RAD: Remake of the game \"Radix - Beyond the void\"",
     "issue_number": 6908,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "radix-beyond-the-void",
+      "evidence_urls": ["https://github.com/jval1972/Rad-X"],
+      "source_editions": []
+    },
+    "original_game_title": "Radix: Beyond the Void"
   }
 }

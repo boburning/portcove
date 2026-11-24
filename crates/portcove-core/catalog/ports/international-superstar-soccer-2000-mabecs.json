@@ -6,6 +6,20 @@
     "name": "International Superstar Soccer 2000",
     "summary": "Native Windows & Linux widescreen port of International Superstar Soccer 2000 (N64) via static recompilation",
     "issue_number": 5506,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-superstar-soccer-2000",
+      "evidence_urls": ["https://github.com/Mabec-games/ISS2000-RECOMP"],
+      "source_editions": [
+        {
+          "id": "international-superstar-soccer-2000-nintendo-64",
+          "title": "International Superstar Soccer 2000 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/Mabec-games/ISS2000-RECOMP"]
+        }
+      ]
+    },
+    "original_game_title": "International Superstar Soccer 2000"
   }
 }

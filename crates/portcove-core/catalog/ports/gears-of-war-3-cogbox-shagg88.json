@@ -6,6 +6,20 @@
     "name": "Gears of War 3 (Xbox 360) / COGBox",
     "summary": "This is an open source, all-in-one, static recompilation project that I built from the ground up for the Xbox 360 Gears of War series. All 4 games have been personally recompiled for use with a fully native renderer by me.",
     "issue_number": 4382,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-3",
+      "evidence_urls": ["https://github.com/Shagg88/COGBox"],
+      "source_editions": [
+        {
+          "id": "gears-of-war-3-xbox-360",
+          "title": "Gears of War 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/Shagg88/COGBox"]
+        }
+      ]
+    },
+    "original_game_title": "Gears of War 3"
   }
 }

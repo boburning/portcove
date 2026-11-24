@@ -6,6 +6,13 @@
     "name": "Quake / Chocolate Quake",
     "summary": "A purist Quake source port that restores the original look and feel of v1.09 and earlier.",
     "issue_number": 5778,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": ["https://github.com/Henrique194/chocolate-quake"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake"
   }
 }

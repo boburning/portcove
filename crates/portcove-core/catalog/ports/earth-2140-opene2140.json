@@ -6,6 +6,13 @@
     "name": "Earth 2140 / OpenE2140",
     "summary": "Remake of Earth 2140 using OpenRA.",
     "issue_number": 5770,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "earth-2140",
+      "evidence_urls": ["https://github.com/OpenE2140/OpenE2140"],
+      "source_editions": []
+    },
+    "original_game_title": "Earth 2140"
   }
 }

@@ -6,6 +6,20 @@
     "name": "Shadowgate (NES) / Shadowgreat",
     "summary": "Static recompilation of Shadowgate (NES) into a native Windows program",
     "issue_number": 6551,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadowgate",
+      "evidence_urls": ["https://github.com/CorrieDivitt/ShadowGreat"],
+      "source_editions": [
+        {
+          "id": "shadowgate-nes",
+          "title": "Shadowgate (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/CorrieDivitt/ShadowGreat"]
+        }
+      ]
+    },
+    "original_game_title": "Shadowgate"
   }
 }

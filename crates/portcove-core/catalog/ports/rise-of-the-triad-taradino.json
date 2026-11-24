@@ -6,6 +6,13 @@
     "name": "Rise of the Triad / Taradino",
     "summary": "SDL2-Port of Rise of the Triad",
     "issue_number": 5681,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rise-of-the-triad",
+      "evidence_urls": ["https://github.com/fabiangreffrath/taradino"],
+      "source_editions": []
+    },
+    "original_game_title": "Rise of the Triad"
   }
 }

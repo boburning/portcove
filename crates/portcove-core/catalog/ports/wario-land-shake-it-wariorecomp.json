@@ -6,6 +6,20 @@
     "name": "Wario Land: Shake It! / WarioRecomp (santiagovalencia109)",
     "summary": "Unofficial native PC port of Wario Land: Shake It! (Wii), statically recompiled with WiiCompiled. Testing build.",
     "issue_number": 7218,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wario-land-shake-it",
+      "evidence_urls": ["https://github.com/santiagovalencia109/Wario-Land-Shake-It-Native-PC"],
+      "source_editions": [
+        {
+          "id": "wario-land-shake-it-wii",
+          "title": "Wario Land: Shake It! (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/santiagovalencia109/Wario-Land-Shake-It-Native-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Wario Land: Shake It!"
   }
 }

@@ -6,6 +6,20 @@
     "name": "Forza Motorsport (original Xbox USA revision 1) / DivxPlays Redline Recompiled",
     "summary": "A PC port of Forza Motorsport (Xbox, 2005) by static recompilation: up to 144 fps, 4x resolution, ultrawide, DLSS and FSR. Bring your own disc. Early version: performance may be unstable; expect bugs and crashes. MADE WITH THE HELP OF AI.",
     "issue_number": 4572,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-motorsport",
+      "evidence_urls": ["https://github.com/DivxPlays/redline-recompiled"],
+      "source_editions": [
+        {
+          "id": "forza-motorsport-xbox",
+          "title": "Forza Motorsport (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/DivxPlays/redline-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Forza Motorsport"
   }
 }

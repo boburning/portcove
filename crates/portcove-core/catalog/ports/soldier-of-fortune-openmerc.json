@@ -6,6 +6,13 @@
     "name": "Soldier of Fortune / openMERC",
     "summary": "Open-source (GPL v2) engine for Soldier of Fortune (2000): clean-room, Yamagi Quake II based. Bring your own licensed copy.",
     "issue_number": 5481,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "soldier-of-fortune",
+      "evidence_urls": ["https://github.com/sidreshot/openMERC"],
+      "source_editions": []
+    },
+    "original_game_title": "Soldier of Fortune"
   }
 }

@@ -6,6 +6,25 @@
     "name": "Sonic the Hedgehog (2006) / Marathon Recompiled (sonicnext-dev)",
     "summary": "An unofficial PC port of the Xbox 360 version of Sonic the Hedgehog (2006) created through the process of static recompilation",
     "issue_number": 6854,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2006",
+      "evidence_urls": ["https://github.com/sonicnext-dev/MarathonRecomp"],
+      "source_editions": [
+        {
+          "id": "sonic-the-hedgehog-2006-xbox-360",
+          "title": "Sonic the Hedgehog (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/sonicnext-dev/MarathonRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Sonic the Hedgehog (2006)"
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "Sonic the Hedgehog (2006) for Xbox 360 and PlayStation 3 is a different game from the 1991 Mega Drive Sonic the Hedgehog that shares its title.",
+    "evidence_urls": ["https://github.com/sonicnext-dev/MarathonRecomp"]
   }
 }

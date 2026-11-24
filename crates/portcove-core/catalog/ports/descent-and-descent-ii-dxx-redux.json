@@ -7,5 +7,10 @@
     "summary": "Descent 1&2 source port based on DXX-Retro",
     "issue_number": 5662,
     "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "Descent and Descent II share one source port that runs both games.",
+    "evidence_urls": ["https://github.com/dxx-redux/dxx-redux"]
   }
 }

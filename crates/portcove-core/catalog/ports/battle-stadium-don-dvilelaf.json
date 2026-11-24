@@ -6,6 +6,20 @@
     "name": "Battle Stadium D.O.N / dvilelaf",
     "summary": "PC port (Linux, Windows) of Battle Stadium D.O.N (PS2) by static recompilation. No game material included: bring your own disc.",
     "issue_number": 5518,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-stadium-d-o-n",
+      "evidence_urls": ["https://github.com/dvilelaf/battlestadium-don"],
+      "source_editions": [
+        {
+          "id": "battle-stadium-d-o-n-playstation-2",
+          "title": "Battle Stadium D.O.N (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/dvilelaf/battlestadium-don"]
+        }
+      ]
+    },
+    "original_game_title": "Battle Stadium D.O.N"
   }
 }

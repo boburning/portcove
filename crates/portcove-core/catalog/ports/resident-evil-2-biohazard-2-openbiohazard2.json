@@ -6,6 +6,13 @@
     "name": "Resident Evil 2 / Biohazard 2 / OpenBiohazard2 (OpenBiohazard2)",
     "summary": "Open source re-implementation of the original Resident Evil 2 / Biohazard 2",
     "issue_number": 7002,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-2",
+      "evidence_urls": ["https://github.com/OpenBiohazard2/OpenBiohazard2"],
+      "source_editions": []
+    },
+    "original_game_title": "Resident Evil 2"
   }
 }

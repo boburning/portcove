@@ -6,6 +6,13 @@
     "name": "Gran Turismo 5 Prologue / mathewdouglas Tourline Prologue",
     "summary": "Tourline Prologue — native Windows recompilation of Gran Turismo 5 Prologue (BCUS98158 v03.00).",
     "issue_number": 6037,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-5-prologue",
+      "evidence_urls": ["https://github.com/mathewdouglas/Tourline-Prologue"],
+      "source_editions": []
+    },
+    "original_game_title": "Gran Turismo 5 Prologue"
   }
 }

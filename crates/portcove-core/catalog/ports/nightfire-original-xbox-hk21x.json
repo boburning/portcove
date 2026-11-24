@@ -6,6 +6,20 @@
     "name": "007: NightFire (original Xbox) / hk21x nightfire-recomp",
     "summary": "007 Nightfire recompilation for a native PC port.",
     "issue_number": 4379,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "007-nightfire",
+      "evidence_urls": ["https://github.com/hk21x/nightfire-recomp"],
+      "source_editions": [
+        {
+          "id": "007-nightfire-xbox",
+          "title": "007: NightFire (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/hk21x/nightfire-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "007: NightFire"
   }
 }

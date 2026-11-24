@@ -6,6 +6,20 @@
     "name": "Body Harvest / LunarLaurus",
     "summary": "Adam's Ant Farm (Body Harvest): a native PC port of Body Harvest (N64), built on the decompilation.",
     "issue_number": 5904,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "body-harvest",
+      "evidence_urls": ["https://github.com/LunarLaurus/adams-ant-farm-recomp"],
+      "source_editions": [
+        {
+          "id": "body-harvest-nintendo-64",
+          "title": "Body Harvest (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/LunarLaurus/adams-ant-farm-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Body Harvest"
   }
 }

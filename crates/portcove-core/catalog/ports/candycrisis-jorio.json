@@ -6,6 +6,13 @@
     "name": "Candy Crisis",
     "summary": "Candy Crisis source port for modern operating systems",
     "issue_number": 5644,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "candy-crisis",
+      "evidence_urls": ["https://github.com/jorio/CandyCrisis"],
+      "source_editions": []
+    },
+    "original_game_title": "Candy Crisis"
   }
 }

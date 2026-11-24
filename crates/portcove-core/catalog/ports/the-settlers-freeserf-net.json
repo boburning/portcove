@@ -6,6 +6,13 @@
     "name": "The Settlers / Freeserf.net",
     "summary": "Settlers 1 clone written in C#",
     "issue_number": 5691,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-settlers",
+      "evidence_urls": ["https://github.com/Pyrdacor/freeserf.net"],
+      "source_editions": []
+    },
+    "original_game_title": "The Settlers"
   }
 }

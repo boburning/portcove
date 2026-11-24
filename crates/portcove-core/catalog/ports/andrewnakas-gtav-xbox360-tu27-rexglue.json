@@ -6,6 +6,20 @@
     "name": "Grand Theft Auto V (Xbox 360 TU27) / andrewnakas ReXGlue recomp",
     "summary": "GTA V (Xbox 360, TU27) static recompilation with ReXGlue",
     "issue_number": 4267,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-v",
+      "evidence_urls": ["https://github.com/andrewnakas/gtav-recomp"],
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-v-xbox-360",
+          "title": "Grand Theft Auto V (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/andrewnakas/gtav-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Grand Theft Auto V"
   }
 }

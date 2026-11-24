@@ -6,6 +6,13 @@
     "name": "Rise of the Triad / rottexpr (LTCHIPS)",
     "summary": "A Rise Of The Triad Source Port with additional gameplay options and more...",
     "issue_number": 6925,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rise-of-the-triad",
+      "evidence_urls": ["https://github.com/LTCHIPS/rottexpr"],
+      "source_editions": []
+    },
+    "original_game_title": "Rise of the Triad"
   }
 }

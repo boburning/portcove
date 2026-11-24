@@ -6,6 +6,20 @@
     "name": "Xenoblade Chronicles X: Definitive Edition (Switch) / XCX Recomp (jmars125)",
     "summary": "Static recompilation of Xenoblade Chronicles X : Definitive Edition to native Windows x86-64, with a Vulkan renderer. Game files not included.",
     "issue_number": 4175,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenoblade-chronicles-x-definitive-edition",
+      "evidence_urls": ["https://github.com/jmars125/xcx-recomp"],
+      "source_editions": [
+        {
+          "id": "xenoblade-chronicles-x-definitive-edition-nintendo-switch",
+          "title": "Xenoblade Chronicles X: Definitive Edition (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/jmars125/xcx-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Xenoblade Chronicles X: Definitive Edition"
   }
 }

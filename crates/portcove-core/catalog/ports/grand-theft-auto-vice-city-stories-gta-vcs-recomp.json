@@ -6,6 +6,20 @@
     "name": "Grand Theft Auto: Vice City Stories / VCS Recomp (gothamor)",
     "summary": "A native Windows and Linux port of Grand Theft Auto: Vice City Stories (PS2, USA, SLUS-21590), made by recompiling the game's PS2 executable into C++",
     "issue_number": 7200,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-vice-city-stories",
+      "evidence_urls": ["https://github.com/gothamor/gta-vcs-recomp"],
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-vice-city-stories-playstation-2",
+          "title": "Grand Theft Auto: Vice City Stories (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/gothamor/gta-vcs-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Grand Theft Auto: Vice City Stories"
   }
 }

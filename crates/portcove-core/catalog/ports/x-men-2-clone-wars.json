@@ -6,6 +6,20 @@
     "name": "X-Men 2: Clone Wars",
     "summary": "X-Men 2: Clone Wars (Genesis) as a native PC game, from a full decompilation: widescreen, high frame rate, up to 4 players on one PC or online (rollback netplay). Bring your own ROM.",
     "issue_number": 5453,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "x-men-2-clone-wars",
+      "evidence_urls": ["https://github.com/crabsmack/xmen2-pc"],
+      "source_editions": [
+        {
+          "id": "x-men-2-clone-wars-mega-drive-genesis",
+          "title": "X-Men 2: Clone Wars (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": ["https://github.com/crabsmack/xmen2-pc"]
+        }
+      ]
+    },
+    "original_game_title": "X-Men 2: Clone Wars"
   }
 }

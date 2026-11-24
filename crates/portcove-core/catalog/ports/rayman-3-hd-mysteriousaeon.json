@@ -6,6 +6,20 @@
     "name": "Rayman 3 HD / MysteriousAeon",
     "summary": "A native Windows port of Rayman 3 HD (Xbox 360) using static recompilation, with HD+ enhancements and Turkish localization.",
     "issue_number": 6579,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-3-hd",
+      "evidence_urls": ["https://github.com/MysteriousAeon/rayman3-hd-recompiled"],
+      "source_editions": [
+        {
+          "id": "rayman-3-hd-xbox-360",
+          "title": "Rayman 3 HD (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/MysteriousAeon/rayman3-hd-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Rayman 3 HD"
   }
 }

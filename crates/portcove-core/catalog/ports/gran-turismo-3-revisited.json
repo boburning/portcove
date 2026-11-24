@@ -6,6 +6,13 @@
     "name": "Gran Turismo 3: A-Spec / GT3 Revisited",
     "summary": "Gran Turismo 3 A-Spec engine reimplementation for modern platforms (bring your own disc)",
     "issue_number": 5513,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-3-a-spec",
+      "evidence_urls": ["https://github.com/matt-pulsipher/gt3-revisited"],
+      "source_editions": []
+    },
+    "original_game_title": "Gran Turismo 3: A-Spec"
   }
 }

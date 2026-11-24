@@ -6,6 +6,13 @@
     "name": "OutRunners Arcade (Sega System Multi 32 World) / cheviman arcade-faithful port",
     "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
     "issue_number": 4683,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrunners",
+      "evidence_urls": ["https://github.com/cheviman/outrunners-port"],
+      "source_editions": []
+    },
+    "original_game_title": "OutRunners Arcade"
   }
 }

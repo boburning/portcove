@@ -6,6 +6,20 @@
     "name": "Futurama / hiburn8",
     "summary": "The 2003 Futurama Xbox game, rebuilt to run natively on Windows. Bring your own disc!",
     "issue_number": 6606,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "futurama",
+      "evidence_urls": ["https://github.com/hiburn8/Futurama-The-Game-The-Recomp"],
+      "source_editions": [
+        {
+          "id": "futurama-xbox",
+          "title": "Futurama (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/hiburn8/Futurama-The-Game-The-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Futurama"
   }
 }

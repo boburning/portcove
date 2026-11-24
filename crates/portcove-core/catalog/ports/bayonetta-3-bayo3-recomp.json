@@ -6,6 +6,13 @@
     "name": "Bayonetta 3 / Bayonetta 3 Recomp (aoxzh)",
     "summary": "Bayonetta 3 PC, Steam Deck and Android native port: static ARM-to-C++ recompiler, Horizon/NVN runtime and Vulkan backend. No emulator; bring your own 1.2.0 game files.",
     "issue_number": 7251,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bayonetta-3",
+      "evidence_urls": ["https://github.com/aoxzh/bayo3-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Bayonetta 3"
   }
 }

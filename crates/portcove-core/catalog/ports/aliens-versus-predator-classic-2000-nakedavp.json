@@ -6,6 +6,13 @@
     "name": "Aliens versus Predator Classic 2000 / NakedAVP",
     "summary": "NakedAVP is a port of Aliens vs Predator Classic (2000) to modern systems, based on the icculus port for Linux, macOS and Windows using SDL3",
     "issue_number": 5759,
-    "listed_at": "2026-11-24"
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aliens-versus-predator-classic-2000",
+      "evidence_urls": ["https://github.com/atsb/NakedAVP"],
+      "source_editions": []
+    },
+    "original_game_title": "Aliens versus Predator Classic 2000"
   }
 }
