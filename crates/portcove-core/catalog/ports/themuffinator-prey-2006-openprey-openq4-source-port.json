@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "themuffinator-prey-2006-openprey-openq4-source-port",
+    "project_url": "https://github.com/themuffinator/openPREY",
+    "name": "PREY (2006 PC) / openPREY modern idTech4 source-port",
+    "summary": "Native PC port of PREY (2006 PC).",
+    "issue_number": 5025,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "prey",
+      "evidence_urls": ["https://github.com/themuffinator/openPREY"],
+      "source_editions": []
+    },
+    "original_game_title": "Prey"
+  }
+}

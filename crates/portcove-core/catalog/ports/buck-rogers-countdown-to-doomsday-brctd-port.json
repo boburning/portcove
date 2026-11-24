@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "buck-rogers-countdown-to-doomsday-brctd-port",
+    "project_url": "https://github.com/abnotus/brctd-port",
+    "name": "Buck Rogers: Countdown to Doomsday / brctd-port",
+    "summary": "A native engine for Countdown to Doomsday (DOS, 1990): plays your own copy on Windows and Linux",
+    "issue_number": 5565,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "buck-rogers-countdown-to-doomsday",
+      "evidence_urls": ["https://github.com/abnotus/brctd-port"],
+      "source_editions": []
+    },
+    "original_game_title": "Buck Rogers: Countdown to Doomsday"
+  }
+}

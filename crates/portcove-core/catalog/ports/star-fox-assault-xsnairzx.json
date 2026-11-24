@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-fox-assault-xsnairzx",
+    "project_url": "https://github.com/xSNAIRZx/star-fox-assault-recomp",
+    "name": "Star Fox Assault / xSNAIRZx",
+    "summary": "Experimental native Star Fox Assault launcher for Windows. Build locally from your own USA ISO/CISO.",
+    "issue_number": 5970,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-assault",
+      "evidence_urls": ["https://github.com/xSNAIRZx/star-fox-assault-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Star Fox Assault"
+  }
+}

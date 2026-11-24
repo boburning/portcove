@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marciliofilho-kirbys-dream-land-3-snes-usa-static",
+    "project_url": "https://github.com/marciliofilho/KirbysDreamLand3Recomp",
+    "name": "Kirby's Dream Land 3 (SNES USA) / marciliofilho snesrecomp",
+    "summary": "Native static recompilation of Kirby's Dream Land 3 (USA) for PC, built on snesrecomp and recomp-ui.",
+    "issue_number": 4823,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kirbys-dream-land-3",
+      "evidence_urls": ["https://github.com/marciliofilho/KirbysDreamLand3Recomp"],
+      "source_editions": [
+        {
+          "id": "kirbys-dream-land-3-super-nintendo",
+          "title": "Kirby's Dream Land 3 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/marciliofilho/KirbysDreamLand3Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Kirby's Dream Land 3"
+  }
+}

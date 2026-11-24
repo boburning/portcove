@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "touhou-6-the-embodiment-of-scarlet-devil-th06-sdl2",
+    "project_url": "https://github.com/CNTianQi233/th06-sdl2",
+    "name": "Touhou 6: The Embodiment of Scarlet Devil / th06-sdl2 (CNTianQi233)",
+    "summary": "Rebuild the th06 decompilation project based on SDL2 and OpenGL by decoupling the original's low-level dependency on Direct3D 8, achieving modernization and cross-platform compatibility for the game engine.",
+    "issue_number": 7057,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-6-the-embodiment-of-scarlet-devil",
+      "evidence_urls": ["https://github.com/CNTianQi233/th06-sdl2"],
+      "source_editions": []
+    },
+    "original_game_title": "Touhou 6: The Embodiment of Scarlet Devil"
+  }
+}

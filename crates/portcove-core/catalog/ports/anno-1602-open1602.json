@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "anno-1602-open1602",
+    "project_url": "https://github.com/x4rd4s/open1602",
+    "name": "Anno 1602 / Open1602",
+    "summary": "Open-Source engine replacement for Anno 1602 - with modern features and moddability",
+    "issue_number": 5396,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "anno-1602",
+      "evidence_urls": ["https://github.com/x4rd4s/open1602"],
+      "source_editions": []
+    },
+    "original_game_title": "Anno 1602"
+  }
+}

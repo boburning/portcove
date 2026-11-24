@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "apocalypse-pal-rfarrow9",
+    "project_url": "https://github.com/RFarrow9/ApocalypseRecomp",
+    "name": "Apocalypse / RFarrow9 PAL Recompiled",
+    "summary": "Apocalypse: Recompiled for windows",
+    "issue_number": 5590,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "apocalypse",
+      "evidence_urls": ["https://github.com/RFarrow9/ApocalypseRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Apocalypse"
+  }
+}

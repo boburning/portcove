@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "colin-mcrae-rally-rea-native-recompilation",
+    "project_url": "https://github.com/akitaonrails/rea-colin-mcrae-recomp",
+    "name": "Colin McRae Rally / ReA native recompilation",
+    "summary": "Experimental attempt at using REA to recreate the original Colin McRae Rally in Rust",
+    "issue_number": 5814,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "colin-mcrae-rally",
+      "evidence_urls": ["https://github.com/akitaonrails/rea-colin-mcrae-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Colin McRae Rally"
+  }
+}

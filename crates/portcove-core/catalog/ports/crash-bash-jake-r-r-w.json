@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-bash-jake-r-r-w",
+    "project_url": "https://github.com/jake-r-r-w/crash_bash_decomp",
+    "name": "Crash Bash / jake-r-r-w",
+    "summary": "A vibe decomp of crash bash, disk 2 disk. also Windows, Linux and Android port",
+    "issue_number": 5526,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bash",
+      "evidence_urls": ["https://github.com/jake-r-r-w/crash_bash_decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Bash"
+  }
+}

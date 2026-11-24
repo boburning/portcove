@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-luminoveau-doom",
+    "project_url": "https://github.com/BernardV/luminoveau-doom",
+    "name": "Doom / Luminoveau Doom",
+    "summary": "DOOM (linuxdoom-1.10) ported to the Luminoveau engine with a GPU renderer — full-window 3D, macOS / Web (WebGPU + installable PWA) / Windows, with touch controls.",
+    "issue_number": 6082,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": ["https://github.com/BernardV/luminoveau-doom"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

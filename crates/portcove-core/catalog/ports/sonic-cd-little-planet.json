@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-cd-little-planet",
+    "project_url": "https://github.com/carl0srmz/littleplanet",
+    "name": "Sonic the Hedgehog CD (Mega CD) / Little Planet",
+    "summary": "Sonic the Hedgehog CD recompilation",
+    "issue_number": 5996,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-cd",
+      "evidence_urls": ["https://github.com/carl0srmz/littleplanet"],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic CD"
+  }
+}

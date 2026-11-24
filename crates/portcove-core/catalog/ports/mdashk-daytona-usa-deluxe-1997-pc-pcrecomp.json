@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mdashk-daytona-usa-deluxe-1997-pc-pcrecomp",
+    "project_url": "https://github.com/MDashK/Daytona-USA-Deluxe-Recomp",
+    "name": "Daytona USA Deluxe (1997 PC) / MDashK PS Vita and Windows pcrecomp",
+    "summary": "A native port of Daytona USA Deluxe to the PlayStation Vita and Windows.",
+    "issue_number": 6441,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "daytona-usa-deluxe",
+      "evidence_urls": ["https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"],
+      "source_editions": [
+        {
+          "id": "daytona-usa-deluxe-playstation",
+          "title": "Daytona USA Deluxe (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/MDashK/Daytona-USA-Deluxe-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Daytona USA Deluxe"
+  }
+}

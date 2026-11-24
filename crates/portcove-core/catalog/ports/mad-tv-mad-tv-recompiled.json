@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mad-tv-mad-tv-recompiled",
+    "project_url": "https://github.com/dennisbohn/madtv-recompiled",
+    "name": "Mad TV / Mad TV Recompiled",
+    "summary": "A native Windows and Linux port of the DOS game Mad TV (Rainbow Arts, 1991)",
+    "issue_number": 5773,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mad-tv",
+      "evidence_urls": ["https://github.com/dennisbohn/madtv-recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Mad TV"
+  }
+}

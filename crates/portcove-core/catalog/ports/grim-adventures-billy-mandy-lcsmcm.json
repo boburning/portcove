@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grim-adventures-billy-mandy-lcsmcm",
+    "project_url": "https://github.com/lcsmcm/re-adventures-billy-mandy",
+    "name": "The Grim Adventures of Billy & Mandy / lcsmcm",
+    "summary": "Port nativo para PC de The Grim Adventures of Billy & Mandy (PS2), a 60 fps. O launcher prepara o jogo a partir da sua própria ISO. Projeto de fã: não contém o jogo.",
+    "issue_number": 5618,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-grim-adventures-of-billy-mandy",
+      "evidence_urls": ["https://github.com/lcsmcm/re-adventures-billy-mandy"],
+      "source_editions": [
+        {
+          "id": "the-grim-adventures-of-billy-mandy-playstation-2",
+          "title": "The Grim Adventures of Billy & Mandy (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/lcsmcm/re-adventures-billy-mandy"]
+        }
+      ]
+    },
+    "original_game_title": "The Grim Adventures of Billy & Mandy"
+  }
+}

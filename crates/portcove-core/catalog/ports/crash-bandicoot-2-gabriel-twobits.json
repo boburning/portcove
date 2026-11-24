@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-bandicoot-2-gabriel-twobits",
+    "project_url": "https://github.com/gabriel-twobits/crash2-pc",
+    "name": "Crash Bandicoot 2: Cortex Strikes Back / Gabriel-TwoBits",
+    "summary": "native pc port of crash bandicoot 2, built from the crash2-decomp C; bring your own disc.",
+    "issue_number": 5525,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot-2-cortex-strikes-back",
+      "evidence_urls": ["https://github.com/gabriel-twobits/crash2-pc"],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Bandicoot 2: Cortex Strikes Back"
+  }
+}

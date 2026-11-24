@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sin-sin-engine",
+    "project_url": "https://github.com/shavargo/sin-engine",
+    "name": "SiN / SiN Engine",
+    "summary": "Open-source engine chassis for SiN 1 Multiplayer / SiN Gold based on Quake II",
+    "issue_number": 5787,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin",
+      "evidence_urls": ["https://github.com/shavargo/sin-engine"],
+      "source_editions": []
+    },
+    "original_game_title": "SiN"
+  }
+}

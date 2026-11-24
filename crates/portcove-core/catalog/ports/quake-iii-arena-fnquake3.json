@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-iii-arena-fnquake3",
+    "project_url": "https://github.com/themuffinator/FnQ3",
+    "name": "Quake III Arena / FnQuake3",
+    "summary": "FnQ3 • Fappin' Quake 3 • Modernized sourceport for QUAKE III: ARENA",
+    "issue_number": 6065,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-iii-arena",
+      "evidence_urls": ["https://github.com/themuffinator/FnQ3"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake III Arena"
+  }
+}

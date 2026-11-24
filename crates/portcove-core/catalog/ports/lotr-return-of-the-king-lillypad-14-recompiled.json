@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lotr-return-of-the-king-lillypad-14-recompiled",
+    "project_url": "https://github.com/Lillypad-14/rotk-recompiled",
+    "name": "The Lord of the Rings: The Return of the King / Lillypad-14",
+    "summary": "Native PC recompilation of LOTR: Return of the King (GBA) with the ROTK Expanded mod built in: GBA limits removed, HD audio and icons, 60 fps, widescreen, split-screen co-op, Two Towers hero import",
+    "issue_number": 5611,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-return-of-the-king-game-boy-advance",
+      "evidence_urls": ["https://github.com/Lillypad-14/rotk-recompiled"],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-return-of-the-king-game-boy-advance",
+          "title": "The Lord of the Rings: The Return of the King (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/Lillypad-14/rotk-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "The Lord of the Rings: The Return of the King (Game Boy Advance)"
+  }
+}

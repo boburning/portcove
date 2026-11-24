@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fallout-new-vegas-nvforever",
+    "project_url": "https://github.com/LootJunkieAzza/NVForever",
+    "name": "Fallout: New Vegas / NVForever",
+    "summary": "NVForever Rebuilt New Vegas Game Engine in Rust",
+    "issue_number": 5725,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout-new-vegas",
+      "evidence_urls": ["https://github.com/LootJunkieAzza/NVForever"],
+      "source_editions": []
+    },
+    "original_game_title": "Fallout: New Vegas"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "trials-hd-standalone-installer",
+    "project_url": "https://github.com/trev82usa/TrialsHD-Recomp",
+    "name": "Trials HD / standalone installer",
+    "summary": "Static recompilation of the Xbox 360 game Trials HD.",
+    "issue_number": 6559,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "trials-hd",
+      "evidence_urls": ["https://github.com/trev82usa/TrialsHD-Recomp"],
+      "source_editions": [
+        {
+          "id": "trials-hd-xbox-360",
+          "title": "Trials HD (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/trev82usa/TrialsHD-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Trials HD"
+  }
+}

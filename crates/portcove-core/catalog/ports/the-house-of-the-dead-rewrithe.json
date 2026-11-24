@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-house-of-the-dead-rewrithe",
+    "project_url": "https://github.com/TawhidI-602/The-House-of-the-Dead-ReWrithe",
+    "name": "The House of the Dead: ReWrithe",
+    "summary": "The House of the Dead: ReWrithe - a rewrite of the arcade game and its 1998 PC port combined",
+    "issue_number": 5493,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-house-of-the-dead-rewrithe",
+      "evidence_urls": ["https://github.com/TawhidI-602/The-House-of-the-Dead-ReWrithe"],
+      "source_editions": []
+    },
+    "original_game_title": "The House of the Dead: ReWrithe"
+  }
+}

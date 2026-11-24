@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-resident-evil-darkside-chronicles-wii-sbde08",
+    "project_url": "https://github.com/darkuni/resident-evil-darkside-chronicles-recomp",
+    "name": "Resident Evil: The Darkside Chronicles (Wii NTSC-U SBDE08) / darkuni recomp",
+    "summary": "Static recompilation of Resident Evil: The Darkside Chronicles (Wii).",
+    "issue_number": 5314,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-the-darkside-chronicles",
+      "evidence_urls": ["https://github.com/darkuni/resident-evil-darkside-chronicles-recomp"],
+      "source_editions": [
+        {
+          "id": "resident-evil-the-darkside-chronicles-wii",
+          "title": "Resident Evil: The Darkside Chronicles (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/darkuni/resident-evil-darkside-chronicles-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Resident Evil: The Darkside Chronicles"
+  }
+}

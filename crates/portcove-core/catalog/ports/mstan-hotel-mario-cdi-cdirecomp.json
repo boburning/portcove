@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-hotel-mario-cdi-cdirecomp",
+    "project_url": "https://github.com/mstan/HotelMarioRecomp",
+    "name": "Hotel Mario (Philips CD-i USA) / mstan HotelMarioRecomp",
+    "summary": "Static recompilation of Hotel Mario (Philips CD-i, USA) for Windows. Requires your own copy of the original game.",
+    "issue_number": 4283,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hotel-mario",
+      "evidence_urls": ["https://github.com/mstan/HotelMarioRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Hotel Mario"
+  }
+}

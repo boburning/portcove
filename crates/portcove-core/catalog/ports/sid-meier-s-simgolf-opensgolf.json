@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-simgolf-opensgolf",
+    "project_url": "https://github.com/crspytopgn/opensgolf",
+    "name": "Sid Meier's SimGolf / OpenSGolf",
+    "summary": "An open source game engine that plays Sid Meier’s SimGolf (2002). Windows, macOS, Linux, Android and the browser.",
+    "issue_number": 5477,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-simgolf",
+      "evidence_urls": ["https://github.com/crspytopgn/opensgolf"],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's SimGolf"
+  }
+}

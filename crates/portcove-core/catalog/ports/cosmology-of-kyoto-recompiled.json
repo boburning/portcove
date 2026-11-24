@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cosmology-of-kyoto-recompiled",
+    "project_url": "https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled",
+    "name": "Cosmology of Kyoto / Cosmology of Kyoto Recompiled",
+    "summary": "A recompilation of Cosmology of Kyoto (1993) for modern Windows, MacOS, and Switch",
+    "issue_number": 6084,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cosmology-of-kyoto",
+      "evidence_urls": ["https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"],
+      "source_editions": [
+        {
+          "id": "cosmology-of-kyoto-nintendo-switch",
+          "title": "Cosmology of Kyoto (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/seamusduncmcgrath/CosmologyOfKyoto-Recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Cosmology of Kyoto"
+  }
+}

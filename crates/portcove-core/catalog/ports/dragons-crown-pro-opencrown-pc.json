@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragons-crown-pro-opencrown-pc",
+    "project_url": "https://github.com/Nezara/OpenCrown-PC",
+    "name": "Dragon's Crown Pro / Nezara OpenCrown PC",
+    "summary": "Play Dragon's Crown Pro natively on Windows from your own PS4 dump: launcher, PC renderer, KB/M, PS4-compatible saves and peer-to-peer online co-op.",
+    "issue_number": 6012,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-s-crown-pro-ps4",
+      "evidence_urls": ["https://github.com/Nezara/OpenCrown-PC"],
+      "source_editions": [
+        {
+          "id": "dragon-s-crown-pro-ps4-playstation-4",
+          "title": "Dragon's Crown Pro (PS4) (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/Nezara/OpenCrown-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Dragon's Crown Pro (PS4)"
+  }
+}

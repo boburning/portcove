@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-iii-remastered-xpxavierx-macos",
+    "project_url": "https://github.com/xPXavierx/gow3-macos-arm64",
+    "name": "God of War III Remastered / xPXavierx Apple Silicon",
+    "summary": "Experimental macOS Apple Silicon port of God of War III Remastered. Static ARM64 recompilation, Vulkan/MoltenVK renderer and native launcher. Requires your own game dump and local AOT preparation. No game data or generated game code included.",
+    "issue_number": 6699,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-iii-remastered",
+      "evidence_urls": ["https://github.com/xPXavierx/gow3-macos-arm64"],
+      "source_editions": []
+    },
+    "original_game_title": "God of War III Remastered"
+  }
+}

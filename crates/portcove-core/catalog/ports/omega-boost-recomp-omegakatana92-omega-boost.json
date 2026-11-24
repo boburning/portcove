@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omega-boost-recomp-omegakatana92-omega-boost",
+    "project_url": "https://github.com/omegakatana92/Omega-Boost-Recomp",
+    "name": "Omega Boost / Omega-Boost-Recomp (omegakatana92)",
+    "summary": "A complete and playable PSX recompilation of Omega Boost, the 1999 3D action shooter developed by Polyphony Digital. Built using mstan's PSXRecomp tool. No original ROM, BIN, CUE, disc image, or copyrighted game assets are included.",
+    "issue_number": 3538,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "omega-boost",
+      "evidence_urls": ["https://github.com/omegakatana92/Omega-Boost-Recomp"],
+      "source_editions": [
+        {
+          "id": "omega-boost-playstation",
+          "title": "Omega Boost (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/omegakatana92/Omega-Boost-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Omega Boost"
+  }
+}

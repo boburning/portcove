@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "voyeur-tools81",
+    "project_url": "https://github.com/tools81/voyeur-static-recomp",
+    "name": "Voyeur / tools81",
+    "summary": "Windows port of the Philips CD-i game Voyeur (static recompilation + HD edition). Bring your own disc.",
+    "issue_number": 5983,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "voyeur",
+      "evidence_urls": ["https://github.com/tools81/voyeur-static-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Voyeur"
+  }
+}

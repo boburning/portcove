@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-clank-ps2-rac1-native",
+    "project_url": "https://github.com/RAC-Native/rac1-native-game",
+    "name": "Ratchet & Clank (PS2) / rac1-native (RAC-Native)",
+    "summary": "Ratchet And Clank 1 (PS2) Native Port",
+    "issue_number": 6910,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": ["https://github.com/RAC-Native/rac1-native-game"],
+      "source_editions": [
+        {
+          "id": "ratchet-and-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/RAC-Native/rac1-native-game"]
+        }
+      ]
+    },
+    "original_game_title": "Ratchet & Clank"
+  }
+}

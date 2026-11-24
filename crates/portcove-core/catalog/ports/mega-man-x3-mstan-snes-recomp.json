@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mega-man-x3-mstan-snes-recomp",
+    "project_url": "https://github.com/mstan/MegamanX3SNESRecomp",
+    "name": "Mega Man X3 / mstan",
+    "summary": "Static recompilation of Mega Man X3 (SNES) via snesrecomp",
+    "issue_number": 5696,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x3",
+      "evidence_urls": ["https://github.com/mstan/MegamanX3SNESRecomp"],
+      "source_editions": [
+        {
+          "id": "mega-man-x3-super-nintendo",
+          "title": "Mega Man X3 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/mstan/MegamanX3SNESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Mega Man X3"
+  }
+}

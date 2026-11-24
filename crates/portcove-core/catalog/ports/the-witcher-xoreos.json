@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-witcher-xoreos",
+    "project_url": "https://github.com/xoreos/xoreos",
+    "name": "The Witcher / xoreos (xoreos)",
+    "summary": "A reimplementation of BioWare's Aurora engine (and derivatives). Pre-pre-alpha :P",
+    "issue_number": 7312,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-witcher",
+      "evidence_urls": ["https://github.com/xoreos/xoreos"],
+      "source_editions": []
+    },
+    "original_game_title": "The Witcher"
+  }
+}

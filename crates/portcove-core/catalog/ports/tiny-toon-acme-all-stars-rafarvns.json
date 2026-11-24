@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tiny-toon-acme-all-stars-rafarvns",
+    "project_url": "https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native",
+    "name": "Tiny Toon Adventures: ACME All-Stars / rafarvns",
+    "summary": "Native PC port of Tiny Toon Adventures: ACME All-Stars (Mega Drive), statically recompiled and built from your own ROM. Two players, remappable controls, RecompLauncher support.",
+    "issue_number": 5993,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tiny-toon-adventures-acme-all-stars",
+      "evidence_urls": ["https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"],
+      "source_editions": [
+        {
+          "id": "tiny-toon-adventures-acme-all-stars-mega-drive-genesis",
+          "title": "Tiny Toon Adventures: ACME All-Stars (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": ["https://github.com/rafarvns/Tiny-Toon-Acme-All-Stars---Native"]
+        }
+      ]
+    },
+    "original_game_title": "Tiny Toon Adventures: ACME All-Stars"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tenchu-shinobi-gaisen-fuuzetsu-native-rust-port",
+    "project_url": "https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc",
+    "name": "Tenchu: Shinobi Gaisen / Fuuzetsu native Rust port",
+    "summary": "Native port of the Tenchu: Shinobi Gaisen PS1 game.",
+    "issue_number": 5441,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-shinobi-gaisen",
+      "evidence_urls": ["https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"],
+      "source_editions": [
+        {
+          "id": "tenchu-shinobi-gaisen-playstation",
+          "title": "Tenchu: Shinobi Gaisen (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Fuuzetsu/tenchu-shinobi-gaisen-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Tenchu: Shinobi Gaisen"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-catacomb-ii-catacombsdl",
+    "project_url": "https://github.com/Blzut3/CatacombSDL",
+    "name": "The Catacomb II / CatacombSDL",
+    "summary": "SDL 2 source port for Catacomb II.",
+    "issue_number": 5687,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-ii",
+      "evidence_urls": ["https://github.com/Blzut3/CatacombSDL"],
+      "source_editions": []
+    },
+    "original_game_title": "The Catacomb II"
+  }
+}

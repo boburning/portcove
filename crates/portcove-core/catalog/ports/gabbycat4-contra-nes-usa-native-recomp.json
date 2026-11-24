@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gabbycat4-contra-nes-usa-native-recomp",
+    "project_url": "https://github.com/gabbycat4/ContraRecomp",
+    "name": "Contra (NES USA) / gabbycat4 NESRecomp",
+    "summary": "Native PC port of Contra (NES) with 240 Hz smooth motion. Bring your own ROM.",
+    "issue_number": 6273,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "contra",
+      "evidence_urls": ["https://github.com/gabbycat4/ContraRecomp"],
+      "source_editions": [
+        {
+          "id": "contra-nes",
+          "title": "Contra (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/gabbycat4/ContraRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Contra"
+  }
+}

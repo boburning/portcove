@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marvel-vs-capcom-clash-of-super-heroes-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Marvel-vs-Capcom-Clash-of-Super-Heroes-Recomp",
+    "name": "Marvel vs. Capcom: Clash of Super Heroes / omegakatana92",
+    "summary": "Native PC recomp of Marvel vs. Capcom: Clash of Super Heroes (Capcom 1998, CPS-2; MAME set mvsc, Europe 980123), built with cps2recomp. Playable beta: Windows, Linux and Steam Deck builds with a launcher. No game data included - bring your own ROM set. GPL-3.0.",
+    "issue_number": 5958,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "marvel-vs-capcom-clash-of-super-heroes",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Marvel-vs-Capcom-Clash-of-Super-Heroes-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Marvel vs. Capcom: Clash of Super Heroes"
+  }
+}

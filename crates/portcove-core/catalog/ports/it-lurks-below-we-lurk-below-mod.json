@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "it-lurks-below-we-lurk-below-mod",
+    "project_url": "https://github.com/SourceCodeDeleted/We_Lurk_below_Mod",
+    "name": "It Lurks Below / We Lurk Below Mod",
+    "summary": "Multiplayer mod for it lurks below",
+    "issue_number": 5572,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "it-lurks-below",
+      "evidence_urls": ["https://github.com/SourceCodeDeleted/We_Lurk_below_Mod"],
+      "source_editions": []
+    },
+    "original_game_title": "It Lurks Below"
+  }
+}

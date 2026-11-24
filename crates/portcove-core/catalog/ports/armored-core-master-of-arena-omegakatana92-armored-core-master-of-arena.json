@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "armored-core-master-of-arena-omegakatana92-armored-core-master-of-arena",
+    "project_url": "https://github.com/omegakatana92/Armored-Core-Master-of-Arena",
+    "name": "Armored Core: Master of Arena / Armored-Core-Master-of-Arena (omegakatana92)",
+    "summary": "Its a fan made port of the psx game armored core master of arena please provide your own rom or iso.",
+    "issue_number": 3520,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-master-of-arena",
+      "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Master-of-Arena"],
+      "source_editions": [
+        {
+          "id": "armored-core-master-of-arena-playstation",
+          "title": "Armored Core: Master of Arena (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/omegakatana92/Armored-Core-Master-of-Arena"]
+        }
+      ]
+    },
+    "original_game_title": "Armored Core: Master of Arena"
+  }
+}

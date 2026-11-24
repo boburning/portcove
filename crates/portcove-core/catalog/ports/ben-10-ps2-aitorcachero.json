@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ben-10-ps2-aitorcachero",
+    "project_url": "https://github.com/aitorcachero/Ben10-Recomp",
+    "name": "Ben 10 Protector of Earth PS2 / aitorcachero",
+    "summary": "Ben 10: Protector of Earth (PS2) - Port nativo y entorno moderno para PC con graficos 4K UHD, 60 FPS, 16:9 panoramico y launcher estilo Terranigma/Snatcher Recomp",
+    "issue_number": 5614,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-protector-of-earth-ps2",
+      "evidence_urls": ["https://github.com/aitorcachero/Ben10-Recomp"],
+      "source_editions": [
+        {
+          "id": "ben-10-protector-of-earth-ps2-playstation-2",
+          "title": "Ben 10 Protector of Earth PS2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/aitorcachero/Ben10-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Ben 10 Protector of Earth PS2"
+  }
+}

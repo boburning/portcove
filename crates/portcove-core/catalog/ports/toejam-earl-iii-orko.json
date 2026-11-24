@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "toejam-earl-iii-orko",
+    "project_url": "https://github.com/orkosoftware/tje3-recomp",
+    "name": "ToeJam & Earl III: Mission to Earth / orko",
+    "summary": "Unofficial native PC recompilation of an original Xbox game. Contains no game code or data; you need your own disc.",
+    "issue_number": 5921,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "toejam-and-earl-iii-mission-to-earth",
+      "evidence_urls": ["https://github.com/orkosoftware/tje3-recomp"],
+      "source_editions": [
+        {
+          "id": "toejam-and-earl-iii-mission-to-earth-xbox",
+          "title": "ToeJam & Earl III: Mission to Earth (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/orkosoftware/tje3-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "ToeJam & Earl III: Mission to Earth"
+  }
+}

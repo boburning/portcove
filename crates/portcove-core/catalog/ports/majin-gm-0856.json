@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "majin-gm-0856",
+    "project_url": "https://github.com/GM-0856/majin-recompile",
+    "name": "Majin and the Forsaken Kingdom / GM-0856",
+    "summary": "Unofficial Windows recompilation of Majin and the Forsaken Kingdom (Xbox 360). Experimental Alpha; provide your own supported game files.",
+    "issue_number": 5979,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "majin-and-the-forsaken-kingdom",
+      "evidence_urls": ["https://github.com/GM-0856/majin-recompile"],
+      "source_editions": [
+        {
+          "id": "majin-and-the-forsaken-kingdom-xbox-360",
+          "title": "Majin and the Forsaken Kingdom (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/GM-0856/majin-recompile"]
+        }
+      ]
+    },
+    "original_game_title": "Majin and the Forsaken Kingdom"
+  }
+}

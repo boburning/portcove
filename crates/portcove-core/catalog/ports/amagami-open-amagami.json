@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "amagami-open-amagami",
+    "project_url": "https://github.com/hokagocafe/open-amagami",
+    "name": "Amagami ebKore+ / open-amagami",
+    "summary": "Play Amagami (PS Vita) on Windows from your own copy of the game. A non-profit fan project.",
+    "issue_number": 6583,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "amagami-ebkore",
+      "evidence_urls": ["https://github.com/hokagocafe/open-amagami"],
+      "source_editions": []
+    },
+    "original_game_title": "Amagami ebKore+"
+  }
+}

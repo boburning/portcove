@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "amped-ampedup",
+    "project_url": "https://github.com/AMPEDUP-2001/AMPEDUP",
+    "name": "Amped: Freestyle Snowboarding / AMPEDUP",
+    "summary": "Unofficial Windows Xbox static recompilation of Amped: Freestyle Snowboarding",
+    "issue_number": 6625,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-freestyle-snowboarding",
+      "evidence_urls": ["https://github.com/AMPEDUP-2001/AMPEDUP"],
+      "source_editions": [
+        {
+          "id": "amped-freestyle-snowboarding-xbox",
+          "title": "Amped: Freestyle Snowboarding (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/AMPEDUP-2001/AMPEDUP"]
+        }
+      ]
+    },
+    "original_game_title": "Amped: Freestyle Snowboarding"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jet-force-gemini-jet-force-capricorn",
+    "project_url": "https://github.com/riseio/Jet-Force-Capricorn",
+    "name": "Jet Force Gemini / Jet Force Capricorn (riseio)",
+    "summary": "Children and Dog go Pew Pew (CadgPP) - A static recompilation project of the N64 game Jet Force Gemini",
+    "issue_number": 7185,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": ["https://github.com/riseio/Jet-Force-Capricorn"],
+      "source_editions": [
+        {
+          "id": "jet-force-gemini-nintendo-64",
+          "title": "Jet Force Gemini (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/riseio/Jet-Force-Capricorn"]
+        }
+      ]
+    },
+    "original_game_title": "Jet Force Gemini"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "postal-2-p2reimplemented",
+    "project_url": "https://github.com/p2HookedDev/Postal-2-Reimplemented",
+    "name": "POSTAL 2 / P2Reimplemented",
+    "summary": "Open source reimplementation of the Postal 2 engine using Rust and Bevy",
+    "issue_number": 5842,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "postal-2",
+      "evidence_urls": ["https://github.com/p2HookedDev/Postal-2-Reimplemented"],
+      "source_editions": []
+    },
+    "original_game_title": "POSTAL 2"
+  }
+}

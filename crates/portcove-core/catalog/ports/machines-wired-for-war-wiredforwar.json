@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "machines-wired-for-war-wiredforwar",
+    "project_url": "https://github.com/WiredForWar/machines",
+    "name": "Machines: Wired for War / WiredForWar",
+    "summary": "Community fork of Machines: Wired for War",
+    "issue_number": 5831,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "machines-wired-for-war",
+      "evidence_urls": ["https://github.com/WiredForWar/machines"],
+      "source_editions": []
+    },
+    "original_game_title": "Machines: Wired for War"
+  }
+}

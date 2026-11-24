@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wolfenstein-3d-rwolf",
+    "project_url": "https://github.com/Wynplusplus/RWOLF",
+    "name": "Wolfenstein 3D / RWOLF",
+    "summary": "Clean-room Wolfenstein 3D reimplementation in Bevy. AI-generated; no game data included.",
+    "issue_number": 6123,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-3d",
+      "evidence_urls": ["https://github.com/Wynplusplus/RWOLF"],
+      "source_editions": []
+    },
+    "original_game_title": "Wolfenstein 3D"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alien-resurrection-heromachine",
+    "project_url": "https://github.com/Heromachine/AlienResurrection-Recompilation",
+    "name": "Alien Resurrection / Heromachine RecompOne port",
+    "summary": "Static recompilation of Alien Resurrection for Linux.",
+    "issue_number": 6042,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": ["https://github.com/Heromachine/AlienResurrection-Recompilation"],
+      "source_editions": []
+    },
+    "original_game_title": "Alien Resurrection"
+  }
+}

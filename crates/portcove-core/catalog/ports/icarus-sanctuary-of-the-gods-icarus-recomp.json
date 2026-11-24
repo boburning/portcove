@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "icarus-sanctuary-of-the-gods-icarus-recomp",
+    "project_url": "https://github.com/ACR-GD/icarus-recomp",
+    "name": "Icarus: Sanctuary of the Gods / Icarus Recomp",
+    "summary": "Static recompilation of Icarus: Sanctuary of the Gods for Windows, Linux and macOS.",
+    "issue_number": 5571,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "icarus-sanctuary-of-the-gods",
+      "evidence_urls": ["https://github.com/ACR-GD/icarus-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Icarus: Sanctuary of the Gods"
+  }
+}

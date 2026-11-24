@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-10000-bullets-ps2-pal-sles53481",
+    "project_url": "https://github.com/otavix010/10000-bullets-pc",
+    "name": "10,000 Bullets (PS2 Europe SLES-53481) / otavix010 research recomp",
+    "summary": "10.000 Bullets (PS2, PAL): port nativo para PC por recompilação estática (PS2Recomp). Gera a partir da sua ISO. Em desenvolvimento.",
+    "issue_number": 6830,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "10-000-bullets",
+      "evidence_urls": ["https://github.com/otavix010/10000-bullets-pc"],
+      "source_editions": [
+        {
+          "id": "10-000-bullets-playstation-2",
+          "title": "10,000 Bullets (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/otavix010/10000-bullets-pc"]
+        }
+      ]
+    },
+    "original_game_title": "10,000 Bullets"
+  }
+}

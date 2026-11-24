@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "adhd-tism-dave-mirra-freestyle-bmx-ps1-slus01026",
+    "project_url": "https://github.com/ADHD-TISM/Dave-Mirra-Recomp",
+    "name": "Dave Mirra Freestyle BMX (PS1 USA SLUS-01026) / ADHD-TISM",
+    "summary": "Static recompilation of Dave Mirra Freestyle BMX (PS1) for Windows. Bring your own disc image.",
+    "issue_number": 5885,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dave-mirra-freestyle-bmx",
+      "evidence_urls": ["https://github.com/ADHD-TISM/Dave-Mirra-Recomp"],
+      "source_editions": [
+        {
+          "id": "dave-mirra-freestyle-bmx-playstation",
+          "title": "Dave Mirra Freestyle BMX (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/ADHD-TISM/Dave-Mirra-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Dave Mirra Freestyle BMX"
+  }
+}

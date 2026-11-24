@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "american-mcgee-s-alice-looking-glass",
+    "project_url": "https://github.com/looking-glass-project/LookingGlass",
+    "name": "American McGee's Alice / Looking Glass",
+    "summary": "Unofficial American McGee's Alice re-remaster. Play the full 39-visit campaign on Windows in a new Rust engine, with controller support, guided setup and modern display options. Experimental preview; requires separate 2011 game data.",
+    "issue_number": 5761,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "american-mcgees-alice",
+      "evidence_urls": ["https://github.com/looking-glass-project/LookingGlass"],
+      "source_editions": []
+    },
+    "original_game_title": "American McGee's Alice"
+  }
+}

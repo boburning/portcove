@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dreams-to-reality-native-recompilation",
+    "project_url": "https://github.com/jlagedo/dreams-to-reality-re",
+    "name": "Dreams to Reality / native recompilation",
+    "summary": "Static recompilation of Dreams to Reality (Cryo, 1997) for modern PCs: the Windows game lifted to C, with a GPU renderer, SDL3, a disc-image launcher, smooth motion, Cryo's restored level editor and a browser demo. Bring your own discs.",
+    "issue_number": 5570,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dreams-to-reality",
+      "evidence_urls": ["https://github.com/jlagedo/dreams-to-reality-re"],
+      "source_editions": []
+    },
+    "original_game_title": "Dreams to Reality"
+  }
+}

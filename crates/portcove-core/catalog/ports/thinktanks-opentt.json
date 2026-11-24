@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thinktanks-opentt",
+    "project_url": "https://github.com/okkindel/OpenTT",
+    "name": "ThinkTanks / OpenTT",
+    "summary": "OpenTT is an open-source reimplementation of the engine of ThinkTanks, the 2003 tank arena game, written in Rust (wgpu, winit, egui).",
+    "issue_number": 5859,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "thinktanks",
+      "evidence_urls": ["https://github.com/okkindel/OpenTT"],
+      "source_editions": []
+    },
+    "original_game_title": "ThinkTanks"
+  }
+}

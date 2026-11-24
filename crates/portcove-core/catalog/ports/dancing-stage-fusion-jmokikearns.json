@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dancing-stage-fusion-jmokikearns",
+    "project_url": "https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC",
+    "name": "Dancing Stage Fusion PAL / jmokikearns-png",
+    "summary": "Dancing Stage Fusion (PS1, PAL) on modern Windows PCs: the original game recompiled to native code and running inside a modified StepMania 3.95, with HD rendering, dance-pad support, timing tools and extra songs. Includes a builder for an enhanced PS1 disc. Bring your own disc: no game data included.",
+    "issue_number": 5623,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dancing-stage-fusion-pal",
+      "evidence_urls": ["https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"],
+      "source_editions": [
+        {
+          "id": "dancing-stage-fusion-pal-playstation",
+          "title": "Dancing Stage Fusion PAL (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/jmokikearns-png/Dancing-Stage-Fusion-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Dancing Stage Fusion PAL"
+  }
+}

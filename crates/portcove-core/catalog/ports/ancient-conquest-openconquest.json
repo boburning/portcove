@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ancient-conquest-openconquest",
+    "project_url": "https://github.com/fmestevez/openconquest",
+    "name": "Ancient Conquest / OpenConquest",
+    "summary": "Open source reimplementation of Ancient Conquest: Quest for the Golden Fleece (1999 naval RTS) in Rust, using the original game data — faithful gameplay on modern systems and any screen.",
+    "issue_number": 5426,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ancient-conquest",
+      "evidence_urls": ["https://github.com/fmestevez/openconquest"],
+      "source_editions": []
+    },
+    "original_game_title": "Ancient Conquest"
+  }
+}

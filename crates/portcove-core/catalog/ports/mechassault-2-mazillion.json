@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mechassault-2-mazillion",
+    "project_url": "https://github.com/Mazillion/MechAssault2-PC-Recomp",
+    "name": "MechAssault 2: Lone Wolf / MechAssault2-PC-Recomp",
+    "summary": "Unofficial PC port of MechAssault 2: Lone Wolf (Xbox, 2004), built from your own disc. Bot matches and a scenario editor included. No game files.",
+    "issue_number": 6674,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mechassault-2-lone-wolf",
+      "evidence_urls": ["https://github.com/Mazillion/MechAssault2-PC-Recomp"],
+      "source_editions": [
+        {
+          "id": "mechassault-2-lone-wolf-xbox",
+          "title": "MechAssault 2: Lone Wolf (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/Mazillion/MechAssault2-PC-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "MechAssault 2: Lone Wolf"
+  }
+}

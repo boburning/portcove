@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+    "project_url": "https://github.com/cheviman/tmnt-port",
+    "name": "Teenage Mutant Ninja Turtles (1989 Konami arcade, World 4-player set tmnt version X) / cheviman native C decomp",
+    "summary": "A native port of Konami's Teenage Mutant Ninja Turtles (1989 arcade), built on the verified decompilation tmntarcade-decomp: TMNT Arcade, the arcade game 1:1, and Splinter Way, made for home. Windows, Linux, macOS, Android, Nintendo Switch and Anbernic. Bring your own ROM set.",
+    "issue_number": 4431,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "teenage-mutant-ninja-turtles",
+      "evidence_urls": ["https://github.com/cheviman/tmnt-port"],
+      "source_editions": [
+        {
+          "id": "teenage-mutant-ninja-turtles-nintendo-switch",
+          "title": "Teenage Mutant Ninja Turtles (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/cheviman/tmnt-port"]
+        }
+      ]
+    },
+    "original_game_title": "Teenage Mutant Ninja Turtles"
+  }
+}

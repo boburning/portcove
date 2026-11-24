@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midtown-madness-3-mm3-recomp",
+    "project_url": "https://github.com/MattSG/mm3-recomp",
+    "name": "Midtown Madness 3 / Midtown Madness 3 recompilation (MattSG)",
+    "summary": "Installer that builds a native PC version of Midtown Madness 3 for Windows and Linux from your own copy of the game.",
+    "issue_number": 7069,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-3",
+      "evidence_urls": ["https://github.com/MattSG/mm3-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Midtown Madness 3"
+  }
+}

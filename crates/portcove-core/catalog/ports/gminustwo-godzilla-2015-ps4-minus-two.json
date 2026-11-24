@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gminustwo-godzilla-2015-ps4-minus-two",
+    "project_url": "https://github.com/gminustwo/minustwo",
+    "name": "GODZILLA (PS4 2015) / Minus Two (gminustwo)",
+    "summary": "Native PC port of Godzilla (PS4 2015) for Windows and Linux.",
+    "issue_number": 8338,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "godzilla",
+      "evidence_urls": ["https://github.com/gminustwo/minustwo"],
+      "source_editions": [
+        {
+          "id": "godzilla-playstation-4",
+          "title": "GODZILLA (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/gminustwo/minustwo"]
+        }
+      ]
+    },
+    "original_game_title": "GODZILLA"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadow-the-hedgehog-foxworkshop",
+    "project_url": "https://github.com/FoxWorkshop/ShadowRecomp",
+    "name": "Shadow the Hedgehog (ShadowRecomp) / ShadowRecomp",
+    "summary": "An unofficial PC port of the Xbox version of Shadow the Hedgehog, created through the process of static recompilation.",
+    "issue_number": 6666,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-the-hedgehog",
+      "evidence_urls": ["https://github.com/FoxWorkshop/ShadowRecomp"],
+      "source_editions": [
+        {
+          "id": "shadow-the-hedgehog-xbox",
+          "title": "Shadow the Hedgehog (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/FoxWorkshop/ShadowRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Shadow the Hedgehog"
+  }
+}

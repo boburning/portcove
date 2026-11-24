@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midnight-club-los-angeles-renanqueiroz",
+    "project_url": "https://github.com/RenanQueiroz/mcla-recomp",
+    "name": "Midnight Club: Los Angeles Complete Edition / RenanQueiroz",
+    "summary": "Static recompilation of Midnight Club: Los Angeles (Xbox 360) for PC and PS5. No game data included.",
+    "issue_number": 5943,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-los-angeles-complete-edition",
+      "evidence_urls": ["https://github.com/RenanQueiroz/mcla-recomp"],
+      "source_editions": [
+        {
+          "id": "midnight-club-los-angeles-complete-edition-xbox-360",
+          "title": "Midnight Club: Los Angeles - Complete Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/RenanQueiroz/mcla-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Midnight Club: Los Angeles - Complete Edition"
+  }
+}

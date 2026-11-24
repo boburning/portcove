@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "minecraft-beta-1-7-3-rosebed",
+    "project_url": "https://github.com/mdmrk/rosebed",
+    "name": "Minecraft Beta 1.7.3 / Rosebed",
+    "summary": "Minecraft Beta 1.7.3 rewritten from scratch in Zig",
+    "issue_number": 5727,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "minecraft-beta-1-7-3",
+      "evidence_urls": ["https://github.com/mdmrk/rosebed"],
+      "source_editions": []
+    },
+    "original_game_title": "Minecraft Beta 1.7.3"
+  }
+}

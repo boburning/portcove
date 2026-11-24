@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "miguel0827-ratatouille-ps2-native-recomp",
+    "project_url": "https://github.com/Miguel0827/Ratatouille-PC",
+    "name": "Ratatouille (PS2) / Miguel0827 ps2-native-recomp",
+    "summary": "Native PC port of Disney·Pixar Ratatouille (PS2) for Windows and Linux, built from your own disc. Widescreen, 480p, up to 4x resolution, F1 quick menu.",
+    "issue_number": 5315,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratatouille",
+      "evidence_urls": ["https://github.com/Miguel0827/Ratatouille-PC"],
+      "source_editions": [
+        {
+          "id": "ratatouille-playstation-2",
+          "title": "Ratatouille (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/Miguel0827/Ratatouille-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Ratatouille"
+  }
+}

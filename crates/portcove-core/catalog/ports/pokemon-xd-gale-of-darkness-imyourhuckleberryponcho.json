@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-xd-gale-of-darkness-imyourhuckleberryponcho",
+    "project_url": "https://github.com/imyourhuckleberryponcho/Pokemon-XD-PC-Port",
+    "name": "Pokémon XD: Gale of Darkness / imyourhuckleberryponcho",
+    "summary": "Native PC Port for Pokemon XD: Gale of Darkness",
+    "issue_number": 5549,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-xd-gale-of-darkness",
+      "evidence_urls": ["https://github.com/imyourhuckleberryponcho/Pokemon-XD-PC-Port"],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon XD: Gale of Darkness"
+  }
+}

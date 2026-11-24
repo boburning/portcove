@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gex-icebaron-pc-recompiled",
+    "project_url": "https://github.com/IceBaronTwinAcc/gex-pc-recompiled",
+    "name": "Gex / Gex PC Recompiled",
+    "summary": "A static recompilation of the Windows version of Gex (1995) for Windows, macOS, Linux, Android and Dreamcast.",
+    "issue_number": 6089,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gex",
+      "evidence_urls": ["https://github.com/IceBaronTwinAcc/gex-pc-recompiled"],
+      "source_editions": [
+        {
+          "id": "gex-dreamcast",
+          "title": "Gex (Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": ["https://github.com/IceBaronTwinAcc/gex-pc-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Gex"
+  }
+}

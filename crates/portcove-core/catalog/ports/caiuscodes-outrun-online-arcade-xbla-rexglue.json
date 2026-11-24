@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "caiuscodes-outrun-online-arcade-xbla-rexglue",
+    "project_url": "https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp",
+    "name": "OutRun Online Arcade (Xbox360 XBLA) / CaiusCodes ReXGlue",
+    "summary": "Native Windows PC recompilation of OutRun Online Arcade (Xbox 360/XBLA) using ReXGlue. Requires your own copy.",
+    "issue_number": 5319,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": ["https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/CaiusCodes/Outrun-Online-Arcade-XBLA-PC-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "OutRun Online Arcade"
+  }
+}

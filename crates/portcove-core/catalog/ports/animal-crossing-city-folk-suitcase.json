@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "animal-crossing-city-folk-suitcase",
+    "project_url": "https://github.com/Cuyler36/suitcase",
+    "name": "Animal Crossing: City Folk (Suitcase) / suitcase",
+    "summary": "Animal Crossing: City Folk/Animal Crossing: Let's go to the City PC Port through Aurora",
+    "issue_number": 6620,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing-city-folk",
+      "evidence_urls": ["https://github.com/Cuyler36/suitcase"],
+      "source_editions": []
+    },
+    "original_game_title": "Animal Crossing: City Folk"
+  }
+}

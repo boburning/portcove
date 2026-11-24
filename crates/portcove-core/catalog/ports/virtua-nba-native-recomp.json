@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtua-nba-native-recomp",
+    "project_url": "https://github.com/PocketLucho/Virtua-NBA---Recompilation",
+    "name": "Virtua NBA / recomp",
+    "summary": "Installer that builds a native PC version of Virtua NBA from your own copy of the game.",
+    "issue_number": 6550,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-nba",
+      "evidence_urls": ["https://github.com/PocketLucho/Virtua-NBA---Recompilation"],
+      "source_editions": []
+    },
+    "original_game_title": "Virtua NBA"
+  }
+}

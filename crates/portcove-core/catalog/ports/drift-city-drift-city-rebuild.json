@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drift-city-drift-city-rebuild",
+    "project_url": "https://github.com/MagicIbrar/driftcity-unity",
+    "name": "Drift City / Drift City Rebuild",
+    "summary": "Drift City rebuilt in Unity from the original exe. Code only: runs on your own copy of the game files.",
+    "issue_number": 6718,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "drift-city",
+      "evidence_urls": ["https://github.com/MagicIbrar/driftcity-unity"],
+      "source_editions": []
+    },
+    "original_game_title": "Drift City"
+  }
+}

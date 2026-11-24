@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-v-modernized-engine",
+    "project_url": "https://github.com/synthwave-pixel/ultima5",
+    "name": "Ultima V / Modernized Engine",
+    "summary": "Modernized engine for Ultima V",
+    "issue_number": 5748,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-v",
+      "evidence_urls": ["https://github.com/synthwave-pixel/ultima5"],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima V"
+  }
+}

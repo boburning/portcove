@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jungle-strike-snes-junior-jones",
+    "project_url": "https://github.com/Junior-Jones/Jungle-Strike-SNES-Static-Recomp",
+    "name": "Jungle Strike / Junior-Jones",
+    "summary": "Static recompilation of Jungle Strike (SNES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 5962,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jungle-strike",
+      "evidence_urls": ["https://github.com/Junior-Jones/Jungle-Strike-SNES-Static-Recomp"],
+      "source_editions": [
+        {
+          "id": "jungle-strike-super-nintendo",
+          "title": "Jungle Strike (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/Junior-Jones/Jungle-Strike-SNES-Static-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Jungle Strike"
+  }
+}

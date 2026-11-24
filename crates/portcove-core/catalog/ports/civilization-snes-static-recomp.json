@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "civilization-snes-static-recomp",
+    "project_url": "https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp",
+    "name": "Sid Meier's Civilization / Junior-Jones",
+    "summary": "Static recompilation of Civilization (SNES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 5906,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-civilization",
+      "evidence_urls": ["https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"],
+      "source_editions": [
+        {
+          "id": "sid-meiers-civilization-super-nintendo",
+          "title": "Sid Meier's Civilization (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/Junior-Jones/Civilization-SNES-Static-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Sid Meier's Civilization"
+  }
+}

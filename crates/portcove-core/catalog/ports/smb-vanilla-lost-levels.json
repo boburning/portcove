@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "smb-vanilla-lost-levels",
+    "project_url": "https://github.com/nukep/SMB-Vanilla",
+    "name": "Super Mario Bros.: The Lost Levels (Famicom Disk System) / SMB-Vanilla",
+    "summary": "A C decompilation and port of the NES games \"Super Mario Bros\" and \"Super Mario Bros: The Lost Levels\"",
+    "issue_number": 6769,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-the-lost-levels",
+      "evidence_urls": ["https://github.com/nukep/SMB-Vanilla"],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-the-lost-levels-nes",
+          "title": "Super Mario Bros.: The Lost Levels (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/nukep/SMB-Vanilla"]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Bros.: The Lost Levels"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yoshis-island-zaxaerith",
+    "project_url": "https://github.com/Zaxaerith/SuperMarioWorld2YoshisIslandRecomp",
+    "name": "Yoshi's Island / Zaxaerith",
+    "summary": "Super Mario World 2 Yoshi's Island for the Super Nintendo using snesrecomp",
+    "issue_number": 5932,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshis-island",
+      "evidence_urls": ["https://github.com/Zaxaerith/SuperMarioWorld2YoshisIslandRecomp"],
+      "source_editions": [
+        {
+          "id": "yoshis-island-super-nintendo",
+          "title": "Yoshi's Island (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/Zaxaerith/SuperMarioWorld2YoshisIslandRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Yoshi's Island"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nfs-hot-pursuit-2-ps2-zloikiller",
+    "project_url": "https://github.com/ZloiKILLER/nfshp2-port-win",
+    "name": "Need for Speed Hot Pursuit 2 PS2 / ZloiKILLER",
+    "summary": "Need for Speed: Hot Pursuit 2 Blackbox PS2 version recompiled to Windows",
+    "issue_number": 5625,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-hot-pursuit-2",
+      "evidence_urls": ["https://github.com/ZloiKILLER/nfshp2-port-win"],
+      "source_editions": [
+        {
+          "id": "need-for-speed-hot-pursuit-2-playstation-2",
+          "title": "Need for Speed: Hot Pursuit 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/ZloiKILLER/nfshp2-port-win"]
+        }
+      ]
+    },
+    "original_game_title": "Need for Speed: Hot Pursuit 2"
+  }
+}

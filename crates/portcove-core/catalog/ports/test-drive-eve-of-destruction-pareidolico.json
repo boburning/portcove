@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "test-drive-eve-of-destruction-pareidolico",
+    "project_url": "https://github.com/pareidolico/eod-recomp",
+    "name": "Test Drive: Eve of Destruction / pareidolico",
+    "summary": "Static recompilation of Test Drive: Eve of Destruction.",
+    "issue_number": 5514,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "test-drive-eve-of-destruction",
+      "evidence_urls": ["https://github.com/pareidolico/eod-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Test Drive: Eve of Destruction"
+  }
+}

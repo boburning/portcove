@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "big-red-one-smokedoggy044",
+    "project_url": "https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader",
+    "name": "Call of Duty 2: Big Red One / SmokeDoggy044",
+    "summary": "Call of Duty 2: Big Red One - Custom Engine: our own engine implementation of the Xbox game, built from source for Linux and Windows (bring your own game).",
+    "issue_number": 6547,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-2-big-red-one",
+      "evidence_urls": ["https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"],
+      "source_editions": [
+        {
+          "id": "call-of-duty-2-big-red-one-xbox",
+          "title": "Call of Duty 2: Big Red One (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/SmokeDoggy044/CoD2-BRO-Native-Loader"]
+        }
+      ]
+    },
+    "original_game_title": "Call of Duty 2: Big Red One"
+  }
+}

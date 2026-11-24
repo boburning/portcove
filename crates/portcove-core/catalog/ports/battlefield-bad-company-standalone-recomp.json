@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battlefield-bad-company-standalone-recomp",
+    "project_url": "https://github.com/solidussnake95/battlefield-bad-company-xbox360-recomp-",
+    "name": "Battlefield: Bad Company / standalone recomp",
+    "summary": "Static recompilation of Battlefield: Bad Company.",
+    "issue_number": 6557,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battlefield-bad-company",
+      "evidence_urls": [
+        "https://github.com/solidussnake95/battlefield-bad-company-xbox360-recomp-"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Battlefield: Bad Company"
+  }
+}

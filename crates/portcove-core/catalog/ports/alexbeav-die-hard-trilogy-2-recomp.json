@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-die-hard-trilogy-2-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-2-recomp",
+    "name": "Die Hard Trilogy 2: Viva Las Vegas / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Die Hard Trilogy 2: Viva Las Vegas (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6678,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "die-hard-trilogy-2-viva-las-vegas",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-2-recomp"],
+      "source_editions": [
+        {
+          "id": "die-hard-trilogy-2-viva-las-vegas-playstation",
+          "title": "Die Hard Trilogy 2: Viva Las Vegas (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-2-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Die Hard Trilogy 2: Viva Las Vegas"
+  }
+}

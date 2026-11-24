@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simple-character-2000-series-vol-13-shin-kidou-senki-gundam-w-the-battle-recomp-omegakatana92-shin-k-f7a6d7eb98",
+    "project_url": "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-13---Shin-Kidou-Senki-Gundam-W---The-Battle-Recomp",
+    "name": "Shin Kidou Senki Gundam W: The Battle / Simple-Character-2000-Series-Vol.-13---Shin-Kidou-Senki-Gundam-W---The-Battle-Recomp (omegakatana92)",
+    "summary": "A complete and playable PSX recompilation of the Japanese-exclusive Simple Character 2000 Series Vol. 13 - Shin Kidou Senki Gundam W - The Battle. Built with mstan's PSXRecomp tool. No original ROM, BIN, CUE, or disc image files are included.",
+    "issue_number": 3539,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-kidou-senki-gundam-w-the-battle",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-13---Shin-Kidou-Senki-Gundam-W---The-Battle-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "shin-kidou-senki-gundam-w-the-battle-playstation",
+          "title": "Shin Kidou Senki Gundam W: The Battle (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-13---Shin-Kidou-Senki-Gundam-W---The-Battle-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Shin Kidou Senki Gundam W: The Battle"
+  }
+}

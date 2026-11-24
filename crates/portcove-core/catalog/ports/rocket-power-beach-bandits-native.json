@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rocket-power-beach-bandits-native",
+    "project_url": "https://github.com/Spaced1127/RPBB-Static-Recomp",
+    "name": "Rocket Power: Beach Bandits / native recomp",
+    "summary": "RPBB Static Recomp: native Windows 60 FPS Rocket Power: Beach Bandits (GameCube) port. RecompLauncher-ready. No game data included.",
+    "issue_number": 6549,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rocket-power-beach-bandits",
+      "evidence_urls": ["https://github.com/Spaced1127/RPBB-Static-Recomp"],
+      "source_editions": [
+        {
+          "id": "rocket-power-beach-bandits-nintendo-gamecube",
+          "title": "Rocket Power: Beach Bandits (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": ["https://github.com/Spaced1127/RPBB-Static-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Rocket Power: Beach Bandits"
+  }
+}

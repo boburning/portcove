@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "trag-darkuni",
+    "project_url": "https://github.com/darkuni/trag-recomp",
+    "name": "T.R.A.G. / darkuni native PS1 recomp",
+    "summary": "Recompile of a Playstation 1 game.",
+    "issue_number": 5604,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "t-r-a-g",
+      "evidence_urls": ["https://github.com/darkuni/trag-recomp"],
+      "source_editions": [
+        {
+          "id": "t-r-a-g-playstation",
+          "title": "T.R.A.G. (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/darkuni/trag-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "T.R.A.G."
+  }
+}

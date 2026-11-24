@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "templefrog-devall96",
+    "project_url": "https://github.com/devall96/TempleFrog",
+    "name": "Frogger's Adventures: Temple of the Frog (TempleFrog) / TempleFrog",
+    "summary": "Frogger's Adventures: Temple of the Frog (GBA) for Windows, Linux and Steam Deck: a static recompilation with enhanced audio, filters, save states, rewind, controller support and five languages. Bring your own ROM and BIOS. Made with AI (Claude).",
+    "issue_number": 6623,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "froggers-adventures-temple-of-the-frog",
+      "evidence_urls": ["https://github.com/devall96/TempleFrog"],
+      "source_editions": [
+        {
+          "id": "froggers-adventures-temple-of-the-frog-game-boy-advance",
+          "title": "Frogger's Adventures: Temple of the Frog (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/devall96/TempleFrog"]
+        }
+      ]
+    },
+    "original_game_title": "Frogger's Adventures: Temple of the Frog"
+  }
+}

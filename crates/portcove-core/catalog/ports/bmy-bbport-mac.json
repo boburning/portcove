@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bmy-bbport-mac",
+    "project_url": "https://github.com/bmy/bbport-mac",
+    "name": "Bloodborne / bbport-mac (bmy)",
+    "summary": "Native PC port of Bloodborne for macOS.",
+    "issue_number": 6541,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/bmy/bbport-mac"],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
+  }
+}

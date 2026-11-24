@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "laser-lords-randyvie",
+    "project_url": "https://github.com/RandyVie/Laserlords",
+    "name": "Laser Lords / RandyVie",
+    "summary": "Native PC port of Laser Lords.",
+    "issue_number": 5945,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "laser-lords",
+      "evidence_urls": ["https://github.com/RandyVie/Laserlords"],
+      "source_editions": []
+    },
+    "original_game_title": "Laser Lords"
+  }
+}

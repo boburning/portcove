@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-broken-sword-the-shadow-of-the-templars-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/broken-sword-the-shadow-of-the-templars-recomp",
+    "name": "Broken Sword: The Shadow of the Templars / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Broken Sword: The Shadow of the Templars (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6638,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "broken-sword-the-shadow-of-the-templars",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/broken-sword-the-shadow-of-the-templars-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "broken-sword-the-shadow-of-the-templars-playstation",
+          "title": "Broken Sword: The Shadow of the Templars (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/broken-sword-the-shadow-of-the-templars-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Broken Sword: The Shadow of the Templars"
+  }
+}

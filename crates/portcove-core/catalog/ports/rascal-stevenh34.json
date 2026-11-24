@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rascal-stevenh34",
+    "project_url": "https://github.com/StevenH34/rascal-recomp",
+    "name": "Rascal / StevenH34 native PS1 recomp",
+    "summary": "Static recompilation of Rascal (PS1, USA) using psxrecomp",
+    "issue_number": 5599,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rascal",
+      "evidence_urls": ["https://github.com/StevenH34/rascal-recomp"],
+      "source_editions": [
+        {
+          "id": "rascal-playstation",
+          "title": "Rascal (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/StevenH34/rascal-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Rascal"
+  }
+}

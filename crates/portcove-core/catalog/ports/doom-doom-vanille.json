@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-doom-vanille",
+    "project_url": "https://github.com/AXDOOMER/doom-vanille",
+    "name": "Doom / Doom Vanille (AXDOOMER)",
+    "summary": "DOS source port of Doom with DMX features support. 100% vanilla-compatible with any IWAD.",
+    "issue_number": 7086,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": ["https://github.com/AXDOOMER/doom-vanille"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

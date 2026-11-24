@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "primal-rage-felipe-dos-santos81",
+    "project_url": "https://github.com/felipe-dos-santos81/primal-rage-re",
+    "name": "Primal Rage / Primal Rage Reimplementation",
+    "summary": "Reverse Engineer of Primal Rage Game",
+    "issue_number": 5397,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "primal-rage",
+      "evidence_urls": ["https://github.com/felipe-dos-santos81/primal-rage-re"],
+      "source_editions": []
+    },
+    "original_game_title": "Primal Rage"
+  }
+}

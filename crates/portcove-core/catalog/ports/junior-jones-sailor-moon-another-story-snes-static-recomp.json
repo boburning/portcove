@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "junior-jones-sailor-moon-another-story-snes-static-recomp",
+    "project_url": "https://github.com/Junior-Jones/Sailor-Moon-Another-Story-SNES-Static-Recomp",
+    "name": "Sailor Moon: Another Story (SNES JP English v2.08) / Junior-Jones native static recomp",
+    "summary": "Static recompilation of Sailor Moon: Another Story (SNES) for Windows 10 and 11. English translation v2.08 required; ROM not included.",
+    "issue_number": 4819,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sailor-moon-another-story",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Sailor-Moon-Another-Story-SNES-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "sailor-moon-another-story-super-nintendo",
+          "title": "Sailor Moon: Another Story (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Sailor-Moon-Another-Story-SNES-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sailor Moon: Another Story"
+  }
+}

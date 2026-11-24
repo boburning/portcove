@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nightfire-original-xbox-tgp482-xberecomp",
+    "project_url": "https://github.com/TGP482/007Nightfire-XBERecomp",
+    "name": "007: NightFire (original Xbox) / TGP482 XBERecomp",
+    "summary": "An unofficial original Xbox version PC port of 007: Nightfire via static recompilation.",
+    "issue_number": 4380,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "007-nightfire",
+      "evidence_urls": ["https://github.com/TGP482/007Nightfire-XBERecomp"],
+      "source_editions": [
+        {
+          "id": "007-nightfire-xbox",
+          "title": "007: NightFire (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/TGP482/007Nightfire-XBERecomp"]
+        }
+      ]
+    },
+    "original_game_title": "007: NightFire"
+  }
+}

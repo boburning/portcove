@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "great-battles-of-alexander-hannibal-caesar-opengboh",
+    "project_url": "https://github.com/fmestevez/opengboh",
+    "name": "Great Battles of Alexander / Hannibal / Caesar / opengboh",
+    "summary": "Open-source Rust reimplementation of the Erudite engine behind The Great Battles of Alexander, Hannibal and Caesar. Faithful rules, AI, campaigns and isometric rendering, with optional fixes for the originals' bugs. Bring your own game data (e.g. from GOG). Includes format docs and a guide to running the originals under Wine.",
+    "issue_number": 5463,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "great-battles-of-alexander",
+      "evidence_urls": ["https://github.com/fmestevez/opengboh"],
+      "source_editions": []
+    },
+    "original_game_title": "Great Battles of Alexander"
+  }
+}

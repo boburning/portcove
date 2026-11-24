@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "glory-of-rome-openbounty",
+    "project_url": "https://github.com/dannyheskett/openbounty",
+    "name": "Glory of Rome / OpenBounty",
+    "summary": "OpenBounty: open-source engine for King's Bounty (1990) and other turn-based fantasy gamepacks",
+    "issue_number": 5822,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "glory-of-rome",
+      "evidence_urls": ["https://github.com/dannyheskett/openbounty"],
+      "source_editions": []
+    },
+    "original_game_title": "Glory of Rome"
+  }
+}

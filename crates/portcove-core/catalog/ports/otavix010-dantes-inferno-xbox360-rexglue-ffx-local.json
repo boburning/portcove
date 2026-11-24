@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-dantes-inferno-xbox360-rexglue-ffx-local",
+    "project_url": "https://github.com/otavix010/dantes-inferno-pc",
+    "name": "Dante's Inferno (Xbox 360 USA/Europe) / otavix010 ReXGlue/FFX local recomp",
+    "summary": "Dante's Inferno (Xbox 360) — port nativo para PC por recompilação estática (ReXGlue). Gera a partir da sua .iso.",
+    "issue_number": 6834,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dante-s-inferno",
+      "evidence_urls": ["https://github.com/otavix010/dantes-inferno-pc"],
+      "source_editions": [
+        {
+          "id": "dante-s-inferno-xbox-360",
+          "title": "Dante's Inferno (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/otavix010/dantes-inferno-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Dante's Inferno"
+  }
+}

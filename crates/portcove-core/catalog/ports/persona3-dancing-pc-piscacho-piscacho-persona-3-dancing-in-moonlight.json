@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "persona3-dancing-pc-piscacho-piscacho-persona-3-dancing-in-moonlight",
+    "project_url": "https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc",
+    "name": "Persona 3: Dancing in Moonlight / Persona3 Dancing PC (Piscacho) (Piscacho)",
+    "summary": "Persona 3: Dancing in Moonlight (PS4) for Windows (experimental AppImage). No game files included.",
+    "issue_number": 3460,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-dancing-in-moonlight",
+      "evidence_urls": ["https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"],
+      "source_editions": [
+        {
+          "id": "persona-3-dancing-in-moonlight-playstation-4",
+          "title": "Persona 3: Dancing in Moonlight (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/Piscacho/Persona-3-Dancing-in-Moonlight-Pc"]
+        }
+      ]
+    },
+    "original_game_title": "Persona 3: Dancing in Moonlight"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dungeons-dragons-tower-of-doom-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Dungeons-and-Dragons-Tower-of-Doom-Recomp",
+    "name": "Dungeons & Dragons: Tower of Doom / omegakatana92",
+    "summary": "A native PC port of Dungeons & Dragons: Tower of Doom (Capcom, 1994, CPS-2), made with cps2recomp. Requires your own ROM set; no game data is included.",
+    "issue_number": 5954,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeons-and-dragons-tower-of-doom",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Dungeons-and-Dragons-Tower-of-Doom-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dungeons & Dragons: Tower of Doom"
+  }
+}

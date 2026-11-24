@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-gow-native-pc",
+    "project_url": "https://github.com/Vnnc1/gow-native-pc",
+    "name": "God of War / God of War Native PC (Vnnc1)",
+    "summary": "Native Windows PC port of God of War (PS2), built by statically recompiling MIPS R5900 code to C++ with PS2Recomp. Includes an installer launcher, one-click build, fan-translation support and a 60 fps target. No game files included: you need your own copy.",
+    "issue_number": 7204,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war",
+      "evidence_urls": ["https://github.com/Vnnc1/gow-native-pc"],
+      "source_editions": [
+        {
+          "id": "god-of-war-playstation-2",
+          "title": "God of War (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/Vnnc1/gow-native-pc"]
+        }
+      ]
+    },
+    "original_game_title": "God of War"
+  }
+}

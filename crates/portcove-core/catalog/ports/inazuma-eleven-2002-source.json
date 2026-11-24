@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "inazuma-eleven-2002-source",
+    "project_url": "https://github.com/2002-source/InazumaElevenRecomp",
+    "name": "Inazuma Eleven / 2002-source",
+    "summary": "Static recompilation of Inazuma Eleven for Windows.",
+    "issue_number": 5966,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "inazuma-eleven",
+      "evidence_urls": ["https://github.com/2002-source/InazumaElevenRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Inazuma Eleven"
+  }
+}

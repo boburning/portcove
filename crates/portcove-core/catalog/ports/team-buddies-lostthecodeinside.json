@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "team-buddies-lostthecodeinside",
+    "project_url": "https://github.com/LostTheCodeInside/team-buddies-revival-pc",
+    "name": "Team Buddies USA / LostTheCodeInside",
+    "summary": "A native PC port of Team Buddies (PlayStation), statically recompiled: up to 8x resolution, 60+ fps, HD text, online play, no BIOS needed. Bring your own disc.",
+    "issue_number": 5809,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "team-buddies-usa",
+      "evidence_urls": ["https://github.com/LostTheCodeInside/team-buddies-revival-pc"],
+      "source_editions": [
+        {
+          "id": "team-buddies-usa-playstation",
+          "title": "Team Buddies USA (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/LostTheCodeInside/team-buddies-revival-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Team Buddies USA"
+  }
+}
