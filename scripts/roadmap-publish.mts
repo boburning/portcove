@@ -47,8 +47,20 @@ export interface PublicationApi {
   comment(id: number): Promise<unknown>;
 }
 
+/** A provider read that did not establish a coherent inventory. GitHub's run
+ * artifact list lags a just-finished upload: the list can 404, omit the new
+ * artifact, or report a total that disagrees with its items for a short time.
+ * Such a read is UNKNOWN coverage, never a complete inventory. */
+export class UnsettledPublicationRead extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsettledPublicationRead";
+  }
+}
+
 /** The publisher owns identities/counts; the SDK owns page traversal. */
-async function inventory(sdk: Sdk, endpoint: string, field?: "artifacts" | "workflow_runs") {
+export async function inventory(sdk: Sdk, endpoint: string, field?: "artifacts" | "workflow_runs") {
+  const collection = `${field ?? "comments"} at ${endpoint.replace(/\?.*$/u, "")}`;
   const records: Record<string, unknown>[] = [];
   const ids = new Set<number>();
   let total: number | undefined;
@@ -62,7 +74,10 @@ async function inventory(sdk: Sdk, endpoint: string, field?: "artifacts" | "work
         throw new Error("Publication inventory total is invalid");
       if (field === "workflow_runs" && count >= 1000) throw new ReplayWindowFull();
       total ??= count;
-      if (count !== total) throw new Error("Publication inventory total changed");
+      if (count !== total)
+        throw new UnsettledPublicationRead(
+          `Publication inventory total changed during the read of ${collection}: reported ${total}, then ${count}`,
+        );
     }
     for (const value of values as unknown[]) {
       const row = record(value),
@@ -72,11 +87,49 @@ async function inventory(sdk: Sdk, endpoint: string, field?: "artifacts" | "work
       records.push(row);
     }
     if (total !== undefined && records.length > total)
-      throw new Error("Publication inventory exceeds its reported total");
+      throw new UnsettledPublicationRead(
+        `Publication inventory exceeds its reported total for ${collection}: listed ${records.length}, reported ${total}`,
+      );
   }
   if (total !== undefined && records.length !== total)
-    throw new Error("Publication inventory does not match its reported total");
+    throw new UnsettledPublicationRead(
+      `Publication inventory does not match its reported total for ${collection}: listed ${records.length}, reported ${total}`,
+    );
   return records;
+}
+
+/** Seconds between read-back attempts of this run's own just-uploaded state. */
+export const uploadedStateReadDelays = [1, 2, 4, 8, 15, 30] as const;
+
+function unsettled(error: unknown) {
+  if (error instanceof UnsettledPublicationRead) return true;
+  // The run artifact list and archive lookup can 404 until the upload is visible.
+  const status = isRecord(error) ? error.status : undefined;
+  return status === 404;
+}
+
+/** Re-read until the provider establishes the uploaded artifact, within a bound.
+ * Only unsettled reads repeat; integrity refusals fail at once. */
+export async function readUntilSettled<T>(
+  read: () => Promise<T>,
+  {
+    delays = uploadedStateReadDelays,
+    sleep = (seconds: number) => new Promise((resolve) => setTimeout(resolve, seconds * 1000)),
+  }: { delays?: readonly number[]; sleep?: (seconds: number) => Promise<unknown> } = {},
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      const delay = delays[attempt];
+      if (!unsettled(error)) throw error;
+      if (delay === undefined)
+        throw new UnsettledPublicationRead(
+          `Uploaded report state was not readable after ${attempt + 1} attempts over ${delays.reduce((sum, value) => sum + value, 0)}s; the next publication replays it: ${sanitizeOperationError(error).message}`,
+        );
+      await sleep(delay);
+    }
+  }
 }
 
 export function createPublicationApi(sdk: Sdk): PublicationApi {
@@ -260,6 +313,10 @@ async function downloadReportMember(
     "artifacts",
   );
   const matches = artifacts.filter((artifact) => artifact.name === name);
+  if (matches.length === 0)
+    throw new UnsettledPublicationRead(
+      `Retained artifact is not listed for run ${run}: ${name} (listed ${artifacts.length})`,
+    );
   const artifact = matches[0];
   const size = artifact?.size_in_bytes;
   if (
@@ -505,7 +562,11 @@ async function publish(sdk: Sdk, api: PublicationApi, credential: Credential) {
     attempt = numeric(Number(process.env.GITHUB_RUN_ATTEMPT));
   // Upload completes before making the snapshot pointer visible. An interrupted
   // publication leaves the old pointer, so the next event replays the receipts.
-  const uploaded = await downloadReportMember(sdk, credential, run, attempt, "state");
+  // GitHub's run artifact list settles shortly after upload; never publish
+  // before the uploaded bytes are read back and equal the candidate.
+  const uploaded = await readUntilSettled(() =>
+    downloadReportMember(sdk, credential, run, attempt, "state"),
+  );
   if (uploaded !== readBounded(path.join(directory, "state.json")))
     throw new Error("Uploaded report state differs from the candidate");
   const body = readBounded(path.join(directory, "body.md"), 60000);

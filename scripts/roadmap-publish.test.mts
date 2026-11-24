@@ -268,11 +268,19 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
   };
   const run = async (
     operation: "prepare" | "publish",
-    variant: keyof typeof archives | "size" | "historical" | "malformed-digest" = "valid",
+    variant:
+      | keyof typeof archives
+      | "size"
+      | "historical"
+      | "malformed-digest"
+      | "upload-lag" = "valid",
   ) => {
     const trace = path.join(root, `${operation}-${variant}.log`);
     const archive =
-      variant === "size" || variant === "historical" || variant === "malformed-digest"
+      variant === "size" ||
+      variant === "historical" ||
+      variant === "malformed-digest" ||
+      variant === "upload-lag"
         ? valid
         : archives[variant];
     const preload = `
@@ -352,8 +360,12 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
             head_branch: "main", event: "issues", status: "completed" });
         if (route === "/actions/runs/45/artifacts")
           return Response.json({ total_count: 1, artifacts: [artifact(450, "roadmap-diagnostics-45-3", 45)] });
-        if (route === "/actions/runs/50/artifacts")
+        if (route === "/actions/runs/50/artifacts") {
+          // GitHub's list lags the just-finished upload: the count before the item.
+          if (variant === "upload-lag" && (globalThis.ownListReads = (globalThis.ownListReads ?? 0) + 1) === 1)
+            return Response.json({ total_count: 1, artifacts: [] });
           return Response.json({ total_count: 1, artifacts: [artifact(500, "roadmap-report-state-50-4", 50)] });
+        }
         const match = route.match(/^\\/actions\\/artifacts\\/(400|450|500)\\/zip$/);
         assert.ok(match, "unexpected request " + route);
         return new Response(null, { status: 302,
@@ -404,6 +416,12 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
     "PATCH /issues/comments/7",
     "GET /issues/comments/7",
   ]);
+  // A lagging own-run artifact list recovers within the same publication.
+  assert.deepEqual((await run("publish", "upload-lag")).slice(0, 3), [
+    "GET /actions/runs/50/artifacts?per_page=100",
+    "GET /actions/runs/50/artifacts?per_page=100",
+    "GET /actions/artifacts/500/zip",
+  ]);
   await run("prepare", "historical");
   const historical = JSON.parse(await readFile(stateFile, "utf8")) as RoadmapReportState;
   assert.deepEqual(historical.observations, selected.observations);
@@ -422,4 +440,118 @@ void test("hosted publisher replays exact archive IDs and verifies the uploaded 
     assert.deepEqual(rejected.observations, {});
     assert.match(rejected.publication_gaps[0] ?? "", refusal);
   }
+});
+
+void test("publisher names the collection and both numbers when an inventory is unsettled", async () => {
+  const { fixtureGitHub } = await import("./fixtures/github-sdk-fixtures.mts");
+  const { inventory, UnsettledPublicationRead } = await import("./roadmap-publish.mts");
+  const endpoint = "/repos/boburning/portcove/actions/runs/45403163428/artifacts?per_page=100";
+  const artifact = { id: 14924990922, name: "roadmap-report-state-45403163428-1" };
+  // The observed post-upload shapes: the count lags the list, or the list lags the count.
+  for (const [page, refusal] of [
+    [
+      { total_count: 1, artifacts: [] },
+      /does not match its reported total for artifacts at \/repos\/boburning\/portcove\/actions\/runs\/45403163428\/artifacts: listed 0, reported 1$/u,
+    ],
+    [
+      { total_count: 0, artifacts: [artifact] },
+      /exceeds its reported total for artifacts at .*\/runs\/45403163428\/artifacts: listed 1, reported 0$/u,
+    ],
+  ] as const) {
+    const sdk = await fixtureGitHub(() => page);
+    const error = await inventory(sdk, endpoint, "artifacts").then(
+      () => assert.fail("an unsettled inventory must not be returned"),
+      (error: unknown) => error,
+    );
+    assert.ok(error instanceof UnsettledPublicationRead);
+    assert.match(error.message, refusal);
+  }
+  // A total that changes between pages is the same typed, retryable outcome.
+  let calls = 0;
+  const changing = await fixtureGitHub(() => {
+    calls++;
+    return calls === 1
+      ? Response.json(
+          { total_count: 2, artifacts: [artifact] },
+          {
+            headers: {
+              link: '<https://api.github.com/repositories/1354613114/actions/runs/45403163428/artifacts?per_page=100&page=2>; rel="next"',
+            },
+          },
+        )
+      : { total_count: 3, artifacts: [{ ...artifact, id: 2 }] };
+  });
+  await assert.rejects(
+    inventory(changing, endpoint, "artifacts"),
+    (error: unknown) =>
+      error instanceof UnsettledPublicationRead &&
+      /total changed during the read of artifacts at .*: reported 2, then 3$/u.test(error.message),
+  );
+  // A coherent inventory is still returned whole.
+  const settled = await fixtureGitHub(() => ({ total_count: 1, artifacts: [artifact] }));
+  assert.deepEqual(await inventory(settled, endpoint, "artifacts"), [artifact]);
+});
+
+void test("uploaded-state read-back repeats only unsettled reads, within its bound", async () => {
+  const { GitHubApiError } = await import("./github-operation.mts");
+  const { readUntilSettled, uploadedStateReadDelays, UnsettledPublicationRead } =
+    await import("./roadmap-publish.mts");
+  const slept: number[] = [];
+  const sleep = async (seconds: number) => slept.push(seconds);
+  // 404, unlisted and mismatched totals settle into the verified bytes within the run.
+  const outcomes: Error[] = [
+    new GitHubApiError("http_error", "Not Found - https://docs.github.com/rest/actions/artifacts", {
+      status: 404,
+    }),
+    new UnsettledPublicationRead("Retained artifact is not listed for run 50"),
+    new UnsettledPublicationRead("listed 0, reported 1"),
+  ];
+  let reads = 0;
+  assert.equal(
+    await readUntilSettled(
+      async () => {
+        const outcome = outcomes[reads++];
+        if (outcome) throw outcome;
+        return "state";
+      },
+      { sleep },
+    ),
+    "state",
+  );
+  assert.equal(reads, 4);
+  assert.deepEqual(slept, uploadedStateReadDelays.slice(0, 3));
+  // An integrity refusal is never retried.
+  reads = 0;
+  await assert.rejects(
+    readUntilSettled(
+      async () => {
+        reads++;
+        throw new Error("Retained artifact provider digest differs");
+      },
+      { sleep },
+    ),
+    /provider digest differs/u,
+  );
+  assert.equal(reads, 1);
+  // A persistent mismatch fails with its collection and numbers after the bound.
+  reads = 0;
+  slept.length = 0;
+  await assert.rejects(
+    readUntilSettled(
+      async () => {
+        reads++;
+        throw new UnsettledPublicationRead(
+          "Publication inventory does not match its reported total for artifacts at /repos/boburning/portcove/actions/runs/50/artifacts: listed 0, reported 1",
+        );
+      },
+      { sleep, delays: [1, 2] },
+    ),
+    (error: unknown) =>
+      error instanceof UnsettledPublicationRead &&
+      /not readable after 3 attempts over 3s; the next publication replays it: .*runs\/50\/artifacts: listed 0, reported 1$/u.test(
+        error.message,
+      ),
+  );
+  assert.equal(reads, 3);
+  assert.deepEqual(slept, [1, 2]);
 });
