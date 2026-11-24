@@ -19,7 +19,7 @@ import type {
   DiscoveryStore,
   DiscoveryWatchChange,
 } from "./discovery-store.mts";
-import type { DiscoveryWorkerResult } from "./discovery-worker.mts";
+import type { DiscoveryRetainedState, DiscoveryWorkerResult } from "./discovery-worker.mts";
 import {
   discoveryDefinitionDigest,
   discoveryWorkerMain,
@@ -150,7 +150,8 @@ void test(
       {
         state_bytes: Buffer.byteLength(JSON.stringify({ cursor: 2 }).replace(":", ": ")),
         record_bytes: 0,
-        previous_transfer_bytes: 5000,
+        // Neon meters only response bytes; what a commit sends is not counted.
+        previous_transfer_bytes: 1000,
       },
       "the forecast reads measured state and the recent runs' transfer",
     );
@@ -259,10 +260,31 @@ function memoryStore() {
   let breakAfter = Infinity;
   const leads = new Map<number, unknown>();
   const leadWrites: number[] = [];
+  let loads = 0;
+  let committer: string | undefined;
+  const known: (number | undefined)[] = [];
   const store: DiscoveryStore = {
-    acquire(owner) {
+    acquire(owner, request) {
       holder = owner.token;
-      return {
+      known.push(request.known?.revision);
+      // Like the database, omit a revision the caller already holds.
+      if (
+        request.known?.revision === revision &&
+        request.known.generation === 1 &&
+        request.known.definition === discoveryDefinitionDigest &&
+        request.known.attempt === committer
+      )
+        return {
+          revision,
+          state: {},
+          state_sha256: hex("0"),
+          definition_sha256: discoveryDefinitionDigest,
+          acquisition: commits.length + 1,
+          generation: 1,
+          unchanged: true,
+          received_bytes: 200,
+        };
+      const full = {
         revision,
         state: structuredClone(state),
         state_sha256: hex("0"),
@@ -270,6 +292,7 @@ function memoryStore() {
         acquisition: commits.length + 1,
         generation: 1,
       };
+      return { ...full, received_bytes: Buffer.byteLength(JSON.stringify(full)) };
     },
     commit(owner, expected, input) {
       if (refuse || owner.token !== holder || expected !== revision)
@@ -281,9 +304,11 @@ function memoryStore() {
       leadWrites.push(input.leadRecords.length);
       commits.push({ observations: input.observations.length, watches: input.watches.length });
       state = JSON.parse(JSON.stringify(input.state)) as Record<string, unknown>;
+      committer = owner.attempt;
       return { revision: ++revision, bytes: 100 };
     },
     loadLeadRecords() {
+      loads++;
       const records = [...leads.values()];
       return { records, bytes: Buffer.byteLength(JSON.stringify(records)) };
     },
@@ -302,6 +327,13 @@ function memoryStore() {
     state: () => state,
     leads,
     leadWrites,
+    loads: () => loads,
+    known,
+    /** Another writer's commit, which advances the revision under its own lease. */
+    advance: (next: Record<string, unknown>) => {
+      state = structuredClone(next);
+      revision++;
+    },
     refuseCommits: () => (refuse = true),
     failCommitsAfter: (count: number) => (breakAfter = count),
   };
@@ -428,6 +460,70 @@ void test("the unattended worker retains an unseen project and reconsiders it wh
     "only the changed facts are sent again",
   );
   assert.equal(new Set([...memory.rows.values()].map((o) => o.provider_id)).size, 1);
+});
+
+void test("a pass reuses what this run committed only while the store still holds it", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const at = "2026-11-01T05:00:00.000Z";
+  const now = () => Date.parse(at);
+  let retained: DiscoveryRetainedState | undefined;
+  const pass = async () => {
+    const budget = new DiscoveryBudget("ordinary", () => {}, now, at);
+    return await runDiscoveryWorker({
+      store: memory.store,
+      runDir: root,
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      commitIntervalMs: 0,
+      budget,
+      now,
+      ...(retained ? { retained } : {}),
+      retain: (value) => {
+        retained = value;
+      },
+      connect: async () => await providers(budget, () => []),
+    });
+  };
+  const first = await pass();
+  assert.notEqual(first.outcome, "failed", first.reason ?? "");
+  assert.ok(retained, "a fully committed pass retains its state");
+  assert.equal(retained.revision, first.revision);
+  const records = Object.keys(
+    (retained.state.leads as { records: Record<string, unknown> }).records,
+  ).length;
+  assert.equal(records, memory.leads.size, "the retained state carries every stored record");
+  // Exactly what the store holds at that revision: its document and its rows.
+  const stored = memory.state() as { leads: Record<string, unknown> };
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(retained.state)),
+    JSON.parse(
+      JSON.stringify({
+        ...stored,
+        leads: {
+          ...stored.leads,
+          records: Object.fromEntries([...memory.leads].map(([id, r]) => [String(id), r])),
+        },
+      }),
+    ),
+  );
+  assert.ok(
+    (first.committed.received_bytes ?? 0) > 200,
+    "the first pass receives the stored document",
+  );
+  // The store still holds that revision: nothing is read again.
+  const second = await pass();
+  assert.notEqual(second.outcome, "failed", second.reason ?? "");
+  assert.equal(memory.loads(), 1);
+  assert.equal(second.committed.received_bytes, 200, "only the short grant is received");
+  // Another writer advanced the revision: the next pass reads what is stored.
+  memory.advance(memory.state());
+  const third = await pass();
+  assert.notEqual(third.outcome, "failed", third.reason ?? "");
+  assert.equal(memory.loads(), 2, "a changed store is read in full");
+  assert.deepEqual(memory.known.slice(1), [first.revision, second.revision]);
 });
 
 void test("a worker that loses its lease stops without finishing for the new owner", async (context) => {
@@ -697,6 +793,44 @@ void test("fair hint order takes every due hint, longest waiting first", () => {
 });
 
 void test(
+  "the store omits state only for the exact revision, generation and definition a caller holds",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const environment = postgresFixture(context, server.directory!).start("known").owner;
+    migrate(environment);
+    const store = postgresDiscoveryStore(environment);
+    const first = lease("1");
+    const grant = store.acquire(first, options);
+    assert.equal(commit(store, first, grant.revision, { cursor: 1 }).revision, 1);
+    store.finish(first, "partial", {});
+    const held = {
+      revision: 1,
+      generation: grant.generation,
+      definition: hex("d"),
+      attempt: first.attempt,
+    };
+    const reused = store.acquire(lease("2"), { ...options, known: held });
+    assert.equal(reused.unchanged, true);
+    assert.deepEqual(reused.state, {}, "the held state is not sent again");
+    assert.equal(reused.revision, 1);
+    store.finish(lease("2"), "partial", {});
+    for (const [name, known] of [
+      ["revision", { ...held, revision: 0 }],
+      ["generation", { ...held, generation: held.generation + 1 }],
+      ["definition", { ...held, definition: hex("e") }],
+      // Another store that reached the same revision through other commits.
+      ["attempt", { ...held, attempt: lease("9").attempt }],
+    ] as const) {
+      const owner = lease({ revision: "3", generation: "4", definition: "5", attempt: "6" }[name]);
+      const full = store.acquire(owner, { ...options, known });
+      assert.equal(full.unchanged, undefined, name);
+      assert.deepEqual(full.state, { cursor: 1 }, `a different ${name} reads the stored state`);
+      store.finish(owner, "partial", {});
+    }
+  },
+);
+
+void test(
   "stored collector state is not capped at a fixed size",
   { skip: server.skip ?? false, timeout: 120_000 },
   (context) => {
@@ -773,6 +907,13 @@ void test("an exhausted provider quota waits for its reset between passes and co
   assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
   assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
   assert.ok(clock > reset, "collection resumed only after the reset");
+  assert.equal(memory.known[0], undefined, "the first pass reads the stored state");
+  assert.equal(
+    memory.known[1],
+    run.passes[0]?.revision,
+    "the next pass offers the revision the first committed",
+  );
+  assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
   assert.equal(
     memory.finished.length,
     2,

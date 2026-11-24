@@ -103,7 +103,6 @@ import {
   materialChange,
   workflowLogin,
   factsFallingBehind,
-  handoffObservations,
   inputsArtifactFiles,
   inputsProblems,
   mergeMessage,
@@ -2078,45 +2077,160 @@ void test("a batch is proposed only for a material change (D5)", () => {
 // ---------------------------------------------------------------------------
 // Observations and owner queues.
 
-void test("the observer handoff becomes one worker report, first observation of each listing kept", () => {
-  const directory = mkdtempSync(join(tmpdir(), "facts-handoff-"));
-  try {
-    const observation = (repository: string) => ({
-      provider: "github",
-      repository,
-      status: "complete",
-    });
-    writeFileSync(
-      join(directory, "a.json"),
-      JSON.stringify({
-        descriptive_listing_candidates: [
-          { id: "one", upstream_observation: observation("o/one") },
-          { id: "two", upstream_observation: observation("o/two") },
-        ],
+void test("the job reads every listing the observer has accumulated, not only the newest run's handoff", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { checkpoint, progress, keyOf } =
+    await import("./fixtures/upstream-checkpoint-fixture.mts");
+  const { accumulatedObservations } = await import("./listing-facts-observations.mts");
+  // Three listing-only sources the rotating observer covers in different runs.
+  const listingFor = (id: string, repository: string) => ({
+    ...fixtureListing,
+    id,
+    project_url: `https://github.com/${repository}`,
+  });
+  const older = listingFor("older-run-port", "owner/older");
+  const newest = listingFor(fixtureListing.id, "owner/game");
+  const failing = listingFor("failing-port", "owner/failing");
+  const budget = listingFor("budget-port", "owner/budget");
+  const changing = listingFor("changing-port", "owner/changing");
+  const base = fixturePolicy();
+  const policyFor = (listing: typeof older, repositoryId: number) => ({
+    ...base,
+    port_id: listing.id,
+    repository_id: repositoryId,
+    listing_update: {
+      ...listing,
+      upstream_observation: {
+        ...base.listing_update.upstream_observation,
+        repository: listing.project_url.replace("https://github.com/", ""),
+        repository_id: repositoryId,
+      },
+    },
+  });
+  const source = (listing: typeof older, repositoryId: number, overrides = {}) => {
+    const repository = listing.project_url.replace("https://github.com/", "");
+    return [
+      keyOf(repository),
+      progress(repository, [], {
+        repository_id: repositoryId,
+        last_complete_facts_sha256: base.facts_sha256,
+        last_complete_policies: [policyFor(listing, repositoryId)],
+        ...overrides,
       }),
-    );
-    writeFileSync(
-      join(directory, "b.json"),
-      JSON.stringify({
-        descriptive_listing_candidates: [
-          { id: "one", upstream_observation: observation("o/late") },
+    ] as const;
+  };
+  // Observer run 1 completed `owner/older`; run 2 (the newest) completed
+  // `owner/game`, failed `owner/failing` upstream, ran out of its own budget
+  // on `owner/budget` and saw `owner/changing` change under it. The newest
+  // run's handoff holds only run 2's sources; the checkpoint run 2 retained
+  // holds every completed source.
+  const newestHandoff = [newest.id, failing.id, budget.id, changing.id];
+  const input = {
+    revision: "upstream-observer-run:2-1@fixture",
+    config_sha256: "a".repeat(64),
+    checkpoint: checkpoint(
+      Object.fromEntries([
+        source(older, 43),
+        source(newest, 42),
+        source(failing, 44, {
+          exception_key: "e".repeat(64),
+          exception_rule: "repository-unavailable",
+          coverage: { kind: "failed", rule: "repository-unavailable" },
+        }),
+        source(budget, 45, {
+          exception_key: "e".repeat(64),
+          exception_rule: "budget",
+          coverage: { kind: "partial", rule: "budget", next_cursor: null },
+        }),
+        source(changing, 46, {
+          exception_key: "e".repeat(64),
+          exception_rule: "concurrent-change",
+          coverage: { kind: "partial", rule: "concurrent-change", next_cursor: null },
+        }),
+        // A source that never completed has nothing to offer.
+        [
+          keyOf("owner/never"),
+          progress("owner/never", [], { completed_scope_sha256: null, last_complete_policies: [] }),
         ],
-      }),
-    );
-    writeFileSync(
-      join(directory, "summary.json"),
-      JSON.stringify({ descriptive_listing_candidates: [{ id: "x" }] }),
-    );
-    writeFileSync(join(directory, "notes.txt"), "ignored");
-    assert.deepEqual(handoffObservations(directory), {
-      listings: [
-        { id: "one", upstream_observation: observation("o/one") },
-        { id: "two", upstream_observation: observation("o/two") },
-      ],
-    });
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
+      ]),
+    ),
+    catalog: { ports: [], listings: [older, newest, failing, budget, changing] },
+  };
+  // Since the observation, a landed batch enrolled `older-run-port`: its
+  // generated declaration gained setup steps. It names the same repository,
+  // so it stays observed and its coverage never reads as dropped
+  // (`observer-coverage-dropped`).
+  const enrolled = {
+    ...older,
+    manual_setup: { steps: [{ title: "Select the game program", instruction: "Generated." }] },
+  };
+  const current = [enrolled, newest, failing, budget, changing];
+  const { listings, gaps } = accumulatedObservations(input, {
+    format_version: 11,
+    listings: current,
+  });
+  // The identity only an older observer run saw reaches the worker.
+  assert.ok(!newestHandoff.includes(older.id));
+  assert.deepEqual(
+    listings.map((listing) => listing.id),
+    [budget.id, changing.id, failing.id, newest.id, older.id],
+  );
+  const status = (id: string) =>
+    listings.find((listing) => listing.id === id)!.upstream_observation.status;
+  assert.equal(status(older.id), "complete");
+  assert.equal(
+    listings.find((listing) => listing.id === older.id)!.upstream_observation.repository,
+    "owner/older",
+  );
+  // An upstream failure on the latest attempt keeps last-good facts in the
+  // worker (its retention bound), never reconfirms them.
+  assert.equal(status(failing.id), "failed");
+  // The observer's own budget stop, or a collection that changed under it,
+  // says nothing about upstream.
+  assert.equal(status(budget.id), "complete");
+  assert.equal(status(changing.id), "complete");
+  assert.deepEqual(gaps, ["owner/never: no completed observer scope"]);
+  // A repository GitHub renamed resolves to its new name in the observation;
+  // the listing still names the one observed, so it stays observed (the
+  // worker binds the repository id).
+  const renamed = accumulatedObservations(
+    {
+      ...input,
+      checkpoint: checkpoint(
+        Object.fromEntries([
+          source(older, 43, {
+            last_complete_policies: [
+              {
+                ...policyFor(older, 43),
+                listing_update: {
+                  ...policyFor(older, 43).listing_update,
+                  upstream_observation: {
+                    ...policyFor(older, 43).listing_update.upstream_observation,
+                    repository: "new-owner/older-renamed",
+                  },
+                },
+              },
+            ],
+          }),
+        ]),
+      ),
+    },
+    { format_version: 11, listings: [older] },
+  );
+  assert.deepEqual(
+    renamed.listings.map((listing) => listing.id),
+    [older.id],
+  );
+  // A listing re-pointed since the observation stays unobserved, never rebound.
+  const moved = { ...older, project_url: "https://github.com/someone/else" };
+  assert.deepEqual(
+    accumulatedObservations(input, {
+      format_version: 11,
+      listings: [moved, newest, failing, budget, changing],
+    }).listings.map((listing) => listing.id),
+    [budget.id, changing.id, failing.id, newest.id],
+  );
 });
 
 void test("the exception queues report counts per reason and the top unsupported forms", () => {
