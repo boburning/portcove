@@ -2848,6 +2848,18 @@ export const programArchitectureWords = [
  * bundle's `Game.app/Contents/MacOS/`.
  */
 export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win64"] as const;
+/** Product tokens joined, with their digit runs and token boundaries. */
+function spelledTokens(tokens: readonly { word: string }[]) {
+  let literal = "";
+  const digits = new Map<number, number>();
+  const cuts = new Set<number>([0]);
+  for (const token of tokens) {
+    if (/^[0-9]+$/u.test(token.word)) digits.set(literal.length, token.word.length);
+    literal += token.word;
+    cuts.add(literal.length);
+  }
+  return { literal, digits, cuts };
+}
 /** The chunk a build identifier or patch-lettered version becomes before tokenising. */
 const buildPlaceholder = "vbuild0";
 /**
@@ -3058,7 +3070,21 @@ export function archiveNameAccount(
     const kept = prefix.slice(0, cut);
     if (!kept.length) continue;
     const matched = names.find((words) => spellsName(kept, words));
-    if (matched) {
+    // A number another accepted name links to a kept word is never optional,
+    // also for an exact spelling of the id or repository name: `Doom-1.0-…`
+    // for a listing named "Doom 2" whose id is `doom`.
+    const spelled = spelledTokens(kept);
+    if (
+      matched &&
+      !dropsLinkedNumber(
+        spelled.literal,
+        spelled.digits,
+        [listing.id, listing.name, repository.split("/")[1]]
+          .filter((value): value is string => typeof value === "string")
+          .map(nameForm),
+        spelled.cuts,
+      )
+    ) {
       const joined = matched.join("");
       return {
         product: joined,
@@ -3077,23 +3103,17 @@ export function archiveNameAccount(
   for (const cut of cuts) {
     const kept = prefix.slice(0, cut);
     if (!kept.length) continue;
-    const literal = kept.map((token) => token.word).join("");
-    const digits = new Map<number, number>();
-    let offset = 0;
-    for (const token of kept) {
-      if (/^[0-9]+$/u.test(token.word)) digits.set(offset, token.word.length);
-      offset += token.word.length;
-    }
+    const { literal, digits, cuts: boundaries } = spelledTokens(kept);
     let found: { reliefs: NameRelief[]; repositoryOnly: boolean } | undefined;
     for (const raw of listingRaw) {
-      const reliefsOf = reliefSpelling(literal, digits, nameForm(raw));
+      const reliefsOf = reliefSpelling(literal, digits, nameForm(raw), boundaries);
       if (reliefsOf) {
         found = { reliefs: reliefsOf, repositoryOnly: false };
         break;
       }
     }
     if (!found && repositoryRaw !== undefined) {
-      const reliefsOf = reliefSpelling(literal, digits, nameForm(repositoryRaw));
+      const reliefsOf = reliefSpelling(literal, digits, nameForm(repositoryRaw), boundaries);
       if (reliefsOf) found = { reliefs: reliefsOf, repositoryOnly: true };
     }
     if (!found) continue;
@@ -3103,10 +3123,11 @@ export function archiveNameAccount(
         literal,
         digits,
         [...listingRaw, ...(repositoryRaw === undefined ? [] : [repositoryRaw])].map(nameForm),
+        boundaries,
       )
     )
       continue;
-    const another = otherListingsSpelled(literal, digits, others, listing.id);
+    const another = otherListingsSpelled(literal, digits, others, listing.id, boundaries);
     if (another.length) return { anotherListing: another };
     return {
       product: literal,
@@ -3159,9 +3180,12 @@ export function programNameUnaccounted(
   strict: boolean,
   forms: readonly string[] = [],
   used: Set<NameRelief> = new Set(),
+  numberForms: readonly string[] = forms,
 ): string | null {
   const literal = literalProgramName(path);
   const parsed = forms.map(nameForm).filter((form) => form.length > 0);
+  // The number check reads the listing's own names, not the joined product.
+  const numbered = numberForms.map(nameForm).filter((form) => form.length > 0);
   if (!names.has(literal)) {
     const architecture = programArchitectureWords as readonly string[];
     const suffixed = (rest: string): boolean =>
@@ -3178,7 +3202,7 @@ export function programNameUnaccounted(
       for (let cut = literal.length; !strict && relieved === null && cut > 0; cut--) {
         if (!suffixed(literal.slice(cut))) continue;
         const core = literal.slice(0, cut);
-        if (dropsLinkedNumber(core, digitRuns(core), parsed)) continue;
+        if (dropsLinkedNumber(core, digitRuns(core), numbered)) continue;
         for (const form of parsed) {
           relieved = reliefSpelling(core, digitRuns(core), form);
           if (relieved) break;
@@ -3232,7 +3256,7 @@ export function programNameUnaccounted(
     if (segmentAccounted(segment)) continue;
     // R5: the whole segment read as the accepted product, versions and
     // neutral words.
-    if (!folderSpellsProduct(segment, names, parsed)) return `${segment}/`;
+    if (!folderSpellsProduct(segment, names, parsed, numbered)) return `${segment}/`;
     used.add("folder");
   }
   return null;
@@ -3251,6 +3275,7 @@ function folderSpellsProduct(
   segment: string,
   names: ReadonlySet<string>,
   forms: readonly NameFormWord[][],
+  numbered: readonly NameFormWord[][] = forms,
 ): boolean {
   if (!forms.length) return false;
   const { tokens } = archiveNameTokens(`${segment}.zip`);
@@ -3261,17 +3286,10 @@ function folderSpellsProduct(
   for (const token of tokens.slice(end))
     if (token.kind === "word" && !descriptorWord(token.word)) return false;
     else if (token.kind === "integer" && token.word.length < 4) return false;
-  const kept = tokens.slice(0, end);
-  const literal = kept.map((token) => token.word).join("");
+  const { literal, digits, cuts } = spelledTokens(tokens.slice(0, end));
+  if (dropsLinkedNumber(literal, digits, numbered, cuts)) return false;
   if (names.has(literal)) return true;
-  const digits = new Map<number, number>();
-  let offset = 0;
-  for (const token of kept) {
-    if (/^[0-9]+$/u.test(token.word)) digits.set(offset, token.word.length);
-    offset += token.word.length;
-  }
-  if (dropsLinkedNumber(literal, digits, forms)) return false;
-  return forms.some((form) => reliefSpelling(literal, digits, form) !== null);
+  return forms.some((form) => reliefSpelling(literal, digits, form, cuts) !== null);
 }
 /** Whether a name holds any character outside ASCII: a homoglyph or full-width evasion. */
 export function nonAsciiName(name: string): boolean {
@@ -3664,9 +3682,38 @@ const nonDistinctiveSet = new Set<string>([
   ...neutralArchiveWords,
   ...descriptorSet,
 ]);
+/**
+ * Roman sequel numbers, read as numbers by the reliefs: never optional
+ * where a number would not be (`Doom` does not spell "Doom II").
+ */
+export const romanNumbers = [
+  "ii",
+  "iii",
+  "iv",
+  "v",
+  "vi",
+  "vii",
+  "viii",
+  "ix",
+  "x",
+  "xi",
+  "xii",
+  "xiii",
+  "xiv",
+  "xv",
+  "xvi",
+  "xvii",
+  "xviii",
+  "xix",
+  "xx",
+] as const;
+const romanSet = new Set<string>(romanNumbers);
 /** Whether a word can be the distinctive word of a partial name. */
 const distinctiveWord = (word: string) =>
-  word.length >= 2 && !/^[0-9]+$/u.test(word) && !nonDistinctiveSet.has(word);
+  word.length >= 2 &&
+  !/^[0-9]+$/u.test(word) &&
+  !romanSet.has(word) &&
+  !nonDistinctiveSet.has(word);
 /**
  * Short words that already mean an edition, medium or variant, so an
  * initialism equal to one is never accepted, even where it really is the
@@ -3740,7 +3787,10 @@ const initialismVeto = new Set<string>(initialismVetoWords);
 /** One word of an accepted name with what the reliefs need to know about it. */
 export interface NameFormWord {
   word: string;
+  /** Digits only: it must spell one whole digit run. */
   numeric: boolean;
+  /** A number, digits or roman (`romanNumbers`): never optional beside its word. */
+  ordinal: boolean;
   /** A port descriptor or region word: never kept, never required. */
   descriptor: boolean;
   /** Glued to the previous word or joined by a space, `-`, `_` or `.` only. */
@@ -3778,6 +3828,7 @@ export function nameForm(value: string): NameFormWord[] {
       form.push({
         word,
         numeric: /^[0-9]+$/u.test(word),
+        ordinal: /^[0-9]+$/u.test(word) || romanSet.has(word),
         descriptor: descriptorSet.has(word),
         linked: form.length > 0 && (at > 0 || /^[ ._-]+$/u.test(separator)),
         glued: at > 0,
@@ -3831,8 +3882,11 @@ function subsequenceMasks(
   digits: ReadonlyMap<number, number>,
   form: readonly NameFormWord[],
   lenient = false,
+  cuts: ReadonlySet<number> | null = null,
+  carried: ReadonlySet<string> = new Set(),
 ): Set<number> {
   const memo = new Map<string, Set<number>>();
+  const descriptorAt = descriptorPlaces(literal, cuts);
   const visit = (position: number, index: number, previousKept: boolean): Set<number> => {
     const key = `${position}:${index}:${previousKept ? 1 : 0}`;
     const known = memo.get(key);
@@ -3844,14 +3898,13 @@ function subsequenceMasks(
     const run = digits.get(position);
     if (lenient && run !== undefined)
       for (const mask of visit(position + run, index, previousKept)) masks.add(mask);
-    if (position < literal.length)
-      for (const descriptor of descriptorSet)
-        if (literal.startsWith(descriptor, position))
-          for (const mask of visit(position + descriptor.length, index, previousKept))
-            masks.add(mask | descriptorBit);
+    for (const length of descriptorAt.get(position) ?? [])
+      for (const mask of visit(position + length, index, previousKept))
+        masks.add(mask | descriptorBit);
     if (index < form.length) {
       const word = form[index]!;
       const previous = form[index - 1];
+      const next = form[index + 1];
       if (word.descriptor) for (const mask of visit(position, index + 1, false)) masks.add(mask);
       else {
         const spelled = word.numeric
@@ -3859,10 +3912,10 @@ function subsequenceMasks(
           : literal.startsWith(word.word, position);
         // A kept word may not leave its own linked number behind.
         const stranded =
-          !word.numeric &&
+          !word.ordinal &&
           word.linked &&
           previous !== undefined &&
-          previous.numeric &&
+          previous.ordinal &&
           !previous.descriptor &&
           !previousKept;
         if (spelled && (!stranded || lenient))
@@ -3871,22 +3924,74 @@ function subsequenceMasks(
               mask |
                 keptBit |
                 (distinctiveWord(word.word) ? distinctBit : 0) |
-                (stranded ? droppedNumberBit : 0),
+                (stranded && !carried.has(previous.word) ? droppedNumberBit : 0),
             );
+        // A number is never omitted beside a kept word, nor beside a
+        // distinctive word at all: "Silent Hill 2" is never `Silent`.
         const orphaned =
-          word.numeric &&
-          word.linked &&
-          previous !== undefined &&
-          !previous.numeric &&
-          previousKept;
+          word.ordinal &&
+          ((word.linked &&
+            previous !== undefined &&
+            !previous.ordinal &&
+            !previous.descriptor &&
+            (previousKept || distinctiveWord(previous.word))) ||
+            (next !== undefined &&
+              next.linked &&
+              !next.ordinal &&
+              !next.descriptor &&
+              distinctiveWord(next.word)));
         if (!orphaned || lenient)
           for (const mask of visit(position, index + 1, false))
-            masks.add(mask | omittedBit | (orphaned ? droppedNumberBit : 0));
+            masks.add(
+              mask | omittedBit | (orphaned && !carried.has(word.word) ? droppedNumberBit : 0),
+            );
       }
     }
     return masks;
   };
   return visit(0, 0, false);
+}
+/**
+ * Where a descriptor may stand in a literal, start to lengths: in an archive
+ * or folder name (`cuts`, the token boundaries) only as whole tokens, so
+ * `Portal` never holds `port`; in a program's literal name (no cuts) only in a
+ * trailing run of descriptors (`narutothebrokenbondpc`), as measured.
+ */
+function descriptorPlaces(
+  literal: string,
+  cuts: ReadonlySet<number> | null,
+): Map<number, number[]> {
+  const places = new Map<number, number[]>();
+  for (let position = 0; position < literal.length; position++)
+    for (const descriptor of descriptorSet) {
+      if (!literal.startsWith(descriptor, position)) continue;
+      const end = position + descriptor.length;
+      const allowed =
+        cuts === null
+          ? descriptorRun(literal.slice(position))
+          : cuts.has(position) && cuts.has(end);
+      if (allowed) places.set(position, [...(places.get(position) ?? []), descriptor.length]);
+    }
+  return places;
+}
+/**
+ * Whether a descriptor run starting at `offset` of a literal falls on token
+ * boundaries (`cuts`); without cuts, any run does.
+ */
+function wholeDescriptors(run: string, offset: number, cuts: ReadonlySet<number> | null): boolean {
+  if (cuts === null || run === "") return true;
+  const visit = (position: number): boolean => {
+    if (position === run.length) return true;
+    for (const descriptor of descriptorSet)
+      if (
+        run.startsWith(descriptor, position) &&
+        cuts.has(offset + position + descriptor.length) &&
+        visit(position + descriptor.length)
+      )
+        return true;
+    return false;
+  };
+  return cuts.has(offset) && visit(0);
 }
 /** Whether a literal is a run of descriptor words (`descriptorWord`), empty included. */
 function descriptorRun(literal: string): boolean {
@@ -3923,7 +4028,7 @@ export function nameInitialisms(form: readonly NameFormWord[]): Set<string> {
     const word = form[index]!;
     if (word.descriptor) break;
     if (word.possessive) continue;
-    const initials = word.numeric
+    const initials = word.ordinal
       ? [word.word]
       : word.acronym
         ? [word.word[0]!, word.word]
@@ -3941,7 +4046,7 @@ export function nameInitialisms(form: readonly NameFormWord[]): Set<string> {
     if (
       following !== undefined &&
       !following.descriptor &&
-      (following.glued || (following.numeric && following.linked))
+      (following.glued || (following.ordinal && following.linked))
     )
       continue;
     if (words < 2 || words * 2 <= counted || !distinct) continue;
@@ -3966,9 +4071,12 @@ export function reliefSpelling(
   literal: string,
   digits: ReadonlyMap<number, number>,
   form: readonly NameFormWord[],
+  cuts: ReadonlySet<number> | null = null,
 ): NameRelief[] | null {
   if (!literal) return null;
-  const masks = [...subsequenceMasks(literal, digits, form)].filter((mask) => mask & keptBit);
+  const masks = [...subsequenceMasks(literal, digits, form, false, cuts)].filter(
+    (mask) => mask & keptBit,
+  );
   if (masks.some((mask) => !(mask & omittedBit))) return ["descriptor"];
   const partial = masks.filter((mask) => mask & omittedBit && mask & distinctBit);
   if (partial.length)
@@ -3980,7 +4088,16 @@ export function reliefSpelling(
       const before = literal.slice(0, at);
       const after = literal.slice(at + initialism.length);
       if (/^[0-9]/u.test(after) || /[0-9]$/u.test(before)) continue;
-      if (descriptorRun(before) && descriptorRun(after))
+      // In an archive or folder name, the initialism is whole tokens; in a
+      // program's name, descriptors only follow it.
+      if (cuts !== null && !(cuts.has(at) && cuts.has(at + initialism.length))) continue;
+      if (cuts === null && before !== "") continue;
+      if (
+        descriptorRun(before) &&
+        descriptorRun(after) &&
+        wholeDescriptors(before, at, cuts) &&
+        wholeDescriptors(after, at + initialism.length, cuts)
+      )
         return before || after ? ["descriptor", "initialism"] : ["initialism"];
     }
   }
@@ -3992,18 +4109,25 @@ export function reliefSpelling(
  * optional, across names too): for a listing named "Doom 2" whose id is
  * `doom`, `Doom-1.0-win64.zip` spells the id but drops the name's `2`, and
  * `Sims1-…` drops the `2` of "The Sims 2". A name the literal spells under
- * the reliefs is no contradiction.
+ * the reliefs is no contradiction, nor is a number the literal carries
+ * elsewhere.
  */
 export function dropsLinkedNumber(
   literal: string,
   digits: ReadonlyMap<number, number>,
   forms: readonly NameFormWord[][],
+  cuts: ReadonlySet<number> | null = null,
 ): boolean {
   return forms.some((form) => {
     const valid = (mask: number) =>
       (mask & keptBit) !== 0 && (!(mask & omittedBit) || (mask & distinctBit) !== 0);
-    if ([...subsequenceMasks(literal, digits, form)].some(valid)) return false;
-    return [...subsequenceMasks(literal, digits, form, true)].some(
+    if ([...subsequenceMasks(literal, digits, form, false, cuts)].some(valid)) return false;
+    // A number the literal carries elsewhere is not dropped (`DOA3` for
+    // "Dead or Alive 3 (DOA3 Recomp)").
+    const carried = new Set(
+      [...digits].map(([start, length]) => literal.slice(start, start + length)),
+    );
+    return [...subsequenceMasks(literal, digits, form, true, cuts, carried)].some(
       (mask) => valid(mask) && (mask & droppedNumberBit) !== 0,
     );
   });
@@ -4020,6 +4144,7 @@ export function otherListingsSpelled(
   digits: ReadonlyMap<number, number>,
   others: readonly Record<string, unknown>[],
   ownId: unknown,
+  cuts: ReadonlySet<number> | null = null,
 ): string[] {
   const spelled = new Set<string>();
   for (const other of others) {
@@ -4028,7 +4153,7 @@ export function otherListingsSpelled(
       const first = form.find((word) => !word.descriptor);
       if (first === undefined || !literal.includes(first.word)) continue;
       if (
-        [...subsequenceMasks(literal, digits, form)].some(
+        [...subsequenceMasks(literal, digits, form, false, cuts)].some(
           (mask) => mask & keptBit && !(mask & omittedBit),
         )
       )
@@ -4544,6 +4669,7 @@ export function fitDecision(
           strict,
           forms,
           reliefs,
+          forms.slice(0, -1),
         );
         if (leftover !== null) {
           unaccountedPrograms.push(`${platform}: ${item.display_path} (${leftover})`);
@@ -6960,9 +7086,31 @@ const gateUndistinctive = [
   "dos",
   "console",
 ];
+/** Roman sequel numbers, restated: see `romanNumbers`. */
+const gateRoman = [
+  "ii",
+  "iii",
+  "iv",
+  "v",
+  "vi",
+  "vii",
+  "viii",
+  "ix",
+  "x",
+  "xi",
+  "xii",
+  "xiii",
+  "xiv",
+  "xv",
+  "xvi",
+  "xvii",
+  "xviii",
+  "xix",
+  "xx",
+];
 /** Whether a word can be the distinctive word a partial name keeps, restated. */
 function gateDistinctive(word: string) {
-  if (word.length < 2 || /^\d+$/u.test(word)) return false;
+  if (word.length < 2 || /^\d+$/u.test(word) || gateRoman.includes(word)) return false;
   return (
     !gateUndistinctive.includes(word) &&
     !gateNeutral.includes(word) &&
@@ -7160,6 +7308,7 @@ export const gateInitialismVeto = [
 interface GateFormWord {
   text: string;
   digits: boolean;
+  number: boolean;
   descriptor: boolean;
   linked: boolean;
   glued: boolean;
@@ -7208,6 +7357,7 @@ function gateForm(value: string): GateFormWord[] {
       words.push({
         text,
         digits: /^\d+$/u.test(text),
+        number: /^\d+$/u.test(text) || gateRoman.includes(text),
         descriptor: gateDescriptors.includes(text),
         linked: words.length > 0 && (at > 0 || /^[ ._-]+$/u.test(separator)),
         glued: at > 0,
@@ -7233,10 +7383,16 @@ function gateSubsequence(
   digitStarts: ReadonlyMap<number, number>,
   form: readonly GateFormWord[],
   lenient = false,
+  cuts: ReadonlySet<number> | null = null,
+  carried: readonly string[] = [],
 ): string[] {
   const memo = new Map<string, string[]>();
   const flags = (...parts: string[]) =>
     ["o", "d", "k", "x", "n"].filter((flag) => parts.some((part) => part.includes(flag))).join("");
+  // A descriptor stands on token boundaries, or, without them, in a trailing
+  // run of descriptors.
+  const descriptorFits = (at: number, end: number) =>
+    cuts === null ? gateDescriptorsOnly(literal.slice(at)) : cuts.has(at) && cuts.has(end);
   const walk = (at: number, word: number, keptBefore: boolean): string[] => {
     const key = `${at}/${word}/${keptBefore}`;
     if (memo.has(key)) return memo.get(key)!;
@@ -7246,33 +7402,59 @@ function gateSubsequence(
     if (lenient && digitStarts.has(at))
       for (const rest of walk(at + digitStarts.get(at)!, word, keptBefore)) out.add(rest);
     for (const descriptor of gateDescriptors)
-      if (literal.slice(at, at + descriptor.length) === descriptor)
+      if (
+        literal.slice(at, at + descriptor.length) === descriptor &&
+        descriptorFits(at, at + descriptor.length)
+      )
         for (const rest of walk(at + descriptor.length, word, keptBefore))
           out.add(flags(rest, "x"));
     const current = form[word];
     if (current !== undefined) {
       const prior = form[word - 1];
+      const after = form[word + 1];
       if (current.descriptor) for (const rest of walk(at, word + 1, false)) out.add(rest);
       else {
         let spells = literal.slice(at, at + current.text.length) === current.text;
         if (current.digits) spells &&= digitStarts.get(at) === current.text.length;
         const leavesNumber =
-          !current.digits &&
+          !current.number &&
           current.linked &&
           prior !== undefined &&
-          prior.digits &&
+          prior.number &&
           !prior.descriptor &&
           !keptBefore;
         if (spells && (lenient || !leavesNumber))
           for (const rest of walk(at + current.text.length, word + 1, true))
             out.add(
-              flags(rest, "k", gateDistinctive(current.text) ? "d" : "", leavesNumber ? "n" : ""),
+              flags(
+                rest,
+                "k",
+                gateDistinctive(current.text) ? "d" : "",
+                leavesNumber && !carried.includes(prior.text) ? "n" : "",
+              ),
             );
-        const dropsNumber =
-          current.digits && current.linked && prior !== undefined && !prior.digits && keptBefore;
+        let dropsNumber = false;
+        if (current.number) {
+          if (
+            current.linked &&
+            prior !== undefined &&
+            !prior.number &&
+            !prior.descriptor &&
+            (keptBefore || gateDistinctive(prior.text))
+          )
+            dropsNumber = true;
+          if (
+            after !== undefined &&
+            after.linked &&
+            !after.number &&
+            !after.descriptor &&
+            gateDistinctive(after.text)
+          )
+            dropsNumber = true;
+        }
         if (lenient || !dropsNumber)
           for (const rest of walk(at, word + 1, false))
-            out.add(flags(rest, "o", dropsNumber ? "n" : ""));
+            out.add(flags(rest, "o", dropsNumber && !carried.includes(current.text) ? "n" : ""));
       }
     }
     const result = [...out];
@@ -7289,26 +7471,50 @@ function gateDropsNumber(
   literal: string,
   digitStarts: ReadonlyMap<number, number>,
   raws: readonly string[],
+  cuts: ReadonlySet<number> | null = null,
 ): boolean {
-  return gateDropsNumberForms(literal, digitStarts, raws.map(gateForm));
+  return gateDropsNumberForms(literal, digitStarts, raws.map(gateForm), cuts);
 }
 function gateDropsNumberForms(
   literal: string,
   digitStarts: ReadonlyMap<number, number>,
   forms: readonly GateFormWord[][],
+  cuts: ReadonlySet<number> | null = null,
 ): boolean {
   const acceptable = (outcome: string) =>
     outcome.includes("k") && (!outcome.includes("o") || outcome.includes("d"));
   for (const form of forms) {
-    if (gateSubsequence(literal, digitStarts, form).some(acceptable)) continue;
+    if (gateSubsequence(literal, digitStarts, form, false, cuts).some(acceptable)) continue;
+    const carried: string[] = [];
+    for (const [start, length] of digitStarts) carried.push(literal.slice(start, start + length));
     if (
-      gateSubsequence(literal, digitStarts, form, true).some(
+      gateSubsequence(literal, digitStarts, form, true, cuts, carried).some(
         (outcome) => acceptable(outcome) && outcome.includes("n"),
       )
     )
       return true;
   }
   return false;
+}
+/**
+ * Whether a piece of a literal starting at `offset` is made only of
+ * descriptors, each a whole token (`cuts`) where there are tokens.
+ */
+function gateDescriptorTokens(
+  piece: string,
+  offset: number,
+  cuts: ReadonlySet<number> | null,
+): boolean {
+  if (piece === "") return true;
+  // Without tokens (a program's name), descriptors only follow the initialism.
+  if (cuts === null) return offset > 0 && gateDescriptorsOnly(piece);
+  if (!cuts.has(offset)) return false;
+  return gateDescriptors.some(
+    (descriptor) =>
+      piece.startsWith(descriptor) &&
+      cuts.has(offset + descriptor.length) &&
+      gateDescriptorTokens(piece.slice(descriptor.length), offset + descriptor.length, cuts),
+  );
 }
 /** Whether a literal is made only of descriptor words, restated. */
 function gateDescriptorsOnly(literal: string): boolean {
@@ -7332,7 +7538,7 @@ function gateInitialisms(form: readonly GateFormWord[]): string[] {
     if (word.descriptor) break;
     if (word.possessive) continue;
     let initials = [word.text.slice(0, 1)];
-    if (word.digits) initials = [word.text];
+    if (word.number) initials = [word.text];
     else if (word.capitals) initials = [word.text.slice(0, 1), word.text];
     const grown: string[] = [];
     for (const spelling of spellings)
@@ -7343,7 +7549,7 @@ function gateInitialisms(form: readonly GateFormWord[]): string[] {
     used += 1;
     if (gateDistinctive(word.text)) distinct = true;
     const next = form[index + 1];
-    if (next && !next.descriptor && (next.glued || (next.digits && next.linked))) continue;
+    if (next && !next.descriptor && (next.glued || (next.number && next.linked))) continue;
     if (used < 2 || used * 2 <= total || !distinct) continue;
     for (const spelling of spellings) {
       const letters = spelling.replace(/\d/gu, "");
@@ -7366,9 +7572,10 @@ export function gateRelief(
   literal: string,
   digitStarts: ReadonlyMap<number, number>,
   form: readonly GateFormWord[],
+  cuts: ReadonlySet<number> | null = null,
 ): boolean {
   if (literal === "") return false;
-  for (const outcome of gateSubsequence(literal, digitStarts, form)) {
+  for (const outcome of gateSubsequence(literal, digitStarts, form, false, cuts)) {
     if (!outcome.includes("k")) continue;
     if (!outcome.includes("o")) return true;
     if (outcome.includes("d")) return true;
@@ -7378,7 +7585,11 @@ export function gateRelief(
     while (at >= 0) {
       const head = literal.slice(0, at);
       const tail = literal.slice(at + initialism.length);
-      if (gateDescriptorsOnly(head) && gateDescriptorsOnly(tail)) return true;
+      if (
+        gateDescriptorTokens(head, 0, cuts) &&
+        gateDescriptorTokens(tail, at + initialism.length, cuts)
+      )
+        return true;
       at = literal.indexOf(initialism, at + 1);
     }
   }
@@ -7410,6 +7621,7 @@ function gateSpellsAnotherListing(
   digitStarts: ReadonlyMap<number, number>,
   listings: readonly Record<string, unknown>[],
   ownId: unknown,
+  cuts: ReadonlySet<number> | null = null,
 ): boolean {
   for (const listing of listings) {
     if (listing.id === ownId) continue;
@@ -7419,7 +7631,7 @@ function gateSpellsAnotherListing(
       const form = gateForm(raw);
       if (!form.length) continue;
       if (
-        gateSubsequence(literal, digitStarts, form).some(
+        gateSubsequence(literal, digitStarts, form, false, cuts).some(
           (outcome) => outcome.includes("k") && !outcome.includes("o"),
         )
       )
@@ -7533,9 +7745,27 @@ export function gateArchiveAccount(
     )
       cuts.push(index);
   }
+  const raws = [listing.id, listing.name, repository.split("/")[1]].filter(
+    (value): value is string => typeof value === "string",
+  );
+  // The joined product, its digit runs and token boundaries.
+  const spell = (kept: readonly { word: string }[]) => {
+    let literal = "";
+    const digitStarts = new Map<number, number>();
+    const boundaries = new Set<number>([0]);
+    for (const token of kept) {
+      if (/^\d+$/u.test(token.word)) digitStarts.set(literal.length, token.word.length);
+      literal += token.word;
+      boundaries.add(literal.length);
+    }
+    return { literal, digitStarts, boundaries };
+  };
   for (const cut of cuts) {
     const kept = product.slice(0, cut);
     if (kept.length === 0) continue;
+    const { literal, digitStarts, boundaries } = spell(kept);
+    // A number another accepted name links to a kept word is never optional.
+    if (gateDropsNumber(literal, digitStarts, raws, boundaries)) continue;
     for (const words of gateNameLists(listing, repository)) {
       // The same letters, with each integer exactly one word of the name.
       if (kept.map((token) => token.word).join("") !== words.join("")) continue;
@@ -7557,21 +7787,14 @@ export function gateArchiveAccount(
   }
   // The reliefs on the same cuts: the archive's own product, when it spells
   // an accepted name under them and no other listing's complete name.
-  const raws = [listing.id, listing.name, repository.split("/")[1]].filter(
-    (value): value is string => typeof value === "string",
-  );
   for (const cut of cuts) {
     const kept = product.slice(0, cut);
     if (kept.length === 0) continue;
-    let literal = "";
-    const digitStarts = new Map<number, number>();
-    for (const token of kept) {
-      if (/^\d+$/u.test(token.word)) digitStarts.set(literal.length, token.word.length);
-      literal += token.word;
-    }
-    if (!raws.some((raw) => gateRelief(literal, digitStarts, gateForm(raw)))) continue;
-    if (gateDropsNumber(literal, digitStarts, raws)) continue;
-    if (gateSpellsAnotherListing(literal, digitStarts, listings, listing.id)) return null;
+    const { literal, digitStarts, boundaries } = spell(kept);
+    if (!raws.some((raw) => gateRelief(literal, digitStarts, gateForm(raw), boundaries))) continue;
+    if (gateDropsNumber(literal, digitStarts, raws, boundaries)) continue;
+    if (gateSpellsAnotherListing(literal, digitStarts, listings, listing.id, boundaries))
+      return null;
     return literal;
   }
   return null;
@@ -7595,10 +7818,12 @@ function gateFolderProduct(
   segment: string,
   names: readonly string[],
   forms: readonly GateFormWord[][],
+  numberChecked: readonly GateFormWord[][],
 ): boolean {
   if (forms.length === 0) return false;
   let literal = "";
   const digitStarts = new Map<number, number>();
+  const boundaries = new Set<number>([0]);
   let ended = false;
   for (const token of gateGrammarTokens(gateNameBase(`${segment}.zip`))) {
     if (token.kind === "boundary") {
@@ -7612,11 +7837,12 @@ function gateFolderProduct(
     }
     if (/^\d+$/u.test(token.text)) digitStarts.set(literal.length, token.text.length);
     literal += token.text;
+    boundaries.add(literal.length);
   }
   if (literal === "") return false;
+  if (gateDropsNumberForms(literal, digitStarts, numberChecked, boundaries)) return false;
   if (names.includes(literal)) return true;
-  if (gateDropsNumberForms(literal, digitStarts, forms)) return false;
-  return forms.some((form) => gateRelief(literal, digitStarts, form));
+  return forms.some((form) => gateRelief(literal, digitStarts, form, boundaries));
 }
 /**
  * Whether a program is accounted for, restated: see `programNameUnaccounted`.
@@ -7632,8 +7858,10 @@ export function gateProgramAccounted(
   words: readonly string[],
   strict: boolean,
   forms: readonly string[] = [],
+  numberForms: readonly string[] = forms,
 ): boolean {
   const parsedForms = forms.map(gateForm).filter((form) => form.length > 0);
+  const numberChecked = numberForms.map(gateForm).filter((form) => form.length > 0);
   let file = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
   if (file.endsWith(".exe")) file = file.slice(0, -4);
   let literal = "";
@@ -7671,7 +7899,7 @@ export function gateProgramAccounted(
     for (let end = 1; end <= literal.length && !named; end++) {
       if (!architectureRun(literal.slice(end))) continue;
       const core = literal.slice(0, end);
-      if (gateDropsNumberForms(core, gateDigitStarts(core), parsedForms)) continue;
+      if (gateDropsNumberForms(core, gateDigitStarts(core), numberChecked)) continue;
       named = parsedForms.some((form) => gateRelief(core, gateDigitStarts(core), form));
     }
   if (!named) return false;
@@ -7714,7 +7942,8 @@ export function gateProgramAccounted(
     return true;
   };
   for (const segment of segments)
-    if (!segmentKnown(segment) && !gateFolderProduct(segment, names, parsedForms)) return false;
+    if (!segmentKnown(segment) && !gateFolderProduct(segment, names, parsedForms, numberChecked))
+      return false;
   return true;
 }
 /**
@@ -8062,6 +8291,7 @@ function gateEnrollmentProblems(
             gateAccountWords(offered.name, own, entry.repository),
             strict,
             gateReliefForms(own, entry.repository, accepted),
+            gateReliefForms(own, entry.repository, ""),
           ),
       )
     )
@@ -8163,6 +8393,7 @@ function gateEnrollmentProblems(
             gateAccountWords(artifact.name, own, entry.repository),
             strict,
             gateReliefForms(own, entry.repository, runtimeAccepted),
+            gateReliefForms(own, entry.repository, ""),
           ),
       )
     )

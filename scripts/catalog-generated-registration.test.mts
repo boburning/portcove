@@ -8014,7 +8014,7 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "Crackdown-v0.6.2-windows-x64.zip",
       ["partial-name"],
     ],
-    ["Dead or Alive 3 (DOA3 Recomp)", "doa3-recomp", "DOA3-v1.0.7-win64.zip", ["partial-name"]],
+    ["Dead or Alive 3 (DOA3 Recomp)", "doa3-recomp", "DOA3-v1.0.7-win64.zip", ["initialism"]],
     [
       "The Sims (Original Xbox Static Recompilation)",
       "sims1-recomp",
@@ -8116,7 +8116,7 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "doa3-recomp",
       "DOA3-v1.0.7-win64.zip",
       "DOA3.exe",
-      ["partial-name"],
+      ["initialism"],
     ],
     [
       "Crusader: No Remorse / SDL port",
@@ -8227,7 +8227,7 @@ void test("program and folder names use the reliefs, beside no other package for
       "Amped2-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
     ],
     [
-      "SSX 3 (PlayStation 2)",
+      "SSX 3 (Recompiled)",
       "SSX3-Recomp",
       "SSX3-Recomp-v0.3.0-windows-x86_64.zip",
       "SSX3-Recomp-v0.3.0-windows-x86_64/SSX3Recomp.exe",
@@ -8337,6 +8337,19 @@ void test("what the reliefs do not cover stays withheld: channel, variant and ro
     ["Wayne Gretzky's 3D Hockey", "hockey-port", "wg3-1.0-win64.zip"],
     ["The Game", "the-port", "tg-1.0-win64.zip"],
     ["Earthworm Jim", "jim-port", "ewj-1.0-win64.zip"],
+    // Review findings: roman sequel numbers are numbers, a number beside a
+    // distinctive word is never optional, and descriptors are whole tokens.
+    ["Doom II", "doom-ii-port", "Doom-1.0-win64.zip"],
+    ["Star Wars Battlefront II", "swbf2-port", "StarWarsBattlefront-1.0-win64.zip"],
+    ["Final Fantasy VII", "ff7-port", "FinalFantasy-1.0-win64.zip"],
+    ["Final Fantasy VII", "ff7-port", "Final-1.0-win64.zip"],
+    ["Diablo II: Lord of Destruction", "lod-port", "Diablo-1.0-win64.zip"],
+    ["Teenage Mutant Ninja Turtles II", "tmnt2-port", "tmnt-1.0-win64.zip"],
+    ["Super Mario Bros. 3", "smb3-port", "Super-1.0-win64.zip"],
+    ["Silent Hill 2", "sh2-port", "Silent-1.0-win64.zip"],
+    ["Sonic 3: Angel Island Revisited", "s3air-port", "Island-1.0-win64.zip"],
+    ["Al", "al-game", "Portal-1.0-win64.zip"],
+    ["Super Mario Bros", "smb-port", "Superport-1.0-win64.zip"],
     // Older must-withhold rows.
     ["Super Game", "super-port", "SuperGame2-1.0-win64.zip"],
     ["Super Game", "super-port", "Super-Other-1.0-win64.zip"],
@@ -8349,6 +8362,51 @@ void test("what the reliefs do not cover stays withheld: channel, variant and ro
     const fit = reliefAccount(name, repository, archive);
     assert.ok(!("product" in fit), `${archive} for ${name}: ${JSON.stringify(fit)}`);
   }
+  // An exact spelling of the id or repository name drops no number another
+  // accepted name links to a kept word either (`doom` for "Doom 2").
+  for (const repository of ["doom", "doom-port"]) {
+    const record = listing("doom", {
+      name: "Doom 2",
+      original_game_title: "Doom 2",
+      project_url: `https://github.com/fixture-owner/${repository}`,
+    });
+    const fit = archiveNameAccount(
+      "Doom-1.0-win64.zip",
+      record.listing,
+      `fixture-owner/${repository}`,
+    );
+    assert.ok(!("product" in fit), `${repository}: ${JSON.stringify(fit)}`);
+    assert.equal(
+      gateArchiveAccount("Doom-1.0-win64.zip", record.listing, `fixture-owner/${repository}`),
+      null,
+    );
+  }
+  // The roman number kept, and a descriptor as its own token, still enroll.
+  assert.ok("product" in reliefAccount("Doom II", "doom-ii-port", "Doom-II-1.0-win64.zip"));
+  assert.ok(
+    "product" in reliefAccount("Final Fantasy VII", "ff7-port", "FinalFantasyVII-PC-win64.zip"),
+  );
+  assert.ok("product" in reliefAccount("Al", "al-game", "Port-Al-1.0-win64.zip"));
+  // Program descriptors stand only in a leading or trailing run.
+  const portal = reliefForms(
+    reliefRecord("program", "Al", "al-game").listing,
+    "fixture-owner/al-game",
+    "",
+  );
+  assert.notEqual(programNameUnaccounted("Portal.exe", new Set(), new Set(), false, portal), null);
+  assert.equal(gateProgramAccounted("Portal.exe", [], [], false, portal), false);
+  assert.equal(programNameUnaccounted("AlPort.exe", new Set(), new Set(), false, portal), null);
+  assert.ok(gateProgramAccounted("AlPort.exe", [], [], false, portal));
+  // A folder may end in a date or build number of four or more digits.
+  const dated = reliefDecision(
+    "dated",
+    "Amped 2 (Xbox)",
+    "Amped2-Recomp",
+    "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
+    ["Amped2-Recomp-v0.2.0-20240101/Amped2Recomp.exe"],
+  );
+  assert.ok(dated.decision.fit, JSON.stringify(dated.decision));
+  assert.equal(dated.gate, "accepted");
   // A real initialism no list holds is one: `sc` for "Super Contra".
   assert.ok("product" in reliefAccount("Super Contra", "contra-port", "sc-1.0-win64.zip"));
   for (const word of ["sc", "dx", "hd", "cd", "re"])
@@ -8605,7 +8663,25 @@ void test("random archive names: any token outside product subsequence, initiali
   };
   const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
   const letters = "bcfghjklmnqvwxz";
+  // Real words that hold descriptor letters, channel and variant words.
+  const tricky = [
+    "portal",
+    "sports",
+    "pcs",
+    "natives",
+    "recomps",
+    "beta",
+    "deck",
+    "mods",
+    "server",
+    "editor",
+    "lite",
+    "demo",
+    "unity",
+    "palace",
+  ];
   const extraToken = () => {
+    if (random() < 0.3) return pick(tricky);
     for (;;) {
       const word = Array.from({ length: 3 + Math.floor(random() * 4) }, () =>
         pick(letters.split("")),

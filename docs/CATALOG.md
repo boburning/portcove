@@ -4129,15 +4129,21 @@ relief for a person to hand-check first.
   neutral word, a number or a single letter (`nonDistinctiveWords`). So
   `game-1.0.zip` never accounts for "The Game". Numbers are never optional:
   every number of the archive's product must be a whole number of the name
-  where it stands, and a number of the name linked to a kept word (glued to
-  it, or joined to it by a space, `-`, `_` or `.` only) must be kept. "Doom"
-  does not account for a listing named "Doom 2", and "Doom 2" does not account
-  for "Doom". A number apart from every kept word may go: a year in brackets
-  (`Lantern (1998)`), or the `360` of `crackdown-xbox360-recompiled`, linked
-  only to the omitted `xbox`. Across names too: a relieved product that drops
-  a number another of the listing's accepted names links to a kept word is
-  unaccounted (`Doom-1.0-…` for a listing named "Doom 2" whose id lacks the
-  `2`, `Sims1-…` for "The Sims 2").
+  where it stands, and a number of the name (digits or a roman number from
+  `ii` to `xx`, `romanNumbers`) linked to a kept word or to any distinctive
+  word (glued to it, or joined to it by a space, `-`, `_` or `.` only) must
+  be kept. "Doom" does not account for a listing named "Doom 2" or "Doom II",
+  "Doom 2" does not account for "Doom", and `Silent` does not account for
+  "Silent Hill 2". A number linked only to non-distinctive words may go: a
+  year in brackets (`Lantern (1998)`), or the `360` of
+  `crackdown-xbox360-recompiled`, linked only to `xbox`. Across names too: a
+  product that drops a number another of the listing's accepted names links
+  that way, and does not carry that number elsewhere, is unaccounted, also
+  when it spells the id or repository name exactly (`Doom-1.0-…` for a
+  listing named "Doom 2" whose id is `doom`, `Sims1-…` for "The Sims 2").
+  `DOA3` for "Dead or Alive 3 (DOA3 Recomp)" carries its `3`. A platform name
+  split by camel case (`PlayStation 2`) makes its number mandatory: the cost
+  is stated.
 - **Initialism** (`initialism`). A product of two to six letters may be the
   initials of the accepted name's words from its first word on, covering more
   than half of its words and at least two of them, with a distinctive word
@@ -4158,8 +4164,10 @@ relief for a person to hand-check first.
 - **Port descriptor** (`descriptor`). A closed list of words that say how a
   port was made, not which game it is, may stand in the archive or program
   name without being in the accepted name, and may be absent although the
-  accepted name has it. Descriptors are never the distinctive word. Each has
-  its measured example:
+  accepted name has it. Descriptors are never the distinctive word. In an
+  archive or folder name a descriptor is a whole token (`Portal-…` never holds
+  `port`); in a program's glued name, descriptors only trail it
+  (`narutothebrokenbondpc`), as measured. Each has its measured example:
   - `recomp`: `gow2-recomp-0.4.7-linux-x86_64.tar.gz` (repository
     `gears-of-war-2-pc-port`), repositories `doa3-recomp` and `ki-recomp`;
   - `recompiled`: `FZeroXRecompiled-v0.1.16-windows-x64.zip` (repository
@@ -4191,7 +4199,9 @@ relief for a person to hand-check first.
   `0c97cca` of `0.79.0c97cca`) is read like a version; so is a dotted version
   with one glued patch letter (`SymphonyRecomp-v1.2.0p-…`) and a dotted
   version glued by `v` or `V` to a product word
-  (`condemned2recompV0.6.1_windows.zip`). A dotted version glued to `a`, `b`,
+  (`condemned2recompV0.6.1_windows.zip`). The cost is stated: a real word of
+  seven or more hexadecimal letters with a digit (`decade2`) after the
+  product reads as a build identifier. A dotted version glued to `a`, `b`,
   `r`, `rc`, `alpha`, `beta` or `pre`, with or without a number (`1.2.0b2`,
   `1.0rc1`, `1.0a`), is a prerelease marker and withholds; any other single
   trailing letter is a patch letter.
@@ -4205,8 +4215,9 @@ relief for a person to hand-check first.
   strictly literal, and role and launcher words veto as before.
 - **Folders** (`folder`). A folder segment read by the archive grammar whose
   product is the accepted archive product or spells an accepted name under
-  the reliefs, followed only by versions, build identifiers, neutral words and
-  descriptors, is accounted: `Amped2-Recomp-v0.2.0-windows-x86_64/`,
+  the reliefs, followed only by versions, build identifiers, neutral words,
+  descriptors and dates or build numbers of four or more digits, is
+  accounted: `Amped2-Recomp-v0.2.0-windows-x86_64/`,
   `SSX3-Recomp-v0.3.0-windows-x86_64/` and `Dora64-3-1.0.0-Windows-x64/`
   failed the per-word folder rule only because of their glued digits.
 
@@ -4215,7 +4226,9 @@ or GitHub repository name, modulo descriptors) of another catalog listing is a
 contradiction, and the whole identity is withheld as
 `archive-names-another-listing`: `StarWars-1.0-win64.zip` in the repository
 of "Star Wars Battlefront" names the listing "Star Wars". An archive that
-spells its own listing's name exactly is not compared.
+spells its own listing's name exactly is not compared, and the check reads
+archive names only: a relieved program name is not compared with other
+listings.
 
 The next real-data run reports the enrolled count, the count per relief
 (`relieved_enrollments`), the fate of the 131 previously verified
