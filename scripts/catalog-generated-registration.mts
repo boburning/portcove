@@ -127,7 +127,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 28;
+export const GENERATOR_VERSION = 29;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 23;
@@ -3844,6 +3844,21 @@ export const romanNumbers = [
   "xx",
 ] as const;
 const romanSet = new Set<string>(romanNumbers);
+/**
+ * Whether a literal carries a name's number word (`carried`, the literal's
+ * digit runs): the same digits, or a roman sequel number of two or more
+ * letters (`romanNumbers`) whose value the literal writes in digits, so
+ * `saboteur2` carries the `II` of "Saboteur II". Only the value counts: `3`
+ * never carries `II`. A lone `v` or `x` may be a letter's name ("Mega Man X")
+ * and a word outside `romanNumbers` (`mix`, `did`) no number, so neither is
+ * carried by digits.
+ */
+function carriesNumber(carried: ReadonlySet<string>, word: string): boolean {
+  if (carried.has(word)) return true;
+  if (!romanSet.has(word) || word.length < 2) return false;
+  const value = romanValue(word);
+  return value !== null && carried.has(String(value));
+}
 /** Whether a word can be the distinctive word of a partial name. */
 const distinctiveWord = (word: string) =>
   word.length >= 2 &&
@@ -4543,7 +4558,7 @@ function subsequenceMasks(
     if (!word.sequel) continue;
     const exempt = word.annotation && literalNumbers.has(word.word);
     if (exempt) continue;
-    const flag = lenient ? (carried.has(word.word) ? 0 : droppedNumberBit) : null;
+    const flag = lenient ? (carriesNumber(carried, word.word) ? 0 : droppedNumberBit) : null;
     const known = segmentDrop.get(word.segment);
     segmentDrop.set(word.segment, known === null || flag === null ? null : (known ?? 0) | flag);
   }
@@ -4590,7 +4605,7 @@ function subsequenceMasks(
     const spelled = word.numeric
       ? digits.get(position) === word.word.length && literal.startsWith(word.word, position)
       : literal.startsWith(word.word, position);
-    const dropped = (number: string) => (carried.has(number) ? 0 : droppedNumberBit);
+    const dropped = (number: string) => (carriesNumber(carried, number) ? 0 : droppedNumberBit);
     if (word.optional) {
       for (const mask of visit(position, index + 1, false, current))
         masks.add(mask | optionalBit | ended);
@@ -4905,7 +4920,7 @@ export interface ReliefSpelling {
   /** For an initialism, the words of its run joined (`franchise_only_partial`). */
   initialismWords: string | null;
   /**
-   * The later title segments a relieved spelling omits whole, their words
+   * The later title segments every relieved spelling omits whole, their words
    * joined by spaces (D1, `franchise_only_partial`): "total destruction" for
    * `rampage` and "Rampage: Total Destruction".
    */
@@ -4938,8 +4953,12 @@ export function reliefDetail(
     };
   if (masks.length) {
     const relieved = !masks.some((mask) => !(mask & omittedBit));
-    // Every later title segment any accepted spelling omits whole.
-    const omitted = masks.reduce((union, mask) => union | mask, 0);
+    // Every later title segment all accepted spellings omit whole: one that
+    // keeps the segment shows the literal holds its words, as `hardcorpsuprising`
+    // holds "Uprising" although it can also spell "Hard Corps" with the
+    // annotation's "Uprising" in "Hard Corps: Uprising (Hard Corps: Uprising
+    // Recompiled)".
+    const omitted = masks.reduce((common, mask) => common & mask, ~0);
     return {
       reliefs: masks.some((mask) => mask & descriptorBit)
         ? ["descriptor", "partial-name"]
@@ -8320,6 +8339,17 @@ const gateRoman = [
   "xix",
   "xx",
 ];
+/**
+ * Whether a literal's digit runs (`carried`) carry a name's number word,
+ * restated: see `carriesNumber`. The same text, or a listed roman sequel
+ * number of two or more letters whose value one run writes in digits.
+ */
+function gateCarries(carried: readonly string[], text: string): boolean {
+  if (carried.includes(text)) return true;
+  if (text.length < 2 || !gateRoman.includes(text)) return false;
+  const value = gateRomanValue(text);
+  return value !== null && carried.includes(String(value));
+}
 /** Whether a word can be the distinctive word a partial name keeps, restated. */
 function gateDistinctive(word: string) {
   if (word.length < 2 || /^\d+$/u.test(word) || gateRoman.includes(word)) return false;
@@ -8897,7 +8927,7 @@ function gateSubsequence(
       if (word.segment !== segment || !word.sequel) continue;
       if (word.annotation && ownNumbers.includes(word.text)) continue;
       if (!lenient) return "refused";
-      if (!carried.includes(word.text)) cost = "n";
+      if (!gateCarries(carried, word.text)) cost = "n";
     }
     return cost;
   };
@@ -8944,7 +8974,7 @@ function gateSubsequence(
       const priorKept = !newSegment && keptBefore;
       let spells = literal.slice(at, at + current.text.length) === current.text;
       if (current.digits) spells &&= digitStarts.get(at) === current.text.length;
-      const mark = (number: string) => (carried.includes(number) ? "" : "n");
+      const mark = (number: string) => (gateCarries(carried, number) ? "" : "n");
       if (current.trailing) {
         for (const rest of walk(at, word + 1, false, state)) out.add(flags(rest, "p", ending));
         if (spells)
