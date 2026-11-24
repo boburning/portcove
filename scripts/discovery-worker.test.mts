@@ -1097,3 +1097,55 @@ void test("a stored-lead read reserves enough metered payload for the whole stat
     assert.ok(Math.floor(reservation * 0.7) >= state + records + 700_000);
   }
 });
+
+void test("the status report shows each curated source's coverage and baseline progress", () => {
+  const text = renderDiscoveryStatus({
+    attempts: [
+      {
+        attempt_id: "a",
+        outcome: "partial",
+        started_at: "2026-11-24T01:54:12Z",
+        source_revision: "rev",
+        committed_pages: 1,
+        result: {
+          leads: {
+            external: {
+              hints: 11588,
+              "unsupported-host": 257,
+              "non-github": 65,
+              lists: {
+                recomplauncher: {
+                  last_complete: { completed_at: "2026-11-24T01:12:42Z", entries: 1961 },
+                  due: false,
+                  contribution: {
+                    hints: 1961,
+                    discovered: 213,
+                    platform_claims: 1946,
+                    unresolved_hosts: 4,
+                  },
+                },
+                "unbaked-registry": { last_complete: null, due: true, contribution: null },
+              },
+              inventories: {
+                "unbaked-registry": {
+                  inventory_at: "2026-11-24T01:43:07Z",
+                  items: 7709,
+                  read: 857,
+                  due: 6852,
+                  candidates_without_public_code: 1718,
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  });
+  assert.match(text, /Curated hints: 11588 \(unsupported-host 257, non-GitHub 65\)/u);
+  assert.match(
+    text,
+    /\| recomplauncher \| 2026-11-24T01:12 \| 1961 \| 1961 \| 213 \| 1946 \| 4 \| no \|/u,
+  );
+  assert.match(text, /\| unbaked-registry \| never \|/u);
+  assert.match(text, /\| unbaked-registry \| 2026-11-24T01:43 \| 7709 \| 857 \| 6852 \| 1718 \|/u);
+});

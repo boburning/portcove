@@ -788,6 +788,45 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
       lines.push(`| ${String(s.id)} | ${String(s.status)} | ${String(s.records)} |`);
     lines.push("");
   }
+  // Curated lists and inventory baselines: coverage and contribution per source.
+  const cell = (value: unknown) =>
+    typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const external =
+    isRecord(result.leads) && isRecord(result.leads.external) ? result.leads.external : {};
+  const lists = isRecord(external.lists) ? external.lists : {};
+  const listRows = Object.entries(lists).filter(([, value]) => isRecord(value));
+  if (listRows.length) {
+    lines.push(
+      `Curated hints: ${Number(external.hints ?? 0)} (unsupported-host ${Number(external["unsupported-host"] ?? 0)}, non-GitHub ${Number(external["non-github"] ?? 0)}).`,
+      "",
+      "| List | Last complete | Entries | Hints | Discovered | Platform claims | Unresolved hosts | Due |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    );
+    for (const [id, raw] of listRows) {
+      const value = raw as Record<string, unknown>;
+      const clock = isRecord(value.last_complete) ? value.last_complete : undefined;
+      const c = isRecord(value.contribution) ? value.contribution : {};
+      lines.push(
+        `| ${id} | ${clock ? cell(clock.completed_at).slice(0, 16) : "never"} | ${cell(clock?.entries ?? "")} | ${cell(c.hints ?? 0)} | ${cell(c.discovered ?? 0)} | ${cell(c.platform_claims ?? 0)} | ${cell(c.unresolved_hosts ?? 0)} | ${value.due ? "yes" : "no"} |`,
+      );
+    }
+    lines.push("");
+  }
+  const inventories = isRecord(external.inventories) ? external.inventories : {};
+  const inventoryRows = Object.entries(inventories).filter(([, value]) => isRecord(value));
+  if (inventoryRows.length) {
+    lines.push(
+      "| Baseline | Inventory read | Items | Read | Due | Without public code |",
+      "| --- | --- | --- | --- | --- | --- |",
+    );
+    for (const [id, raw] of inventoryRows) {
+      const value = raw as Record<string, unknown>;
+      lines.push(
+        `| ${id} | ${cell(value.inventory_at).slice(0, 16)} | ${cell(value.items)} | ${cell(value.read)} | ${cell(value.due)} | ${cell(value.candidates_without_public_code)} |`,
+      );
+    }
+    lines.push("");
+  }
   if (due.length) {
     lines.push("| Due subject | Reason | Wake |", "| --- | --- | --- |");
     for (const w of due.slice(0, 25))

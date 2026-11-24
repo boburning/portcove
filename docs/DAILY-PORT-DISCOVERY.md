@@ -1056,7 +1056,9 @@ export reports the handoff as `pending-dependency`.
 
 `node scripts/discovery-worker.mts status` writes a read-only export
 (`status.json`, `status.md`). It shows the latest attempts, source outcomes,
-observation and watch counts, due subjects and activation. The job appends
+observation and watch counts, due subjects and activation, and for each curated
+list and inventory baseline its last complete read, contribution (hints,
+discovered, platform claims, unresolved hosts), due state and baseline progress. The job appends
 `status.md` to its run summary and retains the files as
 `discovery-status-<run>-<attempt>`. Before new research, the hosted researcher
 reads the latest run's export rather than rebuilding coverage from first-page
