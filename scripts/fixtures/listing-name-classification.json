@@ -292,7 +292,8 @@
       "CrackdownRecompiled.exe",
       "crackdown-x64.exe",
       "CrackdownServer.exe",
-      "cd.exe"
+      "cd.exe",
+      "shock.exe"
     ]
   },
   "output": {
@@ -1488,6 +1489,10 @@
       },
       {
         "name": "cd.exe",
+        "tool_token": null
+      },
+      {
+        "name": "shock.exe",
         "tool_token": null
       }
     ]
