@@ -114,7 +114,7 @@ export function normalizeNeonMeter(
     owner?.subscription_type !== "free_v3" ||
     project.id !== neonProject ||
     branch.project_id !== neonProject ||
-    branch.id !== "br-frosty-bar-bbaitwbu" ||
+    branch.id !== neonBranch ||
     !periodStart ||
     !periodEnd ||
     !resetAt ||
@@ -172,8 +172,14 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
         `Neon ${name} read returned HTTP ${response.status}${message ? `: ${neonDiagnostic(message, token)}` : ""}`,
       );
     }
-    const value: unknown = await response.json();
-    return value;
+    try {
+      const value: unknown = await response.json();
+      return value;
+    } catch (error) {
+      throw new MaintenanceStoreError(
+        `Neon ${name} read returned an unreadable body: ${neonDiagnostic(error instanceof Error ? error.message : String(error), token)}`,
+      );
+    }
   };
   const sampledAt = new Date().toISOString();
   // Every read finishes, so a failure report names each read that failed.
@@ -206,9 +212,7 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
     !Array.isArray(endpoints) ||
     !endpoints.some(
       (endpoint: unknown) =>
-        isRecord(endpoint) &&
-        endpoint.host === host &&
-        endpoint.branch_id === "br-frosty-bar-bbaitwbu",
+        isRecord(endpoint) && endpoint.host === host && endpoint.branch_id === neonBranch,
     )
   )
     throw new MaintenanceStoreError(

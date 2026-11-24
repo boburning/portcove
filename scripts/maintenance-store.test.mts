@@ -764,6 +764,18 @@ void test("a failed Neon meter read names each failing read and Neon's reason", 
     assert.doesNotMatch(message, /napi_fixture_secret/u, "the credential is never retained");
     return true;
   });
+  // A read that cannot connect, or answers with an unreadable body, is named too.
+  answers[""] = () => {
+    throw new Error(`connect failed with ${token}`);
+  };
+  answers["/endpoints"] = () => new Response("not json", { status: 200 });
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon project read failed: connect failed with \[credential\]/u);
+    assert.match(message, /Neon endpoints read returned an unreadable body/u);
+    assert.doesNotMatch(message, /napi_fixture_secret/u);
+    return true;
+  });
   assert.equal(neonDiagnostic("x".repeat(500), ""), "x".repeat(200));
 });
 
