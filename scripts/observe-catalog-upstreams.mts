@@ -1,4 +1,7 @@
-import { listingUpdatesForReport } from "./listing-upstream-observation.mts";
+import {
+  listingUpdatesForReport,
+  withoutListingReleaseText,
+} from "./listing-upstream-observation.mts";
 import {
   acceptedObservationPosition,
   acceptedObservationAdvanced,
@@ -521,7 +524,8 @@ export async function runCatalogUpstreams(
           },
           source_port_ids: source.ports.map((p) => p.id),
           observations,
-          catalog_policies: policies,
+          // Release text stays in the checkpoint's projections, never in the handoff.
+          catalog_policies: policies.map(withoutListingReleaseText),
           descriptive_listing_candidates: listingUpdatesForReport(
             policies,
             failure ?? {},
@@ -600,7 +604,8 @@ export async function runCatalogUpstreams(
             run_attempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
           },
           source_port_ids: source.ports.map((port) => port.id),
-          catalog_policies: policies,
+          // Release text stays in the checkpoint's projections, never in the handoff.
+          catalog_policies: policies.map(withoutListingReleaseText),
           descriptive_listing_candidates: listingUpdatesForReport(
             policies,
             observation.report,

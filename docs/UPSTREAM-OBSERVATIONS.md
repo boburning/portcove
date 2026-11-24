@@ -1375,6 +1375,32 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+A source whose consumers are all descriptive listings also keeps each of its
+four newest published releases' own text, for generated registration's
+release-text rule only: its observer configuration says so
+(`release_text: "listing-window"`, so its checkpoints are its own), and its
+facts keep the release name and, of the body, only the first line the rule
+judges, looked for in the whole body (`text: { title, line, line_complete }`).
+Only the first release list page keeps text (the provider lists releases
+newest first); a window release on a later page reads as unobserved text, so
+the stored pages and the projection each hold at most one window.
+The kept text of one source is bounded by the checkpoint's capacity
+(`releaseTextSourceBytes`, 32 MiB ÷ 2 ÷ 2 ÷ 1,295 sources, a bounded unit);
+over it, each kept release records only a typed overflow with its size
+(`overflow_bytes`), which reads as unobserved text, never as a statement
+either way. A change to the kept text during an observation is a concurrent change
+like any other fact. Managed sources keep no release text: their facts,
+checkpoints and Core projections are unchanged. The text travels beside the
+candidates, never inside `upstream_observation`, whose shape Core's signed
+listing accepts: each listing projection carries `listing_release_text`
+(format 1) bound to its observation's facts digest. The checkpoint's
+`last_complete_policies` keep it with each projection, which is where the
+facts batch reads it; the handoff's `catalog_policies` omit it. A reader
+attaches text only to the observation whose digest it names; a projection
+without it reads as unobserved text. The text is unsigned, untrusted upstream content, never shown to
+players and never accepted into a listing
+([release text statements](CATALOG.md#release-text-statements)).
+
 The same report carries `descriptive_listing_preimages`, keyed by stable ID and
 binding the prior accepted observation hash. Feed a retained source report to
 `prepare-port.mts --listing-observations REPORT --validator-cli TRUSTED_CLI

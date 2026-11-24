@@ -255,6 +255,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/qualification-coverage.mts",
       "scripts/qualification-nextest.mts",
       "scripts/qualification-rustdoc.mts",
+      "scripts/release-text.mts",
       "scripts/report-summary.mts",
       "scripts/retained-evidence.mts",
       "scripts/runtime-values.mts",

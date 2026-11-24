@@ -10,7 +10,7 @@ import {
 import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
 import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
-import { ObservationFailure } from "./upstream-observer.mts";
+import { modeledCatalogSources, ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubApiError } from "./github-operation.mts";
@@ -983,7 +983,9 @@ void test(factGrowthTest, { timeout: 120_000 }, async (t) => {
     assert.ok(isRecord(value));
     return value;
   }
-  for (let index = 0; index < 1295; index++) {
+  // The modeled population is the one release-text budgets are shared by.
+  assert.equal(modeledCatalogSources, 1295);
+  for (let index = 0; index < modeledCatalogSources; index++) {
     const repository = `fixture/repository-${index}`;
     const config = validateObserverConfig({
       ...templateConfig,

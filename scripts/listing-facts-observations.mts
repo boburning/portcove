@@ -22,7 +22,11 @@ import {
   partialProgressRules,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
-import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import {
+  listingProviderIdentity,
+  releaseTextOverflow,
+  withReleaseText,
+} from "./listing-upstream-observation.mts";
 import { readUpstreamObservations, type UpstreamInput } from "./maintenance-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -78,8 +82,22 @@ export function accumulatedObservations(
       if (typeof policy.port_id === "string")
         byPort.set(policy.port_id, [...(byPort.get(policy.port_id) ?? []), policy]);
     for (const [id, policies] of byPort) {
-      const update = policies.length === 1 ? policies[0]!.listing_update : undefined;
-      const observation = isRecord(update) ? update.upstream_observation : undefined;
+      if (policies.length !== 1) {
+        gaps.push(`${progress.repository}: ${id} has ${policies.length} completed projections`);
+        continue;
+      }
+      const update = policies[0]!.listing_update;
+      // The release text travels beside the observation, bound to its facts
+      // digest; a projection retained before the observer kept text has
+      // none, and its releases read as text unobserved.
+      const observation = isRecord(update)
+        ? withReleaseText(update.upstream_observation, policies[0]!.listing_release_text)
+        : undefined;
+      const overflow = releaseTextOverflow(policies[0]!.listing_release_text);
+      if (overflow !== null)
+        gaps.push(
+          `${progress.repository}: ${id} release text over its budget (${overflow} bytes); read as unobserved`,
+        );
       // The repository the observer was asked to observe: the listing it
       // observed, not the provider's resolved name, so a rename GitHub
       // redirects keeps its observation (the worker binds the repository id).
