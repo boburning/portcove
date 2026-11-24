@@ -6073,11 +6073,13 @@ gave a verdict on the archive. Any other failure (another permission refusal,
 a missing or crashed Core CLI, Core output that is not JSON, a Core usage
 refusal, a fault of the job's own code) is `job-fault`, which stops the job
 like `out-of-scope`. A systemic fault can still look like a verdict on each
-identity (a wrong URL template gives every identity a 404), so when every
-reproduced identity is refused for the same reason, `decide` withholds
-nothing and stops as `reproduction-unsound`. A single 404 cannot be told
-apart from a systemic fault that touched only one identity; it withholds
-that identity, which is the safe direction. For a verdict on one
+identity (a wrong URL template gives every identity a 404), so when more
+than one identity was reproduced and every one is refused for the same
+reason, `decide` withholds
+nothing and stops as `reproduction-unsound`. A single refused identity
+(alone in its batch, or among others that pass) cannot be told apart from a
+systemic fault that touched only it; it is withheld, which is the safe
+direction. For a verdict on one
 identity the shard
 passes, and `decide` withholds the identity (`withholdRefused`). Its entry
 becomes ineligible `reproduction-refused` for the release it was refused
@@ -6126,7 +6128,7 @@ the run's refusal records). The conditions are `gate-refused`, `catalog-capacity
 reproduction gave no per-identity outcome: an entry outside the authored
 candidate scope, `out-of-scope`, a change that also edits authored sources,
 a shard that ended without its typed record, a `job-fault` refusal, every
-reproduced identity refused for the same reason, or a batch whose separation, clock or canonical-output checks failed after an
+reproduced identity, of more than one, refused for the same reason, or a batch whose separation, clock or canonical-output checks failed after an
 identity was withheld), `withheld-batch-unchecked` (the batch without the withheld
 identities could not be regenerated or its exception queues published),
 `reproduction-transient` (a reproduction that ended only transiently on two
