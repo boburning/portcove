@@ -108,25 +108,150 @@ The publication policy in #5894 uses supported consumer bounds. Changes reserve
 15% of capacity for growth, including JSON escaping. A catalog may exceed 4 MiB
 once compatible application packages are available on the affected channels.
 
-| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory has an 8 MiB limit; the signed listing targets have the limits in [Listing delivery limits](#listing-delivery-limits). The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
+| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory has no byte bound; listing text inspected from outside the binary has a 64 MiB working-memory bound, and signed listing targets keep their delivery bounds (see [Reader generations](#reader-generations)). The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
 
 `node scripts/catalog-capacity.mts --check` reports generated and compact
-operational bytes, a representative escaped signed envelope and the separate
-embedded listing directory. The Core test
-`catalog_growth_stays_within_supported_capacity` measures Core serialization for
-the complete projection, escaped indexed snapshot, retained catalog and escaped contract. On November 18, 2026 the generated operational catalog measured 3,993,745 bytes,
-the compact catalog 3,076,225 bytes, and its representative signed envelope
-3,241,972 bytes. The generated listing directory measured 5,535,922 bytes,
-leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
-limit. The complete retained graph remains available for existing installs and rollback. A per-port
-retention redesign requires separate work.
+operational bytes, a representative escaped signed envelope, the listing
+directory against each consumer that can stop its delivery and the committed
+definition index. It is one guard with one bound source
+(`listingDeliveryBounds`). The listing rows cover Core's 64 MiB inspection of
+the authored text, which is also the canonical read in
+`scripts/listing-observation-delivery.mts`; the compact carrier's decoded,
+wire, per-record and entry-count bounds that the released readers enforce,
+modeled with observations and a lead-time margin (see
+[Compact carrier capacity guard](#compact-carrier-capacity-guard)); the
+current generation's element budget; and the frozen legacy target, which is
+informational only.
+The Core test `catalog_growth_stays_within_supported_capacity` measures Core
+serialization for the complete projection, escaped indexed snapshot, retained
+catalog and escaped contract. On November 23, 2026 the generated operational
+catalog measured 4,263,284 bytes, the compact catalog 3,271,875 bytes and its
+representative signed envelope 3,449,316 bytes. The generated listing
+directory measured 6,449,993 bytes. The complete retained graph remains
+available for existing installs and rollback. A per-port retention redesign
+requires separate work.
+
+### Reader generations
+
+Each application build is a reader generation. A released reader's limits
+bind every publication it must still read: the publisher keeps honoring them
+until a newer generation is released, the released-reader gate verifies it,
+and the publisher is changed to depend on it. The current generation advertises
+its limits as `listing_delivery_limits` in `capabilities`; older readers omit
+the field. Listing formats and bounds by released reader (from each tag's
+`types.rs`, `listing_delivery.rs` and `portcove-listing-carrier`):
+
+| Released reader                                             | Listing formats | Compact carrier | Legacy target | Compact decoded, record | Entry count                |
+| ----------------------------------------------------------- | --------------- | --------------- | ------------- | ----------------------- | -------------------------- |
+| `v0.1.0-preview.1`, `.2`; `nightly-0.1.0-preview.3` to `.6` | 5–10            | No              | 8 MiB         | —                       | 10,000 each                |
+| `nightly-0.1.0-preview.7` to `.12`                          | 5–12            | No              | 8 MiB         | —                       | 10,000 each                |
+| `nightly-0.1.0-preview.13`                                  | 5–13            | No              | 8 MiB         | —                       | 10,000 each                |
+| `nightly-0.1.0-preview.14`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
+| `nightly-0.1.0-preview.15`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
+
+Every one of them also refuses more than 4,096 indexed definitions and keeps
+the 4 MiB definition index. Which of them are still supported is decided by
+`updates/withdrawn.json` and the released-reader gate; no version is withdrawn
+on November 23, 2026.
+
+| Bound                                                | Released readers         | Current generation        | Why it stays or changed                                                                                                                |
+| ---------------------------------------------------- | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Listing target body, either carrier                  | 8 MiB                    | 8 MiB                     | Whole-target read before its digest check; the frozen `listing_delivery` SQLite check.                                                 |
+| Decoded compact directory                            | 32 MiB                   | 32 MiB                    | Decompression-ratio and working-memory bound, allocated before inflation; the `compact_listing_delivery` SQLite check. Measured below. |
+| One compact listing record                           | 1 MiB                    | 1 MiB                     | Bounds the per-record duplicate-key JSON tree. The largest record is 8,517 bytes without observations and 36,596 with them.            |
+| Listings and withdrawals                             | 10,000 each              | One 40 MiB element budget | Each element's measured working memory is charged: 4,027 bytes per listing, 68 per withdrawal. Measured below.                         |
+| Definition index                                     | 4 MiB, 4,096 definitions | 4 MiB, no count           | An entry is about 110 bytes, so the index bound allows about 38,000 entries, a few MiB of memory (estimated, not measured).            |
+| Definition content aggregate                         | 32 MiB                   | 32 MiB                    | One authenticated index with no continuation; 87,102 bytes today, 0.26%.                                                               |
+| Bundled listing directory                            | 8 MiB, 10,000 listings   | No bound                  | Compiled into the binary; no untrusted input or allocation to protect.                                                                 |
+| Listing text inspected by `catalog inspect-listings` | 8 MiB                    | 64 MiB                    | Twice the largest decoded directory a reader admits, so authored formatting never binds before delivery.                               |
+
+The legacy target is already at its bound. Signed revision 47 is 8,388,398
+bytes, 210 bytes below 8 MiB, and carries 1,193 of the 1,649 listings: the
+publisher fills it and leaves the remaining rows to each reader's bundled
+copy. A complete legacy target with today's signed observations would need
+9,778,469 bytes. Format-11 readers therefore already receive a partial
+directory. The legacy target is frozen at revision 47 by the compact cutover
+(see [Compact listing delivery](#compact-listing-delivery-and-the-minimum-supported-preview)),
+so this size is reported as information, never as a CI ceiling. The canonical
+read in `scripts/listing-observation-delivery.mts` is publisher input, not a
+wire format, so it follows Core's 64 MiB inspection bound
+(`listingDirectoryTextMaximum`) without a new reader generation. The next
+constraints are the compact carrier's released-reader bounds and the element
+budget below.
+
+With the signed observations of revision 47, the compact carrier measures
+9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370 wire bytes (33% of
+8 MiB). Only 933 listings carry an observation, about 4,790 bytes each.
+
+On November 23, 2026 the committed directory, deterministic 5x and 10x copies
+with fresh identities, and two worst-case element shapes at the 32 MiB decoded
+bound were measured in a Linux debug test build
+(`measure_compact_directory_admission`, one phase per process). Admission is
+carrier decode, compact parse and validation, and projection onto the bundled
+catalog; inspection is the strict text parse `catalog inspect-listings` runs.
+Peak is the resident-memory increase over the process before the operation.
+
+| Scenario                         | Elements              | Decoded bytes | Admission peak, time | Text bytes | Inspection peak, time |
+| -------------------------------- | --------------------- | ------------- | -------------------- | ---------- | --------------------- |
+| 1x                               | 1,649 listings        | 5,365,988     | 17.6 MiB, 73 ms      | 6,449,992  | 28.6 MiB, 70 ms       |
+| 5x                               | 8,245 listings        | 26,884,452    | 108.4 MiB, 374 ms    | 32,304,720 | 97.8 MiB, 339 ms      |
+| 10x                              | 16,490 listings       | 53,782,532    | 220.2 MiB, 759 ms    | 64,623,130 | 194.9 MiB, 692 ms     |
+| Minimal listings, no budget      | 350,672 listings      | 33,553,510    | 1,442.5 MiB, 2.6 s   | 48,281,672 | 607.6 MiB, 1.2 s      |
+| Minimal withdrawals, no budget   | 2,888,709 withdrawals | 33,553,506    | 284.0 MiB, 1.9 s     | —          | —                     |
+| Minimal listings, with budget    | refused while parsing | 33,553,510    | 45.6 MiB, 76 ms      | —          | —                     |
+| Minimal withdrawals, with budget | refused while parsing | 33,553,506    | 58.6 MiB, 174 ms     | —          | —                     |
+
+The decoded bound alone does not bound memory: small elements cost far more
+than their bytes. Fitting the runs gives about 3.06 times the decoded bytes,
+plus 3.93 KiB per listing and 68 bytes per withdrawal. A realistic directory
+at the 32 MiB bound holds about 10,300 listings and needs about 138 MiB, of
+which about 40 MiB is the per-listing share. The current generation charges
+each element against that 40 MiB budget while it parses, so any shape stays
+near the realistic directory's working memory: about 10,400 listings, or about
+616,000 withdrawals, per admission. Admission also re-reads the stored
+previous directory, so replacing a directory of the same size needs about
+twice that. A directory beyond about 10,400 listings needs continuation (a
+sharded, separately authenticated directory), not a larger count. Timings come
+from a debug build and are upper bounds.
+
+The 10x copy exceeds the released 8 MiB carrier and 32 MiB decoded bounds and
+this generation's element budget; it was measured with the measurement-only
+unbounded budget to show where the next change would land. The authoring
+inspection has no element budget: it runs on authoring and CI machines, and a
+64 MiB text bound of minimal listings would need about 860 MiB by
+extrapolation from the measured 48 MB case. The Desktop IPC cost of a full
+`listing_catalog` response at 5x and 10x is Unknown; a native measurement of
+that command's serialized size and webview parse time with these fixtures
+settles it.
+
+To move the minimum supported generation:
+
+1. Release an application build with this generation through the normal
+   release route.
+2. The released-reader gate selects that release and verifies that its
+   `capabilities` report the required `listing_delivery_limits`.
+3. Only then change the publisher (`scripts/listing-observation-delivery.mts`,
+   the release-tools signer and the publication contracts) to depend on the
+   new limits, for example to publish more than 10,000 withdrawals or 4,096
+   definitions.
+
+An older preview refuses the larger target and keeps its last admitted
+directory until that signed metadata expires, then shows its bundled directory.
+More than 4,096 definitions would make it refuse the whole definition index, so
+it would also stop receiving definition refreshes. Its installed games,
+libraries, saves and settings are unchanged. A library downgraded to an older
+build after the current build stored a directory above the released count
+cannot read that stored directory. It shows its bundled directory, and the
+older build cannot admit a new directory until the current build replaces the
+stored one. Step 3 makes that downgrade one-way for listings. The application
+update offered on its channel restores current listings.
 
 The catalog publisher bounds the retained signed repository at 768 MiB.
 The publication job checks the exact staged Pages tree against its separate
@@ -288,16 +413,27 @@ capability report lists formats 5–13 and no carrier). Read from the
   `updates/{beta,preview}/latest.json` with its own minisign key, separately
   from the TUF catalog (`application_update.rs`); it does not read listing
   targets or catalog freshness. `application_update.rs` is identical at
-  Preview 13, Preview 15 and current `main`: the channel defaults to Beta,
-  and `updates/beta/latest.json` returns 404 while
-  `updates/preview/latest.json` names Preview 15 (anonymous reads, November
-  23, 2026). A default-configured older preview's automatic check, at startup
-  and every six hours, fails and is only logged, so it never shows an update
-  notice. A manual check in Settings reports that Portcove couldn't check for
-  updates and suggests checking the internet connection. The player must
-  choose the Preview channel in Settings or install the new preview from the
-  release page. That was already true before the cutover; after it, the same
-  player also stops receiving listing changes without any notice.
+  Preview 13, Preview 15 and current `main`, and the channel defaults to Beta.
+  No Beta release exists yet, so each preview publication also writes
+  `updates/beta/latest.json` as a byte-identical copy of the Preview feed
+  ([interim Beta alias](RELEASING.md#interim-beta-alias)). A default-configured
+  older preview is therefore offered the current preview through the Beta feed
+  alias by its automatic check (at startup and every six hours) and by a
+  manual check in Settings; no channel change is needed.
+
+**What a Preview 13 player sees after cutover.** The game list stays on the
+revision-47 directory with no error, and installed games, saves and settings
+are unchanged. The application offers the update to the current preview.
+After updating, the next listing refresh selects the compact target and the
+listing changes since revision 47 appear. A player who declines the update
+keeps the revision-47 directory and receives no listing changes.
+
+The cutover is sequenced after the alias: `Catalog publish` must not publish
+the first compact target until the first alias publication has been confirmed
+by reading `updates/beta/latest.json` (see the
+[cutover runbook](#cutover-runbook) preconditions). Before the alias existed,
+the Beta feed returned 404 (anonymous read, November 23, 2026), and a
+default-configured older preview never saw an update notice.
 
 Alternatives considered:
 
@@ -325,7 +461,10 @@ The compact carrier is published first, or raised to a newer listing format,
 only after preparation verifies that the current released preview reads it.
 `--official-released-reader` selects that reader from the protected
 `gh-pages` Preview pointer (`updates/preview/latest.json`, which also follows
-newer Beta and Stable releases) and verifies it without credentials:
+newer Beta and Stable releases) and verifies it without credentials. The
+pointer is read from the commit checked out in the Pages worktree that holds
+`--prior`, the same commit the prior catalog comes from, never from a
+remote-tracking ref:
 
 - The version must not be listed in `updates/withdrawn.json`.
 - The tag's object and peeled commit come from an anonymous `git ls-remote`,
@@ -362,7 +501,8 @@ it fails the run after the Pages push and readback, so a deferred cutover is
 never silent. The publish job reruns
 `node scripts/catalog-released-reader.mts site` on each fresh Pages base and
 stops that push if the selected reader was withdrawn or replaced.
-`node scripts/catalog-released-reader.mts select DIR` is a read-only preflight.
+`node scripts/catalog-released-reader.mts select DIR [PAGES]` is a read-only
+preflight over the Pages worktree `PAGES` (default `site`).
 `--released-reader PATH --released-reader-sha256 HEX` is an explicit reader for
 rehearsal, tests and offline evidence; it cannot be combined with official
 selection.
@@ -441,6 +581,11 @@ none at revision 47, so older previews never see later withdrawals.
 
 **Preconditions.**
 
+- The first interim Beta alias publication is live: an anonymous GET of
+  `https://boburning.github.io/portcove/updates/beta/latest.json` returns 200
+  and names the same version as `updates/preview/latest.json`. Merge only
+  after this readback, because the first `Catalog publish` run after merge can
+  publish the compact target.
 - Required checks are green on the merge commit.
 - `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
   passes with a release or stripped CLI.
@@ -477,11 +622,26 @@ publish the compact carrier, if its reader verifies.
 3. Decode the served compact target. Its `decoded_bytes` and `decoded_sha256`
    match, and it holds format 15, the reported revision, all canonical rows
    and the typed `restrictions`.
-4. A Preview 15 client refresh selects the compact target:
-   `portcove catalog listing-refresh` then `catalog listing-status` report its
-   revision and listing count.
-5. A Preview 13 client keeps revision 47 selected and reports no error.
-6. The retained catalog tree is within 768 MiB, and the Pages tree within
+4. The frozen legacy target
+   `catalog/targets/0d20ba97babda1b10a06d2b1e1c968895afb33d6fb135c3594bb3c1d9e303c33.policy/official/catalog.listings.json`
+   still serves the same 8,388,398 bytes.
+5. `updates/preview/latest.json` still names the version recorded in
+   `released_reader_activation`, and `updates/beta/latest.json` names the same
+   version.
+6. Real clients. This is the first time a released client consumes the signed
+   compact publication: before signing, the compact path was verified only
+   with offline inspectors, from-tag simulations and fixture tests (see
+   [Cutover evidence](#cutover-evidence-november-23-2026)). A defect found here
+   can only be fixed forward. In a fresh library, run
+   `catalog definition-authority --apply`, `catalog listing-refresh` and
+   `catalog listing-status` with each CLI:
+   - Preview 15 and Preview 14 select the compact target: its revision and
+     `target_sha256` from the report, every canonical listing, no fallback.
+   - Preview 13 keeps revision 47 (`0d20ba97…`, 1,193 listings) selected and
+     reports no error.
+   - One **Windows desktop client** on Preview 15 shows the compact revision's
+     listings after its listing refresh, including a held row.
+7. The retained catalog tree is within 768 MiB, and the Pages tree within
    900,000,000 bytes.
 
 **Rollback.** Clients cannot be rolled back. Compact readers keep their
@@ -638,52 +798,63 @@ The 47 retained legacy listing bodies make up 390,631,685 bytes.
 
 ### Compact carrier capacity guard
 
-`node scripts/catalog-capacity.mts --check` also guards the compact carrier
-against the released readers' bounds. Those bounds are real constraints of
-the minimum supported generation and lift only with the next reader
-generation. The guard models the decoded document from the committed
-`listings.json` and withdrawal record and charges every row the mean live
-observation (4,791 bytes over the 933 observed rows of revision 47). The wire
-uses the worse of the staged target's compression ratio and the committed
-directory's own. The largest record adds the largest live observation (31,106
-bytes) to the largest authored row.
+The compact carrier rows of `node scripts/catalog-capacity.mts --check` guard
+the released readers' bounds. Those bounds are real constraints of the
+minimum supported generation and lift only with the next reader generation;
+`listingDeliveryBounds` takes them from the publisher's own constants and
+refuses a current Rust constant below them, so a next-generation raise in Core
+never loosens what is guarded or signed. The guard models the decoded
+document from the committed `listings.json` and withdrawal record. A row
+carries its signed observation when `--observed-target FILE` (legacy JSON, a
+decoded compact document or a compact carrier) has one; every other row is
+charged the mean live observation (4,791 bytes over the 933 observed rows of
+revision 47). The wire uses the worse of the staged target's compression
+ratio and the document's own. The largest record adds the largest live
+observation (31,106 bytes) to the largest row without a signed one.
 
-Each ceiling reserves 28 days of measured growth below the bound. The compact
-reader shipped two days after its merge (#8450 to Preview 14), but older
-previews do not update themselves (see [What an older preview does after
-cutover](#what-an-older-preview-does-after-cutover)), so the reservation
-covers a reader release and its adoption. Growth is the committed directory's
-over November 16–23, 2026: 159,241 authored bytes and 17.4 rows a day. A
-single record has no growth rate, so half its bound is reserved. CI fails at
-the ceiling, before publication would stop. The figures live in
+Each carrier ceiling reserves 28 days of measured growth below the bound. The
+compact reader shipped two days after its merge (#8450 to Preview 14), but
+older previews update only when the player accepts the update, so the
+reservation covers a reader release and its adoption. Growth is the committed
+directory's over November 16–23, 2026: 159,241 authored bytes and 17.4 rows a
+day. A single record has no growth rate, so half its bound is reserved. CI
+fails at the ceiling, before publication would stop. The figures live in
 `compactCarrierModel` and are refreshed with new measurements.
 
-| Measure (November 23, 2026)  | Value      | Ceiling    | Released-reader bound | Runway at the measured rate     |
-| ---------------------------- | ---------- | ---------- | --------------------- | ------------------------------- |
-| Modeled decoded bytes        | 13,266,362 | 26,757,676 | 33,554,432 (32 MiB)   | 55 days to ceiling, 83 to bound |
-| Modeled wire bytes           | 3,859,933  | 6,411,179  | 8,388,608 (8 MiB)     | 36 days to ceiling, 64 to bound |
-| Listings                     | 1,649      | 9,512      | 10,000                | 451 days to ceiling             |
-| Withdrawals                  | 0          | 9,512      | 10,000                | —                               |
-| Largest modeled record bytes | 39,623     | 524,288    | 1,048,576 (1 MiB)     | —                               |
+The `Catalog publish` prepare job runs the same guard with
+`--observed-target` on the staged compact target. That measurement never
+blocks the publication; a failing guard fails the run after the Pages push and
+readback, like a listing publication stop.
 
-The model is deliberately conservative: the staged target, with 875 rows
-observed, measured 2,745,010 wire and 9,602,327 decoded bytes. The wire bound
-is the nearest; a new reader generation should start well before its ceiling.
+| Measure (November 24, 2026, `--observed-target` revision 47) | Value      | Ceiling    | Released-reader bound | Runway at the measured rate     |
+| ------------------------------------------------------------ | ---------- | ---------- | --------------------- | ------------------------------- |
+| Modeled decoded bytes                                        | 13,288,592 | 26,757,676 | 33,554,432 (32 MiB)   | 55 days to ceiling, 83 to bound |
+| Modeled wire bytes                                           | 3,799,056  | 6,445,624  | 8,388,608 (8 MiB)     | 38 days to ceiling, 66 to bound |
+| Listings                                                     | 1,649      | 9,512      | 10,000                | 451 days to ceiling             |
+| Withdrawals                                                  | 0          | 9,512      | 10,000                | —                               |
+| Largest modeled record bytes                                 | 39,050     | 524,288    | 1,048,576 (1 MiB)     | —                               |
+| Frozen legacy target, complete format-11 successor           | 9,778,469  | —          | 8,388,608 (8 MiB)     | Informational; never fails CI   |
+
+Without `--observed-target` every row is charged the mean: 13,266,362 decoded
+and 3,860,331 wire bytes. The model is deliberately conservative: the staged
+target, with 875 rows observed, measured 2,745,010 wire and 9,602,327 decoded
+bytes. The wire bound is the nearest; a new reader generation should start
+well before its ceiling.
 
 ### Listing delivery limits
 
 The released readers' limits can change only with a new reader release.
 
-| Limit                              | Value               | Enforced by                                                                                                                                  | Released reader (Preview 14/15)     |
-| ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Listing target wire bytes          | 8 MiB               | Reader acquisition and carrier decode; publisher transport encoding; signer and history verification (`portcove_listing_carrier::MAX_BYTES`) | Yes                                 |
-| Compact decoded bytes              | 32 MiB              | Reader `parse_compact` and its SQLite check; publisher projection                                                                            | Yes                                 |
-| Compact record bytes               | 1 MiB               | Reader `parse_compact`; publisher projection (`compactListingRecordMaximum`)                                                                 | Yes                                 |
-| Listings and withdrawals           | 10,000 each         | Reader; publisher projection                                                                                                                 | Yes                                 |
-| TUF snapshot / targets / timestamp | 4 / 8 / 1 MiB       | Reader TUF client (`definition_repository.rs`)                                                                                               | Yes                                 |
-| Embedded `listings.json`           | 8 MiB, 85% CI guard | Each build's own embedded and authored directory; `catalog-capacity --check`; publisher canonical input read                                 | Only for that build's embedded copy |
-| Retained repository                | 768 MiB             | Signer (`PUBLIC_REPOSITORY_MAX_BYTES`) and Pages overlay                                                                                     | No                                  |
-| Signer bundle                      | 32 MiB              | Signer                                                                                                                                       | No                                  |
+| Limit                              | Value                | Enforced by                                                                                                                                      | Released reader (Preview 14/15) |
+| ---------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| Listing target wire bytes          | 8 MiB                | Reader acquisition and carrier decode; publisher transport encoding; signer and history verification (`portcove_listing_carrier::MAX_BYTES`)     | Yes                             |
+| Compact decoded bytes              | 32 MiB               | Reader `parse_compact` and its SQLite check; publisher projection                                                                                | Yes                             |
+| Compact record bytes               | 1 MiB                | Reader `parse_compact`; publisher projection (`compactListingRecordMaximum`)                                                                     | Yes                             |
+| Listings and withdrawals           | 10,000 each          | Reader; publisher projection                                                                                                                     | Yes                             |
+| TUF snapshot / targets / timestamp | 4 / 8 / 1 MiB        | Reader TUF client (`definition_repository.rs`)                                                                                                   | Yes                             |
+| Authored `listings.json`           | 64 MiB, 85% CI guard | Core inspection (`MAX_LISTING_DIRECTORY_TEXT_BYTES`); publisher canonical input read; `catalog-capacity --check`. The embedded copy has no bound | No                              |
+| Retained repository                | 768 MiB              | Signer (`PUBLIC_REPOSITORY_MAX_BYTES`) and Pages overlay                                                                                         | No                              |
+| Signer bundle                      | 32 MiB               | Signer                                                                                                                                           | No                              |
 
 Removed with the cutover: the publisher's legacy byte-budget fitting, which
 omitted optional observations and non-required rows to fit 8 MiB, and the

@@ -12,9 +12,10 @@ import {
 } from "./release-native-public-pair.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readPublicationAllocationsWithSdk } from "./release-publication-inventory.mts";
-void test("public allocation inventory preserves SDK cursor and exact repository identity", async () => {
+void test("public allocation inventory reads only the namespace receipt prefixes under exact repository identity", async () => {
   for (const wrongIdentity of [false, true]) {
     const routes: string[] = [];
+    const prefixes: unknown[] = [];
     const result = readPublicationAllocationsWithSdk("portcove-public", {
       token: "synthetic-public-reader",
       deadline: performance.now() + 5000,
@@ -38,34 +39,54 @@ void test("public allocation inventory preserves SDK cursor and exact repository
         assert.equal(url, "https://api.github.com/graphql");
         assert.ok(typeof init?.body === "string");
         const wire: unknown = JSON.parse(init.body);
-        assert.ok(isRecord(wire) && isRecord(wire.variables));
-        const first = routes.length === 2;
-        assert.equal(wire.variables.cursor, first ? null : "next-fixture");
+        assert.ok(isRecord(wire) && isRecord(wire.variables) && typeof wire.query === "string");
+        assert.match(wire.query, /query AdmissionPrefixRefs/u);
+        prefixes.push(wire.variables.prefix);
+        // The identity case continues the cursor and changes repository on the
+        // later page; the complete case has an empty namespace.
+        const later = wrongIdentity && routes.length === 3;
+        assert.equal(wire.variables.cursor, later ? "next-fixture" : null);
         return Response.json({
           data: {
             repository: {
-              id: !first && wrongIdentity ? "R_other" : "R_fixture",
+              id: later ? "R_other" : "R_fixture",
               databaseId: 1354613114,
               nameWithOwner: "boburning/portcove",
-              refs: {
-                totalCount: 2,
-                pageInfo: { hasNextPage: first, endCursor: first ? "next-fixture" : null },
-                nodes: [
-                  {
-                    id: `ref-${routes.length}`,
-                    name: `v0.0.${routes.length}`,
-                    prefix: "refs/tags/",
+              refs: wrongIdentity
+                ? {
+                    totalCount: 2,
+                    pageInfo: { hasNextPage: !later, endCursor: later ? null : "next-fixture" },
+                    nodes: [
+                      {
+                        id: `ref-${routes.length}`,
+                        name: `v0.0.${routes.length}`,
+                        prefix: "refs/tags/portcove-public-prepared/",
+                      },
+                    ],
+                  }
+                : {
+                    totalCount: 0,
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                    nodes: [],
                   },
-                ],
-              },
             },
           },
         });
       },
     });
-    if (wrongIdentity) await assert.rejects(result, /ref repository identity differs/u);
-    else assert.deepEqual(await result, { allocations: [], intents: new Map() });
-    assert.equal(routes.length, 3);
+    if (wrongIdentity) {
+      await assert.rejects(result, /ref repository identity differs/u);
+      assert.deepEqual(prefixes, [
+        "refs/tags/portcove-public-prepared/",
+        "refs/tags/portcove-public-prepared/",
+      ]);
+    } else {
+      assert.deepEqual(await result, { allocations: [], intents: new Map() });
+      assert.deepEqual(prefixes, [
+        "refs/tags/portcove-public-prepared/",
+        "refs/tags/portcove-public-prepared-source/",
+      ]);
+    }
   }
 });
 

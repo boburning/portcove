@@ -491,9 +491,15 @@ function assertWindowsHelperWorkflow(
   assert.ok(needs.every((value): value is string => typeof value === "string"));
   assert.deepEqual(
     [...needs].sort((left, right) => left.localeCompare(right)),
-    ["classify", "prose_checks", "fast_catalog", "windows_helpers", "catalog_full"].sort(
-      (left, right) => left.localeCompare(right),
-    ),
+    [
+      "classify",
+      "prose_checks",
+      "fast_catalog",
+      "windows_helpers",
+      "catalog_full",
+      // Every listing facts reproduction shard (#8569) is required too.
+      "listing_facts_reproduction",
+    ].sort((left, right) => left.localeCompare(right)),
     "Retain catalog dependency membership",
   );
   const gate = consumingCatalogGate(catalog);

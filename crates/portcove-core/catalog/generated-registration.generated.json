@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 5,
+  "generator_version": 15,
   "facts_provenance": null,
   "enrollments": [],
   "blocked": {
@@ -17,9 +17,6 @@
     "unsupported-archive-format": 0,
     "non-desktop-platform": 0,
     "no-digest": 0,
-    "too-large": 0,
-    "too-many-assets": 0,
-    "exceeds-run-budget": 0,
     "core-refused": 0,
     "repeated-inspection-failure": 0,
     "invalid-facts": 0,
@@ -27,6 +24,9 @@
     "observation-unavailable": 0,
     "incomplete-coverage": 0,
     "stale-facts": 0,
+    "shared-repository": 0,
+    "ambiguous-release-line": 0,
+    "other-package-form-beside-archive": 0,
     "no-player": 0,
     "tool-not-game": 0,
     "no-authorizing-source": 0,
@@ -34,6 +34,8 @@
     "unknown-platform": 0,
     "wrong-host": 0,
     "ambiguous-player": 0,
+    "ambiguous-artifact": 0,
+    "bundled-toolchain": 0,
     "route-held": 0,
     "guide-bound": 0
   },

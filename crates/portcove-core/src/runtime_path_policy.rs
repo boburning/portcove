@@ -55,11 +55,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             ))
         };
     }
-    // The fixed CV recipe retains N64 source/persistence on its other declared
-    // platforms. Only its Windows source build consumes this existing guard;
-    // the recipe validator separately fixes its complete route and byte facts.
-    let cvlod_source = port.id == "cvlod-recomp"
-        && port.adapter == AdapterKind::N64RecompPortable
+    // The retained CVLoD recipe keeps N64 source/persistence on its other
+    // declared platforms. Only its Windows source build consumes this existing
+    // guard. The declared recipe selects the route; the recipe validator binds
+    // it to its historical definition and fixes its complete byte facts.
+    let cvlod_source = port.adapter == AdapterKind::N64RecompPortable
         && port.platforms
             == [
                 Platform::WindowsX86_64,
@@ -213,8 +213,9 @@ pub(crate) fn check(port: &PortDefinition, platform: Platform, path: &Path) -> R
 }
 
 /// Open Surge's Windows player reads its managed profile path through the narrow CRT
-/// environment and can silently change a Unicode path before opening it. Bind this
-/// check to the existing environment contract, including retained definitions.
+/// environment and can silently change a Unicode path before opening it. The
+/// declared `OPENSURGE_USER_PATH` environment contract selects this check, so
+/// retained definitions and any native definition using that runtime keep it.
 pub(crate) fn check_user_data_root(
     port: &PortDefinition,
     platform: Platform,
@@ -222,7 +223,6 @@ pub(crate) fn check_user_data_root(
 ) -> Result<()> {
     if platform == Platform::WindowsX86_64
         && port.adapter == AdapterKind::NativePortable
-        && port.id == "surge-the-rabbit-opensurge"
         && port.user_data_environment.as_deref() == Some("OPENSURGE_USER_PATH")
         && !path.to_str().is_some_and(|path| path.is_ascii())
     {

@@ -22,7 +22,9 @@ import {
   readReleaseById,
   readMainCiConclusions,
   mainCiConclusion,
+  betaReleased,
   compareVersions,
+  feedAccepts,
   isWithdrawn,
   nextPreviewVersion,
   newestConclusions,
@@ -50,7 +52,7 @@ void test("tags map to the owner-approved channels and environments", () => {
     channel: "preview",
     prerelease: true,
     environment: "release",
-    feeds: ["preview"],
+    feeds: ["preview", "beta"],
   });
   assert.equal(classifyRelease("0.1.0").channel, "beta");
   assert.deepEqual(classifyRelease("0.2.3").feeds, ["beta", "preview"]);
@@ -244,7 +246,7 @@ void test("shared build inputs must match the version's channel, tag and signing
     tag: "nightly-0.1.0-preview.1",
     version: "0.1.0-preview.1",
     prerelease: "true",
-    feeds: "preview",
+    feeds: "preview beta",
     environment: "release",
     commit,
   };
@@ -270,6 +272,8 @@ void test("shared build inputs must match the version's channel, tag and signing
     [{ tag: "refs/tags/v0.1.0-preview.1" }, /does not name/u],
     [{ environment: "release-stable" }, /environment/u],
     [{ feeds: "beta preview" }, /feeds/u],
+    // A build from before the interim Beta alias (#1422) no longer matches.
+    [{ feeds: "preview" }, /feeds/u],
     [{ prerelease: "false" }, /prerelease/u],
     [{ commit: "main" }, /full SHA/u],
   ];
@@ -387,6 +391,83 @@ void test("the compare command exits 0 only for a newer candidate or a missing f
   assert.equal(compare("--candidate", "0.1.0-preview.3", "--current", "0.1.0"), 1);
 });
 
+void test("a preview fills the Beta feed only until a Beta or Stable release exists", () => {
+  // Preview and Stable/Beta rules are unchanged.
+  for (const released of [false, true]) {
+    assert.equal(feedAccepts("preview", "0.1.0-preview.16", null, released), true);
+    assert.equal(feedAccepts("preview", "0.1.0-preview.16", "0.1.0-preview.15", released), true);
+    assert.equal(feedAccepts("preview", "0.1.0-preview.15", "0.1.0-preview.15", released), false);
+    assert.equal(feedAccepts("preview", "0.1.0-preview.3", "0.1.0", released), false);
+    assert.equal(feedAccepts("beta", "0.1.0", null, released), true);
+    assert.equal(feedAccepts("beta", "0.1.0", "0.1.0-preview.16", released), true);
+    assert.equal(feedAccepts("beta", "0.1.0", "0.1.0", released), false);
+    assert.equal(feedAccepts("stable", "0.1.0", null, released), false);
+    assert.equal(feedAccepts("stable", "0.1.0-preview.16", null, released), false);
+    // A newer preview never replaces a Beta or Stable release on the Beta feed.
+    assert.equal(feedAccepts("beta", "0.1.1-preview.1", "0.1.0", released), false);
+    assert.equal(feedAccepts("beta", "1.0.1-preview.1", "1.0.0", released), false);
+  }
+  // The interim alias: before any Beta, a missing Beta feed or one serving a preview follows Preview.
+  assert.equal(feedAccepts("beta", "0.1.0-preview.16", null, false), true);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.16", "0.1.0-preview.15", false), true);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.15", "0.1.0-preview.15", false), false);
+  assert.equal(feedAccepts("beta", "0.1.0-preview.14", "0.1.0-preview.15", false), false);
+  // After a Beta or Stable tag, a preview never writes Beta, even when the feed is missing.
+  assert.equal(feedAccepts("beta", "0.1.1-preview.1", null, true), false);
+  assert.equal(feedAccepts("beta", "0.1.1-preview.1", "0.1.0-preview.16", true), false);
+});
+
+void test("only a v* tag naming a Beta or Stable version ends the Beta alias", () => {
+  assert.equal(betaReleased([]), false);
+  assert.equal(
+    betaReleased([
+      "v0.1.0-alpha.1",
+      "v0.0.0-rehearsal.41788540335.1",
+      "v0.1.0-preview.2",
+      "nightly-0.1.0-preview.15",
+      "nightly-9.9.9",
+      "vnext",
+    ]),
+    false,
+  );
+  assert.equal(betaReleased(["nightly-0.1.0-preview.15", "v0.1.0"]), true);
+  assert.equal(betaReleased(["v1.0.0"]), true);
+});
+
+void test("the feed-accepts command reads the repository's tags", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "app-release-feed-accepts-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-C", root, ...gitIdentity, ...args], { stdio: "pipe" });
+  git("init", "--quiet");
+  git("commit", "--quiet", "--allow-empty", "-m", "seed");
+  git("tag", "nightly-0.1.0-preview.15");
+  const accepts = (...args: string[]) => {
+    try {
+      execFileSync(
+        process.execPath,
+        [path.join(import.meta.dirname, "app-release.mts"), "feed-accepts", ...args],
+        { cwd: root, stdio: "pipe" },
+      );
+      return 0;
+    } catch (error) {
+      return (error as { status: number }).status;
+    }
+  };
+  const preview16 = ["--candidate", "0.1.0-preview.16"];
+  assert.equal(accepts("--channel", "beta", ...preview16), 0);
+  assert.equal(accepts("--channel", "beta", ...preview16, "--current", "0.1.0-preview.15"), 0);
+  assert.equal(accepts("--channel", "preview", ...preview16, "--current", "0.1.0-preview.15"), 0);
+  // Errors exit 2, so the publish step can fail rather than skip the feed.
+  assert.equal(accepts("--channel", "nightly", ...preview16), 2);
+  assert.equal(accepts(...preview16), 2);
+  assert.equal(accepts("--channel", "beta", "--candidate", "0.1.0-alpha.1"), 2);
+  assert.equal(accepts("--channel", "beta", ...preview16, "--current", "latest"), 2);
+  git("tag", "v0.1.0");
+  assert.equal(accepts("--channel", "beta", "--candidate", "0.1.1-preview.1"), 1);
+  assert.equal(accepts("--channel", "preview", "--candidate", "0.1.1-preview.1"), 0);
+});
+
 const existingTags = ["v0.1.0-alpha.1", "v0.1.0-alpha.2", "v0.0.0-rehearsal.41788540335.1"];
 
 void test("the next nightly preview follows the newest release, the workspace and earlier previews", () => {
@@ -449,6 +530,7 @@ function nightlyRunner(state: {
   history?: string[];
   tagged?: Record<string, string>;
   preProfile?: string[];
+  preAlias?: string[];
   workspace?: string;
 }) {
   const head = "c".repeat(40);
@@ -462,9 +544,11 @@ function nightlyRunner(state: {
     if (args[0] === "show") {
       const spec = args[1]!;
       if (spec.endsWith(":scripts/app-release.mts")) {
-        return state.preProfile?.some((sha) => spec.startsWith(sha))
-          ? 'command === "stamp"'
-          : 'command === "build-matrix"; command === "collect-bundles"';
+        if (state.preProfile?.some((sha) => spec.startsWith(sha))) return 'command === "stamp"';
+        const profile = 'command === "build-matrix"; command === "collect-bundles"';
+        return state.preAlias?.some((sha) => spec.startsWith(sha))
+          ? profile
+          : `${profile}; command === "feed-accepts"`;
       }
       shown.push(spec);
       return `[workspace]\nmembers = []\n\n[workspace.package]\nversion = "${state.workspace ?? "0.1.0"}"\n`;
@@ -494,6 +578,17 @@ void test("a green pre-profile ancestor cannot strand a nightly preview tag", as
   const result = await nightlyPreview(conclusions({ [old]: "success" }), fake.run);
   assert.ok("skipped" in result);
   assert.match(result.skipped, /ddddddddd predates the release profile/u);
+  assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
+});
+
+void test("a nightly never tags a commit from before the Beta feed alias", async () => {
+  // HEAD's CI is unfinished, so selection reaches an older green commit whose
+  // script would reject HEAD's `feeds` after the tag exists (#1422).
+  const old = "d".repeat(40);
+  const fake = nightlyRunner({ preAlias: [old] });
+  const result = await nightlyPreview(conclusions({ [old]: "success" }), fake.run);
+  assert.ok("skipped" in result);
+  assert.match(result.skipped, /ddddddddd predates the Beta feed alias/u);
   assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
 });
 
@@ -842,7 +937,18 @@ void test("withdraw replacements are the newest published, non-withdrawn release
   assert.equal(pick("stable", ["1.0.0"]), null);
   assert.equal(pick("beta", ["1.0.0", "0.1.1"]), "0.1.0");
   assert.equal(pick("preview", ["1.0.1-preview.1", "1.0.0", "0.1.1"]), "0.1.1-preview.1");
+  // Once any Beta or Stable release exists, a preview never stands in for Beta (#1422).
   assert.equal(pick("beta", ["1.0.0", "0.1.1", "0.1.0"]), null);
+  // Before any Beta exists, Beta offers previews, newest first.
+  const previewsOnly = publishedReleases([
+    release(1, "0.1.0-preview.1", false, "nightly-"),
+    release(2, "0.1.0-preview.2", false, "nightly-"),
+  ]);
+  assert.deepEqual(
+    replacementCandidates("beta", previewsOnly, []).map((entry) => entry.version),
+    ["0.1.0-preview.2", "0.1.0-preview.1"],
+  );
+  assert.deepEqual(replacementCandidates("stable", previewsOnly, []), []);
 });
 
 const gitIdentity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"];
@@ -1053,6 +1159,39 @@ void test("withdraw accepts nightly releases and skips replacements without ever
   const removed = await withdrawRelease({ ...options, version: "0.1.1-preview.1", api: none.api });
   assert.deepEqual(removed.feeds, { preview: "removed" });
   assert.equal(repo.show("updates/preview/latest.json"), null);
+});
+
+void test("withdrawing a preview the Beta alias serves repoints both feeds to the older preview", async (t) => {
+  const repo = await pagesRepository(t);
+  const releases = [
+    release(1, "0.1.0-preview.1", false, "nightly-"),
+    release(2, "0.1.0-preview.2", false, "nightly-"),
+  ];
+  const writer = path.join(repo.root, "writer");
+  execFileSync("git", ["clone", "--quiet", "-b", "gh-pages", repo.origin, writer]);
+  for (const channel of ["preview", "beta"])
+    await writeFile(
+      path.join(writer, `updates/${channel}/latest.json`),
+      `${JSON.stringify({ version: "0.1.0-preview.2", platforms: {} })}\n`,
+    );
+  repo.git(writer, "commit", "--quiet", "--all", "-m", "nightly feed with Beta alias");
+  repo.git(writer, "push", "--quiet", "origin", "gh-pages");
+  const fake = fakeWithdrawApi(releases, null);
+  const result = await withdrawRelease({
+    version: "0.1.0-preview.2",
+    note: "",
+    repoDir: repo.clone,
+    workDir: path.join(repo.root, "work"),
+    api: fake.api,
+    run: repo.run,
+  });
+  assert.deepEqual(result.feeds, { preview: "0.1.0-preview.1", beta: "0.1.0-preview.1" });
+  for (const channel of ["preview", "beta"])
+    assert.equal(
+      (JSON.parse(repo.show(`updates/${channel}/latest.json`)!) as { version: string }).version,
+      "0.1.0-preview.1",
+    );
+  assert.equal(repo.show("updates/stable/latest.json"), null);
 });
 
 void test("withdraw refuses a version without a published release and changes nothing", async (t) => {
@@ -1625,4 +1764,72 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
   assert.deepEqual(botIssue?.assignees, [{ login: "boburning" }]);
   assert.equal(warnings.length, 1);
   assert.equal(comments.length, 1);
+});
+
+void test("the feed publish step writes on 0, keeps on 1 and fails on any other feed-accepts exit", async (t) => {
+  const workflow = await readWorkflow("app-release-build.yml");
+  const step = workflow.jobs.publish!.steps!.find(
+    (candidate) => candidate.name === "Publish the feed to the Pages branch",
+  );
+  assert.ok(step?.run);
+  const repo = await pagesRepository(t);
+  // The stub stands in for the release script, so only the step's own shell is tested.
+  await mkdir(path.join(repo.clone, "scripts"));
+  await writeFile(
+    path.join(repo.clone, "scripts", "app-release.mts"),
+    [
+      "const command = process.argv[2];",
+      'if (command === "withdrawn") console.log("false");',
+      'else if (command === "feed-accepts") process.exitCode = Number(process.env.STUB_FEED_ACCEPTS);',
+      "else process.exitCode = 99;",
+      "",
+    ].join("\n"),
+  );
+  const version = "0.1.2-preview.1";
+  await writeFile(
+    path.join(repo.clone, "latest.json"),
+    `${JSON.stringify({ version, platforms: {} })}\n`,
+  );
+  const publish = (exit: number) => {
+    try {
+      const output = execFileSync("bash", ["-c", step.run!], {
+        cwd: repo.clone,
+        env: {
+          ...process.env,
+          VERSION: version,
+          FEEDS: "preview beta",
+          STUB_FEED_ACCEPTS: String(exit),
+        },
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      return { status: 0, output };
+    } catch (error) {
+      const failure = error as { status: number; stdout: string };
+      return { status: failure.status, output: failure.stdout };
+    }
+  };
+  const head = () => repo.git(repo.origin, "rev-parse", "gh-pages");
+  const feedVersion = (channel: string) =>
+    (JSON.parse(repo.show(`updates/${channel}/latest.json`)!) as { version: string }).version;
+  const before = head();
+
+  const failed = publish(2);
+  assert.equal(failed.status, 1);
+  assert.match(
+    failed.output,
+    /::error::Could not decide whether to publish 0\.1\.2-preview\.1 to preview/u,
+  );
+  assert.equal(head(), before);
+
+  const kept = publish(1);
+  assert.equal(kept.status, 0);
+  assert.match(kept.output, /No feed is older than 0\.1\.2-preview\.1/u);
+  assert.equal(head(), before);
+
+  const written = publish(0);
+  assert.equal(written.status, 0);
+  assert.notEqual(head(), before);
+  assert.equal(feedVersion("preview"), version);
+  assert.equal(feedVersion("beta"), version);
 });

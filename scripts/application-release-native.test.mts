@@ -2206,17 +2206,11 @@ void test("actual qualification selection reads the locked SDK inventory without
           id: metadata.node_id,
           databaseId: metadata.id,
           nameWithOwner: metadata.full_name,
-          refs: {
-            totalCount: 1,
-            pageInfo: { hasNextPage: false, endCursor: null },
-            nodes: [
-              {
-                id: "ref-1",
-                name: "v0.1.0-alpha.1",
-                prefix: "refs/tags/",
-                target: { __typename: "Commit", oid: baseline },
-              },
-            ],
+          ref: {
+            id: "ref-1",
+            name: "v0.1.0-alpha.1",
+            prefix: "refs/tags/",
+            target: { __typename: "Commit", oid: baseline },
           },
         },
       },
@@ -2236,6 +2230,11 @@ void test("actual qualification selection reads the locked SDK inventory without
       assert.equal(request.headers.get("authorization"), "token inert-qualification");
       const [route, body] = steps.shift();
       assert.equal(request.method + " " + url.pathname + url.search, route);
+      if (route === "POST /graphql") {
+        const wire = await request.json();
+        assert.match(wire.query, /query AdmissionExactRef/);
+        assert.deepEqual(wire.variables, { name: "refs/tags/v0.1.0-alpha.1" });
+      }
       return Response.json(body);
     };
     process.on("beforeExit", () => assert.equal(steps.length, 0));

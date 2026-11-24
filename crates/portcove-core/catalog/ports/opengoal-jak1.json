@@ -60,7 +60,6 @@
       }
     ]
   },
-  "opengoal_setup_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -78,6 +77,34 @@
       }
     },
     "source_profile": "opengoal-jak1-disc",
+    "runtime_source_filename": "source.iso",
+    "runtime_source_materialization": "ps2-iso",
+    "setup_executable_hints": {
+      "windows-x86-64": ["extractor.exe"],
+      "linux-x86-64": ["extractor"],
+      "macos-x86-64": ["extractor"],
+      "macos-aarch64": ["extractor"]
+    },
+    "setup_arguments": [
+      "--game",
+      "jak1",
+      "--extract",
+      "--decompile",
+      "--compile",
+      "--validate",
+      "--disable-ansi"
+    ],
+    "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
+    "launch_arguments": ["--game", "jak1", "--portable"],
+    "executable_hints": {
+      "windows-x86-64": ["gk.exe"],
+      "linux-x86-64": ["gk"],
+      "macos-x86-64": ["gk"],
+      "macos-aarch64": ["gk"]
+    },
+    "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
+    "persistent_paths": ["OpenGOAL/jak1"],
+    "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
     "presentation": {
       "installation_method": "upstream-setup",
       "source_requirements": [

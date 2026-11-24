@@ -166,9 +166,20 @@ export function githubTrustedRoot(privateRoot: string) {
   return github[0];
 }
 
-/** Anonymous live sources over the protected checkout and public GitHub. */
-export function liveReleasedReaderSources(checkout: string, privateRoot: string) {
-  const pagesRevision = git(checkout, ["rev-parse", "refs/remotes/origin/gh-pages"]).trim();
+/** The commit a Pages worktree has checked out. Selection reads the Pages
+ * files from this exact commit, the one the prior catalog was read from,
+ * never from a remote-tracking ref another step may move. */
+export function pagesWorktreeRevision(checkout: string, pages: string) {
+  const top = (cwd: string) => git(cwd, ["rev-parse", "--show-toplevel"]).trim();
+  if (top(pages) === top(checkout))
+    throw new Error("Released-reader selection requires a Pages worktree, not the source checkout");
+  return git(pages, ["rev-parse", "--verify", "HEAD^{commit}"]).trim();
+}
+
+/** Anonymous live sources over the protected checkout, the Pages worktree's
+ * checked-out commit and public GitHub. */
+export function liveReleasedReaderSources(checkout: string, privateRoot: string, pages: string) {
+  const pagesRevision = pagesWorktreeRevision(checkout, pages);
   let trustedRoot: unknown;
   const sources: ReleasedReaderSources = {
     pagesRevision,
@@ -348,9 +359,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv[2] === "select") {
     // Read-only preflight: what automatic selection would verify and probe now.
     const work = process.argv[3];
+    const pages = process.argv[4] ?? "site";
     if (!work) throw new Error("select requires a new private work directory");
     mkdirSync(work, { recursive: false, mode: 0o700 });
-    const reader = await acquireCatalogReleasedReader(work, liveReleasedReaderSources(".", work));
+    const reader = await acquireCatalogReleasedReader(
+      work,
+      liveReleasedReaderSources(".", work, pages),
+    );
     chmodSync(reader.cli, 0o700);
     const capabilities: unknown = JSON.parse(
       execFileSync(reader.cli, ["--json", "capabilities"], {

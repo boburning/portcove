@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   acquireCatalogReleasedReader,
   credentialFree,
+  pagesWorktreeRevision,
   requireCatalogReleaseAttestation,
   requireCurrentCatalogReaderSelection,
   selectedPreview,
@@ -304,4 +305,41 @@ void test("the attestation read retries only rate limits and server errors withi
   // Other failures are not retried.
   for (const failure of [unavailable(404), "Verified release attestation identity differs"])
     assert.deepEqual(await run([failure]), { result: failure, calls: 1, waits: [] });
+});
+
+void test("live selection reads the Pages worktree's checked-out commit, not a remote-tracking ref", () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "portcove-pages-revision-"));
+  try {
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync("git", ["-C", cwd, ...args], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: "t",
+          GIT_AUTHOR_EMAIL: "t@example.invalid",
+          GIT_COMMITTER_NAME: "t",
+          GIT_COMMITTER_EMAIL: "t@example.invalid",
+        },
+      }).trim();
+    const checkout = path.join(scratch, "checkout");
+    mkdirSync(checkout);
+    git(checkout, "init", "--quiet", "-b", "main");
+    git(checkout, "commit", "--quiet", "--allow-empty", "-m", "source");
+    git(checkout, "checkout", "--quiet", "--orphan", "gh-pages");
+    mkdirSync(path.join(checkout, "catalog"));
+    writeFileSync(path.join(checkout, "catalog", "marker"), "pages");
+    git(checkout, "add", "catalog/marker");
+    git(checkout, "commit", "--quiet", "-m", "pages");
+    const pagesCommit = git(checkout, "rev-parse", "HEAD");
+    git(checkout, "checkout", "--quiet", "main");
+    git(checkout, "worktree", "add", "--quiet", "--detach", "site", pagesCommit);
+    // A remote-tracking ref moved elsewhere must not change what is read.
+    git(checkout, "update-ref", "refs/remotes/origin/gh-pages", git(checkout, "rev-parse", "main"));
+    const site = path.join(checkout, "site");
+    assert.equal(pagesWorktreeRevision(checkout, path.join(site, "catalog")), pagesCommit);
+    assert.equal(pagesWorktreeRevision(checkout, site), pagesCommit);
+    assert.throws(() => pagesWorktreeRevision(checkout, checkout), /requires a Pages worktree/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

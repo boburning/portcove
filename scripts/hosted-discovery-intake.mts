@@ -71,7 +71,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   hostedIntakeMaxPasses,
   scheduledAuditRequests,
-} from "./hosted-discovery-intake-runner.mts";
+} from "./hosted-discovery-intake-audits.mts";
 import type { RoadmapInventory, RoadmapInventoryClient } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 

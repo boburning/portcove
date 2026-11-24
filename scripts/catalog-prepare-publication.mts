@@ -26,6 +26,7 @@ import {
   managedN64OriginalProjection,
   verifyManagedN64OriginalProposal,
 } from "./n64-original-publication.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const indexTarget = "definitions/index.json";
@@ -466,7 +467,10 @@ async function main(argv: string[]) {
     const catalogRoot = new URL("../crates/portcove-core/catalog/", import.meta.url);
     const [catalogBytes, listingBytes] = await Promise.all([
       readControllerToolFile(fileURLToPath(new URL("catalog.json", catalogRoot)), 16 * 1024 ** 2),
-      readControllerToolFile(fileURLToPath(new URL("listings.json", catalogRoot)), 8 * 1024 ** 2),
+      readControllerToolFile(
+        fileURLToPath(new URL("listings.json", catalogRoot)),
+        listingDirectoryTextMaximum,
+      ),
     ]);
     const catalogInput = document(catalogBytes);
     const listingInput = document(listingBytes);

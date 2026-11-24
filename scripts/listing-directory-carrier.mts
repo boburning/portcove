@@ -10,6 +10,10 @@ export const compactListingCarrier = "gzip-base64-json-v1";
 export const compactListingRecordMaximum = 1024 ** 2;
 /** Listings and withdrawals each, as released compact readers bound them. */
 export const compactListingCountMaximum = 10000;
+/** Core's `MAX_LISTING_DIRECTORY_TEXT_BYTES`: the working-memory bound for the
+ * authored listing directory text. Tooling that reads the canonical
+ * `listings.json` uses it, never a delivery bound; a test pins it to Core. */
+export const listingDirectoryTextMaximum = 64 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 /** Why a listing candidate cannot be published while everything else about the

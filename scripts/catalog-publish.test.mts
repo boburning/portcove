@@ -1080,7 +1080,7 @@ void test("compact listing activation selects the released reader and rechecks i
   assert.equal(source.match(/catalog-released-reader\.mts/gu)?.length, 1);
 });
 
-void test("a stopped listing publication or pending activation fails the run only after publish and readback", () => {
+void test("a stopped listing publication, pending activation or capacity guard failure fails the run only after publish and readback", () => {
   const workflow = read("catalog-publish.yml");
   const observe = workflow.jobs.prepare!.steps!.find(({ id }) => id === "observe")!;
   assert.match(
@@ -1089,7 +1089,9 @@ void test("a stopped listing publication or pending activation fails the run onl
   );
   const steps = workflow.jobs.publish!.steps!;
   const stop = steps.findIndex(
-    ({ name }) => name === "Fail the run when listing publication stopped or activation is pending",
+    ({ name }) =>
+      name ===
+      "Fail the run when listing publication stopped, activation is pending or the capacity guard failed",
   );
   const push = steps.findIndex(({ run }) => run?.includes("git -C site push"));
   const readback = steps.findIndex(({ id }) => id === "readback");
@@ -1098,6 +1100,18 @@ void test("a stopped listing publication or pending activation fails the run onl
   assert.ok(push < readback && readback < stop);
   assert.equal(steps[stop]!.if, undefined);
   assert.equal(steps[stop]!["continue-on-error"], undefined);
+  // The prepare job measures the staged compact target, after the catalog
+  // work exists and before it is uploaded, and never stops preparation itself.
+  const prepare = workflow.jobs.prepare!.steps!;
+  const measure = prepare.findIndex(
+    ({ name }) => name === "Measure the staged compact listing target against the capacity guard",
+  );
+  assert.ok(prepare.findIndex(({ id }) => id === "prepare") < measure);
+  assert.ok(measure < prepare.findIndex((step) => step.with?.name === "catalog-work"));
+  assert.match(prepare[measure]!.run!, /catalog-capacity\.mts --check "\$\{observed\[@\]\}"/u);
+  assert.match(prepare[measure]!.run!, /--observed-target "\$target"/u);
+  assert.match(prepare[measure]!.run!, /\|\| status=\$\?/u);
+  assert.match(prepare[measure]!.run!, /catalog-work\/capacity-guard\.json/u);
   const scratch = mkdtempSync(path.join(os.tmpdir(), "portcove-listing-stop-"));
   try {
     const work = path.join(scratch, "catalog-work");
@@ -1150,6 +1164,26 @@ void test("a stopped listing publication or pending activation fails the run onl
     );
     // After cutover, a renewal without a pending activation stays green.
     assert.equal(run({ carrier: "compact", changed: false }).status, 0);
+    // The capacity guard measured on the staged target fails the run after
+    // readback; a passing guard does not.
+    const capacity = path.join(work, "capacity-guard.json");
+    writeFileSync(capacity, JSON.stringify({ status: 0, observed_target: true, output: "ok\n" }));
+    assert.equal(run({ carrier: "compact" }).status, 0);
+    writeFileSync(
+      capacity,
+      JSON.stringify({
+        status: 1,
+        observed_target: true,
+        output: "FAIL compact listing carrier bytes (modeled): 7000000 of 6410976\n",
+      }),
+    );
+    const short = run({ carrier: "compact" });
+    assert.equal(short.status, 1);
+    assert.equal(short.summary, true);
+    assert.match(
+      short.stdout,
+      /^::error title=Listing capacity guard failed::The capacity guard failed with the staged compact target's observations; this publication was not blocked\..*%0AFAIL compact listing carrier bytes/mu,
+    );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

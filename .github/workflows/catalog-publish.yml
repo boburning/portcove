@@ -226,6 +226,27 @@ jobs:
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
+      # The capacity guard with the staged compact target's own signed
+      # observations. It never blocks this publication: the publish job fails
+      # the run after readback when a ceiling is crossed, as for a listing stop.
+      - name: Measure the staged compact listing target against the capacity guard
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          target="$BUNDLE/policy/official/catalog.listings.compact.json"
+          observed=()
+          if [ -f "$target" ]; then observed=(--observed-target "$target"); fi
+          status=0
+          node scripts/catalog-capacity.mts --check "${observed[@]}" > "$RUNNER_TEMP/capacity.out" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/capacity.out"
+          node --input-type=module -e '
+            import {readFileSync, writeFileSync} from "node:fs";
+            writeFileSync(process.argv[1], JSON.stringify({
+              status: Number(process.argv[2]),
+              observed_target: process.argv[3] === "true",
+              output: readFileSync(process.argv[4], "utf8"),
+            }));
+          ' "$RUNNER_TEMP/catalog-work/capacity-guard.json" "$status" "$([ -f "$target" ] && echo true || echo false)" "$RUNNER_TEMP/capacity.out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.decide.outputs.publish == 'true'
         with:
@@ -440,15 +461,24 @@ jobs:
           if-no-files-found: error
       # Freshness, definitions and policy are already published. A stopped
       # listing publication, or a compact activation (first publication or
-      # format raise) deferred for any reason, still fails the run so a person
-      # resolves it instead of the deferral repeating silently.
-      - name: Fail the run when listing publication stopped or activation is pending
+      # format raise) deferred for any reason, or a capacity guard failure
+      # measured on the staged target, still fails the run so a person
+      # resolves it instead of it repeating silently.
+      - name: Fail the run when listing publication stopped, activation is pending or the capacity guard failed
         run: |
           set -euo pipefail
           node --input-type=module -e '
-            import {appendFileSync, readFileSync} from "node:fs";
+            import {appendFileSync, existsSync, readFileSync} from "node:fs";
             const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
             const lines = [];
+            if (existsSync(process.argv[2])) {
+              const capacity = JSON.parse(readFileSync(process.argv[2], "utf8"));
+              if (capacity.status !== 0)
+                lines.push(["Listing capacity guard failed", "The capacity guard failed" +
+                  (capacity.observed_target ? " with the staged compact target" + String.fromCharCode(39) + "s observations" : "") +
+                  "; this publication was not blocked. Start the next reader generation or reduce catalog bytes. Guard output:\n" +
+                  capacity.output]);
+            }
             const stopped = report.listing_publication_stopped;
             if (stopped)
               lines.push(["Listing publication stopped", "Listing publication stopped (" + stopped.code + "): " +
@@ -466,4 +496,4 @@ jobs:
               if (summary) appendFileSync(summary, "### " + title + "\n\n" + line + "\n");
             }
             process.exit(1);
-          ' "$RUNNER_TEMP/catalog-work/observation-projection.json"
+          ' "$RUNNER_TEMP/catalog-work/observation-projection.json" "$RUNNER_TEMP/catalog-work/capacity-guard.json"

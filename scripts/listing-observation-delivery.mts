@@ -36,6 +36,7 @@ import {
   encodeCompactListing,
   listingDeliveryMaximum as maximum,
   listingDeliveryTarget,
+  listingDirectoryTextMaximum,
   ListingPublicationStop,
 } from "./listing-directory-carrier.mts";
 
@@ -843,6 +844,7 @@ export async function prepareObservationBundle(options: {
     throw new Error(
       "Listing publication requires the prior signed repository and its retained legacy listing",
     );
+  const priorRepository = options.prior;
   if (!existsSync(path.join(options.prior, "metadata/timestamp.json")))
     throw new Error("Previous catalog timestamp unavailable; cannot establish listing admission");
   const priorTargets = publishedTargets(options.prior);
@@ -854,7 +856,12 @@ export async function prepareObservationBundle(options: {
   mkdirSync(workspace);
   const environment = isolatedEnvironment(workspace);
   const diagnostics: string[] = [];
-  const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
+  // The canonical directory is authored text bounded by Core's working-memory
+  // limit, not by the listing wire bound the delivered target obeys.
+  const canonicalBytes = await readControllerToolFile(
+    options.canonical,
+    listingDirectoryTextMaximum,
+  );
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
   const withdrawalBytes = options.withdrawals
     ? await readControllerToolFile(options.withdrawals, maximum)
@@ -959,7 +966,12 @@ export async function prepareObservationBundle(options: {
         officialReader = await (
           options.acquireReleasedReader ??
           ((root: string) =>
-            acquireCatalogReleasedReader(root, liveReleasedReaderSources(process.cwd(), root)))
+            acquireCatalogReleasedReader(
+              root,
+              // The Pages worktree holding the prior: its checked-out commit,
+              // not a remote-tracking ref.
+              liveReleasedReaderSources(process.cwd(), root, priorRepository),
+            ))
         )(workspace);
         releasedReader = await probeReleasedReader(officialReader, format, workspace, environment);
         if (releasedReader.version !== officialReader.version)
@@ -1134,7 +1146,8 @@ export async function prepareObservationBundle(options: {
     }
   }
   if (
-    hash(await readControllerToolFile(options.canonical, maximum)) !== hash(canonicalBytes) ||
+    hash(await readControllerToolFile(options.canonical, listingDirectoryTextMaximum)) !==
+      hash(canonicalBytes) ||
     hash(await readControllerToolFile(options.catalog, 32 * 1024 * 1024)) !== hash(catalogBytes) ||
     (options.withdrawals !== undefined &&
       hash(await readControllerToolFile(options.withdrawals, maximum)) !== hash(withdrawalBytes!))

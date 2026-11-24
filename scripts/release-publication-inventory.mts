@@ -1,4 +1,3 @@
-import { GitHubApiClient } from "./github-api.mts";
 import { nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -11,7 +10,10 @@ import { performance } from "node:perf_hooks";
 import type { GitHubClientOptions } from "./github-client.mts";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
+/** Per-reader request budget. It paces one reader; it is never a lifetime
+ * ceiling. A scan that reaches it ends with a resumable checkpoint. */
 const maximumPublicationRequests = 160;
+const tagsRefPrefix = "refs/tags/";
 type Api = CoordinatorRemoteApi;
 const refsQuery = `query AdmissionRefs($cursor:String) {
  repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
@@ -21,6 +23,157 @@ const refsQuery = `query AdmissionRefs($cursor:String) {
   }
  }
 }`;
+const prefixRefsQuery = `query AdmissionPrefixRefs($prefix:String!,$cursor:String) {
+ repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
+  refs(refPrefix:$prefix,first:100,after:$cursor,orderBy:{field:ALPHABETICAL,direction:ASC}) {
+   totalCount pageInfo { hasNextPage endCursor }
+   nodes { id name prefix target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid } } } } } } } }
+  }
+ }
+}`;
+const exactRefQuery = `query AdmissionExactRef($name:String!) {
+ repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
+  ref(qualifiedName:$name) { id name prefix target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid } } } } } } } }
+ }
+}`;
+
+/** Resumable position of a provider inventory scan that a budget interrupted.
+ * It is evidence of what was read, never evidence that the rest is absent. */
+export type PublicationInventoryCheckpoint =
+  | {
+      schema_version: 1;
+      kind: "tags";
+      ref_prefix: string;
+      total: number | null;
+      cursor: string | null;
+      cursors: string[];
+      head: string[];
+      rows: Record<string, unknown>[];
+    }
+  | {
+      schema_version: 1;
+      kind: "releases";
+      projection: ReleaseProjection;
+      suffix: string;
+      page: number;
+      route: string;
+      previous: { route: string; ids: number[] } | null;
+      head: number[];
+      ids: number[];
+      rows: unknown[];
+    };
+type ReleaseProjection = "publication" | "notes" | "raw";
+
+/** Rows of a scan continued across budget windows from a checkpoint. Every
+ * page was read and the provider reported exhaustion, and the resume re-read
+ * the head page and the last accepted page unchanged, before and again after
+ * the continued walk. Pages read in an earlier window are not otherwise
+ * re-observed, so an in-place edit of an older record can go unseen, and for
+ * tags an add and a delete that cancel out behind the head page can too.
+ * Releases list newest first, so a new Release lands on the head page; tags
+ * list alphabetically, so a tag composite usually misses a new tag. A
+ * composite is therefore not allocation or conflict authority on its own:
+ * confirm it with a single-pass read or the caller's freshness bracket. */
+export type CompositePublicationInventory<T> = {
+  snapshot: "composite-across-budget-windows";
+  rows: T[];
+};
+
+/** A scan ended before the provider reported exhaustion. Callers must treat
+ * the inventory as incomplete; `checkpoint` lets a later reader continue. */
+export class PublicationInventoryIncompleteError extends Error {
+  readonly checkpoint: PublicationInventoryCheckpoint;
+  constructor(cause: unknown, checkpoint: PublicationInventoryCheckpoint) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(
+      `${reason} (publication ${checkpoint.kind} inventory incomplete after ${checkpoint.rows.length} records; resumable checkpoint retained)`,
+      { cause },
+    );
+    this.name = "PublicationInventoryIncompleteError";
+    this.checkpoint = structuredClone(checkpoint);
+  }
+}
+
+type TagScan = Extract<PublicationInventoryCheckpoint, { kind: "tags" }>;
+type ReleaseScan = Extract<PublicationInventoryCheckpoint, { kind: "releases" }>;
+
+function tagScan(refPrefix: string, resume?: PublicationInventoryCheckpoint): TagScan {
+  if (resume === undefined)
+    return {
+      schema_version: 1,
+      kind: "tags",
+      ref_prefix: refPrefix,
+      total: null,
+      cursor: null,
+      cursors: [],
+      head: [],
+      rows: [],
+    };
+  const scan = structuredClone(resume);
+  if (
+    scan.schema_version !== 1 ||
+    scan.kind !== "tags" ||
+    scan.ref_prefix !== refPrefix ||
+    !Array.isArray(scan.rows) ||
+    !Array.isArray(scan.cursors) ||
+    !Array.isArray(scan.head) ||
+    scan.rows.length === 0 ||
+    scan.cursor === null ||
+    scan.head.some((id, index) => scan.rows[index]?.id !== id) ||
+    (scan.cursor !== null && scan.cursors.at(-1) !== scan.cursor) ||
+    (scan.total !== null && (!Number.isSafeInteger(scan.total) || scan.rows.length > scan.total))
+  )
+    throw new Error("publication tag inventory checkpoint does not match this scan");
+  return scan;
+}
+
+function releaseScan(
+  suffix: string,
+  projection: ReleaseProjection,
+  resume?: PublicationInventoryCheckpoint,
+): ReleaseScan {
+  const first = `https://api.github.com/${base}${suffix}?per_page=100`;
+  if (resume === undefined)
+    return {
+      schema_version: 1,
+      kind: "releases",
+      projection,
+      suffix,
+      page: 1,
+      route: first,
+      previous: null,
+      head: [],
+      ids: [],
+      rows: [],
+    };
+  const scan = structuredClone(resume);
+  if (
+    scan.schema_version !== 1 ||
+    scan.kind !== "releases" ||
+    scan.projection !== projection ||
+    scan.suffix !== suffix ||
+    !Number.isSafeInteger(scan.page) ||
+    // Only a scan that accepted at least one page has anything to continue.
+    scan.page < 2 ||
+    scan.previous === null ||
+    typeof scan.previous.route !== "string" ||
+    !Array.isArray(scan.previous.ids) ||
+    !Array.isArray(scan.head) ||
+    !scan.head.length ||
+    !Array.isArray(scan.ids) ||
+    !Array.isArray(scan.rows) ||
+    scan.ids.length !== scan.rows.length ||
+    new Set(scan.ids).size !== scan.ids.length ||
+    scan.head.some((id, index) => scan.ids[index] !== id) ||
+    scan.previous.ids.some(
+      (id, index) => scan.ids[scan.ids.length - scan.previous!.ids.length + index] !== id,
+    ) ||
+    (scan.page === 2 && scan.previous.route !== first)
+  )
+    throw new Error("publication release inventory checkpoint does not match this scan");
+  return scan;
+}
+
 function oid(value: unknown): asserts value is string {
   if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
     throw new Error("admission requires exact Git object identity");
@@ -54,9 +207,38 @@ function repositoryNodeId(value: unknown) {
 function runLegacySequence<R, T>(
   sequence: Generator<R, T, unknown>,
   read: (request: R) => unknown,
+  checkpoint?: PublicationInventoryCheckpoint,
 ) {
   let step = sequence.next();
-  while (!step.done) step = sequence.next(read(step.value));
+  while (!step.done) {
+    let value: unknown;
+    try {
+      value = read(step.value);
+    } catch (error) {
+      if (checkpoint) throw new PublicationInventoryIncompleteError(error, checkpoint);
+      throw error;
+    }
+    step = sequence.next(value);
+  }
+  return step.value;
+}
+
+async function runSequence<R, T>(
+  sequence: Generator<R, T, unknown>,
+  read: (request: R) => Promise<unknown>,
+  checkpoint?: PublicationInventoryCheckpoint,
+) {
+  let step = sequence.next();
+  while (!step.done) {
+    let value: unknown;
+    try {
+      value = await read(step.value);
+    } catch (error) {
+      if (checkpoint) throw new PublicationInventoryIncompleteError(error, checkpoint);
+      throw error;
+    }
+    step = sequence.next(value);
+  }
   return step.value;
 }
 
@@ -69,15 +251,33 @@ type PublicationAllocation = {
   intent_sha256: string;
 };
 
-function* readTags(nodeId: string): Generator<string | null, Record<string, unknown>[], unknown> {
-  const result: Record<string, unknown>[] = [];
-  const ids = new Set<string>();
-  const names = new Set<string>();
-  const cursors = new Set<string>();
-  let cursor: string | null = null;
-  let total: number | null = null;
-  for (let index = 0; index < 16; index++) {
-    const data = record(yield cursor);
+/** Reads one ref namespace until the provider reports exhaustion. Records are
+ * not capped: the caller's request and time budgets pace the scan, and `scan`
+ * is advanced only after a whole page is validated so it stays resumable. */
+function* readTags(
+  nodeId: string,
+  scan: TagScan,
+): Generator<string | null, Record<string, unknown>[], unknown> {
+  const tagPrefix = scan.ref_prefix.slice(tagsRefPrefix.length);
+  const ids = new Set(scan.rows.map((row) => row.id));
+  const names = new Set(scan.rows.map((row) => row.name));
+  const cursors = new Set(scan.cursors);
+  if (scan.rows.length) {
+    // Continuing: the head page must be unchanged before later pages count.
+    const repo = record(record(yield null).repository);
+    if (repo.id !== nodeId || repo.databaseId !== 1354613114 || repo.nameWithOwner !== repository)
+      throw new Error("admission ref repository identity differs");
+    const head = record(repo.refs);
+    if (
+      head.totalCount !== scan.total ||
+      !Array.isArray(head.nodes) ||
+      head.nodes.length !== scan.head.length ||
+      head.nodes.some((node, index) => record(node).id !== scan.head[index])
+    )
+      throw new Error("admission refs changed before their resume point");
+  }
+  for (;;) {
+    const data = record(yield scan.cursor);
     const r = record(data.repository);
     if (r.id !== nodeId || r.databaseId !== 1354613114 || r.nameWithOwner !== repository)
       throw new Error("admission ref repository identity differs");
@@ -87,14 +287,14 @@ function* readTags(nodeId: string): Generator<string | null, Record<string, unkn
       typeof connection.totalCount !== "number" ||
       !Number.isSafeInteger(connection.totalCount) ||
       connection.totalCount < 0 ||
-      connection.totalCount > 1600 ||
       !Array.isArray(connection.nodes) ||
       connection.nodes.length > 100 ||
       typeof info.hasNextPage !== "boolean"
     )
       throw new Error("admission ref connection is incomplete or oversized");
-    total ??= connection.totalCount;
+    const total = scan.total ?? connection.totalCount;
     if (total !== connection.totalCount) throw new Error("admission ref count changed");
+    const accepted: Record<string, unknown>[] = [];
     for (const raw of connection.nodes) {
       const ref = record(raw);
       if (
@@ -102,20 +302,29 @@ function* readTags(nodeId: string): Generator<string | null, Record<string, unkn
         !ref.id ||
         ref.id.length > 512 ||
         typeof ref.name !== "string" ||
-        ref.name.length > 256 ||
-        ref.prefix !== "refs/tags/" ||
+        !ref.name ||
+        ref.name.length > 256 - tagPrefix.length ||
+        ref.prefix !== scan.ref_prefix ||
         ids.has(ref.id) ||
-        names.has(ref.name)
+        names.has(tagPrefix + ref.name)
       )
         throw new Error("admission refs duplicate identities or names");
+      const row = structuredClone(ref);
+      // A namespace scan reports names relative to its prefix; keep the
+      // complete-scan shape so allocation checks see identical records.
+      row.name = tagPrefix + ref.name;
+      row.prefix = tagsRefPrefix;
       ids.add(ref.id);
-      names.add(ref.name);
-      result.push(structuredClone(ref));
+      names.add(row.name);
+      accepted.push(row);
     }
-    if (result.length > total) throw new Error("admission refs exceed total");
+    if (scan.rows.length + accepted.length > total) throw new Error("admission refs exceed total");
     if (!info.hasNextPage) {
-      if (result.length !== total) throw new Error("admission refs omit records");
-      return result.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      if (scan.rows.length + accepted.length !== total)
+        throw new Error("admission refs omit records");
+      return [...scan.rows, ...accepted].sort((a, b) =>
+        String(a.name).localeCompare(String(b.name)),
+      );
     }
     if (
       typeof info.endCursor !== "string" ||
@@ -126,9 +335,52 @@ function* readTags(nodeId: string): Generator<string | null, Record<string, unkn
     )
       throw new Error("admission ref cursor did not advance");
     cursors.add(info.endCursor);
-    cursor = info.endCursor;
+    if (!scan.rows.length) scan.head = accepted.map((row) => String(row.id));
+    scan.total = total;
+    scan.rows.push(...accepted);
+    scan.cursors.push(info.endCursor);
+    scan.cursor = info.endCursor;
   }
-  throw new Error("admission refs exceed page bound");
+}
+
+function namespaceRefPrefixes(namespace: string) {
+  inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace });
+  return [
+    `${tagsRefPrefix}${namespace}-prepared/`,
+    `${tagsRefPrefix}${namespace}-prepared-source/`,
+  ] as const;
+}
+
+function tagName(name: unknown): asserts name is string {
+  if (
+    typeof name !== "string" ||
+    !name ||
+    name.length > 256 ||
+    name.startsWith("refs/") ||
+    name.includes("..") ||
+    !/^[A-Za-z0-9][A-Za-z0-9._/+-]*$/u.test(name)
+  )
+    throw new Error("exact tag lookup requires one valid tag name");
+}
+
+/** Authoritative exact lookup: the provider answers one qualified ref, so a
+ * null result is a complete answer rather than absence from a partial list. */
+function inspectExactTag(data: unknown, nodeId: string, name: string) {
+  const r = record(record(data).repository);
+  if (r.id !== nodeId || r.databaseId !== 1354613114 || r.nameWithOwner !== repository)
+    throw new Error("admission ref repository identity differs");
+  if (!Object.hasOwn(r, "ref")) throw new Error("exact tag lookup response is incomplete");
+  if (r.ref === null) return null;
+  const ref = record(r.ref);
+  if (
+    typeof ref.id !== "string" ||
+    !ref.id ||
+    ref.id.length > 512 ||
+    ref.name !== name ||
+    ref.prefix !== tagsRefPrefix
+  )
+    throw new Error("exact tag lookup returned a different identity");
+  return structuredClone(ref);
 }
 
 function* readAllocationPairs(
@@ -229,9 +481,12 @@ function inspectPublicationReleaseRecord(r: Record<string, unknown>) {
   };
 }
 
-/** Complete bounded provider inventories and exact raw preparation receipts.
+/** Complete provider inventories and exact raw preparation receipts.
  * Facts only: no semantic, publication, initial-seed or execution authority.
- * The same reader is used by admission and the fixed coordinator driver. */
+ * The same reader is used by admission and the fixed coordinator driver.
+ * Inventories have no lifetime record ceiling: per-reader request and time
+ * budgets pace them, and a scan that a budget interrupts fails with a
+ * resumable checkpoint instead of being treated as complete. */
 export function createReleasePublicationReader(rawApi: Api) {
   let requests = 0,
     milliseconds = 0;
@@ -257,57 +512,61 @@ export function createReleasePublicationReader(rawApi: Api) {
   };
   const get = (endpoint: string) =>
     api.request("GET", endpoint ? `${base}/${endpoint}` : base).body;
-  const page = (endpoint: string, key?: string) => {
-    let count = 0;
-    return GitHubApiClient.prototype.paginateRest
-      .call({ request: api.request.bind(api) }, `${base}/${endpoint}`, {
-        select: (body: unknown) => {
-          const rows = key ? record(body)[key] : body;
-          if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 1600)
-            throw new Error("admission collection exceeds record bound");
-          return rows as unknown[];
-        },
-        identity: (item: unknown) => {
-          const id = record(item).id;
-          integer(id);
-          return id;
-        },
-        ...(key
-          ? {
-              totalCount: (body: unknown) => {
-                const n = record(body).total_count;
-                if (typeof n !== "number" || !Number.isSafeInteger(n) || n < 0 || n > 1600)
-                  throw new Error("admission collection exceeds bound");
-                return n;
-              },
-            }
-          : {}),
-        label: "release admission inventory",
-      })
-      .map(record);
-  };
   const nodeId = repositoryNodeId(get(""));
-  const tags = () =>
-    runLegacySequence(readTags(nodeId), (cursor) => api.graphql(refsQuery, { cursor }).data);
-  const releases = () =>
-    page("releases?per_page=100")
-      .map(inspectPublicationReleaseRecord)
-      .sort((a, b) => a.id - b.id);
+  const scanTags = (refPrefix: string, resume?: PublicationInventoryCheckpoint) => {
+    const scan = tagScan(refPrefix, resume);
+    return runLegacySequence(
+      readTags(nodeId, scan),
+      (cursor) =>
+        refPrefix === tagsRefPrefix
+          ? api.graphql(refsQuery, { cursor }).data
+          : api.graphql(prefixRefsQuery, { prefix: refPrefix, cursor }).data,
+      scan,
+    );
+  };
+  const tags = () => scanTags(tagsRefPrefix);
+  const namespaceTags = (namespace: string) =>
+    namespaceRefPrefixes(namespace)
+      .flatMap((prefix) => scanTags(prefix))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const tag = (name: string) => {
+    tagName(name);
+    return inspectExactTag(
+      api.graphql(exactRefQuery, { name: `${tagsRefPrefix}${name}` }).data,
+      nodeId,
+      name,
+    );
+  };
+  const releases = () => {
+    const scan = releaseScan("/releases", "publication");
+    return runLegacySequence(
+      walkReleaseInventory(scan, inspectPublicationReleaseRecord),
+      (url) => {
+        const response = api.request("GET", url.href);
+        return {
+          data: response.body,
+          headers: { link: response.headers.get("link") ?? undefined },
+        };
+      },
+      scan,
+    ).sort((a, b) => a.id - b.id);
+  };
 
   const readAllocations = (initialTags: Record<string, unknown>[], namespace: string) =>
     runLegacySequence(readAllocationPairs(initialTags, namespace), (sha) =>
       get(`git/commits/${sha}`),
     );
-  return { tags, releases, readAllocations };
+  return { tags, namespaceTags, tag, releases, readAllocations };
 }
-/** The installed public parent uses the same complete tag and receipt checks. */
+/** The installed public parent uses the same tag and receipt checks, reading
+ * only the namespace's two receipt prefixes instead of the lifetime tag list. */
 export async function readPublicationAllocationsWithSdk(
   namespace: string,
   options: Parameters<typeof createPublicationInventoryWithSdk>[0],
 ) {
   inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace });
   const provider = await createPublicationInventoryWithSdk(options);
-  return provider.readAllocations(await provider.tags(), namespace);
+  return provider.readAllocations(await provider.namespaceTags(namespace), namespace);
 }
 
 export async function createPublicationInventoryWithSdk(options: {
@@ -370,12 +629,17 @@ export async function createPublicationInventoryWithSdk(options: {
   const read = async (route: string, body: Record<string, unknown> = {}) => {
     await recheck();
     const [method, path] = route.split(" ");
-    expected = { method: method!, url: new URL(path!, "https://api.github.com").href };
+    expected = {
+      method: method!,
+      url: new URL(path!, "https://api.github.com").href,
+    };
     const response = await client.request(route, {
       ...body,
       request: {
         portcove: {
-          replay: "once",
+          // Inventory reads are pure: transient provider failures retry with
+          // the client's bounded backoff inside the same request budget.
+          replay: method === "GET" ? "safe-read" : "pure-query",
           attempts: 0,
           deadline: Math.min(
             deadline,
@@ -390,36 +654,82 @@ export async function createPublicationInventoryWithSdk(options: {
     if (response.status !== 200) throw new Error("publication inventory provider unavailable");
     return response;
   };
-  async function run<R, T>(
-    sequence: Generator<R, T, unknown>,
-    readStep: (request: R) => Promise<unknown>,
-  ) {
-    let step = sequence.next();
-    while (!step.done) step = sequence.next(await readStep(step.value));
-    return step.value;
-  }
+  const graphql = async (query: string, variables: Record<string, unknown>) => {
+    const response = await read("POST /graphql", { query, variables });
+    const envelope = record(response.data);
+    if (
+      envelope.errors !== undefined &&
+      (!Array.isArray(envelope.errors) || envelope.errors.length)
+    )
+      throw new Error("publication ref inventory GraphQL response unavailable");
+    return envelope.data;
+  };
   const nodeId = repositoryNodeId((await read(`GET /${base}`)).data);
+  const scanTags = (refPrefix: string, resume?: PublicationInventoryCheckpoint) => {
+    const scan = tagScan(refPrefix, resume);
+    return runSequence(
+      readTags(nodeId, scan),
+      (cursor) =>
+        refPrefix === tagsRefPrefix
+          ? graphql(refsQuery, { cursor })
+          : graphql(prefixRefsQuery, { prefix: refPrefix, cursor }),
+      scan,
+    );
+  };
   return {
-    tags: () =>
-      run(readTags(nodeId), async (cursor) => {
-        const response = await read("POST /graphql", { query: refsQuery, variables: { cursor } });
-        const envelope = record(response.data);
-        if (
-          envelope.errors !== undefined &&
-          (!Array.isArray(envelope.errors) || envelope.errors.length)
-        )
-          throw new Error("publication ref inventory GraphQL response unavailable");
-        return envelope.data;
-      }),
+    /** Single-pass lifetime tag inventory, read until the provider is exhausted. */
+    tags: () => scanTags(tagsRefPrefix),
+    /** Continues an interrupted lifetime tag scan; see CompositePublicationInventory. */
+    async resumeTags(
+      checkpoint: PublicationInventoryCheckpoint,
+    ): Promise<CompositePublicationInventory<Record<string, unknown>>> {
+      return {
+        snapshot: "composite-across-budget-windows",
+        rows: await scanTags(tagsRefPrefix, checkpoint),
+      };
+    },
+    /** Complete receipt tags of one reservation namespace (its two prefixes). */
+    async namespaceTags(namespace: string) {
+      const rows: Record<string, unknown>[] = [];
+      for (const prefix of namespaceRefPrefixes(namespace)) rows.push(...(await scanTags(prefix)));
+      return rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    },
+    /** Exact tag identity, or null when the provider authoritatively has none. */
+    async tag(name: string) {
+      tagName(name);
+      return inspectExactTag(
+        await graphql(exactRefQuery, { name: `${tagsRefPrefix}${name}` }),
+        nodeId,
+        name,
+      );
+    },
+    /** Single-pass Release inventory, read until the provider is exhausted. */
     async releases() {
       const rows = await readReleaseInventoryPages(
         (url) => read(`GET ${url.pathname}${url.search}`),
         inspectPublicationReleaseRecord,
+        "publication",
       );
       return rows.sort((a, b) => a.id - b.id);
     },
+    /** Continues an interrupted Release scan; see CompositePublicationInventory. */
+    async resumeReleases(
+      checkpoint: PublicationInventoryCheckpoint,
+    ): Promise<CompositePublicationInventory<ReturnType<typeof inspectPublicationReleaseRecord>>> {
+      const rows = await readReleaseInventoryPages(
+        (url) => read(`GET ${url.pathname}${url.search}`),
+        inspectPublicationReleaseRecord,
+        "publication",
+        "/releases",
+        checkpoint,
+      );
+      return {
+        snapshot: "composite-across-budget-windows",
+        rows: rows.sort((a, b) => a.id - b.id),
+      };
+    },
     readAllocations: (tags: Record<string, unknown>[], namespace: string) =>
-      run(readAllocationPairs(tags, namespace), async (sha) => {
+      runSequence(readAllocationPairs(tags, namespace), async (sha) => {
         const data: unknown = (await read(`GET /${base}/git/commits/${sha}`)).data;
         return data;
       }),
@@ -471,79 +781,179 @@ export async function readReleaseNotesWithSdk(options: {
     expected = endpoint.href;
     guard();
     const response = await client.request(`GET ${endpoint.pathname}${endpoint.search}`, {
-      request: { portcove: { replay: "once", attempts: 0 } },
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
     });
     guard();
     if (response.status !== 200) throw new Error("release notes inventory provider unavailable");
     return response;
   };
   repositoryNodeId((await read(new URL(`https://api.github.com/${base}`))).data);
-  return readReleaseInventoryPages(read, inspectReleaseNotes);
+  return readReleaseInventoryPages(read, inspectReleaseNotes, "notes");
 }
 
-export function readPublicationReleases(
-  read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
-) {
-  return readReleaseInventoryPages(read, (row) => row);
+type InventoryRead = (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>;
+
+export function readPublicationReleases(read: InventoryRead) {
+  return readReleaseInventoryPages(read, (row) => row, "raw");
 }
 
-export function readPublicationReleaseAssets(
-  releaseId: number,
-  read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
-) {
+export function readPublicationReleaseAssets(releaseId: number, read: InventoryRead) {
   integer(releaseId);
-  return readReleaseInventoryPages(read, (row) => row, `/releases/${releaseId}/assets`);
+  return readReleaseInventoryPages(read, (row) => row, "raw", `/releases/${releaseId}/assets`);
 }
 
-async function readReleaseInventoryPages<T>(
-  read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
+/** Validates one page's `next` relation and returns its URL, or null at the end. */
+function nextInventoryRoute(link: unknown, page: number, suffix: string, rows: number) {
+  if (link === undefined) return null;
+  if (typeof link !== "string") throw new Error("malformed release notes pagination relation");
+  const relation = /<([^>]+)>;\s*rel="([^"]+)"/gu;
+  const links = [...link.matchAll(relation)];
+  if (
+    !links.length ||
+    link.replace(relation, "").replace(/[,\s]/gu, "") ||
+    links.filter((match) => match[2]?.split(/\s/u).includes("next")).length > 1
+  )
+    throw new Error("malformed release notes pagination relation");
+  const next = nextLink(new Map([["link", link]]));
+  if (next === null) return null;
+  const route = new URL(next);
+  if (
+    route.origin !== "https://api.github.com" ||
+    route.username ||
+    route.password ||
+    route.hash ||
+    ![`/${base}${suffix}`, `/repositories/1354613114${suffix}`].includes(route.pathname) ||
+    route.searchParams.size !== 2 ||
+    route.searchParams.get("per_page") !== "100" ||
+    route.searchParams.get("page") !== String(page + 1) ||
+    rows === 0
+  )
+    throw new Error("release inventory pagination changed scope or skipped a page");
+  return route.href;
+}
+
+type ReleasePage = { data: unknown; headers: { link?: unknown } };
+
+/** Reads a Release collection until the provider has no next page. There is no
+ * record or page ceiling; the caller's request and time budgets pace the scan.
+ * A failed read ends with a resumable checkpoint. Resuming first re-reads the
+ * head page (where a new Release appears) and the last accepted page (which a
+ * deletion shifts), and fails if either changed instead of skipping rows.
+ *
+ * Listing is page-number based and newest first, so a Release deleted from an
+ * already-read page during the walk shifts every later page back by one: the
+ * first row of the next page is never returned and no duplicate shows it. A
+ * deleted Release ID never returns, so before the walk is accepted every
+ * accepted page except the last one this walk read is re-read and must hold
+ * the identical IDs in the identical order; a deletion behind the walk leaves
+ * the page that held it different. A new Release shifts rows forward into a
+ * duplicate, which is refused. A final page that is full is followed by one
+ * probe of the next page, which must be empty, so a provider that drops the
+ * `next` relation exactly at a page boundary is refused. A provider that ends
+ * a short page without `next` while more Releases exist is not detectable from
+ * the REST listing, which reports no total. Any mismatch is incomplete, never
+ * complete, and the scan's checkpoint is kept for a retry. */
+function* walkReleaseInventory<T>(
+  scan: ReleaseScan,
   project: (row: Record<string, unknown>) => T,
-  suffix = "/releases",
-) {
-  let route = new URL(`https://api.github.com/${base}${suffix}?per_page=100`);
-  const ids = new Set<number>();
-  const rows: T[] = [];
-  for (let page = 1; page < maximumPublicationRequests; page++) {
-    const response = await read(route);
+): Generator<URL, T[], ReleasePage> {
+  const { suffix } = scan;
+  const first = `https://api.github.com/${base}${suffix}?per_page=100`;
+  const ids = new Set(scan.ids);
+  const sameIds = (body: unknown, ids: number[]) =>
+    Array.isArray(body) &&
+    body.length === ids.length &&
+    body.every((raw, index) => record(raw).id === ids[index]);
+  // Pages that end-of-walk verification re-reads, in the order they were read.
+  const verify: { route: string; ids: number[] }[] = [];
+  if (scan.previous) {
+    const previous = scan.previous;
+    if (scan.page > 2) {
+      const head = yield new URL(first);
+      if (!sameIds(head.data, scan.head))
+        throw new Error("release inventory changed before its resume point");
+      verify.push({ route: first, ids: scan.head });
+    }
+    const response = yield new URL(previous.route);
     const body: unknown = response.data;
-    if (!Array.isArray(body) || body.length > 100 || rows.length + body.length > 1600)
-      throw new Error("release inventory exceeds record bound");
+    if (
+      !Array.isArray(body) ||
+      !sameIds(body, previous.ids) ||
+      nextInventoryRoute(response.headers.link, scan.page - 1, suffix, body.length) !== scan.route
+    )
+      throw new Error("release inventory changed before its resume point");
+    verify.push(previous);
+  }
+  let route = new URL(scan.route);
+  for (;;) {
+    const response = yield route;
+    const body: unknown = response.data;
+    if (!Array.isArray(body) || body.length > 100)
+      throw new Error("release inventory page is incomplete or oversized");
+    const pageIds: number[] = [];
+    const pageRows: T[] = [];
     for (const raw of body as unknown[]) {
       const row = record(raw);
       const id = row.id;
       integer(id);
-      if (ids.has(id)) throw new Error("release inventory duplicates a Release ID");
-      ids.add(id);
-      rows.push(project(row));
+      if (ids.has(id) || pageIds.includes(id))
+        throw new Error("release inventory duplicates a Release ID");
+      pageIds.push(id);
+      pageRows.push(project(row));
     }
-    const link: unknown = response.headers.link;
-    if (link === undefined) return rows;
-    if (typeof link !== "string") throw new Error("malformed release notes pagination relation");
-    const relation = /<([^>]+)>;\s*rel="([^"]+)"/gu;
-    const links = [...link.matchAll(relation)];
-    if (
-      !links.length ||
-      link.replace(relation, "").replace(/[,\s]/gu, "") ||
-      links.filter((match) => match[2]?.split(/\s/u).includes("next")).length > 1
-    )
-      throw new Error("malformed release notes pagination relation");
-    const next = nextLink(new Map([["link", link]]));
-    if (next === null) return rows;
+    const next = nextInventoryRoute(response.headers.link, scan.page, suffix, body.length);
+    if (next === null) {
+      // Verify before accepting the final page, so a failure keeps a checkpoint
+      // that resumes at this page rather than one that claims the walk ended.
+      if (body.length === 100) {
+        const probe = new URL(route);
+        probe.searchParams.set("page", String(scan.page + 1));
+        const after = yield probe;
+        if (
+          !Array.isArray(after.data) ||
+          after.data.length ||
+          nextInventoryRoute(after.headers.link, scan.page + 1, suffix, 0) !== null
+        )
+          throw new PublicationInventoryIncompleteError(
+            new Error("release inventory pagination ended before the provider was exhausted"),
+            scan,
+          );
+      }
+      for (const page of verify) {
+        const again = yield new URL(page.route);
+        if (!sameIds(again.data, page.ids))
+          throw new PublicationInventoryIncompleteError(
+            new Error("release inventory changed during the scan"),
+            scan,
+          );
+      }
+    }
+    for (const id of pageIds) ids.add(id);
+    if (scan.page === 1) scan.head = pageIds;
+    scan.ids.push(...pageIds);
+    scan.rows.push(...pageRows);
+    if (next === null) return scan.rows as T[];
+    verify.push({ route: route.href, ids: pageIds });
+    scan.previous = { route: route.href, ids: pageIds };
+    scan.page++;
+    scan.route = next;
     route = new URL(next);
-    if (
-      route.origin !== "https://api.github.com" ||
-      route.username ||
-      route.password ||
-      route.hash ||
-      ![`/${base}${suffix}`, `/repositories/1354613114${suffix}`].includes(route.pathname) ||
-      route.searchParams.size !== 2 ||
-      route.searchParams.get("per_page") !== "100" ||
-      route.searchParams.get("page") !== String(page + 1) ||
-      body.length === 0
-    )
-      throw new Error("release inventory pagination changed scope or skipped a page");
   }
-  throw new Error("release inventory exceeds page bound");
+}
+
+async function readReleaseInventoryPages<T>(
+  read: InventoryRead,
+  project: (row: Record<string, unknown>) => T,
+  projection: ReleaseProjection,
+  suffix = "/releases",
+  resume?: PublicationInventoryCheckpoint,
+) {
+  const scan = releaseScan(suffix, projection, resume);
+  return runSequence(walkReleaseInventory(scan, project), read, scan);
 }
 
 export { peel as peelReleaseReference, refsQuery as releasePublicationRefsQuery };
+export {
+  prefixRefsQuery as releasePublicationPrefixRefsQuery,
+  exactRefQuery as releasePublicationExactRefQuery,
+};

@@ -4,9 +4,13 @@ import {
   activeRefRuleset,
   controllerTagPatterns,
   hasControllerTagProtection,
+  hasReceiptTagProtection,
+  receiptTagNamespaces,
   hasOnlyRules,
   matchesControllerTagPattern,
+  receiptTagPatternList,
   releaseOwner,
+  releaseReceiptWriter,
 } from "./release-ref-rulesets.mts";
 import { isRecord } from "./runtime-values.mts";
 import { GitHubApiError } from "./github-operation.mts";
@@ -557,6 +561,24 @@ const releaseRulesets = {
     ["update", "deletion"],
     [releaseOwner],
   ),
+  // Owner decision on #1422 (2026-11-23): preparation receipts are allocation
+  // authority that later commands no longer re-verify against raw commits, so
+  // nobody, the owner included, may move or delete one.
+  receiptImmutable: releaseRuleset(
+    "Portcove release receipt tag immutability",
+    "tag",
+    receiptTagPatternList,
+    ["update", "deletion"],
+  ),
+  // Creation stays with the existing release state writer App, which already
+  // owns the coordinator state branch updated in the same atomic transaction.
+  receiptCreator: releaseRuleset(
+    "Portcove release receipt tag creation",
+    "tag",
+    receiptTagPatternList,
+    ["creation"],
+    [releaseReceiptWriter],
+  ),
 };
 
 function releaseRulesetContract(value: unknown) {
@@ -633,8 +655,17 @@ export function planReleaseRulesets(
       throw new Error(`Unexpected drift in ${desired.name}`);
     return matches[0];
   };
-  const { writer, retention, pause, immutable, creator, versionCreator, nightlyImmutable } =
-    releaseRulesets;
+  const {
+    writer,
+    retention,
+    pause,
+    immutable,
+    creator,
+    versionCreator,
+    nightlyImmutable,
+    receiptImmutable,
+    receiptCreator,
+  } = releaseRulesets;
   // The 2026-11-13 policy excluded preview tags; it is widened in place to every v* tag.
   const versionRows = rows.filter((row) => row.name === versionCreator.name);
   const narrowVersionCreator =
@@ -653,6 +684,8 @@ export function planReleaseRulesets(
     creator: find(creator),
     versionCreator: narrowVersionCreator ? undefined : find(versionCreator),
     nightlyImmutable: find(nightlyImmutable),
+    receiptImmutable: find(receiptImmutable),
+    receiptCreator: find(receiptCreator),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -774,6 +807,9 @@ export function planReleaseRulesets(
     next ??= { action: "update", id: narrowVersionCreator.id, payload: versionCreator };
   else if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
   if (!stable.nightlyImmutable) next ??= { action: "create", payload: nightlyImmutable };
+  // Immutability is established and read back before creation is restricted.
+  if (!stable.receiptImmutable) next ??= { action: "create", payload: receiptImmutable };
+  else if (!stable.receiptCreator) next ??= { action: "create", payload: receiptCreator };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {
@@ -791,4 +827,12 @@ export function planReleaseRulesets(
     },
     identities,
   };
+}
+
+/** Fails closed unless every ratified coordinator namespace's receipt tags are
+ * immutable for everyone and creatable only by the release state writer. */
+export function requireReceiptTagProtection(rulesets: readonly unknown[]) {
+  for (const namespace of receiptTagNamespaces)
+    if (!hasReceiptTagProtection(rulesets, namespace))
+      throw new Error(`Release receipt tag protection is absent or weaker for ${namespace}`);
 }

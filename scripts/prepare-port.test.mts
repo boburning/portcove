@@ -16,15 +16,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
-import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
-import { projectOpenXPortable } from "./catalog-openx-portable.mts";
-import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
-import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
-import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
-import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   collectPortFacts,
@@ -45,8 +37,6 @@ import { observationHash } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
-import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
-import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
 import { managedSetupReleaseAdvice } from "./catalog-setup-release-advice.mts";
@@ -405,49 +395,6 @@ void test("portable preparation separates complete hint observations from lifecy
       { assets_complete: true, assets: [] },
     ),
     undefined,
-  );
-});
-
-void test("Raze preparation retains the explicit archive and persistence observations", () => {
-  const record: AuthoredPort = {
-    format_version: 1,
-    listing: {
-      id: "blood-raze",
-      name: "Blood (Raze)",
-      summary: "Fixture",
-      project_url: "https://github.com/ZDoom/Raze",
-    },
-    raze_windows_profile_v1: true,
-    integration: {
-      adapter: "native-portable",
-      platforms: ["windows-x86-64"],
-      channels: ["stable"],
-      release: { repository: "ZDoom/Raze" },
-    },
-  };
-  const explicit = structuredClone(record);
-  delete explicit.raze_windows_profile_v1;
-  explicit.integration!.release = {
-    repository: "ZDoom/Raze",
-    asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
-  };
-  explicit.integration!.persistent_paths = [
-    "raze_portable.ini",
-    "Save",
-    "Screenshots",
-    "Demos",
-    "autoexec.cfg",
-  ];
-  const facts = {
-    assets_complete: true,
-    assets: [{ name: "Raze-1.9.0-windows.zip" }, { name: "Raze-1.9.0-linux.tar.gz" }],
-  };
-  const feedback = portablePreparationFeedback(record, facts)!;
-  assert.deepEqual(feedback, portablePreparationFeedback(explicit, facts));
-  assert.equal(feedback.platforms[0]?.hint_matches.length, 1);
-  assert.equal(
-    declarativePreparationFeedback(record).projections[0]?.field,
-    "raze_windows_profile_v1",
   );
 });
 
@@ -2583,7 +2530,6 @@ void test("prepared observations bind the accepted observation preimage and cann
 
 void test("preparation reports all declared route projections across the current catalog", () => {
   const { records } = readCatalogSource(catalogRoot);
-  assert.ok(records.some((record) => record.alephone_pinned_windows_v1));
   const routeRecords = records.filter((record) => record.route_facts_v1);
   const gbaRecords = records.filter((record) => record.gba_staged_archive_v1);
   assert.ok(routeRecords.some((record) => record.route_facts_v1?.managed_native));
@@ -2592,44 +2538,20 @@ void test("preparation reports all declared route projections across the current
   );
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
-  assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
   assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
-  assert.ok(records.some((record) => record.raze_windows_profile_v1));
-  assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
-  assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
-  assert.ok(records.some((record) => record.opengoal_setup_v1));
-  assert.ok(records.some((record) => record.openmohaa_portable_v1));
-  assert.ok(records.some((record) => record.openx_portable_v1));
-  assert.ok(records.some((record) => record.native_managed_profile_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
-  assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
-  assert.ok(records.some((record) => record.rsdkv4_portable_data_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
-    if (record.alephone_pinned_windows_v1) expected.push("alephone_pinned_windows_v1");
     if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
-    if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
-    if (record.native_managed_profile_v1) expected.push("native_managed_profile_v1");
     if (record.external_registration_v1) expected.push("external_registration_v1");
-    if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
-    if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
-    if (record.openx_portable_v1) expected.push("openx_portable_v1");
-    if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
-    if (record.crispy_doom_windows_persistence_v1)
-      expected.push("crispy_doom_windows_persistence_v1");
-    if (record.chocolate_family_windows_persistence_v1)
-      expected.push("chocolate_family_windows_persistence_v1");
-    if (record.gen2recomp_windows_persistence_v1)
-      expected.push("gen2recomp_windows_persistence_v1");
-    if (record.rsdkv4_portable_data_v1) expected.push("rsdkv4_portable_data_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2637,105 +2559,6 @@ void test("preparation reports all declared route projections across the current
     );
     assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
     assert.match(feedback.original_files, /does not establish/, id);
-  }
-});
-
-void test("official URL preparation retains ReflectionHLE portability observations in its compact proposal", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const accepted = readCatalogSource(root);
-    const id = "catacomb-3-d-the-descent-reflectionhle";
-    const selected = accepted.records.find((record) => record.listing.id === id)!;
-    const explicit = projectReflectionHlePortablePaths(selected);
-    delete explicit.reflectionhle_portable_paths_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 24228275,
-                full_name: "ReflectionHLE/ReflectionHLE",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.persistence,
-      explicit.integration?.persistent_paths,
-    );
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.equal(candidate.reflectionhle_portable_paths_v1, true);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation retains the exact Aleph One pin and compacts its launch settings", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "marathon-2-durandal-aleph-one";
-    const accepted = readCatalogSource(root);
-    const selected = accepted.records.find((record) => record.listing.id === id)!;
-    const explicit = projectAlephOnePinnedWindows(selected);
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 39701264,
-                full_name: "Aleph-One-Marathon/alephone",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.alephone_pinned_windows_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.deepEqual(candidate.integration, selected.integration);
-    assert.deepEqual(candidate.release_maintenance, selected.release_maintenance);
-    assert.deepEqual(
-      JSON.parse(readFileSync(prepared.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
   }
 });
 
@@ -2896,7 +2719,7 @@ void test("official URL preparation compacts the exact TechnicallyComputers PSX 
       );
       assert.ok(advice);
       if (recipe === "technically-computers-input-files") {
-        assert.match(advice.scope, /Bomberman Party Edition and Final Fantasy VII/u);
+        assert.match(advice.scope, /declare their runtime root and mutable files/u);
         assert.match(advice.next, /raw disc set/u);
       }
       assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
@@ -2952,7 +2775,7 @@ void test("official URL preparation compacts the exact Alexbeav PSX layout witho
   }
 });
 
-void test("official URL preparation compacts both exact PSX split-mods diagnostics routes", async () => {
+void test("official URL preparation keeps both explicit PSX diagnostics routes explicit", async () => {
   const f = fixture();
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
@@ -2962,11 +2785,12 @@ void test("official URL preparation compacts both exact PSX split-mods diagnosti
       ["mortal-kombat-4-recompiled", 1352192597],
     ] as const) {
       const record = accepted.records.find((entry) => entry.listing.id === id)!;
-      const explicit = projectPsxManagedWindows(record);
-      delete explicit.psx_managed_windows_v1;
+      assert.equal(record.psx_managed_windows_v1, undefined);
+      assert.ok(
+        (record.integration!.persistent_paths as string[]).includes("diagnostics-location.txt"),
+      );
       const source = join(root, "ports", `${id}.json`);
-      const bytes = JSON.stringify(explicit);
-      writeFileSync(source, bytes);
+      const bytes = readFileSync(source, "utf8");
       const result = await preparePort({
         id,
         catalogRoot: root,
@@ -2987,15 +2811,10 @@ void test("official URL preparation compacts both exact PSX split-mods diagnosti
         },
         artwork: { inspectGame: () => [] },
       });
-      const candidate = checkedAuthoredPort(
-        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-      );
-      assert.deepEqual(result.report.changed_records, [id]);
+      // No title-keyed shorthand reproduces these routes, so nothing is compacted.
+      assert.deepEqual(result.report.changed_records, []);
+      assert.deepEqual(result.report.files.records, []);
       assert.equal(result.report.operational_changed, false);
-      assert.equal(candidate.psx_managed_windows_v1, "split-mods-diagnostics");
-      assert.deepEqual(candidate.listing, record.listing);
-      assert.deepEqual(candidate.integration, record.integration);
-      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
       assert.deepEqual(
         JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
         accepted.catalog,
@@ -3060,434 +2879,13 @@ void test("official URL preparation proposes the exact reviewed N64 persistence 
   }
 });
 
-void test("Raze preparation compacts the reviewed Windows profile and preserves explicit writers", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const accepted = readCatalogSource(root);
-    const id = "blood-raze";
-    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectRazeWindowsProfile(selected);
-    delete explicit.raze_windows_profile_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const common = {
-      catalogRoot: root,
-      projectUrl: selected.listing.project_url,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, id: 230432175, full_name: "ZDoom/Raze", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    };
-    const reviewed = await preparePort({
-      ...common,
-      outputDirectory: join(f.root, "reviewed"),
-      originalGame: selected.listing.original_game,
-    });
-    const proposed = checkedAuthoredPort(
-      JSON.parse(readFileSync(reviewed.report.files.records[0]!.path, "utf8")),
-    );
-    assert.equal(reviewed.report.port_id, id);
-    assert.deepEqual(reviewed.report.changed_records, [id]);
-    assert.equal(reviewed.report.operational_changed, false);
-    assert.equal(proposed.raze_windows_profile_v1, true);
-    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(proposed.upstream_lineage, selected.upstream_lineage);
-    assert.deepEqual(
-      JSON.parse(readFileSync(reviewed.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "changed-game-evidence"),
-        originalGame: {
-          ...selected.listing.original_game,
-          evidence_urls: ["https://example.com/different-review"],
-        },
-      }),
-      /change to an existing game or edition identity/u,
-    );
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "changed-repository-id"),
-        originalGame: selected.listing.original_game,
-        facts: {
-          fetcher: f.fetcher((url) =>
-            url.includes("/releases?")
-              ? json([])
-              : json({ ...metadata, id: 2, full_name: "ZDoom/Raze", archived: false }),
-          ),
-        },
-      }),
-      /reviewed record and provider repository identities differ/u,
-    );
-
-    const alternate = structuredClone(explicit);
-    const persistent = [...(alternate.integration!.persistent_paths as string[]), "custom.cfg"];
-    alternate.integration!.persistent_paths = persistent;
-    const alternateBytes = JSON.stringify(alternate);
-    writeFileSync(source, alternateBytes);
-    const custom = await preparePort({
-      ...common,
-      id,
-      outputDirectory: join(f.root, "custom"),
-      record: alternate,
-    });
-    assert.deepEqual(custom.report.changed_records, []);
-    assert.equal(custom.report.operational_changed, false);
-    assert.deepEqual(custom.report.declarative_authoring.projections, []);
-    assert.deepEqual(custom.report.portable_preparation?.persistence, persistent);
-
-    const otherGame = accepted.records.find((entry) => entry.listing.id === "nam-raze")!;
-    await assert.rejects(
-      preparePort({
-        ...common,
-        id,
-        outputDirectory: join(f.root, "wrong-game"),
-        originalGame: otherGame.listing.original_game,
-      }),
-      /change to an existing game or edition identity/u,
-    );
-    assert.equal(readFileSync(source, "utf8"), alternateBytes);
-
-    const listing = { ...selected.listing, id: "raze-identity-fixture" };
-    delete listing.issue_number;
-    const sibling = join(root, "ports", `${listing.id}.json`);
-    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "identical-siblings"),
-        originalGame: selected.listing.original_game,
-      }),
-      /share this reviewed game and editions/u,
-    );
-    delete listing.original_game;
-    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "ambiguous-legacy"),
-        originalGame: {
-          ...selected.listing.original_game,
-          id: "another-game",
-        },
-      }),
-      /resolve unbound game identity/u,
-    );
-    assert.equal(readFileSync(source, "utf8"), alternateBytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the exact Gen2Recomped Windows edition persistence recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "gen2recomp-gold";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectGen2RecompWindowsPersistence(selected);
-    delete explicit.gen2recomp_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "UNDERdecoded/Gen2Recomped", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.gen2recomp_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the reviewed RSDKv4 portable data recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectRsdkv4PortableData(selected);
-    delete explicit.rsdkv4_portable_data_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 321543928,
-                full_name: "RSDKModding/RSDKv4-Decompilation",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.rsdkv4_portable_data_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the exact Chocolate Windows persistence recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "chocolate-heretic";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectChocolateFamilyWindowsPersistence(selected);
-    delete explicit.chocolate_family_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "chocolate-doom/chocolate-doom", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.chocolate_family_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation compacts only the exact Crispy Doom persistence coordinates", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "doom-ii-crispy-doom-family";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectCrispyDoomWindowsPersistence(selected);
-    delete explicit.crispy_doom_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 17395051,
-                full_name: "fabiangreffrath/crispy-doom",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.persistence,
-      explicit.integration?.persistent_paths,
-    );
-    assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("OpenGOAL setup keeps each disc, launcher and portable profile separate", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  for (const token of ["jak1", "jak2", "jak3"]) {
-    const record = records.find(({ listing }) => listing.id === `opengoal-${token}`)!;
-    assert.equal(record.opengoal_setup_v1, true);
-    const explicit = projectOpenGoalSetup(record);
-    assert.equal(explicit.integration?.source_profile, `opengoal-${token}-disc`);
-    assert.equal(explicit.integration?.setup_marker, `data/out/${token}/iso/0COMMON.TXT`);
-    assert.deepEqual(explicit.integration?.launch_arguments, ["--game", token, "--portable"]);
-    assert.deepEqual(explicit.integration?.persistent_paths, [`OpenGOAL/${token}`]);
-    assert.deepEqual(compactOpenGoalSetup(explicit), record);
-
-    const override = {
-      ...explicit,
-      integration: { ...explicit.integration, launch_arguments: ["--game", token] },
-    };
-    assert.equal(compactOpenGoalSetup(override), override);
-    assert.throws(
-      () => projectOpenGoalSetup({ ...override, opengoal_setup_v1: true }),
-      /already supplies the extractor/u,
-    );
-    assert.throws(
-      () =>
-        projectOpenGoalSetup({
-          ...record,
-          integration: { ...record.integration, source_profile: "unrelated-disc" },
-        }),
-      /reviewed project, game, and disc profile/u,
-    );
-  }
-});
-
-void test("official URL preparation compacts the reviewed OpenGOAL setup", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "opengoal-jak2";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectOpenGoalSetup(selected);
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 289585720,
-                full_name: "open-goal/jak-project",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.opengoal_setup_v1, true);
-    assert.equal(candidate.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(projectOpenGoalSetup(candidate).integration, explicit.integration);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL and reviewed Spearhead identity compact the exact OpenMoHAA route", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(projectOpenMohaaPortable(selected));
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, id: 29029846, full_name: "openmoh/openmohaa", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.openmohaa_portable_v1, "spearhead");
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(prepared.report.portable_preparation?.persistence, ["main", "mainta"]);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.platforms.map(({ platform }) => platform),
-      ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("reviewed preparation preserves the release origin of a compact OpenMoHAA route", async () => {
+void test("reviewed preparation preserves the release origin of an explicit OpenMoHAA route", async () => {
   const f = fixture();
   try {
     const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
     const { records } = readCatalogSource(catalogRoot);
     const selected = records.find((record) => record.listing.id === id)!;
-    assert.equal(selected.integration?.release, undefined);
-    const explicit = projectOpenMohaaPortable(selected);
+    const explicit = structuredClone(selected);
     const release = explicit.integration!.release;
     assert.ok(release && typeof release === "object");
     explicit.integration!.release = {
@@ -3612,55 +3010,6 @@ void test("settings qualification requests complete exact package facts and limi
       JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
       authored.catalog,
     );
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation compacts both exact OpenX portable package routes", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const { records } = readCatalogSource(root);
-    for (const [id, repository, repositoryId] of [
-      ["star-wars-x-wing-openxw", "elyosh/OpenXW", 1393268483],
-      ["star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt", "elyosh/OpenXvT", 1367490590],
-    ] as const) {
-      const record = records.find((entry) => entry.listing.id === id)!;
-      const explicit = projectOpenXPortable(record);
-      const source = join(root, "ports", `${id}.json`);
-      const bytes = JSON.stringify(explicit);
-      writeFileSync(source, bytes);
-      const result = await preparePort({
-        id,
-        catalogRoot: root,
-        outputDirectory: join(f.root, id),
-        projectUrl: record.listing.project_url,
-        originalGame: record.listing.original_game,
-        facts: {
-          fetcher: f.fetcher((url) =>
-            url.includes("/releases?")
-              ? json([])
-              : json({ ...metadata, id: repositoryId, full_name: repository, archived: false }),
-          ),
-        },
-        artwork: { inspectGame: () => [] },
-      });
-      const candidate = checkedAuthoredPort(
-        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-      );
-      assert.equal(candidate.openx_portable_v1, String(repositoryId));
-      assert.equal(result.report.operational_changed, false);
-      assert.deepEqual(result.report.changed_records, [id]);
-      assert.deepEqual(projectOpenXPortable(candidate).integration, explicit.integration);
-      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
-      assert.ok(
-        result.report.declarative_authoring.projections.some(
-          ({ field }) => field === "openx_portable_v1",
-        ),
-      );
-      assert.equal(readFileSync(source, "utf8"), bytes);
-    }
   } finally {
     f.clean();
   }

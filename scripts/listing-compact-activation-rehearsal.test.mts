@@ -1091,10 +1091,19 @@ void test("the committed withdrawal record is valid against the committed listin
 });
 
 void test("projection stops at the released readers' listing-count and record bounds", async () => {
-  const { compactListingCountMaximum, compactListingRecordMaximum, ListingPublicationStop } =
-    await import("./listing-directory-carrier.mts");
+  const {
+    compactListingCountMaximum,
+    compactListingDecodedMaximum,
+    compactListingRecordMaximum,
+    listingDeliveryMaximum,
+    ListingPublicationStop,
+  } = await import("./listing-directory-carrier.mts");
+  // Previews 14 and 15's bounds, independent of this checkout's Core, whose
+  // reader-side budget belongs to the next generation.
   assert.equal(compactListingCountMaximum, 10000);
   assert.equal(compactListingRecordMaximum, 1024 ** 2);
+  assert.equal(compactListingDecodedMaximum, 32 * 1024 ** 2);
+  assert.equal(listingDeliveryMaximum, 8 * 1024 ** 2);
   const project = (listings: Row[]) =>
     projectListingDelivery({ format_version: 15, listings }, [], null, {
       compatible: { format_version: 15, listings },

@@ -704,6 +704,11 @@ function sourceDisplayState(report: SourceInspectionReport) {
       tone: "danger",
       icon: AlertTriangle,
     },
+    source_not_checked_yet: {
+      label: "Not checked yet",
+      tone: "neutral",
+      icon: HelpCircle,
+    },
     source_could_not_be_checked: {
       label: "Files couldn't be checked",
       tone: "danger",

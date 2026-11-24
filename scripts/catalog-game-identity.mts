@@ -24,6 +24,7 @@ import {
 } from "./catalog-authoring.mts";
 import { buildUniverse, universeGroups } from "./maintenance-universe.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -38,7 +39,7 @@ function bytes(file: string, maximum = 512 * 1024): Buffer {
 function generatedRecords(root: string, file: string, key: string) {
   const path = join(root, file);
   if (!existsSync(path)) return null;
-  const content = bytes(path, 32 * 1024 * 1024);
+  const content = bytes(path, listingDirectoryTextMaximum);
   const document: unknown = parseCatalogSource(content.toString("utf8"));
   if (!isRecord(document) || !Array.isArray(document[key]))
     throw new Error(`Malformed generated projection: ${file}`);
