@@ -3,6 +3,7 @@ import { test } from "vite-plus/test";
 import {
   classifyApplicationVersion,
   proposeApplicationVersion,
+  publishedAllocationBasis,
   selectApplicationRelease,
 } from "./release-version-policy.mts";
 
@@ -314,3 +315,53 @@ test("release timestamps and classification source identities require scalars", 
     /exact source commit/,
   );
 });
+
+for (const count of [256, 257, 1600, 1601, 20000])
+  test(`the allocation basis of ${count} published versions proposes exactly what complete history does`, () => {
+    const older = Array.from(
+      { length: count - 3 },
+      (_, index) => `0.${Math.floor(index / 1000)}.${index % 1000}`,
+    );
+    const history = [...older, "1.0.0", "1.1.0-rc.1", "1.1.0-rc.2"];
+    const cases = [
+      classification("1.1.0-rc.2", "prerelease"),
+      classification("1.1.0-rc.2", "finalize"),
+      classification("1.1.0-rc.2", "prerelease", {
+        compatibility: "breaking",
+        migration_notes: "Migrate the API",
+      }),
+    ];
+    for (const reviewed of cases) {
+      const basis = publishedAllocationBasis(reviewed, history);
+      assert.deepEqual(basis, ["1.0.0", "1.1.0-rc.2"]);
+      const complete = (() => {
+        try {
+          return proposeApplicationVersion(reviewed, history);
+        } catch (error) {
+          return String(error);
+        }
+      })();
+      const fromBasis = (() => {
+        try {
+          return proposeApplicationVersion(reviewed, basis);
+        } catch (error) {
+          return String(error);
+        }
+      })();
+      assert.deepEqual(fromBasis, complete);
+    }
+    // Deriving the basis still requires complete history: a newer published
+    // version anywhere in it refuses, so an incomplete inventory cannot yield
+    // a basis that hides it.
+    assert.throws(
+      () => publishedAllocationBasis(cases[0], [...history, "1.2.0"]),
+      /behind published history/,
+    );
+    assert.deepEqual(
+      publishedAllocationBasis(classification("0.1.0", "patch"), [
+        ...older.filter((v) => v < "0.1"),
+        "0.1.0",
+      ]),
+      ["0.1.0"],
+    );
+  });

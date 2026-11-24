@@ -776,9 +776,12 @@ export function requireReceiptTagProtectionPolicy(
     !isRecord(raw) ||
     raw.schema_version !== 1 ||
     raw.repository_id !== 1354613114 ||
+    // Every observer coverage carries the complete repository ruleset
+    // inventory; coverage names only the additional settings it observed.
     ![
       "current-repository-input-branches-only",
       "current-repository-input-branches-and-release-immutability",
+      "current-repository-catalog-maintenance-only",
     ].includes(String(raw.coverage)) ||
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||

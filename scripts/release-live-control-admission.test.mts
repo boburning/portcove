@@ -16,6 +16,7 @@ import {
   capacityDocumentFixture,
   liveControlRuntimeFixture,
   protectionFixture,
+  receiptTagRulesetsFixture,
 } from "./fixtures/release-live-control-fixture.mts";
 import { persistReviewedClassification } from "./release-control-inputs.mts";
 import {
@@ -947,10 +948,10 @@ void test("selected fixed writer joins original source/OIDC objects and preserve
       raw.inventory.branches.pop();
     },
     (raw: typeof protectedStorage) => {
-      raw.inventory.rulesets[4]!.bypass_actors[0]!.actor_id = 15368;
+      raw.inventory.rulesets.at(-2)!.bypass_actors[0]!.actor_id = 15368;
     },
     (raw: typeof protectedStorage) => {
-      raw.inventory.rulesets[5]!.bypass_actors.push({
+      raw.inventory.rulesets.at(-1)!.bypass_actors.push({
         actor_type: "User",
         actor_id: 43177418,
         bypass_mode: "always",
@@ -1249,6 +1250,85 @@ void test("scoped coordinator request reader accepts persisted proof and disting
     await assert.rejects(source.readSdkRequest(request), /fresh/u);
     assert.equal(control.mutations(), persisted ? 1 : 0);
     fetcher.mock.restore();
+  }
+});
+
+void test("control source refuses reduced receipt verification without exact receipt tag protection", async () => {
+  const source = (receipts: ReturnType<typeof receiptTagRulesetsFixture>) =>
+    liveControlRuntimeFixture(protectionFixture("a".repeat(40), undefined, receipts)).create();
+  // Present and exact: the release operation proceeds.
+  const exact = await source(receiptTagRulesetsFixture());
+  assert.deepEqual(
+    (({ namespace, authorization }) => ({ namespace, authorization }))(
+      exact.receiptProtection("portcove-production"),
+    ),
+    {
+      namespace: "portcove-production",
+      authorization: "release-receipt-tag-immutability-only",
+    },
+  );
+  // A configured namespace no receipt policy is ratified for refuses, even
+  // when equally shaped rulesets cover it.
+  assert.throws(
+    () => exact.receiptProtection("portcove-fixture"),
+    /only for ratified coordinator namespaces/u,
+  );
+  const unratified = await source(receiptTagRulesetsFixture("portcove-fixture"));
+  assert.throws(
+    () => unratified.receiptProtection("portcove-fixture"),
+    /only for ratified coordinator namespaces/u,
+  );
+  const weaker: [string, (rulesets: ReturnType<typeof receiptTagRulesetsFixture>) => void][] = [
+    ["absent", (rulesets) => rulesets.splice(0)],
+    ["immutability absent", (rulesets) => rulesets.splice(0, 1)],
+    ["creation absent", (rulesets) => rulesets.splice(1, 1)],
+    [
+      "immutability bypass actor",
+      (rulesets) =>
+        rulesets[0]!.bypass_actors.push({
+          actor_type: "Integration",
+          actor_id: 5632044,
+          bypass_mode: "always",
+        }),
+    ],
+    [
+      "extra creation actor",
+      (rulesets) =>
+        rulesets[1]!.bypass_actors.push({
+          actor_type: "User",
+          actor_id: 43177418,
+          bypass_mode: "always",
+        }),
+    ],
+    ["missing deletion", (rulesets) => (rulesets[0]!.rules = [{ type: "update" }])],
+    ["missing update", (rulesets) => (rulesets[0]!.rules = [{ type: "deletion" }])],
+    [
+      "narrower include",
+      (rulesets) => {
+        for (const ruleset of rulesets) ruleset.conditions.ref_name.include.splice(1);
+      },
+    ],
+    [
+      "exact receipt only",
+      (rulesets) =>
+        (rulesets[0]!.conditions = {
+          ref_name: {
+            include: [
+              "refs/tags/portcove-production-prepared/v0.1.0-alpha.3",
+              "refs/tags/portcove-production-prepared-source/" + "0".repeat(40),
+            ],
+            exclude: [],
+          },
+        }),
+    ],
+    ["evaluate enforcement", (rulesets) => (rulesets[0]!.enforcement = "evaluate")],
+    ["disabled enforcement", (rulesets) => (rulesets[1]!.enforcement = "disabled")],
+  ];
+  for (const [label, weaken] of weaker) {
+    const rulesets = receiptTagRulesetsFixture();
+    weaken(rulesets);
+    const weak = await source(rulesets);
+    assert.throws(() => weak.receiptProtection("portcove-production"), /absent or weaker/u, label);
   }
 });
 

@@ -580,6 +580,19 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   );
   assert.deepEqual(retained.preparation, preparation);
   assert.deepEqual(readApplicationRunNotes(f.releases[0]!.body)?.custody, retained);
+  // Records written before allocation bases carry the complete published
+  // history (at most 1,600 entries then); they stay readable unchanged, and
+  // the former entry ceiling no longer rejects a longer one. New writers
+  // retain the allocation basis, a constant size inside the body bound.
+  for (const count of [1600, 1601]) {
+    const historical = structuredClone(retained);
+    assert.ok(historical.preparation);
+    historical.preparation.published_versions = [
+      ...Array.from({ length: count - 1 }, (_, index) => `0.0.${index + 1}`),
+      "0.1.0-alpha.2",
+    ];
+    assert.deepEqual(inspectApplicationRunCustody(structuredClone(historical)), historical);
+  }
   assert.deepEqual(f.mutations[1]!.body, {
     body: f.releases[0]!.body,
     tag_name: `portcove-production-candidate-${source}`,
