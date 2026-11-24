@@ -7,16 +7,53 @@ export const compactListingDeliveryTarget = "policy/official/catalog.listings.co
 export const listingDeliveryMaximum = 8 * 1024 ** 2;
 export const compactListingDecodedMaximum = 32 * 1024 ** 2;
 export const compactListingCarrier = "gzip-base64-json-v1";
+export const compactListingRecordMaximum = 1024 ** 2;
+/** Listings and withdrawals each, as released compact readers bound them. */
+export const compactListingCountMaximum = 10000;
 /** Core's `MAX_LISTING_DIRECTORY_TEXT_BYTES`: the working-memory bound for the
  * authored listing directory text. Tooling that reads the canonical
  * `listings.json` uses it, never a delivery bound; a test pins it to Core. */
 export const listingDirectoryTextMaximum = 64 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+/** Why a listing candidate cannot be published while everything else about the
+ * run is sound. Only these, and Core's input refusal of the final staged
+ * publication, stop listing publication; preparation then renews the exact
+ * prior listing targets. Canonical inputs changing mid-run, tool crashes,
+ * timeouts, non-refusal Core errors and filesystem failures are plain errors
+ * and stay fatal. */
+export type ListingStopCode =
+  | "decoded_bound"
+  | "transport_bound"
+  | "listing_count"
+  | "record_bound"
+  | "withdrawal_count"
+  | "withdrawal_input"
+  | "missing_without_withdrawal"
+  | "conflicting_observations"
+  | "core_refusal";
+
+export class ListingPublicationStop extends Error {
+  readonly code: ListingStopCode;
+  readonly figures: Record<string, number | string | string[]>;
+  constructor(
+    code: ListingStopCode,
+    message: string,
+    figures: Record<string, number | string | string[]> = {},
+  ) {
+    super(message);
+    this.name = "ListingPublicationStop";
+    this.code = code;
+    this.figures = figures;
+  }
+}
+
 export function encodeCompactListing(bytes: Buffer) {
   if (!bytes.length || bytes.length > compactListingDecodedMaximum)
-    throw new Error(
+    throw new ListingPublicationStop(
+      "decoded_bound",
       "Complete compact listing exceeds its decoded byte bound; retaining last-good publication",
+      { decoded_bytes: bytes.length, decoded_limit: compactListingDecodedMaximum },
     );
   const compressed = gzipSync(bytes);
   // Preserve the published Unix OS byte in the gzip header on every host.
@@ -30,8 +67,15 @@ export function encodeCompactListing(bytes: Buffer) {
     }),
   );
   if (result.length > listingDeliveryMaximum)
-    throw new Error(
+    throw new ListingPublicationStop(
+      "transport_bound",
       "Complete compact listing exceeds its transport byte bound; retaining last-good publication",
+      {
+        wire_bytes: result.length,
+        wire_limit: listingDeliveryMaximum,
+        decoded_bytes: bytes.length,
+        decoded_limit: compactListingDecodedMaximum,
+      },
     );
   return result;
 }
