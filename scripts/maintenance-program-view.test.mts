@@ -815,12 +815,18 @@ void test("detector rot: each declared table is found or individually retired", 
   );
 });
 
-void test("only exactly-cfg(test) code is excluded; feature-gated code is its own kind", () => {
+void test("test-only cfg code is excluded; feature-gated code is its own kind", () => {
   assert.equal(cfgClass("test"), "test");
   assert.equal(cfgClass('any(test, feature = "qualification-fixtures")'), "feature");
   assert.equal(cfgClass('feature = "qualification-fixtures"'), "feature");
   assert.equal(cfgClass("any(test, windows)"), "production");
   assert.equal(cfgClass('not(any(test, feature = "qualification-fixtures"))'), "production");
+  assert.equal(cfgClass('any(test, not(feature = "qualification-fixtures"))'), "production");
+  assert.equal(cfgClass('all(windows, not(feature = "qualification-fixtures"))'), "production");
+  assert.equal(
+    cfgClass('all(not(test), any(windows, feature = "qualification-fixtures"))'),
+    "feature",
+  );
   const text = [
     "a();",
     '#[cfg(any(test, feature = "q"))]',
@@ -863,6 +869,44 @@ void test("only exactly-cfg(test) code is excluded; feature-gated code is its ow
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+void test("a cfg predicate that requires test is test code; alternatives and negations are not", () => {
+  for (const predicate of [
+    "test",
+    "all(test, windows)",
+    'all(test, target_os = "linux", target_arch = "x86_64")',
+    "all(test, any(unix, windows))",
+    "all(unix, all(test, windows))",
+    'all(test, feature = "qualification-fixtures")',
+    "any(test, all(test, windows))",
+  ])
+    assert.equal(cfgClass(predicate), "test", predicate);
+  for (const predicate of [
+    "any(test, windows)",
+    "not(test)",
+    "all(not(test), windows)",
+    "all(windows, any(test, unix))",
+    "windows",
+    'test = "x"',
+    "all(test windows)",
+    "all()",
+    "any()",
+  ])
+    assert.equal(cfgClass(predicate), "production", predicate);
+  const text = [
+    "#[cfg(all(test, windows))]",
+    'mod tests { fn f() { "w-id" } }',
+    "#[cfg(not(test))]",
+    'const N: &str = "n-id";',
+    '#[cfg(all(test, target_os = "linux"))]',
+    'const L: &str = "l-id";',
+  ].join("\n");
+  const { production, featureGated } = partitionCfgItems(text);
+  assert.match(production, /"n-id"/u);
+  assert.doesNotMatch(production, /w-id|l-id/u);
+  assert.equal(featureGated, "");
+  assert.doesNotMatch(withoutTestItems(text), /w-id|l-id/u);
 });
 
 void test("title-named Core enum variants and modules are inventoried from catalog keys", () => {

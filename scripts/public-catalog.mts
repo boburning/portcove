@@ -7,9 +7,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
-const maximumInput = 32 * 1024 ** 2;
-const maximumEntries = 10000;
+// Inputs include the canonical listing directory, so they share its text bound.
+const maximumInput = listingDirectoryTextMaximum;
 const maximumOutput = 64 * 1024 ** 2;
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const digest = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
@@ -206,13 +207,8 @@ export function projectPublicCatalog(request: {
   const catalog = parse(request.catalog);
   const directory = record(listingsDocument.directory);
   const listings = listingsDocument.listings ?? directory.listings;
-  if (
-    !Array.isArray(listings) ||
-    listings.length > maximumEntries ||
-    !Array.isArray(catalog.ports) ||
-    catalog.ports.length > maximumEntries
-  )
-    throw new Error("public catalog entry bound or document shape differs");
+  if (!Array.isArray(listings) || !Array.isArray(catalog.ports))
+    throw new Error("public catalog document shape differs");
   const managed = new Map<string, Record<string, unknown>>();
   for (const port of catalog.ports)
     if (isRecord(port) && typeof port.id === "string") {
@@ -418,7 +414,6 @@ export async function publicCatalogFiles(
 ): Promise<Map<string, Buffer>> {
   if (
     projection.scope !== "development" ||
-    projection.entries.length > maximumEntries ||
     projection.entries.some(
       (entry) =>
         !idPattern.test(entry.id) ||

@@ -8,7 +8,8 @@ import type {
   DiscoveryPlatformProof,
   GuideCopyProof,
 } from "./validation-plan.mts";
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -17,8 +18,10 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
-export const catalogGuideCopyMaxBytes = 8 * 1024 * 1024;
+// Aggregates include the canonical listing directory, so they share its text bound.
+export const catalogGuideCopyMaxBytes = listingDirectoryTextMaximum;
 
 export function decodeGuideCopyBlob(blob: unknown) {
   if (!Buffer.isBuffer(blob) || blob.length > catalogGuideCopyMaxBytes)
@@ -359,6 +362,31 @@ export function hasDiscoveryPlatformProof(
   }
 }
 
+const rustSources = fileURLToPath(new URL("../crates/", import.meta.url));
+const rawAuthoredReference = /catalog\/ports\/([a-z0-9][a-z0-9-]*)\.json/gu;
+let rawRustTitles: Set<string> | undefined;
+
+/**
+ * Authored titles whose raw file a Rust source reads directly (for example
+ * with include_str!). Their bytes are Rust test inputs, so an equivalent
+ * projection does not prove the Rust suites unaffected. Derived from the
+ * sources rather than named, so a new raw reader is covered without an edit.
+ */
+function readRawByRust(id: string) {
+  if (!rawRustTitles) {
+    const titles = new Set<string>();
+    for (const entry of readdirSync(rustSources, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".rs")) continue;
+      const path = `${entry.parentPath}/${entry.name}`;
+      if (/[\\/]target[\\/]/u.test(path)) continue;
+      for (const match of readFileSync(path, "utf8").matchAll(rawAuthoredReference))
+        titles.add(match[1]!);
+    }
+    rawRustTitles = titles;
+  }
+  return rawRustTitles.has(id);
+}
+
 function authoringTitle(change: AuthoringChange) {
   if (
     change.status !== "M" ||
@@ -368,8 +396,7 @@ function authoringTitle(change: AuthoringChange) {
   )
     return undefined;
   const id = authoredPath.exec(change.newPath ?? "")?.[1];
-  // The Rust suite also reads this raw authored file directly.
-  return id === "shipwright" ? undefined : id;
+  return id === undefined || readRawByRust(id) ? undefined : id;
 }
 
 export function annotateCatalogAuthoring<Change extends AuthoringChange>(

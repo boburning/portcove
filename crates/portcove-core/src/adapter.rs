@@ -296,6 +296,8 @@ impl Adapter for StandardAdapter {
                 .eq_ignore_ascii_case("CorsixTH/CorsixTH")
         {
             // CorsixTH's blank player name expects USER or USERNAME before its own PLAYER fallback.
+            // Title-bound, not part of its external-profile policy: policies forbid
+            // launch environment, so moving this to data needs a catalog contract change.
             environment.insert("USER".into(), "PLAYER".into());
         }
         crate::native_temp::environment(port, platform, &mut environment)?;
