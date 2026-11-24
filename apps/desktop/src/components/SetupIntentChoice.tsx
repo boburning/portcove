@@ -164,20 +164,27 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
         <p>
           {/* Core's failure text is exact, never interpolated. A temporary
               failure runs again on its own; only a lasting one waits for a change. */}
-          <Trans
-            t={t}
-            i18nKey={intent.temporary_retry ? "intent.failedTemporary" : "intent.failed"}
-            components={{ reason: <bdi>{intent.failure}</bdi> }}
-          />
-          {waitingRetry(intent.temporary_retry) && (
-            <>
-              {" "}
-              <Trans
-                t={t}
-                i18nKey="intent.nextAttempt"
-                components={{ time: <NextAttemptTime at={intent.temporary_retry.retry_after} /> }}
-              />
-            </>
+          {waitingRetry(intent.temporary_retry) ? (
+            <Trans
+              t={t}
+              i18nKey="intent.failedTemporaryNext"
+              components={{
+                reason: <bdi>{intent.failure}</bdi>,
+                time: <NextAttemptTime at={intent.temporary_retry.retry_after} />,
+              }}
+            />
+          ) : intent.temporary_retry ? (
+            <Trans
+              t={t}
+              i18nKey="intent.failedTemporary"
+              components={{ reason: <bdi>{intent.failure}</bdi> }}
+            />
+          ) : (
+            <Trans
+              t={t}
+              i18nKey="intent.failed"
+              components={{ reason: <bdi>{intent.failure}</bdi> }}
+            />
           )}
         </p>
       )}

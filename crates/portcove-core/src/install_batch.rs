@@ -60,6 +60,11 @@ pub struct InstallBatchItem {
     /// unattended setup retries it later instead of counting a lasting failure.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temporary: Option<crate::TemporaryFailure>,
+    /// For an unattended run: the partial-download entries its plan uses.
+    /// An unclean stop compares only these, so another game's download
+    /// progress never resets this game's crash-loop count.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub download_keys: Vec<String>,
 }
 
 impl InstallBatchRecord {
@@ -319,6 +324,7 @@ impl Library {
                     detail: None,
                     install_id: None,
                     temporary: None,
+                    download_keys: Vec::new(),
                 })
                 .collect(),
         };

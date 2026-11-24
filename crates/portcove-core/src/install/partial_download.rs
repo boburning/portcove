@@ -133,6 +133,11 @@ impl PartialDownloads {
         }
     }
 
+    /// The entry an asset's bytes are kept under, if it may use the store.
+    pub(crate) fn entry_key(asset: &ReleaseAsset) -> Option<String> {
+        Self::key(asset)
+    }
+
     /// Only an asset with an expected digest the caller verifies may continue.
     fn key(asset: &ReleaseAsset) -> Option<String> {
         let sha256 = asset.sha256.to_ascii_lowercase();

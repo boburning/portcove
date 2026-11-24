@@ -30,11 +30,27 @@ mod partial_download;
 const PARTIAL_DOWNLOADS_DIR: &str = "partial-v1";
 
 impl crate::Library {
-    /// Kept partial-download bytes per entry, for telling an unattended run
-    /// that keeps moving from one that keeps ending at the same point.
-    pub(crate) fn kept_downloads(&self) -> crate::temporary_failure::KeptDownloads {
-        partial_download::kept_downloads(&self.downloads_dir().join(PARTIAL_DOWNLOADS_DIR))
+    /// Kept partial-download bytes of these entries, for telling an
+    /// unattended run that keeps moving from one that keeps ending at the
+    /// same point. Entries of other plans are left out.
+    pub(crate) fn kept_downloads_of(
+        &self,
+        keys: &[String],
+    ) -> crate::temporary_failure::KeptDownloads {
+        let mut kept =
+            partial_download::kept_downloads(&self.downloads_dir().join(PARTIAL_DOWNLOADS_DIR));
+        kept.retain(|key, _| keys.contains(key));
+        kept
     }
+}
+
+/// The partial-download entries an install plan's downloads use.
+pub(crate) fn plan_download_keys(plan: &crate::InstallPlan) -> Vec<String> {
+    std::iter::once(&plan.release.asset)
+        .chain(plan.bundled_runtime.iter().map(|runtime| &runtime.asset))
+        .chain(&plan.auxiliary_downloads)
+        .filter_map(partial_download::PartialDownloads::entry_key)
+        .collect()
 }
 mod transfer;
 

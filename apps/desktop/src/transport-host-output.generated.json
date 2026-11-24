@@ -6792,6 +6792,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -7870,6 +7877,13 @@
               "string",
               "null"
             ]
+          },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "expected_plan_sha256": {
             "type": "string"
@@ -19528,6 +19542,13 @@
               "string",
               "null"
             ]
+          },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "expected_plan_sha256": {
             "type": "string"

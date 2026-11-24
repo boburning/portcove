@@ -698,6 +698,11 @@ impl PortcoveService {
                 };
                 offset = page.next_offset;
                 for (position, candidate) in (start..).zip(&page.candidates) {
+                    // Portcove is closing, restarting or was told to stop:
+                    // start nothing more, so nothing is left mid-run.
+                    if self.unattended_stopping() {
+                        return Ok(waiting);
+                    }
                     let pass_full = started >= MAX_ROOT_SETUPS_PER_PASS;
                     if pass_full
                         || considered >= share(MAX_ROOT_CANDIDATES_PER_PASS)
@@ -964,6 +969,11 @@ impl PortcoveService {
         if !self.still_enrolled(root_id, root_path, candidate, &mut 0)? {
             return Ok(RootSetupOutcome::Skipped);
         }
+        // Reserved before the batch exists, so a host stop is never missed;
+        // none once the host is stopping.
+        let Some(reservation) = self.reserve_unattended_run() else {
+            return Ok(RootSetupOutcome::Skipped);
+        };
         let batch = match self.start_install_batch(
             &[InstallBatchRequestItem {
                 port_id: port_id.to_owned(),
@@ -987,7 +997,11 @@ impl PortcoveService {
             }
         };
         // Folder setup is unattended too: the same per-game budget applies.
-        let run = match self.run_unattended_install_batch(&batch.id, emit).await {
+        let keys = crate::install::plan_download_keys(&plan.plan);
+        let run = match self
+            .run_unattended_install_batch(reservation, &batch.id, keys, emit)
+            .await
+        {
             Ok(run) => run,
             Err(error) => {
                 self.remember_root_failure(
@@ -1003,12 +1017,13 @@ impl PortcoveService {
         for item in &run.record.items {
             match item.state {
                 InstallBatchItemState::Failed | InstallBatchItemState::Interrupted => {
-                    self.remember_root_failure(
+                    self.remember_root_failure_of(
                         root_id,
                         &item.port_id,
                         &item.expected_plan_sha256,
                         item.detail.as_deref().unwrap_or("setup did not finish"),
                         run.record.temporary_failure(item),
+                        &item.download_keys,
                     );
                 }
                 // Stopped by the pass's time budget or by Portcove closing,
@@ -1118,6 +1133,20 @@ impl PortcoveService {
         reason: &str,
         temporary: Option<crate::TemporaryFailure>,
     ) {
+        self.remember_root_failure_of(root_id, port_id, attempt, reason, temporary, &[]);
+    }
+
+    /// As [`Self::remember_root_failure`], for a run whose plan kept its
+    /// downloads under `download_keys` (see `remember_standing_failure_of`).
+    fn remember_root_failure_of(
+        &self,
+        root_id: &str,
+        port_id: &str,
+        attempt: &str,
+        reason: &str,
+        temporary: Option<crate::TemporaryFailure>,
+        download_keys: &[String],
+    ) {
         let reason = reason.chars().take(512).collect::<String>();
         let now = Library::now();
         // Older records without a retry read as lasting failures, unchanged.
@@ -1157,7 +1186,7 @@ impl PortcoveService {
             match crate::temporary_failure::FailedAttempt::of(
                 failure.temporary_retry.as_ref(),
                 temporary,
-                || library.kept_downloads(),
+                || library.kept_downloads_of(download_keys),
                 now,
             ) {
                 crate::temporary_failure::FailedAttempt::Temporary(retry) => {

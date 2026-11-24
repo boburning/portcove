@@ -1129,8 +1129,13 @@ When Portcove instead ends without settling the run (a crash, a forced end or a
 power loss), the next start retries it on the next pass, then backs off. Three
 such stops of the same setup in a row, with no download progress between them,
 make the failure lasting, so a setup that keeps ending Portcove does not repeat
-forever. Received bytes that grew since the last stop show the run was moving,
-and the count starts again.
+forever. Received bytes of that setup's own downloads that grew since the last
+stop show the run was moving, and the count starts again; another game's
+download does not. Once Portcove starts closing, no further game's setup starts
+in that pass. An operating-system shutdown or sign-out that ends Portcove before
+it can record the stop may count as an unclean stop. That is harmless while the
+download keeps progressing; three in a row with no progress make the failure
+lasting.
 
 Each pass gives one game at most four hours, for set-up-when-ready games and
 folder setup alike. Then Portcove stops that game's setup at its next safe point,

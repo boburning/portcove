@@ -281,12 +281,6 @@ export function FolderSetupChoice({
                   </bdi>
                 ),
                 reason: <bdi>{failure.reason}</bdi>,
-              }}
-            />{" "}
-            <Trans
-              t={t}
-              i18nKey="intent.nextAttempt"
-              components={{
                 time: <NextAttemptTime at={failure.temporary_retry?.retry_after ?? 0} />,
               }}
             />

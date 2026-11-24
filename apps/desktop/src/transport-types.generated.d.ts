@@ -8250,6 +8250,12 @@ export interface InstallBatchRecord {
 }
 export interface InstallBatchItem {
   detail?: string | null;
+  /**
+   * For an unattended run: the partial-download entries its plan uses.
+   * An unclean stop compares only these, so another game's download
+   * progress never resets this game's crash-loop count.
+   */
+  download_keys?: string[];
   expected_plan_sha256: string;
   install_id?: string | null;
   port_id: string;
