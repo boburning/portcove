@@ -324,6 +324,17 @@ export const compactCarrierModel = {
  * this document's own compression ratio. Each carrier ceiling reserves
  * `leadDays` of measured growth; the largest record reserves half its bound.
  */
+/** The identities of the committed listing withdrawal record (`listing-withdrawals.json`). */
+export function withdrawalIdentities(record: unknown): string[] {
+  if (!isRecord(record) || !Array.isArray(record.withdrawals))
+    throw new Error("Capacity diagnostics require the committed listing withdrawal record");
+  return record.withdrawals.map((entry: unknown) => {
+    if (!isRecord(entry) || typeof entry.id !== "string")
+      throw new Error("Capacity diagnostics require withdrawal identities");
+    return entry.id;
+  });
+}
+
 export function listingDirectoryMeasures(
   text: Buffer,
   bounds: ListingDeliveryBounds,
@@ -607,13 +618,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           listingBounds.text,
         ).toString("utf8"),
       );
-      if (!isRecord(record) || !Array.isArray(record.withdrawals))
-        throw new Error("Capacity diagnostics require the committed listing withdrawal record");
-      const withdrawn = record.withdrawals.map((entry: unknown) => {
-        if (!isRecord(entry) || typeof entry.id !== "string")
-          throw new Error("Capacity diagnostics require withdrawal identities");
-        return entry.id;
-      });
+      const withdrawn = withdrawalIdentities(record);
       listingDirectory = [
         ...listingDirectoryMeasures(
           boundedInput(fileURLToPath(repositoryListings), listingBounds.text),

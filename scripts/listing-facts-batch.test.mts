@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import type { CapacityMeasure } from "./catalog-capacity.mts";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
@@ -3061,7 +3062,14 @@ void test("an identity that stays pending across consecutive runs stops the job,
   );
 });
 
-void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", () => {
+void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", async () => {
+  const {
+    capacityConstant,
+    listingDeliveryBounds,
+    listingDirectoryMeasures,
+    withdrawalIdentities,
+  } = await import("./catalog-capacity.mts");
+  const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
   const signedCatalogSource = readFileSync(
     join(root, "crates/portcove-core/src/signed_catalog.rs"),
     "utf8",
@@ -3070,10 +3078,36 @@ void test("a batch past either released-reader bound is never proposed; it stops
     join(root, "crates/portcove-core/src/catalog/listings.rs"),
     "utf8",
   );
+  // The listing row's one bound is Core's listing directory text bound.
+  assert.equal(
+    listingDirectoryTextMaximum,
+    capacityConstant(listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+  );
   const catalogText = readFileSync(join(root, "crates/portcove-core/catalog/catalog.json"), "utf8");
+  const listingText = readFileSync(join(root, "crates/portcove-core/catalog/listings.json"));
   const listingBytes = statSync(join(root, "crates/portcove-core/catalog/listings.json")).size;
-  // Today's catalog fits both bounds.
-  const today = batchCapacity({ catalogText, listingBytes, signedCatalogSource, listingSource });
+  // The delivery rows are exactly `catalog-capacity`'s listing rows.
+  const listingDelivery = listingDirectoryMeasures(
+    listingText,
+    listingDeliveryBounds(
+      readFileSync(join(root, "crates/portcove-listing-carrier/src/lib.rs"), "utf8"),
+      listingSource,
+      readFileSync(join(root, "crates/portcove-core/src/listing_delivery.rs"), "utf8"),
+    ),
+    undefined,
+    withdrawalIdentities(
+      JSON.parse(
+        readFileSync(join(root, "crates/portcove-core/catalog/listing-withdrawals.json"), "utf8"),
+      ),
+    ),
+  );
+  // Today's catalog fits every bound.
+  const today = batchCapacity({
+    catalogText,
+    listingBytes,
+    signedCatalogSource,
+    listingDelivery,
+  });
   assert.equal(today.ok, true);
   assert.equal(capacityDetail(today), undefined);
   assert.equal(today.percent, 85);
@@ -3083,22 +3117,82 @@ void test("a batch past either released-reader bound is never proposed; it stops
     Buffer.byteLength(JSON.stringify(catalogText)) + retainedContractReserveBytes,
   );
   assert.equal(retained.ceiling, Math.floor((16 * 1024 * 1024 * 85) / 100));
-  const listing = today.rows.find((row) => row.name === "generated listings.json bytes")!;
-  assert.equal(listing.bound, 8 * 1024 * 1024);
-  assert.equal(listing.ceiling, Math.floor((8 * 1024 * 1024 * 85) / 100));
-  // A listing directory past its ceiling, or a catalog whose escaped text is,
-  // is refused with the exact figures.
+  const listingRows = today.rows.filter((row) => row.name.includes("listings.json"));
+  assert.equal(listingRows.length, 1, "one listing text row, against one bound");
+  // Every other listing row of the required check is checked too.
+  assert.deepEqual(
+    today.rows.slice(3, -1).map((row) => row.name),
+    listingDelivery.map(([name]) => name),
+  );
+  const carrier = today.rows.find((row) => row.name.startsWith("compact listing carrier bytes"))!;
+  assert.equal(carrier.bound, 8 * 1024 * 1024);
+  // A batch past a delivery row the required check enforces is refused, so
+  // it never opens a pull request that check would fail.
+  const raised = (match: (name: string) => boolean, bytes: number) =>
+    listingDelivery.map((measure): CapacityMeasure => {
+      const [name, , bound, basis, ...margin] = measure;
+      return match(name) ? [name, bytes, bound, basis, ...margin] : measure;
+    });
+  const overDelivery = batchCapacity({
+    catalogText,
+    listingBytes,
+    signedCatalogSource,
+    listingDelivery: raised((name) => name === carrier.name, carrier.ceiling + 1),
+  });
+  assert.deepEqual(
+    overDelivery.rows.filter((row) => !row.ok).map((row) => row.name),
+    [carrier.name],
+  );
+  // The frozen legacy target is informational in the required check: it
+  // never stops a batch.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes,
+      signedCatalogSource,
+      listingDelivery: raised((name) => name.startsWith("frozen legacy"), 16 * 1024 * 1024),
+    }).ok,
+    true,
+  );
+  const listing = listingRows[0]!;
+  assert.equal(listing.bound, listingDirectoryTextMaximum);
+  assert.equal(listing.ceiling, Math.floor((listingDirectoryTextMaximum * 85) / 100));
+  // The former 8 MiB canonical read no longer binds the directory.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes: 8 * 1024 * 1024 + 1,
+      signedCatalogSource,
+      listingDelivery: [],
+    }).ok,
+    true,
+  );
+  // At the ceiling the batch is proposed; one byte past it, it is refused
+  // with the exact figures.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes: listing.ceiling,
+      signedCatalogSource,
+      listingDelivery: [],
+    }).ok,
+    true,
+  );
   const listings = batchCapacity({
     catalogText,
     listingBytes: listing.ceiling + 1,
     signedCatalogSource,
-    listingSource,
+    listingDelivery: [],
   });
   assert.equal(listings.ok, false);
+  assert.deepEqual(
+    listings.rows.filter((row) => !row.ok).map((row) => row.name),
+    ["generated listings.json bytes"],
+  );
   assert.match(
     capacityDetail(listings)!,
     new RegExp(
-      `generated listings.json bytes ${listing.ceiling + 1} bytes against a ceiling of ${listing.ceiling} \\(85% of 8388608\\), 1 bytes over`,
+      `generated listings.json bytes ${listing.ceiling + 1} bytes against a ceiling of ${listing.ceiling} \\(85% of ${listingDirectoryTextMaximum}\\), 1 bytes over`,
       "u",
     ),
   );
@@ -3111,7 +3205,7 @@ void test("a batch past either released-reader bound is never proposed; it stops
     catalogText: quoted,
     listingBytes: 0,
     signedCatalogSource,
-    listingSource,
+    listingDelivery: [],
   });
   assert.equal(escaped.rows[0]!.ok, true);
   assert.equal(escaped.rows.find((row) => row.name.startsWith("JSON-escaped retained"))!.ok, false);

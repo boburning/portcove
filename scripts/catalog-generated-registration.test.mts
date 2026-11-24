@@ -7785,7 +7785,7 @@ void test("archive names follow PRODUCT (VERSION | NEUTRAL)*, in fit and gate (g
   check({ id: "zz-doom-two", name: "Doom 2" }, "doom2-2.1.0-win64.zip", "doom2");
   check({ id: "zz-doom-two", name: "Doom 2" }, "doom2-1.0-win64.zip", "doom2");
   check({ id: "zz-x", name: "Game" }, "Game-1.0-win64-20261120.zip", "game");
-  // A year-shaped integer read as a version is queued for a person.
+  // A four-digit integer read as a version is queued for a person.
   const doom = check({ id: "zz-doom", name: "Doom" }, "doom-2016-win64.zip", "doom");
   const facts = entry(
     [named("doom-2016-win64.zip", [player("Doom.exe")], 11, "windows")],
@@ -7796,7 +7796,7 @@ void test("archive names follow PRODUCT (VERSION | NEUTRAL)*, in fit and gate (g
     },
   );
   const generation = generateRegistrations([doom.record], table(facts));
-  assert.deepEqual(registrationQueues(generation).year_as_version, ["zz-doom"]);
+  assert.deepEqual(registrationQueues(generation).integer_as_version, ["zz-doom"]);
 });
 
 void test("folders follow the grammar per segment: a short integer must spell an accounted name (grammar 2)", () => {
@@ -7920,3 +7920,166 @@ void test("any product word or short integer after a version or neutral token wi
   }
   assert.ok(late > 1000);
 });
+
+// ---------------------------------------------------------------------------
+// Hand-check queues are reporting only: integers read as versions, and status
+// words a release title holds without stating a status.
+
+/** One identity's archive and release title, generated alone. */
+function handCheckCase(
+  fields: Record<string, unknown>,
+  archive: string,
+  title: string | null = null,
+) {
+  const id = String(fields.id);
+  const record = listing(id, fields);
+  const words = listingWords(record.listing);
+  // A title that states a status is recorded with that statement.
+  const token = title === null ? null : releaseStatement(title, `fixture-owner/${id}`, words);
+  const facts = entry(
+    [named(archive, [player(`${String(fields.name)}.exe`)], 11, "windows")],
+    {},
+    id,
+    {
+      listing_words: words,
+      observed_releases: [
+        {
+          release_id: 7,
+          tag: "v1.0",
+          prerelease: token !== null,
+          published_at: "2026-11-01T00:00:00.000Z",
+          packaged: true,
+          text: title === null ? "unobserved" : "observed",
+          title,
+          statement: token === null ? null : { field: "title", token },
+        },
+      ],
+    },
+  );
+  return generateRegistrations([record], table(facts));
+}
+const handCheckCorpus: [Record<string, unknown>, string, string | null][] = [
+  [{ id: "zz-doom", name: "Doom" }, "doom-2016-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "game-1942-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-1000-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-0042-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-00042-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-12345-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-20261120-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-01234567-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-1.0-win64-20261120.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-1.0-win64-1942.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-042-win64.zip", null],
+  [{ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", "Beta release notes"],
+  [{ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", "Demo day update"],
+  [{ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", "Fixes for alpha and rc users"],
+  [
+    { id: "zz-game", name: "Game" },
+    "Game-v1.0-win64.zip",
+    "Nightly-free preview of the store page",
+  ],
+  [{ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", "Arc and Alphabet 1.0"],
+  [{ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", "Release 1.0"],
+];
+
+void test("the hand-check queues leave every enrollment of the existing fixtures unchanged", async () => {
+  // Decisions and enrollments as main decided them before the queues widened.
+  const decided = handCheckCorpus.map(([fields, archive, title]) => {
+    const generation = handCheckCase(fields, archive, title);
+    return [archive, title, reasonOf(generation.decisions[0]!)];
+  });
+  assert.deepEqual(decided, HAND_CHECK_DECISIONS);
+  const { records, result } = await sampleRun();
+  const enrollments = [
+    ...handCheckCorpus.flatMap(
+      ([fields, archive, title]) => handCheckCase(fields, archive, title).enrollments,
+    ),
+    ...generateRegistrations(records, result.table).enrollments,
+  ];
+  assert.equal(digestOf(enrollments), HAND_CHECK_ENROLLMENTS_SHA256);
+});
+void test("integer_as_version queues every four-digit or zero-padded integer read as a version, not date-length runs", () => {
+  const queued = (archive: string) =>
+    registrationQueues(handCheckCase({ id: "zz-game", name: "Game" }, archive)).integer_as_version;
+  // Any value of four digits, and any leading zero, is queued: the year
+  // range of the former year queue no longer decides.
+  for (const archive of [
+    "game-1942-win64.zip",
+    "Game-1000-win64.zip",
+    "Game-0042-win64.zip",
+    "Game-00042-win64.zip",
+    "Game-2016-win64.zip",
+    "Game-9999-win64.zip",
+  ])
+    assert.deepEqual(queued(archive), ["zz-game"], archive);
+  // Five to seven digits without a leading zero, date-length runs (eight or
+  // more digits, also zero-padded) and integers after a version are not.
+  for (const archive of [
+    "Game-12345-win64.zip",
+    "Game-20261120-win64.zip",
+    "Game-01234567-win64.zip",
+    "Game-1.0-win64-20261120.zip",
+    "Game-1.0-win64-1942.zip",
+    "Game-v1.0-win64.zip",
+  ])
+    assert.deepEqual(queued(archive), [], archive);
+  // A withheld identity is never queued: the queue lists enrollments only.
+  assert.deepEqual(queued("Game-042-win64.zip"), []);
+  // The account names the flag for the fit rule's callers too.
+  const account = archiveNameAccount(
+    "Game-0042-win64.zip",
+    listing("zz-game").listing,
+    "fixture-owner/zz-game",
+  );
+  assert.ok("product" in account && account.integerAsVersion);
+  assert.ok(
+    !(
+      "year_as_version" in
+      registrationQueues(handCheckCase({ id: "zz-game", name: "Game" }, "Game-1942-win64.zip"))
+    ),
+  );
+});
+
+void test("unstated_status_words lists enrolled titles holding a status word that state no status", () => {
+  const queue = (title: string | null) =>
+    registrationQueues(handCheckCase({ id: "zz-game", name: "Game" }, "Game-v1.0-win64.zip", title))
+      .unstated_status_words;
+  assert.deepEqual(queue("Beta release notes"), {
+    "zz-game": ["v1.0: title beta"],
+  });
+  assert.deepEqual(queue("Demo day update"), {
+    "zz-game": ["v1.0: title demo"],
+  });
+  assert.deepEqual(queue("Fixes for alpha and rc users"), {
+    "zz-game": ["v1.0: title alpha", "v1.0: title rc"],
+  });
+  assert.deepEqual(queue("Nightly-free preview of the store page"), {
+    "zz-game": ["v1.0: title nightly", "v1.0: title preview"],
+  });
+  // Whole words only, and no title (or an unobserved one) lists nothing.
+  assert.deepEqual(queue("Arc and Alphabet 1.0"), {});
+  assert.deepEqual(queue("Release 1.0"), {});
+  assert.deepEqual(queue(null), {});
+});
+
+const HAND_CHECK_DECISIONS = [
+  ["doom-2016-win64.zip", null, "fit"],
+  ["game-1942-win64.zip", null, "fit"],
+  ["Game-1000-win64.zip", null, "fit"],
+  ["Game-0042-win64.zip", null, "fit"],
+  ["Game-00042-win64.zip", null, "fit"],
+  ["Game-12345-win64.zip", null, "fit"],
+  ["Game-20261120-win64.zip", null, "fit"],
+  ["Game-01234567-win64.zip", null, "fit"],
+  ["Game-1.0-win64-20261120.zip", null, "fit"],
+  ["Game-1.0-win64-1942.zip", null, "fit"],
+  ["Game-042-win64.zip", null, "archive-name-unaccounted"],
+  ["Game-v1.0-win64.zip", "Beta release notes", "fit"],
+  ["Game-v1.0-win64.zip", "Demo day update", "fit"],
+  ["Game-v1.0-win64.zip", "Fixes for alpha and rc users", "fit"],
+  ["Game-v1.0-win64.zip", "Nightly-free preview of the store page", "fit"],
+  ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
+  ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
+];
+const HAND_CHECK_ENROLLMENTS_SHA256 =
+  "da6adf5d13a2e0b26f4d209a17850fff58ac4cb908bf71d544c4abfada919588";

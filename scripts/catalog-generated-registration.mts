@@ -2894,8 +2894,16 @@ function spellsName(
   }
   return true;
 }
-/** Whether a four-digit integer reads as a year (1970 to 2099). */
-const yearShaped = (word: string) => /^(?:19[7-9][0-9]|20[0-9][0-9])$/u.test(word);
+/**
+ * Whether an integer dropped from the product as a version deserves a
+ * person's look: exactly four digits (a year, a sequel number or a title
+ * number: `Game-2016`, `Game-1942`, `Game-1000`) or a leading zero
+ * (`Game-0042`), whatever its value. A date-length run of eight or more
+ * digits (`20261120`) reads as a date or build number and is not queued.
+ * Reporting only: it never changes what enrolls.
+ */
+const integerHandCheck = (word: string) =>
+  word.length < 8 && (word.length === 4 || word.startsWith("0"));
 /**
  * How an archive name is accounted for against the listing, by an ordered
  * grammar: `PRODUCT (VERSION | NEUTRAL)*` (`archiveNameTokens`). The product
@@ -2909,8 +2917,8 @@ const yearShaped = (word: string) => /^(?:19[7-9][0-9]|20[0-9][0-9])$/u.test(wor
  * end at an integer of four or more digits followed only by integers (a date
  * or build number read as a version). The result is the accepted product
  * (joined), whether only the repository name accounts for it, whether a
- * product number was counted, and whether a year-shaped integer was dropped as
- * a version; or the unaccounted tokens: a word after the product, else a
+ * product number was counted, and whether the first integer dropped as a
+ * version is one a person checks (`integerHandCheck`); or the unaccounted tokens: a word after the product, else a
  * product word that is no word of those names (a single letter glued to
  * digits as its chunk, `b2`), else an integer no name has there
  * (`number:<n>`), else the name's words the archive lacks (`missing:<word>`).
@@ -2924,7 +2932,7 @@ export function archiveNameAccount(
   listing: Record<string, unknown>,
   repository: string,
 ):
-  | { product: string; repositoryOnly: boolean; numbered: boolean; yearAsVersion: boolean }
+  | { product: string; repositoryOnly: boolean; numbered: boolean; integerAsVersion: boolean }
   | { unaccounted: string[] } {
   const names = accountNames(listing, repository);
   const repositoryWords = nameWords(repository.split("/")[1] ?? "").join("");
@@ -2965,7 +2973,7 @@ export function archiveNameAccount(
         product: joined,
         repositoryOnly: joined === repositoryWords && !listingNames.includes(joined),
         numbered: kept.some((token) => token.kind === "integer"),
-        yearAsVersion: cut < prefix.length && yearShaped(prefix[cut]!.word),
+        integerAsVersion: cut < prefix.length && integerHandCheck(prefix[cut]!.word),
       };
     }
   }
@@ -4025,11 +4033,24 @@ export interface RegistrationQueues {
   numbered_products: string[];
   /**
    * Every enrolled identity whose offered archive name, on some platform,
-   * was accounted for by reading a year-shaped integer (1970 to 2099) as a
-   * version (`doom-2016-win64.zip` for `Doom`), in port_id order: a person
-   * hand-checks that the year is not part of the title.
+   * was accounted for by reading the first integer after the product words
+   * as a version when that integer has exactly four digits or a leading zero
+   * (`Game-2016-…`, `Game-1942-…`, `Game-1000-…` and `Game-0042-…` for
+   * `Game`; `integerHandCheck`), in port_id order: a person
+   * hand-checks that the number is not part of the title. Date-length runs
+   * (eight or more digits) are not listed.
    */
-  year_as_version: string[];
+  integer_as_version: string[];
+  /**
+   * Per enrolled identity, in port_id order, each status word (`beta`,
+   * `alpha`, `rc`, `preview`, `demo`, `nightly`) its offered release's title
+   * holds as a whole word although the title states no status
+   * (`Beta release notes`), as `<tag>: title <word>`: a person hand-checks
+   * that the release is stable. The body's first line is not retained in the
+   * facts (only a statement it makes is), so a status word there that states
+   * nothing is UNKNOWN here, never listed.
+   */
+  unstated_status_words: Record<string, string[]>;
   /**
    * Every enrolled identity whose release also holds an archive whose only
    * programs the tool veto excluded, beside the offered one, in port_id
@@ -4160,7 +4181,8 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
     reason_evidence: reasonEvidence,
     accepted_by_repository_name_only: enrolledAccounts(generation, "repositoryOnly"),
     numbered_products: enrolledAccounts(generation, "numbered"),
-    year_as_version: enrolledAccounts(generation, "yearAsVersion"),
+    integer_as_version: enrolledAccounts(generation, "integerAsVersion"),
+    unstated_status_words: unstatedStatusWords(generation),
     tool_only_archives_beside: generation.enrollments
       .filter((enrollment) => {
         const entry = generation.facts.entries.find(
@@ -4317,7 +4339,7 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
 /** The enrolled identities whose offered archive name was accounted for in this way. */
 function enrolledAccounts(
   generation: Generation,
-  flag: "repositoryOnly" | "numbered" | "yearAsVersion",
+  flag: "repositoryOnly" | "numbered" | "integerAsVersion",
 ): string[] {
   return generation.enrollments
     .filter((enrollment) =>
@@ -4332,6 +4354,39 @@ function enrolledAccounts(
     )
     .map((enrollment) => enrollment.port_id)
     .toSorted(compareCodePoints);
+}
+/** Status words a hand-check looks for in a title that states no status. */
+const handCheckStatusWords = new Set(["beta", "alpha", "rc", "preview", "demo", "nightly"]);
+/**
+ * Per enrolled identity, the status words its offered release's recorded
+ * title holds although the title states no status (`registrationQueues`).
+ */
+function unstatedStatusWords(generation: Generation): Record<string, string[]> {
+  const queue: Record<string, string[]> = {};
+  for (const enrollment of generation.enrollments.toSorted((left, right) =>
+    compareCodePoints(left.port_id, right.port_id),
+  )) {
+    const entry = generation.facts.entries.find(
+      (candidate) => candidate.port_id === enrollment.port_id,
+    );
+    const release = entry?.observed_releases.find(
+      (candidate) => candidate.release_id === enrollment.release.id,
+    );
+    if (!entry || !release || release.title === null) continue;
+    if (releaseStatement(release.title, entry.repository, entry.listing_words) !== null) continue;
+    const found = [
+      ...new Set(
+        statementWords(release.title)
+          .map((item) => item.word)
+          .filter((word) => handCheckStatusWords.has(word)),
+      ),
+    ];
+    if (found.length)
+      queue[enrollment.port_id] = found.map(
+        (word) => `${release.tag ?? `#${release.release_id}`}: title ${word}`,
+      );
+  }
+  return queue;
 }
 /** The listing record of an identity in a generation, or an empty record. */
 function listingOf(generation: Generation, id: string): Record<string, unknown> {
