@@ -137,8 +137,13 @@ function productionBoundConstants(root: string) {
     const rust = file.endsWith(".rs");
     let testModule = false;
     let testItem = false;
+    let testItemDepth = 0;
     for (const line of readFileSync(path.join(root, file), "utf8").split(/\r?\n/u)) {
       if (testModule) break;
+      if (rust && testItemDepth > 0) {
+        testItemDepth += (line.match(/\{/gu)?.length ?? 0) - (line.match(/\}/gu)?.length ?? 0);
+        continue;
+      }
       if (rust && /^\s*#\[cfg\(test\)\]/u.test(line)) {
         testItem = true;
         continue;
@@ -146,8 +151,9 @@ function productionBoundConstants(root: string) {
       if (rust && testItem) {
         if (/^\s*#\[/u.test(line) || !line.trim()) continue;
         // A test module ends the production part of the file; a test-only item
-        // excludes only itself.
+        // (with any braced body) excludes only itself.
         if (/^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s/u.test(line)) testModule = true;
+        testItemDepth = (line.match(/\{/gu)?.length ?? 0) - (line.match(/\}/gu)?.length ?? 0);
         testItem = false;
         continue;
       }
