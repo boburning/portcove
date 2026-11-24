@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-darius-gaiden-original-f3-dariusg-v25o",
+    "project_url": "https://github.com/omegakatana92/Darius-Gaiden-Recomp",
+    "name": "Darius Gaiden — Original arcade Ver 2.5O / omegakatana92 RetroFront recomp",
+    "summary": "Darius Gaiden Native Recomp brings Taito's classic arcade shoot-'em-up to Windows, Linux, and Steam Deck. Designed to support both the original Darius Gaiden and Extra Edition, featuring native execution, edition switching, save states, controller support, customizable settings, and modern arcade enhancements.",
+    "issue_number": 4820,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "darius-gaiden-original-arcade-ver-2-5o",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "darius-gaiden-original-arcade-ver-2-5o-nintendo-switch",
+          "title": "Darius Gaiden — Original arcade Ver 2.5O (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Darius Gaiden — Original arcade Ver 2.5O"
+  }
+}

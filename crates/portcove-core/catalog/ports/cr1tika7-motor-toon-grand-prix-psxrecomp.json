@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cr1tika7-motor-toon-grand-prix-psxrecomp",
+    "project_url": "https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp",
+    "name": "Motor Toon Grand Prix (PS1 USA SCUS-94355) / MotorToonGrandPrixRecomp (Cr1TiKa7)",
+    "summary": "Static recompilation of Motor Toon Grand Prix for Windows, Linux and macOS.",
+    "issue_number": 4213,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "motor-toon-grand-prix",
+      "evidence_urls": [
+        "https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "motor-toon-grand-prix-playstation",
+          "title": "Motor Toon Grand Prix (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Cr1TiKa7/MotorToonGrandPrixRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Motor Toon Grand Prix"
+  }
+}

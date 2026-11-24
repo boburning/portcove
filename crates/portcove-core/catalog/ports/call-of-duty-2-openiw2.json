@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-2-openiw2",
+    "project_url": "https://github.com/skowronmateusz/OpenIW2",
+    "name": "Call of Duty 2 / OpenIW2",
+    "summary": "Native macOS (Apple Silicon) reimplementation of the Call of Duty 2 engine",
+    "issue_number": 6717,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-2",
+      "evidence_urls": [
+        "https://github.com/skowronmateusz/OpenIW2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Call of Duty 2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gran-turismo-2-dubrovskiy-yevhen",
+    "project_url": "https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc",
+    "name": "GT2 PC / dubrovskiy-yevhen-stakelogic",
+    "summary": "A native C++ port of Gran Turismo 2 for Web, Steam Deck, MacOS, Windows PC, PCVR and Quest 3 Standalone VR",
+    "issue_number": 5532,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gt2-pc",
+      "evidence_urls": [
+        "https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "GT2 PC"
+  }
+}

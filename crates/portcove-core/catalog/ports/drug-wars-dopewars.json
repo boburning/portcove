@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drug-wars-dopewars",
+    "project_url": "https://github.com/benmwebb/dopewars",
+    "name": "Drug Wars / Dopewars",
+    "summary": "Game simulating the life of a drug dealer in  New York",
+    "issue_number": 6688,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "drug-wars",
+      "evidence_urls": [
+        "https://github.com/benmwebb/dopewars"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Drug Wars"
+  }
+}

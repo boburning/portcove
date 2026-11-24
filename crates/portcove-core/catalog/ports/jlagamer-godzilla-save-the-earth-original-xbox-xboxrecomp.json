@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jlagamer-godzilla-save-the-earth-original-xbox-xboxrecomp",
+    "project_url": "https://github.com/JLAgamer/Godzilla-Save-the-Earth-Xbox-static-recompilation",
+    "name": "Godzilla: Save the Earth (original Xbox) / JLAgamer xboxrecomp",
+    "summary": "A native Windows port of the Xbox version of Godzilla: Save the Earth (2004), made by statically recompiling the game's default.xbe into C with the xboxrecomp toolkit and running it on a Direct3D 11 renderer.",
+    "issue_number": 4944,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "godzilla-save-the-earth",
+      "evidence_urls": [
+        "https://github.com/JLAgamer/Godzilla-Save-the-Earth-Xbox-static-recompilation"
+      ],
+      "source_editions": [
+        {
+          "id": "godzilla-save-the-earth-xbox",
+          "title": "Godzilla: Save the Earth (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/JLAgamer/Godzilla-Save-the-Earth-Xbox-static-recompilation"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Godzilla: Save the Earth"
+  }
+}

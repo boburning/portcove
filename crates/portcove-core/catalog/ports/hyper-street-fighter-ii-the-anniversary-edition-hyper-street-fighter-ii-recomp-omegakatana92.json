@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hyper-street-fighter-ii-the-anniversary-edition-hyper-street-fighter-ii-recomp-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Hyper-Street-Fighter-II-Recomp-",
+    "name": "Hyper Street Fighter II: The Anniversary Edition / omegakatana92",
+    "summary": "A native PC port of Hyper Street Fighter II: The Anniversary Edition (Capcom, 2004), built with the cps2recomp toolkit.",
+    "issue_number": 5956,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hyper-street-fighter-ii-the-anniversary-edition",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Hyper-Street-Fighter-II-Recomp-"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hyper Street Fighter II: The Anniversary Edition"
+  }
+}

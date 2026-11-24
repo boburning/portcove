@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-neverhood-kingzmanh-native",
+    "project_url": "https://github.com/kingzmanh/the-neverhood-pc",
+    "name": "The Neverhood / Windows native / kingzmanh",
+    "summary": "The Neverhood (1996) running natively on modern Windows: the game's code recompiled to C on a new Win32/DirectDraw/DirectSound runtime",
+    "issue_number": 5912,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-neverhood",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/the-neverhood-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Neverhood"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "arch61s-baroque-decomp-ps2",
+    "project_url": "https://github.com/Arch61s/Baroque-Decomp",
+    "name": "Baroque (PS2) / Baroque Native PC Port (Arch61s)",
+    "summary": "A faithful decompilation for Baroque 2004 with added QOL features and keyboard controls.",
+    "issue_number": 3746,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "baroque",
+      "evidence_urls": [
+        "https://github.com/Arch61s/Baroque-Decomp"
+      ],
+      "source_editions": [
+        {
+          "id": "baroque-playstation-2",
+          "title": "Baroque (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Arch61s/Baroque-Decomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Baroque"
+  }
+}

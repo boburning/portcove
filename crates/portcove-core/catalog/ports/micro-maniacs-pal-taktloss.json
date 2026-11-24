@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "micro-maniacs-pal-taktloss",
+    "project_url": "https://github.com/Taktloss/MicroManRecomp",
+    "name": "Micro Maniacs PAL / Taktloss Recompiled",
+    "summary": "Native PC-Port von Micro Maniacs (PS1) per statischer Recompilation (psxrecomp) – Netplay bis 5 Spieler, Widescreen, FSR 1. Ohne Spieldaten.",
+    "issue_number": 5597,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "micro-maniacs-pal",
+      "evidence_urls": [
+        "https://github.com/Taktloss/MicroManRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "micro-maniacs-pal-playstation",
+          "title": "Micro Maniacs PAL (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Taktloss/MicroManRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Micro Maniacs PAL"
+  }
+}

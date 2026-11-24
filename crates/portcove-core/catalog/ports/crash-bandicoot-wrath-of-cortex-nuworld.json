@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-bandicoot-wrath-of-cortex-nuworld",
+    "project_url": "https://github.com/denzi-gh/crashwoc-nuworld",
+    "name": "Crash Bandicoot: The Wrath of Cortex / NuWorld",
+    "summary": "Native PC port of Crash Bandicoot: The Wrath of Cortex, built on its decompilation",
+    "issue_number": 5395,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot-the-wrath-of-cortex",
+      "evidence_urls": [
+        "https://github.com/denzi-gh/crashwoc-nuworld"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Bandicoot: The Wrath of Cortex"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gothic-ii-gothic-unity",
+    "project_url": "https://github.com/Gothic-Unity-Project/Gothic-Unity",
+    "name": "Gothic II / Gothic Unity (Gothic-Unity-Project)",
+    "summary": "Community rebuild of classical Gothic 1 and 2 in Unity engine. Currently focusing on a native VR implementation.",
+    "issue_number": 7177,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gothic-ii",
+      "evidence_urls": [
+        "https://github.com/Gothic-Unity-Project/Gothic-Unity"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gothic II"
+  }
+}

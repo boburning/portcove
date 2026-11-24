@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shining-soul-ii-shiningsource",
+    "project_url": "https://github.com/MatyMeatBoy/ShiningSource",
+    "name": "Shining Soul II / ShiningSource",
+    "summary": "Shining Soul II (GBA) as a native program, built from its matching decompilation: widescreen, online for 2-4 players, achievements. Windows, Linux, Android. Bring your own ROM.",
+    "issue_number": 5392,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shining-soul-ii",
+      "evidence_urls": [
+        "https://github.com/MatyMeatBoy/ShiningSource"
+      ],
+      "source_editions": [
+        {
+          "id": "shining-soul-ii-game-boy-advance",
+          "title": "Shining Soul II (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/MatyMeatBoy/ShiningSource"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Shining Soul II"
+  }
+}

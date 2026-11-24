@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tmcleroy-soulcalibur2-xbox-recomp",
+    "project_url": "https://github.com/tmcleroy/soulcalibur2-recomp",
+    "name": "Soulcalibur II (original Xbox USA) / tmcleroy Soulcalibur2 Recomp",
+    "summary": "Soulcalibur II (Xbox) as a native port for macOS, Linux/Steam Deck and Windows, with Link and Heihachi from your own discs",
+    "issue_number": 4266,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-ii",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/soulcalibur2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "soulcalibur-ii-xbox",
+          "title": "Soulcalibur II (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/soulcalibur2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Soulcalibur II"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burgertime-arcade-darkuni",
+    "project_url": "https://github.com/darkuni/burgertime-arcade-landscape-recomp",
+    "name": "BurgerTime (Midway arcade) / darkuni",
+    "summary": "A recompilation and landscape enhanced arcade game classic.",
+    "issue_number": 5985,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "burgertime",
+      "evidence_urls": [
+        "https://github.com/darkuni/burgertime-arcade-landscape-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "BurgerTime"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-spawn-armageddon-ps2-pal-sles52326",
+    "project_url": "https://github.com/otavix010/spawn-armageddon-pc",
+    "name": "Spawn: Armageddon (PS2 Europe SLES-52326) / otavix010 research recomp",
+    "summary": "Spawn: Armageddon (PS2, PAL SLES-52326): port nativo para PC por recompilação estática (PS2Recomp). Gera a partir da sua ISO. Em desenvolvimento.",
+    "issue_number": 6827,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spawn-armageddon",
+      "evidence_urls": [
+        "https://github.com/otavix010/spawn-armageddon-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "spawn-armageddon-playstation-2",
+          "title": "Spawn: Armageddon (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/otavix010/spawn-armageddon-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Spawn: Armageddon"
+  }
+}

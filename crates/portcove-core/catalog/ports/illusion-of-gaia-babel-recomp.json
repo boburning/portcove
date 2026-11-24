@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "illusion-of-gaia-babel-recomp",
+    "project_url": "https://github.com/mrOt4/babel-recomp",
+    "name": "Illusion of Gaia / Babel Recomp",
+    "summary": "Illusion of Gaia (SNES) native port: Linux, Windows, macOS, Switch, Android, 3DS and PS Vita. Bring your own ROM.",
+    "issue_number": 5512,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "illusion-of-gaia",
+      "evidence_urls": [
+        "https://github.com/mrOt4/babel-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "illusion-of-gaia-nintendo-switch",
+          "title": "Illusion of Gaia (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/mrOt4/babel-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Illusion of Gaia"
+  }
+}

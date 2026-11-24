@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bravely-emerald",
+    "project_url": "https://github.com/marcoscodas/bravely-emerald",
+    "name": "Pokémon Emerald / Bravely Emerald",
+    "summary": "Pokémon Emerald, reimagined as a Square Enix HD-2D game",
+    "issue_number": 6513,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-emerald",
+      "evidence_urls": [
+        "https://github.com/marcoscodas/bravely-emerald"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon Emerald"
+  }
+}

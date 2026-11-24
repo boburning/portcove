@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spongebob-squarepants-battle-for-bikini-bottom-bikini-bottom-rust",
+    "project_url": "https://github.com/Ray-m-w/Bikini-Bottom-Rust",
+    "name": "SpongeBob SquarePants: Battle for Bikini Bottom / Bikini Bottom Rust",
+    "summary": "A from-scratch Rust + Bevy reimplementation of SpongeBob SquarePants: Battle for Bikini Bottom (PC, 2003). Bring your own copy of the game.",
+    "issue_number": 5852,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spongebob-squarepants-battle-for-bikini-bottom",
+      "evidence_urls": [
+        "https://github.com/Ray-m-w/Bikini-Bottom-Rust"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "SpongeBob SquarePants: Battle for Bikini Bottom"
+  }
+}

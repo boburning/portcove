@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-the-hedgehog-2006-demo-re-sonic06demo",
+    "project_url": "https://github.com/PranchaD/re-Sonic06Demo",
+    "name": "Sonic the Hedgehog (2006) demo / re-Sonic06Demo (PranchaD)",
+    "summary": "Sonic 06 Demo Recompilation using RexGlue",
+    "issue_number": 7111,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2006",
+      "evidence_urls": [
+        "https://github.com/PranchaD/re-Sonic06Demo"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic the Hedgehog (2006)"
+  }
+}

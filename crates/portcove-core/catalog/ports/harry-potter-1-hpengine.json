@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harry-potter-1-hpengine",
+    "project_url": "https://github.com/artemnikonov/hpengine",
+    "name": "Harry Potter and the Sorcerer's Stone (HPEngine) / hpengine",
+    "summary": "Open-source engine port of Harry Potter and the Philosopher's Stone / Sorcerer's Stone (PC, 2001), checked against the original. Native on macOS, Windows and Linux. Requires your own game files.",
+    "issue_number": 6663,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-sorcerers-stone",
+      "evidence_urls": [
+        "https://github.com/artemnikonov/hpengine"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Harry Potter and the Sorcerer's Stone"
+  }
+}

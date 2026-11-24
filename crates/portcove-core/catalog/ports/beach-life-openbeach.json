@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "beach-life-openbeach",
+    "project_url": "https://github.com/h4570/openbeach",
+    "name": "Beach Life / OpenBeach",
+    "summary": "Open, multiplatform reimplementation of Beach Life, the beach-resort management game",
+    "issue_number": 5480,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "beach-life",
+      "evidence_urls": [
+        "https://github.com/h4570/openbeach"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Beach Life"
+  }
+}

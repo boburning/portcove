@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yu-gi-oh-power-of-chaos-remake",
+    "project_url": "https://github.com/Johanfer12/Yu-Gi-Oh-Power-of-Chaos-Remake",
+    "name": "Yu-Gi-Oh! Power of Chaos / Power of Chaos Remake",
+    "summary": "Yu-Gi-Oh! Power of Chaos Remake: Yugi, Kaiba and Joey in one portable Windows launcher. Android Port, Joey LAN without DirectPlay, compact resources and smoother rendering.",
+    "issue_number": 6069,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-power-of-chaos",
+      "evidence_urls": [
+        "https://github.com/Johanfer12/Yu-Gi-Oh-Power-of-Chaos-Remake"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Yu-Gi-Oh! Power of Chaos"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "titus-the-fox-foxrv",
+    "project_url": "https://github.com/giuseppegr/FoxRV",
+    "name": "Titus the Fox / FoxRV",
+    "summary": "🦊 A new engine for Titus the Fox: To Marrakech and Back (DOS, 1992), in C + SDL3. Original levels and rules, 🖥️ 16:9 widescreen, 🎮 gamepads, 🎵 AdLib music (Nuked-OPL3) or PC speaker. Runs on Windows, Linux, Nintendo 3DS/2DS and 📱 Android (Winlator, GameNative, GameHub). Bring your own copy of the game.",
+    "issue_number": 5860,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "titus-the-fox",
+      "evidence_urls": [
+        "https://github.com/giuseppegr/FoxRV"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Titus the Fox"
+  }
+}

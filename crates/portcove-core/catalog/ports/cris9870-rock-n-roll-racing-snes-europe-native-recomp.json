@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cris9870-rock-n-roll-racing-snes-europe-native-recomp",
+    "project_url": "https://github.com/Cris9870/rock-and-roll-racing-pc",
+    "name": "Rock n' Roll Racing (SNES Europe) / Cris9870 Rock & Roll Racing PC",
+    "summary": "Rock n' Roll Racing (SNES) native PC port for Windows: widescreen 16:9 / 21:9 ultrawide, 4K, 144 Hz smooth motion, shaders, Xbox controller, save states. Bring your own ROM. En español.",
+    "issue_number": 4678,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-n-roll-racing",
+      "evidence_urls": [
+        "https://github.com/Cris9870/rock-and-roll-racing-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "rock-n-roll-racing-super-nintendo",
+          "title": "Rock n' Roll Racing (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Cris9870/rock-and-roll-racing-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Rock n' Roll Racing"
+  }
+}

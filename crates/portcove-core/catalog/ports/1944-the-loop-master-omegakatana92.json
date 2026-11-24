@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "1944-the-loop-master-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/1944-The-Loop-Master-Recomp",
+    "name": "1944: The Loop Master / omegakatana92",
+    "summary": "Native PC port of 1944: The Loop Master (Capcom/Raizing, 2000, CPS-2 arcade), built by static recompilation with cps2recomp. Work in progress. Bring your own ROM set; not affiliated with Capcom.",
+    "issue_number": 5949,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "1944-the-loop-master",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/1944-The-Loop-Master-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "1944: The Loop Master"
+  }
+}

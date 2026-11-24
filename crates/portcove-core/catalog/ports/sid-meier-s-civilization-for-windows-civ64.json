@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-civilization-for-windows-civ64",
+    "project_url": "https://github.com/Buyukcaglar/Civ64",
+    "name": "Sid Meier's Civilization for Windows / Civ64",
+    "summary": "Sid Meier's Civilization 64bit (civ64): the 1992 Windows Civilization as a native 64-bit program for Windows and macOS, with on-the-fly DOS graphics. Documentation, user guide and releases (needs your own copy of the game).",
+    "issue_number": 5485,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-civilization-for-windows",
+      "evidence_urls": [
+        "https://github.com/Buyukcaglar/Civ64"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's Civilization for Windows"
+  }
+}

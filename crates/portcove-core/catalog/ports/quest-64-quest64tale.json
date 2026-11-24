@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quest-64-quest64tale",
+    "project_url": "https://github.com/boricuapab/quest64tale-recompiled",
+    "name": "Quest 64 / Quest64Tale",
+    "summary": "Static recompilation of Quest 64 for Windows and Linux. Requires your own copy of the original game.",
+    "issue_number": 5925,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quest-64",
+      "evidence_urls": [
+        "https://github.com/boricuapab/quest64tale-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Quest 64"
+  }
+}

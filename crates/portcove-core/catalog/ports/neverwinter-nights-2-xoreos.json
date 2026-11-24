@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "neverwinter-nights-2-xoreos",
+    "project_url": "https://github.com/xoreos/xoreos",
+    "name": "Neverwinter Nights 2 / xoreos (xoreos)",
+    "summary": "A reimplementation of BioWare's Aurora engine (and derivatives). Pre-pre-alpha :P",
+    "issue_number": 7310,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "neverwinter-nights-2",
+      "evidence_urls": [
+        "https://github.com/xoreos/xoreos"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Neverwinter Nights 2"
+  }
+}

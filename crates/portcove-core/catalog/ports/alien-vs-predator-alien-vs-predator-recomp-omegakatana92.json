@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alien-vs-predator-alien-vs-predator-recomp-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Alien-vs-Predator-arcade-Recomp-",
+    "name": "Alien vs. Predator (CPS2) / omegakatana92",
+    "summary": "Native PC port of Alien vs. Predator (Capcom, 1994, CPS-2 arcade), made by static recompilation with cps2recomp. Bring your own ROM set; not affiliated with Capcom.",
+    "issue_number": 5951,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-vs-predator",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Alien-vs-Predator-arcade-Recomp-"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Alien vs. Predator"
+  }
+}

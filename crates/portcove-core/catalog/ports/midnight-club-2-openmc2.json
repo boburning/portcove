@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midnight-club-2-openmc2",
+    "project_url": "https://github.com/OpenMC2/OpenMC2",
+    "name": "Midnight Club 2 / OpenMC2 (OpenMC2)",
+    "summary": "An Open Source Re-Implementation of Midnight Club 2",
+    "issue_number": 7053,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-ii",
+      "evidence_urls": [
+        "https://github.com/OpenMC2/OpenMC2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Midnight Club 2"
+  }
+}

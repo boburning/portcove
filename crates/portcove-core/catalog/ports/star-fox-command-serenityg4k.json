@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-fox-command-serenityg4k",
+    "project_url": "https://github.com/SerenityG4K/starfox-command-native",
+    "name": "Star Fox Command / SerenityG4K",
+    "summary": "Native PC port of Star Fox Command (Nintendo DS) by static recompilation — bring your own European ROM; the game is built on your PC.",
+    "issue_number": 5930,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-command",
+      "evidence_urls": [
+        "https://github.com/SerenityG4K/starfox-command-native"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-command-nintendo-ds",
+          "title": "Star Fox Command (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/SerenityG4K/starfox-command-native"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Fox Command"
+  }
+}

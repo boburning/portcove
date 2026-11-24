@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadow-of-the-colossus-ps4-nakaionyt",
+    "project_url": "https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen",
+    "name": "Shadow of the Colossus (PS4) / NakaionYT FrameGen",
+    "summary": "Shadow of the Colossus (PS4) native PC port with DLSS-G / FSR 3 frame generation: 30 FPS locked, 60 shown. F7 uncaps live. Bring your own game files.",
+    "issue_number": 6722,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": [
+        "https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"
+      ],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-4",
+          "title": "Shadow of the Colossus (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/nakaionyt/ShadowOfTheColossus-PC-FrameGen"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Shadow of the Colossus"
+  }
+}

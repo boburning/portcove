@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-iii-remastered-sonukumar-macos",
+    "project_url": "https://github.com/sonukumar-87/gow3_mac_port",
+    "name": "God of War III Remastered / sonukumar-87 Mac port",
+    "summary": "God of War III Remastered on macOS (Apple Silicon): MetalFX upscaling, frame generation and a native launcher",
+    "issue_number": 6723,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-iii-remastered",
+      "evidence_urls": [
+        "https://github.com/sonukumar-87/gow3_mac_port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "God of War III Remastered"
+  }
+}

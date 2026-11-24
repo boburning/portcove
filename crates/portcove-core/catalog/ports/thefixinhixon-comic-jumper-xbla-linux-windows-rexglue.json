@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thefixinhixon-comic-jumper-xbla-linux-windows-rexglue",
+    "project_url": "https://github.com/thefixinhixon/ComicJumperRecomp",
+    "name": "Comic Jumper: The Adventures of Captain Smiley (Xbox 360 XBLA) / thefixinhixon ReXGlue",
+    "summary": "Native Linux port of Comic Jumper: The Adventures of Captain Smiley (Xbox 360 XBLA, 58410A20) - ReXGlue recomp with a TP launcher, FSR and an in-game options menu. Bring your own game data.",
+    "issue_number": 5011,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "comic-jumper-the-adventures-of-captain-smiley",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/ComicJumperRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "comic-jumper-the-adventures-of-captain-smiley-xbox-360",
+          "title": "Comic Jumper: The Adventures of Captain Smiley (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/ComicJumperRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Comic Jumper: The Adventures of Captain Smiley"
+  }
+}

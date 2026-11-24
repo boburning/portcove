@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conker-live-reloaded-conker-lr-recomp",
+    "project_url": "https://github.com/rashevskyv/conker-lr-recomp",
+    "name": "Conker: Live & Reloaded / Conker: Live & Reloaded recomp (Switch/Linux/Windows) (rashevskyv)",
+    "summary": "Conker: Live & Reloaded (Xbox) on Nintendo Switch, Linux and Windows: static recompilation. Build it from your own XBE; no game data.",
+    "issue_number": 7209,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-live-reloaded",
+      "evidence_urls": [
+        "https://github.com/rashevskyv/conker-lr-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-live-reloaded-xbox",
+          "title": "Conker: Live & Reloaded (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/rashevskyv/conker-lr-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Conker: Live & Reloaded"
+  }
+}

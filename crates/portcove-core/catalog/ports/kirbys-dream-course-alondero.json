@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kirbys-dream-course-alondero",
+    "project_url": "https://github.com/alondero/kirbysdreamcourse-recomp",
+    "name": "Kirby's Dream Course / alondero",
+    "summary": "Experimental SNES recompilation; bring your own ROM.",
+    "issue_number": 5975,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kirbys-dream-course",
+      "evidence_urls": [
+        "https://github.com/alondero/kirbysdreamcourse-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "kirbys-dream-course-super-nintendo",
+          "title": "Kirby's Dream Course (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/alondero/kirbysdreamcourse-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Kirby's Dream Course"
+  }
+}

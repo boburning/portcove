@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "asphaltian-pmd-green-red-rescue-team-gbarecomp",
+    "project_url": "https://github.com/Asphaltian/pmd-green",
+    "name": "Pokémon Mystery Dungeon: Red Rescue Team / Asphaltian Green Rescue Team",
+    "summary": "Static recompilation of Pokémon Mystery Dungeon: Red Rescue Team for PC",
+    "issue_number": 6282,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-mystery-dungeon-red-rescue-team",
+      "evidence_urls": [
+        "https://github.com/Asphaltian/pmd-green"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon Mystery Dungeon: Red Rescue Team"
+  }
+}

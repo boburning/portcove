@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xgcmodding-platinum",
+    "project_url": "https://github.com/xgcModding/platinum",
+    "name": "Pokémon Platinum (Pokémon Platinum (by xgcModding))",
+    "summary": "Native PC port of Pokémon Platinum (Pokémon Platinum (by xgcModding)).",
+    "issue_number": 2728,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-platinum",
+      "evidence_urls": [
+        "https://github.com/xgcModding/platinum"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon Platinum"
+  }
+}

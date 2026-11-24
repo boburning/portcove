@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "valkyria-revolution-diamonddogz-ravn",
+    "project_url": "https://github.com/DiamondDogz/Valkyria-Revolution-PS4RT-Windows",
+    "name": "Valkyria Revolution / DiamondDogz Windows Ravn",
+    "summary": "Native PC port of Valkyria Revolution for Windows.",
+    "issue_number": 6010,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyria-revolution",
+      "evidence_urls": [
+        "https://github.com/DiamondDogz/Valkyria-Revolution-PS4RT-Windows"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Valkyria Revolution"
+  }
+}

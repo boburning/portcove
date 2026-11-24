@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "badman-psp-k11mch1",
+    "project_url": "https://github.com/K11MCH1/badman_recompiled",
+    "name": "Holy Invasion of Privacy Badman / K11MCH1",
+    "summary": "Native Windows and Android versions of Holy Invasion of Privacy, Badman! built by static recompilation from your own copy of the game",
+    "issue_number": 5803,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "holy-invasion-of-privacy-badman",
+      "evidence_urls": [
+        "https://github.com/K11MCH1/badman_recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Holy Invasion of Privacy Badman"
+  }
+}

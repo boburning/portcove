@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-2-whompay-reborn",
+    "project_url": "https://github.com/whompay/inFAMOUS2reborn",
+    "name": "inFAMOUS 2 / Reborn / whompay",
+    "summary": "Installer that builds a native PC version of inFAMOUS 2 from your own copy of the game.",
+    "issue_number": 6700,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2",
+      "evidence_urls": [
+        "https://github.com/whompay/inFAMOUS2reborn"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "inFAMOUS 2"
+  }
+}

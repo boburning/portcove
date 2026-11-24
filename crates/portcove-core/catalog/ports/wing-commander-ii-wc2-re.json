@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wing-commander-ii-wc2-re",
+    "project_url": "https://github.com/neuromancer/wc2-re",
+    "name": "Wing Commander II / wc2-re",
+    "summary": "Wing Commander 2 source reconstruction and SDL2 port",
+    "issue_number": 5440,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wing-commander-ii",
+      "evidence_urls": [
+        "https://github.com/neuromancer/wc2-re"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Wing Commander II"
+  }
+}

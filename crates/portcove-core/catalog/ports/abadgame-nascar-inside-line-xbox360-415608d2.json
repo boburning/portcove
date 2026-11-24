@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abadgame-nascar-inside-line-xbox360-415608d2",
+    "project_url": "https://github.com/ABadGame/nascar-inside-line-recomp",
+    "name": "NASCAR The Game: Inside Line (Xbox 360 USA) / ABadGame ReXGlue",
+    "summary": "Native Windows port of NASCAR The Game: Inside Line (Xbox 360) via ReXGlue static recompilation. Bring your own disc - no game content included.",
+    "issue_number": 5018,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nascar-the-game-inside-line",
+      "evidence_urls": [
+        "https://github.com/ABadGame/nascar-inside-line-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "nascar-the-game-inside-line-xbox-360",
+          "title": "NASCAR The Game: Inside Line (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ABadGame/nascar-inside-line-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "NASCAR The Game: Inside Line"
+  }
+}

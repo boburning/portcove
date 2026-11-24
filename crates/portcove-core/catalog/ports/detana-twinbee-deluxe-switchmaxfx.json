@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "detana-twinbee-deluxe-switchmaxfx",
+    "project_url": "https://github.com/switchmaxfx/DetanaTwinBeeRecomp",
+    "name": "Detana TwinBee Yahho Deluxe Pack / switchmaxfx",
+    "summary": "Static recompilation of Detana TwinBee Yahho! Deluxe Pack (PS1, Japan, SLPS-00100) to native PC, built on PSXRecomp. Bring your own disc.",
+    "issue_number": 5802,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "detana-twinbee-yahho-deluxe-pack",
+      "evidence_urls": [
+        "https://github.com/switchmaxfx/DetanaTwinBeeRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "detana-twinbee-yahho-deluxe-pack-playstation",
+          "title": "Detana TwinBee Yahho Deluxe Pack (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/switchmaxfx/DetanaTwinBeeRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Detana TwinBee Yahho Deluxe Pack"
+  }
+}

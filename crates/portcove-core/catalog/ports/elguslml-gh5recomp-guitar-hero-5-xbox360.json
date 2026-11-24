@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elguslml-gh5recomp-guitar-hero-5-xbox360",
+    "project_url": "https://github.com/ElGuslml/GH5Recomp",
+    "name": "Guitar Hero 5 (Xbox 360 USA/Europe) / ElGuslml GH5Recomp",
+    "summary": "Guitar Hero 5 (Xbox 360) recompiled to run natively on PC. Xbox 360 guitars, up to 240 FPS, ultrawide, achievements, DLC, and a launcher that installs the game from your own ISO.",
+    "issue_number": 4757,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-5",
+      "evidence_urls": [
+        "https://github.com/ElGuslml/GH5Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "guitar-hero-5-xbox-360",
+          "title": "Guitar Hero 5 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ElGuslml/GH5Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Guitar Hero 5"
+  }
+}

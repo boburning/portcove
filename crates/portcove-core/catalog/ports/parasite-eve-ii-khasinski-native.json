@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "parasite-eve-ii-khasinski-native",
+    "project_url": "https://github.com/khasinski/parasite-eve-ii-pc",
+    "name": "Parasite Eve II / khasinski native port",
+    "summary": "Native PC port of Parasite Eve II (PlayStation), built on the matching decompilation and PsyZ",
+    "issue_number": 6025,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve-ii",
+      "evidence_urls": [
+        "https://github.com/khasinski/parasite-eve-ii-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "parasite-eve-ii-playstation",
+          "title": "Parasite Eve II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/khasinski/parasite-eve-ii-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Parasite Eve II"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "resident-evil-cvx-camybiohazard",
+    "project_url": "https://github.com/camybiohazard/Project-Veronica",
+    "name": "Resident Evil Code Veronica X / camybiohazard Project Veronica",
+    "summary": "Enhanced RE CVX port/recompilation including enhanced rendering options",
+    "issue_number": 5600,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x",
+      "evidence_urls": [
+        "https://github.com/camybiohazard/Project-Veronica"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Resident Evil Code: Veronica X"
+  }
+}

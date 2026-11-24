@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "terranigma-aitorcachero-recomp",
+    "project_url": "https://github.com/aitorcachero/ark-Recomp",
+    "name": "Terranigma / aitorcachero",
+    "summary": "Static recompilation of Terranigma (Spanish PAL) for Windows. Requires your own copy of the original game.",
+    "issue_number": 5699,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "terranigma",
+      "evidence_urls": [
+        "https://github.com/aitorcachero/ark-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Terranigma"
+  }
+}

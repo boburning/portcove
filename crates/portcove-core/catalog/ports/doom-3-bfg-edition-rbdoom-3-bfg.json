@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-3-bfg-edition-rbdoom-3-bfg",
+    "project_url": "https://github.com/RobertBeckebans/RBDOOM-3-BFG",
+    "name": "Doom 3: BFG Edition / RBDOOM-3-BFG",
+    "summary": "Doom 3 BFG Edition source port with updated DX12 / Vulkan renderer and modern game engine features",
+    "issue_number": 5737,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-bfg-edition",
+      "evidence_urls": [
+        "https://github.com/RobertBeckebans/RBDOOM-3-BFG"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom 3: BFG Edition"
+  }
+}

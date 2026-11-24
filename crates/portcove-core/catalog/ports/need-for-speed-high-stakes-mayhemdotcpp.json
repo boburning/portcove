@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-high-stakes-mayhemdotcpp",
+    "project_url": "https://github.com/mayhemdotcpp/nfs4-recomp",
+    "name": "Need for Speed High Stakes PS1 / mayhemdotcpp Recomp",
+    "summary": "A static recompilation of the PlayStation version of Need for Speed: High Stakes (PSX, 1999)",
+    "issue_number": 5807,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-high-stakes",
+      "evidence_urls": [
+        "https://github.com/mayhemdotcpp/nfs4-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-high-stakes-playstation",
+          "title": "Need for Speed High Stakes PS1 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mayhemdotcpp/nfs4-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Need for Speed High Stakes PS1"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-glquake3d",
+    "project_url": "https://github.com/dpteam/GLQuake3D",
+    "name": "Quake / GLQuake3D (dpteam)",
+    "summary": "WinQuake/GLQuake-based source-port of game Quake",
+    "issue_number": 7062,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/dpteam/GLQuake3D"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Quake"
+  }
+}

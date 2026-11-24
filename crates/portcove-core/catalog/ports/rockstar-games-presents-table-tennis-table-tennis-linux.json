@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rockstar-games-presents-table-tennis-table-tennis-linux",
+    "project_url": "https://github.com/ThisIsAkill/Table-Tennis-Linux",
+    "name": "Rockstar Games Presents Table Tennis / Table Tennis for Linux (ThisIsAkill)",
+    "summary": "Linux/Vulkan static recompilation of Rockstar Games Presents Table Tennis (Xbox 360) on ReXGlue, with a Steam Deck installer, haptics and in-game PC settings.",
+    "issue_number": 7240,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rockstar-games-presents-table-tennis",
+      "evidence_urls": [
+        "https://github.com/ThisIsAkill/Table-Tennis-Linux"
+      ],
+      "source_editions": [
+        {
+          "id": "rockstar-games-presents-table-tennis-xbox-360",
+          "title": "Rockstar Games Presents Table Tennis (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ThisIsAkill/Table-Tennis-Linux"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Rockstar Games Presents Table Tennis"
+  }
+}

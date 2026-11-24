@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goldeneye-007-goldeneye-metal",
+    "project_url": "https://github.com/ysrdevs/goldeneye-metal",
+    "name": "GoldenEye 007 / GoldenEye Metal (ysrdevs)",
+    "summary": "GoldenEye Metal is an experimental, source-only static recompilation project focused on a native Apple Silicon and Metal rendering path. This repository contains the runtime, toolchain, Metal backend, and game integration in one tree.",
+    "issue_number": 6979,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/ysrdevs/goldeneye-metal"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "GoldenEye 007"
+  }
+}

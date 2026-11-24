@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marvel-super-heroes-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Marvel-Super-Heroes-Recomp",
+    "name": "Marvel Super Heroes / omegakatana92",
+    "summary": "Native PC recomp of Marvel Super Heroes (Capcom, 1995, CPS-2), built with cps2recomp: Windows, Linux and Steam Deck builds from your own msh ROM set.",
+    "issue_number": 5957,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "marvel-super-heroes",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Marvel-Super-Heroes-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Marvel Super Heroes"
+  }
+}

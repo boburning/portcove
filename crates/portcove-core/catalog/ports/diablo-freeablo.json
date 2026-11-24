@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-freeablo",
+    "project_url": "https://github.com/wheybags/freeablo",
+    "name": "Diablo / freeablo (wheybags)",
+    "summary": "[ARCHIVED] Modern reimplementation of the Diablo 1 game engine",
+    "issue_number": 7325,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/wheybags/freeablo"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Diablo"
+  }
+}

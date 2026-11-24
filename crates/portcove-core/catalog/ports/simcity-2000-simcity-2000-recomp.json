@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simcity-2000-simcity-2000-recomp",
+    "project_url": "https://github.com/sp00nznet/simcity2000",
+    "name": "SimCity 2000 / SimCity 2000 Recomp",
+    "summary": "Static recompilation of SimCity 2000 (Maxis, Windows 95 edition) into native C. Part of the pcrecomp family.",
+    "issue_number": 5848,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity-2000",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/simcity2000"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "SimCity 2000"
+  }
+}

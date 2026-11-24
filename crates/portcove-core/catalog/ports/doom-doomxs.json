@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-doomxs",
+    "project_url": "https://github.com/jval1972/DoomXS",
+    "name": "Doom / DoomXS (jval1972)",
+    "summary": "Source port of Doom",
+    "issue_number": 7074,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/jval1972/DoomXS"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

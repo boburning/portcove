@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "driveclub-qnfn-dcport",
+    "project_url": "https://github.com/qnfn/Driveclub-Port",
+    "name": "Driveclub / qnfn DCport",
+    "summary": "Driveclub PS4 PC Port",
+    "issue_number": 6028,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "driveclub",
+      "evidence_urls": [
+        "https://github.com/qnfn/Driveclub-Port"
+      ],
+      "source_editions": [
+        {
+          "id": "driveclub-playstation-4",
+          "title": "DriveClub (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/qnfn/Driveclub-Port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "DriveClub"
+  }
+}

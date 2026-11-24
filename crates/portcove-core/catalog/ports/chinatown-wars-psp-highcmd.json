@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chinatown-wars-psp-highcmd",
+    "project_url": "https://github.com/highcmd/chinatown-wars-psp-recomp",
+    "name": "GTA Chinatown Wars PSP / highcmd native recomp",
+    "summary": "Static recompilation of GTA: Chinatown Wars (PSP, ULUS-10490 v1.01) to native Linux and Windows, code overlays included. Bring your own UMD dump; no game data included.",
+    "issue_number": 5636,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gta-chinatown-wars-psp",
+      "evidence_urls": [
+        "https://github.com/highcmd/chinatown-wars-psp-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "gta-chinatown-wars-psp-playstation-portable",
+          "title": "GTA Chinatown Wars PSP (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/highcmd/chinatown-wars-psp-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "GTA Chinatown Wars PSP"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "animal-crossing-animal-crossing-vr",
+    "project_url": "https://github.com/LiquidAzir/animal-crossing-vr",
+    "name": "Animal Crossing / Animal Crossing VR (LiquidAzir)",
+    "summary": "Animal Crossing VR for Windows/SteamVR and standalone Quest 3. First-person VR, tracked tools, and repaired scenery. Bring your own USA Rev 0 disc image.",
+    "issue_number": 7117,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing",
+      "evidence_urls": [
+        "https://github.com/LiquidAzir/animal-crossing-vr"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Animal Crossing"
+  }
+}

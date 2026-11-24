@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-2-aitorcachero",
+    "project_url": "https://github.com/aitorcachero/acecombat2-recomp",
+    "name": "Ace Combat 2 / aitorcachero multi-region recomp",
+    "summary": "Static recompilation of Ace Combat 2 for Windows. Requires your own copy of the original game.",
+    "issue_number": 5702,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-2",
+      "evidence_urls": [
+        "https://github.com/aitorcachero/acecombat2-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat 2"
+  }
+}

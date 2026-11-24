@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lemmings-for-windows-95-portable-decompilation",
+    "project_url": "https://github.com/NitrosGits/Lemmings-For-Windows-95",
+    "name": "Lemmings for Windows 95 / portable decompilation",
+    "summary": "Matching decompilation and portable source reconstruction of Lemmings for Windows 95 (1995)",
+    "issue_number": 5829,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lemmings-for-windows-95",
+      "evidence_urls": [
+        "https://github.com/NitrosGits/Lemmings-For-Windows-95"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Lemmings for Windows 95"
+  }
+}

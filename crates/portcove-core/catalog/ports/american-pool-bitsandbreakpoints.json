@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "american-pool-bitsandbreakpoints",
+    "project_url": "https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp",
+    "name": "American Pool USA / Bitsandbreakpoints",
+    "summary": "Native Windows port of the PlayStation game American Pool - bring your own disc. No game files included.",
+    "issue_number": 5620,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "american-pool-usa",
+      "evidence_urls": [
+        "https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "american-pool-usa-playstation",
+          "title": "American Pool USA (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Bitsandbreakpoints/american-pool-psx-pc-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "American Pool USA"
+  }
+}

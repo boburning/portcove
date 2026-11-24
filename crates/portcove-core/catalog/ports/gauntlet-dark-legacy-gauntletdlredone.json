@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gauntlet-dark-legacy-gauntletdlredone",
+    "project_url": "https://github.com/jeddhor/GauntletDLRedone",
+    "name": "Gauntlet: Dark Legacy / GauntletDLRedone",
+    "summary": "Native Linux/Windows port of Gauntlet: Dark Legacy (PS2, SLUS-20047) in Rust and Bevy; plays from your own disc",
+    "issue_number": 5445,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gauntlet-dark-legacy",
+      "evidence_urls": [
+        "https://github.com/jeddhor/GauntletDLRedone"
+      ],
+      "source_editions": [
+        {
+          "id": "gauntlet-dark-legacy-playstation-2",
+          "title": "Gauntlet: Dark Legacy (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/jeddhor/GauntletDLRedone"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Gauntlet: Dark Legacy"
+  }
+}

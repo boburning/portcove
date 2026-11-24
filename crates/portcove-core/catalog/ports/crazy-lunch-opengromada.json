@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crazy-lunch-opengromada",
+    "project_url": "https://github.com/siohaza/OpenGromada",
+    "name": "Crazy Lunch / OpenGromada (siohaza)",
+    "summary": "Reverse engineered engine powering various Sigma Games titles",
+    "issue_number": 7393,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crazy-lunch",
+      "evidence_urls": [
+        "https://github.com/siohaza/OpenGromada"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Crazy Lunch"
+  }
+}

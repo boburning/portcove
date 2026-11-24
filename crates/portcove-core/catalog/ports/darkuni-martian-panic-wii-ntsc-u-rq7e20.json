@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-martian-panic-wii-ntsc-u-rq7e20",
+    "project_url": "https://github.com/darkuni/martian-panic-recomp",
+    "name": "Martian Panic (Wii NTSC-U RQ7E20) / darkuni Wii static recomp",
+    "summary": "Static recompilation of Martian Panic (Wii).",
+    "issue_number": 4754,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "martian-panic",
+      "evidence_urls": [
+        "https://github.com/darkuni/martian-panic-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "martian-panic-wii",
+          "title": "Martian Panic (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/martian-panic-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Martian Panic"
+  }
+}

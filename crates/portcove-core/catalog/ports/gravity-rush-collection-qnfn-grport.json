@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gravity-rush-collection-qnfn-grport",
+    "project_url": "https://github.com/qnfn/GRport",
+    "name": "Gravity Rush Remastered and Gravity Rush 2 / qnfn GRport",
+    "summary": "Gravity Rush Remastered and Gravity Rush 2 on Windows and Linux: PS4 compatibility runtime (game code runs natively, graphics translated to Vulkan), FSR 4.1.2 / DLSS, GR2 up to 120 FPS. Unofficial; bring your own dump.",
+    "issue_number": 6024,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port covers Gravity Rush Remastered and Gravity Rush 2.",
+    "evidence_urls": [
+      "https://github.com/qnfn/GRport"
+    ]
+  }
+}

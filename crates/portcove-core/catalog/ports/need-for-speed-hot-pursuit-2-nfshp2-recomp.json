@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-hot-pursuit-2-nfshp2-recomp",
+    "project_url": "https://github.com/gabegm/nfshp2-recomp",
+    "name": "Need for Speed: Hot Pursuit 2 / Hot Pursuit 2 PS2 recompilation setup (gabegm)",
+    "summary": "Build the PS2 edition of Hot Pursuit 2 locally from your own disc image using ps2-native-recomp. Setup and runtime patches only; no game data.",
+    "issue_number": 7267,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-hot-pursuit-2",
+      "evidence_urls": [
+        "https://github.com/gabegm/nfshp2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-hot-pursuit-2-playstation-2",
+          "title": "Need for Speed: Hot Pursuit 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/gabegm/nfshp2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Need for Speed: Hot Pursuit 2"
+  }
+}

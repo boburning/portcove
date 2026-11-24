@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "coaltergeist-brothership-switch-static-recomp",
+    "project_url": "https://github.com/Coaltergeist/Brothership-Recomp",
+    "name": "Mario & Luigi: Brothership (Switch v1.0.1) / Brothership Recomp (Coaltergeist)",
+    "summary": "A native recompilation of Mario & Luigi: Brothership",
+    "issue_number": 4212,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-and-luigi-brothership",
+      "evidence_urls": [
+        "https://github.com/Coaltergeist/Brothership-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-and-luigi-brothership-nintendo-switch",
+          "title": "Mario & Luigi: Brothership (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Coaltergeist/Brothership-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mario & Luigi: Brothership"
+  }
+}

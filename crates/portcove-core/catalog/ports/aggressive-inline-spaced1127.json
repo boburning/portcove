@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aggressive-inline-spaced1127",
+    "project_url": "https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp",
+    "name": "Aggressive Inline / Spaced1127",
+    "summary": "Aggressive Inline Static Recomp: native Windows 60 FPS Aggressive Inline (GameCube, GILE51) port. RecompLauncher-ready. No game data included.",
+    "issue_number": 5900,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aggressive-inline",
+      "evidence_urls": [
+        "https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "aggressive-inline-nintendo-gamecube",
+          "title": "Aggressive Inline (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/Spaced1127/Aggressive-Inline-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Aggressive Inline"
+  }
+}

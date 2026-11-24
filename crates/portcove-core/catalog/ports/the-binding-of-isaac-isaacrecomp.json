@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-binding-of-isaac-isaacrecomp",
+    "project_url": "https://github.com/whylurking/IsaacRecomp",
+    "name": "The Binding of Isaac / IsaacRecomp",
+    "summary": "Native C++ recompilation of The Binding of Isaac (Flash) — 60 fps, 1080p, Windows/Linux/Switch. Requires the original game from Steam",
+    "issue_number": 5584,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-binding-of-isaac",
+      "evidence_urls": [
+        "https://github.com/whylurking/IsaacRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-binding-of-isaac-nintendo-switch",
+          "title": "The Binding of Isaac (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/whylurking/IsaacRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Binding of Isaac"
+  }
+}

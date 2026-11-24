@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-gotham-racing-4-tazzkiller",
+    "project_url": "https://github.com/tazzkiller/PGR4_2026",
+    "name": "Project Gotham Racing 4 (PGR4 PC recompilation) / PGR4_2026",
+    "summary": "Project Gotham Racing 4 recompiled for PC (Windows)",
+    "issue_number": 6681,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-4",
+      "evidence_urls": [
+        "https://github.com/tazzkiller/PGR4_2026"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Project Gotham Racing 4"
+  }
+}

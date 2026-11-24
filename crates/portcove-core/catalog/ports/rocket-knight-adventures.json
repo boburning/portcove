@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rocket-knight-adventures",
+    "project_url": "https://github.com/mstan/RocketKnightAdventuresRecomp",
+    "name": "Rocket Knight Adventures",
+    "summary": "Static recompilation of Rocket Knight Adventures for Windows. Requires your own copy of the original game.",
+    "issue_number": 5455,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rocket-knight-adventures",
+      "evidence_urls": [
+        "https://github.com/mstan/RocketKnightAdventuresRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Rocket Knight Adventures"
+  }
+}

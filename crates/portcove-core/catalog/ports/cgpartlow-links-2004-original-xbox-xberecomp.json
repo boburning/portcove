@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cgpartlow-links-2004-original-xbox-xberecomp",
+    "project_url": "https://github.com/cgpartlow/Links2004-XBERecomp",
+    "name": "Links 2004 (original Xbox) / cgpartlow XBERecomp",
+    "summary": "A recompilation of Links 2004 for Xbox using the XBERecomp Tool",
+    "issue_number": 5019,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "links-2004",
+      "evidence_urls": [
+        "https://github.com/cgpartlow/Links2004-XBERecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "links-2004-xbox",
+          "title": "Links 2004 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/cgpartlow/Links2004-XBERecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Links 2004"
+  }
+}

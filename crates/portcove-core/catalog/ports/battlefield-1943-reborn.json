@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battlefield-1943-reborn",
+    "project_url": "https://github.com/TekRantGaming/Battlefield-1943-Reborn",
+    "name": "Battlefield 1943 / Reborn",
+    "summary": "Battlefield 1943 Reborn: the Xbox 360 game running natively on PC, with its online multiplayer restored. Releases and server packages.",
+    "issue_number": 6568,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battlefield-1943",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/Battlefield-1943-Reborn"
+      ],
+      "source_editions": [
+        {
+          "id": "battlefield-1943-xbox-360",
+          "title": "Battlefield 1943 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/Battlefield-1943-Reborn"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Battlefield 1943"
+  }
+}

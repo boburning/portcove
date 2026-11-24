@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-delphidoom",
+    "project_url": "https://github.com/jval1972/DelphiDoom",
+    "name": "Doom / DelphiDoom (jval1972)",
+    "summary": "Source port of Doom, Heretic, Hexen and Strife developed in Delphi",
+    "issue_number": 7330,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/jval1972/DelphiDoom"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

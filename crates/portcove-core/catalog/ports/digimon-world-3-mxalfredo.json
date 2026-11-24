@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "digimon-world-3-mxalfredo",
+    "project_url": "https://github.com/MxAlfredo/dw3_port",
+    "name": "Digimon World 3 / MxAlfredo DW3 Port",
+    "summary": "PC/Android port of Digimon World 3 built from the dw3_decomp decompilation. Bring your own disc. Moddable.",
+    "issue_number": 5592,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": [
+        "https://github.com/MxAlfredo/dw3_port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Digimon World 3"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battletech-c64-static-recomp",
+    "project_url": "https://github.com/Junior-Jones/BattleTech-C64-Static-Recomp",
+    "name": "BattleTech: The Crescent Hawk's Inception / Junior-Jones",
+    "summary": "Static recompilation of BattleTech: The Crescent Hawk's Inception (C64) for Windows 10 and 11. Game disk images not included.",
+    "issue_number": 5903,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battletech-the-crescent-hawks-inception",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/BattleTech-C64-Static-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "BattleTech: The Crescent Hawk's Inception"
+  }
+}

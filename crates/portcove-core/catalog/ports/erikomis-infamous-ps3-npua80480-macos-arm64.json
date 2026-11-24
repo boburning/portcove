@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "erikomis-infamous-ps3-npua80480-macos-arm64",
+    "project_url": "https://github.com/erikomis/infamous1-recomp",
+    "name": "inFAMOUS (PS3 PSN NPUA80480) / erikomis macOS PS3Recomp",
+    "summary": "inFAMOUS (PS3, NPUA80480) statically recompiled to native macOS/arm64 with ps3recomp. No game data included.",
+    "issue_number": 5014,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous",
+      "evidence_urls": [
+        "https://github.com/erikomis/infamous1-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "infamous-playstation-3",
+          "title": "inFAMOUS (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/erikomis/infamous1-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "inFAMOUS"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pinball-fantasies-voobrazimoe",
+    "project_url": "https://github.com/voobrazimoe/pinball-fantasies-native",
+    "name": "Pinball Fantasies / pinball-fantasies-native",
+    "summary": "Native Go reimplementation of Pinball Fantasies — beta, original game data required",
+    "issue_number": 6665,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pinball-fantasies",
+      "evidence_urls": [
+        "https://github.com/voobrazimoe/pinball-fantasies-native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pinball Fantasies"
+  }
+}

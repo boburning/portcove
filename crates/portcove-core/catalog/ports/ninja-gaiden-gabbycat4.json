@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ninja-gaiden-gabbycat4",
+    "project_url": "https://github.com/gabbycat4/NinjaGaiden1Recomp",
+    "name": "Ninja Gaiden (NinjaGaiden1Recomp) / NinjaGaiden1Recomp",
+    "summary": "Ninja Gaiden (NES) recompiled to native PC: 240 Hz smooth motion, no flicker, eased camera. Needs your own ROM.",
+    "issue_number": 6619,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ninja-gaiden",
+      "evidence_urls": [
+        "https://github.com/gabbycat4/NinjaGaiden1Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ninja-gaiden-nes",
+          "title": "Ninja Gaiden (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/gabbycat4/NinjaGaiden1Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Ninja Gaiden"
+  }
+}

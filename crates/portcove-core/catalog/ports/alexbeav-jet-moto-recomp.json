@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-jet-moto-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/jet-moto-recomp",
+    "name": "Jet Moto / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Jet Moto (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6675,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-moto",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/jet-moto-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-moto-playstation",
+          "title": "Jet Moto (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/jet-moto-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Jet Moto"
+  }
+}

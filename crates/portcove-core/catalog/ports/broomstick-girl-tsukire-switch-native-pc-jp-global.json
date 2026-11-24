@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "broomstick-girl-tsukire-switch-native-pc-jp-global",
+    "project_url": "https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port",
+    "name": "Tsukihime -A piece of blue glass moon- (Switch Japanese/global 1.0.0) / Broomstick Girl tsukire-pc-port",
+    "summary": "Native PC port of Tsukihime -A piece of blue glass moon- for Windows.",
+    "issue_number": 4334,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tsukihime-a-piece-of-blue-glass-moon",
+      "evidence_urls": [
+        "https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"
+      ],
+      "source_editions": [
+        {
+          "id": "tsukihime-a-piece-of-blue-glass-moon-nintendo-switch",
+          "title": "Tsukihime -A piece of blue glass moon- (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Broomstick-Girl-Magical-Amber/tsukire-pc-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tsukihime -A piece of blue glass moon-"
+  }
+}

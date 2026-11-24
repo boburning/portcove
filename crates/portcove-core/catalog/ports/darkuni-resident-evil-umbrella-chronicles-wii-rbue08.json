@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-resident-evil-umbrella-chronicles-wii-rbue08",
+    "project_url": "https://github.com/darkuni/resident-evil-umbrella-chronicles-recomp",
+    "name": "Resident Evil: The Umbrella Chronicles (Wii NTSC-U RBUE08) / darkuni recomp",
+    "summary": "Static recompilation of Resident Evil: The Umbrella Chronicles (Wii).",
+    "issue_number": 5313,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-the-umbrella-chronicles",
+      "evidence_urls": [
+        "https://github.com/darkuni/resident-evil-umbrella-chronicles-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-the-umbrella-chronicles-wii",
+          "title": "Resident Evil: The Umbrella Chronicles (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/resident-evil-umbrella-chronicles-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Resident Evil: The Umbrella Chronicles"
+  }
+}

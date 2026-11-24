@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "corridor-7-alien-invasion-ec7wolf",
+    "project_url": "https://github.com/jeddhor/EC7Wolf",
+    "name": "Corridor 7: Alien Invasion / EC7Wolf",
+    "summary": "EC7Wolf — an ECWolf-based sourceless source port of Corridor 7: Alien Invasion",
+    "issue_number": 5483,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "corridor-7-alien-invasion",
+      "evidence_urls": [
+        "https://github.com/jeddhor/EC7Wolf"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Corridor 7: Alien Invasion"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "maxevans60-cm0102-bosman-edition",
+    "project_url": "https://github.com/maxevans60/cm0102-bosman-edition",
+    "name": "Championship Manager 01/02 / Bosman Edition (maxevans60)",
+    "summary": "Championship Manager 01/02 rebuilt to run natively on Mac, Windows, Linux and Steam Deck. Unofficial fan port.",
+    "issue_number": 3797,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "championship-manager-01-02",
+      "evidence_urls": [
+        "https://github.com/maxevans60/cm0102-bosman-edition"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Championship Manager 01/02"
+  }
+}

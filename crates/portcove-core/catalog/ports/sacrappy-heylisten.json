@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sacrappy-heylisten",
+    "project_url": "https://github.com/Sacrappy/HeyListen",
+    "name": "The Legend of Zelda: Ocarina of Time (Switch 2) / HeyListen (Sacrappy)",
+    "summary": "A Native Recompilation for The Legend of Zelda Ocarina of Time Remake on Switch 2 based on Hookshot.",
+    "issue_number": 6534,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": [
+        "https://github.com/Sacrappy/HeyListen"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch",
+          "title": "The Legend of Zelda: Ocarina of Time (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Sacrappy/HeyListen"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Ocarina of Time"
+  }
+}

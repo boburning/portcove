@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tmcleroy-fighting-vipers-saturn-satrecomp",
+    "project_url": "https://github.com/tmcleroy/fighting-vipers-recomp",
+    "name": "Fighting Vipers (Saturn USA MK-81041 V2.000) / tmcleroy satrecomp",
+    "summary": "Fighting Vipers (Sega Saturn) native port by static recompilation, on satrecomp. No game is included.",
+    "issue_number": 4223,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fighting-vipers",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/fighting-vipers-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fighting-vipers-sega-saturn",
+          "title": "Fighting Vipers (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/fighting-vipers-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Fighting Vipers"
+  }
+}

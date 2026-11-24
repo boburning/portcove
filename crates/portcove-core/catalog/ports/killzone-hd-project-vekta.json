@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killzone-hd-project-vekta",
+    "project_url": "https://github.com/gustavomorinaga/project-vekta",
+    "name": "Killzone HD / gustavomorinaga Project Vekta",
+    "summary": "Killzone HD // Unofficial PC Port (static recompilation). Work in progress, partly playable. Builds on your PC from your own game.",
+    "issue_number": 6030,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-hd",
+      "evidence_urls": [
+        "https://github.com/gustavomorinaga/project-vekta"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Killzone HD"
+  }
+}

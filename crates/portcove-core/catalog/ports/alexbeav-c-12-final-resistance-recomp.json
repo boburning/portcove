@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-c-12-final-resistance-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp",
+    "name": "C-12: Final Resistance / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of C-12: Final Resistance (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6639,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "c-12-final-resistance",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "c-12-final-resistance-playstation",
+          "title": "C-12: Final Resistance (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/c-12-final-resistance-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "C-12: Final Resistance"
+  }
+}

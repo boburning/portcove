@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pac-man-nes-native-recomp",
+    "project_url": "https://github.com/Mr-Shizzy/PacManRecomp",
+    "name": "Pac-Man (NES) / mstan",
+    "summary": "Windows-only native recompilation of Pac-Man for the NES (the 1993 Namco release) with a launcher, extras, cheats and beginner-friendly modding. Bring your own ROM.",
+    "issue_number": 5961,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pac-man",
+      "evidence_urls": [
+        "https://github.com/Mr-Shizzy/PacManRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pac-man-nes",
+          "title": "Pac-Man (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/Mr-Shizzy/PacManRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Pac-Man"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "deus-ex-opende",
+    "project_url": "https://github.com/jarmitage99/OpenDE",
+    "name": "Deus Ex / OpenDE",
+    "summary": "Cross-platform open source reimplementation of Deus Ex",
+    "issue_number": 5479,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "deus-ex",
+      "evidence_urls": [
+        "https://github.com/jarmitage99/OpenDE"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Deus Ex"
+  }
+}

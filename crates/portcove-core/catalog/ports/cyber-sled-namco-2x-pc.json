@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cyber-sled-namco-2x-pc",
+    "project_url": "https://github.com/spacestate1/namco22-decompile",
+    "name": "Cyber Sled / Namco 2x Systems for PC (spacestate1)",
+    "summary": "Decompilation-based PC port of the Cyber Sled arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
+    "issue_number": 7366,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cyber-sled",
+      "evidence_urls": [
+        "https://github.com/spacestate1/namco22-decompile"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Cyber Sled"
+  }
+}

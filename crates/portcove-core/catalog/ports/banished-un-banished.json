@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "banished-un-banished",
+    "project_url": "https://github.com/tanepiper/unbanished",
+    "name": "Banished / Un-Banished",
+    "summary": "Un-Banished: a from-scratch Rust reimplementation of the Banished engine, native and in the browser. Bring your own copy of the game.",
+    "issue_number": 5478,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "banished",
+      "evidence_urls": [
+        "https://github.com/tanepiper/unbanished"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Banished"
+  }
+}

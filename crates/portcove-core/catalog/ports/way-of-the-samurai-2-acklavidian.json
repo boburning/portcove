@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "way-of-the-samurai-2-acklavidian",
+    "project_url": "https://github.com/acklavidian/decomp_wots2",
+    "name": "Way of the Samurai 2 / acklavidian",
+    "summary": "Way of the Samurai 2 (PS2) — native Linux decompilation port",
+    "issue_number": 5516,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "way-of-the-samurai-2",
+      "evidence_urls": [
+        "https://github.com/acklavidian/decomp_wots2"
+      ],
+      "source_editions": [
+        {
+          "id": "way-of-the-samurai-2-playstation-2",
+          "title": "Way of the Samurai 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/acklavidian/decomp_wots2"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Way of the Samurai 2"
+  }
+}

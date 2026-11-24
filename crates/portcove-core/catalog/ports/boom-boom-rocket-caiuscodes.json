@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "boom-boom-rocket-caiuscodes",
+    "project_url": "https://github.com/CaiusCodes/Boom-Boom-Rocket-XBLA-PC-Recomp",
+    "name": "Boom Boom Rocket / Boom-Boom-Rocket-XBLA-PC-Recomp",
+    "summary": "Native Windows PC recompilation of Boom Boom Rocket for Xbox 360/XBLA using ReXGlue. Requires your own copy of the game.",
+    "issue_number": 6679,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "boom-boom-rocket",
+      "evidence_urls": [
+        "https://github.com/CaiusCodes/Boom-Boom-Rocket-XBLA-PC-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "boom-boom-rocket-xbox-360",
+          "title": "Boom Boom Rocket (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/CaiusCodes/Boom-Boom-Rocket-XBLA-PC-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Boom Boom Rocket"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alone-in-the-dark-family-xesf-aitd",
+    "project_url": "https://github.com/xesf/aitd",
+    "name": "Alone in the Dark family / xesf aitd",
+    "summary": "Alone in the Dark Series Reimplementation based on AITD3 Ghost Towns",
+    "issue_number": 5464,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One reimplementation targets several Alone in the Dark games.",
+    "evidence_urls": [
+      "https://github.com/xesf/aitd"
+    ]
+  }
+}

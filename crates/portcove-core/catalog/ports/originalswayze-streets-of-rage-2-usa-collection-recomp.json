@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "originalswayze-streets-of-rage-2-usa-collection-recomp",
+    "project_url": "https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp",
+    "name": "Streets of Rage 2 (Genesis USA) / OriginalSwayze collection static recomp",
+    "summary": "Installer that builds a native PC version of Streets of Rage 2 from your own copy of the game.",
+    "issue_number": 6442,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "streets-of-rage-2",
+      "evidence_urls": [
+        "https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "streets-of-rage-2-mega-drive-genesis",
+          "title": "Streets of Rage 2 (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/OriginalSwayze/Streets-of-Rage-Collection-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Streets of Rage 2"
+  }
+}

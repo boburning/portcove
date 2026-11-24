@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "digimon-world-bevy-ufodriverr",
+    "project_url": "https://github.com/ufodriverr/dmon-1-bevy-public-v1",
+    "name": "Digimon World on Bevy / ufodriverr",
+    "summary": "Native PC port of Digimon World on Bevy.",
+    "issue_number": 5520,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-on-bevy",
+      "evidence_urls": [
+        "https://github.com/ufodriverr/dmon-1-bevy-public-v1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Digimon World on Bevy"
+  }
+}

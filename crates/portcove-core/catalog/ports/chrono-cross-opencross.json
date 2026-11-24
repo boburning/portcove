@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chrono-cross-opencross",
+    "project_url": "https://github.com/sp-hy/OpenCross",
+    "name": "Chrono Cross Radical Dreamers / OpenCross",
+    "summary": "Replacement game engine for Chrono Cross: The Radical Dreamers Edition",
+    "issue_number": 5615,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chrono-cross-radical-dreamers",
+      "evidence_urls": [
+        "https://github.com/sp-hy/OpenCross"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Chrono Cross Radical Dreamers"
+  }
+}

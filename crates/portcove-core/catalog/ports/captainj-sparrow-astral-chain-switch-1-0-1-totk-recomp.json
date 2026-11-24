@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "captainj-sparrow-astral-chain-switch-1-0-1-totk-recomp",
+    "project_url": "https://github.com/captainj-sparrow/astral-chain-pc-recomp",
+    "name": "Astral Chain (Switch 1.0.0 + update 1.0.1) / captainj-sparrow Windows/Linux recomp",
+    "summary": "Static recompilation of Astral Chain to native Windows, with a Vulkan renderer. Game files not included.",
+    "issue_number": 5024,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "astral-chain",
+      "evidence_urls": [
+        "https://github.com/captainj-sparrow/astral-chain-pc-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "astral-chain-nintendo-switch",
+          "title": "Astral Chain (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/captainj-sparrow/astral-chain-pc-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Astral Chain"
+  }
+}

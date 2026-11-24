@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elite-beat-agents-ouendan-collection",
+    "project_url": "https://github.com/BehonArt/ebaouendan_musiclives",
+    "name": "Elite Beat Agents / Ouendan collection",
+    "summary": "Elite Beat Ouendan: Music LIVES - Elite Beat Agents and both Osu! Tatakae! Ouendan games, recompiled from the DS to run natively on Windows. Bring your own cartridge dumps.",
+    "issue_number": 5459,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "elite-beat-agents",
+      "evidence_urls": [
+        "https://github.com/BehonArt/ebaouendan_musiclives"
+      ],
+      "source_editions": [
+        {
+          "id": "elite-beat-agents-nintendo-ds",
+          "title": "Elite Beat Agents (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/BehonArt/ebaouendan_musiclives"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Elite Beat Agents"
+  }
+}

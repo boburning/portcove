@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heretic-crl-chocorenderlimits",
+    "project_url": "https://github.com/JNechaevsky/CRL",
+    "name": "Heretic / Chocorenderlimits (CRL) (JNechaevsky)",
+    "summary": "Chocorenderlimits/CRL is a Doom and Heretic source port designed for vanilla map authors and modders.",
+    "issue_number": 7104,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": [
+        "https://github.com/JNechaevsky/CRL"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Heretic"
+  }
+}

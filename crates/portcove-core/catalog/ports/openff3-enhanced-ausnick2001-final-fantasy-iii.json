@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openff3-enhanced-ausnick2001-final-fantasy-iii",
+    "project_url": "https://github.com/ausnick2001/OpenFF3-Enhanced",
+    "name": "Final Fantasy III (3D remake, Steam/GOG) / OpenFF3 Enhanced (ausnick2001)",
+    "summary": "An enhanced version of Final Fantasy III (3D remake) on PC, built on the foundations of Zerratar’s OpenFF. Features include FFX style turn-based battles, a full customisable dungeon minimap, upscaled textures, encounter rate modifiers, a more aesthetically pleasing battle menu, easier to read fonts, and more!!",
+    "issue_number": 8648,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-iii",
+      "evidence_urls": [
+        "https://github.com/ausnick2001/OpenFF3-Enhanced"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Final Fantasy III"
+  }
+}

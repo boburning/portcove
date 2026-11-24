@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-64-ds-mstan",
+    "project_url": "https://github.com/mstan/supermario64dsrecomp",
+    "name": "Super Mario 64 DS / mstan",
+    "summary": "Static recompilation of Super Mario 64 DS for Windows. Requires your own copy of the original game.",
+    "issue_number": 6590,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64-ds",
+      "evidence_urls": [
+        "https://github.com/mstan/supermario64dsrecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario 64 DS"
+  }
+}

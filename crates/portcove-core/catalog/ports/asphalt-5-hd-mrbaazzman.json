@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "asphalt-5-hd-mrbaazzman",
+    "project_url": "https://github.com/mrbaazzman/Asphalt5-Native",
+    "name": "Asphalt 5 HD / mrbaazzman",
+    "summary": "Native x86-64 recompilation of Asphalt 5 ; APK-driven builder, no emulator.",
+    "issue_number": 5986,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "asphalt-5-hd",
+      "evidence_urls": [
+        "https://github.com/mrbaazzman/Asphalt5-Native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Asphalt 5 HD"
+  }
+}

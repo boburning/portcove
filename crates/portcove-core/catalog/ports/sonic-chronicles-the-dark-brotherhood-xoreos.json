@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-chronicles-the-dark-brotherhood-xoreos",
+    "project_url": "https://github.com/xoreos/xoreos",
+    "name": "Sonic Chronicles: The Dark Brotherhood / xoreos (xoreos)",
+    "summary": "A reimplementation of BioWare's Aurora engine (and derivatives). Pre-pre-alpha :P",
+    "issue_number": 7314,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-chronicles-the-dark-brotherhood",
+      "evidence_urls": [
+        "https://github.com/xoreos/xoreos"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Chronicles: The Dark Brotherhood"
+  }
+}

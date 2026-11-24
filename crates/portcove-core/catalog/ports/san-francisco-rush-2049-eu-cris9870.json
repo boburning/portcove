@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "san-francisco-rush-2049-eu-cris9870",
+    "project_url": "https://github.com/Cris9870/rush2049-recomp",
+    "name": "San Francisco Rush 2049 Europe / Cris9870",
+    "summary": "San Francisco Rush 2049 (Dreamcast) nativo para PC y Android por recompilación estática — usa tu propio disco / native PC & Android port via static recompilation, bring your own disc",
+    "issue_number": 5709,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "san-francisco-rush-2049",
+      "evidence_urls": [
+        "https://github.com/Cris9870/rush2049-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "san-francisco-rush-2049-dreamcast",
+          "title": "San Francisco Rush 2049 (Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/Cris9870/rush2049-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "San Francisco Rush 2049"
+  }
+}

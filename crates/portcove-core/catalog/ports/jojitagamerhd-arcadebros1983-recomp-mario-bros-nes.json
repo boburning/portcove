@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jojitagamerhd-arcadebros1983-recomp-mario-bros-nes",
+    "project_url": "https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp",
+    "name": "Mario Bros. (1983 NES edition) / ArcadeBros1983-Recomp (JojitaGamerHD)",
+    "summary": "Recompilación nativa de Mario Bros. (1983) para Windows mediante NESRecomp.",
+    "issue_number": 4081,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-bros",
+      "evidence_urls": [
+        "https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-bros-nes",
+          "title": "Mario Bros. (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/JojitaGamerHD/ArcadeBros1983-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mario Bros."
+  }
+}

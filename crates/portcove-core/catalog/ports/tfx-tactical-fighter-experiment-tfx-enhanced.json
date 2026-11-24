@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tfx-tactical-fighter-experiment-tfx-enhanced",
+    "project_url": "https://github.com/Buyukcaglar/tfx-enh",
+    "name": "TFX: Tactical Fighter Experiment / TFX Enhanced",
+    "summary": "TFX Enhanced: native Windows version of Digital Image Design's DOS flight simulator TFX (needs your own copy of the game)",
+    "issue_number": 5583,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tfx-tactical-fighter-experiment",
+      "evidence_urls": [
+        "https://github.com/Buyukcaglar/tfx-enh"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "TFX: Tactical Fighter Experiment"
+  }
+}

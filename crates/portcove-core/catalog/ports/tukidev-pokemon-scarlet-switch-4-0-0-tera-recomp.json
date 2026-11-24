@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tukidev-pokemon-scarlet-switch-4-0-0-tera-recomp",
+    "project_url": "https://github.com/tukidev-lgtm/Tera-recomp",
+    "name": "Pokémon Scarlet (Switch 4.0.0) / tukidev Tera Recomp",
+    "summary": "pokemon scarlet native port",
+    "issue_number": 5022,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-scarlet",
+      "evidence_urls": [
+        "https://github.com/tukidev-lgtm/Tera-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-scarlet-nintendo-switch",
+          "title": "Pokémon Scarlet (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/tukidev-lgtm/Tera-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Scarlet"
+  }
+}

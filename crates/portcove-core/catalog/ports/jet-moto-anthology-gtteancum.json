@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jet-moto-anthology-gtteancum",
+    "project_url": "https://github.com/GTTeancum/Jet-Moto-Anthology",
+    "name": "Jet Moto / GTTeancum Anthology",
+    "summary": "Jet Moto cumulative recompilation development and rendering improvements",
+    "issue_number": 5804,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-moto",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/Jet-Moto-Anthology"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Jet Moto"
+  }
+}

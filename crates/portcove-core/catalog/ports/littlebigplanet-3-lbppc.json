@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "littlebigplanet-3-lbppc",
+    "project_url": "https://github.com/emurphy04/LBPPC",
+    "name": "LittleBigPlanet 3 / LBPPC",
+    "summary": "Little Big Planet 3 running natively on PC",
+    "issue_number": 6683,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "littlebigplanet-3",
+      "evidence_urls": [
+        "https://github.com/emurphy04/LBPPC"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "LittleBigPlanet 3"
+  }
+}

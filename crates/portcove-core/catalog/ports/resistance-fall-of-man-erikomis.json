@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "resistance-fall-of-man-erikomis",
+    "project_url": "https://github.com/erikomis/resistance-recomp",
+    "name": "Resistance: Fall of Man / erikomis native recomp",
+    "summary": "Resistance: Fall of Man (PS3, BCUS98107) statically recompiled to native macOS/arm64 with ps3recomp. No game data included.",
+    "issue_number": 6043,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resistance-fall-of-man",
+      "evidence_urls": [
+        "https://github.com/erikomis/resistance-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "resistance-fall-of-man-playstation-3",
+          "title": "Resistance: Fall of Man (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/erikomis/resistance-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Resistance: Fall of Man"
+  }
+}

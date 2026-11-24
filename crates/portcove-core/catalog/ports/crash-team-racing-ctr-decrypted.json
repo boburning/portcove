@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-team-racing-ctr-decrypted",
+    "project_url": "https://github.com/Decryptu/ctr-decrypted",
+    "name": "Crash Team Racing / CTR Decrypted",
+    "summary": "CTR Decrypted: native Crash Team Racing port with enhancements and Archipelago built in",
+    "issue_number": 5705,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing",
+      "evidence_urls": [
+        "https://github.com/Decryptu/ctr-decrypted"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Team Racing"
+  }
+}

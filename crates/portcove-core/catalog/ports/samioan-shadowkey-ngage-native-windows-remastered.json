@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "samioan-shadowkey-ngage-native-windows-remastered",
+    "project_url": "https://github.com/samioan/shadowkey-remastered",
+    "name": "The Elder Scrolls Travels: Shadowkey / Shadowkey Remastered",
+    "summary": "The Elder Scrolls Travels: Shadowkey, remastered for Windows. A native PC port of the 2004 N-Gage RPG, rebuilt from the original binary, with widescreen, high frame rates, mouse look, gamepad support and LAN co-op. Bring your own game files.",
+    "issue_number": 8342,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-elder-scrolls-travels-shadowkey",
+      "evidence_urls": [
+        "https://github.com/samioan/shadowkey-remastered"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Elder Scrolls Travels: Shadowkey"
+  }
+}

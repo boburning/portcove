@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "awis13-gtaiv-pc1080-liberty-pro-max",
+    "project_url": "https://github.com/Awis13/liberty-pro-max",
+    "name": "Grand Theft Auto IV (PC 1.0.8.0) / Liberty Pro Max (Awis13)",
+    "summary": "GTA IV (PC 1.0.8.0) statically recompiled to run natively on Apple silicon Macs and iPads (Apple TV experimental): Metal renderer, the episodes, ~100 fixes, saves through iCloud. Build it from your own copy with the Builder app; no game data included.",
+    "issue_number": 4260,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-iv",
+      "evidence_urls": [
+        "https://github.com/Awis13/liberty-pro-max"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Grand Theft Auto IV"
+  }
+}

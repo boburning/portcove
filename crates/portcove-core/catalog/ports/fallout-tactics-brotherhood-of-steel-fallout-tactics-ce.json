@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fallout-tactics-brotherhood-of-steel-fallout-tactics-ce",
+    "project_url": "https://github.com/rerunreactor/fallout-tactics-ce",
+    "name": "Fallout Tactics: Brotherhood of Steel / Fallout Tactics CE",
+    "summary": "A reimplementation of the Fallout Tactics engine in C++17 and SDL2, for Windows, macOS, Linux and the browser. Bring your own copy of the game.",
+    "issue_number": 5475,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout-tactics-brotherhood-of-steel",
+      "evidence_urls": [
+        "https://github.com/rerunreactor/fallout-tactics-ce"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Fallout Tactics: Brotherhood of Steel"
+  }
+}

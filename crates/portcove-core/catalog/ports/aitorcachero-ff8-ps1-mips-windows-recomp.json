@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aitorcachero-ff8-ps1-mips-windows-recomp",
+    "project_url": "https://github.com/aitorcachero/final-fantasy-8-recomp",
+    "name": "Final Fantasy VIII / aitorcachero PS1 static recomp",
+    "summary": "Final Fantasy VIII Recompiled - PC Port nativo (Windows x64) mediante ingenieria inversa y recompilacion estatica LLVM/Clang de MIPS R3000A con soporte 4K, 60fps, widescreen y mejoras visuales modernas.",
+    "issue_number": 5196,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-viii",
+      "evidence_urls": [
+        "https://github.com/aitorcachero/final-fantasy-8-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Final Fantasy VIII"
+  }
+}

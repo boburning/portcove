@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-all-stars-darhkfox",
+    "project_url": "https://github.com/Darhkfox/SuperMarioAllStars",
+    "name": "Super Mario All-Stars (Darhkfox)",
+    "summary": "Windows PC & Android port of Super Mario All-Stars (SNES) with true widescreen up to 21:9, simultaneous two-player co-op, 82 achievements, CRT filters and slang shaders, save states, rewind, cheats, level select and music player. Requires your own USA ROM.",
+    "issue_number": 8272,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-all-stars",
+      "evidence_urls": [
+        "https://github.com/Darhkfox/SuperMarioAllStars"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-all-stars-super-nintendo",
+          "title": "Super Mario All-Stars (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Darhkfox/SuperMarioAllStars"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario All-Stars"
+  }
+}

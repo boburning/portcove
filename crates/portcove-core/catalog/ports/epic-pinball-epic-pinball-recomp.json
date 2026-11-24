@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "epic-pinball-epic-pinball-recomp",
+    "project_url": "https://github.com/sp00nznet/epicpinball",
+    "name": "Epic Pinball / Epic Pinball Recomp",
+    "summary": "Static recompilation of Epic Pinball (DOS, 1993) with pcrecomp",
+    "issue_number": 5818,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "epic-pinball",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/epicpinball"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Epic Pinball"
+  }
+}

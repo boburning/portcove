@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "atomic-bomberman-egerion-open-bomberman",
+    "project_url": "https://github.com/Egerion/open-atomic-bomberman-97",
+    "name": "Atomic Bomberman / Open Atomic Bomberman",
+    "summary": "A clean-room reimplementation of Interplay's Atomic Bomberman (1997) in modern C++20. Loads the original game assets at runtime and reproduces the gameplay faithfully from reverse-engineering the 1997 binary, with a deterministic lockstep simulation core (integer-only, fully hashable state) cleanly separated from an SDL3 presentation layer.",
+    "issue_number": 5907,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "atomic-bomberman",
+      "evidence_urls": [
+        "https://github.com/Egerion/open-atomic-bomberman-97"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Atomic Bomberman"
+  }
+}

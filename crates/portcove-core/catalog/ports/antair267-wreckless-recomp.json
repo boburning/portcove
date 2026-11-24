@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "antair267-wreckless-recomp",
+    "project_url": "https://github.com/AntAir267/wreckless-recomp",
+    "name": "Wreckless: The Yakuza Missions (Xbox USA) / AntAir267 Linux recomp",
+    "summary": "Wreckless: The Yakuza Missions (Xbox, 2002) statically recompiled for Linux. Bring your own copy of the game.",
+    "issue_number": 4181,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wreckless-the-yakuza-missions",
+      "evidence_urls": [
+        "https://github.com/AntAir267/wreckless-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wreckless-the-yakuza-missions-xbox",
+          "title": "Wreckless: The Yakuza Missions (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/AntAir267/wreckless-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Wreckless: The Yakuza Missions"
+  }
+}

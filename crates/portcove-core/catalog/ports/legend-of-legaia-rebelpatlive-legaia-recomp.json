@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "legend-of-legaia-rebelpatlive-legaia-recomp",
+    "project_url": "https://github.com/RebelPatLive/Legaia_Recomp",
+    "name": "Legend of Legaia / RebelPatLive Legaia_Recomp",
+    "summary": "Recompiling Legend of Legaia Project",
+    "issue_number": 5446,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-legaia",
+      "evidence_urls": [
+        "https://github.com/RebelPatLive/Legaia_Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Legend of Legaia"
+  }
+}

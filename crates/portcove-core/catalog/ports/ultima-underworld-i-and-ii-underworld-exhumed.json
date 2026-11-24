@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-i-and-ii-underworld-exhumed",
+    "project_url": "https://github.com/abedegno/underworld-exhumed",
+    "name": "Ultima Underworld I and II / Underworld Exhumed",
+    "summary": "Underworld Exhumed: Ultima Underworld I and II as byte-matching source code and native ports for macOS, Windows and Linux",
+    "issue_number": 5471,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port runs Ultima Underworld I and II.",
+    "evidence_urls": [
+      "https://github.com/abedegno/underworld-exhumed"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yoda-stories-and-indiana-jones-desktop-adventures-yodastoriesng",
+    "project_url": "https://github.com/sp00nznet/YodaStoriesNG",
+    "name": "Yoda Stories and Indiana Jones Desktop Adventures / YodaStoriesNG",
+    "summary": "A modern reimplementation of Star Wars: Yoda Stories (1997) built with C# and SDL2.",
+    "issue_number": 5745,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One engine runs Yoda Stories and Indiana Jones and His Desktop Adventures.",
+    "evidence_urls": [
+      "https://github.com/sp00nznet/YodaStoriesNG"
+    ]
+  }
+}

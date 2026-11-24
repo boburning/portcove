@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-fatal-fury-3-recomp",
+    "project_url": "https://github.com/omegakatana92/Fatal-Fury-3-Recomp",
+    "name": "Fatal Fury 3: Road to the Final Victory (Neo Geo) / Fatal-Fury-3-Recomp (omegakatana92)",
+    "summary": "Native static recompilation of Fatal Fury 3: Road to the Final Victory for Windows x64 and Steam Deck/Linux. The 68000 code is translated to C and runs on the neogeorecomp MVS board model with the real BIOS; Musashi covers remaining paths. SDL2 video/audio, YM2610 sound, 99.6% measured native coverage. No ROMs or BIOS. PolyForm Noncommercial 1.0.0.",
+    "issue_number": 3858,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fatal-fury-3-road-to-the-final-victory",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Fatal-Fury-3-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Fatal Fury 3: Road to the Final Victory"
+  }
+}

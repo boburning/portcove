@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zonehammer-conan-2007-xbox360-xenonrecomp",
+    "project_url": "https://github.com/zonehammer/conan-recomp",
+    "name": "Conan (2007 Xbox 360 title 545107DA) / zonehammer XenonRecomp",
+    "summary": "Installer that builds a native PC version of Conan (2007 Xbox 360 title 545107DA) from your own copy of the game.",
+    "issue_number": 4760,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "conan",
+      "evidence_urls": [
+        "https://github.com/zonehammer/conan-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "conan-xbox-360",
+          "title": "Conan (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/zonehammer/conan-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Conan"
+  }
+}

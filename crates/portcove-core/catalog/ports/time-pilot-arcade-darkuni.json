@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "time-pilot-arcade-darkuni",
+    "project_url": "https://github.com/darkuni/time-pilot-arcade-landscape-recomp",
+    "name": "Time Pilot (arcade) / darkuni",
+    "summary": "A recompilation of an arcade game with landscape orientation fixes",
+    "issue_number": 5984,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "time-pilot",
+      "evidence_urls": [
+        "https://github.com/darkuni/time-pilot-arcade-landscape-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Time Pilot"
+  }
+}

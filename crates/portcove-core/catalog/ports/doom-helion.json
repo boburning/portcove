@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-helion",
+    "project_url": "https://github.com/Helion-Engine/Helion",
+    "name": "Doom / Helion",
+    "summary": "A modern fast paced Doom FPS engine",
+    "issue_number": 5667,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/Helion-Engine/Helion"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

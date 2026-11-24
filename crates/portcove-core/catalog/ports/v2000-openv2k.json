@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v2000-openv2k",
+    "project_url": "https://github.com/xndbogdan/OpenV2K",
+    "name": "V2000 / OpenV2K",
+    "summary": "Open-source Rust reimplementation of V2000 (Frontier Developments, 1998), built from reverse engineering. Requires the original game files.",
+    "issue_number": 5587,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "v2000",
+      "evidence_urls": [
+        "https://github.com/xndbogdan/OpenV2K"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "V2000"
+  }
+}

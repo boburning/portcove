@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-gran-turismo-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/gran-turismo-recomp",
+    "name": "Gran Turismo / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Gran Turismo (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6646,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/gran-turismo-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "gran-turismo-playstation",
+          "title": "Gran Turismo (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/gran-turismo-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Gran Turismo"
+  }
+}

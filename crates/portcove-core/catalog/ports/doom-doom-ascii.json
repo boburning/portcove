@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-doom-ascii",
+    "project_url": "https://github.com/wojciech-graj/doom-ascii",
+    "name": "Doom / DOOM-ASCII (wojciech-graj)",
+    "summary": "DooM in the terminal!",
+    "issue_number": 6951,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/wojciech-graj/doom-ascii"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yeoldpress-alttp-dx",
+    "project_url": "https://github.com/YeOldPress/alttp-dx",
+    "name": "The Legend of Zelda: A Link to the Past (SNES) / ALTTP-DX (YeOldPress)",
+    "summary": "PC Port of The Legend of Zelda: A Link to the Past",
+    "issue_number": 4071,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-to-the-past",
+      "evidence_urls": [
+        "https://github.com/YeOldPress/alttp-dx"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+          "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/YeOldPress/alttp-dx"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: A Link to the Past"
+  }
+}

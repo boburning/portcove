@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guitar-hero-guitar-dream-universal-launcher",
+    "project_url": "https://github.com/mbracali/prj-gd-engine",
+    "name": "Guitar Hero / Guitar Hero II / Guitar Dream Universal Launcher",
+    "summary": "This repo contains re-implementations of guitar musical games",
+    "issue_number": 6729,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One launcher reimplements Guitar Hero and Guitar Hero II.",
+    "evidence_urls": [
+      "https://github.com/mbracali/prj-gd-engine"
+    ]
+  }
+}

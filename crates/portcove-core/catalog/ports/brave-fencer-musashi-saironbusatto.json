@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "brave-fencer-musashi-saironbusatto",
+    "project_url": "https://github.com/saironbusatto/MusashiRecomp",
+    "name": "Brave Fencer Musashi / MusashiRecomp / saironbusatto",
+    "summary": "Static recompilation project for Brave Fencer Musashi (PS1) - making the 1998 Square classic playable on modern PC via PSXRecomp framework",
+    "issue_number": 6704,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "brave-fencer-musashi",
+      "evidence_urls": [
+        "https://github.com/saironbusatto/MusashiRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "brave-fencer-musashi-playstation",
+          "title": "Brave Fencer Musashi (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/saironbusatto/MusashiRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Brave Fencer Musashi"
+  }
+}

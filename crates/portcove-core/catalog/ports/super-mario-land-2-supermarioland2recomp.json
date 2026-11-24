@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-land-2-supermarioland2recomp",
+    "project_url": "https://github.com/mstan/SuperMarioLand2Recomp",
+    "name": "Super Mario Land 2 / SuperMarioLand2Recomp",
+    "summary": "Super Mario Land 2: 6 Golden Coins (Game Boy) static recompilation with adaptive widescreen and DX mods",
+    "issue_number": 5552,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-land-2",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioLand2Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-land-2-game-boy",
+          "title": "Super Mario Land 2 (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioLand2Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Land 2"
+  }
+}

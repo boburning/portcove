@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "stunt-race-fx-decomp-rebooted",
+    "project_url": "https://github.com/Mabec-games/Stunt-Race-FX-DECOMP",
+    "name": "Stunt Race FX / DECOMP Rebooted",
+    "summary": "Stunt Race FX (SNES) native PC port, work in progress: smooth 60 fps, low input lag, high-resolution 3D, experimental widescreen/no-bezel view, SDL3 launcher. Fork of jeff-strutb/stuntracefx. Beta 0.2 released.",
+    "issue_number": 6560,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "stunt-race-fx",
+      "evidence_urls": [
+        "https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"
+      ],
+      "source_editions": [
+        {
+          "id": "stunt-race-fx-super-nintendo",
+          "title": "Stunt Race FX (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Mabec-games/Stunt-Race-FX-DECOMP"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Stunt Race FX"
+  }
+}

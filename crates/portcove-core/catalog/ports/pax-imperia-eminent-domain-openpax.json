@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pax-imperia-eminent-domain-openpax",
+    "project_url": "https://github.com/jlac1024/OpenPax",
+    "name": "Pax Imperia: Eminent Domain / OpenPax",
+    "summary": "An open-source engine for Pax Imperia: Eminent Domain.  A 1997 4x space strategy game.  Play your GOG or CD copy natively on Windows, macOS, and Linux with widescreen, online multiplayer, and mods.",
+    "issue_number": 5722,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pax-imperia-eminent-domain",
+      "evidence_urls": [
+        "https://github.com/jlac1024/OpenPax"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pax Imperia: Eminent Domain"
+  }
+}

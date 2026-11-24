@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-black-and-white-eidos",
+    "project_url": "https://github.com/Project-Holon/eidos",
+    "name": "Pokémon Black and White / eidos",
+    "summary": "Native PC port of Pokemon Black and White, built on aletheia",
+    "issue_number": 5976,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-black-and-white",
+      "evidence_urls": [
+        "https://github.com/Project-Holon/eidos"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon Black and White"
+  }
+}

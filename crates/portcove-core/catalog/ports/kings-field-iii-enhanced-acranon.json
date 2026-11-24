@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kings-field-iii-enhanced-acranon",
+    "project_url": "https://github.com/Acranon/kf3-enhanced",
+    "name": "King's Field III Enhanced / Acranon",
+    "summary": "PC port of King's Field III (NA: King's Field II, SLUS-00255) with modern enhancements. Bring your own disc; the game is built from it on first run.",
+    "issue_number": 5534,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-iii",
+      "evidence_urls": [
+        "https://github.com/Acranon/kf3-enhanced"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "King's Field II (US) / King's Field III (Japan)"
+  }
+}

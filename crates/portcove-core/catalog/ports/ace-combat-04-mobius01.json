@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-04-mobius01",
+    "project_url": "https://github.com/shana2203/Mobius01",
+    "name": "Ace Combat 04: Shattered Skies (Mobius01) / Mobius01",
+    "summary": "Ace Combat 04: Shattered Skies PC port (Vulkan), basado en el AC04 PC Port de PresidentRaptor. Sin datos del juego: necesitas tu propia copia.",
+    "issue_number": 6661,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-04-shattered-skies",
+      "evidence_urls": [
+        "https://github.com/shana2203/Mobius01"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat 04: Shattered Skies"
+  }
+}

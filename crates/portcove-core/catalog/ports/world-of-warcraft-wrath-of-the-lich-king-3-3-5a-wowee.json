@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "world-of-warcraft-wrath-of-the-lich-king-3-3-5a-wowee",
+    "project_url": "https://github.com/Kelsidavis/WoWee",
+    "name": "World of Warcraft: Wrath of the Lich King (3.3.5a) / WoWee (Kelsidavis)",
+    "summary": "World of Warcraft Engine Experiment - a custom opensource client.",
+    "issue_number": 7322,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "world-of-warcraft-wrath-of-the-lich-king",
+      "evidence_urls": [
+        "https://github.com/Kelsidavis/WoWee"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "World of Warcraft: Wrath of the Lich King"
+  }
+}

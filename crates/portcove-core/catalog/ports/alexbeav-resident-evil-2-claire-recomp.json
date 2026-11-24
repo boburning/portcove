@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-resident-evil-2-claire-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-2-claire-recomp",
+    "name": "Resident Evil 2 (Claire disc) / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Resident Evil 2: Dual Shock Ver. (Claire disc) (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6659,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/resident-evil-2-claire-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-2-playstation",
+          "title": "Resident Evil 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/resident-evil-2-claire-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Resident Evil 2"
+  }
+}

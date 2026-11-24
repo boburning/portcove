@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "command-conquer-yuri-s-revenge-vera",
+    "project_url": "https://github.com/YuriPlanet/vera20k",
+    "name": "Command & Conquer: Yuri's Revenge / VERA",
+    "summary": "Red Alert 2: Yuri's Revenge rebuilt in Rust / 用 Rust 重写的《红警2：尤里的复仇》",
+    "issue_number": 5754,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "command-and-conquer-yuris-revenge",
+      "evidence_urls": [
+        "https://github.com/YuriPlanet/vera20k"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Command & Conquer: Yuri's Revenge"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekken-1-frknue",
+    "project_url": "https://github.com/frknue/tekken-recomp",
+    "name": "Tekken 1 / frknue Tekken Recompiled",
+    "summary": "Classic Tekken as native Windows x64 programs with rollback online play. No game code or data included: bring your own disc image.",
+    "issue_number": 5640,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-1",
+      "evidence_urls": [
+        "https://github.com/frknue/tekken-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tekken 1"
+  }
+}

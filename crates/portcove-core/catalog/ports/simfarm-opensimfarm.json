@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simfarm-opensimfarm",
+    "project_url": "https://github.com/alissonkn/opensimfarm",
+    "name": "SimFarm / OpenSimFarm",
+    "summary": "Open SimFarm",
+    "issue_number": 5849,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "simfarm",
+      "evidence_urls": [
+        "https://github.com/alissonkn/opensimfarm"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "SimFarm"
+  }
+}

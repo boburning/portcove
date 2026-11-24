@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lego-dimensions-vascon-es-pc",
+    "project_url": "https://github.com/vascon-es/lego-dimensions-pc",
+    "name": "LEGO Dimensions / vascon-es PC port",
+    "summary": "Unofficial native port of LEGO Dimensions (PS4) to Windows - requires your own dump of the game (THIS PROJECT IS NOT RELATED WITH DIMENSIONS RECOMPILED, ALL QUESTIONS SHOULD BE SUBMITTED ON THIS SERVER BELOW)",
+    "issue_number": 6726,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lego-dimensions",
+      "evidence_urls": [
+        "https://github.com/vascon-es/lego-dimensions-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "lego-dimensions-playstation-4",
+          "title": "LEGO Dimensions (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/vascon-es/lego-dimensions-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "LEGO Dimensions"
+  }
+}

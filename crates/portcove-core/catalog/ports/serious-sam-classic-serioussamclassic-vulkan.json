@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "serious-sam-classic-serioussamclassic-vulkan",
+    "project_url": "https://github.com/tx00100xt/SeriousSamClassic-VK",
+    "name": "Serious Sam Classic / SeriousSamClassic Vulkan",
+    "summary": "Open source game engine version developed by Croteam for Serious Sam Classic with Vulkan support (Windows, Linux, FreeBSD,  OpenBSD, macOS, Raspberry Pi OS). Based on https://github.com/sultim-t/Serious-Engine-Vk and linux port https://github.com/icculus/Serious-Engine",
+    "issue_number": 5783,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "serious-sam-classic",
+      "evidence_urls": [
+        "https://github.com/tx00100xt/SeriousSamClassic-VK"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Serious Sam Classic"
+  }
+}

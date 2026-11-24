@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mojo-jaboyalex-native-ps2-builder",
+    "project_url": "https://github.com/JaBoyAlex/mojo-ps2-recomp",
+    "name": "MOJO! / JaBoyAlex native PS2 builder",
+    "summary": "Build MOJO! USA PS2 from your own verified disc: stable Windows, experimental native Linux/macOS, standalone setup and optional RecompLauncher Level 3 integration.",
+    "issue_number": 5447,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mojo",
+      "evidence_urls": [
+        "https://github.com/JaBoyAlex/mojo-ps2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mojo-playstation-2",
+          "title": "MOJO! (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/JaBoyAlex/mojo-ps2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "MOJO!"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "donkey-kong-country-mpolizel-recompiled",
+    "project_url": "https://github.com/mpolizel/DK1SNESRecomp",
+    "name": "Donkey Kong Country",
+    "summary": "Recompilation of Donkey Kong Country for SNES to run on Windows",
+    "issue_number": 5502,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country",
+      "evidence_urls": [
+        "https://github.com/mpolizel/DK1SNESRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-super-nintendo",
+          "title": "Donkey Kong Country (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mpolizel/DK1SNESRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Donkey Kong Country"
+  }
+}

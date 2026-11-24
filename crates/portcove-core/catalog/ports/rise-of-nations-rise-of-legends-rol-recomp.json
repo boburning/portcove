@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rise-of-nations-rise-of-legends-rol-recomp",
+    "project_url": "https://github.com/sp00nznet/rol",
+    "name": "Rise of Nations: Rise of Legends / ROL Recomp",
+    "summary": "Static recompilation of Rise of Nations: Rise of Legends (2006) - the Big Huge Games rts2 engine lifted to native C. Bring your own disc; no game files included.",
+    "issue_number": 5781,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rise-of-nations-rise-of-legends",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/rol"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Rise of Nations: Rise of Legends"
+  }
+}

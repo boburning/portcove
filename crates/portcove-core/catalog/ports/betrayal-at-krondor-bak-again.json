@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "betrayal-at-krondor-bak-again",
+    "project_url": "https://github.com/stellargames/bakagain",
+    "name": "Betrayal at Krondor / BaK-Again",
+    "summary": "A modern, moddable remake of the 1993 role-playing game Betrayal at Krondor, built in Unity. It runs the original game's story, world, rules and art from your own copy of the game, and plays on Windows, Linux and Android.",
+    "issue_number": 5482,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "betrayal-at-krondor",
+      "evidence_urls": [
+        "https://github.com/stellargames/bakagain"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Betrayal at Krondor"
+  }
+}

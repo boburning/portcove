@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-resident-evil-2-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp",
+    "name": "Resident Evil 2: Dual Shock Ver. (Leon disc) / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Resident Evil 2: Dual Shock Ver. (Leon and Claire) (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6647,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-2-dual-shock-ver",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-2-dual-shock-ver-playstation",
+          "title": "Resident Evil 2: Dual Shock Ver. (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/resident-evil-2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Resident Evil 2: Dual Shock Ver."
+  }
+}

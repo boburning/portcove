@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-the-wind-waker-hd-switchwakerhd",
+    "project_url": "https://github.com/centollOS/SwitchWakerHD",
+    "name": "The Legend of Zelda: The Wind Waker HD / SwitchWakerHD (centollOS)",
+    "summary": "Wind Waker HD (Wii U) static recompilation for Nintendo Switch, deko3d renderer. Requires your own game dump.",
+    "issue_number": 6944,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker-hd",
+      "evidence_urls": [
+        "https://github.com/centollOS/SwitchWakerHD"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-hd-wii-u",
+          "title": "The Legend of Zelda: The Wind Waker HD (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": [
+            "https://github.com/centollOS/SwitchWakerHD"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: The Wind Waker HD"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "motorhead-project-blaizer",
+    "project_url": "https://github.com/Sinirlan/Project-Blaizer",
+    "name": "Motorhead / Project Blaizer",
+    "summary": "Rust reimplementation of a 1998 PC racing game Motorhead.",
+    "issue_number": 5575,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "motorhead",
+      "evidence_urls": [
+        "https://github.com/Sinirlan/Project-Blaizer"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Motorhead"
+  }
+}

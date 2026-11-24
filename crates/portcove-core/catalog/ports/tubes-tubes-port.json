@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tubes-tubes-port",
+    "project_url": "https://github.com/stev0760/tubes-port",
+    "name": "Tubes / Tubes Port",
+    "summary": "An SDL/C++ reimplementation of Tubes, a 1994 DOS puzzle game - transliterated from the original Borland Pascal binary rather than rewritten. Engine only; you supply your own copy of the game.",
+    "issue_number": 5796,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tubes",
+      "evidence_urls": [
+        "https://github.com/stev0760/tubes-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tubes"
+  }
+}

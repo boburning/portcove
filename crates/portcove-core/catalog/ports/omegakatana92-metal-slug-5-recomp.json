@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-metal-slug-5-recomp",
+    "project_url": "https://github.com/omegakatana92/Metal-Slug-5-Recomp",
+    "name": "Metal Slug 5 (Neo Geo) / Metal-Slug-5-Recomp (omegakatana92)",
+    "summary": "Native static recompilation of Metal Slug 5 for Windows x64 and Steam Deck/Linux x86_64. The Neo Geo 68000 program runs as recompiled C against a modeled MVS board, with Z80/YM2610 audio, SDL2 input, and a Steam Deck AppImage. Verified boot, coin/start and Mission 1; continuous audio. Source only; no ROMs or BIOS. PolyForm Noncommercial 1.0.0.",
+    "issue_number": 3856,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-5",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Metal-Slug-5-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Slug 5"
+  }
+}

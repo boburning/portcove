@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-breakers-recomp",
+    "project_url": "https://github.com/omegakatana92/Breakers-Recomp",
+    "name": "Breakers (Neo Geo) / Breakers-Recomp (omegakatana92)",
+    "summary": "Native recompilation of Breakers (Neo Geo MVS, 1996) built with NeoGeoRecomp. The 68000 code is translated to C and runs natively: real BIOS boot, 100% measured native coverage, YM2610 audio, SDL2 gamepad/keyboard input, fullscreen. Windows x64 and Steam Deck AppImage. PolyForm Noncommercial; no ROMs or BIOS included. Boot and audio fully verified.",
+    "issue_number": 3855,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "breakers",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Breakers-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Breakers"
+  }
+}

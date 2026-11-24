@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "unreal-tournament-surrealengine",
+    "project_url": "https://github.com/dpjudas/SurrealEngine",
+    "name": "Unreal Tournament / SurrealEngine (dpjudas)",
+    "summary": "Unreal Engine 1 Reimplementation",
+    "issue_number": 6948,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "unreal-tournament",
+      "evidence_urls": [
+        "https://github.com/dpjudas/SurrealEngine"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Unreal Tournament"
+  }
+}

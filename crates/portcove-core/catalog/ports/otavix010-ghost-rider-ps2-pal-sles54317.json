@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-ghost-rider-ps2-pal-sles54317",
+    "project_url": "https://github.com/otavix010/ghost-rider-pc",
+    "name": "Ghost Rider (PS2 Europe SLES-54317) / otavix010 research recomp",
+    "summary": "Ghost Rider (PS2, PAL): port nativo para PC por recompilação estática (PS2Recomp). Gera a partir da sua ISO. Em desenvolvimento.",
+    "issue_number": 6829,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ghost-rider",
+      "evidence_urls": [
+        "https://github.com/otavix010/ghost-rider-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "ghost-rider-playstation-2",
+          "title": "Ghost Rider (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/otavix010/ghost-rider-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Ghost Rider"
+  }
+}

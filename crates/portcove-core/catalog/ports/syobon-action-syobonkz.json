@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syobon-action-syobonkz",
+    "project_url": "https://github.com/M0REKZ/SyobonKZ",
+    "name": "Syobon Action / SyobonKZ",
+    "summary": "+KZ Updated fork of Open Syobon Action",
+    "issue_number": 6094,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "syobon-action",
+      "evidence_urls": [
+        "https://github.com/M0REKZ/SyobonKZ"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Syobon Action"
+  }
+}

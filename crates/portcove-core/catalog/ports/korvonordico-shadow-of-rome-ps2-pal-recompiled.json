@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "korvonordico-shadow-of-rome-ps2-pal-recompiled",
+    "project_url": "https://github.com/Korvonordico/shadow-of-rome-recompiled",
+    "name": "Shadow of Rome / Korvonordico PS2Recomp",
+    "summary": "Unofficial PC port of Shadow of Rome (PS2), statically recompiled with PS2Recomp. Drawn by the video card with PCSX2's GS, VU1 by PCSX2's microVU: smooth 60 FPS, up to 8x, 16:9 and 21:9, wider field of view, a cleaner picture without blur and grain. The whole game played to the end. Discs: European (5 languages), its Russian translation, American.",
+    "issue_number": 5175,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-rome",
+      "evidence_urls": [
+        "https://github.com/Korvonordico/shadow-of-rome-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "shadow-of-rome-playstation-2",
+          "title": "Shadow of Rome (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Korvonordico/shadow-of-rome-recompiled"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Shadow of Rome"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dankzonestudios-cv64recomp",
+    "project_url": "https://github.com/DankZoneStudios/CV64Recomp",
+    "name": "Castlevania 64 (Castlevania 64 Recompiled)",
+    "summary": "A native Castlevania 64 PC recompilation port featuring unlocked high-framerate performance, stable widescreen support, and custom texture pack modding.",
+    "issue_number": 2791,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-64",
+      "evidence_urls": [
+        "https://github.com/DankZoneStudios/CV64Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Castlevania 64"
+  }
+}

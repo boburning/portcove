@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-warrior-iv-jsp244",
+    "project_url": "https://github.com/jsp244/dw4-recomp",
+    "name": "Dragon Warrior IV (dw4-recomp) / dw4-recomp",
+    "summary": "Dragon Quest IV (Dragon Warrior IV, NES) as a native program for Windows, Linux, Steam Deck and Android: static recompilation, widescreen, ROM hacks, Pixel Remaster textures. Bring your own ROM.",
+    "issue_number": 6630,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-warrior-iv",
+      "evidence_urls": [
+        "https://github.com/jsp244/dw4-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-warrior-iv-nes",
+          "title": "Dragon Warrior IV (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/jsp244/dw4-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Dragon Warrior IV"
+  }
+}

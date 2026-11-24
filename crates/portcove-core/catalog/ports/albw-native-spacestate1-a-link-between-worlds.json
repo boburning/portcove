@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "albw-native-spacestate1-a-link-between-worlds",
+    "project_url": "https://github.com/spacestate1/albw-native",
+    "name": "The Legend of Zelda: A Link Between Worlds (3DS Europe) / albw-native (spacestate1)",
+    "summary": "Native Linux port of A Link Between Worlds built from decompiled code (bring your own ROM; no game data included)",
+    "issue_number": 8663,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-between-worlds",
+      "evidence_urls": [
+        "https://github.com/spacestate1/albw-native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: A Link Between Worlds"
+  }
+}

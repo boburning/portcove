@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sakura-wars-diamonddogz-kagekidan",
+    "project_url": "https://github.com/DiamondDogz/Sakura-Wars-PS4RT-Windows",
+    "name": "Sakura Wars / DiamondDogz Kagekidan",
+    "summary": "Unofficial Windows port of HekamiAeon's Sakura-Wars-PS4RT v1.1. Published by DiamondDogz. The game is not included.",
+    "issue_number": 6017,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sakura-wars",
+      "evidence_urls": [
+        "https://github.com/DiamondDogz/Sakura-Wars-PS4RT-Windows"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sakura Wars"
+  }
+}

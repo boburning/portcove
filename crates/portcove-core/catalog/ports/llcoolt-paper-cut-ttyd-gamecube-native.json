@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "llcoolt-paper-cut-ttyd-gamecube-native",
+    "project_url": "https://github.com/LLCOOLT/paper-cut",
+    "name": "Paper Mario: The Thousand-Year Door (GameCube JP/US/EU) / LLCOOLT Paper Cut",
+    "summary": "Paper Cut brings a paper adventure to PC and mobile platforms with a variety of fixes and improvements (AI-assisted)",
+    "issue_number": 4343,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "paper-mario-the-thousand-year-door",
+      "evidence_urls": [
+        "https://github.com/LLCOOLT/paper-cut"
+      ],
+      "source_editions": [
+        {
+          "id": "paper-mario-the-thousand-year-door-nintendo-gamecube",
+          "title": "Paper Mario: The Thousand-Year Door (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/LLCOOLT/paper-cut"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Paper Mario: The Thousand-Year Door"
+  }
+}

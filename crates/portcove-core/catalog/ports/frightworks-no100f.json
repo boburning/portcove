@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "frightworks-no100f",
+    "project_url": "https://github.com/FrightWorks/FrightWorks-no100f",
+    "name": "Scooby-Doo! Night of 100 Frights / FrightWorks",
+    "summary": "PC port of Scooby-Doo! Night of 100 Frights (GameCube)",
+    "issue_number": 5947,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "scooby-doo-night-of-100-frights",
+      "evidence_urls": [
+        "https://github.com/FrightWorks/FrightWorks-no100f"
+      ],
+      "source_editions": [
+        {
+          "id": "scooby-doo-night-of-100-frights-nintendo-gamecube",
+          "title": "Scooby-Doo! Night of 100 Frights (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/FrightWorks/FrightWorks-no100f"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Scooby-Doo! Night of 100 Frights"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tecmo-world-cup-98-mapacheopi",
+    "project_url": "https://github.com/mapacheopi-blip/tecmo-world-cup-recomp-98",
+    "name": "Tecmo World Cup '98 / Windows recomp",
+    "summary": "Static recompilation of TECMO World Cup '98 for Windows. Requires your own copy of the original game.",
+    "issue_number": 6614,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tecmo-world-cup-98",
+      "evidence_urls": [
+        "https://github.com/mapacheopi-blip/tecmo-world-cup-recomp-98"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tecmo World Cup '98"
+  }
+}

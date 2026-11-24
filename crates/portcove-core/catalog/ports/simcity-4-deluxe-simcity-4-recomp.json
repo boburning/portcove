@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simcity-4-deluxe-simcity-4-recomp",
+    "project_url": "https://github.com/sp00nznet/simcity4",
+    "name": "SimCity 4 Deluxe / SimCity 4 Recomp",
+    "summary": "Static recompilation of SimCity 4 Deluxe (PC) to native C on pcrecomp's native32 host. Bring your own copy.",
+    "issue_number": 5786,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity-4-deluxe",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/simcity4"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "SimCity 4 Deluxe"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midnight-club-ii-jcoker85",
+    "project_url": "https://github.com/jcoker85/MC2Recomp",
+    "name": "Midnight Club II / jcoker85 MC2Recomp",
+    "summary": "Midnight Club 2 PS2 Recomp built using ps2-native-recomp",
+    "issue_number": 6036,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-ii",
+      "evidence_urls": [
+        "https://github.com/jcoker85/MC2Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "midnight-club-ii-playstation-2",
+          "title": "Midnight Club 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/jcoker85/MC2Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Midnight Club 2"
+  }
+}

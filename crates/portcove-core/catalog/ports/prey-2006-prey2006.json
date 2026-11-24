@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prey-2006-prey2006",
+    "project_url": "https://github.com/FriskTheFallenHuman/Prey2006",
+    "name": "Prey (2006) / Prey2006",
+    "summary": "Prey 2006 SDK integrated with Doom 3 GPL release",
+    "issue_number": 5674,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "prey",
+      "evidence_urls": [
+        "https://github.com/FriskTheFallenHuman/Prey2006"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Prey"
+  }
+}

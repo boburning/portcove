@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "okxmir-luigis-mansion-2-3ds-eu-arm-recomp",
+    "project_url": "https://github.com/Okxmir/luigis-mansion-2-recompiled",
+    "name": "Luigi's Mansion 2 (3DS European) / Okxmir ARM recomp",
+    "summary": "Experimental native Windows and Linux x64 recompilation of Luigi's Mansion 2 3DS using your own European Rom",
+    "issue_number": 4936,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "luigis-mansion-2",
+      "evidence_urls": [
+        "https://github.com/Okxmir/luigis-mansion-2-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Luigi's Mansion 2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gunz-the-duel-gunzrs",
+    "project_url": "https://github.com/OpenRsG/GunZRs",
+    "name": "GunZ: The Duel / GunZRs",
+    "summary": "Native PC port of GunZ: The Duel.",
+    "issue_number": 5824,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gunz-the-duel",
+      "evidence_urls": [
+        "https://github.com/OpenRsG/GunZRs"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "GunZ: The Duel"
+  }
+}

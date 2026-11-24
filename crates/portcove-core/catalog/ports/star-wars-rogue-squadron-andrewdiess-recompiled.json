@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-rogue-squadron-andrewdiess-recompiled",
+    "project_url": "https://github.com/AndrewDiess/RogueSquadronRecomp",
+    "name": "Star Wars Rogue Squadron / AndrewDiess",
+    "summary": "Star Wars: Rogue Squadron (N64) static recompilation port (no game assets included)",
+    "issue_number": 5609,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-rogue-squadron",
+      "evidence_urls": [
+        "https://github.com/AndrewDiess/RogueSquadronRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-rogue-squadron-nintendo-64",
+          "title": "Star Wars: Rogue Squadron (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/AndrewDiess/RogueSquadronRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Wars: Rogue Squadron"
+  }
+}

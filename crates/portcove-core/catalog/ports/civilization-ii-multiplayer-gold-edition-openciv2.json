@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "civilization-ii-multiplayer-gold-edition-openciv2",
+    "project_url": "https://github.com/richardpenman/civ2",
+    "name": "Civilization II Multiplayer Gold Edition / OpenCiv2",
+    "summary": "A native, cross-platform reconstruction of Sid Meier's Civilization 2",
+    "issue_number": 5461,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-ii-multiplayer-gold-edition",
+      "evidence_urls": [
+        "https://github.com/richardpenman/civ2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Civilization II Multiplayer Gold Edition"
+  }
+}

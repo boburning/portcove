@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nemesis-nemesio-msx",
+    "project_url": "https://github.com/truizsanchez/nemesio",
+    "name": "Nemesis / Nemesio",
+    "summary": "Konami's Nemesis (MSX, 1986) reimplemented rule by rule in Python and Pyxel. Bring your own ROM; one free stage included. Not affiliated with Konami.",
+    "issue_number": 5606,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nemesis",
+      "evidence_urls": [
+        "https://github.com/truizsanchez/nemesio"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Nemesis"
+  }
+}

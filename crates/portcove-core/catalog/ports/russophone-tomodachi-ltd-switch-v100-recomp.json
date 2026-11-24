@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "russophone-tomodachi-ltd-switch-v100-recomp",
+    "project_url": "https://github.com/RussoPhone/tomodachi-ltd-recomp",
+    "name": "Tomodachi Life: Living the Dream (Switch v1.0.0) / RussoPhone LTD Recomp",
+    "summary": "Unofficial native PC port (alpha) of Tomodachi Life: Living the Dream, built on your computer from your own copy. Linux first. NO game files, firmware or keys included.",
+    "issue_number": 4215,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomodachi-life-living-the-dream",
+      "evidence_urls": [
+        "https://github.com/RussoPhone/tomodachi-ltd-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "tomodachi-life-living-the-dream-nintendo-switch",
+          "title": "Tomodachi Life: Living the Dream (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/RussoPhone/tomodachi-ltd-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tomodachi Life: Living the Dream"
+  }
+}

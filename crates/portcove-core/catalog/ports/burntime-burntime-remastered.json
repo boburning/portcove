@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burntime-burntime-remastered",
+    "project_url": "https://github.com/jakobharder/burntime",
+    "name": "Burntime / Burntime Remastered",
+    "summary": "Remaster and expansion of Max Design's 1993 strategy game 'Burntime'",
+    "issue_number": 5658,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "burntime",
+      "evidence_urls": [
+        "https://github.com/jakobharder/burntime"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Burntime"
+  }
+}

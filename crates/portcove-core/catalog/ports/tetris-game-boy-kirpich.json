@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tetris-game-boy-kirpich",
+    "project_url": "https://github.com/etroimcasso/Kirpich",
+    "name": "Tetris (Game Boy) / Kirpich",
+    "summary": "Original Gameboy (DMG) Tetris multi-platform PC port with multiple quality-of-life enhancements, written in C++, built on the Polyrhythm engine",
+    "issue_number": 5927,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tetris",
+      "evidence_urls": [
+        "https://github.com/etroimcasso/Kirpich"
+      ],
+      "source_editions": [
+        {
+          "id": "tetris-game-boy",
+          "title": "Tetris (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/etroimcasso/Kirpich"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tetris"
+  }
+}

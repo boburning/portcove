@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-god-of-war-ps2-scus97399-otx-local-recomp",
+    "project_url": "https://github.com/otavix010/god-of-war-pc",
+    "name": "God of War (PS2 NTSC-U SCUS-97399) / otavix010 PS2 static recomp",
+    "summary": "God of War (PS2, NTSC-U SCUS-97399): port nativo para PC por recompilação estática (PS2Recomp). Gera a partir da sua ISO. Beta.",
+    "issue_number": 6824,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war",
+      "evidence_urls": [
+        "https://github.com/otavix010/god-of-war-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-playstation-2",
+          "title": "God of War (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/otavix010/god-of-war-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "God of War"
+  }
+}

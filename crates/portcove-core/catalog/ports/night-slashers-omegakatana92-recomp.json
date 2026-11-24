@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "night-slashers-omegakatana92-recomp",
+    "project_url": "https://github.com/omegakatana92/Night-Slashers-Recomp",
+    "name": "Night Slashers",
+    "summary": "Night Slashers Recomp is a native recompilation of Data East's 1994 arcade beat-'em-up for Windows, Linux, and Steam Deck. Features include a DECO32 runtime, enhanced arcade audio, SDL2 frontend, save states, rewind, controller support, customizable graphics, and modern quality-of-life improvements. Requires a user-supplied ROM.",
+    "issue_number": 5492,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "night-slashers",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Night-Slashers-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Night Slashers"
+  }
+}

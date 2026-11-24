@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "resident-evil-pc-ecruells",
+    "project_url": "https://github.com/ecruells/resident-evil-pc-decomp",
+    "name": "Resident Evil (1997 PC) / ecruells",
+    "summary": "Resident Evil 1 PC Port Decomp",
+    "issue_number": 5978,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil",
+      "evidence_urls": [
+        "https://github.com/ecruells/resident-evil-pc-decomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Resident Evil"
+  }
+}

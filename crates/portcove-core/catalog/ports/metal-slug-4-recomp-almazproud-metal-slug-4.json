@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metal-slug-4-recomp-almazproud-metal-slug-4",
+    "project_url": "https://github.com/AlmazProud/metal-slug-4-recomp",
+    "name": "Metal Slug 4 / metal-slug-4-recomp (AlmazProud)",
+    "summary": "Native Windows port of Metal Slug 4 (Neo Geo) by static recompilation. Bring your own copy.",
+    "issue_number": 3572,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-4",
+      "evidence_urls": [
+        "https://github.com/AlmazProud/metal-slug-4-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Slug 4"
+  }
+}

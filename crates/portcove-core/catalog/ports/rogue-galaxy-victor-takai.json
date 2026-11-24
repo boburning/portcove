@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rogue-galaxy-victor-takai",
+    "project_url": "https://github.com/victor-takai/rogue-galaxy-recomp",
+    "name": "Rogue Galaxy USA / victor-takai",
+    "summary": "Rogue Galaxy (PS2) as a native Windows game: a static recompilation on PS2Recomp, built from your own disc.",
+    "issue_number": 5627,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rogue-galaxy-usa",
+      "evidence_urls": [
+        "https://github.com/victor-takai/rogue-galaxy-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rogue-galaxy-usa-playstation-2",
+          "title": "Rogue Galaxy USA (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/victor-takai/rogue-galaxy-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Rogue Galaxy USA"
+  }
+}

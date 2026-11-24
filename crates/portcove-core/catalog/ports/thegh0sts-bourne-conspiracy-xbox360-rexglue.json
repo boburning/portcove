@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thegh0sts-bourne-conspiracy-xbox360-rexglue",
+    "project_url": "https://github.com/thegh0sts/bourne-conspiracy-x360-recomp",
+    "name": "Robert Ludlum's The Bourne Conspiracy (Xbox 360) / thegh0sts ReXGlue",
+    "summary": "A Windows compatible recomp of The Robert Ludlam's The Bourne Conspiracy (X360)",
+    "issue_number": 4932,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "robert-ludlums-the-bourne-conspiracy",
+      "evidence_urls": [
+        "https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "robert-ludlums-the-bourne-conspiracy-xbox-360",
+          "title": "Robert Ludlum's The Bourne Conspiracy (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thegh0sts/bourne-conspiracy-x360-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Robert Ludlum's The Bourne Conspiracy"
+  }
+}

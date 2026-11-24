@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kult-hunkstalker",
+    "project_url": "https://github.com/hunkstalker/kult-atari-st-pc-port",
+    "name": "Kult: The Temple of Flying Saucers / hunkstalker",
+    "summary": "Native Windows/Linux port of Kult: The Temple of Flying Saucers (Atari ST), powered by the verified C reconstruction and an SDL3 backend. Includes Spanish/Catalan packs, savestates, fullscreen scaling, and automated releases. Game data is not included.",
+    "issue_number": 5944,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kult-the-temple-of-flying-saucers",
+      "evidence_urls": [
+        "https://github.com/hunkstalker/kult-atari-st-pc-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Kult: The Temple of Flying Saucers"
+  }
+}

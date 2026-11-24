@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nicktoons-racing-leoxcho-macos",
+    "project_url": "https://github.com/leoxcho/nicktoons-racing-recomp",
+    "name": "Nicktoons Racing / Nicktoons Racing Recomp / leoxcho",
+    "summary": "Native macOS recompilation project for Nicktoons Racing. Requires a user-supplied copy of the original game.",
+    "issue_number": 6701,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nicktoons-racing",
+      "evidence_urls": [
+        "https://github.com/leoxcho/nicktoons-racing-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Nicktoons Racing"
+  }
+}

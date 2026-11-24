@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ignition-xesf",
+    "project_url": "https://github.com/xesf/ignition",
+    "name": "Ignition / XESF engine reimplementation",
+    "summary": "Ignition Game Reimplementation in C",
+    "issue_number": 5400,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ignition",
+      "evidence_urls": [
+        "https://github.com/xesf/ignition"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ignition"
+  }
+}

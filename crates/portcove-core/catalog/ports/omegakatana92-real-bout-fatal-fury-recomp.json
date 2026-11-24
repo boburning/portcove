@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-real-bout-fatal-fury-recomp",
+    "project_url": "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp",
+    "name": "Real Bout Fatal Fury (Neo Geo) / Real-Bout-Fatal-Fury-Recomp (omegakatana92)",
+    "summary": "Native Windows x64 and Steam Deck AppImage static recompilation of Real Bout Fatal Fury (Neo Geo MVS/AES). The game's 68000 code is recompiled to C and runs on a neogeorecomp MVS board model with the real BIOS, not an emulator frontend. No ROMs or BIOS included. 100% native on tested sessions; YM2610 audio matched against MAME 0.242.",
+    "issue_number": 4006,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "real-bout-fatal-fury",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Real Bout Fatal Fury"
+  }
+}

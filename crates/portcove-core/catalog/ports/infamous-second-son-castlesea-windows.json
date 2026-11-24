@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-second-son-castlesea-windows",
+    "project_url": "https://github.com/Castlesea/infamous-second-son-pc-port",
+    "name": "inFAMOUS Second Son / Castlesea Windows port",
+    "summary": "Native Windows port of inFAMOUS Second Son (PS4): custom runtime + Vulkan renderer derived from shadPS4. Bring your own game.",
+    "issue_number": 6724,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-second-son",
+      "evidence_urls": [
+        "https://github.com/Castlesea/infamous-second-son-pc-port"
+      ],
+      "source_editions": [
+        {
+          "id": "infamous-second-son-playstation-4",
+          "title": "inFAMOUS Second Son (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/Castlesea/infamous-second-son-pc-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "inFAMOUS Second Son"
+  }
+}

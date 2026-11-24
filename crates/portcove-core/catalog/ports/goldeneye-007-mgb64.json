@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goldeneye-007-mgb64",
+    "project_url": "https://github.com/akratch/mgb64",
+    "name": "GoldenEye 007 / MGB64 (akratch)",
+    "summary": "[DISCONTINUED, unmaintained] A decompilation and native source port of a 1997 Nintendo 64 first-person shooter, for research & preservation. Bring your own ROM - no copyrighted assets included.",
+    "issue_number": 6996,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/akratch/mgb64"
+      ],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-nintendo-64",
+          "title": "GoldenEye 007 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/akratch/mgb64"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "GoldenEye 007"
+  }
+}

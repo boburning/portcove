@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metal-slug-neogeo-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/metalslug",
+    "name": "Metal Slug (Neo Geo arcade) / sp00nznet",
+    "summary": "Metal Slug (1996) statically recompiled to native C on the neogeorecomp Neo Geo toolkit. Bring your own ROMs.",
+    "issue_number": 6598,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/metalslug"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Slug"
+  }
+}

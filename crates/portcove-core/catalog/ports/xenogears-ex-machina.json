@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xenogears-ex-machina",
+    "project_url": "https://github.com/brianblakely/xenogears-ex-machina",
+    "name": "Xenogears / brianblakely Xenogears Ex Machina",
+    "summary": "Xenogears decomp, enhanced native client, and modding tools.",
+    "issue_number": 6016,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/brianblakely/xenogears-ex-machina"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Xenogears"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spy-vs-spy-iii-arctic-antics-antics",
+    "project_url": "https://github.com/LyndonBlack/antics",
+    "name": "Spy vs. Spy III: Arctic Antics / antics",
+    "summary": "From-scratch Rust reimplementation of the Spy vs. Spy III: Arctic Antics engine. Bring your own copy of the game - no original data included. GPL-3.0-or-later.",
+    "issue_number": 5437,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spy-vs-spy-iii-arctic-antics",
+      "evidence_urls": [
+        "https://github.com/LyndonBlack/antics"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Spy vs. Spy III: Arctic Antics"
+  }
+}

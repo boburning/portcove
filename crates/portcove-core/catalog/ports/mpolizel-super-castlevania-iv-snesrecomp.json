@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mpolizel-super-castlevania-iv-snesrecomp",
+    "project_url": "https://github.com/mpolizel/SCIVRecomp",
+    "name": "Super Castlevania IV (SNES USA) / mpolizel SCIVRecomp",
+    "summary": "Super Castlevania IV Recomp",
+    "issue_number": 4270,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-castlevania-iv",
+      "evidence_urls": [
+        "https://github.com/mpolizel/SCIVRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-castlevania-iv-super-nintendo",
+          "title": "Super Castlevania IV (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mpolizel/SCIVRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Super Castlevania IV"
+  }
+}

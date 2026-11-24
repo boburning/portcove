@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "biohazard-outbreak-hab3x-macos",
+    "project_url": "https://github.com/HAB3X/Biohazard-Outbreak-Mac",
+    "name": "Biohazard Outbreak / File 2 / HAB3X Apple Silicon",
+    "summary": "Resident Evil Outbreak File 1 and File 2 (Japan) on Mac. Recompiled, in English, online on obsrv.org.",
+    "issue_number": 6697,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "biohazard-outbreak",
+      "evidence_urls": [
+        "https://github.com/HAB3X/Biohazard-Outbreak-Mac"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Biohazard Outbreak"
+  }
+}

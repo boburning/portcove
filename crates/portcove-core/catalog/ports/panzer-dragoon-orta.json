@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "panzer-dragoon-orta",
+    "project_url": "https://github.com/wootbeer/ortarecomp",
+    "name": "Panzer Dragoon Orta",
+    "summary": "Panzer Dragoon Orta Recomp and Port",
+    "issue_number": 5458,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "panzer-dragoon-orta",
+      "evidence_urls": [
+        "https://github.com/wootbeer/ortarecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Panzer Dragoon Orta"
+  }
+}

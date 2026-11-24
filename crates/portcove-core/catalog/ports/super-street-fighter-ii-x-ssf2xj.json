@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-street-fighter-ii-x-ssf2xj",
+    "project_url": "https://github.com/andreoka-debug/ssf2xj-recomp",
+    "name": "Super Street Fighter II X / andreoka-debug",
+    "summary": "Experimental Windows recompilation of Super Street Fighter II X with widescreen fight stages and training tools. Bring your own ROMs.",
+    "issue_number": 6581,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-street-fighter-ii-x",
+      "evidence_urls": [
+        "https://github.com/andreoka-debug/ssf2xj-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Street Fighter II X"
+  }
+}

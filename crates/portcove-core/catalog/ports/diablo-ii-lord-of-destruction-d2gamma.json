@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-ii-lord-of-destruction-d2gamma",
+    "project_url": "https://github.com/Nugwa628/d2gamma",
+    "name": "Diablo II: Lord of Destruction / D2Gamma",
+    "summary": "D2Gamma: Diablo II: Lord of Destruction rewritten in Rust (requires your own copy of the game)",
+    "issue_number": 5468,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-ii-lord-of-destruction",
+      "evidence_urls": [
+        "https://github.com/Nugwa628/d2gamma"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Diablo II: Lord of Destruction"
+  }
+}

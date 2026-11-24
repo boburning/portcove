@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "redcard-2003-dalves408",
+    "project_url": "https://github.com/dalves408/redcard2003recomp",
+    "name": "RedCard 20-03 / redcard2003recomp",
+    "summary": "Windows PC recompilation of RedCard 20-03 (Xbox) — version 1.0. Direct3D 11, controller and keyboard, optional 4x hi-res textures, RecompLauncher support. Bring your own USA disc.",
+    "issue_number": 6627,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "redcard-20-03",
+      "evidence_urls": [
+        "https://github.com/dalves408/redcard2003recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "redcard-20-03-xbox",
+          "title": "RedCard 20-03 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/dalves408/redcard2003recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "RedCard 20-03"
+  }
+}

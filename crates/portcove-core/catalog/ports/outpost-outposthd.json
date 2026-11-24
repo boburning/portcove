@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "outpost-outposthd",
+    "project_url": "https://github.com/OutpostUniverse/OPHD",
+    "name": "Outpost / OutpostHD",
+    "summary": "OutpostHD - Open source remake of Sierra On-Line's Outpost",
+    "issue_number": 6053,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outpost",
+      "evidence_urls": [
+        "https://github.com/OutpostUniverse/OPHD"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Outpost"
+  }
+}

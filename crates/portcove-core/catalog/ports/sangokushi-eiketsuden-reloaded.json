@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sangokushi-eiketsuden-reloaded",
+    "project_url": "https://github.com/jeiel85/eiketsuden-reloaded",
+    "name": "Sangokushi Eiketsuden / Eiketsuden Reloaded",
+    "summary": "삼국지 영걸전(1995)을 원작대로 돌리는 오픈소스 엔진 — 가지고 있는 원작을 읽어 Windows/macOS/Linux에서 플레이 (Rust + macroquad). Open-source engine that runs your own copy of Sangokushi Eiketsuden on modern systems, OpenRCT2-style.",
+    "issue_number": 6727,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sangokushi-eiketsuden",
+      "evidence_urls": [
+        "https://github.com/jeiel85/eiketsuden-reloaded"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sangokushi Eiketsuden"
+  }
+}

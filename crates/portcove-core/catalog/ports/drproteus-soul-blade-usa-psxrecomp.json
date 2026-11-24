@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drproteus-soul-blade-usa-psxrecomp",
+    "project_url": "https://github.com/drproteus/soul-blade-recomp",
+    "name": "Soul Blade (PS1 USA) / drproteus PSXRecomp release",
+    "summary": "Soul Blade PSX Recomp",
+    "issue_number": 4434,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "soul-blade",
+      "evidence_urls": [
+        "https://github.com/drproteus/soul-blade-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "soul-blade-playstation",
+          "title": "Soul Blade (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/drproteus/soul-blade-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Soul Blade"
+  }
+}

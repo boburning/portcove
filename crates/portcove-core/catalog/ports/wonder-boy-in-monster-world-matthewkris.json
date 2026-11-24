@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wonder-boy-in-monster-world-matthewkris",
+    "project_url": "https://github.com/matthewkris/wbmw-decomp",
+    "name": "Wonder Boy in Monster World / matthewkris",
+    "summary": "Wonder Boy in Monster World (Genesis) as a native PC game: every routine rewritten in C and verified against the original. Bring your own ROM.",
+    "issue_number": 6611,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wonder-boy-in-monster-world",
+      "evidence_urls": [
+        "https://github.com/matthewkris/wbmw-decomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wonder-boy-in-monster-world-mega-drive-genesis",
+          "title": "Wonder Boy in Monster World (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/matthewkris/wbmw-decomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Wonder Boy in Monster World"
+  }
+}

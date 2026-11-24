@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medal-of-honor-underground-fractalengineer",
+    "project_url": "https://github.com/FractalEngineer/Medal-Of-Honor-Underground-PSX-Recomp",
+    "name": "Medal of Honor Underground USA / FractalEngineer PSX Recomp",
+    "summary": "Static recompilation of Medal of Honor Underground for Windows and Linux.",
+    "issue_number": 5806,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-underground",
+      "evidence_urls": [
+        "https://github.com/FractalEngineer/Medal-Of-Honor-Underground-PSX-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Medal of Honor Underground USA"
+  }
+}

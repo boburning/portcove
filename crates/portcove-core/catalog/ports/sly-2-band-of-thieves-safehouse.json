@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sly-2-band-of-thieves-safehouse",
+    "project_url": "https://github.com/FridiNaTor1/SafeHouse",
+    "name": "Sly 2: Band of Thieves / SafeHouse",
+    "summary": "SafeHouse is a launcher and PC port project for all the Sly Cooper games.",
+    "issue_number": 8271,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sly-2-band-of-thieves",
+      "evidence_urls": [
+        "https://github.com/FridiNaTor1/SafeHouse"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sly 2: Band of Thieves"
+  }
+}

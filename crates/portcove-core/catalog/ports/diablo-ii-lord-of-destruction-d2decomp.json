@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-ii-lord-of-destruction-d2decomp",
+    "project_url": "https://github.com/psi29a/d2decomped",
+    "name": "Diablo II: Lord of Destruction / D2Decomp",
+    "summary": "Diablo 2: Decomped",
+    "issue_number": 5735,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-ii-lord-of-destruction",
+      "evidence_urls": [
+        "https://github.com/psi29a/d2decomped"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Diablo II: Lord of Destruction"
+  }
+}

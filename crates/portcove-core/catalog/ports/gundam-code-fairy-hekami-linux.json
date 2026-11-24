@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gundam-code-fairy-hekami-linux",
+    "project_url": "https://github.com/HekamiAeon/GBO-Code-Fairy-PS4RT",
+    "name": "Mobile Suit Gundam Battle Operation Code Fairy / HekamiAeon Linux",
+    "summary": "Static recompilation of Mobile Suit Gundam Battle Operation Code Fairy for Linux.",
+    "issue_number": 6721,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mobile-suit-gundam-battle-operation-code-fairy",
+      "evidence_urls": [
+        "https://github.com/HekamiAeon/GBO-Code-Fairy-PS4RT"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mobile Suit Gundam Battle Operation Code Fairy"
+  }
+}

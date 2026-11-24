@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hppoa-original-xbox-native",
+    "project_url": "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp",
+    "name": "Harry Potter and the Prisoner of Azkaban / original Xbox native port",
+    "summary": "Recompilation of Harry Potter and the Prisoner of Azkaban (Xbox) for PC",
+    "issue_number": 6565,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-prisoner-of-azkaban",
+      "evidence_urls": [
+        "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-prisoner-of-azkaban-xbox",
+          "title": "Harry Potter and the Prisoner of Azkaban (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Harry Potter and the Prisoner of Azkaban"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crimson-skies-csvm",
+    "project_url": "https://github.com/Laeresh/CSVM",
+    "name": "Crimson Skies / CSVM",
+    "summary": "Open-source remake of Crimson Skies (2000) — plays the original game using your own files",
+    "issue_number": 5568,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crimson-skies",
+      "evidence_urls": [
+        "https://github.com/Laeresh/CSVM"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Crimson Skies"
+  }
+}

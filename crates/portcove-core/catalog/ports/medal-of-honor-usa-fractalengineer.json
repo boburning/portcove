@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medal-of-honor-usa-fractalengineer",
+    "project_url": "https://github.com/FractalEngineer/Medal-Of-Honor-PSX-Recomp",
+    "name": "Medal of Honor USA / FractalEngineer Recompiled",
+    "summary": "Static recompilation of Medal of Honor for Windows.",
+    "issue_number": 5596,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-usa",
+      "evidence_urls": [
+        "https://github.com/FractalEngineer/Medal-Of-Honor-PSX-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Medal of Honor USA"
+  }
+}

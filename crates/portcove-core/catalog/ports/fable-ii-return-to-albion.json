@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fable-ii-return-to-albion",
+    "project_url": "https://github.com/Fable2Recomp/Fable-Return-to-Albion",
+    "name": "Fable II / Fable Return to Albion (Fable2Recomp)",
+    "summary": "A Fable 2 & 3 Remake",
+    "issue_number": 8627,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fable-ii",
+      "evidence_urls": [
+        "https://github.com/Fable2Recomp/Fable-Return-to-Albion"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Fable II"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-underworld-adventures",
+    "project_url": "https://github.com/vividos/UnderworldAdventures",
+    "name": "Ultima Underworld: The Stygian Abyss / Underworld Adventures",
+    "summary": "Underworld Adventures is a project to recreate Ultima Underworld 1 on modern operating systems, using the original game files.",
+    "issue_number": 6080,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-underworld-the-stygian-abyss",
+      "evidence_urls": [
+        "https://github.com/vividos/UnderworldAdventures"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima Underworld: The Stygian Abyss"
+  }
+}

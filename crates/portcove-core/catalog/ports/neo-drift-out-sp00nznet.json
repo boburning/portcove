@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "neo-drift-out-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/neodriftout",
+    "name": "Neo Drift Out: New Technology / sp00nznet",
+    "summary": "A native PC port of Neo Drift Out (1996) via static recompilation of the original Neo Geo 68000 code.",
+    "issue_number": 6599,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "neo-drift-out-new-technology",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/neodriftout"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Neo Drift Out: New Technology"
+  }
+}

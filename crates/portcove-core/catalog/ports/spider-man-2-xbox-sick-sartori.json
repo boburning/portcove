@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spider-man-2-xbox-sick-sartori",
+    "project_url": "https://github.com/SickSartori/sm2port",
+    "name": "Spider-Man 2 (original Xbox) / SickSartori",
+    "summary": "Unofficial native Windows port of Spider-Man 2 (Xbox). Bring your own disc image.",
+    "issue_number": 6587,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-2",
+      "evidence_urls": [
+        "https://github.com/SickSartori/sm2port"
+      ],
+      "source_editions": [
+        {
+          "id": "spider-man-2-xbox",
+          "title": "Spider-Man 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/SickSartori/sm2port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Spider-Man 2"
+  }
+}

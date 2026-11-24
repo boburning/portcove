@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sly-2-tanihad",
+    "project_url": "https://github.com/tanihad/Sly-2-Native-Pc-port",
+    "name": "Sly 2 Band of Thieves / tanihad native port",
+    "summary": "Sly 2: Band of Thieves as a native Windows game. Unofficial fan port, bring your own disc.",
+    "issue_number": 5638,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sly-2-band-of-thieves",
+      "evidence_urls": [
+        "https://github.com/tanihad/Sly-2-Native-Pc-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sly 2: Band of Thieves"
+  }
+}

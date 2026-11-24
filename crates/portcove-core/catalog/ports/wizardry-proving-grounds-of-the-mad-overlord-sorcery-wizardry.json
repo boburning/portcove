@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wizardry-proving-grounds-of-the-mad-overlord-sorcery-wizardry",
+    "project_url": "https://github.com/davemoore22/sorcery",
+    "name": "Wizardry: Proving Grounds of the Mad Overlord / Sorcery (davemoore22)",
+    "summary": "An open source remake/remaster of the classic CRPG Wizardry, Proving Grounds of the Mad Overlord.",
+    "issue_number": 7049,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wizardry-proving-grounds-of-the-mad-overlord",
+      "evidence_urls": [
+        "https://github.com/davemoore22/sorcery"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Wizardry: Proving Grounds of the Mad Overlord"
+  }
+}

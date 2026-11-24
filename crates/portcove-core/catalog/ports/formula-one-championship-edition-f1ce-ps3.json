@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "formula-one-championship-edition-f1ce-ps3",
+    "project_url": "https://github.com/mauricristiano95-hub/F1_CE_PS3",
+    "name": "Formula One Championship Edition / F1CE PS3 Recomp",
+    "summary": "Recompilation for modern system of Formula One Championship Edition (PS3)",
+    "issue_number": 6685,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "formula-one-championship-edition",
+      "evidence_urls": [
+        "https://github.com/mauricristiano95-hub/F1_CE_PS3"
+      ],
+      "source_editions": [
+        {
+          "id": "formula-one-championship-edition-playstation-3",
+          "title": "Formula One Championship Edition (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/mauricristiano95-hub/F1_CE_PS3"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Formula One Championship Edition"
+  }
+}

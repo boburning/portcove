@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "joseflores-dev-dot-hack-versus-port",
+    "project_url": "https://github.com/joseflores-dev/dot-hack-versus-port",
+    "name": ".hack//Versus (PS3 Japan BLJS93008) / dot-hack-versus-port (joseflores-dev)",
+    "summary": "Native port of .hack//Versus (PS3) to Android and Windows via static recompilation (ps3recomp)",
+    "issue_number": 4083,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hack-versus",
+      "evidence_urls": [
+        "https://github.com/joseflores-dev/dot-hack-versus-port"
+      ],
+      "source_editions": [
+        {
+          "id": "hack-versus-playstation-3",
+          "title": ".hack//Versus (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/joseflores-dev/dot-hack-versus-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": ".hack//Versus"
+  }
+}

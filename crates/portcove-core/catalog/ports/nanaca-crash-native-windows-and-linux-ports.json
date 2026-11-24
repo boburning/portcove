@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nanaca-crash-native-windows-and-linux-ports",
+    "project_url": "https://github.com/Nyaldee/nanaca-crash",
+    "name": "NANACA CRASH / native Windows and Linux ports",
+    "summary": "Native PC ports of NANACA†CRASH!! and Game ni Natta yo! Dokuro-chan: Kenko Shindan Daisakusen (minigames)",
+    "issue_number": 5838,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nanaca-crash",
+      "evidence_urls": [
+        "https://github.com/Nyaldee/nanaca-crash"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "NANACA CRASH"
+  }
+}

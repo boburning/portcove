@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "parasite-eve-feverdreams420",
+    "project_url": "https://github.com/feverdreams420/parasite-eve-pc-port",
+    "name": "Parasite Eve / FeverDreams420",
+    "summary": "Native PC port of Parasite Eve for Windows. Requires your own Parasite Eve (USA) disc images.",
+    "issue_number": 5524,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve",
+      "evidence_urls": [
+        "https://github.com/FeverDreams420/parasite-eve-pc-port/releases/tag/v0.5"
+      ],
+      "source_editions": [
+        {
+          "id": "parasite-eve-playstation",
+          "title": "Parasite Eve (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/FeverDreams420/parasite-eve-pc-port/releases/tag/v0.5"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Parasite Eve"
+  }
+}

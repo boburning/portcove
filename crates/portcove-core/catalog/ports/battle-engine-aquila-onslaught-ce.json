@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battle-engine-aquila-onslaught-ce",
+    "project_url": "https://github.com/dlprentice/onslaught-ce",
+    "name": "Battle Engine Aquila / Onslaught CE",
+    "summary": "Onslaught CE: a native Linux and Windows port of Battle Engine Aquila (2003), built from its source. Bring your own copy of the game.",
+    "issue_number": 5476,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-engine-aquila",
+      "evidence_urls": [
+        "https://github.com/dlprentice/onslaught-ce"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Battle Engine Aquila"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "new-pokemon-snap-finalpantasy",
+    "project_url": "https://github.com/finalpantasy/new-poke-snap-switch-recomp",
+    "name": "New Pokemon Snap (Snap Recomp) / new-poke-snap-switch-recomp",
+    "summary": "Static recompilation of New Pokemon Snap for Windows. Requires your own copy of the original game.",
+    "issue_number": 6682,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "new-pokemon-snap",
+      "evidence_urls": [
+        "https://github.com/finalpantasy/new-poke-snap-switch-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "New Pokémon Snap"
+  }
+}

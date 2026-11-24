@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "phantom-crash-generalatrox",
+    "project_url": "https://github.com/GeneralAtrox/PhantomCrash_Xbox_NativePort",
+    "name": "Phantom Crash / GeneralAtrox",
+    "summary": "Data-driven, moddable C++ source port of Phantom Crash (Europe, Original Xbox). Game data not included.",
+    "issue_number": 5946,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "phantom-crash",
+      "evidence_urls": [
+        "https://github.com/GeneralAtrox/PhantomCrash_Xbox_NativePort"
+      ],
+      "source_editions": [
+        {
+          "id": "phantom-crash-xbox",
+          "title": "Phantom Crash (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/GeneralAtrox/PhantomCrash_Xbox_NativePort"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Phantom Crash"
+  }
+}

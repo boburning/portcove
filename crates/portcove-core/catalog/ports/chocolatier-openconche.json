@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chocolatier-openconche",
+    "project_url": "https://github.com/open-conche/OpenConche",
+    "name": "Chocolatier series / OpenConche",
+    "summary": "Modern engine to run the Chocolatier games (1, 2 and 3). Original games required.",
+    "issue_number": 6621,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One engine runs the Chocolatier series.",
+    "evidence_urls": [
+      "https://github.com/open-conche/OpenConche"
+    ]
+  }
+}

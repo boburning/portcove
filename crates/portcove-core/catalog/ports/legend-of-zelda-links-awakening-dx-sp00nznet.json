@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "legend-of-zelda-links-awakening-dx-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/LinksAwakening",
+    "name": "The Legend of Zelda: Link's Awakening DX / sp00nznet",
+    "summary": "Static recompilation of The Legend of Zelda: Link's Awakening DX (Game Boy Color) to native C. Bring your own ROM.",
+    "issue_number": 6600,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-link-s-awakening-dx-hd",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/LinksAwakening"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-link-s-awakening-dx-hd-game-boy-color",
+          "title": "The Legend of Zelda: Link's Awakening DX HD (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/LinksAwakening"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Link's Awakening DX HD"
+  }
+}

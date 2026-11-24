@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nba-unrivaled-dalves408",
+    "project_url": "https://github.com/dalves408/nbaunrivaledrc",
+    "name": "NBA Unrivaled / nbaunrivaledrc",
+    "summary": "Unofficial native Windows recompilation of NBA Unrivaled",
+    "issue_number": 6667,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-unrivaled",
+      "evidence_urls": [
+        "https://github.com/dalves408/nbaunrivaledrc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "NBA Unrivaled"
+  }
+}

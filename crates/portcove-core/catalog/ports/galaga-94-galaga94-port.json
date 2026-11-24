@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "galaga-94-galaga94-port",
+    "project_url": "https://github.com/HerbFargus/galaga94-port",
+    "name": "Galaga '94 / Galaga94 port",
+    "summary": "Native Windows/Linux port of Galaga '94 (APSS Austria, 1994): GALAGA.EXE statically recompiled to C on SDL2",
+    "issue_number": 5719,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "galaga-94",
+      "evidence_urls": [
+        "https://github.com/HerbFargus/galaga94-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Galaga '94"
+  }
+}

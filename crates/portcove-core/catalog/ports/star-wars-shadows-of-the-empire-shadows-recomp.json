@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-shadows-of-the-empire-shadows-recomp",
+    "project_url": "https://github.com/sp00nznet/shadows-recomp",
+    "name": "Star Wars: Shadows of the Empire / Shadows Recomp",
+    "summary": "Star Wars: Shadows of the Empire (1997 PC), statically recompiled with pcrecomp: modern controls, F10 menu, widescreen",
+    "issue_number": 5854,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-shadows-of-the-empire",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/shadows-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Shadows of the Empire"
+  }
+}

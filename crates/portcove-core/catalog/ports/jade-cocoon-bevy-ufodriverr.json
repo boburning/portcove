@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jade-cocoon-bevy-ufodriverr",
+    "project_url": "https://github.com/ufodriverr/jade-cocoon-bevy-public-v1",
+    "name": "Jade Cocoon / ufodriverr Bevy reconstruction",
+    "summary": "Native PC port of Jade Cocoon.",
+    "issue_number": 5595,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jade-cocoon",
+      "evidence_urls": [
+        "https://github.com/ufodriverr/jade-cocoon-bevy-public-v1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Jade Cocoon"
+  }
+}

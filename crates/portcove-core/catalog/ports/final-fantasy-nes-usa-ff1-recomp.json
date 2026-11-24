@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "final-fantasy-nes-usa-ff1-recomp",
+    "project_url": "https://github.com/dr-pepper-408/ff1-recomp",
+    "name": "Final Fantasy (NES USA) / ff1-recomp",
+    "summary": "A native C99 port of Final Fantasy (NES), routine by routine from the disassembly, with a LÖVE front end and an HD-2D-style 3D view. Needs your own ROM.",
+    "issue_number": 5429,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy",
+      "evidence_urls": [
+        "https://github.com/dr-pepper-408/ff1-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-nes",
+          "title": "Final Fantasy (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/dr-pepper-408/ff1-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Final Fantasy"
+  }
+}

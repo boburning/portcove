@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "astro-boy-omega-factor-goodshepherd23",
+    "project_url": "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp",
+    "name": "Astro Boy: Omega Factor / goodshepherd23",
+    "summary": "Astro Boy: Omega Factor (GBA) as a native Windows program: a build-from-your-own-ROM kit for mstan's gbarecomp",
+    "issue_number": 5924,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "astro-boy-omega-factor",
+      "evidence_urls": [
+        "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "astro-boy-omega-factor-game-boy-advance",
+          "title": "Astro Boy: Omega Factor (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Astro Boy: Omega Factor"
+  }
+}

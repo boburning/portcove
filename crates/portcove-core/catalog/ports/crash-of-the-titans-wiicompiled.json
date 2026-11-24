@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-of-the-titans-wiicompiled",
+    "project_url": "https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp",
+    "name": "Crash of the Titans / WiiCompiled",
+    "summary": "Static recompilation of Crash of the Titans (Wii) for Windows.",
+    "issue_number": 6613,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-of-the-titans",
+      "evidence_urls": [
+        "https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-of-the-titans-wii",
+          "title": "Crash of the Titans (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/jaylikesbunda/CrashoftheTitans-Wiicomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Crash of the Titans"
+  }
+}

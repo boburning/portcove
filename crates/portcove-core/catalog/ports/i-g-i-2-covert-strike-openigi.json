@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "i-g-i-2-covert-strike-openigi",
+    "project_url": "https://github.com/OpenIGI/OpenIGI",
+    "name": "I.G.I. 2: Covert Strike / OpenIGI (OpenIGI)",
+    "summary": "A clean-room reimplementation of the Project I.G.I. and I.G.I. 2 engine in C#/.NET 10. It plays the original missions faithfully, with a modern renderer (D3D12, Vulkan, WebGPU, ray tracing, DLSS), co-op, mods and a launcher.",
+    "issue_number": 7395,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "i-g-i-2-covert-strike",
+      "evidence_urls": [
+        "https://github.com/OpenIGI/OpenIGI"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "I.G.I. 2: Covert Strike"
+  }
+}

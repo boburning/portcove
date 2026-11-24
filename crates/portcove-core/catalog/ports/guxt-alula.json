@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guxt-alula",
+    "project_url": "https://github.com/alula/guxtdecomp",
+    "name": "Guxt / guxtdecomp (alula)",
+    "summary": "A decompilation of Guxt (v1.0.2.0, 2007 shmup by Studio Pixel)",
+    "issue_number": 6807,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "guxt",
+      "evidence_urls": [
+        "https://github.com/alula/guxtdecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Guxt"
+  }
+}

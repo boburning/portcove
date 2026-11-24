@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "city-shrouded-in-shadow-ioritree",
+    "project_url": "https://github.com/ioritree/kyoei_toshi_pc",
+    "name": "City Shrouded in Shadow / ioritree Kyoei Toshi PC",
+    "summary": "Native Windows port of the PS4 version of City Shrouded in Shadow (巨影都市), built on hachi23/unicorn_overlord_pc. No game files included.",
+    "issue_number": 6029,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "city-shrouded-in-shadow",
+      "evidence_urls": [
+        "https://github.com/ioritree/kyoei_toshi_pc"
+      ],
+      "source_editions": [
+        {
+          "id": "city-shrouded-in-shadow-playstation-4",
+          "title": "City Shrouded in Shadow (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/ioritree/kyoei_toshi_pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "City Shrouded in Shadow"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "double-dragon-iii-nes-static-recomp",
+    "project_url": "https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp",
+    "name": "Double Dragon III: The Sacred Stones / Junior-Jones",
+    "summary": "Static recompilation of Double Dragon III - The Sacred Stones (NES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 5918,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "double-dragon-iii-the-sacred-stones",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "double-dragon-iii-the-sacred-stones-nes",
+          "title": "Double Dragon III: The Sacred Stones (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Double-Dragon-III-NES-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Double Dragon III: The Sacred Stones"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hack-1-0-3-1985-restohack",
+    "project_url": "https://github.com/Critlist/restoHack",
+    "name": "Hack 1.0.3 (1985) / restoHack (Critlist)",
+    "summary": "A faithful restoration of the original 1984-85 Hack v1.0.3 by Andries Brouwer. Modern CMake build, cleaned and audited C source tree, and safe system compatibility for contemporary platforms.",
+    "issue_number": 6903,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hack-1-0-3",
+      "evidence_urls": [
+        "https://github.com/Critlist/restoHack"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hack 1.0.3"
+  }
+}

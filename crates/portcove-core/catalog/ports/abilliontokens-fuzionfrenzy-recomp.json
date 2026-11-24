@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abilliontokens-fuzionfrenzy-recomp",
+    "project_url": "https://github.com/abilliontokens/fuzionfrenzy-recomp",
+    "name": "Fuzion Frenzy (Original Xbox) / Fuzion Frenzy Recomp (abilliontokens)",
+    "summary": "An unofficial native PC port of the original Xbox release of Fuzion Frenzy (USA), produced by statically recompiling the game's x86 XBE with the XboxXBERecomp SDK. Windows uses Direct3D 12 and XAudio2; Linux is a native Vulkan and SDL3 build, no Wine. No game code or assets: bring your own disc.",
+    "issue_number": 3745,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fuzion-frenzy",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/fuzionfrenzy-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fuzion-frenzy-xbox",
+          "title": "Fuzion Frenzy (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/fuzionfrenzy-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Fuzion Frenzy"
+  }
+}

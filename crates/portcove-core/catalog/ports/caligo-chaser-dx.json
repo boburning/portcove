@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "caligo-chaser-dx",
+    "project_url": "https://github.com/rubble-za/Caligo-Chaser-DX",
+    "name": "Caligo Chaser / Caligo Chaser DX",
+    "summary": "Caligo Chaser PC Port - desktop port of the Android game (bring your own APK and data)",
+    "issue_number": 5914,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "caligo-chaser",
+      "evidence_urls": [
+        "https://github.com/rubble-za/Caligo-Chaser-DX"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Caligo Chaser"
+  }
+}

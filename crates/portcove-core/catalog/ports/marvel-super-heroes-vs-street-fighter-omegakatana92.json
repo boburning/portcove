@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marvel-super-heroes-vs-street-fighter-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Marvel-Super-Heroes-vs-Street-Fighter-Recomp",
+    "name": "Marvel Super Heroes vs. Street Fighter / omegakatana92",
+    "summary": "Native PC port of Marvel Super Heroes vs. Street Fighter (CPS-2), statically recompiled to C++",
+    "issue_number": 6577,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "marvel-super-heroes-vs-street-fighter",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Marvel-Super-Heroes-vs-Street-Fighter-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Marvel Super Heroes vs. Street Fighter"
+  }
+}

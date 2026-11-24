@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-resident-evil-directors-cut-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-directors-cut-recomp",
+    "name": "Resident Evil: Director's Cut / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Resident Evil: Director's Cut (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6648,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-directors-cut",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/resident-evil-directors-cut-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-directors-cut-playstation",
+          "title": "Resident Evil: Director's Cut (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/resident-evil-directors-cut-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Resident Evil: Director's Cut"
+  }
+}

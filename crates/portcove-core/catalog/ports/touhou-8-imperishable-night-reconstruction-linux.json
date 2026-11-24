@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "touhou-8-imperishable-night-reconstruction-linux",
+    "project_url": "https://github.com/N0zoM1z0/th08",
+    "name": "Touhou 8: Imperishable Night / N0zoM1z0 Reconstruction Linux",
+    "summary": "Source reconstruction of 東方永夜抄 ～ Imperishable Night 1.00d",
+    "issue_number": 6732,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-8-imperishable-night",
+      "evidence_urls": [
+        "https://github.com/N0zoM1z0/th08"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Touhou 8: Imperishable Night"
+  }
+}

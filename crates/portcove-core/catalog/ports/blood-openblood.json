@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blood-openblood",
+    "project_url": "https://github.com/dagrigorev/OpenBlood",
+    "name": "Blood / OpenBlood",
+    "summary": "Open Source port of a Blood (1997) game",
+    "issue_number": 5715,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "blood",
+      "evidence_urls": [
+        "https://github.com/dagrigorev/OpenBlood"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Blood"
+  }
+}

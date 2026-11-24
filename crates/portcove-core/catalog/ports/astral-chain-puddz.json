@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "astral-chain-puddz",
+    "project_url": "https://github.com/Puddz/AstralChain-PC",
+    "name": "Astral Chain / Puddz",
+    "summary": "Unofficial native Windows port of Astral Chain by static recompilation. Bring your own dump and keys.",
+    "issue_number": 6556,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "astral-chain",
+      "evidence_urls": [
+        "https://github.com/Puddz/AstralChain-PC"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Astral Chain"
+  }
+}

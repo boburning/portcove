@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conkers-bad-fur-day-recompiled-devoldschool",
+    "project_url": "https://github.com/DevOldSchool/conkers-bfd-recomp",
+    "name": "Conker's Bad Fur Day / Recompiled (DevOldSchool)",
+    "summary": "Native recompilation of Conker’s Bad Fur Day for macOS, Linux and Windows, with widescreen, online multiplayer, mod support and more. Requires your own ROM.",
+    "issue_number": 5390,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/DevOldSchool/conkers-bfd-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Conker's Bad Fur Day"
+  }
+}

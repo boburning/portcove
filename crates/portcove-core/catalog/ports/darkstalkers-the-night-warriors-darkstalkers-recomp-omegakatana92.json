@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkstalkers-the-night-warriors-darkstalkers-recomp-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Darkstalkers-Recomp",
+    "name": "Darkstalkers: The Night Warriors / omegakatana92",
+    "summary": "Native PC port of Darkstalkers: The Night Warriors (Capcom, 1994, CPS-2): the board's 68000 and Z80 programs translated to C++ with cps2recomp. No emulator; bring your own ROM set.",
+    "issue_number": 5953,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "darkstalkers-the-night-warriors",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Darkstalkers-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Darkstalkers: The Night Warriors"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "airborne-ranger-airborn-ranger",
+    "project_url": "https://github.com/xor2003/airborn-ranger",
+    "name": "Airborne Ranger / airborn-ranger",
+    "summary": "Airborne Ranger — C port / decompilation",
+    "issue_number": 5812,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "airborne-ranger",
+      "evidence_urls": [
+        "https://github.com/xor2003/airborn-ranger"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Airborne Ranger"
+  }
+}

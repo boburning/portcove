@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadow-over-mystara-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Dungeons-and-Dragons-Shadow-over-Mystara-Recomp",
+    "name": "Dungeons & Dragons: Shadow over Mystara / omegakatana92",
+    "summary": "Native PC port of Dungeons and Dragons: Shadow over Mystara (Capcom, 1996, CPS-2), built with cps2recomp by static recompilation. Bring your own ddsom ROM set; no game data included.",
+    "issue_number": 6576,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeons-and-dragons-shadow-over-mystara",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Dungeons-and-Dragons-Shadow-over-Mystara-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dungeons & Dragons: Shadow over Mystara"
+  }
+}

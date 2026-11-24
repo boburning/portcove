@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kings-field-verdite1",
+    "project_url": "https://github.com/Voicedrew11/verdite1",
+    "name": "King's Field Japan / Voicedrew11 Verdite1",
+    "summary": "AI driven attempt at porting King's Field (SLPS-00017) to PC with a variety of improvements",
+    "issue_number": 5805,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-japan",
+      "evidence_urls": [
+        "https://github.com/Voicedrew11/verdite1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "King's Field Japan"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwe-wrestlemania-xix-spaced1127",
+    "project_url": "https://github.com/Spaced1127/WMXIX-Static-Recomp",
+    "name": "WWE WrestleMania XIX / Spaced1127",
+    "summary": "Static recompilation of WWE WrestleMania XIX (GameCube, GW9E78) for Windows. DolRecomp + ModernGekko. No game data.",
+    "issue_number": 5938,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-wrestlemania-xix",
+      "evidence_urls": [
+        "https://github.com/Spaced1127/WMXIX-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-wrestlemania-xix-nintendo-gamecube",
+          "title": "WWE WrestleMania XIX (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/Spaced1127/WMXIX-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "WWE WrestleMania XIX"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "beach-life-beach-life-recomp",
+    "project_url": "https://github.com/yannicksuter/beachlife-recomp",
+    "name": "Beach Life / Beach Life Recomp",
+    "summary": "Native Windows, Linux and macOS build of Beach Life / Virtual Resort: Spring Break, recompiled from the reconstructed source of beachlife-decomp. No emulator, no wrapper. No game assets included; an original copy of the game is required.",
+    "issue_number": 5753,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "beach-life",
+      "evidence_urls": [
+        "https://github.com/yannicksuter/beachlife-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Beach Life"
+  }
+}

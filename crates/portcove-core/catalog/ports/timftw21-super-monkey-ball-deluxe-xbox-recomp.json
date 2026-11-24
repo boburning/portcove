@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "timftw21-super-monkey-ball-deluxe-xbox-recomp",
+    "project_url": "https://github.com/timftw21/smbd-recompilation",
+    "name": "Super Monkey Ball Deluxe (original Xbox USA) / timftw21 Windows recomp",
+    "summary": "A static recompilation of Super Monkey Ball Deluxe for the original Xbox.",
+    "issue_number": 4217,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-monkey-ball-deluxe",
+      "evidence_urls": [
+        "https://github.com/timftw21/smbd-recompilation"
+      ],
+      "source_editions": [
+        {
+          "id": "super-monkey-ball-deluxe-xbox",
+          "title": "Super Monkey Ball Deluxe (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/timftw21/smbd-recompilation"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Super Monkey Ball Deluxe"
+  }
+}

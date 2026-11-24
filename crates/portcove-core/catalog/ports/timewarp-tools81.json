@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "timewarp-tools81",
+    "project_url": "https://github.com/tools81/flintstones-jetsons-timewarp-static-recomp",
+    "name": "Flintstones/Jetsons Timewarp / tools81",
+    "summary": "Flintstones/Jetsons Timewarp (Philips CD-i) statically recompiled to a native Windows program, with an HD edition (Cartoon HD upscaling, run-ahead, sprite interpolation, quicksave). Bring your own disc image.",
+    "issue_number": 5982,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "flintstones-jetsons-timewarp",
+      "evidence_urls": [
+        "https://github.com/tools81/flintstones-jetsons-timewarp-static-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Flintstones/Jetsons Timewarp"
+  }
+}

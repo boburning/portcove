@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alice-madness-returns-alicemacness",
+    "project_url": "https://github.com/TheCodeGuardian/AliceMacnessReturns",
+    "name": "Alice: Madness Returns (AliceMacnessReturns) / AliceMacnessReturns",
+    "summary": "An unofficial native port of Alice: Madness Returns for Apple Silicon based on the Xbox 360 game",
+    "issue_number": 6660,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alice-madness-returns",
+      "evidence_urls": [
+        "https://github.com/TheCodeGuardian/AliceMacnessReturns"
+      ],
+      "source_editions": [
+        {
+          "id": "alice-madness-returns-xbox-360",
+          "title": "Alice: Madness Returns (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TheCodeGuardian/AliceMacnessReturns"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Alice: Madness Returns"
+  }
+}

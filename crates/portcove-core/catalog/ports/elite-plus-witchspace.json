@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elite-plus-witchspace",
+    "project_url": "https://github.com/rembish/witchspace",
+    "name": "Elite Plus / Witchspace",
+    "summary": "A free reimplementation of Elite Plus from 1991",
+    "issue_number": 5736,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "elite-plus",
+      "evidence_urls": [
+        "https://github.com/rembish/witchspace"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Elite Plus"
+  }
+}

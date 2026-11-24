@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "motaviaworks-psiv-genesis-68000-static-recomp",
+    "project_url": "https://github.com/MotaviaWorks/PSIVRecomp",
+    "name": "Phantasy Star IV: The End of the Millennium / MotaviaWorks PSIV Recomp",
+    "summary": "A native port of Phantasy Star IV: the game's own code, recompiled. Widescreen, modern text, rewind and more. Bring your own ROM.",
+    "issue_number": 5200,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "phantasy-star-iv-the-end-of-the-millennium",
+      "evidence_urls": [
+        "https://github.com/MotaviaWorks/PSIVRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Phantasy Star IV: The End of the Millennium"
+  }
+}

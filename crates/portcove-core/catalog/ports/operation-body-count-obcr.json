@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "operation-body-count-obcr",
+    "project_url": "https://github.com/jeddhor/OBCR",
+    "name": "Operation Body Count / OBCR",
+    "summary": "OBCR: a modern Rust + SDL3 source port of Operation Body Count (1994). Requires the original game data.",
+    "issue_number": 5840,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "operation-body-count",
+      "evidence_urls": [
+        "https://github.com/jeddhor/OBCR"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Operation Body Count"
+  }
+}

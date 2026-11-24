@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-chase-the-express-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp",
+    "name": "Chase the Express / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Chase the Express (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6640,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chase-the-express",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "chase-the-express-playstation",
+          "title": "Chase the Express (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/chase-the-express-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Chase the Express"
+  }
+}

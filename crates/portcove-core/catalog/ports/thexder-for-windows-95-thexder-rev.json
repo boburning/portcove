@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thexder-for-windows-95-thexder-rev",
+    "project_url": "https://github.com/iFocsy/thexder-rev",
+    "name": "Thexder for Windows 95 / Thexder Rev",
+    "summary": "Sierra's Thexder for Windows 95 (1995), re-implemented in C# for Windows 10 and 11. Bring your own game CD.",
+    "issue_number": 5795,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "thexder-for-windows-95",
+      "evidence_urls": [
+        "https://github.com/iFocsy/thexder-rev"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Thexder for Windows 95"
+  }
+}

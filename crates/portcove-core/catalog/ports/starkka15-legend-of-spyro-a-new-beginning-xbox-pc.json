@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "starkka15-legend-of-spyro-a-new-beginning-xbox-pc",
+    "project_url": "https://github.com/Starkka15/spyro-anb-pc",
+    "name": "The Legend of Spyro: A New Beginning (original Xbox VU-074 version 1) / Starkka15 native PC",
+    "summary": "Native PC port of The Legend of Spyro: A New Beginning (Xbox), statically recompiled. Bring your own copy of the game.",
+    "issue_number": 4340,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-spyro-a-new-beginning",
+      "evidence_urls": [
+        "https://github.com/Starkka15/spyro-anb-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-spyro-a-new-beginning-xbox",
+          "title": "The Legend of Spyro: A New Beginning (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Starkka15/spyro-anb-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Spyro: A New Beginning"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "world-cup-98-sergen213-native-linux",
+    "project_url": "https://github.com/sergen213/worldcup98-native",
+    "name": "EA Sports World Cup 98 / World Cup 98 Native Linux",
+    "summary": "Native Linux (C++26/Vulkan/SDL3) preservation reimplementation of EA Sports World Cup 98 (1998) — user-supplied original assets, no Wine",
+    "issue_number": 6071,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ea-sports-world-cup-98",
+      "evidence_urls": [
+        "https://github.com/sergen213/worldcup98-native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "EA Sports World Cup 98"
+  }
+}

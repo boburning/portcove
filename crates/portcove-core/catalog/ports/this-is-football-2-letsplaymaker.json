@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "this-is-football-2-letsplaymaker",
+    "project_url": "https://github.com/LetsPlaymaker/TIF2-Enhanced",
+    "name": "This Is Football 2 / LetsPlaymaker PAL Enhanced",
+    "summary": "PC version of This Is Football 2 (PS1) by static recompilation – bring your own disc",
+    "issue_number": 5810,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "this-is-football-2",
+      "evidence_urls": [
+        "https://github.com/LetsPlaymaker/TIF2-Enhanced"
+      ],
+      "source_editions": [
+        {
+          "id": "this-is-football-2-playstation",
+          "title": "This Is Football 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/LetsPlaymaker/TIF2-Enhanced"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "This Is Football 2"
+  }
+}

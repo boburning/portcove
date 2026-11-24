@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dune-ii-the-maker",
+    "project_url": "https://github.com/stefanhendriks/Dune-II---The-Maker",
+    "name": "Dune II / The Maker",
+    "summary": "A remake of the classic Dune 2 - The Building of a Dynasty (by Westwood Studios) with several enhancements. Like: higher screenresolutions, zooming, multiselect, skirmish play, etc.",
+    "issue_number": 5670,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-ii",
+      "evidence_urls": [
+        "https://github.com/stefanhendriks/Dune-II---The-Maker"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dune II"
+  }
+}

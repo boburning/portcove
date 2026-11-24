@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-mania-rsdkv5-decompilation",
+    "project_url": "https://github.com/RSDKModding/RSDKv5-Decompilation",
+    "name": "Sonic Mania / RSDKv5 Decompilation",
+    "summary": "A complete decompilation of Retro Engine (v5)",
+    "issue_number": 5790,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-mania",
+      "evidence_urls": [
+        "https://github.com/RSDKModding/RSDKv5-Decompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Mania"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "looking-glassinsects-magical-popn-snes-win-builder",
+    "project_url": "https://github.com/looking-glassinsects/MagicalPopnRecomp",
+    "name": "Magical Pop'n (SNES Japan/translation variants) / looking-glassinsects static recomp",
+    "summary": "Static recompilation of the SNES game Magical Pop'n into a native Windows game, built from your own ROM. Motion smoothing, native widescreen.",
+    "issue_number": 4824,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "magical-popn",
+      "evidence_urls": [
+        "https://github.com/looking-glassinsects/MagicalPopnRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "magical-popn-super-nintendo",
+          "title": "Magical Pop'n (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/looking-glassinsects/MagicalPopnRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Magical Pop'n"
+  }
+}

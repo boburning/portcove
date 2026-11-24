@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "moonstone-a-hard-day-s-knight-openmoonstone",
+    "project_url": "https://github.com/joetsoi/OpenMoonstone",
+    "name": "Moonstone: A Hard Day's Knight / OpenMoonstone (joetsoi)",
+    "summary": "Open source reimplementation of Moonstone: A Hard Day's Knight",
+    "issue_number": 6966,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "moonstone-a-hard-days-knight",
+      "evidence_urls": [
+        "https://github.com/joetsoi/OpenMoonstone"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Moonstone: A Hard Day's Knight"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-donald-duck-goin-quackers-n64-usa",
+    "project_url": "https://github.com/n64hub/donald-duck-goin-quackers-recomp",
+    "name": "Donald Duck: Goin' Quackers (N64 USA) / n64hub prototype recomp",
+    "summary": "AI-written static recompilation of Donald Duck: Goin' Quackers (N64, USA) for PC and the web. Bring your own ROM.",
+    "issue_number": 4346,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "donald-duck-goin-quackers",
+      "evidence_urls": [
+        "https://github.com/n64hub/donald-duck-goin-quackers-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "donald-duck-goin-quackers-nintendo-64",
+          "title": "Donald Duck: Goin' Quackers (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/donald-duck-goin-quackers-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Donald Duck: Goin' Quackers"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-fighting-force-2-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-2-recomp",
+    "name": "Fighting Force 2 / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Fighting Force 2 (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6645,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fighting-force-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fighting-force-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fighting-force-2-playstation",
+          "title": "Fighting Force 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fighting-force-2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Fighting Force 2"
+  }
+}

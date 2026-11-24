@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jet-set-radio-future-jsrfrecomp-mstan",
+    "project_url": "https://github.com/mstan/JSRFRecomp",
+    "name": "Jet Set Radio Future / JSRFRecomp (mstan)",
+    "summary": "Jet Set Radio Future native recompile development preview using xboxllr",
+    "issue_number": 5388,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-set-radio-future",
+      "evidence_urls": [
+        "https://github.com/mstan/JSRFRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Jet Set Radio Future"
+  }
+}

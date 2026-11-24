@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "saulob-13-sentinels-aegis-rim-ps4-trg-x86-64",
+    "project_url": "https://github.com/saulob/13-sentinels-aegis-rim-pc",
+    "name": "13 Sentinels: Aegis Rim (PS4 USA/EU/JP/Asia) / saulob TRG native x86-64",
+    "summary": "13 Sentinels: Aegis Rim native PC port for Windows and Linux, with direct PS4 PKG installation, TRG launcher and modern graphics options",
+    "issue_number": 4817,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "13-sentinels-aegis-rim",
+      "evidence_urls": [
+        "https://github.com/saulob/13-sentinels-aegis-rim-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "13-sentinels-aegis-rim-playstation-4",
+          "title": "13 Sentinels: Aegis Rim (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/saulob/13-sentinels-aegis-rim-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "13 Sentinels: Aegis Rim"
+  }
+}

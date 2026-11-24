@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pilotwings-resort-woohoo-flight-school",
+    "project_url": "https://github.com/thefixinhixon/woohoo-flight-school",
+    "name": "Pilotwings Resort / Woohoo! Flight School (thefixinhixon)",
+    "summary": "Unofficial native PC port of Pilotwings Resort (3DS) by static recompilation. Bring your own game dump; no game data included.",
+    "issue_number": 7241,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pilotwings-resort",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/woohoo-flight-school"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pilotwings Resort"
+  }
+}

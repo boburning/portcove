@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-ball-z-budokai-tenkaichi-2-rexxcolder",
+    "project_url": "https://github.com/RexxColder/BT2-Recomp",
+    "name": "Dragon Ball Z: Budokai Tenkaichi 2 / BT2 Recomp",
+    "summary": "Static recompilation of Dragon Ball Z: Budokai Tenkaichi 2.",
+    "issue_number": 6698,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-tenkaichi-2",
+      "evidence_urls": [
+        "https://github.com/RexxColder/BT2-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 2"
+  }
+}

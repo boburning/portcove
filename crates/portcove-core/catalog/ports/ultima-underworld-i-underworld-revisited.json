@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-i-underworld-revisited",
+    "project_url": "https://github.com/PQMarine/UnderworldRevisited",
+    "name": "Ultima Underworld I / Underworld Revisited",
+    "summary": "An open-source reimplementation of Ultima Underworld: The Stygian Abyss (1992) in Unity, faithful to the original's rules. Fully playable. Needs the GOG or Steam version; no game data included.",
+    "issue_number": 5734,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-underworld",
+      "evidence_urls": [
+        "https://github.com/PQMarine/UnderworldRevisited"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima Underworld I"
+  }
+}

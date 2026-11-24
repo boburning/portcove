@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "whopping-recompilation-collection",
+    "project_url": "https://github.com/TekRantGaming/whopping-recompilation-collection",
+    "name": "Whopping Recompilation Collection / TekRantGaming",
+    "summary": "Native PC ports of Sneak King, Big Bumpin' and PocketBike Racer (Xbox 360) via static recompilation, in one launcher",
+    "issue_number": 6575,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One project recompiles several unrelated games.",
+    "evidence_urls": [
+      "https://github.com/TekRantGaming/whopping-recompilation-collection"
+    ]
+  }
+}

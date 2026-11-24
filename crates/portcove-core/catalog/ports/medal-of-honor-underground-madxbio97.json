@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medal-of-honor-underground-madxbio97",
+    "project_url": "https://github.com/madxbio97/mohu-pc-port",
+    "name": "Medal of Honor: Underground / Madxbio97 PsyCross",
+    "summary": "Native PC port of Medal of Honor: Underground for Windows. Requires your own copy of the original game.",
+    "issue_number": 5517,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-underground",
+      "evidence_urls": [
+        "https://github.com/madxbio97/mohu-pc-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Medal of Honor Underground USA"
+  }
+}

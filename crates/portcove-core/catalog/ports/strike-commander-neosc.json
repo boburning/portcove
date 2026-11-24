@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "strike-commander-neosc",
+    "project_url": "https://github.com/remileonard/libRealSpace",
+    "name": "Strike Commander / NeoSC / libRealSpace",
+    "summary": "Reimplementation of the Strike Commander engine (RealSpace). Requires your own copy of the original game.",
+    "issue_number": 6689,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "strike-commander",
+      "evidence_urls": [
+        "https://github.com/remileonard/libRealSpace"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Strike Commander"
+  }
+}

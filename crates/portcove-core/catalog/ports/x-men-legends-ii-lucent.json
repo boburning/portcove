@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "x-men-legends-ii-lucent",
+    "project_url": "https://github.com/SomeoneIsWorking/xmen2",
+    "name": "X-Men Legends II / Lucent",
+    "summary": "Native PC port of X-Men Legends II.",
+    "issue_number": 5693,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "x-men-legends-ii",
+      "evidence_urls": [
+        "https://github.com/SomeoneIsWorking/xmen2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "X-Men Legends II"
+  }
+}

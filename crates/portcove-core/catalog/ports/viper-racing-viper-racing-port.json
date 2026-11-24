@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "viper-racing-viper-racing-port",
+    "project_url": "https://github.com/HerbFargus/viper-racing-port",
+    "name": "Viper Racing / Viper Racing Port",
+    "summary": "A reimplementation of Viper Racing (1998) on OpenGL and SDL2, for Windows and Linux. Needs your own copy of the game.",
+    "issue_number": 5862,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "viper-racing",
+      "evidence_urls": [
+        "https://github.com/HerbFargus/viper-racing-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Viper Racing"
+  }
+}

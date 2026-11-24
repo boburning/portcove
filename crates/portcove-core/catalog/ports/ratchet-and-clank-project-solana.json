@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-and-clank-project-solana",
+    "project_url": "https://github.com/vetusmagnus/project-solana",
+    "name": "Ratchet & Clank / Project Solana",
+    "summary": "Installer that builds a native PC version of Ratchet & Clank from your own copy of the game.",
+    "issue_number": 6703,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": [
+        "https://github.com/vetusmagnus/project-solana"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ratchet & Clank"
+  }
+}

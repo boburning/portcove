@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "astrohybrid-imnotsharingmyname-astro-bot",
+    "project_url": "https://github.com/imnotsharingmyname/pcportastrobot",
+    "name": "Astro Bot (PS5 PPSA21567 v01.019.000) / AstroHybrid (imnotsharingmyname)",
+    "summary": "Static recompilation of Astro Bot for Windows.",
+    "issue_number": 8656,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "astro-bot",
+      "evidence_urls": [
+        "https://github.com/imnotsharingmyname/pcportastrobot"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Astro Bot"
+  }
+}

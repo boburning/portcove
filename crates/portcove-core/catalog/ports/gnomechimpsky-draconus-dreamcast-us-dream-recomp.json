@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gnomechimpsky-draconus-dreamcast-us-dream-recomp",
+    "project_url": "https://github.com/GnomeChimpsky/Draconus-Recomp",
+    "name": "Draconus: Cult of the Wyrm (Dreamcast USA V1.000) / GnomeChimpsky dream-recomp",
+    "summary": "Static recompilation of the 2000 Dreamcast game Draconus: Cult of the Wyrm (Dragon's Blood)",
+    "issue_number": 4585,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "draconus-cult-of-the-wyrm",
+      "evidence_urls": [
+        "https://github.com/GnomeChimpsky/Draconus-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "draconus-cult-of-the-wyrm-dreamcast",
+          "title": "Draconus: Cult of the Wyrm (Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/GnomeChimpsky/Draconus-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Draconus: Cult of the Wyrm"
+  }
+}

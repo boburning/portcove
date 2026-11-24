@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "godzilla-2015-davybirth",
+    "project_url": "https://github.com/DavyBirth/godzilla-pc",
+    "name": "Godzilla (2015) / DavyBirth Godzilla PC",
+    "summary": "Unofficial PC port of Godzilla (2014), focused on native Windows compatibility and game preservation.",
+    "issue_number": 6038,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "godzilla",
+      "evidence_urls": [
+        "https://github.com/DavyBirth/godzilla-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "GODZILLA"
+  }
+}

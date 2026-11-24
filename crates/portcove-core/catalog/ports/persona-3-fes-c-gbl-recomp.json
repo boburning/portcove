@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "persona-3-fes-c-gbl-recomp",
+    "project_url": "https://github.com/C-GBL/P3FES-Decompilation",
+    "name": "Persona 3 FES / C-GBL recomp",
+    "summary": "A native Windows port of P3FES, rewritten from the source code.",
+    "issue_number": 6730,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-fes",
+      "evidence_urls": [
+        "https://github.com/C-GBL/P3FES-Decompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Persona 3 FES"
+  }
+}

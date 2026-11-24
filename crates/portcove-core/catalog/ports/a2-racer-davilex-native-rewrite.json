@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "a2-racer-davilex-native-rewrite",
+    "project_url": "https://github.com/xvilo/a2-racer-davilex-decomp",
+    "name": "A2 Racer / Davilex native rewrite",
+    "summary": "Decomp of A2 Racer",
+    "issue_number": 5811,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "a2-racer",
+      "evidence_urls": [
+        "https://github.com/xvilo/a2-racer-davilex-decomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "A2 Racer"
+  }
+}

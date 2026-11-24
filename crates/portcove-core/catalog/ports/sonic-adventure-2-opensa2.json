@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-adventure-2-opensa2",
+    "project_url": "https://github.com/kittycache9/OpenSA2",
+    "name": "Sonic Adventure 2 / OpenSA2",
+    "summary": "A native Sonic Adventure 2 port by static recompilation for Linux, Windows, and Android. Experimental source preview.",
+    "issue_number": 5788,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-adventure-2",
+      "evidence_urls": [
+        "https://github.com/kittycache9/OpenSA2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Adventure 2"
+  }
+}

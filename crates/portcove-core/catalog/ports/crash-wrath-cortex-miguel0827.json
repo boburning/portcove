@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-wrath-cortex-miguel0827",
+    "project_url": "https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC",
+    "name": "Crash Bandicoot Wrath of Cortex / Miguel0827",
+    "summary": "Native PC port of Crash Bandicoot: The Wrath of Cortex (PS2) for Windows and Linux, built from your own disc. Widescreen, up to 4x resolution, F1 quick menu.",
+    "issue_number": 5621,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot-the-wrath-of-cortex",
+      "evidence_urls": [
+        "https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-bandicoot-the-wrath-of-cortex-playstation-2",
+          "title": "Crash Bandicoot: The Wrath of Cortex (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Miguel0827/Crash-Wrath-of-Cortex-PC"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Crash Bandicoot: The Wrath of Cortex"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gran-turismo-5-project-tourline-5",
+    "project_url": "https://github.com/mathewdouglas/Project-Tourline-5",
+    "name": "Gran Turismo 5 / mathewdouglas Project Tourline 5",
+    "summary": "Gran Turismo 5: unofficial PC port (static recompilation), split from the GT5P repo gt5 branch",
+    "issue_number": 6020,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-5",
+      "evidence_urls": [
+        "https://github.com/mathewdouglas/Project-Tourline-5"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gran Turismo 5"
+  }
+}

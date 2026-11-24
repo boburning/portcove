@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nhl-19-thegh0sts-nhl19native",
+    "project_url": "https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS",
+    "name": "NHL 19 / thegh0sts NHL19Native",
+    "summary": "EA SPORTS NHL 19 (PS4) native port for Windows — SacredFire/bbport runtime + shadPS4-derived Vulkan renderer",
+    "issue_number": 6022,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-19",
+      "evidence_urls": [
+        "https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"
+      ],
+      "source_editions": [
+        {
+          "id": "nhl-19-playstation-4",
+          "title": "NHL 19 (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/thegh0sts/NHL-19-PS4-PORT-WINDOWS"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "NHL 19"
+  }
+}

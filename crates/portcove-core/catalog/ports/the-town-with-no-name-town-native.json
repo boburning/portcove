@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-town-with-no-name-town-native",
+    "project_url": "https://github.com/akronman1/town-native",
+    "name": "The Town With No Name / Town Native",
+    "summary": "The Town With No Name — native port (Windows / Linux)",
+    "issue_number": 6057,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-town-with-no-name",
+      "evidence_urls": [
+        "https://github.com/akronman1/town-native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Town With No Name"
+  }
+}

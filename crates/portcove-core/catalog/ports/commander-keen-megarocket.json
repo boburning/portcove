@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "commander-keen-megarocket",
+    "project_url": "https://github.com/CrossplayGaming/megarocket",
+    "name": "Commander Keen / Megarocket",
+    "summary": "All seven Commander Keen games in one app for Windows and Android - a native port checked against the DOS originals, with widescreen, smooth motion, quicksave, Keen Maker level builder, Keen's Closet and asset packs. Plays YOUR game files; ships none.",
+    "issue_number": 5765,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "commander-keen",
+      "evidence_urls": [
+        "https://github.com/CrossplayGaming/megarocket"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Commander Keen"
+  }
+}

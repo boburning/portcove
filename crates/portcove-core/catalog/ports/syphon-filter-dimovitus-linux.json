@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syphon-filter-dimovitus-linux",
+    "project_url": "https://github.com/dimovitus/SF-pc-port-linux",
+    "name": "Syphon Filter / dimovitus Linux packaging follow-up",
+    "summary": "Linux port of Syphon Filter PC (based on Madxbio97/SF-pc-port). Unofficial; you need a legal USA v1.1 BIN/CUE.",
+    "issue_number": 6041,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "syphon-filter",
+      "evidence_urls": [
+        "https://github.com/dimovitus/SF-pc-port-linux"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Syphon Filter"
+  }
+}

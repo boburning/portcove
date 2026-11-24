@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yoshi-s-story-yoshis-story-recomp",
+    "project_url": "https://github.com/damobeanrod/yoshis-story-recomp",
+    "name": "Yoshi's Story / Yoshi's Story recomp (damobeanrod)",
+    "summary": "Static recompilation of Yoshi's Story for Linux.",
+    "issue_number": 7183,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshis-story",
+      "evidence_urls": [
+        "https://github.com/damobeanrod/yoshis-story-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Yoshi's Story"
+  }
+}

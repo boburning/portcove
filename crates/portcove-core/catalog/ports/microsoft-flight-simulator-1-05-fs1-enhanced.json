@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "microsoft-flight-simulator-1-05-fs1-enhanced",
+    "project_url": "https://github.com/kylofon/fs1-enhanced",
+    "name": "Microsoft Flight Simulator 1.05 / FS1 Enhanced",
+    "summary": "Enhanced SDL3 port of Microsoft Flight Simulator 1.05, built on the faithful fs1-sdl3-port",
+    "issue_number": 5672,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "microsoft-flight-simulator-1-05",
+      "evidence_urls": [
+        "https://github.com/kylofon/fs1-enhanced"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Microsoft Flight Simulator 1.05"
+  }
+}

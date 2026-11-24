@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nostalgiarealm-a2-racer-4-wasm-port",
+    "project_url": "https://github.com/NostalgiaRealm/A2-Racer-4",
+    "name": "A2 Racer IV: De politie slaat terug! (PC 2000) / NostalgiaRealm WebAssembly port",
+    "summary": "Browser and desktop port of A2 Racer 4 - De politie slaat terug! (Davilex, 2000) in WebGL and Three.js: spel.dat recompiled from x86 to WebAssembly, the menu rewritten by hand, original assets, Dutch. Includes the full decompile. Developed through AI-assisted reverse engineering with Claude.",
+    "issue_number": 4225,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "a2-racer-iv-de-politie-slaat-terug",
+      "evidence_urls": [
+        "https://github.com/NostalgiaRealm/A2-Racer-4"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "A2 Racer IV: De politie slaat terug!"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shortline-railroad-resl",
+    "project_url": "https://github.com/konovalov-aleks/reSL",
+    "name": "Shortline railroad / reSL",
+    "summary": "The reversed source code for ShortLine v1.1 game",
+    "issue_number": 5784,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shortline-railroad",
+      "evidence_urls": [
+        "https://github.com/konovalov-aleks/reSL"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Shortline railroad"
+  }
+}

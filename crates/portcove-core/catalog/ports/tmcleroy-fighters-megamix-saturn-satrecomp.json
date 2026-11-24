@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tmcleroy-fighters-megamix-saturn-satrecomp",
+    "project_url": "https://github.com/tmcleroy/fighters-megamix-recomp",
+    "name": "Fighters Megamix (Saturn USA MK-81073 V1.004) / tmcleroy satrecomp",
+    "summary": "Fighters Megamix (Sega Saturn) native port by static recompilation, on satrecomp. No game is included.",
+    "issue_number": 4224,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fighters-megamix",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/fighters-megamix-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fighters-megamix-sega-saturn",
+          "title": "Fighters Megamix (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/fighters-megamix-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Fighters Megamix"
+  }
+}

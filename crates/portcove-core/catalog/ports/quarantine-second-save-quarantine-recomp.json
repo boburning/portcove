@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quarantine-second-save-quarantine-recomp",
+    "project_url": "https://github.com/ACR-GD/quarantine-recomp",
+    "name": "Quarantine / Second Save Quarantine Recomp",
+    "summary": "Static recompilation of Quarantine for Windows, Linux and macOS. Requires your own copy of the original game.",
+    "issue_number": 5578,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quarantine",
+      "evidence_urls": [
+        "https://github.com/ACR-GD/quarantine-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Quarantine"
+  }
+}

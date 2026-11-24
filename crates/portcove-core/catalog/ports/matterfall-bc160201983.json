@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "matterfall-bc160201983",
+    "project_url": "https://github.com/bc160201983/Matterfall-PC-port",
+    "name": "Matterfall / bc160201983 native port",
+    "summary": "Matterfall (PS4, CUSA02475) native PC port on the gow3_pc runtime: launcher with all quality/resolution settings, sky-light fix, PKG install. No game files included.",
+    "issue_number": 6034,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "matterfall",
+      "evidence_urls": [
+        "https://github.com/bc160201983/Matterfall-PC-port"
+      ],
+      "source_editions": [
+        {
+          "id": "matterfall-playstation-4",
+          "title": "Matterfall (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/bc160201983/Matterfall-PC-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Matterfall"
+  }
+}

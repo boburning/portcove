@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "campfirecrucifix-scooby-doo-mystery-mayhem-ps2-rust-bevy",
+    "project_url": "https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc",
+    "name": "Scooby-Doo! Mystery Mayhem (PS2 SCEE disc) / Campfirecrucifix Rust-Bevy reimplementation",
+    "summary": "Fan PC port of Scooby-Doo! Mystery Mayhem (PS2) in Rust/Bevy. No game assets: bring your own ISO.",
+    "issue_number": 4758,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "scooby-doo-mystery-mayhem",
+      "evidence_urls": [
+        "https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "scooby-doo-mystery-mayhem-playstation-2",
+          "title": "Scooby-Doo! Mystery Mayhem (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Campfirecrucifix/scooby-doo-mystery-mayhem-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Scooby-Doo! Mystery Mayhem"
+  }
+}

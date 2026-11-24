@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "megami-ibunroku-persona-digital-collection-native-recompilation",
+    "project_url": "https://github.com/ACR-GD/persona-digital-collection-recomp",
+    "name": "Megami Ibunroku Persona Digital Collection / native recompilation",
+    "summary": "Static recompilation of Megami Ibunroku Persona Digital Collection for Windows, Linux and macOS.",
+    "issue_number": 5834,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The Digital Collection bundles several Persona releases.",
+    "evidence_urls": [
+      "https://github.com/ACR-GD/persona-digital-collection-recomp"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "take00c-tsukihime-blue-glass-moon-ps4-native-pc",
+    "project_url": "https://github.com/Take00C/Tsukihime-Native-PC-Port",
+    "name": "TSUKIHIME -A piece of blue glass moon- (PS4 CUSA47999 1.01) / Take00C native PC port",
+    "summary": "Native PC port of TSUKIHIME -A piece of blue glass moon- (PS4 CUSA47999 1.01).",
+    "issue_number": 4258,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tsukihime-a-piece-of-blue-glass-moon",
+      "evidence_urls": [
+        "https://github.com/Take00C/Tsukihime-Native-PC-Port"
+      ],
+      "source_editions": [
+        {
+          "id": "tsukihime-a-piece-of-blue-glass-moon-playstation-4",
+          "title": "Tsukihime -A piece of blue glass moon- (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/Take00C/Tsukihime-Native-PC-Port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tsukihime -A piece of blue glass moon-"
+  }
+}

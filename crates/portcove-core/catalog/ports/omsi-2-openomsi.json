@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omsi-2-openomsi",
+    "project_url": "https://github.com/openOMSI-org/openOMSI",
+    "name": "OMSI 2 / openOMSI (openOMSI-org)",
+    "summary": "OMSI 2 recreated from scratch in Rust, compatible with every map and mod (requires the original OMSI 2)",
+    "issue_number": 7195,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "omsi-2",
+      "evidence_urls": [
+        "https://github.com/openOMSI-org/openOMSI"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "OMSI 2"
+  }
+}

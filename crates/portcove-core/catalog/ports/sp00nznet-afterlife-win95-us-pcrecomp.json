@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-afterlife-win95-us-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/afterlife-recomp",
+    "name": "Afterlife (1996 Windows 95 PC US) / sp00nznet pcrecomp",
+    "summary": "Static recompilation of Afterlife (LucasArts, 1996), the CD's Windows 95 build, to native C on pcrecomp native32. Bring your own CD; no game files or generated code included.",
+    "issue_number": 5872,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "afterlife",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/afterlife-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Afterlife"
+  }
+}

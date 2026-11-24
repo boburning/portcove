@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syndicate-syndicatfx",
+    "project_url": "https://github.com/swfans/syndicatfx",
+    "name": "Syndicate / SyndicatFX",
+    "summary": "Syndicate Fan Expansion, Open Source implementation of the classic game from Bullfrog, based on Syndicate Plus.",
+    "issue_number": 5792,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "syndicate",
+      "evidence_urls": [
+        "https://github.com/swfans/syndicatfx"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Syndicate"
+  }
+}

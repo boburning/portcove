@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pn03-wwesun2000",
+    "project_url": "https://github.com/wwesun2000/PN03-WinPort",
+    "name": "P.N.03 (PN03-WinPort) / PN03-WinPort",
+    "summary": "Native Windows x64 static recompilation port of P.N.03 (GPNE08): Vulkan 1.3 & D3D11, true 16:9 widescreen, HD multi-language/zh_CN overlay, 59.94Hz lock & Xbox XInput (No ISO/BIOS). | 《P.N.03》Windows 原生静态重编译移植版：Vulkan/D3D11、真16:9宽屏、高清简中、锁帧与手柄适配（无版权素材）",
+    "issue_number": 6624,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "p-n-03",
+      "evidence_urls": [
+        "https://github.com/wwesun2000/PN03-WinPort"
+      ],
+      "source_editions": [
+        {
+          "id": "p-n-03-xbox",
+          "title": "P.N.03 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/wwesun2000/PN03-WinPort"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "P.N.03"
+  }
+}

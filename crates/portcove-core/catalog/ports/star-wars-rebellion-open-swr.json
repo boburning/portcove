@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-rebellion-open-swr",
+    "project_url": "https://github.com/Open-SWR/Open-SWR",
+    "name": "Star Wars: Rebellion / Open-SWR",
+    "summary": "Open-SWR is an unofficial, open-source reimplementation of Star Wars: Rebellion (1998). It runs on modern systems, using the Godot engine. To play, you need your own legal copy of the original game files. Open-SWR is not affiliated with or endorsed by Lucasfilm, Disney or LucasArts.",
+    "issue_number": 5733,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-rebellion",
+      "evidence_urls": [
+        "https://github.com/Open-SWR/Open-SWR"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Rebellion"
+  }
+}

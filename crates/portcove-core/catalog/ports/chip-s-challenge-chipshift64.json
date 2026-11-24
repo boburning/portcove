@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chip-s-challenge-chipshift64",
+    "project_url": "https://github.com/bgradin/ChipsChallenge",
+    "name": "Chip's Challenge / ChipShift64",
+    "summary": "Chip's Challenge translator from 16 bit to 64 bit",
+    "issue_number": 5567,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chips-challenge",
+      "evidence_urls": [
+        "https://github.com/bgradin/ChipsChallenge"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Chip's Challenge"
+  }
+}

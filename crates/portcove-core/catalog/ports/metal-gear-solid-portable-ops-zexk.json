@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metal-gear-solid-portable-ops-zexk",
+    "project_url": "https://github.com/zexk/portable-ops-native",
+    "name": "Metal Gear Solid: Portable Ops and Portable Ops Plus / zexk Portable Ops Native",
+    "summary": "Metal Gear Solid: Portable Ops and Portable Ops+ as native PC programs (static recompilation, BYO disc image)",
+    "issue_number": 6033,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port covers Metal Gear Solid: Portable Ops and Portable Ops Plus.",
+    "evidence_urls": [
+      "https://github.com/zexk/portable-ops-native"
+    ]
+  }
+}

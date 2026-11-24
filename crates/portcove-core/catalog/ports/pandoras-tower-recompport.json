@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pandoras-tower-recompport",
+    "project_url": "https://github.com/RecompPort/pandora-tower-pc",
+    "name": "Pandora's Tower / RecompPort",
+    "summary": "Pandora's Tower PC v1.0    Native Windows port created using static recompilation (wiikit).  Does not include any game files: you'll need your own copy (ISO),  and the game is compiled on your PC during installation (about 5 minutes).",
+    "issue_number": 6001,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pandoras-tower",
+      "evidence_urls": [
+        "https://github.com/RecompPort/pandora-tower-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pandora's Tower"
+  }
+}

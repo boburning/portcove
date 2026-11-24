@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-street-fighter-ii-the-new-challengers-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Super-Street-Fighter-II-The-New-Challengers-Recomp",
+    "name": "Super Street Fighter II: The New Challengers / omegakatana92",
+    "summary": "Native PC port of Super Street Fighter II: The New Challengers (Capcom 1993, CPS-2), built with tmcleroy's cps2recomp by static recompilation. No emulator; the player brings their own ROM set. Free play, cheats and training aids. No game data included - bring your own ROM set. GPL-3.0. Not affiliated with Capcom.",
+    "issue_number": 5964,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-street-fighter-ii",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Super-Street-Fighter-II-The-New-Challengers-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Street Fighter II: The New Challengers"
+  }
+}

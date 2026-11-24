@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "road-rash-trilogy-btr-rj",
+    "project_url": "https://github.com/BTr-RJ/RoadRashTrilogy_Recomp",
+    "name": "Road Rash Trilogy (Mega Drive) / BTr-RJ",
+    "summary": "Native Windows x64 Road Rash trilogy launcher and ROM-free local-build installer. Original game files required; initial public test 0.50.",
+    "issue_number": 6562,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port covers the three Road Rash games.",
+    "evidence_urls": [
+      "https://github.com/BTr-RJ/RoadRashTrilogy_Recomp"
+    ]
+  }
+}

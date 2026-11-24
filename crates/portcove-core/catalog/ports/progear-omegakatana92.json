@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "progear-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Progear-Recomp",
+    "name": "Progear / omegakatana92",
+    "summary": "A native PC port of Progear (Capcom/Cave, 2001, CPS-2), statically recompiled with cps2recomp. No game data: bring your own ROM set.",
+    "issue_number": 5950,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "progear",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Progear-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Progear"
+  }
+}

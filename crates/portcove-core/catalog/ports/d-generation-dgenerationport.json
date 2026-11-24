@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "d-generation-dgenerationport",
+    "project_url": "https://github.com/uosdwashi/DGenerationPort",
+    "name": "D/Generation / DGenerationPort",
+    "summary": "A modern source port for 1991 MS-DOS Game D/Generation.",
+    "issue_number": 5660,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "d-generation",
+      "evidence_urls": [
+        "https://github.com/uosdwashi/DGenerationPort"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "D/Generation"
+  }
+}

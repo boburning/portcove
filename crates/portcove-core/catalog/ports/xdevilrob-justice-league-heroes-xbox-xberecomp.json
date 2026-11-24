@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xdevilrob-justice-league-heroes-xbox-xberecomp",
+    "project_url": "https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp",
+    "name": "Justice League Heroes (original Xbox) / xDevilRob XboxXBERecomp",
+    "summary": "Unofficial native Windows recompilation of Justice League Heroes for Xbox. Requires your own matching game dump.",
+    "issue_number": 5307,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "justice-league-heroes",
+      "evidence_urls": [
+        "https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "justice-league-heroes-xbox",
+          "title": "Justice League Heroes (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/xDevilRob/JusticeLeagueHeroes-XboxRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Justice League Heroes"
+  }
+}

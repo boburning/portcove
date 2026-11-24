@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castlevania-nintendo-64-cv64recomp-revosucks",
+    "project_url": "https://github.com/RevoSucks/CV64Recomp",
+    "name": "Castlevania (Nintendo 64) / Castlevania (N64) Recompiled (RevoSucks)",
+    "summary": "A recompilation of Castlevania for the N64.",
+    "issue_number": 7121,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania",
+      "evidence_urls": [
+        "https://github.com/RevoSucks/CV64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-nintendo-64",
+          "title": "Castlevania (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RevoSucks/CV64Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Castlevania"
+  }
+}

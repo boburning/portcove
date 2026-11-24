@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tony-hawks-pro-skater-2x-recompiled",
+    "project_url": "https://github.com/almost-drowned-rat/THPS2X-Recompiled",
+    "name": "Tony Hawk's Pro Skater 2X / THPS2X-Recompiled",
+    "summary": "Static recompilation of Tony Hawk's Pro Skater 2X (Xbox, USA) to native PC code with a Vulkan renderer",
+    "issue_number": 5394,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tony-hawks-pro-skater-2x",
+      "evidence_urls": [
+        "https://github.com/almost-drowned-rat/THPS2X-Recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "tony-hawks-pro-skater-2x-xbox",
+          "title": "Tony Hawk's Pro Skater 2X (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/almost-drowned-rat/THPS2X-Recompiled"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tony Hawk's Pro Skater 2X"
+  }
+}

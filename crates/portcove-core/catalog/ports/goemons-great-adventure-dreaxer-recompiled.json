@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goemons-great-adventure-dreaxer-recompiled",
+    "project_url": "https://github.com/DreaXer/GGARecomp",
+    "name": "Goemon's Great Adventure",
+    "summary": "Goemon's Great Adventure Recompiled",
+    "issue_number": 5505,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goemons-great-adventure",
+      "evidence_urls": [
+        "https://github.com/DreaXer/GGARecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Goemon's Great Adventure"
+  }
+}

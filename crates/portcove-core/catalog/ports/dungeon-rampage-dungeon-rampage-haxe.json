@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dungeon-rampage-dungeon-rampage-haxe",
+    "project_url": "https://github.com/Tutez64/Dungeon-Rampage-Haxe",
+    "name": "Dungeon Rampage / Dungeon Rampage Haxe (Tutez64)",
+    "summary": "A smoother native port of Dungeon Rampage for Windows, Linux, and macOS, with modding support.",
+    "issue_number": 7154,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-rampage",
+      "evidence_urls": [
+        "https://github.com/Tutez64/Dungeon-Rampage-Haxe"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dungeon Rampage"
+  }
+}

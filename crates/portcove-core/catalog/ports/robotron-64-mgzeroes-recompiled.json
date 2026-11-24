@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "robotron-64-mgzeroes-recompiled",
+    "project_url": "https://github.com/MGZeroes/Robotron64Recompiled",
+    "name": "Robotron 64 / MGZeroes",
+    "summary": "Native port of Robotron 64 (N64) for Windows, Linux and Android, built with N64: Recompiled. Bring your own ROM.",
+    "issue_number": 5608,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "robotron-64",
+      "evidence_urls": [
+        "https://github.com/MGZeroes/Robotron64Recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "robotron-64-nintendo-64",
+          "title": "Robotron 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/MGZeroes/Robotron64Recompiled"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Robotron 64"
+  }
+}

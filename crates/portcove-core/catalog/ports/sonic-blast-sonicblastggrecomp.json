@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-blast-sonicblastggrecomp",
+    "project_url": "https://github.com/mstan/SonicBlastGGRecomp",
+    "name": "Sonic Blast / SonicBlastGGRecomp",
+    "summary": "Sonic Blast recompiled for the Sega Game Gear using smsggrecomp · Part of the R.A.I.D. community",
+    "issue_number": 5550,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-blast",
+      "evidence_urls": [
+        "https://github.com/mstan/SonicBlastGGRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Blast"
+  }
+}

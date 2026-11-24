@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rock-n-roll-racing-junior-jones",
+    "project_url": "https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp",
+    "name": "Rock n' Roll Racing / Junior-Jones",
+    "summary": "Static recompilation of Rock n' Roll Racing (SNES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 5974,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-n-roll-racing",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rock-n-roll-racing-super-nintendo",
+          "title": "Rock n' Roll Racing (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Rock-N-Roll-Racing-SNES-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Rock n' Roll Racing"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-civilization-v-unciv",
+    "project_url": "https://github.com/yairm210/Unciv",
+    "name": "Sid Meier's Civilization V / Unciv (yairm210)",
+    "summary": "Open-source Android/Desktop remake of Civ V",
+    "issue_number": 6973,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-civilization-v",
+      "evidence_urls": [
+        "https://github.com/yairm210/Unciv"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's Civilization V"
+  }
+}

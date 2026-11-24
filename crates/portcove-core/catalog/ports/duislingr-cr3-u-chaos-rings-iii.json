@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duislingr-cr3-u-chaos-rings-iii",
+    "project_url": "https://github.com/DuIslingr/CR3-U",
+    "name": "Chaos Rings III / CR3-U (DuIslingr)",
+    "summary": "CR3-U - a from-scratch reimplementation of Chaos Rings III (iOS 1.2.2, Android 1.1.3, PS Vita). Bring your own copy; no game data included.",
+    "issue_number": 3796,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-rings-iii",
+      "evidence_urls": [
+        "https://github.com/DuIslingr/CR3-U"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Chaos Rings III"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goldeneye-007-goldeneye64recomp",
+    "project_url": "https://github.com/cblock85/GoldenEye64Recomp",
+    "name": "GoldenEye 007 / GoldenEye64Recomp (cblock85)",
+    "summary": "Native macOS and Linux port of GoldenEye 007 (N64) via static recompilation (N64Recomp + RT64). No emulator. Contains no ROM or game assets — you supply your own cartridge dump. Optional builds ship zero game code and recompile from your ROM at launch.",
+    "issue_number": 7066,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/cblock85/GoldenEye64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-nintendo-64",
+          "title": "GoldenEye 007 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cblock85/GoldenEye64Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "GoldenEye 007"
+  }
+}

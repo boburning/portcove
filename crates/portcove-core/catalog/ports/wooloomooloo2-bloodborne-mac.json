@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wooloomooloo2-bloodborne-mac",
+    "project_url": "https://github.com/Wooloomooloo2/bloodborne_mac_port",
+    "name": "Bloodborne / Rosetta and Metal port (Wooloomooloo2)",
+    "summary": "Bloodborne on Apple Silicon Macs: the PS4 game's own code under Rosetta 2, rendered natively with Metal (MetalFX, FSR 3.1). Work in progress.",
+    "issue_number": 6539,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/Wooloomooloo2/bloodborne_mac_port"
+      ],
+      "source_editions": [
+        {
+          "id": "bloodborne-playstation-4",
+          "title": "Bloodborne (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/Wooloomooloo2/bloodborne_mac_port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Bloodborne"
+  }
+}

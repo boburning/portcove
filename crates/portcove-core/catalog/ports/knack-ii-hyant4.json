@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "knack-ii-hyant4",
+    "project_url": "https://github.com/Hyant4/Knack-II-pc-port",
+    "name": "Knack II / Hyant4 native port",
+    "summary": "Unofficial Knack II (Knack 2) PC port for Windows. Experimental Vulkan alpha, launcher and local co-op; requires your own PS4 game dump.",
+    "issue_number": 6031,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "knack-ii",
+      "evidence_urls": [
+        "https://github.com/Hyant4/Knack-II-pc-port"
+      ],
+      "source_editions": [
+        {
+          "id": "knack-ii-playstation-4",
+          "title": "Knack II (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/Hyant4/Knack-II-pc-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Knack II"
+  }
+}

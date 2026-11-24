@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "civilization-iii-conquests-civ3-recomp",
+    "project_url": "https://github.com/sp00nznet/civ3",
+    "name": "Civilization III: Conquests / Civ3 Recomp",
+    "summary": "Static recompilation of Sid Meier's Civilization III: Conquests (Steam) into native C. Boots and plays. No emulation.",
+    "issue_number": 5746,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-iii-conquests",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/civ3"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Civilization III: Conquests"
+  }
+}

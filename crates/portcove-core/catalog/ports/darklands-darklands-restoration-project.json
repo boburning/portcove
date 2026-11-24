@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darklands-darklands-restoration-project",
+    "project_url": "https://github.com/Arkana-Mechanika-Studios/darklands-restoration",
+    "name": "Darklands / Darklands Restoration Project",
+    "summary": "Darklands (MicroProse, 1992) rebuilt in C#: every rule checked against the original, for today's Windows, Linux and the Steam Deck. Requires your own copy of the game.",
+    "issue_number": 5427,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "darklands",
+      "evidence_urls": [
+        "https://github.com/Arkana-Mechanika-Studios/darklands-restoration"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Darklands"
+  }
+}

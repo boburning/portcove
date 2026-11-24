@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "skyroads-skyroads-sdl",
+    "project_url": "https://github.com/pedrocatalao/skyroads-sdl",
+    "name": "SkyRoads / SkyRoads SDL",
+    "summary": "Native cross-platform port of SkyRoads (1993), the classic DOS space racer, rewritten in C + SDL2. Runs on macOS, Linux and Windows.",
+    "issue_number": 5850,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "skyroads",
+      "evidence_urls": [
+        "https://github.com/pedrocatalao/skyroads-sdl"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "SkyRoads"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bentley734-smas-world-combo-snesrecomp",
+    "project_url": "https://github.com/Bentley734/Mario-All-Stars-World-Recomp",
+    "name": "Super Mario All-Stars + Super Mario World / Bentley734 combo-cart recomp",
+    "summary": "Desktop recomp of the USA Super Mario All-Stars + Super Mario World SNES combination cartridge.",
+    "issue_number": 5193,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One recompilation runs Super Mario All-Stars and Super Mario World.",
+    "evidence_urls": [
+      "https://github.com/Bentley734/Mario-All-Stars-World-Recomp"
+    ]
+  }
+}

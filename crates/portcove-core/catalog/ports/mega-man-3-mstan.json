@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mega-man-3-mstan",
+    "project_url": "https://github.com/mstan/Megaman3NESRecomp",
+    "name": "Mega Man 3 / mstan",
+    "summary": "Mega Man 3 recompiled for the NES using nesrecomp · Part of the R.A.I.D. community",
+    "issue_number": 5942,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-3",
+      "evidence_urls": [
+        "https://github.com/mstan/Megaman3NESRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-3-nes",
+          "title": "Mega Man 3 (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/Megaman3NESRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mega Man 3"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "celeste-classic-ccleste",
+    "project_url": "https://github.com/lemon32767/ccleste",
+    "name": "Celeste Classic / ccleste (lemon32767)",
+    "summary": "Celeste Classic C source port for 3DS and PC.",
+    "issue_number": 6967,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "celeste-classic",
+      "evidence_urls": [
+        "https://github.com/lemon32767/ccleste"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Celeste Classic"
+  }
+}

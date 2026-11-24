@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "speed-haste-glspeed",
+    "project_url": "https://github.com/jval1972/Speed",
+    "name": "Speed Haste / GLSpeed (jval1972)",
+    "summary": "Remake of the game Speed Haste",
+    "issue_number": 6958,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "speed-haste",
+      "evidence_urls": [
+        "https://github.com/jval1972/Speed"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Speed Haste"
+  }
+}

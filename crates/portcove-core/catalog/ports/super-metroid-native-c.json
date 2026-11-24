@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-metroid-native-c",
+    "project_url": "https://github.com/MrJackSpade/SuperMetroidDecomp",
+    "name": "Super Metroid native C#",
+    "summary": "Decompilation-based port of Super Metroid for Windows. Requires your own copy of the original game.",
+    "issue_number": 5457,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-metroid-native-c",
+      "evidence_urls": [
+        "https://github.com/MrJackSpade/SuperMetroidDecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Metroid native C#"
+  }
+}

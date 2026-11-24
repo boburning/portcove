@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "manhunt-pc-reelhunt",
+    "project_url": "https://github.com/IhorRomanovych/reelhunt",
+    "name": "Manhunt PC / IhorRomanovych Reelhunt",
+    "summary": "Open-source C++/Vulkan engine for Rockstar North's 2003 stealth-horror game (PC). Requires your own copy of the game.",
+    "issue_number": 5707,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "manhunt-pc",
+      "evidence_urls": [
+        "https://github.com/IhorRomanovych/reelhunt"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Manhunt PC"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mortyr-panzer-mortyr",
+    "project_url": "https://github.com/Panzerschrek/PanzerMortyr",
+    "name": "Mortyr 2093–1944 / PanzerMortyr",
+    "summary": "A reimplementation of Mortyr's 2093-1944 engine written in Ü",
+    "issue_number": 6052,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mortyr-2093-1944",
+      "evidence_urls": [
+        "https://github.com/Panzerschrek/PanzerMortyr"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mortyr 2093–1944"
+  }
+}

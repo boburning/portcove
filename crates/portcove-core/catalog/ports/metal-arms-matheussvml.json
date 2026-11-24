@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metal-arms-matheussvml",
+    "project_url": "https://github.com/matheussvml/Metal-Arms-Recompiled",
+    "name": "Metal Arms: Glitch in the System / matheussvml",
+    "summary": "Static recompilation of Metal Arms: Glitch in the System for Windows. Requires your own copy of the original game.",
+    "issue_number": 6608,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-arms-glitch-in-the-system",
+      "evidence_urls": [
+        "https://github.com/matheussvml/Metal-Arms-Recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Arms: Glitch in the System"
+  }
+}

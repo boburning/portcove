@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "breath-of-fire-iii-bof3x-kerokline",
+    "project_url": "https://github.com/kerokline/BreathOfFire3PCPort",
+    "name": "Breath of Fire III / bof3x / kerokline",
+    "summary": "A renovation of the 2001 Chinese PC port of Breath of Fire III",
+    "issue_number": 6716,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "breath-of-fire-iii",
+      "evidence_urls": [
+        "https://github.com/kerokline/BreathOfFire3PCPort"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Breath of Fire III"
+  }
+}

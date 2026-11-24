@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "starkka15-spyro-dawn-of-dragon-x360-rexglue",
+    "project_url": "https://github.com/Starkka15/spyro-dotd-pc",
+    "name": "The Legend of Spyro: Dawn of the Dragon (Xbox 360 USA/Europe) / Starkka15 ReXGlue PC port",
+    "summary": "Native PC port of The Legend of Spyro: Dawn of the Dragon (Xbox 360), statically recompiled with ReXGlue. Bring your own copy of the game.",
+    "issue_number": 4581,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-spyro-dawn-of-the-dragon",
+      "evidence_urls": [
+        "https://github.com/Starkka15/spyro-dotd-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-spyro-dawn-of-the-dragon-xbox-360",
+          "title": "The Legend of Spyro: Dawn of the Dragon (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Starkka15/spyro-dotd-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Spyro: Dawn of the Dragon"
+  }
+}

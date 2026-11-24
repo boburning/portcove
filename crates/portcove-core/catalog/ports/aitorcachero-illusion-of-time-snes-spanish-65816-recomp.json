@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aitorcachero-illusion-of-time-snes-spanish-65816-recomp",
+    "project_url": "https://github.com/aitorcachero/Illusion-Recomp",
+    "name": "Illusion of Time / Illusion of Gaia (SNES Spanish edition) / aitorcachero native-hybrid",
+    "summary": "Illusion of Time / Gaia SNES Recompiled (Native PC & Linux Port) - Widescreen 16:9 FOV, High-DPI Launcher, 60/144/240Hz, Modern Presets & Shaders",
+    "issue_number": 5017,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "illusion-of-time",
+      "evidence_urls": [
+        "https://github.com/aitorcachero/Illusion-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "illusion-of-time-super-nintendo",
+          "title": "Illusion of Time (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/aitorcachero/Illusion-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Illusion of Time"
+  }
+}

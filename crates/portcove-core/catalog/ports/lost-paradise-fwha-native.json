@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lost-paradise-fwha-native",
+    "project_url": "https://github.com/Fwha/Lost-Paradise",
+    "name": "Fist of the North Star: Lost Paradise / Fwha Lost Paradise",
+    "summary": "Native PC port of Fist of the North Star: Lost Paradise for Windows and Linux.",
+    "issue_number": 6018,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fist-of-the-north-star-lost-paradise",
+      "evidence_urls": [
+        "https://github.com/Fwha/Lost-Paradise"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Fist of the North Star: Lost Paradise"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zoids-legacy-thearturord",
+    "project_url": "https://github.com/thearturord/ZoidsLegacyRecomp",
+    "name": "Zoids Legacy / thearturord",
+    "summary": "Native Windows port of Zoids Legacy (GBA) built on GBARecomp: widescreen, 60 fps, English retranslation, in-game settings and mods",
+    "issue_number": 5928,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "zoids-legacy",
+      "evidence_urls": [
+        "https://github.com/thearturord/ZoidsLegacyRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "zoids-legacy-game-boy-advance",
+          "title": "Zoids Legacy (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/thearturord/ZoidsLegacyRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Zoids Legacy"
+  }
+}

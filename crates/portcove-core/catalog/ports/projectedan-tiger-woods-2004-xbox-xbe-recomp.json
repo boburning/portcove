@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "projectedan-tiger-woods-2004-xbox-xbe-recomp",
+    "project_url": "https://github.com/projectedan/TigerWoods2004-XBE-Recomp",
+    "name": "Tiger Woods PGA Tour 2004 (original Xbox USA NTSC) / projectedan XBE Recomp",
+    "summary": "Tiger Woods PGA Tour 2004 Xbox Native Port",
+    "issue_number": 4265,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tiger-woods-pga-tour-2004",
+      "evidence_urls": [
+        "https://github.com/projectedan/TigerWoods2004-XBE-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "tiger-woods-pga-tour-2004-xbox",
+          "title": "Tiger Woods PGA Tour 2004 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/projectedan/TigerWoods2004-XBE-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tiger Woods PGA Tour 2004"
+  }
+}

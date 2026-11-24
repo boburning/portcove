@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mega-man-8-recomp-omegakatana92-mega-man-8",
+    "project_url": "https://github.com/omegakatana92/Mega-Man-8-Recomp",
+    "name": "Mega Man 8 / Mega-Man-8-Recomp (omegakatana92)",
+    "summary": "A PSX recompilation project for Mega Man 8. Built using mstan's PSXRecomp tool. The project does not include the original game ROM, BIN, CUE, disc image, or copyrighted game assets. Original game and Mega Man IP belong to their respective copyright holders.",
+    "issue_number": 3537,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-8",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Mega-Man-8-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-8-playstation",
+          "title": "Mega Man 8 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Mega-Man-8-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mega Man 8"
+  }
+}

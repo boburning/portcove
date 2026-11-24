@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "starkka15-skylanders-spyros-adventure-xbox360-linux-skyportal",
+    "project_url": "https://github.com/Starkka15/skylanders-sa-pc",
+    "name": "Skylanders: Spyro's Adventure / Starkka15 Linux ReXGlue with SkyPortal",
+    "summary": "Native Linux/PC port of Skylanders: Spyro's Adventure (Xbox 360) via ReXGlue static recompilation. A starting point; bring your own copy of the game.",
+    "issue_number": 4940,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-spyros-adventure",
+      "evidence_urls": [
+        "https://github.com/Starkka15/skylanders-sa-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-spyros-adventure-xbox-360",
+          "title": "Skylanders: Spyro's Adventure (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Starkka15/skylanders-sa-pc"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Skylanders: Spyro's Adventure"
+  }
+}

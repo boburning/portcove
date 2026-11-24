@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mechwarrior-3-and-pirate-s-moon-mw3-rebuild",
+    "project_url": "https://github.com/telltaleatheist/mw3-re",
+    "name": "MechWarrior 3 and Pirate's Moon / MW3 Rebuild",
+    "summary": "Learning to reverse engineer MechWarrior 3 with REA and rebuild its mechanics",
+    "issue_number": 5472,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port runs MechWarrior 3 and its Pirate's Moon expansion.",
+    "evidence_urls": [
+      "https://github.com/telltaleatheist/mw3-re"
+    ]
+  }
+}

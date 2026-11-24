@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elite-force-voyager-sp",
+    "project_url": "https://github.com/imjustadudegamer/VoyagerSP-Android",
+    "name": "Star Trek: Voyager – Elite Force / VoyagerSP",
+    "summary": "Android single-player port of Star Trek: Voyager - Elite Force (idTech3/Quake3e, Vulkan).",
+    "issue_number": 6067,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-trek-voyager-elite-force",
+      "evidence_urls": [
+        "https://github.com/imjustadudegamer/VoyagerSP-Android"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Trek: Voyager – Elite Force"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "revenge-of-the-flying-dutchman-spaced1127",
+    "project_url": "https://github.com/Spaced1127/SpongeBobRecomp",
+    "name": "SpongeBob SquarePants: Revenge of the Flying Dutchman / Spaced1127",
+    "summary": "Standalone PC static recompilation of SpongeBob SquarePants: Revenge of the Flying Dutchman (GameCube). No game assets included.",
+    "issue_number": 5929,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spongebob-squarepants-revenge-of-the-flying-dutchman",
+      "evidence_urls": [
+        "https://github.com/Spaced1127/SpongeBobRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "spongebob-squarepants-revenge-of-the-flying-dutchman-nintendo-gamecube",
+          "title": "SpongeBob SquarePants: Revenge of the Flying Dutchman (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/Spaced1127/SpongeBobRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "SpongeBob SquarePants: Revenge of the Flying Dutchman"
+  }
+}

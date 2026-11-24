@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hack-1981-82-pre-release-source-protohack",
+    "project_url": "https://github.com/Critlist/protoHack",
+    "name": "Hack (1981-82 pre-release source) / protoHack (Critlist)",
+    "summary": "Restoring Jay Fenlason's original 1981—1982 Hack to run on modern Linux.",
+    "issue_number": 7275,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hack",
+      "evidence_urls": [
+        "https://github.com/Critlist/protoHack"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hack"
+  }
+}

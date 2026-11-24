@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hyperblade-hyperblade-20xx",
+    "project_url": "https://github.com/zach2good/hyperblade-20XX",
+    "name": "HyperBlade / HyperBlade 20XX",
+    "summary": "A modernised, portable version of HyperBlade (1996)",
+    "issue_number": 5910,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hyperblade",
+      "evidence_urls": [
+        "https://github.com/zach2good/hyperblade-20XX"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "HyperBlade"
+  }
+}

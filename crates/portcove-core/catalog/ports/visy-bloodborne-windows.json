@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "visy-bloodborne-windows",
+    "project_url": "https://github.com/visy/bloodborne_pc_windows_port",
+    "name": "Bloodborne / Windows co-op port (visy)",
+    "summary": "Native 64-bit Windows port of Bloodborne (CUSA03173) with Vulkan rendering and Win32 runtime, based on deadinside28's, Supermedo's and Mrsuss60's bbport and droogie's bbhost, with native Seamless co-op (no server required).",
+    "issue_number": 6538,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/visy/bloodborne_pc_windows_port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
+  }
+}

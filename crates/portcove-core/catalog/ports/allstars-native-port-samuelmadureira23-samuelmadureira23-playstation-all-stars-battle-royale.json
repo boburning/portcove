@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "allstars-native-port-samuelmadureira23-samuelmadureira23-playstation-all-stars-battle-royale",
+    "project_url": "https://github.com/samuelMadureira23/allstars-port",
+    "name": "PlayStation All-Stars Battle Royale / AllStars native port (samuelMadureira23) (samuelMadureira23)",
+    "summary": "Native PC Windows x64 port of PlayStation All-Stars Battle Royale (PS3, BCUS98472), using static recompilation and Direct3D 12.",
+    "issue_number": 3377,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "playstation-all-stars-battle-royale",
+      "evidence_urls": [
+        "https://github.com/samuelMadureira23/allstars-port"
+      ],
+      "source_editions": [
+        {
+          "id": "playstation-all-stars-battle-royale-playstation-3",
+          "title": "PlayStation All-Stars Battle Royale (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/samuelMadureira23/allstars-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "PlayStation All-Stars Battle Royale"
+  }
+}

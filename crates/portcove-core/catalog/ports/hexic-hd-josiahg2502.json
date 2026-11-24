@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hexic-hd-josiahg2502",
+    "project_url": "https://github.com/josiahg2502-glitch/HexicHDRecompiled",
+    "name": "Hexic HD / josiahg2502-glitch",
+    "summary": "Statically recompiled PC port of Hexic HD (Xbox Live Arcade). Bring your own copy of the game.",
+    "issue_number": 6609,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexic-hd",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/HexicHDRecompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "hexic-hd-xbox",
+          "title": "Hexic HD (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/HexicHDRecompiled"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Hexic HD"
+  }
+}

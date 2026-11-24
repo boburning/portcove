@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "amnesia-hpl2-native-engine",
+    "project_url": "https://github.com/OSS-Cosmic/AmnesiaTheDarkDescent",
+    "name": "Amnesia / HPL2 native engine",
+    "summary": "Native PC port of Amnesia.",
+    "issue_number": 5655,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "amnesia",
+      "evidence_urls": [
+        "https://github.com/OSS-Cosmic/AmnesiaTheDarkDescent"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Amnesia"
+  }
+}

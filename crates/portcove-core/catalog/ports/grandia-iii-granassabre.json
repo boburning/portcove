@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grandia-iii-granassabre",
+    "project_url": "https://github.com/granassabre/grandia3-pc",
+    "name": "Grandia III / GranasSabre",
+    "summary": "Native PC port of Grandia III for Windows.",
+    "issue_number": 5527,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grandia-iii",
+      "evidence_urls": [
+        "https://github.com/granassabre/grandia3-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Grandia III"
+  }
+}

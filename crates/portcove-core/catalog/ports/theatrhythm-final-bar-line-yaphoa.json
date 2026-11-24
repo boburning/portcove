@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "theatrhythm-final-bar-line-yaphoa",
+    "project_url": "https://github.com/YAPhoa/theatrhythm-fbl-pc",
+    "name": "Theatrhythm Final Bar Line / YAPhoa native port",
+    "summary": "Native PC port of Theatrhythm Final Bar Line.",
+    "issue_number": 6035,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "theatrhythm-final-bar-line",
+      "evidence_urls": [
+        "https://github.com/YAPhoa/theatrhythm-fbl-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Theatrhythm Final Bar Line"
+  }
+}

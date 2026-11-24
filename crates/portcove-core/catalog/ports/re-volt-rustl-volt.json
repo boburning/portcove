@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "re-volt-rustl-volt",
+    "project_url": "https://github.com/Bastl34/rustl-volt",
+    "name": "Re-Volt / Rustl-Volt",
+    "summary": "A Re-Engine port of the Re-Volt Game with my own Rustl Engine",
+    "issue_number": 5780,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "re-volt",
+      "evidence_urls": [
+        "https://github.com/Bastl34/rustl-volt"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Re-Volt"
+  }
+}

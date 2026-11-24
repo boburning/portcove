@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rob646464-city-folk-recompiled-wii-aurora",
+    "project_url": "https://github.com/rob646464/city-folk-recompiled",
+    "name": "Animal Crossing: City Folk / rob646464 Wii native recomp",
+    "summary": "Animal Crossing: City Folk PC port (static recompilation, needs your own disc)",
+    "issue_number": 5173,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing-city-folk",
+      "evidence_urls": [
+        "https://github.com/rob646464/city-folk-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Animal Crossing: City Folk"
+  }
+}

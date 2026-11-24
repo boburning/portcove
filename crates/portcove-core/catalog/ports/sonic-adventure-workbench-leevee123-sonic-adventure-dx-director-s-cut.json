@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-adventure-workbench-leevee123-sonic-adventure-dx-director-s-cut",
+    "project_url": "https://github.com/leevee123/sonic-adventure-workbench",
+    "name": "Sonic Adventure DX: Director's Cut / sonic-adventure-workbench (leevee123)",
+    "summary": "Sonic Adventure DX GameCube reverse-engineering workbench, generated source, and Windows launcher with Xbox controller support.",
+    "issue_number": 3430,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-adventure-dx-directors-cut",
+      "evidence_urls": [
+        "https://github.com/leevee123/sonic-adventure-workbench"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-adventure-dx-directors-cut-xbox",
+          "title": "Sonic Adventure DX: Director's Cut (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/leevee123/sonic-adventure-workbench"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sonic Adventure DX: Director's Cut"
+  }
+}

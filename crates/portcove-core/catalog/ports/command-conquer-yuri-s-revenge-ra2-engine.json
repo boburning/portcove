@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "command-conquer-yuri-s-revenge-ra2-engine",
+    "project_url": "https://github.com/omarelarab/ra2-engine",
+    "name": "Command & Conquer: Yuri's Revenge / ra2-engine",
+    "summary": "Unofficial open-source Red Alert 2 / Yuri's Revenge engine for Windows and Android — play with your own game files, LAN and online multiplayer",
+    "issue_number": 5732,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "command-and-conquer-yuris-revenge",
+      "evidence_urls": [
+        "https://github.com/omarelarab/ra2-engine"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Command & Conquer: Yuri's Revenge"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "originalswayze-crusader-of-centy-genesis-68000-recomp",
+    "project_url": "https://github.com/OriginalSwayze/crusader-of-centy-recomp",
+    "name": "Crusader of Centy (Genesis USA/JP/Korea) / OriginalSwayze static recomp",
+    "summary": "Static recompilation of Crusader of Centy (Mega Drive) to native PC, with HD and widescreen extras",
+    "issue_number": 5012,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crusader-of-centy",
+      "evidence_urls": [
+        "https://github.com/OriginalSwayze/crusader-of-centy-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "crusader-of-centy-mega-drive-genesis",
+          "title": "Crusader of Centy (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/OriginalSwayze/crusader-of-centy-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Crusader of Centy"
+  }
+}

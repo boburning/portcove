@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "matymeatboy-new-pokemon-snap-switch-2-0-1-recomp",
+    "project_url": "https://github.com/MatyMeatBoy/NewSnapRecomp",
+    "name": "New Pokémon Snap (Switch update 2.0.1) / MatyMeatBoy",
+    "summary": "New Pokémon Snap native recompilation work in progress, based on Astral Chain Recomp and TotK Recomp. Bring your own dump.",
+    "issue_number": 5883,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "new-pokemon-snap",
+      "evidence_urls": [
+        "https://github.com/MatyMeatBoy/NewSnapRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "new-pokemon-snap-nintendo-switch",
+          "title": "New Pokémon Snap (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/MatyMeatBoy/NewSnapRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "New Pokémon Snap"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "moto-racer-moto-racer-recomp",
+    "project_url": "https://github.com/segovia-no/MotoRacerRecomp",
+    "name": "Moto Racer / Moto Racer Recomp",
+    "summary": "Native port of Moto Racer (1997) for Mac, Windows, Linux, Steam Deck and PSP. Widescreen up to 4K, gamepads, high frame rates. Static recompilation built from your own GOG copy.",
+    "issue_number": 5740,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "moto-racer",
+      "evidence_urls": [
+        "https://github.com/segovia-no/MotoRacerRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "moto-racer-playstation-portable",
+          "title": "Moto Racer (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/segovia-no/MotoRacerRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Moto Racer"
+  }
+}

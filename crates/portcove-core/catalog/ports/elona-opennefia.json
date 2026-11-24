@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elona-opennefia",
+    "project_url": "https://github.com/OpenNefia/OpenNefia",
+    "name": "Elona / OpenNefia (OpenNefia)",
+    "summary": "Moddable engine reimplementation of the Japanese roguelike Elona.",
+    "issue_number": 6922,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "elona",
+      "evidence_urls": [
+        "https://github.com/OpenNefia/OpenNefia"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Elona"
+  }
+}

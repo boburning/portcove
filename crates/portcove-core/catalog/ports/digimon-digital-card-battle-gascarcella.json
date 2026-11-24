@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "digimon-digital-card-battle-gascarcella",
+    "project_url": "https://github.com/gascarcella/ddcb-pc_port",
+    "name": "Digimon Digital Card Battle / gascarcella native PC port",
+    "summary": "Fork of Digimon Digital Card Battle Decomp by ReGame-Labs to build a PC Port",
+    "issue_number": 5528,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-digital-card-battle",
+      "evidence_urls": [
+        "https://github.com/gascarcella/ddcb-pc_port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Digimon Digital Card Battle"
+  }
+}

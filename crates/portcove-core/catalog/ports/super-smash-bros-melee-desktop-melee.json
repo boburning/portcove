@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-smash-bros-melee-desktop-melee",
+    "project_url": "https://github.com/Mwrnk/desktop-melee",
+    "name": "Super Smash Bros. Melee / Desktop Melee (Mwrnk)",
+    "summary": "Super Smash Bros. Melee on your Mac's desktop: fighters on the Dock, screen edges as blastzones. Built on the Melee decompilation via melee-pc. Bring your own disc.",
+    "issue_number": 7219,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": [
+        "https://github.com/Mwrnk/desktop-melee"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Smash Bros. Melee"
+  }
+}

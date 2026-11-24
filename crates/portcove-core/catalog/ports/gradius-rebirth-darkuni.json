@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gradius-rebirth-darkuni",
+    "project_url": "https://github.com/darkuni/gradius-rebirth-recomp",
+    "name": "Gradius ReBirth (WiiWare) / darkuni recomp",
+    "summary": "A decompiled and recompiled version of a WiiWare game.",
+    "issue_number": 6804,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gradius-rebirth",
+      "evidence_urls": [
+        "https://github.com/darkuni/gradius-rebirth-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gradius ReBirth"
+  }
+}

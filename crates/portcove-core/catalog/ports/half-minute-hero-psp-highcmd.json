@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "half-minute-hero-psp-highcmd",
+    "project_url": "https://github.com/highcmd/half-minute-hero-psp-recomp",
+    "name": "Half-Minute Hero PSP / highcmd",
+    "summary": "Static recompilation of Half-Minute Hero (PSP, ULUS-10491) to native Linux and Windows. Bring your own UMD dump; no game data included.",
+    "issue_number": 5624,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "half-minute-hero-psp",
+      "evidence_urls": [
+        "https://github.com/highcmd/half-minute-hero-psp-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "half-minute-hero-psp-playstation-portable",
+          "title": "Half-Minute Hero PSP (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/highcmd/half-minute-hero-psp-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Half-Minute Hero PSP"
+  }
+}

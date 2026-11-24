@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "minish-cap-mstan",
+    "project_url": "https://github.com/mstan/MinishCapRecomp",
+    "name": "The Legend of Zelda: The Minish Cap / mstan",
+    "summary": "The Legend of Zelda: The Minish Cap recompiled for the Game Boy Advance using gbarecomp · Part of the R.A.I.D. community",
+    "issue_number": 6561,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-minish-cap",
+      "evidence_urls": [
+        "https://github.com/mstan/MinishCapRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-minish-cap-game-boy-advance",
+          "title": "The Legend of Zelda: The Minish Cap (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/MinishCapRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: The Minish Cap"
+  }
+}

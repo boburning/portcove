@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtuaquest-valkyria-chronicles-iii-psp-uljm05781",
+    "project_url": "https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp",
+    "name": "Valkyria Chronicles III (PSP JP v1.01 English patch ULJM05781) / VirtuaQuest",
+    "summary": "Installer that builds a native PC version of Valkyria Chronicles III (PSP JP v1.01 English patch ULJM05781) from your own copy of the game.",
+    "issue_number": 5880,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyria-chronicles-iii",
+      "evidence_urls": [
+        "https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "valkyria-chronicles-iii-playstation-portable",
+          "title": "Valkyria Chronicles III (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/VirtuaQuest/Valkyria-Chronicles-3-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Valkyria Chronicles III"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-international-doom",
+    "project_url": "https://github.com/JNechaevsky/international-doom",
+    "name": "Doom / International Doom",
+    "summary": "Small, functional and simple source ports, created with help, efforts and bits of code from people around the world.",
+    "issue_number": 5668,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/JNechaevsky/international-doom"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simon3sarkis-super-odyssey-pc-switch-aarch64-recomp",
+    "project_url": "https://github.com/Simon3Sarkis/super-odyssey-pc-recomp",
+    "name": "Super Mario Odyssey (Switch) / Simon3Sarkis Super Odyssey PC Recomp",
+    "summary": "A native Windows PC port of Super Mario Odyssey by static recompilation. Bring your own game: no game files included.",
+    "issue_number": 5320,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-odyssey",
+      "evidence_urls": [
+        "https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-odyssey-nintendo-switch",
+          "title": "Super Mario Odyssey (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Simon3Sarkis/super-odyssey-pc-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Odyssey"
+  }
+}

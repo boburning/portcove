@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "no-one-lives-forever-relith-windows-openxr",
+    "project_url": "https://github.com/alex-nax/relith",
+    "name": "The Operative: No One Lives Forever / ReLith Windows OpenXR",
+    "summary": "LithTech 2.* Series Engine Reimplementation",
+    "issue_number": 6737,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-operative-no-one-lives-forever",
+      "evidence_urls": [
+        "https://github.com/alex-nax/relith"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Operative: No One Lives Forever"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "voodatari-dogs-of-war-atari-st-recomp",
+    "project_url": "https://github.com/voodatari/Dogs-of-War-Atari-ST-Recomp",
+    "name": "Dogs of War (Atari ST HAGA edition) / voodatari 68000-to-C native port",
+    "summary": "Dogs of War (Atari ST) recompilation project: native Windows and Linux x86-64 ports with OpenGL CRT, shaders, audio and graphics packs.",
+    "issue_number": 4220,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dogs-of-war",
+      "evidence_urls": [
+        "https://github.com/voodatari/Dogs-of-War-Atari-ST-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dogs of War"
+  }
+}

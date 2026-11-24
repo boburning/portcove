@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alien-shooter-opengromada",
+    "project_url": "https://github.com/siohaza/OpenGromada",
+    "name": "Alien Shooter / OpenGromada",
+    "summary": "Reverse engineered engine powering various Sigma Games titles",
+    "issue_number": 5757,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-shooter",
+      "evidence_urls": [
+        "https://github.com/siohaza/OpenGromada"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Alien Shooter"
+  }
+}

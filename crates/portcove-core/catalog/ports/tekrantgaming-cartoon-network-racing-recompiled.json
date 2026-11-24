@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekrantgaming-cartoon-network-racing-recompiled",
+    "project_url": "https://github.com/TekRantGaming/cartoon-network-racing-recompiled",
+    "name": "Cartoon Network Racing (PS2) / TekRantGaming PS2Recomp",
+    "summary": "Native PC port of Cartoon Network Racing (PlayStation 2, USA and Europe) via static recompilation, with the TRG launcher: 16:9, up to 4K, up to 165 FPS. Bring your own disc.",
+    "issue_number": 4123,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cartoon-network-racing",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/cartoon-network-racing-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "cartoon-network-racing-playstation-2",
+          "title": "Cartoon Network Racing (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/cartoon-network-racing-recompiled"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Cartoon Network Racing"
+  }
+}

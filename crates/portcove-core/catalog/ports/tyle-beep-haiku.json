@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tyle-beep-haiku",
+    "project_url": "https://github.com/tyle-beep/Haiku",
+    "name": "Fire Emblem Fates Special Edition / Haiku (tyle-beep)",
+    "summary": "Fire Emblem Fates, statically recompiled to a native Windows program. Contains no game files: you build it from your own dump.",
+    "issue_number": 8356,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fire-emblem-fates-special-edition",
+      "evidence_urls": [
+        "https://github.com/tyle-beep/Haiku"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Fire Emblem Fates Special Edition"
+  }
+}

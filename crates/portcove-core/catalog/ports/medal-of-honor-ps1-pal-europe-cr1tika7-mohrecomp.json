@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medal-of-honor-ps1-pal-europe-cr1tika7-mohrecomp",
+    "project_url": "https://github.com/Cr1TiKa7/MOHRecomp",
+    "name": "Medal of Honor (PS1 PAL Europe) / Cr1TiKa7 MOHRecomp",
+    "summary": "Static recompilation of Medal of Honor (PAL) for Windows, Linux and macOS.",
+    "issue_number": 5442,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor",
+      "evidence_urls": [
+        "https://github.com/Cr1TiKa7/MOHRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "medal-of-honor-playstation",
+          "title": "Medal of Honor (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Cr1TiKa7/MOHRecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Medal of Honor"
+  }
+}

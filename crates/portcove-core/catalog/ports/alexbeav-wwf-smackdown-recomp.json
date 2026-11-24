@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-wwf-smackdown-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/wwf-smackdown-recomp",
+    "name": "WWF SmackDown! / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of WWF SmackDown! (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6657,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-smackdown",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/wwf-smackdown-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wwf-smackdown-playstation",
+          "title": "WWF SmackDown! (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/wwf-smackdown-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "WWF SmackDown!"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "international-rally-championship-irc-recompilador",
+    "project_url": "https://github.com/ericodeoliveira/international-rally-championship-recomp",
+    "name": "International Rally Championship / IRC Recompilador",
+    "summary": "Static recompiler that turns International Rally Championship (1997) into a native 64-bit Windows game - no emulator, no CD. / Recompilador estático: IRC nativo no Windows moderno.",
+    "issue_number": 6059,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-rally-championship",
+      "evidence_urls": [
+        "https://github.com/ericodeoliveira/international-rally-championship-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "International Rally Championship"
+  }
+}

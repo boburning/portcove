@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mnkyarts-project-avalanche-ssx-2012-bevy-reimplementation",
+    "project_url": "https://github.com/MnkyArts/ProjectAvalanche",
+    "name": "SSX (2012) Xbox 360 / MnkyArts Project Avalanche native Rust/Bevy",
+    "summary": "A native PC port of SSX (2012), decoded from the Xbox 360 disc and rebuilt in Rust on Bevy.",
+    "issue_number": 4822,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ssx-xbox-360",
+      "evidence_urls": [
+        "https://github.com/MnkyArts/ProjectAvalanche"
+      ],
+      "source_editions": [
+        {
+          "id": "ssx-xbox-360-xbox-360",
+          "title": "SSX Xbox 360 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MnkyArts/ProjectAvalanche"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "SSX Xbox 360"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hexen-doomsday-engine",
+    "project_url": "https://github.com/skyjake/Doomsday-Engine",
+    "name": "Hexen / Doomsday Engine (skyjake)",
+    "summary": "A portable, enhanced source port of Doom, Heretic and Hexen.",
+    "issue_number": 6940,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen",
+      "evidence_urls": [
+        "https://github.com/skyjake/Doomsday-Engine"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hexen"
+  }
+}

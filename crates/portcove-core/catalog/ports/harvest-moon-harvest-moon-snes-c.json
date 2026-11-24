@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harvest-moon-harvest-moon-snes-c",
+    "project_url": "https://github.com/RodoLy/HarvestMoonSnesDecomp",
+    "name": "Harvest Moon / HarvestMoonSnesDecomp (RodoLy)",
+    "summary": "Harvest Moon (SNES) decompiled to readable C, verified byte by byte — and playable natively from that C: launcher, widescreen 16:9, HM64-style pause menu, endless game, cheats, save states. ROM not included.",
+    "issue_number": 7227,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harvest-moon",
+      "evidence_urls": [
+        "https://github.com/RodoLy/HarvestMoonSnesDecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harvest-moon-super-nintendo",
+          "title": "Harvest Moon (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/RodoLy/HarvestMoonSnesDecomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Harvest Moon"
+  }
+}

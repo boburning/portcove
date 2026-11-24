@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "final-fantasy-xi-xi-on-anything",
+    "project_url": "https://github.com/rubymatrix/xi-on-anything",
+    "name": "Final Fantasy XI / XI on Anything",
+    "summary": "FINAL FANTASY XI's own client, running natively on Mac, Windows, Linux, Steam Deck, iPhone and more. Recompiled from your own install: no Wine, Rosetta, Proton or emulator.",
+    "issue_number": 6070,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-xi",
+      "evidence_urls": [
+        "https://github.com/rubymatrix/xi-on-anything"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Final Fantasy XI"
+  }
+}

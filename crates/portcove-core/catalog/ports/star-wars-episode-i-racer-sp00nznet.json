@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-episode-i-racer-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/racer",
+    "name": "Star Wars Episode I: Racer (N64) / sp00nznet",
+    "summary": "Star Wars Episode I: Racer - N64 Static Recompilation",
+    "issue_number": 6596,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-episode-i-racer",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/racer"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-episode-i-racer-nintendo-64",
+          "title": "Star Wars Episode I: Racer (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/racer"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Wars Episode I: Racer"
+  }
+}

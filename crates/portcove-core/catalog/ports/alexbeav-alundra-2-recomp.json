@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-alundra-2-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/alundra-2-recomp",
+    "name": "Alundra 2 / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Alundra 2 (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6631,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alundra-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alundra-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "alundra-2-playstation",
+          "title": "Alundra 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/alundra-2-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Alundra 2"
+  }
+}

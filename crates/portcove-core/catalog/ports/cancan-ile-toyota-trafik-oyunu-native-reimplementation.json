@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cancan-ile-toyota-trafik-oyunu-native-reimplementation",
+    "project_url": "https://github.com/sergen213/toyota-trafik-oyunu",
+    "name": "Cancan ile Toyota Trafik Oyunu / native reimplementation",
+    "summary": "Preservation and native Linux/Windows reimplementation of Cancan ile Toyota Trafik Oyunu (2006). Requires your own copy of the game.",
+    "issue_number": 5566,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cancan-ile-toyota-trafik-oyunu",
+      "evidence_urls": [
+        "https://github.com/sergen213/toyota-trafik-oyunu"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Cancan ile Toyota Trafik Oyunu"
+  }
+}

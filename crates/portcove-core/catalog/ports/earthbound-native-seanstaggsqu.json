@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "earthbound-native-seanstaggsqu",
+    "project_url": "https://github.com/seanstaggsQU/EarthboundNativePublic",
+    "name": "EarthBound / seanstaggsQU",
+    "summary": "EarthBound native port -- download builds for Windows, macOS, and Linux",
+    "issue_number": 5960,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "earthbound",
+      "evidence_urls": [
+        "https://github.com/seanstaggsQU/EarthboundNativePublic"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "EarthBound"
+  }
+}

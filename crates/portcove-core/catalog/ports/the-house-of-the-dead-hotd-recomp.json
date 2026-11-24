@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-house-of-the-dead-hotd-recomp",
+    "project_url": "https://github.com/sp00nznet/hotd-recomp",
+    "name": "The House of the Dead / HOTD Recomp",
+    "summary": "Static recompilation of SEGA's The House of the Dead (1998, Windows) to native C, on pcrecomp",
+    "issue_number": 5793,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-house-of-the-dead",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/hotd-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The House of the Dead"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dbz-budokai-tenkaichi-4-recomp-code-mod-distribution",
+    "project_url": "https://github.com/recomp-code/dbz-bt4-recomp",
+    "name": "Dragon Ball Z: Budokai Tenkaichi 4 (Team BT4 mod) / recomp-code maintained distribution",
+    "summary": "DBZ Budokai Tenkaichi 4 (BT3 mod) static recompilation with PS2Recomp: native macOS (PCSX2 GS) and browser. No game files: bring your own disc.",
+    "issue_number": 4391,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-tenkaichi-4",
+      "evidence_urls": [
+        "https://github.com/recomp-code/dbz-bt4-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 4"
+  }
+}

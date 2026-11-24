@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "legoland-native-port",
+    "project_url": "https://github.com/facundosterzerforino/legoland-port",
+    "name": "LEGOLAND / native port",
+    "summary": "Native Windows 11 port of LEGOLAND (1999), built from the legoland matching decompilation",
+    "issue_number": 5828,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "legoland",
+      "evidence_urls": [
+        "https://github.com/facundosterzerforino/legoland-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "LEGOLAND"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harry-potter-and-the-prisoner-of-azkaban-r3paro",
+    "project_url": "https://github.com/Ihor-Ihorevych/r3paro",
+    "name": "Harry Potter and the Prisoner of Azkaban / R3paro",
+    "summary": "OSS Harry Potter 3 Engine Clean Reimplementation in Rust",
+    "issue_number": 5720,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-prisoner-of-azkaban",
+      "evidence_urls": [
+        "https://github.com/Ihor-Ihorevych/r3paro"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Harry Potter and the Prisoner of Azkaban"
+  }
+}

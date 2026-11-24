@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-underground-2-openug2",
+    "project_url": "https://github.com/whoismept/OpenUG2",
+    "name": "Need for Speed: Underground 2 / OpenUG2 (whoismept)",
+    "summary": "An open, from-scratch reimplementation of the Need for Speed: Underground 2 engine.",
+    "issue_number": 6954,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-underground-2",
+      "evidence_urls": [
+        "https://github.com/whoismept/OpenUG2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Need for Speed: Underground 2"
+  }
+}

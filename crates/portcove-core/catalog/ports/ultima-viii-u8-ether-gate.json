@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-viii-u8-ether-gate",
+    "project_url": "https://github.com/LostMystic/u8-ether-gate",
+    "name": "Ultima VIII: Pagan / U8 Ether Gate",
+    "summary": "U8 Ether Gate: a clean-room open engine for Ultima VIII: Pagan (bring your own copy of the game). Linux and web.",
+    "issue_number": 6073,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-viii-pagan",
+      "evidence_urls": [
+        "https://github.com/LostMystic/u8-ether-gate"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima VIII: Pagan"
+  }
+}

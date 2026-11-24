@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "magic-carpet-2-remc2-hd",
+    "project_url": "https://github.com/thobbsinteractive/magic-carpet-2-hd",
+    "name": "Magic Carpet 2 / remc2 HD",
+    "summary": "Recode Binary code of game Magic Carpet2 to C/C++ language(remake MC2 for any platform)",
+    "issue_number": 5832,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "magic-carpet-2",
+      "evidence_urls": [
+        "https://github.com/thobbsinteractive/magic-carpet-2-hd"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Magic Carpet 2"
+  }
+}

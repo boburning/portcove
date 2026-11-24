@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pump-it-up-perfect-collection-decomp-it-up",
+    "project_url": "https://github.com/bmbelo87/decomp-it-up-Perfect-Collection",
+    "name": "Pump It Up: Perfect Collection / Decomp It Up",
+    "summary": "Recompilacao em C do Pump It Up Perfect Collection (PIU.EXE DOS, build de 18/12/2000), fiel ao original",
+    "issue_number": 6092,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pump-it-up-perfect-collection",
+      "evidence_urls": [
+        "https://github.com/bmbelo87/decomp-it-up-Perfect-Collection"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Pump It Up: Perfect Collection"
+  }
+}

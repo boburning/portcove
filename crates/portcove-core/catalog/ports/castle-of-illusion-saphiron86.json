@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castle-of-illusion-saphiron86",
+    "project_url": "https://github.com/saphiron86/castle-of-illusion-port",
+    "name": "Castle of Illusion / saphiron86",
+    "summary": "A PC port of Castle of Illusion, originally released for the Sega Genesis (Mega Drive)",
+    "issue_number": 5553,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "castle-of-illusion",
+      "evidence_urls": [
+        "https://github.com/saphiron86/castle-of-illusion-port"
+      ],
+      "source_editions": [
+        {
+          "id": "castle-of-illusion-mega-drive-genesis",
+          "title": "Castle of Illusion (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/saphiron86/castle-of-illusion-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Castle of Illusion"
+  }
+}

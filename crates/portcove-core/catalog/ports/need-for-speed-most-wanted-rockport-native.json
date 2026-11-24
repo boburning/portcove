@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-most-wanted-rockport-native",
+    "project_url": "https://github.com/pablonolascoo/nfs-mw-2005-ps2-port",
+    "name": "Need for Speed: Most Wanted (2005) / Rockport Native",
+    "summary": "Native Mac port of Need for Speed: Most Wanted (2005, PS2) built from your own ISO: Swift + Metal engine with the original physics, AI, story and Lua scripts. Open source, no game data included. Port nativo para Mac de NFS Most Wanted.",
+    "issue_number": 6707,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-most-wanted",
+      "evidence_urls": [
+        "https://github.com/pablonolascoo/nfs-mw-2005-ps2-port"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-most-wanted-playstation-2",
+          "title": "Need for Speed: Most Wanted (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/pablonolascoo/nfs-mw-2005-ps2-port"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Need for Speed: Most Wanted"
+  }
+}

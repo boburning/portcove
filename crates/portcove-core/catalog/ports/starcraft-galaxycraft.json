@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "starcraft-galaxycraft",
+    "project_url": "https://github.com/cotizcesar/galaxycraft",
+    "name": "StarCraft / GalaxyCraft",
+    "summary": "GalaxyCraft: a Rust reimplementation of StarCraft 1.23 gameplay and menus. Reads the player's own installation; contains no game assets.",
+    "issue_number": 6066,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "starcraft",
+      "evidence_urls": [
+        "https://github.com/cotizcesar/galaxycraft"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "StarCraft"
+  }
+}

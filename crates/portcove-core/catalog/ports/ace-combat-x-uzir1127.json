@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-x-uzir1127",
+    "project_url": "https://github.com/uzir1127/AC-X-Windows-Native-Recompilation",
+    "name": "Ace Combat X Skies of Deception / uzir1127",
+    "summary": "Based on sal063's AC X Recomp, this is a version of my own based on his work, with 60fps that doesnt speed the game engine up, HD textures, upscaled texts and cutscenes. Modern input support with keybinds changing in the f4 menu with a lot of settings and f5 toggles a performance overlay.  Drop iso into folder and no need for extra setups(LLVM/pyt)",
+    "issue_number": 5613,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-x-skies-of-deception",
+      "evidence_urls": [
+        "https://github.com/uzir1127/AC-X-Windows-Native-Recompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat X: Skies of Deception"
+  }
+}

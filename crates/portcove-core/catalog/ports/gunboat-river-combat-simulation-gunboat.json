@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gunboat-river-combat-simulation-gunboat",
+    "project_url": "https://github.com/PlasticCog/Gunboat",
+    "name": "Gunboat River Combat Simulation / Gunboat",
+    "summary": "Modern PC port of Accolades Gunboat",
+    "issue_number": 5771,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gunboat-river-combat-simulation",
+      "evidence_urls": [
+        "https://github.com/PlasticCog/Gunboat"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gunboat River Combat Simulation"
+  }
+}

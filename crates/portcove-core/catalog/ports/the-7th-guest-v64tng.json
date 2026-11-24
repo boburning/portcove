@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-7th-guest-v64tng",
+    "project_url": "https://github.com/mattseabrook/v64tng",
+    "name": "The 7th Guest / v64tng",
+    "summary": "Game Engine re-creation of The 7th Guest",
+    "issue_number": 6078,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-7th-guest",
+      "evidence_urls": [
+        "https://github.com/mattseabrook/v64tng"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The 7th Guest"
+  }
+}

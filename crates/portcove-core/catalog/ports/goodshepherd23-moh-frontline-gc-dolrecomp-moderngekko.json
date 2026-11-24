@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goodshepherd23-moh-frontline-gc-dolrecomp-moderngekko",
+    "project_url": "https://github.com/goodshepherd23/MOHFrontline-Recomp",
+    "name": "Medal of Honor: Frontline (GameCube USA GMFE69) / goodshepherd23 recomp",
+    "summary": "Medal of Honor: Frontline (GameCube, USA) statically recompiled to native Windows code from your own disc — DolRecomp + ModernGekko build kit",
+    "issue_number": 4271,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-frontline",
+      "evidence_urls": [
+        "https://github.com/goodshepherd23/MOHFrontline-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "medal-of-honor-frontline-nintendo-gamecube",
+          "title": "Medal of Honor: Frontline (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/goodshepherd23/MOHFrontline-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Medal of Honor: Frontline"
+  }
+}

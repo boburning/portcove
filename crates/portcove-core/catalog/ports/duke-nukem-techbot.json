@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duke-nukem-techbot",
+    "project_url": "https://github.com/PaulloDEC/techbot",
+    "name": "Duke Nukem (Techbot) / techbot",
+    "summary": "An enhanced PC port of Apogee's Duke Nukem, plus a modern level editor",
+    "issue_number": 6664,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem",
+      "evidence_urls": [
+        "https://github.com/PaulloDEC/techbot"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Duke Nukem"
+  }
+}
