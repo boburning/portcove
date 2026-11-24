@@ -506,7 +506,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
-        file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
+        // One byte past Core's bound lets Core report the refusal itself.
+        file.take(portcove_core::MAX_LISTING_DIRECTORY_TEXT_BYTES as u64 + 1)
+            .read_to_string(&mut bytes)?;
         let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
         let document = if let Some(version) = format_version {
             document.export_format(*version)?
@@ -850,6 +852,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 | Commands::Setup {
                     command: setup::SetupCommand::Download { .. }
+                }
+                // An interrupt stops unattended setup cleanly, so it is never
+                // counted against the game as a crash.
+                | Commands::Games {
+                    command: GamesCommand::SetupReady
                 }
         ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
@@ -1809,6 +1816,29 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 "port-capabilities",
                 service.port_capabilities(&port_id)?,
                 human::port_capabilities,
+            )?;
+        }
+        Commands::PortCapabilitiesBatch { ports } => {
+            // One catalog load for many focused reads. A refusal is local to its port and
+            // carries the same code and message the single-port command would report.
+            let mut reports = Vec::with_capacity(ports.len());
+            for port_id in ports {
+                reports.push(match service.port_capabilities(&port_id) {
+                    Ok(report) => {
+                        serde_json::json!({ "port_id": port_id, "ok": true, "report": report })
+                    }
+                    Err(error) => serde_json::json!({
+                        "port_id": port_id,
+                        "ok": false,
+                        "error": { "code": error.code, "message": error.message },
+                    }),
+                });
+            }
+            render_read_success(
+                mode,
+                "port-capabilities-batch",
+                serde_json::json!({ "format_version": 1, "reports": reports }),
+                |value| serde_json::to_string_pretty(value).unwrap_or_default(),
             )?;
         }
         Commands::Status { port_id } => {
@@ -4140,6 +4170,7 @@ fn command_name(command: &Commands) -> &'static str {
             DatCommand::Remove { .. } => "dat.remove",
         },
         Commands::PortCapabilities { .. } => "port-capabilities",
+        Commands::PortCapabilitiesBatch { .. } => "port-capabilities-batch",
         Commands::Status { .. } => "status",
         Commands::Activity {
             command: Some(ActivityCommand::Log { .. }),
@@ -5025,6 +5056,14 @@ mod tests {
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
             vec!["portcove", "port-capabilities", "shipwright"],
+            vec![
+                "portcove",
+                "port-capabilities-batch",
+                "--port",
+                "shipwright",
+                "--port",
+                "soh",
+            ],
             vec!["portcove", "source", "verify", "zelda64-recomp"],
             vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
@@ -5605,6 +5644,17 @@ mod tests {
             (
                 vec![
                     "portcove",
+                    "port-capabilities-batch",
+                    "--port",
+                    "shipwright",
+                    "--port",
+                    "soh",
+                ],
+                "port-capabilities-batch",
+            ),
+            (
+                vec![
+                    "portcove",
                     "channel",
                     "review-exact",
                     "lighthouse",
@@ -5653,10 +5703,27 @@ mod tests {
             capabilities.listing_delivery_carriers,
             ["json-v1", "gzip-base64-json-v1"]
         );
+        // The released-reader gate distinguishes this generation by its limits.
+        assert_eq!(
+            capabilities.listing_delivery_limits,
+            Some(portcove_core::ListingDeliveryLimits {
+                target_bytes: 8 * 1024 * 1024,
+                decoded_bytes: 32 * 1024 * 1024,
+                record_bytes: 1024 * 1024,
+                definition_index_bytes: 4 * 1024 * 1024,
+                element_budget_bytes: 40 * 1024 * 1024,
+                listing_charge_bytes: 4_027,
+                withdrawal_charge_bytes: 68,
+            })
+        );
         assert!(
             capabilities
                 .commands
                 .contains(&"port-capabilities".to_owned())
+        );
+        assert!(
+            super::registered_command_capabilities()
+                .contains(&"port-capabilities-batch".to_owned())
         );
         assert_eq!(
             capabilities.schema_version,

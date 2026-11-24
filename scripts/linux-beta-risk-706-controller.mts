@@ -320,8 +320,11 @@ async function authorizeRiskSubject706(
   };
   const deadline = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
   if (!Number.isFinite(deadline)) throw new Error("risk controls original deadline unavailable");
-  const readControls = () =>
-    controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
+  const readControls = () => {
+    // Exposure history relies on historical receipt pair identity.
+    controls.receiptProtection(authorities.namespace);
+    return controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
+  };
   const current = await readControls();
   const original = context.stage === "site-publication" ? current : context.admission.controls;
   if (
@@ -467,8 +470,13 @@ async function authorizeRiskSubject706(
   });
   const beforeTags = await reader.tags();
   const beforeReleases = await reader.releases();
-  const { allocations } = await reader.readAllocations(beforeTags, authorities.namespace);
-  if (allocations.length > 256) throw new Error("risk allocation inventory exceeds existing bound");
+  // Exposure history needs every allocated version's destination, which the
+  // receipt pairs name; no raw receipt commit is a decision input here.
+  const { receipts: allocations } = await reader.readAllocations(
+    beforeTags,
+    authorities.namespace,
+    [],
+  );
   const publicationDestinations = new Set(
     allocations.map((allocation) =>
       digest(`github-release:boburning/portcove:v${allocation.version}:publish`),

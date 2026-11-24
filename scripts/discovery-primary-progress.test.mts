@@ -728,3 +728,31 @@ void test("a suspended source never takes a successor or hides an unrelated fail
   assert.equal(unavailable.portforge[0]!.status, "inaccessible");
   assert.equal(unavailable.portforge[0]!.coverage_role, undefined);
 });
+
+void test("a reviewed source stopped by a run boundary is a resumable partial read", async () => {
+  const sdk = await fixtureGitHub(() => {
+    return Response.json(
+      { message: "rate limited" },
+      { status: 429, headers: { "retry-after": "60" } },
+    );
+  });
+  const sources = await collectDiscoverySources(
+    {
+      sdk,
+      budget: new DiscoveryBudget(
+        "ordinary",
+        () => {},
+        () => epoch,
+      ),
+      save: () => {},
+      http: {
+        request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+      },
+    },
+    emptyCheckpoint(),
+  );
+  const launcher = sources.find((source) => source.id === "githublauncher")!;
+  assert.equal(launcher.status, "partial");
+  assert.equal(launcher.deferred, true);
+  assert.equal(launcher.error_class, "rate_limited");
+});

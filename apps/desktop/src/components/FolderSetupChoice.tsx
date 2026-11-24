@@ -1,4 +1,5 @@
 import { isCurrentSavedScanResult } from "../features/game-file-discovery/use-game-file-scan";
+import { NextAttemptTime, waitingRetry } from "../features/game-file-discovery/next-attempt";
 import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
@@ -259,6 +260,28 @@ export function FolderSetupChoice({
                   </bdi>
                 ),
                 reason: <bdi>{failure.reason}</bdi>,
+              }}
+            />
+          </p>
+        ))}
+      {consent?.failures
+        ?.filter(
+          (failure) => failure.attempts < maxAttempts && waitingRetry(failure.temporary_retry),
+        )
+        .map((failure) => (
+          <p key={`${failure.port_id}-waiting`}>
+            {/* The game name and Core's reason are exact values, never interpolated. */}
+            <Trans
+              t={t}
+              i18nKey="folderSetup.waiting"
+              components={{
+                game: (
+                  <bdi>
+                    {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id}
+                  </bdi>
+                ),
+                reason: <bdi>{failure.reason}</bdi>,
+                time: <NextAttemptTime at={failure.temporary_retry?.retry_after ?? 0} />,
               }}
             />
           </p>

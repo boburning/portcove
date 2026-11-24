@@ -191,7 +191,7 @@ impl GitlabReleaseProvider {
                 crate::test_http::ResponseTestPhase::Headers,
                 error.is_timeout(),
             ));
-            PortcoveError::network(error.to_string())
+            PortcoveError::from_transport(&error)
         })?;
         let total = response
             .headers()
@@ -240,8 +240,9 @@ impl GitlabReleaseProvider {
             .get(header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let body =
-            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitLab response").await?;
+        let body = bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitLab response")
+            .await
+            .map_err(PortcoveError::mark_interrupted_body)?;
         let parsed = serde_json::from_slice(&body)
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         let body = std::str::from_utf8(&body)
@@ -314,7 +315,8 @@ impl GitlabReleaseProvider {
 
     fn walk_key(project_url: &str, channel: ReleaseChannel, rolling_tag: Option<&str>) -> String {
         format!(
-            "portcove-continuation:v1:gitlab-release-walk:{project_url}#{channel}#{}",
+            "{}v1:gitlab-release-walk:{project_url}#{channel}#{}",
+            crate::library::CONTINUATION_KEY_PREFIX,
             rolling_tag.unwrap_or_default()
         )
     }
@@ -431,17 +433,13 @@ impl GitlabReleaseProvider {
                         let total_pages = checkpoint
                             .total
                             .map(|total| total.div_ceil(PROVIDER_PAGE_SIZE as u64));
-                        let mut incomplete = crate::failure::inventory_incomplete(
+                        return Err(crate::failure::inventory_incomplete_after(
                             crate::failure::FailureProvider::Gitlab,
                             "release history",
                             (page - 1) as u64,
                             total_pages,
-                        )
-                        .detail("cause", error.message.clone());
-                        for (name, value) in error.details {
-                            incomplete.details.entry(name).or_insert(value);
-                        }
-                        return Err(incomplete);
+                            error,
+                        ));
                     }
                     Err(error) => {
                         self.save_walk(&key, &checkpoint);
@@ -1020,24 +1018,10 @@ struct GitlabPackageFile {
     file_sha256: String,
 }
 
-fn select_gitlab_release<'a>(
-    releases: &'a [GitlabRelease],
-    channel: ReleaseChannel,
-    rolling_tag: Option<&str>,
-) -> Option<&'a GitlabRelease> {
-    crate::release::select_channel_candidate(
-        releases,
-        channel,
-        rolling_tag,
-        |release| !release.upcoming_release,
-        |release| is_beta_tag(&release.tag_name),
-        |release| release.tag_name.as_str(),
-    )
-}
-
 /// Considers one newest-first page for the channel. Returns the decided
 /// release, or records the first stable release in `fallback` for Beta.
-/// Matches `crate::release::select_channel_candidate` on the whole history.
+/// Matches `crate::release::select_channel_candidate` applied to the whole
+/// history.
 fn consider_releases(
     releases: &[GitlabRelease],
     channel: ReleaseChannel,
@@ -1210,6 +1194,9 @@ fn native_archive_score(name: &str, platform: Platform, hints: &[String]) -> Opt
 fn gitlab_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
     let numeric_header = |name: &str| headers.get(name)?.to_str().ok()?.parse::<i64>().ok();
     let mut error = PortcoveError::network(format!("GitLab API returned {status}"))
+        .with_upstream(Some(crate::failure::UpstreamObservation::Status(
+            status.as_u16(),
+        )))
         .with_known_cause(crate::failure::KnownFailureCause::ProviderRequest {
             provider: crate::failure::FailureProvider::Gitlab,
             status: status.as_u16(),
@@ -3446,6 +3433,11 @@ mod tests {
             error.details.get("retry_after").map(String::as_str),
             Some("60")
         );
+        // Typed and temporary: the retry waits for the provider's stated
+        // reset instead of spending a lasting attempt.
+        let failure = crate::TemporaryFailure::of(&error).unwrap();
+        assert_eq!(failure.cause, crate::TemporaryCause::InventoryIncomplete);
+        assert_eq!(failure.stated_reset, Some(1_900_000_000));
         let saved = provider
             .load_walk(&GitlabReleaseProvider::walk_key(
                 &project_url,

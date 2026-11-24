@@ -46,6 +46,7 @@ import {
 } from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -230,7 +231,7 @@ export async function runCatalogUpstreams(
   const operational: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
   const listingInput = await readBoundedEvidenceFile(
     path.join(root, "crates/portcove-core/catalog/listings.json"),
-    8 * 1024 * 1024,
+    listingDirectoryTextMaximum,
   );
   const listingDirectory: unknown = JSON.parse(listingInput.bytes.toString("utf8"));
   if (
@@ -727,7 +728,7 @@ export async function runCatalogOpportunity(
       ),
       readBoundedEvidenceFile(
         path.join(root, "crates/portcove-core/catalog/listings.json"),
-        8 * 1024 * 1024,
+        listingDirectoryTextMaximum,
       ),
     ]);
     const hash = createHash("sha256");

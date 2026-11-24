@@ -993,7 +993,7 @@ export function applyExternalInventoryItem(
   const item = next.inventories?.[id]?.items[slug];
   if (!item) throw new Error("Unknown external inventory item");
   if (!clock(observedAt)) throw new Error("Invalid external inventory clock");
-  mergeEntries(next, id, parsed.entries, observedAt);
+  mergeEntries(next, id, parsed.entries, observedAt, !item.fetched_at);
   const { failed_at: _failed, ...rest } = item;
   const parser = parserVersion(id);
   next.inventories![id]!.items[slug] = {
@@ -1121,6 +1121,12 @@ function mergeEntries(
   id: string,
   entries: readonly ExternalListEntry[],
   observedAt: string,
+  /**
+   * For an inventory item read for the first time: its claims are discovery,
+   * not change, even where another item of the same source already named the
+   * repository. Only a claim that already existed and now differs is a change.
+   */
+  firstRead = false,
 ) {
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   // An evidence-only source adds claims to known hints and never creates one.
@@ -1136,7 +1142,13 @@ function mergeEntries(
           ).values(),
         ].sort((a, b) => a.id.localeCompare(b.id))
       : undefined;
-    const changed = previous && retained && observationHash(previous) !== observationHash(retained);
+    const prior = new Map((previous ?? []).map((row) => [row.id, row.fingerprint]));
+    const changed =
+      previous &&
+      retained &&
+      (firstRead
+        ? retained.some((row) => prior.has(row.id) && prior.get(row.id) !== row.fingerprint)
+        : observationHash(previous) !== observationHash(retained));
     const sourceFields = entry.source_entries
       ? {
           source_entries: { ...old?.source_entries, [id]: retained! },

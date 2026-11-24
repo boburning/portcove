@@ -160,15 +160,15 @@ impl ThunderstoreClient {
                 if error.code != crate::ErrorCode::Network {
                     return error;
                 }
-                crate::failure::inventory_incomplete(
+                crate::failure::inventory_incomplete_after(
                     crate::failure::FailureProvider::Thunderstore,
                     "community listing",
                     position as u64,
                     Some(chunks.len() as u64),
+                    error,
                 )
                 .detail("chunks_read", position.to_string())
                 .detail("chunks_total", chunks.len().to_string())
-                .detail("cause", error.message)
             };
             let read = match self.stored_chunk(chunk) {
                 Some(bytes) => match self.parse(bytes, community).await {

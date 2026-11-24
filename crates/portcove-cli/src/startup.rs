@@ -283,6 +283,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             PolicyCommand::Set { .. } => Recovering,
         },
         Commands::PortCapabilities { .. }
+        | Commands::PortCapabilitiesBatch { .. }
         | Commands::Status { .. }
         | Commands::Storage
         | Commands::Doctor

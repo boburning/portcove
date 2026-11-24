@@ -6,6 +6,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   activeRefRuleset,
   hasControllerTagProtection,
+  hasReceiptTagProtection,
   hasOnlyActor,
   hasOnlyRules,
   releaseOwner,
@@ -758,6 +759,46 @@ function requireObservedImmutabilityPolicy(raw: unknown, now: number, maximumAge
     observed_at: raw.observed_at,
     inventory_sha256: raw.inventory_sha256,
     authorization: "provider-release-immutability-setting-only",
+  };
+}
+
+/** Interpret an already authenticated isolated observer's fresh application
+ * ruleset inventory: receipt tags of `namespace` must be immutable for
+ * everyone and creatable only by the release state writer. Operations that
+ * rely on receipt pairs without re-reading historical raw commits require
+ * this; it authorizes nothing else. */
+export function requireReceiptTagProtectionPolicy(
+  raw: unknown,
+  namespace: string,
+  now = Date.now(),
+) {
+  if (
+    !isRecord(raw) ||
+    raw.schema_version !== 1 ||
+    raw.repository_id !== 1354613114 ||
+    // Every observer coverage carries the complete repository ruleset
+    // inventory; coverage names only the additional settings it observed.
+    ![
+      "current-repository-input-branches-only",
+      "current-repository-input-branches-and-release-immutability",
+      "current-repository-catalog-maintenance-only",
+    ].includes(String(raw.coverage)) ||
+    typeof raw.observed_at !== "string" ||
+    !Number.isFinite(Date.parse(raw.observed_at)) ||
+    now - Date.parse(raw.observed_at) < 0 ||
+    now - Date.parse(raw.observed_at) > inputProtectionFreshnessMilliseconds ||
+    !isRecord(raw.inventory) ||
+    !Array.isArray(raw.inventory.rulesets) ||
+    raw.inventory_sha256 !== createHash("sha256").update(canonical(raw.inventory)).digest("hex")
+  )
+    throw new Error("fresh authenticated release receipt tag protection is unproven");
+  if (!hasReceiptTagProtection(raw.inventory.rulesets, namespace))
+    throw new Error("release receipt tag protection is absent or weaker");
+  return {
+    namespace,
+    observed_at: raw.observed_at,
+    inventory_sha256: raw.inventory_sha256,
+    authorization: "release-receipt-tag-immutability-only" as const,
   };
 }
 

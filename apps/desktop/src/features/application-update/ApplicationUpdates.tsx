@@ -166,6 +166,8 @@ function failureCopy(t: TFunction<"applicationUpdate">, failure: unknown) {
       return t("failure.inProgress");
     case "check-failed":
       return t("failure.checkFailed");
+    case "release-not-found":
+      return t("failure.releaseNotFound");
     case "download-failed":
       return t("failure.downloadFailed");
     case "install-failed":

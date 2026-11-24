@@ -69,9 +69,54 @@ export function capacityDocumentFixture() {
   };
 }
 
-export function protectionFixture(commit: string, observedAt = new Date().toISOString()) {
+type RulesetFixture = {
+  id: number;
+  name?: string;
+  target: string;
+  enforcement: string;
+  conditions: { ref_name: { include: string[]; exclude: string[] } };
+  rules: { type: string }[];
+  bypass_actors: { actor_type: string; actor_id: number; bypass_mode: string }[];
+};
+
+/** The two live receipt tag rulesets (#1422): immutable for everyone, created
+ * only by the release state writer App. Fixture evidence, not an observation. */
+export function receiptTagRulesetsFixture(namespace = "portcove-production"): RulesetFixture[] {
+  const conditions = {
+    ref_name: {
+      include: [`refs/tags/${namespace}-prepared/*`, `refs/tags/${namespace}-prepared-source/*`],
+      exclude: [],
+    },
+  };
+  return [
+    {
+      id: 27947790,
+      name: "Portcove release receipt tag immutability",
+      target: "tag",
+      enforcement: "active",
+      conditions,
+      rules: [{ type: "update" }, { type: "deletion" }],
+      bypass_actors: [],
+    },
+    {
+      id: 27947819,
+      name: "Portcove release receipt tag creation",
+      target: "tag",
+      enforcement: "active",
+      conditions,
+      rules: [{ type: "creation" }],
+      bypass_actors: [{ actor_type: "Integration", actor_id: 5632044, bypass_mode: "always" }],
+    },
+  ];
+}
+
+export function protectionFixture(
+  commit: string,
+  observedAt = new Date().toISOString(),
+  receiptRulesets: readonly RulesetFixture[] = receiptTagRulesetsFixture(),
+) {
   const names = ["portcove-release-inputs", "portcove-release-pause"];
-  const rulesets = names.flatMap((branch, index) => [
+  const branchRulesets: RulesetFixture[] = names.flatMap((branch, index) => [
     {
       id: index * 2 + 1,
       target: "branch",
@@ -95,6 +140,7 @@ export function protectionFixture(commit: string, observedAt = new Date().toISOS
       bypass_actors: [],
     },
   ]);
+  const rulesets: RulesetFixture[] = [...branchRulesets, ...structuredClone(receiptRulesets)];
   const inventory = {
     rulesets,
     branches: names.map((branch, i) => ({

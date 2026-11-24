@@ -450,7 +450,7 @@ fn default_refresh_repairs_a_legacy_active_pointer_without_rewriting_history() {
 }
 
 #[test]
-fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
+fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_history_portable() {
     use crate::{
         ReleaseChannel,
         operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
@@ -461,29 +461,18 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
     let port_id = &first.port_id;
     let library = service.library();
     let default = service.ensure_default_profile(port_id).unwrap();
-    let mut current = first.clone();
+    let mut runtimes = Vec::new();
     for number in 0..MAX_OFFERED_REVISIONS {
         let id = format!("runtime-{number}");
-        current = install(library, &id, id.as_bytes(), true);
+        runtimes.push(install(library, &id, id.as_bytes(), true));
     }
-    let next = install(library, "next", b"next runtime", false);
     let connection = library.connection().unwrap();
-    let cap = require_default_recovery_capacity(&connection, port_id, &next.id).unwrap_err();
-    assert_eq!(cap.code, ErrorCode::Conflict);
-    assert!(library.activate_staged(port_id).is_err());
-    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
-    assert_eq!(status.active.unwrap().id, current.id);
-    assert_eq!(status.staged.unwrap().id, next.id);
-    assert!(
-        service
-            .preview_retained_build_removal(port_id, &default.id)
-            .is_err()
-    );
-    assert!(
-        service
-            .preview_retained_build_binding(port_id, &default.id, &next.id)
-            .is_err()
-    );
+    let offered = |connection: &Connection| {
+        crate::retained_build::reference_from(connection, port_id, &default.id)
+            .unwrap()
+            .unwrap()
+    };
+    assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
     // An already materialized historical revision keeps its build until the
     // player switches away. Current Default activation advances this selection.
@@ -498,11 +487,13 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
         .current_revision;
     set_selection(&connection, port_id, &default.id, current_revision).unwrap();
 
-    // An interrupted install whose own new build is independent of the offer
-    // can wait for a slot. The player can retire the offer under the port lock.
+    // Explicit player retirement stays available, including while an
+    // interrupted install is recovering.
+    let waiting = install(library, "waiting", b"waiting runtime", false);
     let store = OperationStore::new(library.clone());
-    let mut pending = LifecycleOperation::new(&next.id, LifecycleOperationKind::Install, port_id);
-    pending.install = Some(next.clone());
+    let mut pending =
+        LifecycleOperation::new(&waiting.id, LifecycleOperationKind::Install, port_id);
+    pending.install = Some(waiting.clone());
     pending.activate = true;
     pending.phase = LifecyclePhase::PayloadPublished;
     store.put(&mut pending).unwrap();
@@ -516,21 +507,119 @@ fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
         .retire_retained_build_revision(port_id, &default.id, 1, &authorization.token)
         .unwrap();
     assert_eq!(retired.build.install_id, first.id);
-    assert!(store.get(&pending.id).unwrap().is_some());
     store.remove(&pending.id).unwrap();
+    let recorded =
+        crate::retained_build::retirements_from(&connection, port_id, &default.id).unwrap();
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(
+        recorded[0].reason,
+        crate::RetainedBuildRetirementReason::Player
+    );
+    library.activate_staged(port_id).unwrap();
+    assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
-    service.library().activate_staged(port_id).unwrap();
+    // While a setup switch is interrupted, the policy cannot retire anything:
+    // activation refuses before the payload is published, and nothing changes.
+    let journal = crate::profile_deploy::Layout::for_user(&library.user_dir(port_id)).journal();
+    std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+    std::fs::write(&journal, b"{}").unwrap();
+    let blocked = install(library, "blocked", b"blocked runtime", false);
+    let before = offered(&connection);
+    let refused = library.activate_staged(port_id).unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    assert_eq!(
+        library
+            .status(port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .staged
+            .unwrap()
+            .id,
+        blocked.id
+    );
+    assert_eq!(offered(&connection), before);
+    std::fs::remove_file(&journal).unwrap();
+
+    // The old boundary: the next activation used to stop with "maximum number
+    // of recovery builds". The selected setup pins revision 2 (runtime-0), so
+    // the policy retires the oldest unpinned offer, runtime-1, instead.
+    set_selection(&connection, port_id, &default.id, 2).unwrap();
+    let next = install(library, "next", b"next runtime", false);
+    library.activate_staged(port_id).unwrap();
+    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().id, next.id);
+    let reference = offered(&connection);
+    assert_eq!(reference.history.len(), MAX_OFFERED_REVISIONS);
+    let kept = |install: &InstallRecord| {
+        reference
+            .retained_builds()
+            .any(|build| build.install_id == install.id)
+    };
+    assert!(kept(&runtimes[0]));
+    assert!(!kept(&runtimes[1]));
+    assert!(kept(&waiting));
+
+    // Well beyond the boundary, every update succeeds without manual repair.
+    for number in 0..24 {
+        let id = format!("later-{number}");
+        install(library, &id, id.as_bytes(), true);
+        let reference = offered(&connection);
+        assert_eq!(reference.history.len(), MAX_OFFERED_REVISIONS);
+        assert!(
+            reference
+                .retained_builds()
+                .any(|build| build.install_id == runtimes[0].id)
+        );
+    }
+
+    // Each policy retirement is recorded: runtime-1, then one per later update.
+    let recorded =
+        crate::retained_build::retirements_from(&connection, port_id, &default.id).unwrap();
+    assert_eq!(recorded.len(), 1 + 1 + 24);
+    assert_eq!(
+        recorded.last().unwrap().reason,
+        crate::RetainedBuildRetirementReason::Player
+    );
+    assert_eq!(
+        recorded[recorded.len() - 2].retired.build.install_id,
+        runtimes[1].id
+    );
+
+    // Recovery meaning: every revision keeps its exact build, retired builds
+    // stay registered on disk, and the history exports and validates.
     let profiles = export(&connection).unwrap();
     let references = crate::retained_build::references_from(&connection).unwrap();
     assert!(has_retired_history(&profiles, &references));
     assert!(validate_export(&profiles, &references, false).is_err());
     validate_export(&profiles, &references, true).unwrap();
-    assert_eq!(profiles[0].revisions[0].build.install_id, first.id);
-    assert_eq!(
-        profiles[0].revisions.last().unwrap().build.install_id,
-        next.id
-    );
+    let revisions = &profiles[0].revisions;
+    assert_eq!(revisions[0].build.install_id, first.id);
+    assert_eq!(revisions[2].build.install_id, runtimes[1].id);
+    assert_eq!(revisions.len(), 1 + MAX_OFFERED_REVISIONS + 1 + 1 + 24);
     assert!(first.path.is_dir());
+    assert!(runtimes[1].path.is_dir());
+    assert!(
+        Library::install_by_id(&connection, Some(&runtimes[1].id))
+            .unwrap()
+            .is_some()
+    );
+
+    // A library that crossed the old bound exports and imports end to end.
+    let workspace = tempfile::tempdir().unwrap();
+    let export_path = workspace.path().join("export.json");
+    let destination = workspace.path().join("imported");
+    service.write_library_metadata(&export_path).unwrap();
+    let plan =
+        PortcoveService::plan_library_import(&export_path, library.root(), &destination).unwrap();
+    assert!(plan.metadata.schema_version >= 11);
+    PortcoveService::import_library(
+        &export_path,
+        library.root(),
+        &destination,
+        &plan.plan_sha256,
+    )
+    .unwrap();
+    let imported = Library::open(&destination).unwrap().connection().unwrap();
+    assert_eq!(export(&imported).unwrap(), profiles);
 }
 
 #[test]
@@ -626,4 +715,87 @@ fn a_revision_keeps_more_than_sixty_four_settings() {
         .unwrap();
     let revisions = service.profile_revisions("starship", &default.id).unwrap();
     assert_eq!(revisions.last().unwrap().settings, settings);
+}
+
+#[test]
+fn a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them() {
+    let (temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let assert_exported = |expected: usize| {
+        let connection = service.library().connection().unwrap();
+        let profiles = export(&connection).unwrap();
+        let references = crate::retained_build::references_from(&connection).unwrap();
+        assert_eq!(profiles.len(), expected);
+        assert_eq!(references.len(), expected);
+        validate_export(&profiles, &references, true).unwrap();
+    };
+    // 64 setups per port used to be the ceiling; 65 crosses it and 200 goes
+    // well beyond, every one through the durable per-setup creation path. Each
+    // create costs the same at any library size (a fixed set of statements,
+    // one WAL commit), so hosted Windows bounds how many of them a case runs.
+    let mut count = 1;
+    for checkpoint in [65, 200] {
+        while count < checkpoint {
+            service
+                .copy_profile(port_id, &default.id, &format!("Setup {count}"))
+                .unwrap();
+            count += 1;
+        }
+        assert_exported(checkpoint);
+    }
+    // A library already holding 1,000 setups still creates the next one through
+    // the same path, and the whole library still exports and validates.
+    crate::import_execution::tests::add_scaled_profiles(
+        &temporary.path().join("library"),
+        &first.id,
+        1_000 - count,
+        0,
+    );
+    assert_exported(1_000);
+    let created = service
+        .copy_profile(port_id, &default.id, "Setup 1000")
+        .unwrap();
+    assert_exported(1_001);
+    // Each setup stays readable, editable and selectable after the library grew.
+    let inventory = service.profile_inventory(port_id).unwrap();
+    assert_eq!(inventory.profiles.len(), 1_001);
+    let last = inventory.profiles.last().unwrap();
+    service
+        .set_profile_update_policy(port_id, &last.profile.id, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+    assert_eq!(
+        service
+            .profile_revisions(port_id, &last.profile.id)
+            .unwrap()
+            .len(),
+        1
+    );
+    service
+        .set_profile_update_policy(port_id, &created.id, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+}
+
+#[test]
+fn creating_a_setup_does_the_same_work_however_many_setups_the_port_has() {
+    let (temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    // Stored setup and revision records decoded by one create, counted rather
+    // than timed so the result is deterministic on every runner.
+    let decoded_by_one_create = |name: &str| {
+        DECODED_RECORDS.with(|count| count.set(0));
+        service.copy_profile(port_id, &default.id, name).unwrap();
+        DECODED_RECORDS.with(std::cell::Cell::get)
+    };
+    let with_one_setup = decoded_by_one_create("Second");
+    crate::import_execution::tests::add_scaled_profiles(
+        &temporary.path().join("library"),
+        &first.id,
+        1_000,
+        0,
+    );
+    let with_a_thousand_and_two = decoded_by_one_create("After a thousand");
+    assert_eq!(with_one_setup, with_a_thousand_and_two);
+    assert!(with_one_setup > 0);
 }

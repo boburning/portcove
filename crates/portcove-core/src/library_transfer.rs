@@ -80,9 +80,13 @@ impl PortcoveService {
         let database_bytes = pages
             .checked_mul(page_size)
             .ok_or_else(|| PortcoveError::state("library database size overflowed"))?;
+        // The move journal carries the plan; a completed earlier journal may be
+        // archived beside it.
+        let journal_reserve =
+            crate::library_metadata_document::transfer_reserve(&metadata, &content, 2)?;
         let required_bytes = copied_bytes
             .checked_add(database_bytes)
-            .and_then(|size| size.checked_add(64 * 1024 * 1024))
+            .and_then(|size| size.checked_add(journal_reserve))
             .ok_or_else(|| PortcoveError::state("library capacity estimate overflowed"))?;
         let available_bytes = fs4::available_space(
             destination_root

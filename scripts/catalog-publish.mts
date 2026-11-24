@@ -29,6 +29,12 @@ import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
+import {
+  type RetainBodies,
+  listingFloorLedgerPath,
+  prunedListingBodies,
+  retainBodies,
+} from "./catalog-body-window.mts";
 
 export const onlineRoles = [
   "official-definitions",
@@ -50,6 +56,10 @@ export type Plan = {
   expires: Four<string>;
   prior: boolean;
   history?: "bootstrap" | "segmented";
+  /** Body retention in force for this run (#1422); absent means `all`. */
+  retain_bodies?: "ledger" | "window";
+  /** Whether a published listing-floor ledger exists to extend. */
+  listing_ledger?: "backfill" | "extend";
 };
 
 function readJson(file: string): unknown {
@@ -163,8 +173,34 @@ export function contextConfig(work: string, now: Date) {
     previous_repository: plan.prior ? "prior" : null,
     ...(plan.history === "bootstrap" ? { bootstrap_history: true } : {}),
     ...(plan.history === "segmented" ? { history_store: "history" } : {}),
+    ...(plan.listing_ledger
+      ? {
+          listing_floor_ledger: {
+            prior: plan.listing_ledger === "extend" ? priorListingLedger : null,
+          },
+        }
+      : {}),
     versions: plan.versions,
     expires: plan.expires,
+  };
+}
+
+/**
+ * Keyless history verification of the staged Pages catalog against the ledger
+ * this run serves, before the publish commit: a divergence between the window
+ * and the verifier stops this run instead of the next one (#1422).
+ */
+export function siteHistoryConfig(work: string, site: string) {
+  const catalog = path.resolve(site, "catalog");
+  return {
+    schema_version: 1,
+    initial_root_profile: "single-owner-one-of-one-v1",
+    trusted_root: "root.json",
+    trusted_root_sha256: sha256(path.join(work, "root.json")),
+    offline_targets: "offline-targets.json",
+    offline_targets_sha256: sha256(path.join(work, "offline-targets.json")),
+    repository: catalog,
+    listing_floor_ledger: { prior: path.join(catalog, listingFloorLedgerPath) },
   };
 }
 
@@ -186,6 +222,27 @@ export const assemblyConfig = {
 };
 
 const historyTarget = "policy/official/catalog.history-checkpoint.json";
+/** Work-relative copy of the published ledger and the run's derived ledger. */
+const priorListingLedger = "prior-listing-floors.json";
+export const listingLedgerOutput = "listing-floors.json";
+
+/**
+ * Body retention for one run. Checkpointed history keeps its own archive of
+ * every file, so retention stays off beside it (publication continues).
+ */
+export function retentionPlan(
+  site: string | null,
+  mode: RetainBodies,
+  history: Plan["history"],
+): Pick<Plan, "retain_bodies" | "listing_ledger"> & { notice?: string } {
+  if (mode === "all" || !site) return {};
+  if (history)
+    return { notice: `catalog body retention ${mode} stays off while history is ${history}` };
+  return {
+    retain_bodies: mode,
+    listing_ledger: existsSync(path.join(site, listingFloorLedgerPath)) ? "extend" : "backfill",
+  };
+}
 const hashPattern = /^[a-f0-9]{64}$/u;
 const publicPath = /^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/u;
 
@@ -235,6 +292,12 @@ export function historyMode(input: {
     throw new Error("catalog history bootstrap requires an existing published catalog");
   if (existsSync(history))
     throw new Error("catalog history has objects without an authenticated pointer");
+  // A checkpoint is derived from every listing body; the window's pruned
+  // bodies must be restored first (docs/RELEASING.md, full restore).
+  if (prunedListingBodies(site).length)
+    throw new Error(
+      "catalog history bootstrap needs a full restore of the pruned listing bodies first",
+    );
   return "bootstrap";
 }
 
@@ -336,12 +399,13 @@ export function stageHistoryObjects(source: string, destination: string, priorDi
   return changed;
 }
 
-/** Visitor pages are not TUF repository inputs. Preserve the existing prior
- * repository files while keeping the whole site's digest as the write guard. */
+/** Visitor pages and the listing-floor ledger are not TUF repository inputs.
+ * Preserve the existing prior repository files while keeping the whole site's
+ * digest as the write guard. */
 export function copyPriorRepository(site: string, output: string) {
   mkdirSync(output, { recursive: true });
   for (const name of readdirSync(site)) {
-    if (name === "browse") continue;
+    if (name === "browse" || name === path.dirname(listingFloorLedgerPath)) continue;
     cpSync(path.join(site, name), path.join(output, name), { recursive: true });
   }
 }
@@ -519,6 +583,16 @@ async function main(argv: string[]) {
     });
     if (mode === "segmented") cpSync(history, path.join(work, "history"), { recursive: true });
     if (mode) plan.history = mode;
+    const index = args.indexOf("--retain-bodies");
+    const { notice, ...retention } = retentionPlan(
+      versions ? site : null,
+      retainBodies(index >= 0 ? args[index + 1] : undefined),
+      mode,
+    );
+    if (notice) console.error(`::notice::${notice}`);
+    Object.assign(plan, retention);
+    if (plan.listing_ledger === "extend")
+      cpSync(path.join(site!, listingFloorLedgerPath), path.join(work, priorListingLedger));
     write(path.join(work, "plan.json"), plan);
     // Without a published pointer or an owner bootstrap request the outputs,
     // plan and signing context stay exactly those of pre-history publication.
@@ -528,6 +602,8 @@ async function main(argv: string[]) {
     }
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
+    // Retention off keeps exactly the outputs publication had before it.
+    if (plan.retain_bodies) console.log(`retain_bodies=${plan.retain_bodies}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
   } else if (command === "sign-config") {
     const work = path.resolve(flag(args, "work"));
@@ -540,10 +616,15 @@ async function main(argv: string[]) {
   } else if (command === "assembly-config") {
     const work = path.resolve(flag(args, "work"));
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
+    const plan = readPlan(work);
     write(path.join(work, "assembly.json"), {
       ...assemblyConfig,
-      ...(readPlan(work).history ? { history_output: "repository-history" } : {}),
+      ...(plan.history ? { history_output: "repository-history" } : {}),
+      ...(plan.listing_ledger ? { listing_floor_ledger_output: listingLedgerOutput } : {}),
     });
+  } else if (command === "site-history-config") {
+    const work = path.resolve(flag(args, "work"));
+    write(path.join(work, "site-history.json"), siteHistoryConfig(work, flag(args, "site")));
   } else if (command === "limit-signer-history") {
     limitSignerHistory(path.resolve(flag(args, "work")));
   } else if (command === "restore-history") {
@@ -615,7 +696,7 @@ async function main(argv: string[]) {
     console.log(treeDigest(path.resolve(flag(args, "dir"))));
   } else {
     throw new Error(
-      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|tree-digest",
+      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|site-history-config|tree-digest",
     );
   }
 }

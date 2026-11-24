@@ -1341,6 +1341,10 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * Why an offered recovery build stopped being offered.
+ */
+export type RetainedBuildRetirementReason = "retention_policy" | "player";
 export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
@@ -1420,6 +1424,20 @@ export type OutputDesktopApplicationUpdateProgress =
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+/**
+ * Why unattended work stopped for now.
+ */
+export type TemporaryCause =
+  | "network"
+  | "rate_limited"
+  | "server_unavailable"
+  | "storage_full"
+  | "game_busy"
+  | "file_in_use"
+  | "time_budget"
+  | "inventory_incomplete"
+  | "interrupted"
+  | "clean_stop";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -2746,6 +2764,11 @@ export interface OutputCapabilities {
   artwork_handoff_schema?: number | null;
   commands: string[];
   /**
+   * Named definition-delivery features, such as `catalog.policy-decision-v2`.
+   * A publisher emits a newer form only after a released reader lists it.
+   */
+  definition_features?: string[];
+  /**
    * Installed engine contracts; these do not grant definition admission.
    */
   engine_templates: EngineTemplateCapability[];
@@ -2754,6 +2777,11 @@ export interface OutputCapabilities {
    * Independently negotiated signed-directory transport representations.
    */
   listing_delivery_carriers?: string[];
+  /**
+   * Reader limits for signed descriptive delivery. Absent on older readers,
+   * which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+   */
+  listing_delivery_limits?: ListingDeliveryLimits | null;
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2772,6 +2800,41 @@ export interface OutputCapabilities {
 export interface EngineTemplateCapability {
   contract_version: number;
   template: AdapterKind;
+}
+/**
+ * Limits a client applies to signed descriptive delivery. Instead of the
+ * released 10,000-entry count, each listing and withdrawal is charged against
+ * one measured working-memory element budget per admission.
+ */
+export interface ListingDeliveryLimits {
+  /**
+   * Largest decoded compact directory admitted and retained.
+   */
+  decoded_bytes: number;
+  /**
+   * Largest signed definition index.
+   */
+  definition_index_bytes: number;
+  /**
+   * Working-memory element budget of one directory admission.
+   */
+  element_budget_bytes: number;
+  /**
+   * Charge per listing against the element budget.
+   */
+  listing_charge_bytes: number;
+  /**
+   * Largest single compact listing record.
+   */
+  record_bytes: number;
+  /**
+   * Largest authenticated listing target body, either carrier.
+   */
+  target_bytes: number;
+  /**
+   * Charge per withdrawal against the element budget.
+   */
+  withdrawal_charge_bytes: number;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];
@@ -7495,6 +7558,11 @@ export interface OutputRetainedBuildBindingPreview {
   build: RetainedBuildIdentity;
   preview_sha256: string;
   previous: RetainedBuildReference | null;
+  /**
+   * Offered recovery builds this binding retires under the retention policy.
+   * The installations stay registered; only the offer ends.
+   */
+  retires?: RetainedBuildRevision[];
   setup_id: string;
   [k: string]: unknown;
 }
@@ -7528,6 +7596,10 @@ export interface RetainedBuildResolution {
   history: RetainedBuildHistoryResolution[];
   install: InstallRecord | null;
   reference: RetainedBuildReference;
+  /**
+   * Offers this setup no longer makes, newest first.
+   */
+  retired?: RetainedBuildRetirement[];
   [k: string]: unknown;
 }
 /**
@@ -7539,6 +7611,19 @@ export interface RetainedBuildHistoryResolution {
   install: InstallRecord | null;
   revision: RetainedBuildRevision;
   [k: string]: unknown;
+}
+/**
+ * Durable record of one retirement (library schema 78). The installation was
+ * not removed; only the offer ended.
+ */
+export interface RetainedBuildRetirement {
+  /**
+   * The reference revision that no longer offers the build.
+   */
+  binding_revision: number;
+  reason: RetainedBuildRetirementReason;
+  retired: RetainedBuildRevision;
+  retired_at: number;
 }
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;
@@ -8223,6 +8308,12 @@ export interface OutputDesktopGameFileScanRegisteredMatches {
 }
 export interface InstallBatchRecord {
   cancel_requested: boolean;
+  /**
+   * Unix seconds Portcove recorded that it was closing, restarting or told
+   * to stop while this unattended batch ran. An item the process then left
+   * unsettled was stopped cleanly, which never counts as a crash.
+   */
+  clean_stop_at?: number | null;
   created_at: number;
   format_version: number;
   id: string;
@@ -8231,10 +8322,31 @@ export interface InstallBatchRecord {
 }
 export interface InstallBatchItem {
   detail?: string | null;
+  /**
+   * For an unattended run: the partial-download entries its plan uses.
+   * An unclean stop compares only these, so another game's download
+   * progress never resets this game's crash-loop count.
+   */
+  download_keys?: string[];
   expected_plan_sha256: string;
   install_id?: string | null;
   port_id: string;
   state: InstallBatchItemState;
+  /**
+   * Set on a failed item whose failure came from a passing condition, so
+   * unattended setup retries it later instead of counting a lasting failure.
+   */
+  temporary?: TemporaryFailure | null;
+}
+/**
+ * What a temporary failure was, as recorded where it happened.
+ */
+export interface TemporaryFailure {
+  cause: TemporaryCause;
+  /**
+   * Unix seconds the provider said its limit resets, when it said.
+   */
+  stated_reset?: number | null;
 }
 export interface OutputDesktopInstallBatchReview {
   capacity: InstallBatchCapacity;
@@ -8378,11 +8490,20 @@ export interface PortIntent {
   failed_attempts?: number;
   /**
    * The plan whose standing setup last failed, and how many times it has
-   * failed. It is retried on later passes up to a small limit, then waits
-   * until the plan changes, so a permanent failure does not recur.
+   * failed for a lasting reason. It is retried on later passes up to a
+   * small limit, then waits until the plan changes, so a permanent failure
+   * does not recur. Temporary failures never count here; see
+   * `temporary_retry`.
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
+  /**
+   * Set when `failed_attempts` was counted by a Portcove that separates
+   * temporary from lasting failures. A record that reached the limit
+   * before that (it may have counted network outages) gets one more
+   * attempt after upgrade; its next failure is classified normally.
+   */
+  failure_classified?: boolean;
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
@@ -8393,6 +8514,12 @@ export interface PortIntent {
    * files that arrive are used.
    */
   sources?: PortIntentSource[];
+  /**
+   * Set when the last failure of `failed_plan_sha256` came from a passing
+   * condition (network, provider limit or outage, full disk, interruption).
+   * The same plan runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   updated_at: number;
 }
 /**
@@ -8401,6 +8528,34 @@ export interface PortIntent {
 export interface PortIntentSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A temporary failure's retry schedule. Clears when the work succeeds, its
+ * plan changes or the player chooses again.
+ */
+export interface TemporaryRetry {
+  /**
+   * Unix seconds this failure was recorded. Unattended passes take games
+   * with a pending retry after the others, oldest attempt first. Zero for
+   * records written before it was kept.
+   */
+  attempted_at?: number;
+  /**
+   * Consecutive temporary failures of the same plan with the same cause;
+   * sets the back-off. A different cause starts the count again.
+   */
+  attempts: number;
+  cause: TemporaryCause;
+  /**
+   * For an unclean stop: the kept download bytes when it was recorded.
+   */
+  kept_downloads?: {
+    [k: string]: number;
+  };
+  /**
+   * Unix seconds before which the work is not tried again.
+   */
+  retry_after: number;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];
@@ -8423,6 +8578,11 @@ export interface PortIntentAssessment {
    * been told about yet.
    */
   newly_ready: boolean;
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt. Each surface shows it in its own form.
+   */
+  next_attempt_at?: number | null;
   port_id: string;
   readiness: PortReadiness;
   /**
@@ -8508,13 +8668,26 @@ export interface RootSetupConsent {
   [k: string]: unknown;
 }
 export interface RootSetupFailure {
+  /**
+   * Lasting failures of this plan; temporary ones never count here.
+   */
   attempts: number;
+  /**
+   * Set when `attempts` was counted by a Portcove that separates temporary
+   * from lasting failures; an older record at the limit gets one more try.
+   */
+  failure_classified?: boolean;
   /**
    * The install plan, or `source:` and the file, that failed.
    */
   plan_sha256: string;
   port_id: string;
   reason: string;
+  /**
+   * Set when the last failure came from a passing condition; the same plan
+   * runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   [k: string]: unknown;
 }
 /**
@@ -8568,6 +8741,11 @@ export interface StandingSetupFailure {
  * or a requirement.
  */
 export interface RootSetupWaiting {
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt.
+   */
+  next_attempt_at?: number | null;
   port_id?: string | null;
   profile_id: string;
   reason: string;

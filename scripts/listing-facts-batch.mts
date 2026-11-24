@@ -104,6 +104,7 @@ import {
   reproductionBatchEntries,
   reproductionHourlyRequests,
   toolchainNames,
+  listingCounts,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -131,6 +132,7 @@ import {
   OverBudgetError,
   readerPlatform,
   recordedTag,
+  releaseTextFacts,
   safeText,
   unreadableReleases,
   type ByteInspector,
@@ -139,6 +141,7 @@ import {
   type ObservedRelease,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDeliveryMaximum } from "./listing-directory-carrier.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -483,6 +486,9 @@ export interface ProviderRelease {
   prerelease: boolean;
   published_at: string | null;
   assets: { id: number; name: string; size: number; sha256: string | null; url: string }[];
+  /** The release's name and body as the provider states them (null when absent). */
+  name: string | null;
+  body: string | null;
 }
 /**
  * The first page of a repository's releases, newest first, as the worker's
@@ -772,7 +778,31 @@ export async function reproduceFacts(inputs: {
         reason: "release-unavailable",
         detail: `Release ${releaseId} is not a well-formed release among the repository's newest ${releaseListPage}.`,
       };
-    const observed: ObservedRelease = {
+    // The release text is reproduced where the entry records it as observed;
+    // where the entry records it unobserved (UNKNOWN), it is left unobserved,
+    // as the worker's observer report left it.
+    const asRecorded = (item: ObservedRelease): ObservedRelease =>
+      entry.observed_releases.find((recorded) => recorded.release_id === item.id)?.text ===
+      "observed"
+        ? item
+        : { ...item, text: null };
+    // Core's verdict, and a prerelease the release's own text states.
+    const verdict = (item: ObservedRelease) => {
+      const core = names.prerelease(item);
+      return core === undefined
+        ? undefined
+        : core || releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
+    };
+    // A release the entry records unobserved whose text the provider now
+    // reports with a prerelease statement (a stable-flagged release titled
+    // "… Beta") is no longer the release the entry describes: it is observed
+    // again, never kept enrolled by reconfirmation.
+    const unobservedStatement = (item: ObservedRelease) =>
+      item.text !== null &&
+      entry.observed_releases.find((recorded) => recorded.release_id === item.id)?.text ===
+        "unobserved" &&
+      releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
+    const reproduced: ObservedRelease = {
       id: release.id,
       version: release.tag_name,
       published_at: release.published_at,
@@ -786,7 +816,15 @@ export async function reproduceFacts(inputs: {
         size,
         sha256,
       })),
+      text: { title: release.name, body: release.body },
     };
+    const stating = [reproduced, ...observerWindow(listed.releases)].find(unobservedStatement);
+    if (stating)
+      return {
+        reason: "mismatch",
+        detail: `Release ${stating.id} is recorded with unobserved text, but its text now states a prerelease; it is observed again.`,
+      };
+    const observed = asRecorded(reproduced);
     const published = Date.parse(release.published_at ?? "");
     await names.add({
       releases: [{ tag: release.tag_name, provider_prerelease: release.prerelease }],
@@ -812,7 +850,7 @@ export async function reproduceFacts(inputs: {
           entry.observation.published_at,
         "the publication time",
       ],
-      [names.prerelease(observed) === false, "the stable-release verdict"],
+      [verdict(observed) === false, "the stable-release verdict"],
       [assetsDigest(observed) === entry.observation.assets_sha256, "the release asset list"],
       // The release's own line facts: its tag, time and verdict as recorded,
       // and every other package form beside its archives with the platforms
@@ -848,12 +886,13 @@ export async function reproduceFacts(inputs: {
       releaseId,
       entry.repository,
       inputs.boundLines.get(entry.port_id) ?? null,
+      (item) => verdict(asRecorded(item)),
     );
     if (newest) return { reason: "not-latest-stable", detail: newest };
     // The recorded observed releases are exactly the observer's window of the
     // listed releases: an entry that leaves out another line's release, or
     // changes one, is refused (a release published since the run is too).
-    const window = observerWindow(listed.releases);
+    const window = observerWindow(listed.releases).map(asRecorded);
     await names.add({
       releases: window.map((item) => ({
         tag: item.version,
@@ -861,8 +900,9 @@ export async function reproduceFacts(inputs: {
       })),
     });
     if (
-      JSON.stringify(observedReleaseFacts(window, (item) => names.prerelease(item))) !==
-      JSON.stringify(entry.observed_releases)
+      JSON.stringify(
+        observedReleaseFacts(window, verdict, entry.repository, entry.listing_words),
+      ) !== JSON.stringify(entry.observed_releases)
     )
       return {
         reason: "mismatch",
@@ -917,11 +957,13 @@ export async function reproduceFacts(inputs: {
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
       let toolchain: string[];
+      let counts: ArtifactFactV2["listing_counts"];
       try {
         bytes += asset.size;
         const inspection = await inputs.inspect(bound, readerPlatform(asset.name));
         players = inspection.players;
         toolchain = toolchainNames(inspection.names, inspection.leaves);
+        counts = listingCounts(inspection.leaves);
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
@@ -954,6 +996,7 @@ export async function reproduceFacts(inputs: {
         suggestion,
         (name) => names.programToken(name)!,
         toolchain,
+        counts,
       );
       if (JSON.stringify(rebuilt) !== JSON.stringify(artifact))
         return {
@@ -1010,6 +1053,7 @@ export async function reproduceFacts(inputs: {
     releaseId: number,
     repository: string,
     line: string | null,
+    verdict: (item: ObservedRelease) => boolean | undefined,
   ) {
     await names.add({
       releases: listed.releases.map((item) => ({
@@ -1023,7 +1067,7 @@ export async function reproduceFacts(inputs: {
         : listed.releases.filter(
             (item) => releaseLine(recordedTag(item.version), item.id, repository) === line,
           );
-    const chosen = latestStable(offered, (item) => names.prerelease(item));
+    const chosen = latestStable(offered, verdict);
     const unreadable = unreadableReleases(listed.releases, chosen.release ?? chosen.unclassified);
     if (unreadable) return unreadable;
     if (chosen.unclassified)
@@ -1305,6 +1349,10 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       draft: release.draft,
       assets_complete: true,
       malformed_assets: release.assets.length - assets.length,
+      text: {
+        title: typeof release.name === "string" ? release.name : null,
+        body: typeof release.body === "string" ? release.body : null,
+      },
       assets: assets.map((asset) => ({
         id: Number(asset.id),
         name: String(asset.name),
@@ -1383,6 +1431,8 @@ export function parseProviderRelease(value: unknown): ProviderRelease {
     prerelease: value.prerelease,
     published_at: value.published_at,
     assets,
+    name: typeof value.name === "string" ? value.name : null,
+    body: typeof value.body === "string" ? value.body : null,
   };
 }
 
@@ -1779,7 +1829,7 @@ export function batchPullBody(input: {
     "",
     "No title-specific review happens on this route; the documented rules, the gate and the reproduction are the review (docs/CATALOG.md, scheduled facts batch job).",
     "",
-    "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. Approval grants CI permission only; the next scheduled run separately confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
+    "This pull request was opened by the job's GitHub App, so its required checks start on their own; no person needs to approve, close or reopen it. The next scheduled run confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head, bound to that head's CI run; a failing check stops the job.",
   ].join("\n");
 }
 
@@ -1874,7 +1924,9 @@ export interface CapacityRow {
  *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
  *    JSON-escaped retained installed contract, estimated as the escaped
  *    `catalog.json` text plus `retainedContractReserveBytes`;
- *  - `MAX_LISTING_BYTES` (8 MiB): the embedded listing directory.
+ *  - the canonical `listings.json` against the listing publisher's 8 MiB
+ *    canonical read (`listingDeliveryMaximum`) and Core's inspection text
+ *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`).
  * Released readers refuse more than the bound, so a batch past a ceiling is
  * never proposed: its required check would fail.
  */
@@ -1885,12 +1937,24 @@ export function batchCapacity(input: {
   listingSource: string;
 }): { ok: boolean; percent: number; rows: CapacityRow[] } {
   const bounds = catalogSizeBounds(input.signedCatalogSource);
-  const listingBound = capacityConstant(input.listingSource, "MAX_LISTING_BYTES");
   const guard = catalogSizeGuard(
     Buffer.byteLength(input.catalogText),
     JSON.parse(input.catalogText) as unknown,
     bounds,
-    { bytes: input.listingBytes, bound: listingBound },
+    [
+      [
+        "generated listings.json bytes",
+        input.listingBytes,
+        listingDeliveryMaximum,
+        "listing publisher canonical read bound",
+      ],
+      [
+        "generated listings.json inspection bytes",
+        input.listingBytes,
+        capacityConstant(input.listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+        "Core listing inspection bound",
+      ],
+    ],
   );
   const ceiling = Math.floor((bounds.current * bounds.percent) / 100);
   const retained =
@@ -1948,6 +2012,8 @@ export const stopConditionNames = [
   "observer-coverage-dropped",
   "pending-repeated",
   "batch-waiting",
+  "foreign-batch-author",
+  "batch-app-slug-unset",
   "worker-error",
 ] as const;
 export type StopConditionName = (typeof stopConditionNames)[number];
@@ -2362,11 +2428,23 @@ export function collectConditions(
     blocked?: boolean;
     /** The freshness of the committed facts, evaluated on every enabled run. */
     freshness?: string | null;
+    /** The login of a batch-shaped pull request's author that is not the job's App. */
+    foreignAuthor?: string;
   },
 ) {
   const freshness = input.freshness !== undefined ? input.freshness : found.freshness;
   if (input.blocked) return { conditions: [] as StopCondition[], freshness };
   const conditions = [...found.conditions];
+  if (input.foreignAuthor)
+    conditions.push({
+      name: "foreign-batch-author",
+      detail: `Batch-shaped pull request #${input.prNumber} was opened by ${input.foreignAuthor}, not by the job's own GitHub App, so the job neither merges it nor starts another batch. Find out which App opened it and why; close it (and, if it was not expected, remove that App's write access), then close this issue.`,
+    });
+  if (input.prState === "unbound")
+    conditions.push({
+      name: "batch-app-slug-unset",
+      detail: `Batch pull request #${input.prNumber} passed its required checks, but the repository variable PORTCOVE_FACTS_BATCH_APP_SLUG is unset or malformed, so the job cannot tell its own App's batch from another App's and does not merge it. Set the variable to the slug of the job's GitHub App, then close this issue.`,
+    });
   if (input.prState === "failed")
     conditions.push({
       name: "required-check-failed",
@@ -2378,7 +2456,7 @@ export function collectConditions(
   if (["waiting-for-checks", "pending"].includes(input.prState) && waited > batchWaitDays)
     conditions.push({
       name: "batch-waiting",
-      detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its workflow runs most likely wait for **Approve workflows to run**; approve them or close the pull request, then close this issue.`,
+      detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its checks should have started when the job's App opened it: look at its CI runs (a run stuck queued, or none at all), fix the cause or close the pull request, then close this issue.`,
     });
   for (const [job, result] of Object.entries(input.jobs))
     // A deriving job that failed after its run named its conditions failed
@@ -2491,7 +2569,9 @@ export type BatchPullState =
   | { state: "waiting-for-checks"; missing: string[] }
   | { state: "pending"; pending: string[] }
   | { state: "failed"; failed: string[] }
-  | { state: "green" };
+  | { state: "green" }
+  /** Green, but the job's App slug is unset: never merged (`batch-app-slug-unset`). */
+  | { state: "unbound" };
 
 /** The required-check state of a batch head: the newest run of each required context decides. */
 export function requiredCheckState(runs: readonly CheckRun[]): BatchPullState {
@@ -2541,9 +2621,41 @@ export function ciRunFor(
 }
 
 /**
+ * Whether a pull request author is a GitHub App's bot user other than the
+ * built-in workflow token's. Without the optional `appSlug` (the owner's
+ * repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG`), the read-only `gate`
+ * does not know which App delivers, so any App's batch-shaped pull request
+ * is evaluated and the `merge` job binds the author to the minted App's exact
+ * login before any write; a mismatch there, or here once the slug is known,
+ * is the named `foreign-batch-author` stop (`isExpectedBatchAuthor`).
+ */
+export function isBatchAppAuthor(user: unknown) {
+  return (
+    isRecord(user) &&
+    user.type === "Bot" &&
+    typeof user.login === "string" &&
+    /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?\[bot\]$/iu.test(user.login) &&
+    user.login !== workflowLogin
+  );
+}
+
+/** The expected App's bot login, from its slug, or undefined when the slug is unset or malformed. */
+export function expectedBatchAuthor(appSlug: string | undefined) {
+  const slug = appSlug?.trim();
+  return slug && /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/iu.test(slug) ? `${slug}[bot]` : undefined;
+}
+
+/** Whether a batch author is the expected App's bot; any App's bot when the slug is unknown. */
+export function isExpectedBatchAuthor(login: string, appSlug: string | undefined) {
+  const expected = expectedBatchAuthor(appSlug);
+  return expected === undefined || login.toLowerCase() === expected.toLowerCase();
+}
+
+/**
  * The open pull requests the job itself opened: a batch branch in this
- * repository, opened by the workflow token. A fork or a person using a
- * batch-like branch name is not a batch and cannot hold or stop the job.
+ * repository, opened by a GitHub App. A fork, a person, or the built-in
+ * workflow token of another workflow using a batch-like branch name is not
+ * a batch and cannot hold or stop the job.
  */
 export function jobBatches(pulls: readonly unknown[], repository: string) {
   return pulls.filter(
@@ -2551,10 +2663,9 @@ export function jobBatches(pulls: readonly unknown[], repository: string) {
       isRecord(pull) &&
       isRecord(pull.head) &&
       isRecord(pull.head.repo) &&
-      isRecord(pull.user) &&
       String(pull.head.ref).startsWith(batchBranchPrefix) &&
       pull.head.repo.full_name === repository &&
-      pull.user.login === workflowLogin,
+      isBatchAppAuthor(pull.user),
   );
 }
 
@@ -2562,6 +2673,7 @@ export function jobBatches(pulls: readonly unknown[], repository: string) {
 export function batchPullProblems(pull: {
   head_ref: string;
   author: string;
+  author_type: string;
   base_ref: string;
   commits: number;
   draft: boolean;
@@ -2569,8 +2681,8 @@ export function batchPullProblems(pull: {
   const problems: string[] = [];
   if (!/^automation\/listing-facts-batch-[1-9][0-9]{0,19}$/u.test(pull.head_ref))
     problems.push(`${pull.head_ref} is not a batch branch.`);
-  if (pull.author !== "github-actions[bot]")
-    problems.push(`The pull request was opened by ${pull.author}, not by the job.`);
+  if (!isBatchAppAuthor({ login: pull.author, type: pull.author_type }))
+    problems.push(`The pull request was opened by ${pull.author}, not by the job's App.`);
   if (pull.base_ref !== "main") problems.push("The pull request does not target main.");
   if (pull.commits !== 1) problems.push(`The batch has ${pull.commits} commits, not exactly one.`);
   if (pull.draft) problems.push("The batch pull request is a draft.");
@@ -2662,8 +2774,25 @@ function authoredRecordsAt(revision: string): AuthoredPort[] {
   }
 }
 
-function currentFacts(): ListingFactsTable {
-  const table = parseCatalogSource(readFileSync(path.join(root, factsTablePath), "utf8"));
+/**
+ * The facts table's bytes: the checkout's file, or the committed file at
+ * `revision`. The `deliver` job reads the applied batch commit this way, so
+ * main's script checks the batch without running from the batch's tree.
+ */
+function factsBytes(revision?: string): Buffer {
+  if (revision === undefined) return readFileSync(path.join(root, factsTablePath));
+  if (!/^[0-9a-f]{40}$/u.test(revision)) throw new Error("--revision must be a full commit id.");
+  const result = spawnSync("git", ["cat-file", "blob", `${revision}:${factsTablePath}`], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout))
+    throw new Error(`Cannot read ${factsTablePath} at ${revision}.`);
+  return result.stdout;
+}
+
+function currentFacts(revision?: string): ListingFactsTable {
+  const table = parseCatalogSource(factsBytes(revision).toString("utf8"));
   checkListingFactsTable(table);
   return table;
 }
@@ -3042,16 +3171,21 @@ async function main(argv: string[]): Promise<string> {
       writeFileSync(option.output!, `${JSON.stringify(record, null, 2)}\n`);
       return `${JSON.stringify(record)}\n`;
     }
+    case "allowlist": {
+      // The paths a batch may change, one per line, for the merge job's
+      // data-only composition.
+      return `${batchAllowlist.join("\n")}\n`;
+    }
     case "outputs-check": {
       // The deliver job: the applied patch and facts table are this run's.
       if (!option.record || !option.patch)
         throw new Error("outputs-check needs --record and --patch.");
-      const current = currentFacts();
+      const current = currentFacts(option.revision);
       if (!current.provenance) throw new Error("A batch must record its provenance.");
       const problems = outputsProblems(
         current.provenance,
         readFileSync(option.record),
-        readFileSync(path.join(root, factsTablePath)),
+        factsBytes(option.revision),
         readFileSync(option.patch),
       );
       if (problems.length) throw new Error(problems.join("\n"));
@@ -3252,6 +3386,19 @@ async function main(argv: string[]): Promise<string> {
           throw new Error("More than 1,000 open pull requests; the batch state is unknown.");
       }
       const batches = jobBatches(pulls, repository());
+      // With the owner's optional App slug, another App's batch-shaped pull
+      // request is a named stop, never a batch to evaluate or a silent hold.
+      const appSlug = process.env.PORTCOVE_FACTS_BATCH_APP_SLUG;
+      const foreign = batches.find(
+        (pull) => !isExpectedBatchAuthor(String((pull.user as { login: unknown }).login), appSlug),
+      );
+      if (foreign) {
+        const author = String((foreign.user as { login: unknown }).login);
+        output("state", "foreign");
+        output("number", String(Number(foreign.number)));
+        output("author", author);
+        return `${JSON.stringify({ state: "foreign", number: Number(foreign.number), author })}\n`;
+      }
       if (batches.length === 0) {
         output("state", "none");
         return `${JSON.stringify({ state: "none" })}\n`;
@@ -3275,6 +3422,7 @@ async function main(argv: string[]): Promise<string> {
       const problems = batchPullProblems({
         head_ref: String(detail.head.ref),
         author: String(detail.user.login),
+        author_type: String(detail.user.type),
         base_ref: String(detail.base.ref),
         commits: Number(detail.commits),
         draft: detail.draft === true,
@@ -3306,6 +3454,11 @@ async function main(argv: string[]): Promise<string> {
         );
         if (!ci) state = { state: "pending", pending: ["CI workflow run"] };
       }
+      // Only a batch bound to the named App is ever green: without the slug
+      // the keyless gate cannot reject another App's batch, and the job that
+      // holds the key must never process one.
+      if (state.state === "green" && expectedBatchAuthor(appSlug) === undefined)
+        state = { state: "unbound" };
       output("state", state.state);
       output("created_at", typeof detail.created_at === "string" ? detail.created_at : "");
       output("ci_run", ci ? String(ci.id) : "");
@@ -3313,6 +3466,8 @@ async function main(argv: string[]): Promise<string> {
       output("number", String(number));
       output("head", head);
       output("head_ref", String(detail.head.ref));
+      // The merge job binds this to the exact login of the App it mints for.
+      output("author", String(detail.user.login));
       return `${JSON.stringify({ number, head, ...state })}\n`;
     }
     case "delta": {
@@ -3364,7 +3519,7 @@ async function main(argv: string[]): Promise<string> {
     case "open-pull-request": {
       for (const name of ["branch", "run-url", "delta", "reproduced"])
         if (!option[name]) throw new Error(`open-pull-request needs --${name}.`);
-      const current = currentFacts();
+      const current = currentFacts(option.revision);
       if (!current.provenance) throw new Error("A batch must record its provenance.");
       if (option.branch !== `${batchBranchPrefix}${current.provenance.workflow_run_id}`)
         throw new Error("The branch is not this run's batch branch.");
@@ -3445,6 +3600,7 @@ async function main(argv: string[]): Promise<string> {
         prState: option["pr-state"] ?? "none",
         prNumber: option["pr-number"] ?? "none",
         ...(option["pr-created-at"] ? { prCreatedAt: option["pr-created-at"] } : {}),
+        ...(option["foreign-author"] ? { foreignAuthor: option["foreign-author"] } : {}),
         jobs: Object.fromEntries(batchJobs.map((job) => [job, option[job] ?? ""] as const)),
       });
       writeFileSync(option.conditions, `${JSON.stringify(collected)}\n`);

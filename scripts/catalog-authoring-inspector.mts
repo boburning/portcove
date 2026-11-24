@@ -53,7 +53,9 @@ export function coreProposalInspector(cli: string, root: string) {
         env,
         encoding: "utf8",
         timeout: 120000,
-        maxBuffer: (operation === "inspect-listings" ? 10 : 1) * 1024 * 1024,
+        // Core echoes a validated directory as compact JSON, so its output is
+        // proportional to this request's input rather than a fixed ceiling.
+        maxBuffer: (operation === "inspect-listings" ? 2 * bytes.length : 0) + 1024 * 1024,
         windowsHide: true,
       },
     );

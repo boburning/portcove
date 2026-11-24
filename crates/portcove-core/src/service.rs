@@ -157,6 +157,8 @@ mod install_batch;
 mod port_intent;
 #[path = "root_setup.rs"]
 mod root_setup;
+#[path = "unattended_setup.rs"]
+mod unattended_setup;
 pub use install_batch::{
     INSTALL_BATCH_FORMAT_VERSION, InstallBatchCapacity, InstallBatchItem, InstallBatchItemState,
     InstallBatchRecord, InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem,
@@ -172,6 +174,7 @@ pub use root_setup::{
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, ROOT_SETUP_FORMAT_VERSION, RootSetupConsent,
     RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
 };
+pub(crate) use unattended_setup::player_cancelled_activity as unattended_player_cancelled_activity;
 mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
@@ -1283,7 +1286,9 @@ impl PortcoveService {
             update_snapshot_row_count = metrics.update_snapshot_row_count,
             "loaded status read model"
         );
-        self.hydrate_statuses(&self.catalog, statuses, sources)
+        let pending_downloads =
+            Self::pending_download_port_ids_from(&self.library.connection()?, None)?;
+        self.hydrate_statuses(&self.catalog, statuses, sources, &pending_downloads)
     }
 
     fn apply_fresh_native_channel_recommendations(
@@ -1429,6 +1434,7 @@ impl PortcoveService {
         catalog: &Catalog,
         statuses: Vec<PortStatus>,
         sources: &[SourceRecord],
+        pending_downloads: &HashSet<String>,
     ) -> Result<Vec<PortStatus>> {
         let mut checked_sources = HashMap::new();
         let registered_sources = sources
@@ -1471,8 +1477,13 @@ impl PortcoveService {
                     status,
                     retained_catalog.as_ref().ok().and_then(Option::as_ref),
                 )?;
-                self.with_port_actions(port, status, &registered_sources)
-                    .map(|status| self.with_rollback_assessment(status))
+                self.with_port_actions_observed(
+                    port,
+                    status,
+                    &registered_sources,
+                    pending_downloads,
+                )
+                .map(|status| self.with_rollback_assessment(status))
             })
             .collect()
     }
@@ -1542,6 +1553,7 @@ impl PortcoveService {
             )?;
             let mut activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
+            let pending_downloads = Self::pending_download_port_ids_from(&transaction, None)?;
             transaction.commit()?;
             self.library
                 .observe_activity_liveness(&mut activities.records);
@@ -1569,6 +1581,7 @@ impl PortcoveService {
                     })
                     .collect(),
                 &sources,
+                &pending_downloads,
             )?;
             let listing_statuses =
                 self.listing_statuses_from(&catalog, &statuses, listing_raw, &pending_setups)?;
@@ -2880,8 +2893,25 @@ impl PortcoveService {
     fn with_port_actions(
         &self,
         current_port: &PortDefinition,
+        status: PortStatus,
+        registered_sources: &HashMap<String, SourceRecord>,
+    ) -> Result<PortStatus> {
+        let pending = Self::pending_download_port_ids_from(
+            &self.library.connection()?,
+            Some(&status.port_id),
+        )?;
+        self.with_port_actions_observed(current_port, status, registered_sources, &pending)
+    }
+
+    /// Assess actions against one pending-setup observation shared by the
+    /// whole read, instead of opening a connection per port. Mutations keep
+    /// their own transactional pending-setup checks.
+    fn with_port_actions_observed(
+        &self,
+        current_port: &PortDefinition,
         mut status: PortStatus,
         registered_sources: &HashMap<String, SourceRecord>,
+        pending_downloads: &HashSet<String>,
     ) -> Result<PortStatus> {
         use PortAction as Action;
         use PortActionAvailability as Availability;
@@ -3118,12 +3148,7 @@ impl PortcoveService {
             update,
         ];
         crate::acquisition_restriction::assess_port_actions(&self.catalog, &mut status);
-        let pending: bool = self.library.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
-            [&status.port_id],
-            |row| row.get(0),
-        )?;
-        if pending {
+        if pending_downloads.contains(&status.port_id) {
             for assessment in &mut status.port_actions {
                 if matches!(
                     assessment.action,
@@ -5155,7 +5180,8 @@ impl PortcoveService {
         self.managed_install_root(port_id, &staged.path)?;
         crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
-        crate::profile::require_default_recovery_capacity(
+        crate::profile::require_default_retention_ready(
+            &self.library,
             &self.library.connection()?,
             port_id,
             &staged.id,
@@ -8737,6 +8763,7 @@ mod tests {
     mod channel_recommendations;
     #[cfg(windows)]
     mod dynamic_policy;
+    mod pending_setup_actions;
 
     use std::{
         sync::{

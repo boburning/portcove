@@ -77,6 +77,7 @@ mod library_access;
 mod library_authority;
 mod library_import;
 mod library_membership;
+mod library_metadata_document;
 mod library_move;
 mod library_recovery_bundle;
 mod library_transfer;
@@ -89,6 +90,8 @@ mod managed_tfe;
 mod mechanism_fixtures;
 mod n64_graphics;
 mod native_external_profile;
+#[cfg(test)]
+mod native_external_profile_consumer_tests;
 mod native_portable_data;
 mod native_temp;
 mod operation;
@@ -163,6 +166,8 @@ mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
 mod runtime_path_policy;
+#[cfg(test)]
+mod scaling_profile_tests;
 mod service;
 mod signed_catalog;
 mod source;
@@ -185,6 +190,7 @@ mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
 mod support_bundle_stage;
+mod temporary_failure;
 #[cfg(test)]
 mod test_fixture;
 #[cfg(test)]
@@ -192,7 +198,10 @@ mod test_http;
 mod thunderstore;
 mod tool_process;
 mod transfer_copy;
+pub use temporary_failure::{TemporaryCause, TemporaryFailure, TemporaryRetry};
 mod transfer_journal;
+mod transfer_progress;
+pub use transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch};
 mod types;
 mod windows_runtime;
 #[cfg(windows)]
@@ -242,7 +251,10 @@ pub use bug_report::{
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use carried_files::{CarriedFileCounts, CarriedFileOutcome, CarriedFilesStatus};
 pub use cartridge_build::CartridgeBuildRecipe;
-pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
+pub use catalog::{
+    Catalog, CatalogProposalInspection, CatalogProposalPortInspection,
+    MAX_LISTING_DIRECTORY_TEXT_BYTES,
+};
 pub use catalog_media::{
     CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, IgdbGameImage, IgdbGameImageKind,
     validate_catalog_media,
@@ -471,7 +483,8 @@ pub use retained_build::{
     MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
-    RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+    RetainedBuildResolution, RetainedBuildRetirement, RetainedBuildRetirementPreview,
+    RetainedBuildRetirementReason, RetainedBuildRevision,
 };
 pub use route_facts::{
     ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
@@ -543,8 +556,8 @@ pub use source_reuse::{
     SourceReuseReview,
 };
 pub use store_install::{
-    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
-    StoreOriginalFolder, SystemStoreInstallHost,
+    GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, StoreGameInstall,
+    StoreGameInstalls, StoreInstallHost, StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{

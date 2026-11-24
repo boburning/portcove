@@ -12,6 +12,8 @@ export const exactByteFormatInputs = Object.freeze([
   ".github/workflows/application-update-production.yml",
   "docs/qualification/application-update-production.windows-20261103.proposed.yml",
   "scripts/fixtures/release-resource-baseline-20261103/**",
+  // Pinned byte for byte by the facts worker's sample test (JSON.stringify output).
+  "scripts/fixtures/listing-package-facts-sample.json",
   "vendor/rfd/**",
 ]);
 
