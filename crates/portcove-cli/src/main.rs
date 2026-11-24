@@ -506,7 +506,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
-        file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
+        // One byte past Core's bound lets Core report the refusal itself.
+        file.take(portcove_core::MAX_LISTING_DIRECTORY_TEXT_BYTES as u64 + 1)
+            .read_to_string(&mut bytes)?;
         let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
         let document = if let Some(version) = format_version {
             document.export_format(*version)?
@@ -5652,6 +5654,19 @@ mod tests {
         assert_eq!(
             capabilities.listing_delivery_carriers,
             ["json-v1", "gzip-base64-json-v1"]
+        );
+        // The released-reader gate distinguishes this generation by its limits.
+        assert_eq!(
+            capabilities.listing_delivery_limits,
+            Some(portcove_core::ListingDeliveryLimits {
+                target_bytes: 8 * 1024 * 1024,
+                decoded_bytes: 32 * 1024 * 1024,
+                record_bytes: 1024 * 1024,
+                definition_index_bytes: 4 * 1024 * 1024,
+                element_budget_bytes: 40 * 1024 * 1024,
+                listing_charge_bytes: 4_027,
+                withdrawal_charge_bytes: 68,
+            })
         );
         assert!(
             capabilities
