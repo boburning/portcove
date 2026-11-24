@@ -1287,6 +1287,55 @@ fn grow_setup(w: &World, count: usize) {
         .unwrap();
 }
 
+/// Adds `count` exact packages to the world's default setup by placing their
+/// bytes in the package store and saving one revision, as an earlier review
+/// would have left them. Faster than `grow_setup`, which reviews each file as a
+/// draft (that path has its own tests); use it where the setup is only the
+/// starting state.
+fn stored_setup(w: &World, count: usize) {
+    let port = "starship";
+    let layout = w.service.deploy_layout(port).unwrap();
+    let current = w
+        .service
+        .profile_revisions(port, &w.profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let scratch = w._temporary.path().join(format!("stored-{count}"));
+    fs::create_dir_all(&scratch).unwrap();
+    let mut packages = current.packages.clone();
+    for index in 0..count {
+        let name = format!("grown-{index:04}.o2r");
+        let asset = format!("objects/grown/{index:04}");
+        let bytes = fs::read(o2r(&scratch, &name, &[(asset.as_str(), b"grown")])).unwrap();
+        let sha256 = hex::encode(Sha256::digest(&bytes));
+        let stored = layout.package(&sha256, &name);
+        fs::create_dir_all(stored.parent().unwrap()).unwrap();
+        fs::write(&stored, &bytes).unwrap();
+        packages.push(crate::ResolvedPackage {
+            native_id: name,
+            native_version: None,
+            provider: None,
+            sha256,
+            size: bytes.len() as u64,
+            enabled: true,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        });
+    }
+    w.service
+        .create_profile_revision(
+            port,
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+}
+
 /// A recipe whose packages after the first `stored` are all missing locally
 /// and each staged privately as its own reviewed provider file.
 fn staged_recipe(w: &World, stored: usize) -> (ProfileRecipe, Vec<RecipeAcquisitionPlan>) {
@@ -1456,7 +1505,7 @@ fn a_staged_step_that_changed_leaves_the_review_instead_of_repeating_as_ready() 
 fn a_setup_past_the_former_package_bounds_round_trips_through_recipe_import() {
     for extra in [512, 1999] {
         let w = world();
-        grow_setup(&w, extra);
+        stored_setup(&w, extra);
         let source = w
             .service
             .profile_revisions("starship", &w.profile)
