@@ -4283,7 +4283,7 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
 }
 
 #[test]
-fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() {
+fn dfu_setup_metadata_refuses_optional_ordering_and_accepts_setups_past_the_old_bounds() {
     let temporary = tempfile::tempdir().unwrap();
     let path = temporary.path().join("wandererhud - pointycursor.dfmod");
     fs::write(
@@ -4305,7 +4305,8 @@ fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() 
     rows[1].1 = true;
     assert!(require_dfu_metadata(&rows).is_err());
     rows.clear();
-    for i in 0..MAX_DFU_PACKAGES + 1 {
+    // The former 32-package bound, one past it, and a setup well beyond it.
+    for i in 0..200 {
         let mut package = make();
         package.package.file_name = format!("fixture-{i}.dfmod");
         package.guid = format!("fixture-guid-{i}");
@@ -4313,9 +4314,40 @@ fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() 
         package.optional_dependencies.clear();
         rows.push((package, true));
     }
-    require_dfu_metadata(&rows[..MAX_DFU_PACKAGES]).unwrap();
-    assert!(require_dfu_metadata(&rows).is_err());
-    assert_eq!(MAX_DFU_OBSERVED_FILES, 2 * MAX_DFU_PACKAGES);
+    for count in [32, 33, 200] {
+        require_dfu_metadata(&rows[..count]).unwrap();
+    }
+    // Identity checks still apply at any size.
+    rows[150].0.guid = rows[3].0.guid.clone();
+    assert_eq!(
+        require_dfu_metadata(&rows).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+}
+
+#[test]
+fn every_dfu_mods_entry_is_classified_past_the_old_directory_bound() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("interkarma-daggerfall-unity").unwrap();
+    let loader = crate::profile_loader::configured_loader(port).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let user = temporary.path().join("interkarma-daggerfall-unity");
+    let layout = Layout::for_user(&user)
+        .with_loader(loader)
+        .for_dfu_platform(crate::Platform::WindowsX86_64);
+    let mods = layout.mods();
+    fs::create_dir_all(&mods).unwrap();
+    // The former bound stopped at 64 entries; a player's 65th file and
+    // everything after it must still be seen, or a later step could replace it.
+    for i in 0..200 {
+        fs::write(mods.join(format!("player-{i:03}.dfmod")), b"player file").unwrap();
+    }
+    let observation = observe(&layout, &[]).unwrap();
+    assert_eq!(observation.unmanaged.len(), 200);
+    assert_eq!(observation.unmanaged[199], "player-199.dfmod");
+    let held = require_clean(&observation, "deploying").unwrap_err();
+    assert_eq!(held.details["unmanaged_count"], "200");
+    assert!(held.details["unmanaged"].ends_with("and 168 more"));
 }
 
 /// Each root detects a different regression of the Mods root to a raw
@@ -4377,4 +4409,170 @@ fn dfu_mods_root_is_composed_from_native_components() {
         let live = live_package_path(&layout, "wandererhud - pointycursor.dfmod").unwrap();
         assert_eq!(live.parent(), Some(mods.as_path()));
     }
+}
+
+#[test]
+fn mod_setup_drafts_past_the_former_sixteen_file_bound_apply_as_one_revision() {
+    for count in [17, 200] {
+        let w = world();
+        let service = &w.service;
+        let port = "starship";
+        let base = archive(&w.scratch, "base.otr", &[("assets/base", b"base")]);
+        let current = service
+            .install_mod_package(port, &w.default, &base, 1)
+            .unwrap();
+        let files = (0..count)
+            .map(|index| {
+                let name = format!("queued-{index:03}.otr");
+                let asset = format!("assets/queued/{index:03}");
+                let path = archive(&w.scratch, &name, &[(asset.as_str(), b"queued")]);
+                let review = service
+                    .plan_local_mod_package(port, &w.default, &path, current.revision)
+                    .unwrap();
+                LocalModDraftFile {
+                    path,
+                    expected_plan_sha256: review.plan_sha256,
+                }
+            })
+            .collect::<Vec<_>>();
+        let edits = ModSetupEdits {
+            packages: vec![],
+            order: None,
+            local_files: files.clone(),
+        };
+        let preview = service
+            .preview_mod_setup_draft(port, &w.default, current.revision, &[], &edits)
+            .unwrap();
+        assert_eq!(preview.order.len(), count + 1);
+        assert!(!preview.conflicts_truncated);
+
+        if count == 200 {
+            // A failure at one item late in the draft changes nothing.
+            let changed = &files[150].path;
+            archive(
+                &w.scratch,
+                "queued-150.otr",
+                &[("assets/other", b"changed")],
+            );
+            assert!(
+                service
+                    .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+                    .is_err()
+            );
+            assert_eq!(revision(&w, &w.default), current.revision);
+            assert_eq!(live_mods(&w), ["base.otr"]);
+            archive(
+                &w.scratch,
+                changed.file_name().unwrap().to_str().unwrap(),
+                &[("assets/queued/150", b"queued")],
+            );
+            // An interruption before the revision is written also changes
+            // nothing, and the same draft then applies.
+            let connection = service.library.connection().unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER interrupt_large_draft BEFORE INSERT ON profile_revisions
+                     BEGIN SELECT RAISE(ABORT, 'interrupted before publishing'); END;",
+                )
+                .unwrap();
+            assert!(
+                service
+                    .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+                    .is_err()
+            );
+            assert_eq!(revision(&w, &w.default), current.revision);
+            assert_eq!(live_mods(&w), ["base.otr"]);
+            connection
+                .execute_batch("DROP TRIGGER interrupt_large_draft;")
+                .unwrap();
+        }
+
+        let next = service
+            .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+            .unwrap();
+        assert_eq!(next.parent_revision, Some(current.revision));
+        assert_eq!(next.packages.len(), count + 1);
+        assert_eq!(live_mods(&w).len(), count + 1);
+        // The stored revision reloads with every package.
+        let reloaded = service.profile_revisions(port, &w.default).unwrap();
+        assert_eq!(reloaded.last().unwrap(), &next);
+    }
+}
+
+#[test]
+fn a_setup_draft_beyond_the_shared_capacity_is_refused_before_staging() {
+    let w = world();
+    let current = profile::current_revision(
+        &w.service.library.connection().unwrap(),
+        "starship",
+        &w.default,
+    )
+    .unwrap();
+    let edits = ModSetupEdits {
+        packages: (0..=crate::setup_capacity::MAX_SETUP_PACKAGES)
+            .map(|index| ModSetupPackageEdit {
+                native_id: format!("mod-{index}.otr"),
+                enabled: Some(false),
+            })
+            .collect(),
+        order: None,
+        local_files: vec![],
+    };
+    let refused = w
+        .service
+        .preview_mod_setup_draft("starship", &w.default, current.revision, &[], &edits)
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Usage);
+    assert!(refused.message.contains("4096"), "{}", refused.message);
+}
+
+#[test]
+fn a_full_consent_ledger_drops_consents_for_bytes_no_longer_stored() {
+    let w = world();
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let packages = layout.store().join("packages");
+    // A full ledger: one consent whose bytes are still stored, the rest for
+    // bytes that left the store.
+    let kept = "a".repeat(64);
+    fs::create_dir_all(packages.join(&kept)).unwrap();
+    let mut digests = (0..MAX_CODE_CONSENTS - 1)
+        .map(|index| format!("{index:064x}"))
+        .collect::<BTreeSet<_>>();
+    digests.insert(kept.clone());
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::write(layout.code_consent(), serde_json::to_vec(&digests).unwrap()).unwrap();
+    assert_eq!(consented_code(&layout).unwrap().len(), MAX_CODE_CONSENTS);
+
+    let new = "b".repeat(64);
+    record_code_consent(&layout, &new).unwrap();
+    let after = consented_code(&layout).unwrap();
+    assert_eq!(after, BTreeSet::from([kept, new]));
+}
+
+#[test]
+fn a_consent_dropped_from_a_full_ledger_is_asked_again_when_its_bytes_return() {
+    let w = recomp_world();
+    let (code, sha) = code_package(&w, "code.nrm", b"\0");
+    let size = fs::metadata(&code).unwrap().len();
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    // A full ledger that still consents to these bytes, which have left the store.
+    let mut digests = (0..MAX_CODE_CONSENTS - 1)
+        .map(|index| format!("{index:064x}"))
+        .collect::<BTreeSet<_>>();
+    digests.insert(sha.clone());
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::write(layout.code_consent(), serde_json::to_vec(&digests).unwrap()).unwrap();
+    record_code_consent(&layout, &"b".repeat(64)).unwrap();
+    assert!(!consented_code(&layout).unwrap().contains(&sha));
+
+    // The same bytes come back: the dropped consent is never assumed.
+    let stored = layout.package(&sha, "speedrun_timer.nrm");
+    fs::create_dir_all(stored.parent().unwrap()).unwrap();
+    fs::copy(&code, &stored).unwrap();
+    let error = w
+        .service
+        .create_profile_revision(RECOMP, &w.default, &code_revision_request(1, &sha, size))
+        .unwrap_err();
+    assert!(error.message.contains("runs its own code"), "{error:?}");
+    assert_eq!(w.revision(), 1, "nothing was recorded");
 }

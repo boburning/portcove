@@ -1424,6 +1424,20 @@ export type OutputDesktopApplicationUpdateProgress =
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+/**
+ * Why unattended work stopped for now.
+ */
+export type TemporaryCause =
+  | "network"
+  | "rate_limited"
+  | "server_unavailable"
+  | "storage_full"
+  | "game_busy"
+  | "file_in_use"
+  | "time_budget"
+  | "inventory_incomplete"
+  | "interrupted"
+  | "clean_stop";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -1684,7 +1698,7 @@ export interface TransportOutputs {
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
   quaddicted_catalog: OutputQuaddictedCatalog;
-  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  recipe_acquisition_plan: OutputRecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -1777,8 +1791,9 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
-  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
-  desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_recipe_acquisition_step: OutputDesktopRecipeAcquisitionStep;
+  desktop_recipe_import_review: RecipeImportReview;
+  desktop_reconcile_outcome: OutputDesktopReconcileOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
@@ -1794,7 +1809,7 @@ export interface TransportOutputs {
   desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
-  desktop_update_check_outcome: OutputCheckBatchOutcome;
+  desktop_update_check_outcome: OutputDesktopUpdateCheckOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
 export interface OutputAbout {
@@ -4135,10 +4150,32 @@ export interface CatalogChangedPort {
   [k: string]: unknown;
 }
 export interface OutputCheckBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+/**
+ * An update check that did not run because a provider allowance or throttle
+ * stopped it (a refusal, a deferral within the same bulk check, or a rate-limited
+ * answer). The game's update state is unknown, never "checked" or "up to date";
+ * the next bulk check after `resets_at` starts with it.
+ */
+export interface UpdateCheckDeferral {
+  /**
+   * True when the provider reported `resets_at`; false when Portcove estimated it.
+   */
+  reset_reported: boolean;
+  /**
+   * When the allowance is expected to reopen, in Unix seconds, if known.
+   */
+  resets_at: number | null;
   [k: string]: unknown;
 }
 export interface DatReferenceStatus {
@@ -6259,6 +6296,11 @@ export interface OutputModSetupsView {
    */
   last_automatic_checks?: ProviderAutoUpdateCheck[];
   /**
+   * The last automatic pass recorded results that cannot be shown whole, so
+   * `last_automatic_checks` is not a complete report of that pass.
+   */
+  last_automatic_checks_incomplete?: boolean;
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.
@@ -7396,7 +7438,8 @@ export interface QuaddictedPage {
   engine: QuakeEngine;
   entries: QuaddictedEntry[];
   /**
-   * A full page below the client limit suggests another page may be available.
+   * The provider returned a row beyond this page, so another page exists.
+   * False means the provider listed no further row for this query.
    */
   may_have_more: boolean;
   page: number;
@@ -7445,14 +7488,19 @@ export interface QuaddictedInstallNotes {
 /**
  * Private provider staging bound to one exact recipe and expected package.
  */
-export interface RecipeAcquisitionPlan {
+export interface OutputRecipeAcquisitionPlan {
   native_id: string;
   provider_plan: ProviderInstallPlan;
   recipe_identity_sha256: string;
   [k: string]: unknown;
 }
+/**
+ * The provider files a recipe review has staged. Each provider plan is held
+ * once, however many of its members the recipe uses, so a shared closure
+ * costs its plan once in the review, its records and IPC.
+ */
 export interface RecipeImportPlan {
-  acquisitions?: RecipeAcquisitionPlan[];
+  acquisitions?: RecipeAcquisitionRef[];
   can_apply: boolean;
   code_approval?: RecipeCodeApproval[];
   /**
@@ -7470,6 +7518,7 @@ export interface RecipeImportPlan {
    * Missing packages with an exact coordinate that the player can check.
    */
   provider_checks?: string[];
+  provider_plans?: ProviderInstallPlan[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
   /**
@@ -7477,6 +7526,13 @@ export interface RecipeImportPlan {
    */
   verified_originals?: OriginalBinding[];
   [k: string]: unknown;
+}
+/**
+ * One staged recipe package and the provider plan (by digest) that holds it.
+ */
+export interface RecipeAcquisitionRef {
+  native_id: string;
+  plan_sha256: string;
 }
 export interface RecipeCodeApproval {
   native_id: string;
@@ -7520,6 +7576,11 @@ export interface RecommendationObservation {
   supersedes: string[];
 }
 export interface OutputReconcileBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -8043,6 +8104,11 @@ export interface StoreOriginalFolder {
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -8293,6 +8359,12 @@ export interface OutputDesktopGameFileScanRegisteredMatches {
 }
 export interface InstallBatchRecord {
   cancel_requested: boolean;
+  /**
+   * Unix seconds Portcove recorded that it was closing, restarting or told
+   * to stop while this unattended batch ran. An item the process then left
+   * unsettled was stopped cleanly, which never counts as a crash.
+   */
+  clean_stop_at?: number | null;
   created_at: number;
   format_version: number;
   id: string;
@@ -8301,10 +8373,31 @@ export interface InstallBatchRecord {
 }
 export interface InstallBatchItem {
   detail?: string | null;
+  /**
+   * For an unattended run: the partial-download entries its plan uses.
+   * An unclean stop compares only these, so another game's download
+   * progress never resets this game's crash-loop count.
+   */
+  download_keys?: string[];
   expected_plan_sha256: string;
   install_id?: string | null;
   port_id: string;
   state: InstallBatchItemState;
+  /**
+   * Set on a failed item whose failure came from a passing condition, so
+   * unattended setup retries it later instead of counting a lasting failure.
+   */
+  temporary?: TemporaryFailure | null;
+}
+/**
+ * What a temporary failure was, as recorded where it happened.
+ */
+export interface TemporaryFailure {
+  cause: TemporaryCause;
+  /**
+   * Unix seconds the provider said its limit resets, when it said.
+   */
+  stated_reset?: number | null;
 }
 export interface OutputDesktopInstallBatchReview {
   capacity: InstallBatchCapacity;
@@ -8448,11 +8541,20 @@ export interface PortIntent {
   failed_attempts?: number;
   /**
    * The plan whose standing setup last failed, and how many times it has
-   * failed. It is retried on later passes up to a small limit, then waits
-   * until the plan changes, so a permanent failure does not recur.
+   * failed for a lasting reason. It is retried on later passes up to a
+   * small limit, then waits until the plan changes, so a permanent failure
+   * does not recur. Temporary failures never count here; see
+   * `temporary_retry`.
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
+  /**
+   * Set when `failed_attempts` was counted by a Portcove that separates
+   * temporary from lasting failures. A record that reached the limit
+   * before that (it may have counted network outages) gets one more
+   * attempt after upgrade; its next failure is classified normally.
+   */
+  failure_classified?: boolean;
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
@@ -8463,6 +8565,12 @@ export interface PortIntent {
    * files that arrive are used.
    */
   sources?: PortIntentSource[];
+  /**
+   * Set when the last failure of `failed_plan_sha256` came from a passing
+   * condition (network, provider limit or outage, full disk, interruption).
+   * The same plan runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   updated_at: number;
 }
 /**
@@ -8471,6 +8579,34 @@ export interface PortIntent {
 export interface PortIntentSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A temporary failure's retry schedule. Clears when the work succeeds, its
+ * plan changes or the player chooses again.
+ */
+export interface TemporaryRetry {
+  /**
+   * Unix seconds this failure was recorded. Unattended passes take games
+   * with a pending retry after the others, oldest attempt first. Zero for
+   * records written before it was kept.
+   */
+  attempted_at?: number;
+  /**
+   * Consecutive temporary failures of the same plan with the same cause;
+   * sets the back-off. A different cause starts the count again.
+   */
+  attempts: number;
+  cause: TemporaryCause;
+  /**
+   * For an unclean stop: the kept download bytes when it was recorded.
+   */
+  kept_downloads?: {
+    [k: string]: number;
+  };
+  /**
+   * Unix seconds before which the work is not tried again.
+   */
+  retry_after: number;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];
@@ -8493,6 +8629,11 @@ export interface PortIntentAssessment {
    * been told about yet.
    */
   newly_ready: boolean;
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt. Each surface shows it in its own form.
+   */
+  next_attempt_at?: number | null;
   port_id: string;
   readiness: PortReadiness;
   /**
@@ -8538,17 +8679,48 @@ export interface PortMaintenance {
   [k: string]: unknown;
 }
 /**
+ * One bounded step of staging a recipe's missing packages.
+ */
+export interface OutputDesktopRecipeAcquisitionStep {
+  /**
+   * Packages this step staged, in order.
+   */
+  acquired: string[];
+  /**
+   * Set when the step stopped at a package it could not stage; earlier
+   * steps stay staged and are resumed by the next review of this recipe.
+   */
+  failure?: RecipeAcquisitionFailure | null;
+  review: RecipeImportReview;
+  [k: string]: unknown;
+}
+/**
+ * The package an acquisition batch stopped at, and why.
+ */
+export interface RecipeAcquisitionFailure {
+  message: string;
+  native_id: string;
+  [k: string]: unknown;
+}
+/**
  * A recipe review's display data and its exact Core-owned import plan.
  * JavaScript numbers cannot preserve every JSON number representation, so
  * only the unchanged serialized plan is sent back for Core to verify and use.
  */
-export interface OutputDesktopRecipeImportReview {
+export interface RecipeImportReview {
   plan: RecipeImportPlan;
   serialized_plan: string;
   /**
    * Exact native text in the same order as `plan.recipe.settings`.
    */
   setting_values: string[];
+  [k: string]: unknown;
+}
+export interface OutputDesktopReconcileOutcome {
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: ReconcileResult | null;
   [k: string]: unknown;
 }
 export interface RootSetupConsent {
@@ -8578,13 +8750,26 @@ export interface RootSetupConsent {
   [k: string]: unknown;
 }
 export interface RootSetupFailure {
+  /**
+   * Lasting failures of this plan; temporary ones never count here.
+   */
   attempts: number;
+  /**
+   * Set when `attempts` was counted by a Portcove that separates temporary
+   * from lasting failures; an older record at the limit gets one more try.
+   */
+  failure_classified?: boolean;
   /**
    * The install plan, or `source:` and the file, that failed.
    */
   plan_sha256: string;
   port_id: string;
   reason: string;
+  /**
+   * Set when the last failure came from a passing condition; the same plan
+   * runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   [k: string]: unknown;
 }
 /**
@@ -8638,6 +8823,11 @@ export interface StandingSetupFailure {
  * or a requirement.
  */
 export interface RootSetupWaiting {
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt.
+   */
+  next_attempt_at?: number | null;
   port_id?: string | null;
   profile_id: string;
   reason: string;
@@ -8867,6 +9057,19 @@ export interface SupportBundleSection {
   reasons: SupportBundleReason[];
   records: number | null;
   status: SupportBundleSectionStatus;
+  [k: string]: unknown;
+}
+/**
+ * One game's result in a bulk update check. A `deferred` item was not checked:
+ * a provider allowance or throttle stopped it, its update state is unknown, and
+ * the next bulk check after `deferred.resets_at` starts with it.
+ */
+export interface OutputDesktopUpdateCheckOutcome {
+  deferred?: UpdateCheckDeferral | null;
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: UpdateCheck | null;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

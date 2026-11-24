@@ -26,6 +26,32 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod partial_download;
+/// The library's partial-download store for install, update and catalog assets.
+const PARTIAL_DOWNLOADS_DIR: &str = "partial-v1";
+
+impl crate::Library {
+    /// Kept partial-download bytes of these entries, for telling an
+    /// unattended run that keeps moving from one that keeps ending at the
+    /// same point. Entries of other plans are left out.
+    pub(crate) fn kept_downloads_of(
+        &self,
+        keys: &[String],
+    ) -> crate::temporary_failure::KeptDownloads {
+        let mut kept =
+            partial_download::kept_downloads(&self.downloads_dir().join(PARTIAL_DOWNLOADS_DIR));
+        kept.retain(|key, _| keys.contains(key));
+        kept
+    }
+}
+
+/// The partial-download entries an install plan's downloads use.
+pub(crate) fn plan_download_keys(plan: &crate::InstallPlan) -> Vec<String> {
+    std::iter::once(&plan.release.asset)
+        .chain(plan.bundled_runtime.iter().map(|runtime| &runtime.asset))
+        .chain(&plan.auxiliary_downloads)
+        .filter_map(partial_download::PartialDownloads::entry_key)
+        .collect()
+}
 mod transfer;
 
 #[derive(Debug, Clone)]
@@ -2503,7 +2529,7 @@ impl Installer {
         // The library store checks its own capacity. The caller still verifies
         // the complete archive after it reaches private install staging.
         let partials = partial_download::PartialDownloads::new(
-            self.library.downloads_dir().join("partial-v1"),
+            self.library.downloads_dir().join(PARTIAL_DOWNLOADS_DIR),
         );
         let retained = if let Some((port_id, operation_id)) = download.install_owner {
             let library = self.library.clone();

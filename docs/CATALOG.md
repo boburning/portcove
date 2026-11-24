@@ -5782,11 +5782,14 @@ catalog measures, the escaped retained contract (estimated as the escaped
 `catalog.json` text plus `retainedContractReserveBytes`, 16 KiB, about four
 times the contract's 3,477 bytes of other fields) and the listing directory
 text, together with every listing delivery row of `catalog-capacity --check`
-(`listingDirectoryMeasures`: the complete legacy target and the compact
-carrier's decoded, wire, record, entry and element bounds released readers
-enforce, see [reader generations](SIGNED-CATALOG.md#reader-generations)).
-The complete legacy target binds first among them (1,844,080 bytes of
-headroom on November 24, 2026). A batch past any ceiling is not proposed,
+(`listingDirectoryMeasures`, with the committed withdrawals: the compact
+carrier's decoded, wire and record bytes, the listing and withdrawal counts
+and the element budget released readers enforce, each with its own margin,
+see [reader generations](SIGNED-CATALOG.md#reader-generations); the frozen
+legacy target row is informational and never stops a batch). On November 24,
+2026 the compact carrier's wire bytes bind first among them (modeled
+3,859,933 of a 6,411,179-byte ceiling, about 36 days of measured growth).
+A batch past any ceiling is not proposed,
 since its required check would fail; the run files the reused stop issue
 `catalog-capacity` with the exact figures. Raising
 a released-reader bound needs a compatibility analysis of released readers and

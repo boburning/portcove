@@ -680,6 +680,61 @@ async fn current_check_survives_reopening_and_stays_distinct_from_an_unavailable
 }
 
 #[tokio::test]
+async fn a_check_log_that_cannot_be_read_whole_is_reported_incomplete_not_empty() {
+    let w = world();
+    let payload = wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]);
+    w.install_first(&payload).await;
+    w.allow_automatic();
+    w.pass_without_download(&[(10, payload.len())]).await;
+    let view = w.service.mod_setups(PORT).unwrap();
+    assert_eq!(view.last_automatic_checks.len(), 1);
+    assert!(!view.last_automatic_checks_incomplete);
+
+    let layout = w.service.deploy_layout(PORT).unwrap();
+    let log = layout.store().join(CHECKS_FILE);
+    // Neither a log past its parse budget, nor one that is not a check log
+    // (including the marker for a pass that could not be stored), reads as
+    // "no checks".
+    for (bytes, budget) in [
+        (fs::read(&log).unwrap(), 8),
+        (b"[{\"truncated".to_vec(), u64::MAX),
+        (INCOMPLETE_CHECKS.to_vec(), u64::MAX),
+    ] {
+        fs::write(&log, &bytes).unwrap();
+        let view = crate::library_metadata_document::with_admission_budget(budget, || {
+            w.service.mod_setups(PORT).unwrap()
+        });
+        assert!(view.last_automatic_checks.is_empty());
+        assert!(view.last_automatic_checks_incomplete, "{bytes:?}");
+    }
+
+    // A pass whose results exceed the budget replaces the older results with
+    // the marker instead of leaving them looking current.
+    let checks = vec![
+        ProviderAutoUpdateCheck {
+            checked_at: 1,
+            profile_id: w.profile.clone(),
+            native_ids: vec!["hd-link.o2r".into()],
+            project_id: None,
+            candidate_file_id: None,
+            result: None,
+        };
+        4
+    ];
+    let error = crate::library_metadata_document::with_admission_budget(64, || {
+        remember_checks(&layout, &checks).unwrap_err()
+    });
+    assert!(error.details.contains_key("budget_bytes"), "{error:?}");
+    assert_eq!(fs::read(&log).unwrap(), INCOMPLETE_CHECKS);
+
+    // The next pass records its results again.
+    w.pass_without_download(&[(10, payload.len())]).await;
+    let view = w.service.mod_setups(PORT).unwrap();
+    assert_eq!(view.last_automatic_checks.len(), 1);
+    assert!(!view.last_automatic_checks_incomplete);
+}
+
+#[tokio::test]
 async fn changed_file_facts_reconsider_a_hold_at_the_same_provider_file_id() {
     let w = world();
     w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
@@ -884,4 +939,74 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
     let without_requirements = key(&offered);
     offered.thunderstore_dependencies = None;
     assert_eq!(key(&offered), without_requirements);
+}
+
+/// Fills the setup to the shared capacity with turned-off local packages,
+/// keeping what it holds.
+fn fill_to_capacity(service: &PortcoveService, profile: &str) {
+    let current = service
+        .profile_revisions(PORT, profile)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let mut packages = current.packages.clone();
+    let filler = crate::setup_capacity::MAX_SETUP_PACKAGES - packages.len();
+    packages.extend((0..filler).map(|index| crate::ResolvedPackage {
+        native_id: format!("held-{index:04}.o2r"),
+        native_version: None,
+        provider: None,
+        sha256: format!("{index:064x}"),
+        size: 1,
+        enabled: false,
+        requires: Vec::new(),
+        provider_requires: Vec::new(),
+    }));
+    service
+        .create_profile_revision(
+            PORT,
+            profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: current.revision,
+                packages: Some(packages),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_setup_at_capacity_updates_a_mod_automatically() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    fill_to_capacity(&w.service, &w.profile);
+    w.allow_automatic();
+    assert_eq!(
+        w.revision().packages.len(),
+        crate::setup_capacity::MAX_SETUP_PACKAGES
+    );
+    let updates = w
+        .pass_with_update(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v2")]))
+        .await;
+    assert!(
+        matches!(
+            updates[0].outcome,
+            ProviderAutoUpdateOutcome::Applied { .. }
+        ),
+        "{updates:?}"
+    );
+    let after = w.revision();
+    assert_eq!(
+        after.packages.len(),
+        crate::setup_capacity::MAX_SETUP_PACKAGES
+    );
+    let updated = after
+        .packages
+        .iter()
+        .find(|package| package.native_id == "hd-link.o2r")
+        .unwrap();
+    assert_eq!(
+        updated.provider.as_ref().unwrap().file.as_deref(),
+        Some("11")
+    );
 }

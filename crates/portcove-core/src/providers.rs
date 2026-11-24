@@ -232,8 +232,36 @@ impl ReleaseProvider for CompositeReleaseProvider {
             .await
     }
 
+    async fn forecast_request_cost(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scoped: bool,
+    ) -> Result<crate::RequestCostForecast> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .forecast_request_cost(port, platform, scoped)
+                    .await
+            }
+            _ => Ok(crate::RequestCostForecast::default()),
+        }
+    }
+
+    fn forecast_saved_variant_request_cost(&self, scoped: bool) -> crate::RequestCostForecast {
+        // Saved package choices are GitHub inventories; the service asks only for them.
+        self.github.forecast_saved_variant_request_cost(scoped)
+    }
+
     fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
         self.github.forecast_explicit_variant_request_cost()
+    }
+
+    fn ordinary_allowance(&self, port: &PortDefinition) -> Option<&'static str> {
+        match port.release.provider {
+            ReleaseSource::Github => self.github.ordinary_allowance(port),
+            _ => None,
+        }
     }
 
     fn cached_release_notes(
@@ -328,6 +356,55 @@ mod tests {
     use crate::{AdapterKind, DirectReleaseSpec, ReleaseSpec, SupportTier, UpstreamStatus};
 
     use super::*;
+
+    /// The provider desktop and CLI use must forecast its GitHub ports, not report
+    /// the trait default of nothing.
+    #[tokio::test]
+    async fn the_composite_provider_forecasts_through_its_github_provider() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let composite = CompositeReleaseProvider::for_library(&library).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.release.provider == ReleaseSource::Github)
+            .unwrap();
+        let platform = Platform::WindowsX86_64;
+        assert_eq!(
+            composite
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap(),
+            composite
+                .github()
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap(),
+        );
+        // A cold ordinary check reads at least the repository and one releases page.
+        assert!(
+            composite
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap()
+                .counted_requests
+                >= 2
+        );
+        assert_eq!(
+            composite.forecast_saved_variant_request_cost(true),
+            composite.github().forecast_saved_variant_request_cost(true)
+        );
+        let mut gitlab = port.clone();
+        gitlab.release.provider = ReleaseSource::Gitlab;
+        assert_eq!(
+            composite
+                .forecast_request_cost(&gitlab, platform, false)
+                .await
+                .unwrap(),
+            crate::RequestCostForecast::default()
+        );
+    }
 
     #[test]
     fn direct_manifests_resolve_without_a_host_api() {

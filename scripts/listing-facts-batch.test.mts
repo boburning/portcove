@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import type { CapacityMeasure } from "./catalog-capacity.mts";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
@@ -3062,8 +3063,12 @@ void test("an identity that stays pending across consecutive runs stops the job,
 });
 
 void test("a batch past either released-reader bound is never proposed; it stops as catalog-capacity (R-F7)", async () => {
-  const { capacityConstant, listingDeliveryBounds, listingDirectoryMeasures } =
-    await import("./catalog-capacity.mts");
+  const {
+    capacityConstant,
+    listingDeliveryBounds,
+    listingDirectoryMeasures,
+    withdrawalIdentities,
+  } = await import("./catalog-capacity.mts");
   const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
   const signedCatalogSource = readFileSync(
     join(root, "crates/portcove-core/src/signed_catalog.rs"),
@@ -3089,6 +3094,12 @@ void test("a batch past either released-reader bound is never proposed; it stops
       listingSource,
       readFileSync(join(root, "crates/portcove-core/src/listing_delivery.rs"), "utf8"),
     ),
+    undefined,
+    withdrawalIdentities(
+      JSON.parse(
+        readFileSync(join(root, "crates/portcove-core/catalog/listing-withdrawals.json"), "utf8"),
+      ),
+    ),
   );
   // Today's catalog fits every bound.
   const today = batchCapacity({
@@ -3113,21 +3124,35 @@ void test("a batch past either released-reader bound is never proposed; it stops
     today.rows.slice(3, -1).map((row) => row.name),
     listingDelivery.map(([name]) => name),
   );
-  const legacy = today.rows.find((row) => row.name.startsWith("complete legacy listing target"))!;
-  assert.equal(legacy.bound, 8 * 1024 * 1024);
+  const carrier = today.rows.find((row) => row.name.startsWith("compact listing carrier bytes"))!;
+  assert.equal(carrier.bound, 8 * 1024 * 1024);
   // A batch past a delivery row the required check enforces is refused, so
   // it never opens a pull request that check would fail.
+  const raised = (match: (name: string) => boolean, bytes: number) =>
+    listingDelivery.map((measure): CapacityMeasure => {
+      const [name, , bound, basis, ...margin] = measure;
+      return match(name) ? [name, bytes, bound, basis, ...margin] : measure;
+    });
   const overDelivery = batchCapacity({
     catalogText,
     listingBytes,
     signedCatalogSource,
-    listingDelivery: listingDelivery.map(([name, bytes, bound, basis]) =>
-      name === legacy.name ? [name, legacy.ceiling + 1, bound, basis] : [name, bytes, bound, basis],
-    ),
+    listingDelivery: raised((name) => name === carrier.name, carrier.ceiling + 1),
   });
   assert.deepEqual(
     overDelivery.rows.filter((row) => !row.ok).map((row) => row.name),
-    [legacy.name],
+    [carrier.name],
+  );
+  // The frozen legacy target is informational in the required check: it
+  // never stops a batch.
+  assert.equal(
+    batchCapacity({
+      catalogText,
+      listingBytes,
+      signedCatalogSource,
+      listingDelivery: raised((name) => name.startsWith("frozen legacy"), 16 * 1024 * 1024),
+    }).ok,
+    true,
   );
   const listing = listingRows[0]!;
   assert.equal(listing.bound, listingDirectoryTextMaximum);

@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   acquireCatalogReleasedReader,
   credentialFree,
+  pagesWorktreeRevision,
   requireCatalogReleaseAttestation,
   requireCurrentCatalogReaderSelection,
   selectedPreview,
@@ -265,4 +266,80 @@ void test("a Pages push retry refuses a reader withdrawn after preparation", (t)
     () => requireCurrentCatalogReaderSelection({ version: "0.1.0", tag: "v0.1.0" }, upstream),
     /withdrawn|selection changed/u,
   );
+});
+
+void test("the attestation read retries only rate limits and server errors within its budget", async () => {
+  const { attestationRetryDelaysMs, retryUnavailableApi } =
+    await import("./catalog-released-reader.mts");
+  assert.deepEqual([...attestationRetryDelaysMs], [5_000, 15_000, 45_000]);
+  const run = async (failures: string[]) => {
+    const waits: number[] = [];
+    let calls = 0;
+    const result = await retryUnavailableApi(
+      () => {
+        const failure = failures[calls++];
+        return failure ? Promise.reject(new Error(failure)) : Promise.resolve("ok");
+      },
+      attestationRetryDelaysMs,
+      (ms) => {
+        waits.push(ms);
+        return Promise.resolve();
+      },
+    ).catch((error: Error) => error.message);
+    return { result, calls, waits };
+  };
+  const unavailable = (status: number) =>
+    `Public Portcove API attestations unavailable (${status})`;
+  // A transient refusal recovers on a later attempt.
+  assert.deepEqual(await run([unavailable(403), unavailable(503)]), {
+    result: "ok",
+    calls: 3,
+    waits: [5_000, 15_000],
+  });
+  // The budget is finite; the last refusal is returned unchanged.
+  assert.deepEqual(await run(Array.from({ length: 5 }, () => unavailable(429))), {
+    result: unavailable(429),
+    calls: 4,
+    waits: [5_000, 15_000, 45_000],
+  });
+  // Other failures are not retried.
+  for (const failure of [unavailable(404), "Verified release attestation identity differs"])
+    assert.deepEqual(await run([failure]), { result: failure, calls: 1, waits: [] });
+});
+
+void test("live selection reads the Pages worktree's checked-out commit, not a remote-tracking ref", () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "portcove-pages-revision-"));
+  try {
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync("git", ["-C", cwd, ...args], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: "t",
+          GIT_AUTHOR_EMAIL: "t@example.invalid",
+          GIT_COMMITTER_NAME: "t",
+          GIT_COMMITTER_EMAIL: "t@example.invalid",
+        },
+      }).trim();
+    const checkout = path.join(scratch, "checkout");
+    mkdirSync(checkout);
+    git(checkout, "init", "--quiet", "-b", "main");
+    git(checkout, "commit", "--quiet", "--allow-empty", "-m", "source");
+    git(checkout, "checkout", "--quiet", "--orphan", "gh-pages");
+    mkdirSync(path.join(checkout, "catalog"));
+    writeFileSync(path.join(checkout, "catalog", "marker"), "pages");
+    git(checkout, "add", "catalog/marker");
+    git(checkout, "commit", "--quiet", "-m", "pages");
+    const pagesCommit = git(checkout, "rev-parse", "HEAD");
+    git(checkout, "checkout", "--quiet", "main");
+    git(checkout, "worktree", "add", "--quiet", "--detach", "site", pagesCommit);
+    // A remote-tracking ref moved elsewhere must not change what is read.
+    git(checkout, "update-ref", "refs/remotes/origin/gh-pages", git(checkout, "rev-parse", "main"));
+    const site = path.join(checkout, "site");
+    assert.equal(pagesWorktreeRevision(checkout, path.join(site, "catalog")), pagesCommit);
+    assert.equal(pagesWorktreeRevision(checkout, site), pagesCommit);
+    assert.throws(() => pagesWorktreeRevision(checkout, checkout), /requires a Pages worktree/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

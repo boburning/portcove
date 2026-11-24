@@ -38,8 +38,6 @@ use crate::{
 
 pub(crate) const STORE: &str = ".portcove-profiles";
 const MODS: &str = "mods";
-const MAX_DFU_PACKAGES: usize = 32;
-const MAX_DFU_OBSERVED_FILES: usize = 2 * MAX_DFU_PACKAGES;
 const OVERRIDE_DOMAIN: &str = "asset-override";
 
 #[path = "profile_dfu_deploy.rs"]
@@ -288,7 +286,11 @@ pub(crate) struct StagedPackage {
     pub code_consent: bool,
 }
 
-const MAX_CODE_CONSENTS: usize = 4096;
+/// The consent ledger's parse budget (about 80 bytes per digest, ~5 MiB).
+/// Retained history keeps older package bytes, and their consents, alive, so
+/// this is sized well past one setup; consents for bytes no longer in the
+/// package store are pruned when it fills.
+const MAX_CODE_CONSENTS: usize = 16 * crate::setup_capacity::MAX_SETUP_PACKAGES;
 
 /// Digests the player allowed to run code in this library, for this game.
 pub(crate) fn consented_code(layout: &Layout) -> Result<BTreeSet<String>> {
@@ -324,9 +326,17 @@ pub(crate) fn record_code_consent(layout: &Layout, sha256: &str) -> Result<()> {
         return Ok(());
     }
     if digests.len() > MAX_CODE_CONSENTS {
-        return Err(PortcoveError::state(
-            "too many mods with allowed code are recorded",
-        ));
+        // A consent only ever applies to bytes in the package store; bytes
+        // that left it need a fresh review (and consent) to come back.
+        let packages = layout.store().join("packages");
+        digests.retain(|digest| digest == sha256 || packages.join(digest).exists());
+    }
+    if digests.len() > MAX_CODE_CONSENTS {
+        return Err(
+            PortcoveError::state("too many mods with allowed code are recorded")
+                .detail("recorded", digests.len().to_string())
+                .detail("limit", MAX_CODE_CONSENTS.to_string()),
+        );
     }
     fs::create_dir_all(layout.store())?;
     crate::durability::write_bytes_atomically(
@@ -455,17 +465,9 @@ fn inspect_retained_dfu_packages(
     revision: &ProfileRevision,
     platform: crate::Platform,
 ) -> Result<Vec<(crate::dfu_mod::DfuModInspection, bool)>> {
-    if revision.packages.len() > MAX_DFU_PACKAGES
-        || revision
-            .packages
-            .iter()
-            .fold(0_u64, |size, package| size.saturating_add(package.size))
-            > 256 * 1024 * 1024
-    {
-        return Err(PortcoveError::unsupported(
-            "Daggerfall Unity setup exceeds the data-only review bounds",
-        ));
-    }
+    // Each package is read and reviewed on its own (bounded by
+    // `dfu_mod::MAX_BYTES`); only its small review row is kept, so the setup's
+    // package count and total size are the shared setup contract's, not DFU's.
     revision.packages.iter().map(|package| {
         let stored = layout.package(&package.sha256, &package.native_id);
         let inspected = crate::dfu_mod::inspect_data_only(&stored, platform)?;
@@ -483,15 +485,6 @@ fn inspect_retained_dfu_packages(
 }
 
 fn require_dfu_metadata(rows: &[(crate::dfu_mod::DfuModInspection, bool)]) -> Result<()> {
-    if rows.len() > MAX_DFU_PACKAGES
-        || rows.iter().fold(0_u64, |size, (row, _)| {
-            size.saturating_add(row.package.size)
-        }) > 256 * 1024 * 1024
-    {
-        return Err(PortcoveError::unsupported(
-            "Daggerfall Unity setup exceeds the data-only review bounds",
-        ));
-    }
     let mut names = BTreeSet::new();
     let mut guids = BTreeSet::new();
     let mut titles = BTreeSet::new();
@@ -726,12 +719,10 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                 .insert((file.sha256, file.size));
         }
     }
-    for (index, entry) in fs::read_dir(&mods)?.enumerate() {
-        if layout.dfu_platform.is_some() && index >= MAX_DFU_OBSERVED_FILES {
-            return Err(PortcoveError::conflict(
-                "Daggerfall Unity Mods contains too many files to verify ownership",
-            ));
-        }
+    // Every entry is classified, however many there are: an entry this walk
+    // did not see could be a player's file that a later step overwrites.
+    // Only names expected for this setup are read; others are just named.
+    for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
         let metadata = fs::symlink_metadata(entry.path())?;
@@ -774,8 +765,26 @@ fn require_clean(observation: &ModsObservation, action: &str) -> Result<()> {
     Err(PortcoveError::conflict(format!(
         "the mods folder has files this profile does not own; {action} is held so they are not overwritten or deleted"
     ))
-    .detail("unmanaged", observation.unmanaged.join(", "))
-    .detail("changed_owned", observation.drifted.join(", ")))
+    .detail("unmanaged", named_files(&observation.unmanaged))
+    .detail("changed_owned", named_files(&observation.drifted))
+    .detail("unmanaged_count", observation.unmanaged.len().to_string())
+    .detail("changed_owned_count", observation.drifted.len().to_string()))
+}
+
+/// Names files for a message. The counts are reported separately and in full,
+/// so a long list is shortened only in what is shown.
+fn named_files(names: &[String]) -> String {
+    const SHOWN: usize = 32;
+    let mut text = names
+        .iter()
+        .take(SHOWN)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    if names.len() > SHOWN {
+        text.push_str(&format!(", and {} more", names.len() - SHOWN));
+    }
+    text
 }
 
 fn stage_copy(layout: &Layout, source: &Path, destination: &Path) -> Result<()> {
@@ -2854,6 +2863,10 @@ pub struct ModSetupsView {
     /// Results of the last automatic check, even after reopening the library.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub last_automatic_checks: Vec<crate::ProviderAutoUpdateCheck>,
+    /// The last automatic pass recorded results that cannot be shown whole, so
+    /// `last_automatic_checks` is not a complete report of that pass.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub last_automatic_checks_incomplete: bool,
     /// The mod provider this game has a reviewed binding for (`gamebanana` or
     /// `thunderstore`), if any.
     #[serde(default)]
@@ -2901,6 +2914,7 @@ impl ModSetupsView {
             live: None,
             held_updates: Vec::new(),
             last_automatic_checks: Vec::new(),
+            last_automatic_checks_incomplete: false,
             provider: None,
             github_release_url,
             github_native_import_offered,
@@ -2988,12 +3002,14 @@ impl PortcoveService {
                     .map(|entry| entry.packages.len())
             })
             .transpose()?;
+        let last_checks = crate::provider_auto_update::last_checks(&layout, &inventory);
         Ok(ModSetupsView {
             github_release_url,
             github_native_import_offered,
             external_mod_portals,
             held_updates,
-            last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
+            last_automatic_checks: last_checks.checks,
+            last_automatic_checks_incomplete: last_checks.incomplete,
             provider: crate::provider_binding::default_binding(port)
                 .map(|binding| binding.provider().to_owned()),
             providers: crate::provider_binding::configured_bindings(port)

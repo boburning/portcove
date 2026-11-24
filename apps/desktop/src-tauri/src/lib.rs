@@ -53,8 +53,8 @@ mod webview_boundary_qualification;
 mod windows_installation;
 
 use transport::{
-    BatchOutcome, BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput,
-    LaunchResult, SourceBatchOutcome,
+    BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput, LaunchResult,
+    SourceBatchOutcome, UpdateCheckOutcome,
 };
 
 use std::{
@@ -1048,7 +1048,7 @@ async fn forecast_installed_update_checks(
 async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<BatchOutcome<UpdateCheck>>> {
+) -> DesktopResult<Vec<UpdateCheckOutcome>> {
     let state = state.inner().clone();
     blocking_async_service(state, move |service| async move {
         let installed = service
@@ -1064,21 +1064,27 @@ async fn check_installed(
         let mut outcomes = Vec::with_capacity(installed.len());
         for (port_id, result) in service.check_updates(installed).await? {
             outcomes.push(match result {
-                Ok(result) => BatchOutcome {
+                Ok(result) => UpdateCheckOutcome {
                     port_id,
                     ok: true,
                     result: Some(result),
                     error: None,
+                    deferred: None,
                 },
-                Err(error) => BatchOutcome {
+                Err(error) => UpdateCheckOutcome {
                     port_id,
                     ok: false,
                     result: None,
+                    deferred: error.update_check_deferral(),
                     error: Some(error.into()),
                 },
             });
         }
-        let success = outcomes.iter().all(|outcome| outcome.ok);
+        // Games a provider allowance deferred are unknown, not failed: they wait
+        // for the next check after the reset rather than failing the batch.
+        let success = outcomes
+            .iter()
+            .all(|outcome| outcome.ok || outcome.deferred.is_some());
         emit_operation(
             &app,
             operation.finished(if success {
@@ -3189,6 +3195,7 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::export_mod_recipe,
             mod_setup_commands::inspect_mod_recipe,
             mod_setup_commands::acquire_mod_recipe_package,
+            mod_setup_commands::acquire_mod_recipe_packages,
             mod_setup_commands::discard_mod_recipe_review,
             mod_setup_commands::apply_mod_recipe,
             mod_setup_commands::set_mod_package_enabled,
@@ -3474,7 +3481,17 @@ pub fn run() -> std::process::ExitCode {
         })
         .build(context);
     match application {
-        Ok(application) => application.run(move |_, event| {
+        Ok(application) => application.run(move |app, event| {
+            // Closing or restarting stops unattended setup cleanly, so it is
+            // never counted as a crash. Desktop never prevents an exit request,
+            // so stopping already at ExitRequested gives the install the most
+            // time to settle; Exit repeats it for exits without a request.
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                stop_unattended_setup_for_exit(app);
+            }
             // Tauri exits the process directly, without dropping local guards.
             // ExitRequested can be prevented; only the actual Exit closes the
             // diagnostic producer and waits for its finite best-effort flush.
@@ -3488,6 +3505,30 @@ pub fn run() -> std::process::ExitCode {
         }
     }
     std::process::ExitCode::SUCCESS
+}
+
+/// Asks Core to stop this process's unattended (standing and folder) setup
+/// cleanly before Portcove closes or restarts: each run durably records the
+/// clean stop, then its install is asked to stop at its cancellation boundary.
+/// Best effort and quick; a library that is not open has nothing running.
+pub(crate) fn stop_unattended_setup_for_exit(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
+    // A library that is not open has nothing running.
+    let Ok(ready_state) = ready(state.inner()) else {
+        return;
+    };
+    // Core latches the stop even when nothing is registered (a pass between
+    // two games), and opens a service only when there are runs to stop.
+    let stopped = PortcoveService::stop_unattended_setups_for_exit(&ready_state.library, || {
+        service(state.inner()).ok()
+    });
+    tracing::info!(
+        component = "standing_setup",
+        stopped,
+        message = "unattended setup stopped cleanly for exit"
+    );
 }
 
 type StartupResult = Result<(), Box<dyn std::error::Error>>;

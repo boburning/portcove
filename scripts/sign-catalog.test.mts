@@ -401,16 +401,27 @@ void test("listing directory guard measures every delivery consumer, not an embe
   const {
     capacityConstant,
     catalogSizeGuard,
+    compactCarrierModel,
     definitionIndexMeasures,
+    formatCatalogSizeGuard,
     legacyRowProjection,
     listingDeliveryBounds,
     listingDirectoryMeasures,
     signedObservations,
   } = await import("./catalog-capacity.mts");
-  const { listingDirectoryTextMaximum } = await import("./listing-directory-carrier.mts");
+  const { encodeCompactListing, listingDirectoryTextMaximum } =
+    await import("./listing-directory-carrier.mts");
   assert.equal(capacityConstant("const N: usize = 10_000;", "N"), 10000);
+  const carrierSource = readFileSync(
+    new URL("../crates/portcove-listing-carrier/src/lib.rs", import.meta.url),
+    "utf8",
+  );
   const listingsSource = readFileSync(
     new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
+    "utf8",
+  );
+  const deliverySource = readFileSync(
+    new URL("../crates/portcove-core/src/listing_delivery.rs", import.meta.url),
     "utf8",
   );
   // Tooling that reads the canonical directory follows Core's text bound.
@@ -418,14 +429,7 @@ void test("listing directory guard measures every delivery consumer, not an embe
     listingDirectoryTextMaximum,
     capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
   );
-  const bounds = listingDeliveryBounds(
-    readFileSync(new URL("../crates/portcove-listing-carrier/src/lib.rs", import.meta.url), "utf8"),
-    listingsSource,
-    readFileSync(
-      new URL("../crates/portcove-core/src/listing_delivery.rs", import.meta.url),
-      "utf8",
-    ),
-  );
+  const bounds = listingDeliveryBounds(carrierSource, listingsSource, deliverySource);
   assert.deepEqual(bounds, {
     wire: 8388608,
     decoded: 33554432,
@@ -436,6 +440,39 @@ void test("listing directory guard measures every delivery consumer, not an embe
     listingCharge: 4027,
     withdrawalCharge: 68,
   });
+  // A next-generation raise of a Rust carrier constant does not loosen the
+  // released-reader bounds the guard (and the publisher) use ...
+  const raised = carrierSource.replace(
+    "MAX_COMPACT_DECODED_BYTES: usize = 32 * 1024 * 1024",
+    "MAX_COMPACT_DECODED_BYTES: usize = 64 * 1024 * 1024",
+  );
+  assert.notEqual(raised, carrierSource);
+  assert.equal(listingDeliveryBounds(raised, listingsSource, deliverySource).decoded, 33554432);
+  // ... and a current bound below a released one is refused.
+  assert.throws(
+    () =>
+      listingDeliveryBounds(
+        carrierSource.replace(
+          "MAX_LISTING_ENTRIES: usize = 10_000",
+          "MAX_LISTING_ENTRIES: usize = 9_000",
+        ),
+        listingsSource,
+        deliverySource,
+      ),
+    /entries \(9000\) is below the released readers' 10000/u,
+  );
+  assert.throws(
+    () =>
+      listingDeliveryBounds(
+        carrierSource,
+        listingsSource.replace(
+          "MAX_LISTING_DIRECTORY_TEXT_BYTES: usize = 64 * 1024 * 1024",
+          "MAX_LISTING_DIRECTORY_TEXT_BYTES: usize = 32 * 1024 * 1024",
+        ),
+        deliverySource,
+      ),
+    /differs from Core's MAX_LISTING_DIRECTORY_TEXT_BYTES/u,
+  );
   const row = (id: string, summary = "Description") => ({
     id,
     name: "Listing",
@@ -445,32 +482,64 @@ void test("listing directory guard measures every delivery consumer, not an embe
   const text = Buffer.from(
     JSON.stringify({ format_version: 15, listings: [row("one"), row("two")] }, null, 2),
   );
-  const measures = listingDirectoryMeasures(text, bounds);
+  const measures = listingDirectoryMeasures(text, bounds, undefined, ["gone"]);
+  const unobserved = "modeled: 0 signed observations, 2 charged the mean";
   assert.deepEqual(
-    measures.map(([name, , bound]) => [name, bound]),
+    measures.map(([name, , bound, , margin]) => [name, bound, margin?.kind ?? "percent"]),
     [
-      ["generated listings.json bytes", 67108864],
-      ["complete legacy listing target bytes (without observations)", 8388608],
-      ["compact listing directory decoded bytes (without observations)", 33554432],
-      ["compact listing carrier bytes (without observations)", 8388608],
-      ["largest listing record bytes", 1048576],
-      ["listing records", 10000],
-      ["listing element charge", 41943040],
+      ["generated listings.json bytes", 67108864, "percent"],
+      [`compact listing directory decoded bytes (${unobserved})`, 33554432, "growth"],
+      [`compact listing carrier bytes (${unobserved})`, 8388608, "growth"],
+      ["largest compact listing record bytes (modeled)", 1048576, "half"],
+      ["listing records", 10000, "growth"],
+      ["listing withdrawals", 10000, "growth"],
+      ["listing element charge", 41943040, "percent"],
+      [
+        "frozen legacy listing target (revision 47): complete format-11 successor bytes",
+        8388608,
+        "informational",
+      ],
     ],
   );
   assert.equal(measures[0]![1], text.length);
-  assert.equal(measures[5]![1], 2);
-  // Observations from a signed target enlarge both carriers.
-  const observation = { provider: "github", repository: "owner/repo", payload: "x".repeat(4096) };
-  const observed = listingDirectoryMeasures(
-    text,
-    bounds,
-    signedObservations({
-      directory: { listings: [{ id: "one", upstream_observation: observation }, { id: "x" }] },
-    }),
+  assert.equal(measures[4]![1], 2);
+  assert.equal(measures[5]![1], 1);
+  assert.equal(measures[6]![1], 2 * 4027 + 68);
+  // Every row without a signed observation is charged the mean, and its
+  // largest record the largest live observation.
+  assert.ok(measures[1]![1] > 2 * compactCarrierModel.observationBytesPerRow);
+  assert.equal(
+    measures[3]![1],
+    Buffer.byteLength(JSON.stringify(row("one"))) + compactCarrierModel.largestObservationBytes,
   );
-  assert.match(observed[1]![0], /with signed observations/u);
-  for (const index of [1, 2, 3]) assert.ok(observed[index]![1] > measures[index]![1]);
+  // Signed observations, read from a compact carrier, replace the mean.
+  const observation = { provider: "github", repository: "owner/repo", payload: "x".repeat(4096) };
+  const staged = JSON.parse(
+    encodeCompactListing(
+      Buffer.from(
+        JSON.stringify({
+          listing_delivery_schema: 1,
+          revision: 48,
+          withdrawn_ids: [],
+          directory: {
+            format_version: 15,
+            listings: [{ ...row("one"), upstream_observation: observation }, row("x")],
+          },
+        }),
+      ),
+    ).toString("utf8"),
+  ) as unknown;
+  const observed = listingDirectoryMeasures(text, bounds, signedObservations(staged), ["gone"]);
+  assert.equal(
+    observed[1]![0],
+    "compact listing directory decoded bytes (modeled: 1 signed observations, 1 charged the mean)",
+  );
+  assert.ok(observed[1]![1] < measures[1]![1]);
+  assert.ok(observed[7]![1] > measures[7]![1]);
+  assert.deepEqual(
+    signedObservations({ directory: { listings: [{ id: "a", upstream_observation: 1 }] } }),
+    new Map([["a", 1]]),
+  );
   // The format-11 projection drops only format-12+ facts.
   assert.deepEqual(
     legacyRowProjection({
@@ -498,10 +567,39 @@ void test("listing directory guard measures every delivery consumer, not an embe
     ],
   );
   const catalogBounds = { current: 16777216, percent: 85 };
-  assert.equal(catalogSizeGuard(100, { ports: [] }, catalogBounds, measures).ok, true);
+  const passing = catalogSizeGuard(100, { ports: [] }, catalogBounds, measures);
+  assert.equal(passing.ok, true);
+  // Growth rows reserve lead-time growth; the record reserves half its bound.
+  const decodedRow = passing.rows.find((entry) =>
+    entry.name.startsWith("compact listing directory"),
+  )!;
+  assert.equal(
+    decodedRow.ceiling,
+    33554432 -
+      Math.ceil(
+        (compactCarrierModel.authoredBytesPerDay +
+          compactCarrierModel.rowsPerDay * compactCarrierModel.observationBytesPerRow) *
+          compactCarrierModel.leadDays,
+      ),
+  );
+  assert.ok(decodedRow.days_before_ceiling! > 0);
+  assert.equal(passing.rows.find((entry) => entry.margin === "half")!.ceiling, 512 * 1024);
+  assert.match(formatCatalogSizeGuard(passing), /^info frozen legacy listing target/mu);
+  // The frozen legacy target is informational: past its bound, CI still passes.
+  const informational = catalogSizeGuard(100, { ports: [] }, catalogBounds, [
+    [
+      "frozen legacy",
+      9_000_000,
+      8388608,
+      "released legacy target bound",
+      { kind: "informational" },
+    ],
+  ]);
+  assert.equal(informational.ok, true);
+  assert.equal(informational.rows.at(-1)!.headroom, 8388608 - 9_000_000);
   // One oversized record fails its own row while the whole directory still fits.
   const large = Buffer.from(
-    JSON.stringify({ format_version: 15, listings: [row("one", "x".repeat(900_000))] }),
+    JSON.stringify({ format_version: 15, listings: [row("one", "x".repeat(600_000))] }),
   );
   const guarded = catalogSizeGuard(
     100,
@@ -510,19 +608,42 @@ void test("listing directory guard measures every delivery consumer, not an embe
     listingDirectoryMeasures(large, bounds),
   );
   assert.deepEqual(
-    guarded.rows.map((entry) => [entry.name, entry.ok]),
-    [
-      ["generated catalog.json bytes", true],
-      ["compact catalog bytes", true],
-      ["escaped signed envelope bytes (unsigned placeholder)", true],
-      ["generated listings.json bytes", true],
-      ["complete legacy listing target bytes (without observations)", true],
-      ["compact listing directory decoded bytes (without observations)", true],
-      ["compact listing carrier bytes (without observations)", true],
-      ["largest listing record bytes", false],
-      ["listing records", true],
-      ["listing element charge", true],
-    ],
+    guarded.rows.filter((entry) => !entry.ok).map((entry) => entry.name),
+    ["largest compact listing record bytes (modeled)"],
+  );
+  // Inside a bound but within the lead-time margin fails CI.
+  const rows = Math.ceil(10000 - compactCarrierModel.rowsPerDay * compactCarrierModel.leadDays) + 1;
+  const crowded = catalogSizeGuard(
+    100,
+    { ports: [] },
+    catalogBounds,
+    listingDirectoryMeasures(
+      Buffer.from(
+        JSON.stringify({
+          format_version: 15,
+          listings: Array.from({ length: rows }, (_, i) => ({ id: `r${i}` })),
+        }),
+      ),
+      bounds,
+    ),
+  );
+  const count = crowded.rows.find((entry) => entry.name === "listing records")!;
+  assert.ok(count.bytes < count.bound && !count.ok && !crowded.ok);
+  const withdrawals = catalogSizeGuard(
+    100,
+    { ports: [] },
+    catalogBounds,
+    listingDirectoryMeasures(
+      Buffer.from(JSON.stringify({ format_version: 15, listings: [] })),
+      bounds,
+      undefined,
+      Array.from({ length: 9600 }, (_, i) => `w${i}`),
+    ),
+  );
+  assert.equal(withdrawals.rows.find((entry) => entry.name === "listing withdrawals")!.ok, false);
+  assert.throws(
+    () => listingDirectoryMeasures(Buffer.from("{}"), bounds),
+    /require a listing directory/u,
   );
 });
 

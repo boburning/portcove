@@ -18,20 +18,25 @@ use crate::{
     OperationCoordinator, OperationEvent, PortcoveError, ReleaseAsset, Result,
     archive::{validate_download_progress, validate_download_size},
     failure::UpstreamObservation,
+    transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch},
 };
 
-/// Bounds how often one transfer may reconnect after an interrupted body.
+/// Bounds how often one transfer may reconnect after an interrupted body, and
+/// the minimum progress each connection must sustain. A transfer has no
+/// whole-transfer deadline: one that keeps progressing finishes at any size.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ResumePolicy {
     pub(crate) attempts: u32,
     pub(crate) first_delay: Duration,
     pub(crate) max_delay: Duration,
+    pub(crate) progress: ProgressFloor,
 }
 
 pub(crate) const RESUME_POLICY: ResumePolicy = ResumePolicy {
     attempts: 5,
     first_delay: Duration::from_millis(500),
     max_delay: Duration::from_secs(8),
+    progress: PROGRESS_FLOOR,
 };
 
 impl ResumePolicy {
@@ -62,8 +67,7 @@ impl From<std::io::Error> for Step {
 }
 
 fn transport(error: &reqwest::Error) -> PortcoveError {
-    PortcoveError::network(error.to_string())
-        .with_upstream(UpstreamObservation::from_reqwest(error))
+    PortcoveError::from_transport(error)
 }
 
 /// Read-idle stalls keep their existing terminal failure; only resets, early
@@ -188,6 +192,7 @@ impl Transfer<'_> {
         operation: &OperationCoordinator,
         emit: &mut F,
         retrying: bool,
+        floor: ProgressFloor,
     ) -> std::result::Result<(), Step>
     where
         F: FnMut(OperationEvent),
@@ -291,6 +296,9 @@ impl Transfer<'_> {
             .or(Some(self.asset.size))
             .filter(|value| *value > 0);
         let mut stream = response.bytes_stream();
+        // Like a read-idle stall, a connection starved below the progress
+        // floor ends this transfer; kept bytes continue in a later one.
+        let mut progress = ProgressWatch::new(floor);
         while let Some(chunk) = operation
             .interruptible(async { Ok(stream.next().await) })
             .await?
@@ -300,6 +308,7 @@ impl Transfer<'_> {
                 Err(error) if interrupted(&error) => return Err(Step::Retry(transport(&error))),
                 Err(error) => return Err(Step::Fatal(transport(&error))),
             };
+            progress.record(chunk.len() as u64)?;
             let next = self
                 .completed
                 .checked_add(chunk.len() as u64)
@@ -333,6 +342,7 @@ impl Transfer<'_> {
         if self.length.is_some_and(|length| self.completed < length) {
             return Err(Step::Retry(
                 PortcoveError::network("the download ended before the complete file arrived")
+                    .transient_transport()
                     .detail("expected", self.length.unwrap_or_default().to_string())
                     .detail("actual", self.completed.to_string()),
             ));
@@ -447,7 +457,10 @@ where
     // which reconnect happened to fail last.
     let mut interruption: Option<PortcoveError> = None;
     let transfer_result: Result<()> = loop {
-        match transfer.attempt(client, operation, emit, resumes > 0).await {
+        match transfer
+            .attempt(client, operation, emit, resumes > 0, policy.progress)
+            .await
+        {
             Ok(()) => break Ok(()),
             Err(Step::Fatal(error)) if resumes > 0 => {
                 break Err(error.detail("download_resume_attempts", resumes.to_string()));

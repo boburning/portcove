@@ -1109,6 +1109,9 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
     if let Some(suppressed) = &assessment.suppressed {
         line.push_str(&format!("; on hold: {}", clean(suppressed)));
     }
+    if let Some(next) = assessment.next_attempt_at {
+        line.push_str(&format!("; Next attempt: {}", utc_time(next)));
+    }
     line
 }
 
@@ -1181,6 +1184,9 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                 .unwrap_or_default(),
             clean(&waiting.reason)
         ));
+        if let Some(next) = waiting.next_attempt_at {
+            lines.push(format!("  Next attempt: {}", utc_time(next)));
+        }
     }
     for update in &value.mod_updates {
         let subject = if update.native_ids.is_empty() {
@@ -2291,6 +2297,28 @@ pub(crate) fn activities(
     )
 }
 
+/// An update check Core stopped for a provider rate limit learned nothing: it is
+/// not checked, never a failure. An incomplete list is its own state.
+fn activity_status(record: &ActivityRecord) -> &'static str {
+    use portcove_core::{ActivityOperation, ActivityStatus};
+    let key = record
+        .failure
+        .as_ref()
+        .map(|failure| failure.presentation.presentation_key.as_str());
+    match (record.status, record.operation, key) {
+        (ActivityStatus::Failed, ActivityOperation::CheckUpdate, Some("provider_rate_limited")) => {
+            "Not checked: request limit"
+        }
+        (ActivityStatus::Failed, ActivityOperation::CheckUpdate, Some("inventory_incomplete")) => {
+            "Check incomplete"
+        }
+        (ActivityStatus::Running, ..) => "Running",
+        (ActivityStatus::Succeeded, ..) => "Succeeded",
+        (ActivityStatus::Failed, ..) => "Failed",
+        (ActivityStatus::Cancelled, ..) => "Cancelled",
+    }
+}
+
 fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical: bool) -> String {
     use portcove_core::{ActivityStatus, ActivityTargetKind, redact_diagnostic_text};
     // Failed requests can record arbitrary input as a target. Only catalog-owned
@@ -2309,12 +2337,7 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
     let mut output = format!(
         "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UTC): {}",
         clean(&record.id),
-        match record.status {
-            ActivityStatus::Running => "Running",
-            ActivityStatus::Succeeded => "Succeeded",
-            ActivityStatus::Failed => "Failed",
-            ActivityStatus::Cancelled => "Cancelled",
-        },
+        activity_status(record),
         operation_name(record.operation),
         target.as_deref().unwrap_or(match record.target_kind {
             ActivityTargetKind::Port => "port (not in current catalog)",
@@ -4353,6 +4376,34 @@ mod tests {
             terminal_history_count: 1,
             terminal_history_complete: true,
         }
+    }
+
+    #[test]
+    fn a_rate_limited_update_check_activity_reads_not_checked_rather_than_failed() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut record = failed_activity(std::path::Path::new("owned-fixture"));
+        let status = |record: &portcove_core::ActivityRecord| {
+            super::activities(&activity_feed(record.clone()), &catalog, false)
+                .lines()
+                .find_map(|line| line.strip_prefix("Status: ").map(str::to_owned))
+                .unwrap()
+        };
+        let with_key = |key: &str| {
+            let mut report = portcove_core::PortcoveError::network("limited").report();
+            report.presentation.presentation_key = key.into();
+            Some(report)
+        };
+        record.operation = portcove_core::ActivityOperation::CheckUpdate;
+        record.failure = with_key("provider_rate_limited");
+        assert_eq!(status(&record), "Not checked: request limit");
+        record.failure = with_key("inventory_incomplete");
+        assert_eq!(status(&record), "Check incomplete");
+        record.failure = with_key("provider_request_rejected");
+        assert_eq!(status(&record), "Failed");
+        // The rate limit stopping another operation is still that operation's failure.
+        record.operation = portcove_core::ActivityOperation::Install;
+        record.failure = with_key("provider_rate_limited");
+        assert_eq!(status(&record), "Failed");
     }
 
     #[test]

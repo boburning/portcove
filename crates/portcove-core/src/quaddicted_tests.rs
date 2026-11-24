@@ -37,27 +37,39 @@ fn requests_bind_scope_query_order_and_limits() {
     );
     assert_eq!(url.path(), "/api/v1/");
     assert_eq!(pairs["q"], format!("{FILTER} +filenames_txt:*boss\\-map*"));
-    assert_eq!(pairs["rows"], "24");
+    // One lookahead row beyond the 24 shown establishes whether more exist.
+    assert_eq!(pairs["rows"], "25");
     assert_eq!(pairs["start"], "24");
     assert_eq!(pairs["sort"], "release_date_dt DESC, sha256 ASC");
     assert!(url.as_str().contains("%2Btags"));
     assert!(endpoint(Some("foo OR *:*"), 0).is_err());
-    assert!(endpoint(None, MAX_PAGE + 1).is_err());
+}
+
+// The removed client limit stopped browsing at page 20.
+const OLD_LAST_PAGE: u32 = 20;
+
+#[test]
+fn pages_past_the_old_twentieth_page_stay_reachable() {
+    for page in [OLD_LAST_PAGE, OLD_LAST_PAGE + 1, 10 * OLD_LAST_PAGE] {
+        let url = endpoint(None, page).unwrap();
+        let pairs = url.query_pairs().collect::<BTreeMap<_, _>>();
+        assert_eq!(pairs["start"], (page as usize * PAGE_SIZE).to_string());
+    }
 }
 
 #[test]
-fn a_full_final_page_does_not_offer_an_out_of_bounds_next_page() {
-    let rows = json!(vec![Value::Null; PAGE_SIZE]);
-    assert!(
-        project(&rows, QuakeEngine::VkQuake, MAX_PAGE - 1)
-            .unwrap()
-            .may_have_more
-    );
-    assert!(
-        !project(&rows, QuakeEngine::VkQuake, MAX_PAGE)
-            .unwrap()
-            .may_have_more
-    );
+fn more_results_follow_the_provider_lookahead_not_a_page_number() {
+    let rows = |count: usize| json!(vec![Value::Null; count]);
+    for page in [0, OLD_LAST_PAGE, 10 * OLD_LAST_PAGE] {
+        // A lookahead row means another page exists, even at the old last page.
+        let more = project(&rows(PAGE_SIZE + 1), QuakeEngine::VkQuake, page).unwrap();
+        assert!(more.may_have_more);
+        // The lookahead row is not shown or counted on this page.
+        assert_eq!(more.unreadable_rows, PAGE_SIZE);
+        // A page that ends exactly at 24 rows is the provider's last page.
+        let exact = project(&rows(PAGE_SIZE), QuakeEngine::VkQuake, page).unwrap();
+        assert!(!exact.may_have_more);
+    }
 }
 
 fn documented_row(sha: &str) -> Value {
@@ -131,7 +143,7 @@ fn malformed_duplicate_and_off_scope_rows_make_the_page_partial() {
     assert!(project(&json!({"results":[]}), QuakeEngine::Ironwail, 0).is_err());
     assert!(
         project(
-            &json!(vec![Value::Null; PAGE_SIZE + 1]),
+            &json!(vec![Value::Null; PAGE_SIZE + 2]),
             QuakeEngine::Ironwail,
             0
         )

@@ -53,6 +53,7 @@ mod game_file_root;
 mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
+mod github_request_budget;
 mod gitlab;
 mod historical_artifacts;
 mod host_preferences;
@@ -169,6 +170,8 @@ mod runtime_path_policy;
 #[cfg(test)]
 mod scaling_profile_tests;
 mod service;
+mod setup_capacity;
+pub use setup_capacity::{MAX_SETUP_DOCUMENT_BYTES, MAX_SETUP_PACKAGES};
 mod signed_catalog;
 mod source;
 mod source_assessment;
@@ -190,6 +193,7 @@ mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
 mod support_bundle_stage;
+mod temporary_failure;
 #[cfg(test)]
 mod test_fixture;
 #[cfg(test)]
@@ -197,7 +201,10 @@ mod test_http;
 mod thunderstore;
 mod tool_process;
 mod transfer_copy;
+pub use temporary_failure::{TemporaryCause, TemporaryFailure, TemporaryRetry};
 mod transfer_journal;
+mod transfer_progress;
+pub use transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch};
 mod types;
 mod windows_runtime;
 #[cfg(windows)]
@@ -460,9 +467,10 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
-    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
-    RecipeRuntime,
+    MAX_RECIPE_REVIEW_BYTES, ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT,
+    RecipeAcquisitionBatch, RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeAcquisitionRef,
+    RecipeCodeApproval, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus, RecipeOriginal,
+    RecipeOriginalStorage, RecipePackage, RecipeRuntime, RecipeStaging,
 };
 pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{

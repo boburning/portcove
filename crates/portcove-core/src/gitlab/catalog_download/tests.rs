@@ -146,7 +146,7 @@ async fn registry_catalog_rejects_oversized_shared_inventory_pages() {
             .await
             .unwrap_err()
             .message
-            .contains("package page exceeds")
+            .contains("package registry page exceeds")
     );
     server.join().unwrap();
     let (provider, _requests, server) = fixture(Mode::OversizedReleases);
@@ -157,7 +157,7 @@ async fn registry_catalog_rejects_oversized_shared_inventory_pages() {
             .await
             .unwrap_err()
             .message
-            .contains("release page exceeds")
+            .contains("release history page exceeds")
     );
     server.join().unwrap();
 }
@@ -191,7 +191,14 @@ async fn registry_catalog_binds_project_tag_link_file_and_published_integrity() 
     assert_eq!(exact, *candidate);
     server.join().unwrap();
     let requests = requests.try_iter().collect::<Vec<_>>();
-    assert_eq!(requests.len(), 10);
+    // Each read asks the registry for the tag's two version spellings only.
+    assert_eq!(requests.len(), 12);
+    assert!(
+        requests
+            .iter()
+            .filter(|request| request.contains("/packages?"))
+            .all(|request| request.contains("package_version="))
+    );
     assert!(
         requests
             .iter()

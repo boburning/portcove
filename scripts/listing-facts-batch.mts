@@ -90,6 +90,7 @@ import {
   catalogSizeGuard,
   listingDeliveryBounds,
   listingDirectoryMeasures,
+  withdrawalIdentities,
   type CapacityMeasure,
 } from "./catalog-capacity.mts";
 import {
@@ -1940,8 +1941,9 @@ const listingTextRow = "generated listings.json bytes";
  *    pins the constant to Core; this is a working-memory bound, not a
  *    released-reader bound;
  *  - `listingDelivery`: the projections of that directory released readers
- *    bound (the complete legacy target, the compact carrier's decoded, wire
- *    and record bytes, the entry count and the element budget), exactly the
+ *    bound (the compact carrier's decoded, wire and record bytes, the
+ *    listing and withdrawal counts and the element budget, each with its own
+ *    margin, and the frozen legacy target, informational only), exactly the
  *    other listing rows of `catalog-capacity` (`listingDirectoryMeasures`).
  * The required check refuses a batch past any of these ceilings, so such a
  * batch is never proposed.
@@ -3296,6 +3298,8 @@ async function main(argv: string[]): Promise<string> {
       const listingBytes = statSync(listingsPath).size;
       // The delivery projections are measured only within the text bound; past
       // it the text row already refuses the batch.
+      // The same measures, bounds and committed withdrawals as
+      // `catalog-capacity --check`.
       const listingDelivery =
         listingBytes > listingDirectoryTextMaximum
           ? []
@@ -3310,6 +3314,15 @@ async function main(argv: string[]): Promise<string> {
                 readFileSync(
                   path.join(root, "crates/portcove-core/src/listing_delivery.rs"),
                   "utf8",
+                ),
+              ),
+              undefined,
+              withdrawalIdentities(
+                JSON.parse(
+                  readFileSync(
+                    path.join(root, "crates/portcove-core/catalog/listing-withdrawals.json"),
+                    "utf8",
+                  ),
                 ),
               ),
             );
