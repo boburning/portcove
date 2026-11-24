@@ -155,14 +155,18 @@ the field. Listing formats and bounds by released reader (from each tag's
 | `nightly-0.1.0-preview.13`                                  | 5–13            | No              | 8 MiB         | —                       | 10,000 each                |
 | `nightly-0.1.0-preview.14`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
 | `nightly-0.1.0-preview.15`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 10,000 each, while parsing |
+| `nightly-0.1.0-preview.16`                                  | 5–15            | Yes             | 8 MiB         | 32 MiB, 1 MiB           | 40 MiB element budget      |
 
-Every one of them also refuses more than 4,096 indexed definitions and keeps
-the 4 MiB definition index. Which of them are still supported is decided by
-`updates/withdrawn.json` and the released-reader gate. The file is written by
-the first withdrawal; until then it is absent and no version is withdrawn (it
-returned 404 on November 24, 2026).
+Preview 16 is the first released reader with the element budget: it
+charges listings and withdrawals against the element budget instead of
+counting them, advertises `listing_delivery_limits`, and keeps the 4 MiB
+definition index without a definition count. Every earlier reader refuses more
+than 4,096 indexed definitions and keeps the 4 MiB definition index. Which of
+them are still supported is decided by `updates/withdrawn.json` and the
+released-reader gate. The file is written by the first withdrawal; until then
+it is absent and no version is withdrawn.
 
-| Bound                                                | Released readers         | Current generation        | Why it stays or changed                                                                                                                |
+| Bound                                                | Preview 15 and earlier   | Current generation        | Why it stays or changed                                                                                                                |
 | ---------------------------------------------------- | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Listing target body, either carrier                  | 8 MiB                    | 8 MiB                     | Whole-target read before its digest check; the frozen `listing_delivery` SQLite check.                                                 |
 | Decoded compact directory                            | 32 MiB                   | 32 MiB                    | Decompression-ratio and working-memory bound, allocated before inflation; the `compact_listing_delivery` SQLite check. Measured below. |
@@ -189,9 +193,10 @@ wire format, so it follows Core's 64 MiB inspection bound
 constraints are the compact carrier's released-reader bounds and the element
 budget below.
 
-With the signed observations of revision 47, the compact carrier measures
-9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370 wire bytes (33% of
-8 MiB). Only 933 listings carry an observation, about 4,790 bytes each.
+On November 23, 2026, with the signed observations of legacy revision 47, the
+compact carrier measured 9,858,222 decoded bytes (29% of 32 MiB) and 2,808,370
+wire bytes (33% of 8 MiB). Only 933 listings carried an observation, about
+4,790 bytes each.
 
 On November 23, 2026 the committed directory, deterministic 5x and 10x copies
 with fresh identities, and two worst-case element shapes at the 32 MiB decoded
@@ -680,6 +685,14 @@ recorded as not observed, never as passed.
      listing count, `fallback_reason` null.
    - One **Windows desktop client** on the current Preview shows the compact
      revision's listings after its listing refresh, including a held row.
+
+   A released-client observation runs the published binary: the CLI archive
+   from the release, or the desktop application installed from the signed
+   release installer. A local build of the release tag, such as a
+   desktop-verify run, is a distinct and weaker kind of evidence: its bytes
+   differ from the released binary. Record it as a local-build observation,
+   and record the released binary as not observed.
+
 7. Record the retained catalog tree size (at most 805,306,368 bytes, 768 MiB)
    and the Pages tree size (at most 900,000,000 bytes).
 
@@ -821,7 +834,9 @@ that run, 400 identities grew `listings.json` to 7,036,903 bytes, 93,413 below
 the 85% guard. That guard, not the compact carrier, is the next limit; the
 compact target stayed under 2.8 MB wire and 10.1 MB decoded.
 
-**Storage runway.** The retained catalog tree measured 404,914,714 of
+**Storage runway, measured November 23, 2026.** These are pre-cutover
+figures; the activation evidence below has later ones. The retained catalog
+tree measured 404,914,714 of
 805,306,368 bytes (768 MiB), and the Pages tree 404,922,011 of 900,000,000.
 The 47 retained legacy listing bodies make up 390,631,685 bytes.
 
@@ -837,13 +852,14 @@ The 47 retained legacy listing bodies make up 390,631,685 bytes.
 
 ### Compact listing activation evidence, November 24, 2026
 
-The first signed compact publication and its readback, recorded in the #1422
-comments
-[Compact listing: activated](https://github.com/boburning/portcove/issues/1422#issuecomment-7137198571)
-and
+The first signed compact publication and its readback, recorded in three #1422
+comments:
+[Compact listing: activated](https://github.com/boburning/portcove/issues/1422#issuecomment-7137198571);
 [Compact listing: released-client readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7137500145)
-(about 16:50 UTC). These are dated observations, not expected values for later
-publications.
+(command-line clients observed 16:11–16:20 UTC; comment posted 16:20 UTC); and
+[Compact listing: Windows desktop readback](https://github.com/boburning/portcove/issues/1422#issuecomment-7138279401)
+(run finished about 16:44 UTC; comment posted 16:50 UTC). These are dated
+observations, not expected values for later publications.
 
 - **Publication.** Scheduled `Catalog publish` run 45430469470, source commit
   `8a3ae155`, published signed versions 63 at 16:06 UTC. Reader activation:
@@ -870,12 +886,30 @@ publications.
 | 4. Legacy targets                                        | The revision-49, 48 and 47 legacy targets each serve their signed length.                                                                                                                                                                  |
 | 5. Update feeds                                          | `updates/preview/latest.json` and `updates/beta/latest.json` are byte-identical and name `0.1.0-preview.16`.                                                                                                                               |
 | 6. Released CLIs, Linux x86-64, fresh isolated libraries | Previews 16, 15 and 14 select the compact target: format 15, 1,649 listings, revision 50. Preview 13, below the minimum supported preview, keeps the frozen legacy target: format 11, 1,193 listings, revision 49, no error. All exit 0.   |
-| 6. Windows desktop client                                | **Not observed.** Releases ship only an installer, and installing on the available host would have changed its registered player install.                                                                                                  |
+| 6. Windows desktop client, local build of the tag        | Passed, as a local-build observation (below). The signed released installer binary was not run.                                                                                                                                            |
 | 7. Retained sizes                                        | Catalog tree 411,430,525 of 805,306,368 bytes; Pages tree 425,230,684 of 900,000,000.                                                                                                                                                      |
 
-**Not observed.** The Windows desktop client, the Windows and macOS CLIs, and
-an in-place upgrade of a library written by an older preview. The Linux CLI
-results do not stand in for them.
+**Windows desktop, local build of the release tag.** Releases ship only an
+installer, and installing it on the available host would have changed its
+registered player install, so the released binary was not run. Instead a local
+debug build of release tag `nightly-0.1.0-preview.16` (commit
+`cb29b0b83259f80015238b4fe69563707a7f880d`) was built through the
+repository's desktop-verify route with an uncommitted observe-only scenario
+and run in a fresh isolated library against live Pages. It selected listing
+revision 50 from the compact transport target `5a2d3bd1…`, format 15, 1,649
+listings (152 restricted), about 21 s after launch. The held row
+`abuse-abuse-2025` showed its hold explanation and offered no download. No
+error and no fallback. This build's bytes differ from the signed released
+binary, so it is evidence about the tag's source on Windows, not a
+released-binary observation.
+
+**Retained legacy bodies.** On November 24, 2026 the served tree held 49
+retained legacy listing bodies, 407,408,759 bytes.
+
+**Not observed.** The signed released Windows installer binary, the Windows
+and macOS CLIs, and an in-place upgrade of a library written by an older
+preview. The Linux CLI results and the local desktop build do not stand in for
+them.
 
 Steps 3 and 4 and the version history above were also read anonymously from
 Pages on November 24, 2026 for this record. `updates/withdrawn.json` returned
