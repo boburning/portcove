@@ -521,7 +521,9 @@ coverage partial.
 
 A failed reviewed-source read records the request URL, error class, HTTP status
 and execution environment (`github-actions` or `local`). A runtime access
-failure is not evidence that a source retired or a project was removed. Quiver
+failure is not evidence that a source retired or a project was removed. A read
+stopped by a run boundary (budget, quota, rate limit, deadline, cancellation)
+is a resumable `partial` read marked `deferred`, not an inaccessible source. Quiver
 records its failing feed request; its evidence is Portcove's own API request,
 and `tgeorgiadis/quiver-launcher` is named as the publisher's client of the same
 API.
@@ -671,7 +673,10 @@ runners take its results from the shared store:
    keeps the list incomplete. Its scope is the inventory read it describes.
 
 A failed inventory read waits two days, as a list does. A parser change makes
-every record due again.
+every record due again. A record's first read is discovery: its claims never
+mark a repository as changed, even when another record of the same source
+already named it, so a shared engine is not sent to research by the baseline.
+A later read of that record whose claims differ is a change.
 
 A game without public code keeps `candidate-without-public-code` on its
 projects' claims and is counted in the summary as an unresolved research

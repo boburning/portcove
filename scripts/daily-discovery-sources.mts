@@ -624,10 +624,8 @@ export async function collectDiscoverySources(
           await c.budget.admit(1, 1);
           await job.run();
         } catch (error) {
-          if (
-            error instanceof GitHubApiError &&
-            ["budget_exhausted", "rate_limited"].includes(error.code)
-          ) {
+          // Any run boundary stops the queue; the remaining jobs stay due.
+          if (runBoundary(error)) {
             exhausted = true;
             break;
           }

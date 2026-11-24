@@ -39,9 +39,7 @@ function group(
     }
     entries.set(location.key, entry);
   }
-  // A read whose every row the source itself places outside scope is complete.
-  if (!entries.size && !unlinked && !extra.excluded)
-    throw new Error("External list has no entries");
+  if (!entries.size && !unlinked) throw new Error("External list has no entries");
   return {
     entries: [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)),
     unlinked,
@@ -348,9 +346,9 @@ export function parseUnbakedGame(textValue: string, slug: string): ParsedExterna
       }),
     });
   }
-  if (!rows.length && !excluded)
-    // A game with no listed project is a research candidate, not an empty read.
-    return { entries: [], unlinked: 0, excluded: 0 };
+  // A game with no listed project is a research candidate, and one whose only
+  // projects are general tools is out of scope: both are complete, empty reads.
+  if (!rows.length) return { entries: [], unlinked: 0, excluded };
   return group(rows, { excluded });
 }
 
