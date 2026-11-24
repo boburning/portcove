@@ -4471,6 +4471,8 @@ async function resumeRetainedApplicationReviewClaim(
     "application",
     "metadata-maintenance",
   );
+  // The retained claim is bound to publication facts from receipt pairs.
+  controls.receiptProtection(inspectCoordinatorRemoteNamespace(configuration));
   const initial = await controls.readSdkMaintenance(undefined, {
     deadline: budget.monotonicDeadline,
     maxBytes: 16 * 1024 ** 2,
