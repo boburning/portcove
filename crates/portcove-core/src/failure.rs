@@ -288,105 +288,102 @@ pub(crate) enum KnownFailureCause {
         /// Pages or chunks the provider listed, when it said.
         total: Option<u64>,
         resets_at: Option<i64>,
-        /// A provider allowance or throttle cut the listing short, so work that
-        /// shares that allowance waits too (a bulk update check defers the rest
-        /// rather than sending them).
-        rate_limited: bool,
+        /// Set when a provider allowance or throttle cut the listing short: the
+        /// stopping request's own facts, so work that shares that allowance
+        /// waits too (a bulk update check defers the rest rather than sending
+        /// them) and is presented exactly as that rate limit was.
+        rate_limit: Option<RateLimitFacts>,
     },
 }
 
-/// Whether a failure means a provider allowance or throttle stopped the request,
-/// as opposed to an answer about the requested resource.
-pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
-    matches!(
-        error.known_cause(),
-        Some(
-            KnownFailureCause::ProviderRequest {
-                rate_limited: true,
-                ..
-            } | KnownFailureCause::ProviderAllowanceExhausted { .. }
-                | KnownFailureCause::InventoryIncomplete {
-                    rate_limited: true,
-                    ..
-                }
-        )
-    )
+/// How a provider rate limit stopped a request, as the stopping failure recorded it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RateLimitFacts {
+    /// The provider asked the client to wait, rather than reporting its allowance spent.
+    pub(crate) throttled: bool,
+    /// The provider stated the reset time; otherwise Portcove estimated it.
+    pub(crate) reset_reported: bool,
+    /// Whose allowance: signed in (per account) or anonymous; `None` when unknown.
+    pub(crate) signed_in: Option<bool>,
 }
 
-/// The release provider whose allowance or throttle stopped this request.
-pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::ReleaseSource> {
-    let provider = match error.known_cause()? {
-        KnownFailureCause::ProviderRequest {
-            provider,
-            rate_limited: true,
-            ..
-        }
-        | KnownFailureCause::ProviderAllowanceExhausted { provider, .. }
-        | KnownFailureCause::InventoryIncomplete {
-            provider,
-            rate_limited: true,
-            ..
-        } => *provider,
-        _ => return None,
+/// The provider, reset time and facts of a rate limit that stopped this request,
+/// from the failure's own recorded facts. `None` when it is not a rate limit.
+fn rate_limit_of(error: &PortcoveError) -> Option<(FailureProvider, Option<i64>, RateLimitFacts)> {
+    let signed_in = || {
+        error
+            .details
+            .get("rate_limit_credential")
+            .map(|credential| credential == "authenticated")
     };
-    Some(match provider {
-        FailureProvider::Github => crate::ReleaseSource::Github,
-        FailureProvider::Gitlab => crate::ReleaseSource::Gitlab,
-        // Not a release provider: no update-check allowance to defer.
-        FailureProvider::Thunderstore => return None,
-    })
-}
-
-/// The failure of an item that was not sent because `cause` already stopped the
-/// same provider allowance. `None` when `cause` is not a rate limit.
-pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
-    let (provider, resets_at, throttled, reset_reported, signed_in) = match cause.known_cause()? {
+    match error.known_cause()? {
         KnownFailureCause::ProviderRequest {
             provider,
             rate_limited: true,
             resets_at,
             ..
-        } => (
+        } => Some((
             *provider,
             *resets_at,
-            cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
-            resets_at.is_some(),
-            cause
-                .details
-                .get("rate_limit_credential")
-                .map(|credential| credential == "authenticated"),
-        ),
+            RateLimitFacts {
+                throttled: error.details.get("rate_remaining").map(String::as_str) != Some("0"),
+                reset_reported: resets_at.is_some(),
+                signed_in: signed_in(),
+            },
+        )),
         KnownFailureCause::ProviderAllowanceExhausted {
             provider,
             resets_at,
             throttled,
             reset_reported,
             signed_in,
-        } => (
+        } => Some((
             *provider,
             *resets_at,
-            *throttled,
-            *reset_reported,
-            *signed_in,
-        ),
-        // A listing a rate limit cut short keeps the stopping request's details.
+            RateLimitFacts {
+                throttled: *throttled,
+                reset_reported: *reset_reported,
+                signed_in: *signed_in,
+            },
+        )),
         KnownFailureCause::InventoryIncomplete {
             provider,
             resets_at,
-            rate_limited: true,
+            rate_limit: Some(facts),
             ..
-        } => (
-            *provider,
-            *resets_at,
-            cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
-            resets_at.is_some(),
-            cause
-                .details
-                .get("rate_limit_credential")
-                .map(|credential| credential == "authenticated"),
-        ),
-        _ => return None,
-    };
+        } => Some((*provider, *resets_at, *facts)),
+        _ => None,
+    }
+}
+
+/// Whether a failure means a provider allowance or throttle stopped the request,
+/// as opposed to an answer about the requested resource.
+pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
+    rate_limit_of(error).is_some()
+}
+
+/// The release provider whose allowance or throttle stopped this request.
+pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::ReleaseSource> {
+    match rate_limit_of(error)?.0 {
+        FailureProvider::Github => Some(crate::ReleaseSource::Github),
+        FailureProvider::Gitlab => Some(crate::ReleaseSource::Gitlab),
+        // Not a release provider: no update-check allowance to defer.
+        FailureProvider::Thunderstore => None,
+    }
+}
+
+/// The failure of an item that was not sent because `cause` already stopped the
+/// same provider allowance. `None` when `cause` is not a rate limit.
+pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
+    let (
+        provider,
+        resets_at,
+        RateLimitFacts {
+            throttled,
+            reset_reported,
+            signed_in,
+        },
+    ) = rate_limit_of(cause)?;
     let mut error = PortcoveError::network(
         "Not sent: the provider's request allowance stopped an earlier request in the same batch.",
     )
@@ -410,6 +407,33 @@ pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
         }
     }
     Some(error)
+}
+
+/// Whose allowance stopped the request, and when it resets, for presentation.
+fn rate_limit_sentences(
+    provider: FailureProvider,
+    resets_at: Option<i64>,
+    facts: RateLimitFacts,
+) -> (String, String) {
+    let provider = provider.name();
+    let cause = match (facts.throttled, facts.signed_in) {
+        (true, _) => format!("{provider} asked Portcove to wait before more requests"),
+        (false, Some(true)) => {
+            format!("The {provider} request allowance for your signed-in account is used up")
+        }
+        (false, Some(false)) => format!(
+            "The {provider} request allowance for anonymous requests from this network is used up"
+        ),
+        (false, None) => format!("The {provider} request allowance is used up"),
+    };
+    let next = match (reset_time(resets_at), facts.reset_reported) {
+        (Some(time), true) => format!("Resets: {time}. Try again after then."),
+        (Some(time), false) => {
+            format!("Resets: about {time} (estimated by Portcove). Try again after then.")
+        }
+        (None, _) => "The reset time is unknown. Try again later.".to_owned(),
+    };
+    (cause, next)
 }
 
 /// A provider reset instant (Unix seconds) as RFC 3339, for presentation.
@@ -471,7 +495,7 @@ pub(crate) fn inventory_incomplete(
         read,
         total,
         resets_at: None,
-        rate_limited: false,
+        rate_limit: None,
     })
 }
 
@@ -489,9 +513,23 @@ pub(crate) fn inventory_incomplete_after(
 ) -> PortcoveError {
     let temporary = cause.temporary_cause();
     let resets_at = temporary.and_then(|(_, reset)| reset);
-    // A throttle or spent allowance stays one, so work sharing that allowance waits.
-    let limited = is_rate_limited(&cause)
-        || temporary.is_some_and(|(kind, _)| kind == crate::TemporaryCause::RateLimited);
+    // A throttle or spent allowance stays one, with the stopping failure's own
+    // facts, so work sharing that allowance waits and reads the same.
+    let rate_limit = rate_limit_of(&cause)
+        .map(|(_, _, facts)| facts)
+        .or_else(|| {
+            temporary
+                .is_some_and(|(kind, _)| kind == crate::TemporaryCause::RateLimited)
+                .then(|| RateLimitFacts {
+                    // A bare throttling status (429, or 403 with a stated wait).
+                    throttled: cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
+                    reset_reported: resets_at.is_some(),
+                    signed_in: cause
+                        .details
+                        .get("rate_limit_credential")
+                        .map(|credential| credential == "authenticated"),
+                })
+        });
     let mut error = inventory_incomplete(provider, inventory, read, total)
         .detail("cause", cause.message.clone());
     for (name, value) in cause.details {
@@ -499,12 +537,12 @@ pub(crate) fn inventory_incomplete_after(
     }
     if let Some(KnownFailureCause::InventoryIncomplete {
         resets_at: reset,
-        rate_limited,
+        rate_limit: facts,
         ..
     }) = error.failure.known_cause.as_mut()
     {
         *reset = resets_at;
-        *rate_limited = limited;
+        *facts = rate_limit;
     }
     error
 }
@@ -726,12 +764,25 @@ impl KnownFailureCause {
                 inventory,
                 read,
                 total,
-                ..
+                resets_at,
+                rate_limit,
             } => {
                 let progress = total.map_or_else(
                     || format!(" ({read} parts read)"),
                     |total| format!(" ({read} of {total} parts read)"),
                 );
+                // Cut short by a rate limit: it reads as that rate limit, so every
+                // consumer treats it as not checked rather than as a failure.
+                if let Some(facts) = rate_limit {
+                    let (cause, next) = rate_limit_sentences(*provider, *resets_at, *facts);
+                    return (
+                        "provider_rate_limited",
+                        format!(
+                            "{cause}, so Portcove read only part of the {} {inventory}{progress}. Nothing was concluded from the missing part. {next}",
+                            provider.name()
+                        ),
+                    );
+                }
                 return (
                     "inventory_incomplete",
                     format!(
@@ -854,25 +905,15 @@ impl KnownFailureCause {
                 reset_reported,
                 signed_in,
             } => {
-                let provider = provider.name();
-                let cause = match (throttled, signed_in) {
-                    (true, _) => format!("{provider} asked Portcove to wait before more requests"),
-                    (false, Some(true)) => format!(
-                        "The {provider} request allowance for your signed-in account is used up"
-                    ),
-                    (false, Some(false)) => format!(
-                        "The {provider} request allowance for anonymous requests from this network is used up"
-                    ),
-                    (false, None) => format!("The {provider} request allowance is used up"),
-                };
-                let reset = reset_time(*resets_at);
-                let next = match (reset, reset_reported) {
-                    (Some(time), true) => format!("Resets: {time}. Try again after then."),
-                    (Some(time), false) => format!(
-                        "Resets: about {time} (estimated by Portcove). Try again after then."
-                    ),
-                    (None, _) => "The reset time is unknown. Try again later.".to_owned(),
-                };
+                let (cause, next) = rate_limit_sentences(
+                    *provider,
+                    *resets_at,
+                    RateLimitFacts {
+                        throttled: *throttled,
+                        reset_reported: *reset_reported,
+                        signed_in: *signed_in,
+                    },
+                );
                 return (
                     "provider_rate_limited",
                     format!(
@@ -919,14 +960,15 @@ impl PortcoveError {
                 resets_at: *resets_at,
                 reset_reported: *reset_reported && resets_at.is_some(),
             }),
-            // The reset of a cut-short listing is the provider's stated wait.
+            // A cut-short listing keeps whether its stopping failure's reset was
+            // reported or estimated.
             KnownFailureCause::InventoryIncomplete {
                 resets_at,
-                rate_limited: true,
+                rate_limit: Some(facts),
                 ..
             } => Some(crate::UpdateCheckDeferral {
                 resets_at: *resets_at,
-                reset_reported: resets_at.is_some(),
+                reset_reported: facts.reset_reported && resets_at.is_some(),
             }),
             _ => None,
         }
@@ -1441,6 +1483,104 @@ mod upstream_classification_tests {
             assert!(!text.contains("computer"), "{text}");
             assert!(!text.contains("waited"), "{text}");
         }
+    }
+
+    #[test]
+    fn an_incomplete_listing_is_a_rate_limit_only_when_one_stopped_it() {
+        let not_a_rate_limit = |error: &PortcoveError| {
+            assert!(error.is_inventory_incomplete());
+            assert!(!is_rate_limited(error));
+            assert_eq!(rate_limited_provider(error), None);
+            assert_eq!(error.update_check_deferral(), None);
+            assert!(deferred_after(error).is_none());
+            assert_eq!(
+                error.presentation().presentation_key,
+                "inventory_incomplete"
+            );
+        };
+        // The never-ending-list guard stops a list that does not advance.
+        not_a_rate_limit(&inventory_incomplete(
+            FailureProvider::Gitlab,
+            "release history",
+            3,
+            Some(2),
+        ));
+        // A 503 on page 2 of a walk: temporary, but nobody's allowance is spent.
+        let unavailable = PortcoveError::network("GitLab API returned 503")
+            .with_upstream(Some(UpstreamObservation::Status(503)))
+            .with_known_cause(KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Gitlab,
+                status: 503,
+                rate_limited: false,
+                resets_at: None,
+            });
+        let walk = inventory_incomplete_after(
+            FailureProvider::Gitlab,
+            "release history",
+            1,
+            None,
+            unavailable,
+        );
+        not_a_rate_limit(&walk);
+        assert!(walk.temporary_cause().is_some());
+    }
+
+    #[test]
+    fn a_wrapped_local_refusal_keeps_its_own_facts() {
+        let wrapped = |throttled, reset_reported| {
+            inventory_incomplete_after(
+                FailureProvider::Github,
+                "release history",
+                1,
+                None,
+                allowance_refusal(Some(1_600), throttled, reset_reported, Some(true)),
+            )
+        };
+        // A spent allowance with an estimated reset stays exactly that.
+        let spent = wrapped(false, false);
+        assert!(is_rate_limited(&spent));
+        assert_eq!(
+            rate_limited_provider(&spent),
+            Some(crate::ReleaseSource::Github)
+        );
+        let deferral = spent.update_check_deferral().unwrap();
+        assert_eq!(
+            (deferral.resets_at, deferral.reset_reported),
+            (Some(1_600), false)
+        );
+        let presentation = spent.presentation();
+        assert_eq!(presentation.presentation_key, "provider_rate_limited");
+        assert!(
+            presentation
+                .summary
+                .starts_with("The GitHub request allowance for your signed-in account is used up")
+        );
+        assert!(
+            presentation.summary.contains("Resets: about "),
+            "{}",
+            presentation.summary
+        );
+        assert!(!presentation.summary.contains("asked Portcove to wait"));
+        let follower = deferred_after(&spent).unwrap();
+        assert!(matches!(
+            follower.known_cause(),
+            Some(KnownFailureCause::ProviderAllowanceExhausted {
+                throttled: false,
+                reset_reported: false,
+                signed_in: Some(true),
+                ..
+            })
+        ));
+        assert_eq!(follower.update_check_deferral(), Some(deferral));
+        // A throttle with a reported reset stays a throttle.
+        let throttle = wrapped(true, true);
+        let summary = throttle.presentation().summary;
+        assert!(
+            summary.starts_with("GitHub asked Portcove to wait"),
+            "{summary}"
+        );
+        assert!(!summary.contains("about"), "{summary}");
+        assert!(throttle.update_check_deferral().unwrap().reset_reported);
     }
 
     #[test]

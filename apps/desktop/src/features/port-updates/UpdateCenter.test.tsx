@@ -679,8 +679,22 @@ it("shows a request-limited check activity as not checked, not as a failure", ()
       onOpenSettings={vi.fn()}
     />,
   );
-  expect(partial).toContain("Not checked: list read in part");
-  expect(partial).not.toContain("activity-row failed");
+  // An incomplete list that no rate limit caused stays a visible problem, named
+  // the same in the activity as in the game's row.
+  expect(partial).toContain(">Check incomplete<");
+  expect(partial).toContain("activity-row failed");
+  expect(partial).not.toContain("Not checked");
+  const incompleteError = {
+    ...refusal,
+    code: "network" as const,
+    presentation: { ...refusal.presentation, presentation_key: "inventory_incomplete" },
+  };
+  const row = batchHtml({ status: "current", hasResults: true }, [
+    { port_id: port.id, ok: false, result: null, error: incompleteError },
+  ]);
+  expect(row).toContain(">Check incomplete</span>");
+  expect(row).not.toContain(">Check failed</span>");
+  expect(row).toContain(`data-update-check-failure="${port.id}"`);
 });
 
 it("keeps batch failure count unknown when no individual results are available", () => {
@@ -767,4 +781,62 @@ it("groups interrupted owners as attention while old active owners remain in pro
   expect(interrupted).toBeGreaterThan(attention);
   expect(interrupted).toBeLessThan(progress);
   expect(markup.indexOf("updates:activity:active:target")).toBeGreaterThan(progress);
+});
+
+it("keeps a rate-limited check that Core leaves out of attention out of tasks and Needs attention", () => {
+  const refusal = failureReport();
+  const limited: ActivityRecord = {
+    id: "limited-check",
+    operation: "check_update",
+    target_kind: "port",
+    target_id: port.id,
+    status: "failed",
+    started_at: 10,
+    finished_at: 11,
+    message: null,
+    failure: {
+      ...refusal,
+      code: "network",
+      presentation: { ...refusal.presentation, presentation_key: "provider_rate_limited" },
+    },
+    cancellation: null,
+  };
+  const failed: ActivityRecord = { ...limited, id: "failed-install", operation: "install" };
+  // As Core produces it: the rate-limited check is not in the attention ids.
+  const activityFeed: ActivityFeed = {
+    records: [limited, failed],
+    current_activity_ids: [],
+    attention_required_activity_ids: [failed.id],
+    recovery_required_activity_ids: [],
+    active_and_actionable_complete: true,
+    terminal_history_limit: 50,
+    terminal_history_count: 2,
+    terminal_history_complete: true,
+  };
+  const markup = renderToStaticMarkup(
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[limited, failed]}
+      activityFeed={activityFeed}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  const attention = markup.indexOf("Needs attention");
+  expect(attention).toBeGreaterThanOrEqual(0);
+  expect(markup.indexOf("updates:activity:failed-install:target")).toBeGreaterThan(attention);
+  // Not needing attention: listed only with the other finished records under
+  // Recent, and not counted as a task (one task, not two).
+  const recent = markup.indexOf(">Recent<");
+  expect(recent).toBeGreaterThan(attention);
+  expect(markup.indexOf("updates:activity:limited-check:target")).toBeGreaterThan(recent);
+  expect(markup).toMatch(/activity-tab-count"[^>]*>1</u);
 });

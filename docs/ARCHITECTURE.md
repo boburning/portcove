@@ -3623,7 +3623,14 @@ or signed-in credential the failure records) are not sent: each returns a
 and stays unknown, never "checked" or "up to date". A listing a rate limit cut short (for example a GitLab
 release walk whose page 2 answered 429) is an incomplete inventory that still records the
 rate limit and its provider, so the bulk check defers the remaining games of that allowance
-in the same way; an incomplete listing is never a verdict for the fair order. Every rate-limited item, deferred or
+in the same way and is presented as that rate limit (`provider_rate_limited`), with the
+stopping failure's own facts (spent allowance or throttle, reported or estimated reset,
+whose allowance); an incomplete listing is never a verdict for the fair order. The activity
+feed does not list a `check_update` stopped by a provider rate limit as needing attention
+(it is not checked and resumes after the reset; the desktop and the CLI label it "Not
+checked: request limit"). An incomplete listing that no rate limit caused, such as the
+guard against a list that never ends, still needs attention and reads "Check incomplete"
+in the game's row and in the activity history. Every rate-limited item, deferred or
 answered with a limit, carries a typed `UpdateCheckDeferral` (`resets_at`, and whether the
 provider reported it) through Tauri's `UpdateCheckOutcome` and the CLI's `deferred` field;
 the desktop counts such games as not checked rather than failed and does not fail the batch

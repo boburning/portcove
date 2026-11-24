@@ -659,20 +659,26 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
 type UpdateCenterModel = ReturnType<typeof useUpdateCenter>;
 
 /**
- * Why an update check learned nothing about the game, when it did not: a provider
- * request limit stopped it, or the provider's list was read only in part. Such a
- * check is not checked, never a failure that needs attention.
+ * An update check a provider request limit stopped (including a list a limit cut
+ * short) learned nothing about the game: it is not checked, never a failure that
+ * needs attention. Core leaves it out of the attention ids for the same reason.
  */
 function uncheckedReason(activity: ActivityRecord) {
-  if (activity.operation !== "check_update" || activity.status !== "failed") return undefined;
-  switch (activity.failure?.presentation.presentation_key) {
-    case "provider_rate_limited":
-      return "Not checked: request limit";
-    case "inventory_incomplete":
-      return "Not checked: list read in part";
-    default:
-      return undefined;
-  }
+  return activity.operation === "check_update" &&
+    activity.status === "failed" &&
+    activity.failure?.presentation.presentation_key === "provider_rate_limited"
+    ? "Not checked: request limit"
+    : undefined;
+}
+
+/**
+ * A check whose provider list stopped for another reason stays a visible problem
+ * (it may keep happening), named the same in its row and in the activity history.
+ */
+const checkIncompleteLabel = "Check incomplete";
+
+function isIncompleteCheck(presentationKey: string | undefined) {
+  return presentationKey === "inventory_incomplete";
 }
 
 /** A failed activity that needs attention, or one with a recorded failure. */
@@ -1090,7 +1096,9 @@ function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) 
         ? "Unavailable"
         : outcome.deferred
           ? "Not checked"
-          : "Check failed"
+          : isIncompleteCheck(outcome.error?.presentation.presentation_key)
+            ? checkIncompleteLabel
+            : "Check failed"
       : "Not checked";
   const runtimeOnly =
     check.update_available &&
@@ -1610,6 +1618,17 @@ function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
       time: `Started ${formatActivityTime(activity.started_at)}`,
     };
   const state = activityPresentationState(activity, nowSeconds);
+  if (
+    state === "failed" &&
+    activity.operation === "check_update" &&
+    isIncompleteCheck(activity.failure?.presentation.presentation_key)
+  )
+    return {
+      state: "failed",
+      label: checkIncompleteLabel,
+      icon: AlertTriangle,
+      time: `Started ${formatActivityTime(activity.started_at)}`,
+    };
   if (state !== "running" && state !== "unfinished") {
     const presentation = terminalActivityPresentations.get(state) ?? {
       state: "unknown",
@@ -1700,6 +1719,11 @@ function updateState(
     return {
       label: earlier ? "Not checked at last check: request limit" : "Not checked: request limit",
       tone: "muted",
+    };
+  if (!outcome.ok && isIncompleteCheck(outcome.error?.presentation.presentation_key))
+    return {
+      label: earlier ? `Earlier: ${checkIncompleteLabel.toLowerCase()}` : checkIncompleteLabel,
+      tone: "failed",
     };
   if (!outcome.ok)
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };

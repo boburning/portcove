@@ -3542,7 +3542,7 @@ mod tests {
                 read: 2,
                 total: None,
                 resets_at: None,
-                rate_limited: false,
+                rate_limit: None,
             });
         for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
             service.remember_standing_failure(

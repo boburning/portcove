@@ -1767,13 +1767,25 @@ impl Library {
                     a.started_at, a.finished_at, a.cancellation_phase, a.cancel_requested,
                     a.failure_json,
                     a.status = 'running' AS is_current,
-                    a.status = 'failed' AS needs_attention,
+                    -- A check a provider rate limit stopped is not checked: it
+                    -- resumes after the reset and needs nothing from the player.
+                    a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ) AS needs_attention,
                     EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
                       AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
-                OR a.status = 'failed'
+                OR (a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ))
                 OR EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
                 OR a.rowid IN (SELECT rowid FROM terminal_history)
              ORDER BY a.started_at DESC, a.rowid DESC",
@@ -4411,6 +4423,97 @@ mod tests {
                 .is_err()
         );
         assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn a_rate_limited_update_check_is_not_checked_rather_than_needing_attention() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let finish = |operation, port: &str, error: PortcoveError| {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some(port))
+                .unwrap();
+            library
+                .finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Failed,
+                    Some(&error.message),
+                    Some(&error.report()),
+                )
+                .unwrap();
+            activity.id
+        };
+        let limited = || {
+            PortcoveError::network("GitHub API returned 403").with_known_cause(
+                crate::failure::KnownFailureCause::ProviderRequest {
+                    provider: crate::failure::FailureProvider::Github,
+                    status: 403,
+                    rate_limited: true,
+                    resets_at: Some(1_900_000_000),
+                },
+            )
+        };
+        let rate_limited_check = finish(ActivityOperation::CheckUpdate, "limited", limited());
+        // A listing a rate limit cut short reads as that rate limit.
+        let limited_listing = finish(
+            ActivityOperation::CheckUpdate,
+            "limited-listing",
+            crate::failure::inventory_incomplete_after(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                1,
+                None,
+                limited(),
+            ),
+        );
+        // A listing that stopped for another reason (a list that never ends)
+        // stays visible: it may keep happening and needs a look.
+        let incomplete = finish(
+            ActivityOperation::CheckUpdate,
+            "incomplete",
+            crate::failure::inventory_incomplete(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                3,
+                Some(2),
+            ),
+        );
+        let ordinary_failure = finish(
+            ActivityOperation::CheckUpdate,
+            "gone",
+            PortcoveError::network("the repository is gone"),
+        );
+        // The same rate limit on another operation is still that operation's failure.
+        let limited_install = finish(ActivityOperation::Install, "install", limited());
+
+        let feed = library.activity_feed(50).unwrap();
+        for not_attention in [&rate_limited_check, &limited_listing] {
+            assert!(
+                !feed.attention_required_activity_ids.contains(not_attention),
+                "{not_attention}"
+            );
+            // Still in the history, presented as the rate limit.
+            let record = feed
+                .records
+                .iter()
+                .find(|record| &record.id == not_attention)
+                .unwrap();
+            assert_eq!(
+                record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .presentation
+                    .presentation_key,
+                "provider_rate_limited"
+            );
+        }
+        for attention in [&incomplete, &ordinary_failure, &limited_install] {
+            assert!(
+                feed.attention_required_activity_ids.contains(attention),
+                "{attention}"
+            );
+        }
     }
 
     #[test]
