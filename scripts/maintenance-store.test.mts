@@ -10,7 +10,9 @@ import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-b
 import {
   acquireMaintenanceReservation,
   cutoverReading,
+  neonDiagnostic,
   normalizeNeonMeter,
+  sampleNeon,
   policyLimits,
   type NeonMeter,
 } from "./maintenance-resource-policy.mts";
@@ -736,6 +738,33 @@ void test("Neon Free readings preserve missing dimensions and require an active 
     /usable/u,
   );
   assert.throws(() => normalizeNeonMeter(project, branch, "2026-12-01T00:00:00Z"), /usable/u);
+});
+
+void test("a failed Neon meter read names each failing read and Neon's reason", async (t) => {
+  const token = "napi_fixture_secret";
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const answers: Record<string, () => Response> = {
+    "": () => Response.json({ project: { effective_project_permission: "VIEWER" } }),
+    "/branches/br-frosty-bar-bbaitwbu": () =>
+      Response.json({ message: "not allowed for viewer" }, { status: 404 }),
+    "/endpoints": () => Response.json({ message: `bad token ${token}\nretry` }, { status: 403 }),
+  };
+  globalThis.fetch = async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    const suffix = url.slice(url.indexOf("wispy-salad-36926388") + "wispy-salad-36926388".length);
+    return answers[suffix]!();
+  };
+  await assert.rejects(sampleNeon({ PORTCOVE_NEON_METER_TOKEN: token }), (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    assert.match(message, /Neon branch read returned HTTP 404: not allowed for viewer/u);
+    assert.match(message, /Neon endpoints read returned HTTP 403: bad token \[credential\] retry/u);
+    assert.doesNotMatch(message, /napi_fixture_secret/u, "the credential is never retained");
+    return true;
+  });
+  assert.equal(neonDiagnostic("x".repeat(500), ""), "x".repeat(200));
 });
 
 void test(

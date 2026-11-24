@@ -1533,7 +1533,10 @@ record their own outcomes. The metered steps also require
 project. A personal token from a dedicated Neon Collaborator with only this
 project's Viewer grant can supply that access. Project-scoped organization keys
 have Editor rights. The application checks effective Viewer access before using
-the metadata response. See [Neon API keys](https://neon.com/docs/manage/api-keys)
+the metadata response. The meter makes three reads (project, production branch
+and endpoints). A failed reading names each read that failed, with its HTTP
+status and Neon's own error message, in the deferred admission's
+`resource.jsonl` evidence; the credential is never retained. See [Neon API keys](https://neon.com/docs/manage/api-keys)
 and [Neon user permissions](https://neon.com/docs/manage/user-permissions).
 
 During local PostgreSQL replay, pass the existing `--database-env` or
