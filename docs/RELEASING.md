@@ -196,10 +196,9 @@ also writes the Beta feed, so default installations learn of new previews.
   the only Beta is later withdrawn, the Beta feed is removed. Either way,
   previews never refill it, so default-channel players get no newer version
   until a Beta release publishes.
-- #8619's passages that say the Beta channel has no feed become untrue once
-  the alias is live. Whichever of the two changes merges second updates them.
-  Start the listing cutover only after the first alias publication, confirmed
-  by reading `updates/beta/latest.json`.
+- The compact listing cutover (#8619) starts only after the first alias
+  publication, confirmed by reading `updates/beta/latest.json`
+  ([cutover runbook](SIGNED-CATALOG.md#cutover-runbook)).
 
 **Operator steps:** none. Once the change is on `main` and its `CI` run has
 succeeded, the next nightly preview writes both feeds. To publish sooner, start
@@ -258,6 +257,20 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   the observation once half that window has elapsed. Authored guide changes,
   new release facts, and changes to the permitted freshness window bypass this
   deduplication. Existing incomplete collection and failure rules still apply.
+- **Minimum supported preview for live listing updates:** Preview 14
+  (`0.1.0-preview.14`), the first release that reads the compact listing
+  carrier. Listing changes reach only that carrier. Older previews keep the
+  last legacy listing directory (revision 47), their library, installed
+  games, originals, saves, settings and launch, and they still receive
+  definition and policy updates. They receive no further listing changes until
+  the application is updated. The application updater reads
+  `updates/<channel>/latest.json` and does not depend on catalog listings. Older
+  previews default to the Beta channel; while no Beta release exists, the
+  [interim Beta alias](#interim-beta-alias) offers them the current preview.
+  The listing cutover is published only after the first alias publication.
+  The bound is raised when a later reader generation replaces the compact
+  carrier. Details and the cutover runbook:
+  [Signed catalog](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview).
 - **Late Pages readback:** The existing twice-daily catalog schedule checks the
   previous commit from the pinned Pages branch before selecting the next
   publication source. A seven-day artifact identifies the earlier Pages commit,

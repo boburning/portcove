@@ -67,6 +67,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      reader_activation: ${{ steps.observe.outputs.reader_activation }}
       retain_bodies: ${{ steps.prepare.outputs.retain_bodies }}
     env:
       GH_TOKEN: ${{ github.token }}
@@ -183,7 +184,14 @@ jobs:
       - name: Build the catalog tools
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
-      - name: Project completed shared observations into the existing descriptive target
+      # Compact listing delivery (#1422) is the only live listing carrier; the
+      # legacy target keeps its last signed bytes. The anonymously selected and
+      # verified released reader gates the carrier; without one the prior
+      # listing targets are renewed exactly. A listing-only failure renews the
+      # prior listing targets too and is reported as `listing_publication_stopped`;
+      # the publish job fails the run on it after readback.
+      - name: Project completed shared observations into the compact listing target
+        id: observe
         if: steps.decide.outputs.publish == 'true'
         run: |
           set -euo pipefail
@@ -194,7 +202,11 @@ jobs:
             --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
-            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            --withdrawals crates/portcove-core/catalog/listing-withdrawals.json \
+            --official-released-reader
+          activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
+          echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
       - name: Inspect the bundle and plan the next versions
         id: prepare
@@ -231,6 +243,27 @@ jobs:
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
+      # The capacity guard with the staged compact target's own signed
+      # observations. It never blocks this publication: the publish job fails
+      # the run after readback when a ceiling is crossed, as for a listing stop.
+      - name: Measure the staged compact listing target against the capacity guard
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          target="$BUNDLE/policy/official/catalog.listings.compact.json"
+          observed=()
+          if [ -f "$target" ]; then observed=(--observed-target "$target"); fi
+          status=0
+          node scripts/catalog-capacity.mts --check "${observed[@]}" > "$RUNNER_TEMP/capacity.out" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/capacity.out"
+          node --input-type=module -e '
+            import {readFileSync, writeFileSync} from "node:fs";
+            writeFileSync(process.argv[1], JSON.stringify({
+              status: Number(process.argv[2]),
+              observed_target: process.argv[3] === "true",
+              output: readFileSync(process.argv[4], "utf8"),
+            }));
+          ' "$RUNNER_TEMP/catalog-work/capacity-guard.json" "$status" "$([ -f "$target" ] && echo true || echo false)" "$RUNNER_TEMP/capacity.out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.decide.outputs.publish == 'true'
         with:
@@ -291,6 +324,7 @@ jobs:
       PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
       PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
       HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+      CATALOG_READER_ACTIVATION: ${{ needs.prepare.outputs.reader_activation }}
       RETAIN_BODIES: ${{ needs.prepare.outputs.retain_bodies || 'all' }}
     steps:
       # Credentials stay for the gh-pages push.
@@ -352,6 +386,10 @@ jobs:
             # The new commit needs only the current head as its parent.
             git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # A reader withdrawn or replaced on the fresh Pages base stops the push.
+            if [ -n "$CATALOG_READER_ACTIVATION" ]; then
+              node scripts/catalog-released-reader.mts site
+            fi
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
@@ -449,3 +487,47 @@ jobs:
           path: ${{ runner.temp }}/catalog-publication-live-readback.json
           retention-days: 7
           if-no-files-found: error
+      # Freshness, definitions and policy are already published. A stopped
+      # listing publication, or a compact activation (first publication or
+      # format raise) deferred for any reason, an unverifiable prior that left
+      # listing changes unpublished, or a capacity guard failure
+      # measured on the staged target, still fails the run so a person
+      # resolves it instead of it repeating silently.
+      - name: Fail the run when listing publication stopped or is pending, or the capacity guard failed
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import {appendFileSync, existsSync, readFileSync} from "node:fs";
+            const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            const lines = [];
+            if (existsSync(process.argv[2])) {
+              const capacity = JSON.parse(readFileSync(process.argv[2], "utf8"));
+              if (capacity.status !== 0)
+                lines.push(["Listing capacity guard failed", "The capacity guard failed" +
+                  (capacity.observed_target ? " with the staged compact target" + String.fromCharCode(39) + "s observations" : "") +
+                  "; this publication was not blocked. Start the next reader generation or reduce catalog bytes. Guard output:\n" +
+                  capacity.output]);
+            }
+            const stopped = report.listing_publication_stopped;
+            if (stopped)
+              lines.push(["Listing publication stopped", "Listing publication stopped (" + stopped.code + "): " +
+                stopped.reason + "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures)]);
+            const unverified = report.listing_prior_unverified;
+            if (unverified)
+              lines.push(["Prior catalog unverified", "The prior signed catalog could not be verified (" +
+                unverified.prior_carrier + " carrier): " + unverified.reason +
+                "; prior listing targets renewed and listing changes not published."]);
+            const pending = report.listing_activation_pending;
+            if (pending)
+              lines.push(["Compact listing activation pending", "Compact listing activation pending (" +
+                pending.prior_carrier + " format " + pending.prior_format + " -> compact format " +
+                pending.candidate_format + "): " + pending.reason + "; prior listing targets renewed."]);
+            if (!lines.length) process.exit(0);
+            const summary = process.env.GITHUB_STEP_SUMMARY;
+            for (const [title, line] of lines) {
+              const escaped = line.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+              console.log("::error title=" + title + "::" + escaped);
+              if (summary) appendFileSync(summary, "### " + title + "\n\n" + line + "\n");
+            }
+            process.exit(1);
+          ' "$RUNNER_TEMP/catalog-work/observation-projection.json" "$RUNNER_TEMP/catalog-work/capacity-guard.json"
