@@ -68,6 +68,8 @@ import {
   programRoleWord,
   gateRoleProgram,
   archiveNameAccount,
+  sameProductForm,
+  reliefForm,
   archiveNameTokens,
   gateArchiveAccount,
   programNameUnaccounted,
@@ -4700,7 +4702,9 @@ void test("release file names are classified as other package forms by fit and g
     ["Game.nsp", undefined, []],
     ["Game.3dsx", undefined, []],
     ["Game.cia", undefined, []],
-    ["Game.wad", undefined, []],
+    // Sixth review: a `.wad` beside a desktop archive competes as a
+    // container (it was ignored as a console package before).
+    ["Game.wad", "container", []],
     // A documentation word followed by anything else is not ignored (Z1):
     // the name classifies by the other rules, the safe direction.
     ["Changes-Game-linux", "linux", L],
@@ -5089,7 +5093,7 @@ void test("the hand-checked correct shapes still enroll (D4 iii)", () => {
   const shapes: [string, PlayerFact][] = [
     ["SOTN-v1.2.0-windows-x64.zip", player("sotn.exe")],
     ["OpenMB2-v0.3.0-linux-x86_64.tar.gz", player("OpenMB2/openmb2", "elf64-x86-64")],
-    ["Woof-v15.0.0-windows.zip", player("woof-15/woof.exe")],
+    ["Woof-v15.0.0-windows.zip", player("woof/woof.exe")],
     ["OpenTIE-v1.0-windows-x64.zip", player("opentie.exe")],
     [
       "MiniQuake-v0.9-macos-arm64.zip",
@@ -5098,6 +5102,15 @@ void test("the hand-checked correct shapes still enroll (D4 iii)", () => {
     ["Peggle-v1.0-windows-x64.zip", player("Peggle/Peggle.exe")],
     ["PokePlatinum-v1.1.0-linux-x86_64.tar.gz", player("pokeplatinum", "elf64-x86-64")],
   ];
+  // Sixth review: a folder's short integer must complete an accounted name, so
+  // the shape `woof-15/woof.exe` (this row's earlier program) now withholds.
+  {
+    const titled = titledFor("Woof-v15.0.0-windows.zip");
+    const facts = titled.facts([
+      artifact("Woof-v15.0.0-windows.zip", [player("woof-15/woof.exe")]),
+    ]);
+    assert.equal(reasonOf(decide(titled.record, facts)), "program-name-unaccounted");
+  }
   for (const [name, program] of shapes) {
     const facts = entry([artifact(name, [program])]);
     assert.deepEqual(artifactExclusions(facts.artifacts[0]!), [], name);
@@ -6828,13 +6841,17 @@ void test("an archive name is the listing's name, a version and neutral words, o
   // Digit-only chunks may be product words or versions; glued digits are product.
   // A dotted digit run is a version only; a standalone integer must be a
   // number of the name at that position; glued digits are word tokens.
-  assert.deepEqual(archiveNameTokens("Doom-2-1.0-win64.zip").product, [
+  assert.deepEqual(archiveNameTokens("Doom-2-1.0-win64.zip").tokens, [
     { word: "doom", kind: "word", chunk: "doom" },
     { word: "2", kind: "integer", chunk: "2" },
+    { word: "v0", kind: "version", chunk: "v0" },
+    { word: "win64", kind: "neutral", chunk: "win64" },
   ]);
-  assert.deepEqual(archiveNameTokens("Doom3-v1.2-x86_64.tar.gz").product, [
+  assert.deepEqual(archiveNameTokens("Doom3-v1.2-x86_64.tar.gz").tokens, [
     { word: "doom", kind: "word", chunk: "doom3" },
     { word: "3", kind: "word", chunk: "doom3" },
+    { word: "v0", kind: "version", chunk: "v0" },
+    { word: "x8664", kind: "neutral", chunk: "x8664" },
   ]);
   for (const [fields, archive, product] of accounted) {
     const { fit } = account(fields, archive);
@@ -7562,7 +7579,8 @@ void test("digits are versions unless the name has that number there, and b<N> o
   for (const [path, leftover] of [
     ["Doom2/Doom.exe", "Doom2/"],
     ["b2/Doom.exe", "b2/"],
-    ["Doom-2/Doom.exe", null],
+    // Sixth review: a folder's short integer must spell an accounted name.
+    ["Doom-2/Doom.exe", "Doom-2/"],
     ["v2/Doom.exe", null],
     ["bin/Doom.exe", null],
   ] as const) {
@@ -7724,4 +7742,181 @@ void test("any digit chunk, b<N>, bin or extra token outside the rules withholds
     }
   }
   assert.ok(withheld > 1500);
+});
+
+// ---------------------------------------------------------------------------
+// Sixth review at a1b2e364: the ordered grammar, folder numbers, relief forms,
+// release titles before a number, and the year and tool-only queues.
+
+void test("archive names follow PRODUCT (VERSION | NEUTRAL)*, in fit and gate (grammar 1)", () => {
+  const check = (fields: Record<string, unknown>, archive: string, product: string | null) => {
+    const id = String(fields.id);
+    const record = listing(id, fields);
+    const repository = `fixture-owner/${id}`;
+    const fit = archiveNameAccount(archive, record.listing, repository);
+    assert.equal("product" in fit ? fit.product : null, product, `fit ${archive}`);
+    assert.equal(
+      gateArchiveAccount(archive, record.listing, repository),
+      product,
+      `gate ${archive}`,
+    );
+    return { record, id };
+  };
+  const two = { id: "zz-game-two", name: "Game 2" };
+  for (const archive of [
+    "Game-1.0-2-win64.zip",
+    "Game-v1-2-win64.zip",
+    "Game-r5-2-win64.zip",
+    "Game-2024-2-win64.zip",
+    "Game-win64-2.zip",
+    "Game-1.0.0-2_amd64.zip",
+  ]) {
+    const { record, id } = check(two, archive, null);
+    const facts = entry([named(archive, [player("Game2.exe")], 11, "windows")], {}, id, {
+      listing_words: listingWords(record.listing),
+    });
+    assert.equal(reasonOf(decide(record, facts)), "archive-name-unaccounted", archive);
+    assert.match(gateOn(record, facts), /unaccounted token/u, archive);
+  }
+  check({ id: "zz-open-three", name: "Open 3" }, "OPEN_1.2-3.win64.tar.xz", null);
+  check({ id: "zz-super", name: "Super Game" }, "Super-1.0-Game.zip", null);
+  check({ id: "zz-super", name: "Super Game" }, "Super-Game-v3-32-linux.zip", null);
+  check(two, "Game-2-1.0-win64.zip", "game2");
+  check({ id: "zz-doom-two", name: "Doom 2" }, "doom2-2.1.0-win64.zip", "doom2");
+  check({ id: "zz-doom-two", name: "Doom 2" }, "doom2-1.0-win64.zip", "doom2");
+  check({ id: "zz-x", name: "Game" }, "Game-1.0-win64-20261120.zip", "game");
+  // A year-shaped integer read as a version is queued for a person.
+  const doom = check({ id: "zz-doom", name: "Doom" }, "doom-2016-win64.zip", "doom");
+  const facts = entry(
+    [named("doom-2016-win64.zip", [player("Doom.exe")], 11, "windows")],
+    {},
+    doom.id,
+    {
+      listing_words: listingWords(doom.record.listing),
+    },
+  );
+  const generation = generateRegistrations([doom.record], table(facts));
+  assert.deepEqual(registrationQueues(generation).year_as_version, ["zz-doom"]);
+});
+
+void test("folders follow the grammar per segment: a short integer must spell an accounted name (grammar 2)", () => {
+  const words = new Set(["doom", "game"]);
+  for (const [path, names, leftover] of [
+    ["Doom-2/doom.exe", ["doom"], "Doom-2/"],
+    ["Doom 2/doom.exe", ["doom"], "Doom 2/"],
+    ["Doom/2/doom.exe", ["doom"], "2/"],
+    ["Game-3/game.exe", ["game"], "Game-3/"],
+    ["Game-1.0-2/game.exe", ["game", "game2"], "Game-1.0-2/"],
+    ["Doom-2/doom2.exe", ["doom2"], null],
+    ["Game-1.0.2/game.exe", ["game"], null],
+    ["Game-v3/game.exe", ["game"], null],
+    ["Game-2026/game.exe", ["game"], null],
+  ] as const) {
+    assert.equal(
+      programNameUnaccounted(path, new Set(names), words, false),
+      leftover,
+      `fit ${path}`,
+    );
+    assert.equal(
+      gateProgramAccounted(path, [...names], [...words], false),
+      leftover === null,
+      `gate ${path}`,
+    );
+  }
+});
+
+void test("same-product relief applies only to recognised package forms and the listing's own names (relief 3)", () => {
+  const record = listing(unseen, { name: "Game" });
+  const archive = named("Game-1.0-win64.zip", [player("Game.exe")], 11, "windows");
+  const decideWith = (form: string) => {
+    const facts = entry([archive], {}, unseen, { other_packages: [otherForm(19, form, W)] });
+    return { facts, decision: decide(record, facts) };
+  };
+  for (const form of ["Game-1.0.pk3", "Game-1.0.wad", "Game-1.0.xyz"]) {
+    const { facts, decision } = decideWith(form);
+    assert.equal(reasonOf(decision), "other-package-form-beside-archive", form);
+    assert.match(forcedOn(facts, record, 11, "windows-x86-64"), /another package for/u, form);
+    assert.equal(reliefForm(form), false, form);
+  }
+  for (const form of ["Game-1.0-Setup.exe", "Game-1.0.7z", "Game-1.0.rar", "Game-1.0.tar.bz2"]) {
+    const { facts, decision } = decideWith(form);
+    assert.ok(decision.fit, `${form}: ${JSON.stringify(decision)}`);
+    assert.equal(
+      gateGeneration(null, generateRegistrations([record], table(facts))).added.length,
+      1,
+    );
+    assert.equal(reliefForm(form), true, form);
+  }
+  // The original game's title gives no relief.
+  assert.equal(
+    sameProductForm("Game-1.0-Setup.exe", [archive], "windows-x86-64", {
+      id: "zz-remake",
+      name: "Remake",
+      original_game_title: "Game",
+    }),
+    false,
+  );
+});
+
+void test("release, build and version between a status word and its number keep it standing (titles 4)", () => {
+  const repository = "fixture-owner/zz-unseen";
+  for (const [line, token] of [
+    ["Beta release 1.0", "beta"],
+    ["Alpha release 0.1", "alpha"],
+    ["Demo release 2", "demo"],
+    ["Nightly release 20261101", "nightly"],
+    ["Super Game Beta Release 0.9", "beta"],
+    ["Beta release (1.0)", "beta"],
+    ["Beta release 0.9.1 - new maps", "beta"],
+    ["Beta release notes", null],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+  const words = listingWords({ id: "zz-beta-squadron", name: "Beta Squadron" });
+  assert.equal(releaseStatement("Beta Squadron release 2", repository, words), null);
+  assert.equal(gateStatement("Beta Squadron release 2", repository, words), null);
+});
+
+void test("archives holding only tool-vetoed programs beside the offered one are counted", () => {
+  const facts = entry([
+    named(windowsZip, [player("Game/Game.exe")], 11, "windows"),
+    named("Game-tools-1.0-win64.zip", [player("Game/Patcher.exe")], 12, "windows"),
+  ]);
+  const generation = generateRegistrations([listing()], table(facts));
+  assert.equal(generation.enrollments.length, 1, JSON.stringify(generation.decisions));
+  assert.deepEqual(registrationQueues(generation).tool_only_archives_beside, [unseen]);
+});
+
+void test("any product word or short integer after a version or neutral token withholds, in fit and gate (grammar property)", () => {
+  let seed = 8_569_006;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const record = listing("zz-super-two", { name: "Super Game 2" });
+  const repository = "fixture-owner/zz-super-two";
+  const product = ["Super", "Game", "2"];
+  const tail = ["1.0", "v3", "r2", "win64", "x86_64", "linux", "portable", "20261120", "macos"];
+  let late = 0;
+  for (let round = 0; round < 5000; round++) {
+    const parts = [...product];
+    const after: string[] = Array.from({ length: Math.floor(random() * 3) }, () => pick(tail));
+    let lateBad = false;
+    if (after.length && random() < 0.5) {
+      const bad = pick(["Game", "Super", "Other", "2", "7", "42"]);
+      after.splice(1 + Math.floor(random() * after.length), 0, bad);
+      lateBad = true;
+    }
+    const name = `${[...parts, ...after].join(pick(["-", "_", " "]))}.zip`;
+    const fit = archiveNameAccount(name, record.listing, repository);
+    const gate = gateArchiveAccount(name, record.listing, repository);
+    assert.equal("product" in fit ? fit.product : null, gate, `parity ${name}`);
+    if (lateBad) {
+      assert.ok("unaccounted" in fit, `a late token withholds ${name}`);
+      late++;
+    } else assert.ok("product" in fit, `accounted ${name}`);
+  }
+  assert.ok(late > 1000);
 });

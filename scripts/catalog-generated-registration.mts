@@ -120,10 +120,10 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 21;
+export const GENERATOR_VERSION = 22;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 22;
+export const FACTS_PARSER_VERSION = 23;
 export const FACTS_TABLE_FORMAT = 17;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
@@ -549,10 +549,7 @@ export function releaseStatement(
   const numbered = (index: number) => {
     if (words.some((item) => item.numeric && item.group === words[index]!.group)) return true;
     let after = index + 1;
-    while (
-      after < words.length &&
-      (statementConnectors as readonly string[]).includes(words[after]!.word)
-    )
+    while (after < words.length && [...statementConnectors, "release"].includes(words[after]!.word))
       after++;
     return words[after]?.numeric === true;
   };
@@ -564,10 +561,7 @@ export function releaseStatement(
     );
     if (glued) return true;
     let after = last + 1;
-    while (
-      after < words.length &&
-      (statementConnectors as readonly string[]).includes(words[after]!.word)
-    )
+    while (after < words.length && [...statementConnectors, "release"].includes(words[after]!.word))
       after++;
     return (
       words[after]?.numeric === true ||
@@ -2513,6 +2507,9 @@ export function otherPackageForm(
   if (lower.endsWith(".pkg") && nonDesktopNameWords.some((word) => words.has(word)))
     return undefined;
   if (lower.endsWith(".dmg") || lower.endsWith(".pkg")) return "macos";
+  // A `.wad` beside a desktop archive competes as an unread container:
+  // withholding a real console build is cheap.
+  if (lower.endsWith(".wad")) return "container";
   if ((nonDesktopForms as readonly string[]).some((form) => lower.endsWith(form))) return undefined;
   // A file extension: a final `.` and letters and digits, one a letter, that
   // are not a version (`v1`). A name without one is a bare binary: macOS
@@ -2683,6 +2680,7 @@ export function sameProductForm(
 ): boolean {
   const other = productIdentity(name);
   return (
+    reliefForm(name) &&
     other.words.length > 0 &&
     listingProductNames(listing).has(other.words.join("")) &&
     archives.length > 0 &&
@@ -2716,13 +2714,33 @@ export function programNamesProduct(path: string, product: readonly string[]): b
   return literalProgramName(path) === joinedProduct;
 }
 /**
- * The listing's product names: each of its id, name and original game title
- * as whole words (`nameWords`) joined, so `super-game` and `Super Game` are
- * both `supergame`.
+ * Containers the same-product relief recognises besides the single-system
+ * installer and package kinds: an unrecognised container named for the
+ * product (`Game-1.0.pk3`, `Game-1.0.wad`) never gets relief.
+ */
+export const reliefContainerForms = [
+  ".7z",
+  ".rar",
+  ".tar",
+  ".tar.bz2",
+  ".tbz2",
+  ".tar.zst",
+] as const;
+/** Whether another package form is one the same-product relief may apply to (`reliefContainerForms`). */
+export function reliefForm(name: string): boolean {
+  const kind = otherPackageForm(name);
+  if (kind === "windows" || kind === "linux" || kind === "macos") return true;
+  const lower = name.toLowerCase();
+  return kind === "container" && reliefContainerForms.some((form) => lower.endsWith(form));
+}
+/**
+ * The listing's product names: its id and name as whole words (`nameWords`)
+ * joined, so `super-game` and `Super Game` are both `supergame`. The
+ * original game's title is not one.
  */
 export function listingProductNames(listing: Record<string, unknown>): Set<string> {
   return new Set(
-    [listing.id, listing.name, listing.original_game_title]
+    [listing.id, listing.name]
       .filter((value): value is string => typeof value === "string")
       .map((value) => nameWords(value).join(""))
       .filter(Boolean),
@@ -2807,22 +2825,19 @@ export const programArchitectureWords = [
  */
 export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win64"] as const;
 /**
- * An archive name's tokens: the package form or another file extension is
- * removed (as `productIdentity` does), `x86_64`, `x86-64` and `64-bit` are
- * one word, and a run of digit groups joined by dots (`1.0.2`, `v2.1.0`) is a
- * version, never a product word. The rest is split at separators into
- * chunks. A chunk that is a neutral word (`neutralArchiveWords`) is neutral;
- * one of digits after `v` or `r` is a version (a `b` prefix is not: `b2`
- * usually says beta 2); a chunk of digits only is an `integer` token, which
- * counts as a product word only where the matched name has that number at
- * that position, and which, from four digits on (a date or build number),
- * may instead be a version; every other chunk is split into whole words
- * (`nameWords`), each a neutral word or a `word` token, digits glued to
- * letters included (`Doom3` is `doom`, `3`). `chunk` names the chunk a token
- * came from, for evidence.
+ * An archive name's tokens, in order: the package form or another file
+ * extension (and an `.app` suffix) is removed, `x86_64`, `x86-64` and
+ * `64-bit` are one word, and a run of digit groups joined by dots (`1.0.2`,
+ * `v2.1.0`) is one `version` token. The rest is split at separators into
+ * chunks: a neutral word (`neutralArchiveWords`) is a `neutral` token; digits
+ * after `v` or `r` are a `version` token (a `b` prefix is not one: `b2`
+ * usually says beta 2); digits only are an `integer` token; every other
+ * chunk is split into whole words (`nameWords`), each a `neutral` token or a
+ * `word` token, digits glued to letters included (`Doom3` is `doom`, `3`).
+ * `chunk` names the chunk a token came from, for evidence.
  */
 export function archiveNameTokens(name: string): {
-  product: { word: string; kind: "word" | "integer"; chunk: string }[];
+  tokens: { word: string; kind: "word" | "integer" | "version" | "neutral"; chunk: string }[];
 } {
   let base = name;
   const form = packageFormOf(name);
@@ -2836,30 +2851,33 @@ export function archiveNameTokens(name: string): {
   const normalized = base
     .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
     .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit")
-    .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-");
+    // A dotted version becomes one version chunk.
+    .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-v0-");
   const neutral = neutralArchiveWords as readonly string[];
-  const product: { word: string; kind: "word" | "integer"; chunk: string }[] = [];
+  const tokens: {
+    word: string;
+    kind: "word" | "integer" | "version" | "neutral";
+    chunk: string;
+  }[] = [];
   for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean)) {
     const lower = chunk.toLowerCase();
-    if (neutral.includes(lower)) continue;
-    if (/^[0-9]+$/u.test(lower)) {
-      product.push({ word: lower, kind: "integer", chunk: lower });
-      continue;
-    }
-    if (/^[vr][0-9]+$/u.test(lower)) continue;
-    for (const word of nameWords(chunk))
-      if (!neutral.includes(word)) product.push({ word, kind: "word", chunk: lower });
+    if (neutral.includes(lower)) tokens.push({ word: lower, kind: "neutral", chunk: lower });
+    else if (/^[0-9]+$/u.test(lower)) tokens.push({ word: lower, kind: "integer", chunk: lower });
+    else if (/^[vr][0-9]+$/u.test(lower))
+      tokens.push({ word: lower, kind: "version", chunk: lower });
+    else
+      for (const word of nameWords(chunk))
+        tokens.push({ word, kind: neutral.includes(word) ? "neutral" : "word", chunk: lower });
   }
-  return { product };
+  return { tokens };
 }
 /**
- * Whether archive tokens spell one account name (`accountNames`) exactly:
- * the tokens joined equal the name's words joined, and every integer token
- * is exactly one whole word of the name at that position. Integer tokens
- * of four or more digits not in `kept` are left out (versions).
+ * Whether product tokens spell one account name (`accountNames`) exactly: the
+ * tokens joined equal the name's words joined, and every integer token is
+ * exactly one whole word of the name at that position.
  */
 function spellsName(
-  tokens: readonly { word: string; kind: "word" | "integer" }[],
+  tokens: readonly { word: string; kind: string }[],
   name: readonly string[],
 ): boolean {
   if (tokens.map((token) => token.word).join("") !== name.join("")) return false;
@@ -2876,40 +2894,69 @@ function spellsName(
   }
   return true;
 }
+/** Whether a four-digit integer reads as a year (1970 to 2099). */
+const yearShaped = (word: string) => /^(?:19[7-9][0-9]|20[0-9][0-9])$/u.test(word);
 /**
- * How an archive name is accounted for against the listing: every token is a
- * product word, a version or a neutral word (`archiveNameTokens`), and the
- * product tokens in order spell one of the listing's id or name, or the
- * repository name (`spellsName`); an integer of one to three digits must be a
- * number of that name at that position, and one of four or more digits is
- * a product word only where it is, else a version. The result is the
- * accepted product (joined) and whether only the repository name accounts
- * for it, or the unaccounted tokens: the product words that are no word of
- * those names (a single letter glued to digits as its chunk, `b2`), else the
- * integers no name has there (`number:<n>`), else the name's words the
- * archive lacks (`missing:<word>`). Any leftover withholds
- * (`archive-name-unaccounted`): `Doom3` or `doom-2.1.0` for `Doom 2`,
- * `Doom-2` for `Doom`, `Super-Game-2`, `SuperGame2`, `Super-Other`,
- * `SuperGame-Trial`, `SuperGame-beta` or `SuperGame-Lite` for `Super Game`,
- * `Space-Invaders` for `Space Game`, `Game-b2`.
+ * How an archive name is accounted for against the listing, by an ordered
+ * grammar: `PRODUCT (VERSION | NEUTRAL)*` (`archiveNameTokens`). The product
+ * is the contiguous prefix of word and integer tokens; after the first
+ * version or neutral token no product word may appear (a later word is
+ * unaccounted), and a later integer can never complete a name: one of one to
+ * three digits withholds (`number:<n>`), one of four or more digits is a date
+ * or build number read as a version. The product must spell one of the listing's id or name, or
+ * the repository name (`spellsName`): an integer of one to three digits in it
+ * must be a number of that name at that position, and the prefix may instead
+ * end at an integer of four or more digits followed only by integers (a date
+ * or build number read as a version). The result is the accepted product
+ * (joined), whether only the repository name accounts for it, whether a
+ * product number was counted, and whether a year-shaped integer was dropped as
+ * a version; or the unaccounted tokens: a word after the product, else a
+ * product word that is no word of those names (a single letter glued to
+ * digits as its chunk, `b2`), else an integer no name has there
+ * (`number:<n>`), else the name's words the archive lacks (`missing:<word>`).
+ * Any leftover withholds (`archive-name-unaccounted`): for `Game 2`,
+ * `Game-1.0-2-…`, `Game-v1-2-…`, `Game-2024-2-…` and `Game-win64-2.zip`; for
+ * `Super Game`, `Super-1.0-Game.zip`, `Super-Game-2-…` and `SuperGame-Lite`;
+ * for `Doom 2`, `Doom3` and `doom-2.1.0-…`; for `Doom`, `Doom-2-…`.
  */
 export function archiveNameAccount(
   name: string,
   listing: Record<string, unknown>,
   repository: string,
-): { product: string; repositoryOnly: boolean; numbered: boolean } | { unaccounted: string[] } {
+):
+  | { product: string; repositoryOnly: boolean; numbered: boolean; yearAsVersion: boolean }
+  | { unaccounted: string[] } {
   const names = accountNames(listing, repository);
   const repositoryWords = nameWords(repository.split("/")[1] ?? "").join("");
   const listingNames = accountNames(listing, "").map((words) => words.join(""));
-  const { product } = archiveNameTokens(name);
-  const optional = product.flatMap((token, index) =>
-    token.kind === "integer" && token.word.length >= 4 ? [index] : [],
-  );
-  const choices = optional.length <= 8 ? 2 ** optional.length : 1;
-  for (let mask = 0; mask < choices; mask++) {
-    const kept = product.filter(
-      (token, index) => !optional.includes(index) || (mask >> optional.indexOf(index)) % 2 === 1,
-    );
+  const { tokens } = archiveNameTokens(name);
+  let end = 0;
+  while (end < tokens.length && (tokens[end]!.kind === "word" || tokens[end]!.kind === "integer"))
+    end++;
+  const prefix = tokens.slice(0, end);
+  const after = tokens.slice(end);
+  const evidence = (token: { word: string; chunk: string }) =>
+    /^[a-z][0-9]+$/u.test(token.chunk) ? token.chunk : token.word;
+  const late = after.filter((token) => token.kind === "word");
+  if (late.length) return { unaccounted: [...new Set(late.map(evidence))] };
+  // A short integer after a version or neutral token is no product number
+  // and no recognisable version: it withholds. Four or more digits (a date
+  // or build number) stay versions.
+  const lateNumbers = after.filter((token) => token.kind === "integer" && token.word.length < 4);
+  if (lateNumbers.length)
+    return { unaccounted: [...new Set(lateNumbers.map((token) => `number:${token.word}`))] };
+  // The whole prefix first, then cuts at a long integer followed only by integers.
+  const cuts = [prefix.length];
+  for (let index = 0; index < prefix.length; index++)
+    if (
+      prefix[index]!.kind === "integer" &&
+      prefix[index]!.word.length >= 4 &&
+      // After a version, a short integer would withhold: only long ones follow.
+      prefix.slice(index).every((token) => token.kind === "integer" && token.word.length >= 4)
+    )
+      cuts.push(index);
+  for (const cut of cuts) {
+    const kept = prefix.slice(0, cut);
     if (!kept.length) continue;
     const matched = names.find((words) => spellsName(kept, words));
     if (matched) {
@@ -2918,19 +2965,18 @@ export function archiveNameAccount(
         product: joined,
         repositoryOnly: joined === repositoryWords && !listingNames.includes(joined),
         numbered: kept.some((token) => token.kind === "integer"),
+        yearAsVersion: cut < prefix.length && yearShaped(prefix[cut]!.word),
       };
     }
   }
   const nameWordSet = new Set(names.flat());
-  const extra = product
-    .filter((token) => token.kind === "word" && !nameWordSet.has(token.word))
-    .map((token) => (/^[a-z][0-9]+$/u.test(token.chunk) ? token.chunk : token.word));
-  if (extra.length) return { unaccounted: [...new Set(extra)] };
-  const numbers = product
+  const extra = prefix.filter((token) => token.kind === "word" && !nameWordSet.has(token.word));
+  if (extra.length) return { unaccounted: [...new Set(extra.map(evidence))] };
+  const numbers = prefix
     .filter((token) => token.kind === "integer" && token.word.length < 4)
     .map((token) => `number:${token.word}`);
   if (numbers.length) return { unaccounted: [...new Set(numbers)] };
-  const present = new Set(product.map((token) => token.word));
+  const present = new Set(prefix.map((token) => token.word));
   // The name sharing the most words with the archive: the listing's name,
   // then the repository's, then the id.
   const ordered = [listing.name, repository.split("/")[1], listing.id]
@@ -2943,7 +2989,7 @@ export function archiveNameAccount(
   }, undefined);
   const missing = (closest ?? []).filter((word) => !present.has(word));
   if (missing.length) return { unaccounted: missing.map((word) => `missing:${word}`) };
-  return { unaccounted: [product.map((token) => token.word).join("-") || "no-product"] };
+  return { unaccounted: [prefix.map((token) => token.word).join("-") || "no-product"] };
 }
 /**
  * How a program is accounted for: its literal name (`literalProgramName`)
@@ -2979,19 +3025,40 @@ export function programNameUnaccounted(
     ...(neutralArchiveWords as readonly string[]),
     ...(programLayoutWords as readonly string[]),
   ]);
-  // A whole chunk (`MacOS`, `x64`, `15`, an accounted name such as
-  // `Doom2`) is checked before its camel-case words; digits glued to letters
-  // in a chunk that is no accounted name (`Doom2/` for `Doom`) are not.
-  const wholeChunk = (chunk: string) =>
-    allowed.has(chunk) || names.has(chunk) || /^[vr]?[0-9]+$/u.test(chunk);
+  // Each folder by the archive grammar: a dotted run, `v<N>`, `r<N>` and four
+  // or more digits are versions; a whole chunk that is an allowed word or an
+  // accounted name (`MacOS`, `x64`, `Doom2` for `Doom 2`) is accepted; an
+  // integer of one to three digits only where the segment's words before it
+  // and the number spell an accounted name (`Doom-2/` for `Doom 2`, never for
+  // `Doom`); digits glued to letters only as a whole accounted name.
   for (const segment of path.split("/").slice(0, -1)) {
-    const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
-    for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean))
-      if (
-        !wholeChunk(chunk.toLowerCase()) &&
-        !nameWords(chunk).every((word) => !/^[0-9]+$/u.test(word) && allowed.has(word))
-      )
+    const normalized = segment
+      .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
+      .replace(/(?<![A-Za-z0-9.])[vVrR]?[0-9]+(?:\.[0-9]+)+(?![A-Za-z0-9])/gu, "-v0-");
+    let before = "";
+    let boundary = false;
+    for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean)) {
+      const lower = chunk.toLowerCase();
+      if (/^[vr]?[0-9]+$/u.test(lower) && !/^[0-9]{1,3}$/u.test(lower)) {
+        boundary = true;
+        continue;
+      }
+      if ((neutralArchiveWords as readonly string[]).includes(lower)) boundary = true;
+      if (/^[0-9]{1,3}$/u.test(lower)) {
+        // A product number follows the product words directly.
+        if (boundary || !names.has(before + lower)) return `${segment}/`;
+        before += lower;
+        continue;
+      }
+      if (allowed.has(lower) || names.has(lower)) {
+        before += lower;
+        continue;
+      }
+      const parts = nameWords(chunk);
+      if (!parts.every((word) => !/^[0-9]+$/u.test(word) && allowed.has(word)))
         return `${segment}/`;
+      before += parts.join("");
+    }
   }
   return null;
 }
@@ -3956,6 +4023,19 @@ export interface RegistrationQueues {
    * (`Doom-2-1.0-win64.zip` for `Doom 2`), in port_id order.
    */
   numbered_products: string[];
+  /**
+   * Every enrolled identity whose offered archive name, on some platform,
+   * was accounted for by reading a year-shaped integer (1970 to 2099) as a
+   * version (`doom-2016-win64.zip` for `Doom`), in port_id order: a person
+   * hand-checks that the year is not part of the title.
+   */
+  year_as_version: string[];
+  /**
+   * Every enrolled identity whose release also holds an archive whose only
+   * programs the tool veto excluded, beside the offered one, in port_id
+   * order: the count the lead measures.
+   */
+  tool_only_archives_beside: string[];
   unaccounted_tokens: Record<
     "archive-name-unaccounted" | "program-name-unaccounted",
     { token: string; count: number; identities: string[] }[]
@@ -4080,6 +4160,22 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
     reason_evidence: reasonEvidence,
     accepted_by_repository_name_only: enrolledAccounts(generation, "repositoryOnly"),
     numbered_products: enrolledAccounts(generation, "numbered"),
+    year_as_version: enrolledAccounts(generation, "yearAsVersion"),
+    tool_only_archives_beside: generation.enrollments
+      .filter((enrollment) => {
+        const entry = generation.facts.entries.find(
+          (candidate) => candidate.port_id === enrollment.port_id,
+        );
+        const offered = new Set(enrollment.runtimes.map((runtime) => runtime.asset_id));
+        return (entry?.artifacts ?? []).some(
+          (artifact) =>
+            !offered.has(artifact.asset_id) &&
+            artifact.players.length === 0 &&
+            artifact.excluded_players.length > 0,
+        );
+      })
+      .map((enrollment) => enrollment.port_id)
+      .toSorted(compareCodePoints),
     unaccounted_tokens: unaccountedTokens,
     unread_forms: grouped(
       generation.facts.entries.flatMap((entry) =>
@@ -4219,7 +4315,10 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
 }
 /** A per-identity name list for every facts entry that has one, in port_id order. */
 /** The enrolled identities whose offered archive name was accounted for in this way. */
-function enrolledAccounts(generation: Generation, flag: "repositoryOnly" | "numbered"): string[] {
+function enrolledAccounts(
+  generation: Generation,
+  flag: "repositoryOnly" | "numbered" | "yearAsVersion",
+): string[] {
   return generation.enrollments
     .filter((enrollment) =>
       enrollment.runtimes.some((runtime) => {
@@ -5381,9 +5480,10 @@ export function gateFormKind(
   ];
   if (last === "pkg" && words.some((word) => consoleWords.includes(word))) return undefined;
   if (last === "dmg" || last === "pkg") return "macos";
-  // 6. Non-desktop packages keep their own treatment.
-  if (["ipa", "apk", "aab", "vpk", "nro", "nsp", "3dsx", "cia", "wad"].includes(last))
-    return undefined;
+  // 6. Non-desktop packages keep their own treatment, except a `.wad`, which
+  // competes as a container.
+  if (last === "wad") return "container";
+  if (["ipa", "apk", "aab", "vpk", "nro", "nsp", "3dsx", "cia"].includes(last)) return undefined;
   // A bare binary is macOS when a whole word names macOS, else Linux.
   if (bare)
     return words.some((word) => ["osx", "macos", "darwin"].includes(word)) ? "macos" : "linux";
@@ -5535,7 +5635,11 @@ export function gateStatement(
       else if (["dev", "prototype", "playtest"].includes(here)) {
         // Only with a number: glued to digits, or next past connectors.
         let numberAt = index + 1;
-        while (numberAt < words.length && connectors.includes(words[numberAt]!.text)) numberAt++;
+        while (
+          numberAt < words.length &&
+          [...connectors, "release"].includes(words[numberAt]!.text)
+        )
+          numberAt++;
         if (
           words.some((word) => word.number && word.token === words[index]!.token) ||
           words[numberAt]?.number === true
@@ -5555,7 +5659,8 @@ export function gateStatement(
     )
       continue;
     let after = end + 1;
-    while (after < words.length && connectors.includes(words[after]!.text)) after++;
+    // Connector words and `release` between a status word and its number.
+    while (after < words.length && [...connectors, "release"].includes(words[after]!.text)) after++;
     const glued = words.some(
       (word) => word.number && word.token >= words[index]!.token && word.token <= words[end]!.token,
     );
@@ -5749,8 +5854,23 @@ function gateSameProduct(
 ) {
   const other = gateProduct(name);
   if (!other.words.length || !archives.length) return false;
+  // Relief only for the single-system kinds and the recognised containers.
+  const kind = gateFormKind(name);
+  const lowerName = name.toLowerCase();
+  if (
+    kind !== "windows" &&
+    kind !== "linux" &&
+    kind !== "macos" &&
+    !(
+      kind === "container" &&
+      [".7z", ".rar", ".tar", ".tar.bz2", ".tbz2", ".tar.zst"].some((form) =>
+        lowerName.endsWith(form),
+      )
+    )
+  )
+    return false;
   const listed: string[] = [];
-  for (const value of [listing.id, listing.name, listing.original_game_title])
+  for (const value of [listing.id, listing.name])
     if (typeof value === "string") listed.push(gateNameWords(value).join(""));
   if (!listed.includes(other.words.join(""))) return false;
   const versionKey = (version: readonly string[]) => {
@@ -5923,32 +6043,48 @@ export function gateArchiveAccount(
   listing: Record<string, unknown>,
   repository: string,
 ): string | null {
-  // Dotted digit runs (`1.0.2`, `v2.1.0`) are versions, never product words.
+  // Dotted digit runs (`1.0.2`, `v2.1.0`) are one version chunk.
   let base = gateNameBase(name);
-  base = base.replace(/(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-");
-  const tokens: { word: string; integer: boolean }[] = [];
+  base = base.replace(/(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu, "$1-v0-");
+  // PRODUCT (VERSION | NEUTRAL)*: the product is the leading run of words and
+  // integers; after it, no word may appear, and integers are versions.
+  const product: { word: string; integer: boolean }[] = [];
+  let productEnded = false;
   for (const chunk of base.split(/[^A-Za-z0-9]+/u)) {
     if (chunk === "") continue;
     const low = chunk.toLowerCase();
-    if (gateNeutral.includes(low)) continue;
-    if (/^\d+$/u.test(low)) {
-      tokens.push({ word: low, integer: true });
+    if (gateNeutral.includes(low) || /^[vr]\d+$/u.test(low)) {
+      productEnded = true;
       continue;
     }
-    if (/^[vr]\d+$/u.test(low)) continue;
-    for (const word of gateNameWords(chunk))
-      if (!gateNeutral.includes(word)) tokens.push({ word, integer: false });
+    if (/^\d+$/u.test(low)) {
+      if (!productEnded) product.push({ word: low, integer: true });
+      // After the product only a date or build number may stand.
+      else if (low.length < 4) return null;
+      continue;
+    }
+    for (const word of gateNameWords(chunk)) {
+      if (gateNeutral.includes(word)) {
+        productEnded = true;
+        continue;
+      }
+      if (productEnded) return null;
+      product.push({ word, integer: false });
+    }
   }
-  // Integers of four or more digits may be versions: try leaving each out.
-  const long = tokens.flatMap((token, index) =>
-    token.integer && token.word.length >= 4 ? [index] : [],
-  );
-  const choices = long.length <= 8 ? 1 << long.length : 1;
-  for (let choice = 0; choice < choices; choice++) {
-    const kept = tokens.filter((token, index) => {
-      const at = long.indexOf(index);
-      return at < 0 || (choice & (1 << at)) !== 0;
-    });
+  // The whole product, or cut at a long integer followed only by integers.
+  const cuts = [product.length];
+  for (let index = 0; index < product.length; index++) {
+    const rest = product.slice(index);
+    if (
+      product[index]!.integer &&
+      product[index]!.word.length >= 4 &&
+      rest.every((t) => t.integer && t.word.length >= 4)
+    )
+      cuts.push(index);
+  }
+  for (const cut of cuts) {
+    const kept = product.slice(0, cut);
     if (kept.length === 0) continue;
     for (const words of gateNameLists(listing, repository)) {
       // The same letters, with each integer exactly one word of the name.
@@ -6025,14 +6161,35 @@ export function gateProgramAccounted(
   const known = (word: string) =>
     words.includes(word) || gateNeutral.includes(word) || layout.includes(word);
   for (const segment of segments) {
-    const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
+    let normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
+    normalized = normalized.replace(
+      /(^|[^A-Za-z0-9.])[vVrR]?\d+(\.\d+)+(?=$|[^A-Za-z0-9])/gu,
+      "$1-v0-",
+    );
+    let spelled = "";
+    let afterBoundary = false;
     for (const chunk of normalized.split(/[^A-Za-z0-9]+/u)) {
       const low = chunk.toLowerCase();
-      // A whole chunk: a known word, an accounted name, or a version.
-      if (low === "" || known(low) || names.includes(low) || /^[vr]?\d+$/u.test(low)) continue;
-      // Otherwise every word of it is a known word, never a glued number.
-      for (const word of gateNameWords(chunk))
-        if (/^\d+$/u.test(word) || !known(word)) return false;
+      if (low === "") continue;
+      // Versions: `v<N>`, `r<N>`, four or more digits.
+      if (/^[vr]\d+$/u.test(low) || /^\d{4,}$/u.test(low)) {
+        afterBoundary = true;
+        continue;
+      }
+      if (gateNeutral.includes(low)) afterBoundary = true;
+      if (/^\d{1,3}$/u.test(low)) {
+        // A product number directly after the segment's product words.
+        if (afterBoundary || !names.includes(spelled + low)) return false;
+        spelled += low;
+        continue;
+      }
+      if (known(low) || names.includes(low)) {
+        spelled += low;
+        continue;
+      }
+      const parts = gateNameWords(chunk);
+      for (const word of parts) if (/^\d+$/u.test(word) || !known(word)) return false;
+      spelled += parts.join("");
     }
   }
   return true;

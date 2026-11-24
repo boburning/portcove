@@ -3971,9 +3971,14 @@ An archive name is tokenised (`archiveNameTokens`):
     letter/digit changes), each a neutral word or a product word, glued
     digits included.
 
-The product tokens in order must spell one of the listing's id or name, or
-the repository name (`accountNames`, `archiveNameAccount`), else the whole
-identity is withheld as `archive-name-unaccounted`. The original game's title
+The tokens follow an ordered grammar, `PRODUCT (VERSION | NEUTRAL)*`. The
+product is the contiguous prefix of words and integers, and it must spell one
+of the listing's id or name, or the repository name (`accountNames`,
+`archiveNameAccount`). An integer is a product number only directly after the
+product words. After the first version or neutral token, no product word may
+appear, and an integer of one to three digits withholds, while one of four or
+more digits is a date or build number read as a version. Anything else
+withholds the whole identity as `archive-name-unaccounted`. The original game's title
 (`original_game_title`) is not an accepted name: a remake's listing must not
 enroll an archive named only for the original. So:
 
@@ -3990,7 +3995,10 @@ enroll an archive named only for the original. So:
   - `Doom3-win64.zip` (`3`), `doom-2.1.0-…` (Doom at version 2.1.0,
     `missing:2`) and `Doom-1.0-win64.zip` (`missing:2`) for `Doom 2`;
   - `Doom-2-win64.zip` (`number:2`) for `Doom`;
-  - `Game-1.0.2-win64.zip` (`missing:2`) for `Game 2`;
+  - `Game-1.0.2-win64.zip`, `Game-1.0-2-win64.zip`, `Game-v1-2-…`,
+    `Game-2024-2-…` and `Game-win64-2.zip` for `Game 2` (its own
+    `Game-2-1.0-win64.zip` enrolls), `Super-1.0-Game.zip` for `Super Game`,
+    and `OPEN_1.2-3.win64.tar.xz` for `Open 3`;
   - `Game-b2-…` (`b2`), `Game-bin-…` (`bin`) and `Game-1-…` (`number:1`) for
     `Game`;
   - `Space-Invaders-…` (`invaders`) for `Space Game`, and `The-Other-…`
@@ -4001,7 +4009,12 @@ An archive accepted only by the repository's name (not the listing's id or
 name) is a common legitimate shape (a port's archive named after its own
 repository). It enrolls, but `registration_queues.accepted_by_repository_name_only`
 lists it for a person to check that group first. `numbered_products` lists
-every enrollment that depended on a number counted as a product word.
+every enrollment that depended on a number counted as a product word,
+`year_as_version` every enrollment whose archive name was accounted for by
+reading a year-shaped integer (1970 to 2099) as a version
+(`doom-2016-win64.zip` for `Doom`), and `tool_only_archives_beside` every
+enrollment whose release also holds an archive with only tool-vetoed
+programs.
 
 A release may split the game across archives. When another archive of the
 release holds no program, is no source archive, and has a name that allows
@@ -4009,7 +4022,14 @@ the offered platform (`Game-data-1.0.zip` or `Game-assets-1.0.zip` beside
 `Game-1.0-win64.zip`), the offered archive alone may not be the whole game,
 and the whole identity is withheld as `split-package`. A part named for
 another platform (`Game-data-1.0-linux.tar.gz` beside a Windows zip) does not
-split it.
+split it. Loose data in another form follows the
+[other package form](#other-package-forms) rule. The same-product relief
+there applies only to recognised forms: the Windows, Linux and macOS
+installer and package kinds, and the containers `.7z`, `.rar`, `.tar`,
+`.tar.bz2`, `.tbz2` and `.tar.zst` (`reliefForm`). An unrecognised container
+named for the product (`Game-1.0.pk3`) never gets relief and competes. A
+`.wad` beside a desktop archive competes as a container too: withholding a
+real console build is cheap.
 
 A program enrolls only when its literal name (the file name lowercased,
 without `.exe`, letters and digits only) equals the listing's, repository's
@@ -4020,9 +4040,13 @@ other package form may architecture words follow it (`programArchitectureWords`:
 literal. Every folder on its path must be made of product words, versions,
 neutral words and the layout words `bin`, `game`, `app`, `contents`, `x64`
 and `win64` (`programLayoutWords`, which accounts for a macOS bundle's
-`Game.app/Contents/MacOS/`). A number glued to letters in a folder counts
-only as a whole accounted name (`Doom2/` for `Doom 2`, never for `Doom`), and
-`b2/` is no version. Exactly one player may survive the platform selection:
+`Game.app/Contents/MacOS/`). Each folder segment follows the archive grammar:
+a dotted run, `v<N>`, `r<N>` and four or more digits are versions; an
+integer of one to three digits is accepted only directly after the segment's
+words, and only where they and the number spell an accounted name (`Doom-2/`
+for `Doom 2`; `Doom-2/`, `Doom 2/` and `Doom/2/` for `Doom`, and `Game-3/` for
+`Game`, withhold); a number glued to letters counts only as a whole accounted
+name (`Doom2/` for `Doom 2`, never for `Doom`); `b2/` is no version. Exactly one player may survive the platform selection:
 two product-named programs on one platform (`Game/bin/Game.exe` beside
 `Game/x64/Game.exe`, or `Game.exe` beside `Game-x64.exe`) are
 `ambiguous-player`. Anything else withholds the whole identity as
@@ -4308,7 +4332,9 @@ with digits), `early-access` (`early` followed by `access`), `unstable`,
 `development-snapshot` (`development` followed by `snapshot`), `dev`,
 `prototype` and `playtest` only with a number (glued, `dev2`, or directly
 before one, `Playtest 2`), and `not-for-production` (`not for production`,
-wherever it stands). A status word also stands when only connector words
+wherever it stands). Between a status word and its number, `release` is
+skipped like a connector word (`Beta release 1.0`, `Nightly release
+20261101`, `Beta release (1.0)`). A status word also stands when only connector words
 (`build`, `version`, `ver`, `v`, `no`, `number`) and `release` follow it to
 the end of the line: `Demo version`, `Beta build`, `Canary release`,
 `Release candidate build` and `Super Game - Demo Version` state a status,
@@ -4527,8 +4553,8 @@ same product when its product words are not empty and equal those of every
 archive that could be offered for the platform (a runtime archive from exact
 bytes whose name vetoes nothing and that holds a player for the platform),
 its version is theirs (`sameVersion`), the product is the LISTING's
-(`listingProductNames`: the product words joined equal the listing's id,
-name or original title words joined, so `Game-1.0-Setup.exe` beside
+(`listingProductNames`: the product words joined equal the listing's id or
+name words joined, never the original title, so `Game-1.0-Setup.exe` beside
 `Game-1.0-win64.zip` for a listing titled "Different Title" still competes),
 and each such archive's player for the platform is named literally for that
 product (`programNamesProduct`): the program's file name lowercased, without
@@ -4808,8 +4834,13 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 21, the facts parser version from 5 to 22 and
-the facts table format from 4 to 17 (generator 21 and parser 22: dotted
+generator version from 5 to 22, the facts parser version from 5 to 23 and
+the facts table format from 4 to 17 (generator 22 and parser 23: the
+ordered archive grammar, folder numbers by the same grammar, relief only for
+recognised forms and the listing's own names, a `.wad` as a competing
+container, `release` before a status word's number, and the
+`year_as_version` and `tool_only_archives_beside` queues; generator 21 and
+parser 22: dotted
 digit runs as versions only, integers only at the name's own number,
 no `b<N>` versions and no neutral `bin`, `split-package`, no original title
 as an accepted name, exactly one player per platform, the
