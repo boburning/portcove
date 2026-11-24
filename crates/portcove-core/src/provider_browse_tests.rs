@@ -220,11 +220,13 @@ async fn browsing_follows_provider_continuation_past_fifty_and_handles_an_empty_
 }
 
 #[tokio::test]
-async fn oversized_thunderstore_community_has_a_direct_browse_handoff() {
+async fn a_thunderstore_response_over_its_request_bound_has_a_direct_browse_handoff() {
+    // A community is read in bounded chunks of any number; one response that
+    // exceeds the per-request bound still fails closed with the community link.
     let (_temporary, service, _) = fixture();
     let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        crate::release::PROVIDER_JSON_MAX_BYTES + 1,
+        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        crate::thunderstore::MAX_COMPRESSED_BYTES + 1,
     ).into_bytes();
     let (root, _, server) = serve_http_bytes(vec![response]);
     let client = ProviderClient::Thunderstore {

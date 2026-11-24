@@ -139,7 +139,19 @@ export async function collectQuiver(
     result.pages = savedPages;
     result.entries = joined.length;
   } catch (error) {
-    result.status = savedPages ? "partial" : "inaccessible";
+    // A run boundary says nothing about the source: it is a resumable partial read.
+    const boundary =
+      error instanceof GitHubApiError &&
+      [
+        "budget_exhausted",
+        "rate_limited",
+        "quota_unknown",
+        "quota_stale",
+        "deadline_exceeded",
+        "cancelled",
+      ].includes(error.code);
+    result.status = savedPages || boundary ? "partial" : "inaccessible";
+    if (boundary) result.deferred = true;
     result.error = errorMessage(error);
     result.pages = savedPages;
     // The failing request, its class and where it ran: a runtime access failure

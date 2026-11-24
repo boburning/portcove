@@ -521,7 +521,9 @@ coverage partial.
 
 A failed reviewed-source read records the request URL, error class, HTTP status
 and execution environment (`github-actions` or `local`). A runtime access
-failure is not evidence that a source retired or a project was removed. Quiver
+failure is not evidence that a source retired or a project was removed. A read
+stopped by a run boundary (budget, quota, rate limit, deadline, cancellation)
+is a resumable `partial` read marked `deferred`, not an inaccessible source. Quiver
 records its failing feed request; its evidence is Portcove's own API request,
 and `tgeorgiadis/quiver-launcher` is named as the publisher's client of the same
 API.
@@ -671,7 +673,10 @@ runners take its results from the shared store:
    keeps the list incomplete. Its scope is the inventory read it describes.
 
 A failed inventory read waits two days, as a list does. A parser change makes
-every record due again.
+every record due again. A record's first read is discovery: its claims never
+mark a repository as changed, even when another record of the same source
+already named it, so a shared engine is not sent to research by the baseline.
+A later read of that record whose claims differ is a change.
 
 A game without public code keeps `candidate-without-public-code` on its
 projects' claims and is counted in the summary as an unresolved research
@@ -1051,7 +1056,9 @@ export reports the handoff as `pending-dependency`.
 
 `node scripts/discovery-worker.mts status` writes a read-only export
 (`status.json`, `status.md`). It shows the latest attempts, source outcomes,
-observation and watch counts, due subjects and activation. The job appends
+observation and watch counts, due subjects and activation, and for each curated
+list and inventory baseline its last complete read, contribution (hints,
+discovered, platform claims, unresolved hosts), due state and baseline progress. The job appends
 `status.md` to its run summary and retains the files as
 `discovery-status-<run>-<attempt>`. Before new research, the hosted researcher
 reads the latest run's export rather than rebuilding coverage from first-page

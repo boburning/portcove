@@ -29,6 +29,7 @@ import {
   emptyFactsTable,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
+  listingWords,
   needsReproduction,
   reproductionPlan,
   reusedArchives,
@@ -193,6 +194,8 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
     draft: false,
     prerelease: false,
     published_at: "2026-11-01T00:00:00Z",
+    name: null,
+    body: null,
     assets: [
       asset,
       { id: 22, name: "README.md", size: 10, sha256: sha("readme"), url: "https://github.com/x" },
@@ -204,6 +207,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
     provider: "github",
     repository: `fixture-owner/${id}`,
     repository_id: 4242,
+    listing_words: listingWords({ id, name: "Fixture Game" }),
     parser: FACTS_PARSER,
     parser_version: FACTS_PARSER_VERSION,
     observation: {
@@ -220,6 +224,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
         provider_prerelease: false,
         assets_complete: true,
         malformed_assets: 0,
+        text: null,
         assets: release.assets,
       }),
     },
@@ -232,6 +237,9 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
         prerelease: false,
         published_at: "2026-11-01T00:00:00.000Z",
         packaged: true,
+        text: "unobserved" as const,
+        title: null,
+        statement: null,
       },
     ],
     other_packages: [],
@@ -250,6 +258,8 @@ const listed = (release: ProviderRelease) => ({
   draft: release.draft,
   prerelease: release.prerelease,
   published_at: release.published_at,
+  name: release.name,
+  body: release.body,
   assets: release.assets.map((asset) => ({
     id: asset.id,
     name: asset.name,
@@ -607,6 +617,7 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
         provider_prerelease: false,
         assets_complete: true,
         malformed_assets: 0,
+        text: null,
         assets: copy.release.assets,
       });
     }),
@@ -667,6 +678,7 @@ void test("a refused archive, the release's line facts and its installers are re
     provider_prerelease: false,
     assets_complete: true,
     malformed_assets: 0,
+    text: null,
     assets: release.assets,
   });
   entry.refused_archives = [
@@ -758,6 +770,7 @@ void test("a refused archive, the release's line facts and its installers are re
     provider_prerelease: false,
     assets_complete: true,
     malformed_assets: 0,
+    text: null,
     assets: installer.assets,
   });
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), "release-changed");
@@ -802,6 +815,7 @@ void test("a refused archive, the release's line facts and its installers are re
     provider_prerelease: false,
     assets_complete: true,
     malformed_assets: 0,
+    text: null,
     assets: container.assets,
   });
   assert.equal(await reason(withContainer, refusing(sameRefusal), container), "release-changed");
@@ -828,6 +842,8 @@ void test("reproduction restates the observed releases from the release list (F8
     draft: false,
     prerelease: false,
     published_at: "2026-10-01T00:00:00Z",
+    name: null,
+    body: null,
     assets: [
       {
         id: 31,
@@ -863,6 +879,9 @@ void test("reproduction restates the observed releases from the release list (F8
     prerelease: false,
     published_at: "2026-10-01T00:00:00.000Z",
     packaged: true,
+    text: "unobserved" as const,
+    title: null,
+    statement: null,
   });
   assert.equal(await run(complete, release, tool), undefined);
 });
@@ -913,6 +932,9 @@ void test("reproduction proves the named release is still the newest stable one 
       prerelease,
       published_at: "2026-11-10T00:00:00.000Z",
       packaged: false,
+      text: "unobserved" as const,
+      title: null,
+      statement: null,
     });
     return copy;
   };
@@ -3397,4 +3419,59 @@ void test("GitHub calls follow the retry guidance inside their deadline and clas
   assert.match(keep.uses!, /^actions\/cache\/save@/u);
   const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
   assert.equal(ci.match(/verify --reproduce false --deadline-minutes 14/gu)?.length, 2);
+});
+
+void test("reproduction restates a release's own text where the entry records it observed (#8569 1a)", async () => {
+  const { release, entry, players } = fixture();
+  const run = (recorded: ListingFactsEntry, provider: ProviderRelease) =>
+    reproduceFacts({
+      entries: [recorded],
+      listReleases: lister(provider),
+      inspect: inspector(players),
+      classify: coreClassifier,
+      boundLines: unbound([recorded]),
+    });
+  const beta = { ...release, name: "v1.0 Beta", body: null };
+  // Recorded unobserved (the observer reported no text): text that states
+  // nothing is left unobserved, exactly as the worker recorded it.
+  assert.deepEqual((await run(entry, { ...release, name: "v1.0", body: "Fixes." })).verified, [
+    unseen,
+  ]);
+  // R1 (review at f92d6f2c): recorded unobserved, but the provider's text now
+  // states a prerelease (title or first body line): reconfirmation refuses
+  // the entry as a mismatch so the worker observes it again. Before R1 this
+  // row was verified.
+  const unobservedBeta = await run(entry, beta);
+  assert.deepEqual(unobservedBeta.verified, []);
+  assert.equal(unobservedBeta.refused[0]!.reason, "mismatch");
+  assert.match(unobservedBeta.refused[0]!.detail, /unobserved text/u);
+  const unobservedBody = await run(entry, {
+    ...release,
+    name: "v1.0",
+    body: "## Public beta test",
+  });
+  assert.equal(unobservedBody.refused[0]!.reason, "mismatch");
+  // Recorded observed: the provider's title must still state no prerelease.
+  const observed = structuredClone(entry);
+  observed.observed_releases[0] = {
+    ...observed.observed_releases[0]!,
+    text: "observed",
+    title: "v1.0",
+  };
+  assert.deepEqual((await run(observed, { ...release, name: "v1.0", body: "Fixes." })).verified, [
+    unseen,
+  ]);
+  const titled = await run(observed, beta);
+  assert.equal(titled.refused[0]!.reason, "release-changed");
+  assert.match(titled.refused[0]!.detail, /stable-release verdict/u);
+  // A first body line stating a release candidate is refused alike; a
+  // remark further down is not a statement.
+  const bodied = await run(observed, { ...release, name: "v1.0", body: "## RC 2\nnotes" });
+  assert.equal(bodied.refused[0]!.reason, "release-changed");
+  const remark = await run(observed, {
+    ...release,
+    name: "v1.0",
+    body: "Fixes.\n\nStill pre-release quality.",
+  });
+  assert.deepEqual(remark.verified, [unseen]);
 });

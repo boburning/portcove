@@ -93,6 +93,9 @@ pub(crate) struct FailureContext {
     known_cause: Option<KnownFailureCause>,
     pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
+    /// Set where a connection was interrupted, stalled or starved: the
+    /// network failed, not the requested content.
+    transient_transport: bool,
 }
 
 /// Transport facts recorded where an upstream request failed. They classify
@@ -256,12 +259,94 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
+    /// A provider listing the decision depends on was read only in part this
+    /// time (a page budget, a partial listing or a mixed-time snapshot): the
+    /// work continues from where it stopped on the next attempt. Incomplete
+    /// is never an absent release, package or file. Always temporary, and it
+    /// waits until `resets_at` when the provider stated one.
+    InventoryIncomplete {
+        provider: FailureProvider,
+        /// What was being listed, such as `release history`.
+        inventory: &'static str,
+        /// Pages or chunks already read and kept for the next attempt.
+        read: u64,
+        /// Pages or chunks the provider listed, when it said.
+        total: Option<u64>,
+        resets_at: Option<i64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+    Thunderstore,
+}
+
+impl FailureProvider {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Github => "GitHub",
+            Self::Gitlab => "GitLab",
+            Self::Thunderstore => "Thunderstore",
+        }
+    }
+}
+
+/// Detail key every incomplete provider listing carries, shared by the
+/// GitHub, GitLab and Thunderstore readers.
+pub(crate) const INVENTORY_INCOMPLETE_DETAIL: &str = "inventory";
+
+/// An incomplete provider listing: typed cause plus the shared details.
+pub(crate) fn inventory_incomplete(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+) -> PortcoveError {
+    let mut error = PortcoveError::network(format!(
+        "the {} {inventory} was read only in part; trying again continues where it stopped",
+        provider.name()
+    ))
+    .detail(INVENTORY_INCOMPLETE_DETAIL, "incomplete")
+    .detail("inventory_read", read.to_string());
+    if let Some(total) = total {
+        error = error.detail("inventory_total", total.to_string());
+    }
+    error.with_known_cause(KnownFailureCause::InventoryIncomplete {
+        provider,
+        inventory,
+        read,
+        total,
+        resets_at: None,
+    })
+}
+
+/// An incomplete provider listing caused by `cause`, a request that did not
+/// complete. The cause's details (status facts, `retry_after`) are kept, its
+/// message becomes the `cause` detail, and any wait it states (a rate-limit
+/// reset or `Retry-After`) becomes the listing's own `resets_at`, so the
+/// retry schedule still honors it.
+pub(crate) fn inventory_incomplete_after(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+    cause: PortcoveError,
+) -> PortcoveError {
+    let resets_at = cause.temporary_cause().and_then(|(_, reset)| reset);
+    let mut error = inventory_incomplete(provider, inventory, read, total)
+        .detail("cause", cause.message.clone());
+    for (name, value) in cause.details {
+        error.details.entry(name).or_insert(value);
+    }
+    if let Some(KnownFailureCause::InventoryIncomplete {
+        resets_at: reset, ..
+    }) = error.failure.known_cause.as_mut()
+    {
+        *reset = resets_at;
+    }
+    error
 }
 
 fn decimal_gigabytes(bytes: u64) -> String {
@@ -476,6 +561,25 @@ impl KnownFailureCause {
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
             ),
+            Self::InventoryIncomplete {
+                provider,
+                inventory,
+                read,
+                total,
+                ..
+            } => {
+                let progress = total.map_or_else(
+                    || format!(" ({read} parts read)"),
+                    |total| format!(" ({read} of {total} parts read)"),
+                );
+                return (
+                    "inventory_incomplete",
+                    format!(
+                        "Portcove read only part of the {} {inventory} this time{progress}. Nothing was concluded from the missing part, and Portcove will try again from where it stopped.",
+                        provider.name()
+                    ),
+                );
+            }
             Self::StorageFull => (
                 "storage_full",
                 "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
@@ -558,10 +662,7 @@ impl KnownFailureCause {
                 rate_limited,
                 resets_at,
             } => {
-                let provider = match provider {
-                    FailureProvider::Github => "GitHub",
-                    FailureProvider::Gitlab => "GitLab",
-                };
+                let provider = provider.name();
                 if *status == 401 {
                     return (
                         "provider_sign_in_rejected",
@@ -653,6 +754,15 @@ impl PortcoveError {
         self.failure.known_cause.as_ref()
     }
 
+    /// Whether a provider listing stopped before its end; the item asked for
+    /// is not known to be absent.
+    pub(crate) fn is_inventory_incomplete(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::InventoryIncomplete { .. })
+        )
+    }
+
     pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
         matches!(
             self.failure.known_cause,
@@ -670,6 +780,56 @@ impl PortcoveError {
             self.failure.upstream = observation;
         }
         self
+    }
+
+    pub(crate) fn upstream_observation(&self) -> Option<UpstreamObservation> {
+        self.failure.upstream
+    }
+
+    /// Marks a transport interruption (reset, early close, stall or starved
+    /// connection). Temporary classification is opt-in: an unmarked
+    /// network-coded error without a status stays lasting.
+    pub(crate) fn transient_transport(mut self) -> Self {
+        self.failure.transient_transport = true;
+        self
+    }
+
+    pub(crate) fn is_transient_transport(&self) -> bool {
+        self.failure.transient_transport
+    }
+
+    /// A network-coded failure while reading a body that recorded no status is
+    /// an interrupted body (temporary); limit and parse failures keep their
+    /// own lasting codes.
+    pub(crate) fn mark_interrupted_body(self) -> Self {
+        if self.code == crate::ErrorCode::Network && self.failure.upstream.is_none() {
+            self.transient_transport()
+        } else {
+            self
+        }
+    }
+
+    /// The one conversion for a failed HTTP exchange: it records the
+    /// transport observation, and marks connection interruptions (resets,
+    /// early closes, a body cut off mid-stream, stalls, DNS/TLS/connect
+    /// failures) temporary. Builder, redirect-policy and status errors stay
+    /// lasting; a status is recorded separately by the caller.
+    ///
+    /// Body errors: reqwest reports a body stream that ends early as a decode
+    /// error ("error decoding response body"), so `is_decode` here is a
+    /// truncated body and stays temporary. A body that arrives complete but is
+    /// not the expected document is never converted here: Portcove reads the
+    /// bytes and parses them with its own code, whose unmarked failure stays
+    /// lasting. Do not pass errors from `Response::json`/`text` to this
+    /// conversion, which cannot tell such a malformed body from a cut-off one.
+    pub(crate) fn from_transport(error: &reqwest::Error) -> Self {
+        let converted = Self::network(error.to_string())
+            .with_upstream(UpstreamObservation::from_reqwest(error));
+        if error.is_builder() || error.is_redirect() || error.is_status() {
+            converted
+        } else {
+            converted.transient_transport()
+        }
     }
 
     /// Classify this failure for preserved-location failover from recorded facts

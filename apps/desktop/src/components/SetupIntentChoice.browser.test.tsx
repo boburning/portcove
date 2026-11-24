@@ -160,6 +160,39 @@ it("retains the confirmed choice through a save refusal and permits the same cho
   expect(page.getByRole("alert").query()).toBeNull();
 });
 
+it("says when a temporary failure runs again and keeps a lasting one waiting for a change", async () => {
+  const retryAfter = Math.floor(Date.UTC(2031, 0, 2, 3, 4) / 1000);
+  vi.spyOn(desktopApi, "portIntents").mockResolvedValue([
+    {
+      ...intent("harbor", "set_up_when_ready"),
+      failure: "the connection was reset",
+      temporary_retry: { cause: "network", attempts: 1, retry_after: retryAfter },
+    },
+    {
+      ...intent("lighthouse", "set_up_when_ready"),
+      failure: "the archive was rejected",
+    },
+  ]);
+  await render(<SetupIntentChoice portId="harbor" generation={7} />);
+  const waiting = page.getByText("will try again automatically", { exact: false });
+  await expect.element(waiting).toBeVisible();
+  expect(waiting.element().textContent).not.toContain("files, catalog or requirements change");
+  // The labelled next attempt is the exact instant, with its time zone.
+  const time = waiting.element().querySelector("time");
+  expect(waiting.element().textContent).toContain("Next attempt:");
+  expect(time?.getAttribute("datetime")).toBe(new Date(retryAfter * 1000).toISOString());
+  expect(time?.textContent).toMatch(/2031/);
+  expect(time?.textContent).toMatch(/[A-Z]{2,}|GMT|UTC|[+-]\d/);
+  await cleanup();
+
+  await render(<SetupIntentChoice portId="lighthouse" generation={7} />);
+  const lasting = page.getByText("the archive was rejected", { exact: false });
+  await expect.element(lasting).toBeVisible();
+  const paragraph = lasting.element().closest("p");
+  expect(paragraph?.textContent).toContain("files, catalog or requirements change");
+  expect(paragraph?.querySelector("time")).toBeNull();
+});
+
 it.each(["port", "generation"] as const)(
   "drops the old retry after replacing the %s context",
   async (change) => {

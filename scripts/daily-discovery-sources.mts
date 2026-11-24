@@ -91,6 +91,20 @@ export const sourcePolicies = {
 } as const;
 const executionEnvironment = () =>
   process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "local";
+/** Whether a failure is a run boundary rather than an answer about the source. */
+export function runBoundary(error: unknown) {
+  return (
+    error instanceof GitHubApiError &&
+    [
+      "budget_exhausted",
+      "rate_limited",
+      "quota_unknown",
+      "quota_stale",
+      "deadline_exceeded",
+      "cancelled",
+    ].includes(error.code)
+  );
+}
 /** The facts of a failed source read: its class, HTTP status and where it ran. */
 export function failureFacts(error: unknown) {
   return {
@@ -308,7 +322,12 @@ export async function collectDiscoverySources(
   ) =>
     accept({
       id,
-      status: "inaccessible",
+      // A run boundary (budget, quota, rate limit, deadline, cancellation) says
+      // nothing about the source: it is a resumable partial read, not an outage.
+      status: runBoundary(error) ? "partial" : "inaccessible",
+      ...(runBoundary(error)
+        ? { deferred: true, next_action: "Resume this source on a later admitted run" }
+        : {}),
       evidence,
       next_page: null,
       truncated: false,
@@ -605,10 +624,8 @@ export async function collectDiscoverySources(
           await c.budget.admit(1, 1);
           await job.run();
         } catch (error) {
-          if (
-            error instanceof GitHubApiError &&
-            ["budget_exhausted", "rate_limited"].includes(error.code)
-          ) {
+          // Any run boundary stops the queue; the remaining jobs stay due.
+          if (runBoundary(error)) {
             exhausted = true;
             break;
           }

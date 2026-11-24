@@ -1109,6 +1109,9 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
     if let Some(suppressed) = &assessment.suppressed {
         line.push_str(&format!("; on hold: {}", clean(suppressed)));
     }
+    if let Some(next) = assessment.next_attempt_at {
+        line.push_str(&format!("; Next attempt: {}", utc_time(next)));
+    }
     line
 }
 
@@ -1181,6 +1184,9 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                 .unwrap_or_default(),
             clean(&waiting.reason)
         ));
+        if let Some(next) = waiting.next_attempt_at {
+            lines.push(format!("  Next attempt: {}", utc_time(next)));
+        }
     }
     for update in &value.mod_updates {
         let subject = if update.native_ids.is_empty() {

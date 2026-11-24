@@ -13,6 +13,18 @@ import {
 
 const mb = 1_000_000;
 export const neonProject = "wispy-salad-36926388";
+/** The production branch whose transfer the meter reads. */
+export const neonBranch = "br-frosty-bar-bbaitwbu";
+/** Organization that owns the metered project; named in credential diagnostics. */
+const neonOrganization = "org-polished-frog-23199890";
+/**
+ * A provider message fit for retained evidence: one line, at most 200
+ * characters, with the credential removed should a provider ever echo it.
+ */
+export function neonDiagnostic(message: string, token: string) {
+  const line = message.replace(/[\r\n\t]+/gu, " ").trim();
+  return (token ? line.split(token).join("[credential]") : line).slice(0, 200);
+}
 export const transferLimit = 5_000 * mb;
 const day = 86_400_000;
 export const admissionTimeout = 2 * 60 * 60 * 1000;
@@ -104,7 +116,7 @@ export function normalizeNeonMeter(
     owner?.subscription_type !== "free_v3" ||
     project.id !== neonProject ||
     branch.project_id !== neonProject ||
-    branch.id !== "br-frosty-bar-bbaitwbu" ||
+    branch.id !== neonBranch ||
     !periodStart ||
     !periodEnd ||
     !resetAt ||
@@ -129,27 +141,120 @@ export function normalizeNeonMeter(
   };
 }
 
+async function neonCredentialIdentity(token: string) {
+  const get = async (path: string) => {
+    try {
+      const response = await fetch(`https://console.neon.tech/api/v2${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      return { status: response.status, body };
+    } catch (error) {
+      return {
+        status: 0,
+        body: { message: error instanceof Error ? error.message : String(error) },
+      };
+    }
+  };
+  const user = await get("/users/me");
+  if (user.status !== 200 || !isRecord(user.body) || typeof user.body.id !== "string") {
+    const message =
+      isRecord(user.body) && typeof user.body.message === "string"
+        ? `: ${neonDiagnostic(user.body.message, token)}`
+        : "";
+    const kind = [401, 403, 404].includes(user.status)
+      ? "credential is not a personal key"
+      : "credential identity unreadable";
+    return `${kind} (users/me HTTP ${user.status}${message}); project ${neonProject} belongs to ${neonOrganization}`;
+  }
+  const organizations = await get("/users/me/organizations");
+  const listed =
+    isRecord(organizations.body) && Array.isArray(organizations.body.organizations)
+      ? organizations.body.organizations
+          .map((organization: unknown) =>
+            isRecord(organization) && typeof organization.id === "string" ? organization.id : "",
+          )
+          .filter(Boolean)
+      : null;
+  const membership =
+    listed === null
+      ? `organizations unreadable (HTTP ${organizations.status})`
+      : listed.includes(neonOrganization)
+        ? `member of ${neonOrganization} but without access to project ${neonProject}`
+        : `not a member of ${neonOrganization}`;
+  return `credential belongs to Neon user ${neonDiagnostic(user.body.id, token).slice(0, 64)}, ${membership}`;
+}
+
 export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMeter> {
   const token = environment.PORTCOVE_NEON_METER_TOKEN;
   if (!token) throw new MaintenanceStoreError("Missing PORTCOVE_NEON_METER_TOKEN");
   const base = `https://console.neon.tech/api/v2/projects/${neonProject}`;
-  const read = async (suffix: string) => {
-    const response = await fetch(base + suffix, {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: "error",
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok)
-      throw new MaintenanceStoreError(`Neon metadata returned HTTP ${response.status}`);
-    return await response.json();
+  // Each read names itself and Neon's own error message when it fails, so a
+  // deferred admission records which read a credential cannot see and why.
+  const read = async (name: string, suffix: string) => {
+    let response: Response;
+    try {
+      response = await fetch(base + suffix, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (error) {
+      throw new MaintenanceStoreError(
+        `Neon ${name} read failed: ${neonDiagnostic(error instanceof Error ? error.message : String(error), token)}`,
+      );
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      let message = "";
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (isRecord(parsed) && typeof parsed.message === "string") message = parsed.message;
+      } catch {
+        // A non-JSON error body is not quoted.
+      }
+      throw new MaintenanceStoreError(
+        `Neon ${name} read returned HTTP ${response.status}${message ? `: ${neonDiagnostic(message, token)}` : ""}`,
+      );
+    }
+    try {
+      const value: unknown = await response.json();
+      return value;
+    } catch (error) {
+      throw new MaintenanceStoreError(
+        `Neon ${name} read returned an unreadable body: ${neonDiagnostic(error instanceof Error ? error.message : String(error), token)}`,
+      );
+    }
   };
   const sampledAt = new Date().toISOString();
-  const [projectResponse, branchResponse, endpointsResponse] = await Promise.all([
-    read(""),
-    read("/branches/br-frosty-bar-bbaitwbu"),
-    read("/endpoints"),
+  // Every read finishes, so a failure report names each read that failed.
+  const reads = await Promise.allSettled([
+    read("project", ""),
+    read("branch", `/branches/${neonBranch}`),
+    read("endpoints", "/endpoints"),
   ]);
+  const failed = reads.filter(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (failed.length) {
+    const reasons = failed.map((result) =>
+      result.reason instanceof Error ? result.reason.message : String(result.reason),
+    );
+    // When the project is invisible to the credential, name whose credential it
+    // is (opaque ids only) so the wrong key or a missing membership is evident.
+    if (failed.length === reads.length && reasons.every((reason) => / HTTP 404\b/u.test(reason)))
+      reasons.push(
+        await neonCredentialIdentity(token).catch(() => "credential identity probe failed"),
+      );
+    throw new MaintenanceStoreError(reasons.join("; "));
+  }
+  const [projectResponse, branchResponse, endpointsResponse] = reads.map((result) =>
+    result.status === "fulfilled" ? result.value : undefined,
+  );
   const project = isRecord(projectResponse) && projectResponse.project;
   const branch = isRecord(branchResponse) && branchResponse.branch;
   const endpoints = isRecord(endpointsResponse) && endpointsResponse.endpoints;
@@ -160,9 +265,7 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
     !Array.isArray(endpoints) ||
     !endpoints.some(
       (endpoint: unknown) =>
-        isRecord(endpoint) &&
-        endpoint.host === host &&
-        endpoint.branch_id === "br-frosty-bar-bbaitwbu",
+        isRecord(endpoint) && endpoint.host === host && endpoint.branch_id === neonBranch,
     )
   )
     throw new MaintenanceStoreError(

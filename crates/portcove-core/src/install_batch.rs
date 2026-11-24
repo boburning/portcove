@@ -56,6 +56,37 @@ pub struct InstallBatchItem {
     pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub install_id: Option<String>,
+    /// Set on a failed item whose failure came from a passing condition, so
+    /// unattended setup retries it later instead of counting a lasting failure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary: Option<crate::TemporaryFailure>,
+    /// For an unattended run: the partial-download entries its plan uses.
+    /// An unclean stop compares only these, so another game's download
+    /// progress never resets this game's crash-loop count.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub download_keys: Vec<String>,
+}
+
+impl InstallBatchRecord {
+    /// The temporary failure of a failed or interrupted item, if it was one.
+    /// An item interrupted after its batch recorded a clean stop was stopped,
+    /// not crashed.
+    pub(crate) fn temporary_failure(
+        &self,
+        item: &InstallBatchItem,
+    ) -> Option<crate::TemporaryFailure> {
+        match item.state {
+            InstallBatchItemState::Interrupted if self.clean_stop_at.is_some() => {
+                Some(crate::TemporaryFailure {
+                    cause: crate::TemporaryCause::CleanStop,
+                    stated_reset: None,
+                })
+            }
+            InstallBatchItemState::Interrupted => Some(crate::TemporaryFailure::INTERRUPTED),
+            InstallBatchItemState::Failed => item.temporary,
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -67,6 +98,11 @@ pub struct InstallBatchRecord {
     pub updated_at: i64,
     pub cancel_requested: bool,
     pub items: Vec<InstallBatchItem>,
+    /// Unix seconds Portcove recorded that it was closing, restarting or told
+    /// to stop while this unattended batch ran. An item the process then left
+    /// unsettled was stopped cleanly, which never counts as a crash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clean_stop_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -245,7 +281,7 @@ fn validate_selection(port_ids: impl Iterator<Item = String>) -> Result<()> {
 enum ItemOutcome {
     Ready(String),
     Held(String),
-    Failed(String),
+    Failed(String, Option<crate::TemporaryFailure>),
     Cancelled,
 }
 
@@ -278,6 +314,7 @@ impl Library {
             created_at: now,
             updated_at: now,
             cancel_requested: false,
+            clean_stop_at: None,
             items: items
                 .iter()
                 .map(|item| InstallBatchItem {
@@ -286,6 +323,8 @@ impl Library {
                     state: InstallBatchItemState::Queued,
                     detail: None,
                     install_id: None,
+                    temporary: None,
+                    download_keys: Vec::new(),
                 })
                 .collect(),
         };
@@ -523,9 +562,10 @@ impl PortcoveService {
                             item.state = InstallBatchItemState::Held;
                             item.detail = Some(reason);
                         }
-                        ItemOutcome::Failed(reason) => {
+                        ItemOutcome::Failed(reason, temporary) => {
                             item.state = InstallBatchItemState::Failed;
                             item.detail = Some(reason);
+                            item.temporary = temporary;
                         }
                         ItemOutcome::Cancelled => {
                             item.state = InstallBatchItemState::Cancelled;
@@ -578,17 +618,33 @@ impl PortcoveService {
         {
             Ok(install) => ItemOutcome::Ready(install.id),
             Err(error) if error.code == ErrorCode::Cancelled => ItemOutcome::Cancelled,
-            Err(error) => ItemOutcome::Failed(error.message),
+            Err(error) => {
+                let temporary = crate::TemporaryFailure::of(&error);
+                ItemOutcome::Failed(error.message, temporary)
+            }
         }
     }
 
     /// Stops unstarted work. A running item keeps its existing cancellation and
     /// cleanup boundaries; successful installs stay intact.
     pub fn cancel_install_batch(&self, batch_id: &str) -> Result<InstallBatchRecord> {
-        self.library.update_install_batch(batch_id, |record| {
+        let record = self.library.update_install_batch(batch_id, |record| {
             record.cancel_requested = true;
             cancel_queued(record);
             record.clone()
+        })?;
+        super::unattended_setup::player_cancelled_batch(batch_id);
+        Ok(record)
+    }
+
+    /// Durably records that Portcove is stopping this unattended batch cleanly,
+    /// and starts no further items. See `InstallBatchRecord::clean_stop_at`.
+    pub(crate) fn mark_install_batch_clean_stop(&self, batch_id: &str) -> Result<()> {
+        let now = Library::now();
+        self.library.update_install_batch(batch_id, |record| {
+            record.clean_stop_at.get_or_insert(now);
+            record.cancel_requested = true;
+            cancel_queued(record);
         })
     }
 
@@ -983,6 +1039,17 @@ mod tests {
         );
         assert!(service.library_memberships().unwrap().is_empty());
         assert!(service.unfinished_install_batches().unwrap().is_empty());
+    }
+
+    #[test]
+    fn batches_written_before_clean_stops_and_download_keys_still_read() {
+        let old = r#"{"format_version":1,"id":"b","created_at":1,"updated_at":2,"cancel_requested":false,"items":[{"port_id":"game","expected_plan_sha256":"aa","state":"running"}]}"#;
+        let record = decode_batch("b", old).unwrap();
+        assert_eq!(record.clean_stop_at, None);
+        assert!(record.items[0].download_keys.is_empty());
+        assert_eq!(record.items[0].temporary, None);
+        // Unchanged shape when re-written.
+        assert_eq!(serde_json::to_string(&record).unwrap(), old);
     }
 
     #[test]

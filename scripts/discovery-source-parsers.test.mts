@@ -247,6 +247,14 @@ void test("unbaked's inventory and records keep projects, candidates and officia
   );
   assert.match(candidate.entries[0]!.source_entries![0]!.status, /candidate-without-public-code/u);
   assert.throws(() => parseUnbakedGame(gameRecord("other", []), "doom"), /Unsupported/u);
+  // A game whose only projects are general tools is a complete, empty read.
+  const toolsOnly = parseUnbakedGame(
+    gameRecord("3-d-tetris", [
+      { name: "vbrecomp", url: "https://github.com/owner/vbrecomp", general_tool: true },
+    ]),
+    "3-d-tetris",
+  );
+  assert.deepEqual([toolsOnly.entries.length, toolsOnly.excluded], [0, 1]);
 });
 
 void test("an unbaked baseline resumes after interruption, reconciles changes and keeps hints", () => {
@@ -390,4 +398,37 @@ void test("Recompendium keeps identities and attributed claims, never its prose"
     () => parseRecompendiumCatalog(JSON.stringify({ formato: 2, entradas: [] })),
     /Unsupported/u,
   );
+});
+
+void test("a first baseline read is discovery, not change, even for a shared repository", () => {
+  const rows = parseUnbakedInventory(
+    JSON.stringify({ count: 2, games: [inventoryRow("doom"), inventoryRow("heretic")] }),
+  );
+  let state = recordExternalInventory(undefined, "unbaked-registry", rows, now, "f".repeat(64));
+  const shared = (slug: string, methods = ["Source port"]) =>
+    parseUnbakedGame(
+      gameRecord(slug, [{ name: "engine", url: "https://github.com/owner/engine", methods }]),
+      slug,
+    );
+  state = mergeExternalInventoryItem(state, "unbaked-registry", "doom", shared("doom"), now);
+  state = mergeExternalInventoryItem(state, "unbaked-registry", "heretic", shared("heretic"), now);
+  const hint = state.hints["https://github.com/owner/engine"]!;
+  assert.equal(hint.source_entries!["unbaked-registry"]!.length, 2, "both games are kept");
+  assert.equal(hint.source_change, undefined, "a second game's first read is not a change");
+  // A re-read whose claim really differs is a change.
+  const changed = parseUnbakedInventory(
+    JSON.stringify({
+      count: 2,
+      games: [inventoryRow("doom", { last_push: "2026-11-30" }), inventoryRow("heretic")],
+    }),
+  );
+  state = recordExternalInventory(state, "unbaked-registry", changed, later(1), "e".repeat(64));
+  state = mergeExternalInventoryItem(
+    state,
+    "unbaked-registry",
+    "doom",
+    shared("doom", ["Decompilation"]),
+    later(1),
+  );
+  assert.ok(state.hints["https://github.com/owner/engine"]!.source_change);
 });

@@ -32,9 +32,32 @@ pub struct GameBananaClient {
     web_root: String,
 }
 
+#[cfg(test)]
+thread_local! {
+    static TEST_ROOT: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
 impl GameBananaClient {
     pub fn for_library(library: &Library) -> Result<Self> {
+        #[cfg(test)]
+        if let Some(root) = TEST_ROOT.with(|root| root.borrow().clone()) {
+            return Self::with_roots(&root, Some(library.clone()));
+        }
         Self::build(Some(library.clone()), API_ROOT, "https://gamebanana.com")
+    }
+
+    /// Points clients Core builds for a library at a local test server on this
+    /// thread until the guard drops.
+    #[cfg(test)]
+    pub(crate) fn serve_library_clients_from(root: &str) -> impl Drop {
+        struct Restore;
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                TEST_ROOT.with(|root| root.borrow_mut().take());
+            }
+        }
+        TEST_ROOT.with(|cell| *cell.borrow_mut() = Some(root.to_owned()));
+        Restore
     }
 
     fn build(library: Option<Library>, api_root: &str, web_root: &str) -> Result<Self> {

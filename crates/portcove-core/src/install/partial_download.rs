@@ -81,6 +81,33 @@ pub(crate) struct Lease {
     resumed: Option<Received>,
 }
 
+/// The kept bytes of every entry that can continue (its bytes and its
+/// representation record are both present), keyed by entry. A snapshot taken
+/// without the index lock: it is only compared with an earlier snapshot to
+/// tell whether downloads advanced, so a racing writer only makes it later.
+pub(crate) fn kept_downloads(root: &Path) -> crate::temporary_failure::KeptDownloads {
+    let mut kept = crate::temporary_failure::KeptDownloads::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return kept;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(key) = name.strip_suffix(".part") else {
+            continue;
+        };
+        if !root.join(format!("{key}.json")).is_file() {
+            continue;
+        }
+        if let Ok(metadata) = fs::symlink_metadata(entry.path())
+            && metadata.is_file()
+            && metadata.len() > 0
+        {
+            kept.insert(key.to_owned(), metadata.len());
+        }
+    }
+    kept
+}
+
 impl PartialDownloads {
     pub(crate) fn new(root: PathBuf) -> Self {
         Self {
@@ -106,6 +133,11 @@ impl PartialDownloads {
         }
     }
 
+    /// The entry an asset's bytes are kept under, if it may use the store.
+    pub(crate) fn entry_key(asset: &ReleaseAsset) -> Option<String> {
+        Self::key(asset)
+    }
+
     /// Only an asset with an expected digest the caller verifies may continue.
     fn key(asset: &ReleaseAsset) -> Option<String> {
         let sha256 = asset.sha256.to_ascii_lowercase();
@@ -128,9 +160,6 @@ impl PartialDownloads {
     /// caller then downloads without it.
     pub(crate) fn lease(&self, asset: &ReleaseAsset) -> Option<Lease> {
         let key = Self::key(asset)?;
-        if asset.size > self.max_bytes {
-            return None;
-        }
         fs::create_dir_all(&self.root).ok()?;
         crate::path::refuse_symlink_ancestors(&self.root).ok()?;
         if fs::symlink_metadata(&self.root)
@@ -279,9 +308,15 @@ impl PartialDownloads {
             count += 1;
         }
         idle.sort();
+        // The byte budget bounds what idle entries may keep. One asset larger
+        // than the budget still keeps its own progress once everything else
+        // has made room, so a large game on a slow link is never the one
+        // download that cannot continue after a restart. Free disk space
+        // remains the hard bound.
+        let budget = self.max_bytes.max(keeping_bytes);
         let fits = |count, total| {
             count <= self.max_entries
-                && total <= self.max_bytes
+                && total <= budget
                 && fs4::available_space(&self.root).is_ok_and(|available| needed <= available)
         };
         for (_, key, size) in idle {

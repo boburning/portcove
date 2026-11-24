@@ -104,6 +104,7 @@ import {
   reproductionBatchEntries,
   reproductionHourlyRequests,
   toolchainNames,
+  listingCounts,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -131,6 +132,7 @@ import {
   OverBudgetError,
   readerPlatform,
   recordedTag,
+  releaseTextFacts,
   safeText,
   unreadableReleases,
   type ByteInspector,
@@ -484,6 +486,9 @@ export interface ProviderRelease {
   prerelease: boolean;
   published_at: string | null;
   assets: { id: number; name: string; size: number; sha256: string | null; url: string }[];
+  /** The release's name and body as the provider states them (null when absent). */
+  name: string | null;
+  body: string | null;
 }
 /**
  * The first page of a repository's releases, newest first, as the worker's
@@ -773,7 +778,31 @@ export async function reproduceFacts(inputs: {
         reason: "release-unavailable",
         detail: `Release ${releaseId} is not a well-formed release among the repository's newest ${releaseListPage}.`,
       };
-    const observed: ObservedRelease = {
+    // The release text is reproduced where the entry records it as observed;
+    // where the entry records it unobserved (UNKNOWN), it is left unobserved,
+    // as the worker's observer report left it.
+    const asRecorded = (item: ObservedRelease): ObservedRelease =>
+      entry.observed_releases.find((recorded) => recorded.release_id === item.id)?.text ===
+      "observed"
+        ? item
+        : { ...item, text: null };
+    // Core's verdict, and a prerelease the release's own text states.
+    const verdict = (item: ObservedRelease) => {
+      const core = names.prerelease(item);
+      return core === undefined
+        ? undefined
+        : core || releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
+    };
+    // A release the entry records unobserved whose text the provider now
+    // reports with a prerelease statement (a stable-flagged release titled
+    // "… Beta") is no longer the release the entry describes: it is observed
+    // again, never kept enrolled by reconfirmation.
+    const unobservedStatement = (item: ObservedRelease) =>
+      item.text !== null &&
+      entry.observed_releases.find((recorded) => recorded.release_id === item.id)?.text ===
+        "unobserved" &&
+      releaseTextFacts(item, entry.repository, entry.listing_words).statement !== null;
+    const reproduced: ObservedRelease = {
       id: release.id,
       version: release.tag_name,
       published_at: release.published_at,
@@ -787,7 +816,15 @@ export async function reproduceFacts(inputs: {
         size,
         sha256,
       })),
+      text: { title: release.name, body: release.body },
     };
+    const stating = [reproduced, ...observerWindow(listed.releases)].find(unobservedStatement);
+    if (stating)
+      return {
+        reason: "mismatch",
+        detail: `Release ${stating.id} is recorded with unobserved text, but its text now states a prerelease; it is observed again.`,
+      };
+    const observed = asRecorded(reproduced);
     const published = Date.parse(release.published_at ?? "");
     await names.add({
       releases: [{ tag: release.tag_name, provider_prerelease: release.prerelease }],
@@ -813,7 +850,7 @@ export async function reproduceFacts(inputs: {
           entry.observation.published_at,
         "the publication time",
       ],
-      [names.prerelease(observed) === false, "the stable-release verdict"],
+      [verdict(observed) === false, "the stable-release verdict"],
       [assetsDigest(observed) === entry.observation.assets_sha256, "the release asset list"],
       // The release's own line facts: its tag, time and verdict as recorded,
       // and every other package form beside its archives with the platforms
@@ -849,12 +886,13 @@ export async function reproduceFacts(inputs: {
       releaseId,
       entry.repository,
       inputs.boundLines.get(entry.port_id) ?? null,
+      (item) => verdict(asRecorded(item)),
     );
     if (newest) return { reason: "not-latest-stable", detail: newest };
     // The recorded observed releases are exactly the observer's window of the
     // listed releases: an entry that leaves out another line's release, or
     // changes one, is refused (a release published since the run is too).
-    const window = observerWindow(listed.releases);
+    const window = observerWindow(listed.releases).map(asRecorded);
     await names.add({
       releases: window.map((item) => ({
         tag: item.version,
@@ -862,8 +900,9 @@ export async function reproduceFacts(inputs: {
       })),
     });
     if (
-      JSON.stringify(observedReleaseFacts(window, (item) => names.prerelease(item))) !==
-      JSON.stringify(entry.observed_releases)
+      JSON.stringify(
+        observedReleaseFacts(window, verdict, entry.repository, entry.listing_words),
+      ) !== JSON.stringify(entry.observed_releases)
     )
       return {
         reason: "mismatch",
@@ -918,11 +957,13 @@ export async function reproduceFacts(inputs: {
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
       let toolchain: string[];
+      let counts: ArtifactFactV2["listing_counts"];
       try {
         bytes += asset.size;
         const inspection = await inputs.inspect(bound, readerPlatform(asset.name));
         players = inspection.players;
         toolchain = toolchainNames(inspection.names, inspection.leaves);
+        counts = listingCounts(inspection.leaves);
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
@@ -955,6 +996,7 @@ export async function reproduceFacts(inputs: {
         suggestion,
         (name) => names.programToken(name)!,
         toolchain,
+        counts,
       );
       if (JSON.stringify(rebuilt) !== JSON.stringify(artifact))
         return {
@@ -1011,6 +1053,7 @@ export async function reproduceFacts(inputs: {
     releaseId: number,
     repository: string,
     line: string | null,
+    verdict: (item: ObservedRelease) => boolean | undefined,
   ) {
     await names.add({
       releases: listed.releases.map((item) => ({
@@ -1024,7 +1067,7 @@ export async function reproduceFacts(inputs: {
         : listed.releases.filter(
             (item) => releaseLine(recordedTag(item.version), item.id, repository) === line,
           );
-    const chosen = latestStable(offered, (item) => names.prerelease(item));
+    const chosen = latestStable(offered, verdict);
     const unreadable = unreadableReleases(listed.releases, chosen.release ?? chosen.unclassified);
     if (unreadable) return unreadable;
     if (chosen.unclassified)
@@ -1306,6 +1349,10 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       draft: release.draft,
       assets_complete: true,
       malformed_assets: release.assets.length - assets.length,
+      text: {
+        title: typeof release.name === "string" ? release.name : null,
+        body: typeof release.body === "string" ? release.body : null,
+      },
       assets: assets.map((asset) => ({
         id: Number(asset.id),
         name: String(asset.name),
@@ -1384,6 +1431,8 @@ export function parseProviderRelease(value: unknown): ProviderRelease {
     prerelease: value.prerelease,
     published_at: value.published_at,
     assets,
+    name: typeof value.name === "string" ? value.name : null,
+    body: typeof value.body === "string" ? value.body : null,
   };
 }
 

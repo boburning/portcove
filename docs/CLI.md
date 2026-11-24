@@ -1126,6 +1126,41 @@ uninstalling, choose a mode again before the game can be set up or reported.
 
 Portcove retries a failed setup on a later pass while the game is ready, up to
 three failed attempts for the same plan. A changed plan becomes eligible again.
+Only lasting failures count, such as a rejected download or an unsupported file.
+A temporary failure never counts: a network problem, a download site's rate
+limit or server error, too little free space, another task or program holding
+the game or a needed file, an incomplete list from the download site, or an
+interrupted run. Portcove records it with a next-attempt time and runs the same
+plan again after that time. The output shows it as `Next attempt:` with a UTC
+time. The wait starts at five minutes and doubles up to six hours while the
+same cause repeats. A rate limit waits at least until the reset the site stated,
+up to one day. No new upstream version is needed. Folder setup follows the same
+rules.
+
+Closing or restarting Portcove, or interrupting `games setup-ready` with
+Ctrl+C, stops the running setup cleanly: Portcove records the stop before it
+exits, and the game continues on the next pass. A clean stop never counts.
+When Portcove instead ends without settling the run (a crash, a forced end or a
+power loss), the next start retries it on the next pass, then backs off. Three
+such stops of the same setup in a row, with no download progress between them,
+make the failure lasting, so a setup that keeps ending Portcove does not repeat
+forever. Received bytes of that setup's own downloads that grew since the last
+stop show the run was moving, and the count starts again; another game's
+download does not. Once Portcove starts closing, no further game's setup starts
+in that pass. An operating-system shutdown or sign-out that ends Portcove before
+it can record the stop may count as an unclean stop. That is harmless while the
+download keeps progressing; three in a row with no progress make the failure
+lasting.
+
+Each pass gives one game at most four hours, for set-up-when-ready games and
+folder setup alike. Then Portcove stops that game's setup at its next safe point,
+keeps the received bytes, and moves on. The game continues on the next pass
+without spending an attempt. A game with a pending retry goes after the games
+without one, oldest attempt first, so the same slow game never goes first every
+pass. Installs you start yourself are never under this limit. A choice that
+reached three failures in a Portcove version before this rule gets exactly one
+more attempt: a temporary failure then waits as usual, and a lasting one
+reaches the limit.
 If an earlier Portcove version spent all three attempts while your registered
 original was offline, reconnect it and repeat
 `games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed
@@ -1139,7 +1174,8 @@ recovering stays in progress and waits with that reason; nothing new starts for
 it and nothing is counted. Only batches whose in-progress games are all
 set-up-when-ready games are settled this way; other interrupted batches stay in
 progress for you to continue with `games batch-resume`. An interruption for a
-set-up-when-ready game counts as one failed attempt for that plan. Batches
+set-up-when-ready game is recorded as a temporary failure for that plan: a
+clean stop, or an unclean one counted as described above. Batches
 another process is still running, and games another operation holds, are left
 alone.
 The same pass also applies eligible mod updates for setups that allow them; see
@@ -2903,7 +2939,9 @@ install and update files outside Portcove.
 
 On supported Windows and Linux routes for vkQuake and Ironwail, use
 `portcove profile quaddicted PORT_ID` to see newest entries, or pass
-`--search SEARCH` and `--page 2` to narrow or continue the results. The
+`--search SEARCH` and `--page 2` to narrow or continue the results. Every page
+Quaddicted holds is reachable; "may have more results" appears only when Quaddicted
+returned a row beyond the current page. The
 vkQuake route also offers Arcane Dimensions file notices via
 `portcove profile mod-db-notices quake-vkquake`. These notices can include
 patches and documentation. Use the source page to see its instructions.
@@ -2965,8 +3003,11 @@ a number and a file is a number. Zelda 64: Recompiled is bound to the Thundersto
 community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
 of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
 the only byte identity, and a version Thunderstore no longer offers cannot be
-installed. Thunderstore listings are read once per community, conditionally and
-cached, and shown in Thunderstore's order. Desktop names the reviewed mods that run
+installed. Thunderstore listings are read per community from its chunked listing
+index, in Thunderstore's order. Verified chunks are kept and the parsed community is
+reused while its chunks are unchanged, so a community of any size is read completely;
+when a read stops early it fails as incomplete with the community link, and trying
+again continues from the chunks already kept. Desktop names the reviewed mods that run
 code and asks for permission to apply those exact files.
 
 Desktop's **Mods** workspace uses the same reviewed bindings and exact file identities.
@@ -2976,9 +3017,12 @@ as partial. **Installed mods** lists the applied packages in load order, includi
 disabled packages. Queued additions and edits stay separate until **Apply changes**.
 **Review changes** binds the preview to the selected setup and base revision and
 shows the combined order and overlaps. Applying publishes one successor, with
-explicit permission for reviewed files that run code. The draft keeps file choices
-and edits. Private download staging belongs to the review and is discarded when
-the review closes. Setup history restores the selected revision's mods and retains
+explicit permission for reviewed files that run code. A draft can queue as many
+files as one setup holds under the
+[supported setup contract](ARCHITECTURE.md#supported-setup-contract); the review
+admits the package-store copy against free space before anything changes. The
+draft keeps file choices and edits. Private download staging belongs to the
+review and is discarded when the review closes. Setup history restores the selected revision's mods and retains
 the setup's current save group.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
@@ -3014,8 +3058,11 @@ manifest must agree with the exact listing. The plan lists each wrapper's
 coordinate, computed digest and complete native member set. It refuses missing
 or ambiguous versions, incompatible version requests, cycles and wrappers with
 no supported packages. A native filename, installed label or bundled mod cannot
-stand in for an exact provider wrapper. The plan bounds the aggregate downloads
-and extraction, and the combined closure receives one confirmation. Any newly
+stand in for an exact provider wrapper. The closure is resolved completely; its
+only size bound is the 4,096-package
+[setup contract](ARCHITECTURE.md#supported-setup-contract). Each wrapper has its
+own download and extraction budget and is admitted against free space before
+download, and the combined closure receives one confirmation. Any newly
 reviewed mod code in that closure requires explicit permission.
 
 A Thunderstore `provider-plan` now includes the complete `wrappers` review,
@@ -3086,7 +3133,9 @@ keys and files, unrelated built-ins, and ordinary preferences stay in the
 profile’s mutable native data. For a supported option a malformed live value
 holds reconciliation and lists the affected setting for review.
 
-`recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
+`recipe-inspect` is local: no provider account, no network, bounded to 32 MiB
+and to the [supported setup contract](ARCHITECTURE.md#supported-setup-contract)
+of 4,096 packages. It
 refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
 forged identity digest, unsafe package names, missing dependencies and dependency
 cycles. Export applies the same rules, so a profile with, for example, an enabled
@@ -3100,8 +3149,19 @@ detail gives the exact project and file. Choose Check provider in Desktop or run
 The private review checks the exact downloaded package name, size, digest and
 loader identity. Supply the resulting JSON to `recipe-plan` and `recipe-apply` using
 a repeatable `--acquisition`. Earlier results can also be supplied to
-`recipe-acquire` to reuse a previously checked wrapper. Close the Desktop review
-or run `recipe-discard` to release private staging. For originals, register the
+`recipe-acquire` to reuse a previously checked wrapper. A recipe review has no
+count or combined-size limit of its own: each provider file is admitted against
+free space, and Desktop's Check the provider for every missing mod stages the
+missing packages in bounded steps until none remain. Each staged package is
+recorded beside its private staging, so `recipe-plan`, `recipe-apply` and
+Desktop's next review of the same recipe resume with the packages already
+checked, also after a restart. Each provider file's plan is recorded and held
+in the review once, however many recipe packages it supplies, and a review whose
+provider plans would exceed 64 MiB is refused with that reason. Using a review
+keeps its staging from the daily cleanup of abandoned staging; a review with
+recorded steps that nobody reopens is removed after 30 days. A staged package whose bytes changed is released when apply finds it
+and shows as missing again. Close the Desktop review or run `recipe-discard` to
+release private staging. For originals, register the
 lawful local input in the game's existing setup workflow and inspect again.
 The plan also holds for a different platform, an original requirement the game
 does not use, or an unregistered, unreadable or changed original. The plan
@@ -3222,6 +3282,9 @@ check that field before treating empty game work as a completed game assessment.
 Earlier clients returned an error for that queue failure before checking mods. The
 `profile setups` field `last_automatic_checks` may be absent when there is no
 receipt to show. It provides status for review and grants no update permission.
+When the stored results of the last automatic pass cannot be read in full,
+`last_automatic_checks_incomplete` is `true` and the text output says so; the
+next automatic pass records them again.
 
 In Desktop, use **Setups and mods** to choose the current setup's mod update
 policy or check for a newer file. An explicit check reads provider metadata and
