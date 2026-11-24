@@ -7474,6 +7474,22 @@ void test("every fit withholding reason is restated by the gate or exempted with
         ]),
       },
     ],
+    "archive-names-another-listing": [
+      {
+        facts: entry([named("Unseen-1.0-win64.zip", game, 11, "windows")]),
+        others: [listing("zz-other-unseen", { name: "Unseen", original_game_title: "Unseen" })],
+      },
+      {
+        facts: entry([named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows")]),
+        others: [
+          listing("zz-other-runtime", {
+            name: "Other",
+            original_game_title: "Other",
+            project_url: "https://github.com/fixture-owner/runtime-fixture-recomp",
+          }),
+        ],
+      },
+    ],
     "program-name-unaccounted": [
       { record: spaceRecord, facts: spaceFacts("Other.exe") },
       { record: spaceRecord, facts: spaceFacts("SpaceGame-cli.exe") },
@@ -8144,7 +8160,7 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "condemned2recomp",
       "condemned2recompV0.6.1_windows.zip",
       "Condemned2.exe",
-      ["build-id", "partial-name"],
+      ["build-id"],
     ],
   ];
   for (const [index, [name, repository, archive, program, reliefs]] of decisions.entries()) {
@@ -8205,19 +8221,19 @@ void test("program and folder names use the reliefs, beside no other package for
   // (e) folders that are the accepted product, versions and neutral words.
   const folders: [string, string, string, string][] = [
     [
-      "Amped 2",
+      "Amped 2 (Xbox)",
       "Amped2-Recomp",
       "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
       "Amped2-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
     ],
     [
-      "SSX 3",
+      "SSX 3 (PlayStation 2)",
       "SSX3-Recomp",
       "SSX3-Recomp-v0.3.0-windows-x86_64.zip",
       "SSX3-Recomp-v0.3.0-windows-x86_64/SSX3Recomp.exe",
     ],
     [
-      "Dora 64 3",
+      "Dora 64 3 (Nintendo 64)",
       "Dora64-3",
       "Dora64-3-1.0.0-Windows-x64.zip",
       "Dora64-3-1.0.0-Windows-x64/Dora643.exe",
@@ -8239,7 +8255,7 @@ void test("program and folder names use the reliefs, beside no other package for
   ]) {
     const { decision, gate } = reliefDecision(
       "fx",
-      "Amped 2",
+      "Amped 2 (Xbox)",
       "Amped2-Recomp",
       "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
       [path],
@@ -8479,7 +8495,7 @@ void test("relieved enrollments are listed by relief for a person to hand-check 
     ["c", "Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", "Lantern.exe"],
     [
       "d",
-      "Amped 2",
+      "Amped 2 (Xbox)",
       "Amped2-Recomp",
       "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
       "Amped2-Recomp-v0.2.0-windows-x86_64/Amped2Recomp.exe",
