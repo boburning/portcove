@@ -1428,6 +1428,9 @@ export async function advanceCatalogObservations(
             repository: source.repository,
             repository_id: progress.repository_id,
             asset_scope: "core-channel-candidates",
+            // Only descriptive listings' generated registration reads release
+            // text, so only their sources keep it.
+            ...(listingOnly(source) ? { release_text: "listing-window" as const } : {}),
             policy_input_sha256: observationHash(
               source.ports.map((port) => ({
                 id: port.id,

@@ -96,7 +96,7 @@ import {
   channelOnlyTag,
   listingCounts,
   listingWords,
-  textStatement,
+  observedTextStatement,
   failureCauses,
   compareCodePoints,
   type FailureCause,
@@ -131,6 +131,7 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { releaseTextFact, type ReleaseTextFact } from "./upstream-observer.mts";
 
 export interface RetryItem {
   port_id: string;
@@ -168,11 +169,13 @@ export interface ObservedRelease {
   /** Asset records in this release the worker cannot read; never dropped silently. */
   malformed_assets: number;
   /**
-   * The release's own text as the observer reported it (its name and body),
-   * or null when the report carries neither field: UNKNOWN optional
-   * evidence. Only `textStatement` reads the body; it is never recorded.
+   * The release's own text as the observer reported it (its name and the
+   * part of its body the release-text rule reads, `bodyExcerpt`, with
+   * whether that reading was cut), or null when the report carries neither
+   * field: UNKNOWN optional evidence. Only `observedTextStatement` reads the body; it is
+   * never recorded.
    */
-  text: { title: string | null; body: string | null } | null;
+  text: ReleaseTextFact | null;
 }
 /**
  * A failed inspection. `permanent` failures are not retried for this release:
@@ -377,6 +380,23 @@ export function unreadableReleases(
   return undefined;
 }
 
+/**
+ * A release's own text as an observer report (or the provider) states it:
+ * `name`, `body`, and `body_truncated` when the observer's kept part of the
+ * body was cut. The body is kept to the part the rule reads (`bodyExcerpt`),
+ * so a whole body and the observer's kept part read alike; null when the
+ * report states neither field.
+ */
+export function reportedText(release: Record<string, unknown>): ReleaseTextFact | null {
+  const text = releaseTextFact({
+    ...(Object.hasOwn(release, "name") ? { name: release.name } : {}),
+    ...(Object.hasOwn(release, "body") ? { body: release.body } : {}),
+  });
+  return text === undefined
+    ? null
+    : { ...text, body_truncated: text.body_truncated || release.body_truncated === true };
+}
+
 function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
   return (Array.isArray(observation.releases) ? observation.releases : []).flatMap(
     (release: unknown) =>
@@ -392,13 +412,7 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
               published_at: typeof release.published_at === "string" ? release.published_at : null,
               provider_prerelease: release.provider_prerelease === true,
               assets_complete: release.assets_complete === true,
-              text:
-                Object.hasOwn(release, "name") || Object.hasOwn(release, "body")
-                  ? {
-                      title: typeof release.name === "string" ? release.name : null,
-                      body: typeof release.body === "string" ? release.body : null,
-                    }
-                  : null,
+              text: reportedText(release),
               malformed_assets: release.assets.filter((asset: unknown) => !readableAsset(asset))
                 .length,
               assets: release.assets.flatMap((asset: unknown) =>
@@ -513,13 +527,15 @@ export const containerNames = (release: ObservedRelease | undefined) =>
     .map((asset) => asset.name);
 /**
  * Observed releases as the facts record them, in ascending release id: the
- * tag, Core's prerelease verdict (null when Core gave none), the publication
+ * tag, Core's verdict from the provider flag and tag alone (`core_prerelease`,
+ * null when Core gave none), the verdict with the release's own text
+ * (`prerelease`: Core's, or a statement the text makes), the publication
  * time and whether a package file is among the assets. Null fields are
  * unknown.
  */
 export const observedReleaseFacts = (
   releases: readonly ObservedRelease[],
-  prerelease: (release: ObservedRelease) => boolean | undefined,
+  core: (release: ObservedRelease) => boolean | undefined,
   repository: string,
   listing: readonly string[] = [],
 ): ObservedReleaseFact[] =>
@@ -527,34 +543,48 @@ export const observedReleaseFacts = (
     .toSorted((left, right) => left.id - right.id)
     .map((release) => {
       const published = Date.parse(release.published_at ?? "");
+      const text = releaseTextFacts(release, repository, listing);
+      const verdict = core(release);
       return {
         release_id: release.id,
         tag: recordedTag(release.version),
-        prerelease: prerelease(release) ?? null,
+        core_prerelease: verdict ?? null,
+        prerelease: verdict === undefined ? null : verdict || text.statement !== null,
         published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
         packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
-        ...releaseTextFacts(release, repository, listing),
+        ...text,
       };
     });
 /**
- * What the facts record of a release's own text: whether the observer
- * reported it, the title when it is bounded printable text (`recordedTag`'s
- * class), and the prerelease statement the title or the body's first line
- * makes (`textStatement`, with the listing's own words, `listingWords`).
- * The body is never recorded.
+ * What the facts record of a release's own text: whether it is observed, the
+ * title when it is bounded printable text (`recordedTag`'s class), and the
+ * prerelease statement the title or the body's first line makes
+ * (`observedTextStatement`, with the listing's own words, `listingWords`).
+ * Text the observer did not report, or a truncated body whose first line was
+ * not wholly read while nothing states a prerelease, is `unobserved`: absence
+ * is never inferred from it. The body is never recorded.
  */
 export const releaseTextFacts = (
   release: ObservedRelease,
   repository: string,
   listing: readonly string[] = [],
-): Pick<ObservedReleaseFact, "text" | "title" | "statement"> =>
-  release.text === null
-    ? { text: "unobserved", title: null, statement: null }
-    : {
+): Pick<ObservedReleaseFact, "text" | "title" | "statement"> => {
+  if (release.text === null) return { text: "unobserved", title: null, statement: null };
+  const judged = observedTextStatement(
+    release.text.title,
+    release.text.body,
+    release.text.body_truncated,
+    repository,
+    listing,
+  );
+  return judged.observed
+    ? {
         text: "observed",
         title: release.text.title === null ? null : recordedTag(release.text.title),
-        statement: textStatement(release.text.title, release.text.body, repository, listing),
-      };
+        statement: judged.statement,
+      }
+    : { text: "unobserved", title: null, statement: null };
+};
 /**
  * The releases a listing observation keeps from a provider list: the newest
  * `listingReleaseLimit` by publication time (then id), each with at most
@@ -1067,7 +1097,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
     observedReleaseFacts(
       observed.get(id)!.releases,
-      verdictOf(id),
+      (release) => names.prerelease(release),
       candidates.get(id)!,
       wordsOf(id),
     );
@@ -1378,7 +1408,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     );
     if (
       same?.ineligible &&
-      !["observation-unavailable", "repository-identity-changed"].includes(same.ineligible.reason)
+      // A reproduction refusal is the batch job's, not a verdict on this
+      // release: the identity is derived again every run.
+      !["observation-unavailable", "repository-identity-changed", "reproduction-refused"].includes(
+        same.ineligible.reason,
+      )
     ) {
       // Completed ineligible for this exact release: reconfirm, do not retry.
       entries.set(id, {

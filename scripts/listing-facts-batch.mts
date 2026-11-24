@@ -140,6 +140,7 @@ import {
   readerPlatform,
   recordedTag,
   releaseTextFacts,
+  reportedText,
   safeText,
   unreadableReleases,
   type ByteInspector,
@@ -149,6 +150,8 @@ import {
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
+import { listingReleaseTextFormat } from "./listing-upstream-observation.mts";
+import { releaseTextFact, type ReleaseTextFact } from "./upstream-observer.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -522,9 +525,19 @@ export type RefusalReason =
   | "not-latest-stable"
   | "asset-unavailable"
   | "core-refused"
-  | "mismatch";
+  | "mismatch"
+  | "out-of-scope";
 /** Refusals that are the runner's time or the provider's condition: retried, never a stop. */
 export const transientReasons: readonly RefusalReason[] = ["over-budget", "transient"];
+/**
+ * Whether a refusal is a verdict on one identity's facts, which withholds
+ * only that identity (`withholdRefused`): every refusal but the runner's or
+ * provider's condition (`transientReasons`) and an entry outside the
+ * authored candidate scope (`out-of-scope`), which says the change itself is
+ * unsound.
+ */
+export const identityRefusal = (refusal: Pick<Refusal, "reason">) =>
+  !transientReasons.includes(refusal.reason) && refusal.reason !== "out-of-scope";
 export interface Refusal {
   port_id: string;
   reason: RefusalReason;
@@ -716,7 +729,7 @@ export async function reproduceFacts(inputs: {
       verified,
       refused: inputs.entries.map((entry) => ({
         port_id: entry.port_id,
-        reason: "mismatch" as const,
+        reason: "out-of-scope" as const,
         detail: inputs.boundLines.has(entry.port_id)
           ? "Another entry of this change names no authored listing-only identity."
           : "The entry's listing is not an authored listing-only identity.",
@@ -823,7 +836,7 @@ export async function reproduceFacts(inputs: {
         size,
         sha256,
       })),
-      text: { title: release.name, body: release.body },
+      text: reportedText({ name: release.name, body: release.body }),
     };
     const stating = [reproduced, ...observerWindow(listed.releases)].find(unobservedStatement);
     if (stating)
@@ -908,7 +921,12 @@ export async function reproduceFacts(inputs: {
     });
     if (
       JSON.stringify(
-        observedReleaseFacts(window, verdict, entry.repository, entry.listing_words),
+        observedReleaseFacts(
+          window,
+          (item) => names.prerelease(item),
+          entry.repository,
+          entry.listing_words,
+        ),
       ) !== JSON.stringify(entry.observed_releases)
     )
       return {
@@ -1356,10 +1374,7 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       draft: release.draft,
       assets_complete: true,
       malformed_assets: release.assets.length - assets.length,
-      text: {
-        title: typeof release.name === "string" ? release.name : null,
-        body: typeof release.body === "string" ? release.body : null,
-      },
+      text: reportedText(release),
       assets: assets.map((asset) => ({
         id: Number(asset.id),
         name: String(asset.name),
@@ -1674,14 +1689,65 @@ export function handoffObservations(directory: string) {
     const file = path.join(directory, name);
     const report: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (!isRecord(report) || !Array.isArray(report.descriptive_listing_candidates)) continue;
+    const texts = isRecord(report.descriptive_listing_release_text)
+      ? report.descriptive_listing_release_text
+      : {};
     for (const candidate of report.descriptive_listing_candidates as unknown[]) {
       if (!isRecord(candidate) || typeof candidate.id !== "string" || seen.has(candidate.id))
         continue;
       seen.add(candidate.id);
-      listings.push({ id: candidate.id, upstream_observation: candidate.upstream_observation });
+      listings.push({
+        id: candidate.id,
+        upstream_observation: withReleaseText(
+          candidate.upstream_observation,
+          Object.hasOwn(texts, candidate.id) ? texts[candidate.id] : undefined,
+        ),
+      });
     }
   }
   return { listings };
+}
+
+/**
+ * The observation with each release's own text attached in the worker's
+ * release shape (`name`, `body`, `body_truncated`), only where the handoff's
+ * text names this observation's exact facts digest and a release id of it.
+ * A handoff without text (an older observer), text of other facts, or a
+ * malformed row leaves those releases without text: UNKNOWN, which the fit
+ * withholds (`release-text-unobserved`), never a statement either way.
+ */
+export function withReleaseText(observation: unknown, text: unknown): unknown {
+  if (
+    !isRecord(observation) ||
+    !Array.isArray(observation.releases) ||
+    !isRecord(text) ||
+    text.format !== listingReleaseTextFormat ||
+    typeof text.facts_sha256 !== "string" ||
+    text.facts_sha256 !== observation.facts_sha256 ||
+    !Array.isArray(text.releases)
+  )
+    return observation;
+  const rows = new Map<number, ReleaseTextFact>();
+  for (const row of text.releases as unknown[]) {
+    if (!isRecord(row) || !Number.isSafeInteger(row.id) || rows.has(Number(row.id))) continue;
+    try {
+      const { id: _id, ...fields } = row;
+      const fact = releaseTextFact({ text: fields });
+      if (fact) rows.set(Number(row.id), fact);
+    } catch {
+      // A malformed row reads as unobserved text.
+    }
+  }
+  return {
+    ...observation,
+    releases: (observation.releases as unknown[]).map((release) => {
+      const fact =
+        isRecord(release) && typeof release.id === "number" ? rows.get(release.id) : undefined;
+      return fact && isRecord(release)
+        ? { ...release, name: fact.title, body: fact.body, body_truncated: fact.body_truncated }
+        : release;
+    }),
+  };
 }
 
 /**
@@ -1745,6 +1811,7 @@ export type WithdrawalCause =
   | "rule-version"
   | "observation-unavailable"
   | "inspection-failure"
+  | "reproduction-refused"
   | "not-reobserved";
 export function withdrawalCauses(
   previousEnrollments: unknown,
@@ -1775,6 +1842,10 @@ export function withdrawalCauses(
     if (reason === "observation-unavailable") return "observation-unavailable" as const;
     if (reason === "repeated-inspection-failure" || reason === "invalid-facts")
       return "inspection-failure" as const;
+    // A route players have is never withdrawn unattended because the job's
+    // own reproduction disagreed: that is how a reproduction fault would
+    // withdraw offered games.
+    if (reason === "reproduction-refused") return "reproduction-refused" as const;
     return sameExceptReconfirmation(prior, next)
       ? ("not-reobserved" as const)
       : ("upstream" as const);
@@ -2013,7 +2084,7 @@ export function capacityDetail(result: ReturnType<typeof batchCapacity>): string
 export const stopConditionNames = [
   "gate-refused",
   "catalog-capacity",
-  "reproduction-refused",
+  "reproduction-unsound",
   "reproduction-transient",
   "path-allowlist",
   "required-check-failed",
@@ -2146,8 +2217,16 @@ export function stopConditions(input: {
   if (input.capacity) add("catalog-capacity", input.capacity);
   if (input.paths === "violated")
     add("path-allowlist", "The batch changed a path outside the generated-file allowlist.");
+  // Refusals of single identities withhold those identities and never stop
+  // the job (`withholdRefused`). What is left refused is the reproduction
+  // itself: an entry outside the authored candidate scope, a change that
+  // also edits authored sources, or a shard that ended without its typed
+  // per-identity record.
   if (input.reproduction === "refused")
-    add("reproduction-refused", "CI could not reproduce an eligible entry from its exact bytes.");
+    add(
+      "reproduction-unsound",
+      "The reproduction gave no per-identity outcome: an entry outside the authored candidate scope, a change that also edits authored sources, or a shard that ended without its typed record.",
+    );
   if (!input.summary) {
     add("worker-error", "The facts worker failed before writing its summary.");
     return { conditions, record: undefined };
@@ -2354,18 +2433,158 @@ function refusalFiles(file: string) {
         .map((name) => path.join(file, name))
     : [file];
 }
-/** One refusal file: `{ ok, transient, refusals }`, or an array of refusal lines. */
-function readRefusals(name: string): { ok: boolean; transient: boolean; refusals: unknown[] } {
+/**
+ * One reproduction shard's refusal record: `ok` when nothing but refusals of
+ * single identities is left (`identityRefusal`, which the job withholds);
+ * `transient` when every refusal is that or the runner's or provider's
+ * condition, and at least one is the latter; `refused`, every typed
+ * refusal; `refusals`, at most five of them as lines for a stop issue.
+ */
+export function refusalRecord(problems: number, refused: readonly Refusal[]) {
+  const scoped = problems === refused.length;
+  return {
+    ok: problems === 0 || (scoped && refused.every((refusal) => identityRefusal(refusal))),
+    transient:
+      scoped &&
+      refused.some((refusal) => transientReasons.includes(refusal.reason)) &&
+      refused.every(
+        (refusal) => transientReasons.includes(refusal.reason) || identityRefusal(refusal),
+      ),
+    refused: refused.map(({ port_id, reason, detail }) => ({ port_id, reason, detail })),
+    refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
+  };
+}
+/** One refusal file: `{ ok, transient, refused, refusals }`, or an array of refusal lines. */
+function readRefusals(name: string): {
+  ok: boolean;
+  transient: boolean;
+  refused: Refusal[] | undefined;
+  refusals: unknown[];
+} {
   const parsed: unknown = JSON.parse(readFileSync(name, "utf8"));
   if (Array.isArray(parsed))
-    return { ok: parsed.length === 0, transient: false, refusals: parsed as unknown[] };
+    return {
+      ok: parsed.length === 0,
+      transient: false,
+      refused: undefined,
+      refusals: parsed as unknown[],
+    };
   if (isRecord(parsed) && Array.isArray(parsed.refusals))
     return {
       ok: parsed.ok === true,
       transient: parsed.transient === true,
+      refused: Array.isArray(parsed.refused)
+        ? (parsed.refused as unknown[]).map((item) => {
+            if (
+              !isRecord(item) ||
+              typeof item.port_id !== "string" ||
+              typeof item.reason !== "string" ||
+              typeof item.detail !== "string"
+            )
+              throw new Error(`${name} holds a malformed refusal.`);
+            return { port_id: item.port_id, reason: item.reason, detail: item.detail } as Refusal;
+          })
+        : undefined,
       refusals: parsed.refusals as unknown[],
     };
-  return { ok: false, transient: false, refusals: [] };
+  return { ok: false, transient: false, refused: undefined, refusals: [] };
+}
+/**
+ * The identity refusals of a reproduction whose every one of `shards`
+ * shards recorded its typed outcome and none was left unsound: each is a
+ * verdict on one identity's facts (`identityRefusal`). Throws when a shard's
+ * record is missing or malformed, or a shard left a problem that is not such
+ * a refusal: the reproduction is then not a per-identity outcome.
+ */
+export function identityRefusals(file: string, shards: number): Refusal[] {
+  const files = refusalFiles(file);
+  if (files.length !== shards)
+    throw new Error(`${files.length} of ${shards} reproduction shards recorded their outcome.`);
+  return files.flatMap((name) => {
+    const record = readRefusals(name);
+    if (!record.ok || record.refused === undefined)
+      throw new Error(`${path.basename(name)} records a reproduction that is not per identity.`);
+    if (!record.refused.every((refusal) => identityRefusal(refusal)))
+      throw new Error(`${path.basename(name)} records a refusal that is not one identity's.`);
+    return record.refused;
+  });
+}
+/**
+ * The batch with each identity its reproduction refused withheld: its entry
+ * becomes ineligible `reproduction-refused` for the same observed release,
+ * naming the refusal reason, so the generated catalog offers nothing for it
+ * while every other identity of the batch proceeds. Only an eligible entry
+ * of this batch is withheld; a refusal naming anything else is an error.
+ * The full refusal (its provider detail) stays in the run's records; the
+ * entry's detail names only the reason, so a repeated refusal of the same
+ * release is a reconfirmation, not a new change.
+ */
+export function withholdRefused(
+  current: ListingFactsTable,
+  refusals: readonly Refusal[],
+): { table: ListingFactsTable; withheld: Refusal[] } {
+  const byId = new Map<string, Refusal>();
+  for (const refusal of refusals) {
+    if (!identityRefusal(refusal))
+      throw new Error(`${refusal.port_id}: a ${refusal.reason} refusal withholds no identity.`);
+    if (!byId.has(refusal.port_id)) byId.set(refusal.port_id, refusal);
+  }
+  const entries = current.entries.map((entry) => {
+    const refusal = byId.get(entry.port_id);
+    if (!refusal) return entry;
+    if (entry.ineligible !== null)
+      throw new Error(`${entry.port_id}: reproduction refused an entry that offers nothing.`);
+    byId.delete(entry.port_id);
+    const withheld: ListingFactsEntry = {
+      ...entry,
+      ineligible: {
+        reason: "reproduction-refused",
+        detail: `Reproduction from the provider and the exact bytes refused this entry (${refusal.reason}); a person hand-checks it, and the next run derives and reproduces it again.`,
+        cause: null,
+      },
+      observed_releases: [],
+      other_packages: [],
+      asset_names: [],
+      refused_archives: [],
+      attempt: null,
+      artifacts: [],
+    };
+    return withheld;
+  });
+  if (byId.size)
+    throw new Error(`Refusals name identities outside this batch: ${[...byId.keys()].join(", ")}.`);
+  const table = { ...current, entries, entries_sha256: digestOf(entries) };
+  checkListingFactsTable(table);
+  return {
+    table,
+    withheld: refusals.filter(
+      (refusal, index) => refusals.findIndex((item) => item.port_id === refusal.port_id) === index,
+    ),
+  };
+}
+/**
+ * The worker summary with withheld identities marked: each row becomes
+ * `ineligible` for `reproduction-refused`, and the count by reason follows.
+ */
+export function withheldSummary(text: string, withheld: readonly Refusal[]): string {
+  const value = JSON.parse(text) as Record<string, unknown>;
+  const ids = new Set(withheld.map((refusal) => refusal.port_id));
+  const identities = Array.isArray(value.identities)
+    ? (value.identities as { port_id: string; outcome: string; reason?: string }[])
+    : [];
+  const ineligible = isRecord(value.ineligible) ? { ...value.ineligible } : {};
+  ineligible["reproduction-refused"] =
+    Number(ineligible["reproduction-refused"] ?? 0) +
+    identities.filter((row) => ids.has(row.port_id)).length;
+  return `${JSON.stringify({
+    ...value,
+    ineligible,
+    identities: identities.map((row) =>
+      ids.has(row.port_id)
+        ? { ...row, outcome: "ineligible", reason: "reproduction-refused" }
+        : row,
+    ),
+  })}\n`;
 }
 export function reproductionDetails(file: string | undefined) {
   if (!file) return {};
@@ -2376,7 +2595,7 @@ export function reproductionDetails(file: string | undefined) {
     if (!lines.length) return {};
     const listed = lines.map((line) => `- ${inertText(String(line).slice(0, 400))}`).join("\n");
     return {
-      "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${listed}`,
+      "reproduction-unsound": `The reproduction gave no per-identity outcome; its records name:\n${listed}`,
       "reproduction-transient": `CI could not reproduce this batch for transient reasons on two consecutive runs; the latest causes:\n${listed}`,
     };
   } catch {
@@ -3091,18 +3310,23 @@ async function main(argv: string[]): Promise<string> {
       // The stop issue names the refused entries (at most five). A shard
       // whose only problems are over-budget refusals (its deadline, a quota
       // wait included) is transient: the runner's time, never the facts.
+      // Only refusals, every one a verdict on its own identity: the job
+      // withholds those identities and proceeds with the rest
+      // (`withholdRefused`). Pull-request CI, the merge authority, refuses
+      // the change instead.
+      const onlyIdentities =
+        problems.length > 0 &&
+        problems.length === refused.length &&
+        refused.every((refusal) => identityRefusal(refusal));
       if (option.refusals)
         writeFileSync(
           option.refusals,
-          `${JSON.stringify({
-            ok: problems.length === 0,
-            transient:
-              problems.length > 0 &&
-              problems.length === refused.length &&
-              refused.every((refusal) => transientReasons.includes(refusal.reason)),
-            refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
-          })}\n`,
+          `${JSON.stringify(refusalRecord(problems.length, refused))}\n`,
         );
+      if (onlyIdentities && option["own-run"] === "true" && option.refusals)
+        return `Listing facts change verified except ${refused.length} identity refusal(s), each withheld by the job: ${refused
+          .map((refusal) => `${refusal.port_id} (${refusal.reason})`)
+          .join(", ")}.\n`;
       if (
         problems.length &&
         problems.length === refused.length &&
@@ -3289,6 +3513,39 @@ async function main(argv: string[]): Promise<string> {
       }
       output("carried", String(carried.length));
       return `${JSON.stringify({ carried: carried.length })}\n`;
+    }
+    case "withhold": {
+      // After reproduction: each identity a shard refused on its own facts
+      // is withheld (`withholdRefused`); the caller regenerates the catalog
+      // and checks the batch again. Every shard must have recorded its typed
+      // outcome, or nothing is withheld and the step fails.
+      if (!option.refusals || !option.report || !option.output)
+        throw new Error("withhold needs --refusals, --report and --output.");
+      const shards = Number(option["shard-count"]);
+      if (!(Number.isSafeInteger(shards) && shards > 0))
+        throw new Error("withhold needs --shard-count, the number of reproduction shards.");
+      const { table, withheld } = withholdRefused(
+        currentFacts(),
+        identityRefusals(option.refusals, shards),
+      );
+      if (withheld.length) {
+        writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
+        writeFileSync(
+          option.report,
+          withheldSummary(readFileSync(option.report, "utf8"), withheld),
+        );
+        summary(
+          `### Withheld after reproduction\n\n${withheld
+            .map(
+              (refusal) =>
+                `- ${inertText(refusal.port_id)}: ${inertText(refusal.reason)}: ${inertText(refusal.detail.slice(0, 400))}`,
+            )
+            .join("\n")}`,
+        );
+      }
+      writeFileSync(option.output, `${JSON.stringify({ withheld })}\n`);
+      output("withheld", String(withheld.length));
+      return `${JSON.stringify({ withheld: withheld.length })}\n`;
     }
     case "capacity": {
       // The regenerated catalog against both released-reader bounds, before

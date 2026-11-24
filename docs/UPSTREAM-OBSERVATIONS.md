@@ -1368,6 +1368,28 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+A source whose consumers are all descriptive listings also keeps each of its
+four newest published releases' own text, for generated registration's
+release-text rule only: its observer configuration says so
+(`release_text: "listing-window"`, so its checkpoints are its own), and its
+facts keep the release name and, of the body, only the raw first line the
+rule judges, with whether that reading was cut (`text: { title, body,
+body_truncated }`). That line is looked for within the body's first 4,096
+characters (`releaseBodyReadWindow`, a bounded unit: a first line that does
+not end inside it reads as unobserved text, never as a statement either
+way). A change to the kept text during an observation is a concurrent change
+like any other fact. Managed sources keep no release text: their facts,
+checkpoints and Core projections are unchanged. The text travels beside the
+candidates, never inside `upstream_observation`, whose shape Core's signed
+listing accepts: each listing projection carries `listing_release_text`
+bound to its observation's facts digest, and the handoff carries it once per
+source as `descriptive_listing_release_text` (format 1), keyed by listing ID;
+`catalog_policies` omit it. A reader attaches text only to the observation
+whose digest it names; an older handoff without it reads as unobserved
+text. The text is unsigned, untrusted upstream content, never shown to
+players and never accepted into a listing
+([release text statements](CATALOG.md#release-text-statements)).
+
 The same report carries `descriptive_listing_preimages`, keyed by stable ID and
 binding the prior accepted observation hash. Feed a retained source report to
 `prepare-port.mts --listing-observations REPORT --validator-cli TRUSTED_CLI

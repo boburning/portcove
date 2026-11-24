@@ -2,12 +2,27 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
-import { observationHash } from "./upstream-observer.mts";
-import type { ProviderObservation } from "./upstream-observer.mts";
+import { observationHash, releaseTextWindow } from "./upstream-observer.mts";
+import type { ProviderObservation, ReleaseTextFact } from "./upstream-observer.mts";
 
 // A bounded descriptive window, never a complete-history or compatibility claim.
 export const listingObservationPolicy = "provider-listing-window-v2";
-export const listingReleaseLimit = 4;
+// The observer keeps release text for exactly this window (`releaseTextWindow`).
+export const listingReleaseLimit = releaseTextWindow;
+/**
+ * The format of a listing projection's release text beside its observation
+ * (`listing_release_text`) and of the handoff map that carries it
+ * (`descriptive_listing_release_text`). The text stays outside
+ * `upstream_observation`, whose shape Core's signed listing accepts.
+ */
+export const listingReleaseTextFormat = 1;
+export interface ListingReleaseText {
+  format: typeof listingReleaseTextFormat;
+  /** The observation the text belongs to: its provider facts digest. */
+  facts_sha256: string;
+  /** Per observed release whose text the provider reported, in observation order. */
+  releases: ({ id: number } & ReleaseTextFact)[];
+}
 // Reprojection follows actual implementation and schema-inventory changes too.
 export const listingProjectionHash = observationHash({
   policy: listingObservationPolicy,
@@ -160,6 +175,13 @@ export function projectListingObservation<Listing extends Record<string, unknown
       .filter((release) => selected.has(release.id))
       .every((release) => release.assets.length <= listingPackageLimit);
   const observedAt = observation.validation_started_at ?? observation.completed_at;
+  const releaseText: ListingReleaseText = {
+    format: listingReleaseTextFormat,
+    facts_sha256: observation.facts_sha256,
+    releases: observation.facts.releases.flatMap((release) =>
+      selected.has(release.id) && release.text ? [{ id: release.id, ...release.text }] : [],
+    ),
+  };
   const releases = observation.facts.releases
     .filter((release) => selected.has(release.id))
     .map((release) => ({
@@ -192,6 +214,7 @@ export function projectListingObservation<Listing extends Record<string, unknown
       factsHash: observation.facts_sha256,
       complete,
       releases,
+      releaseText,
     },
     staleAfterHours,
   );
@@ -381,6 +404,8 @@ function projectDescriptiveListing<Listing extends Record<string, unknown>>(
     factsHash: string;
     complete: boolean;
     releases: DescriptiveRelease[];
+    /** The observed releases' own text, beside (never inside) the observation. */
+    releaseText?: ListingReleaseText;
   },
   staleAfterHours: number,
 ) {
@@ -449,7 +474,38 @@ function projectDescriptiveListing<Listing extends Record<string, unknown>>(
     // Deliberately no managed channel/artifact eligibility projection.
     projections: [],
     listing_update: { ...structuredClone(listing), upstream_observation },
+    // Only a complete observation's own releases: an incomplete projection
+    // keeps retained facts whose text this observation did not read.
+    ...(complete && input.releaseText ? { listing_release_text: input.releaseText } : {}),
   };
+}
+
+/** A projection without its release text, which the handoff carries once, by listing. */
+export function withoutListingReleaseText(policy: unknown): unknown {
+  if (!isRecord(policy) || !Object.hasOwn(policy, "listing_release_text")) return policy;
+  const { listing_release_text: _text, ...rest } = policy;
+  return rest;
+}
+
+/**
+ * The release text of a source's listing projections, by listing id, for the
+ * handoff (`descriptive_listing_release_text`). Each entry names the facts
+ * digest of the observation it belongs to, so a reader attaches it only to
+ * that observation. Historical projections carry the text of their own facts.
+ */
+export function listingReleaseTextForReport(
+  policies: readonly unknown[],
+): Record<string, ListingReleaseText> {
+  return Object.fromEntries(
+    policies.flatMap((policy) =>
+      isRecord(policy) &&
+      typeof policy.port_id === "string" &&
+      isRecord(policy.listing_release_text) &&
+      policy.listing_release_text.format === listingReleaseTextFormat
+        ? [[policy.port_id, policy.listing_release_text as unknown as ListingReleaseText]]
+        : [],
+    ),
+  );
 }
 
 /** A failed attempt annotates retained facts without advancing their success/freshness clocks. */
