@@ -1778,7 +1778,8 @@
             "a local runner reads the shared store's leads without a lease and keeps its research",
             "stored collector state is not capped at a fixed size",
             "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
-            "the status export reports an unmigrated store instead of failing"
+            "the status export reports an unmigrated store instead of failing",
+            "the store omits state only for the exact revision, generation and definition a caller holds"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
