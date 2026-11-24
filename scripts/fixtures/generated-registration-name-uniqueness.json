@@ -1,0 +1,573 @@
+{
+  "_comment": "Real catalog listings (names and upstream URLs copied from crates/portcove-core/catalog/listings.json on 2026-11-24) with the measured archive and program names of generator 22 to 25 and the real-catalog name collisions found by the second review of #8654. Each case states the fit outcome at generator 26 with this file's listings as the whole catalog; catalog-generated-registration.test.mts asserts it in fit and gate. Every expectation was checked by hand against the name rules.",
+  "listings": [
+    {
+      "id": "god-of-war-kiexster",
+      "name": "God of War Recomp (KIexster)",
+      "project_url": "https://github.com/KIexster/god-of-war-recomp"
+    },
+    {
+      "id": "ascension-arnaldolima1-arnaldolima1-god-of-war-ascension",
+      "name": "God of War: Ascension — Ascension (arnaldolima1) (arnaldolima1)",
+      "project_url": "https://github.com/arnaldolima1/gow-ascension-pc"
+    },
+    {
+      "id": "psp-web-recomp-snuri00-god-of-war-chains-of-olympus",
+      "name": "God of War: Chains of Olympus — PSP Web Recomp (snuri00)",
+      "project_url": "https://github.com/snuri00/psp-web-recomp"
+    },
+    {
+      "id": "overkilllabs3-gears-judgement-recomp",
+      "name": "Gears of War: Judgment (Gears of War: Judgement Recomp)",
+      "project_url": "https://github.com/OverkillLabs3/gears-judgement-recomp"
+    },
+    {
+      "id": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
+      "name": "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
+      "project_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port"
+    },
+    {
+      "id": "fenix-reborn-0-1-josuloku-new-gears-of-war-2",
+      "name": "Gears of War 2 — Fenix Reborn 0.1 (josuloku-new)",
+      "project_url": "https://github.com/josuloku-new/Fenix-Reborn"
+    },
+    {
+      "id": "mstan-legendofzeldanesrecomp",
+      "name": "The Legend of Zelda / LegendOfZeldaNESRecomp (mstan)",
+      "project_url": "https://github.com/mstan/LegendOfZeldaNESRecomp"
+    },
+    {
+      "id": "chrissotraidis-bluewake",
+      "name": "The Legend of Zelda: The Wind Waker / BlueWake (chrissotraidis)",
+      "project_url": "https://github.com/chrissotraidis/bluewake"
+    },
+    {
+      "id": "kirby-letsgo-oracles-decomp",
+      "name": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo)",
+      "project_url": "https://github.com/kirby-letsgo/oracles-decomp",
+      "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases"
+    },
+    {
+      "id": "split2-recomp-phobos665-timesplitters-2",
+      "name": "TimeSplitters 2 — split2-recomp (phobos665)",
+      "project_url": "https://github.com/phobos665/split2-recomp"
+    },
+    {
+      "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+      "name": "TimeSplitters 2 — Destinity13 native recompilation",
+      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+      "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v1.1.0"
+    },
+    {
+      "id": "abilliontokens-sims2-recomp",
+      "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
+      "project_url": "https://github.com/abilliontokens/sims2-recomp"
+    },
+    {
+      "id": "abilliontokens-sims1-recomp",
+      "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
+      "project_url": "https://github.com/abilliontokens/sims1-recomp"
+    },
+    {
+      "id": "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue",
+      "name": "Toy Story 2: Buzz Lightyear to the Rescue — ToyStory2 Recompiled (PeriBluGaming)",
+      "project_url": "https://github.com/PeriBluGaming/ToyStory2Recomp"
+    },
+    {
+      "id": "dragon-ball-z-budokai-hd-first-game-dbz1",
+      "name": "Dragon Ball Z: Budokai HD — first game / DBZ1",
+      "project_url": "https://github.com/WistfulHopes/DBZ1"
+    },
+    {
+      "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
+      "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
+      "project_url": "https://github.com/Jstar269/Nakagawa-Recomp"
+    },
+    {
+      "id": "opentennis-fizl0-hot-shots-tennis",
+      "name": "Hot Shots Tennis — OpenTennis (FIZL0)",
+      "project_url": "https://github.com/FIZL0/opentennis"
+    },
+    {
+      "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "name": "Tony Hawk's Pro Skater / Alexbeav PSXRecomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+      "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases"
+    },
+    {
+      "id": "lancommander-tonywasaproskater",
+      "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
+      "project_url": "https://github.com/LANCommander/TonyWasAProSkater"
+    },
+    {
+      "id": "alexbeav-digimon-world-2-recomp",
+      "name": "Digimon World 2 / Alexbeav PSXRecomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
+      "release_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases"
+    },
+    {
+      "id": "dw2-pc-wyrelade-digimon-world-2",
+      "name": "Digimon World 2 — DW2-PC (Wyrelade)",
+      "project_url": "https://github.com/Wyrelade/DW2-PC"
+    },
+    {
+      "id": "pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2",
+      "name": "Dynasty Warriors 2 — pc-dynastywarriors2 (vs-sr-dev)",
+      "project_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2"
+    },
+    {
+      "id": "redneck-rampage-nblood",
+      "name": "Redneck Rampage (Rednukem)",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388"
+    },
+    {
+      "id": "crackdown-crackdown-recompiled",
+      "name": "Crackdown (Crackdown Recompiled)",
+      "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+      "release_url": "https://github.com/saulob/crackdown-xbox360-recompiled/releases"
+    },
+    {
+      "id": "lodilorenzo-cybermage-darklight-re-awakening",
+      "name": "CyberMage: Darklight Re-Awakening",
+      "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening"
+    },
+    {
+      "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
+      "name": "MechAssault 2: Lone Wolf — MechAssault2 Recomp (LegendaryXP)",
+      "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp"
+    },
+    {
+      "id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+      "name": "Crusader: No Remorse / SDL port",
+      "project_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+      "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases"
+    },
+    {
+      "id": "seal-team-sealteam-source-port",
+      "name": "SEAL Team / SealTeam Source Port",
+      "project_url": "https://github.com/PlasticCog/SealTeam-Source-Port",
+      "release_url": "https://github.com/PlasticCog/SealTeam-Source-Port/releases"
+    },
+    {
+      "id": "dead-or-alive-3-doa3-recomp",
+      "name": "Dead or Alive 3 (DOA3 Recomp)",
+      "project_url": "https://github.com/parkerallan/doa3-recomp"
+    },
+    {
+      "id": "mdomangue26-thebigs2",
+      "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
+      "project_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled"
+    },
+    {
+      "id": "bustagrooverecompiled-releases-brankomatija-bust-a-groove",
+      "name": "Bust A Groove — BustAGrooveRecompiled-Releases (brankomatija)",
+      "project_url": "https://github.com/brankomatija/BustAGrooveRecompiled-Releases"
+    },
+    {
+      "id": "bustagroove2-recomp-betinn-bust-a-groove-2",
+      "name": "Bust A Groove 2 — BustAGroove2-Recomp (betinn)",
+      "project_url": "https://github.com/betinn/BustAGroove2-Recomp"
+    },
+    {
+      "id": "itc-recomp-spooky098529-import-tuner-challenge",
+      "name": "Import Tuner Challenge — ITC-Recomp (Spooky098529)",
+      "project_url": "https://github.com/Spooky098529/ITC-Recomp"
+    },
+    {
+      "id": "dark-rift-kilnan-recomp",
+      "name": "Dark Rift / DarkRiftRecomp",
+      "project_url": "https://github.com/kilnan/DarkRiftRecomp"
+    },
+    {
+      "id": "f-zero-x-n64hub",
+      "name": "F-Zero X / n64hub",
+      "project_url": "https://github.com/n64hub/f-zero-x-recomp",
+      "release_url": "https://github.com/n64hub/f-zero-x-recomp/releases/tag/v0.1.16"
+    },
+    {
+      "id": "skate-2-skate2recompiled",
+      "name": "Skate 2 (Skate2Recompiled)",
+      "project_url": "https://github.com/cookingwithsimon/Skate2Recompiled"
+    },
+    {
+      "id": "skate-2007-skate1recompiled",
+      "name": "skate (2007) (Skate1Recompiled)",
+      "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled"
+    },
+    {
+      "id": "wayne-gretzky-s-3d-hockey-wg3d-recomp",
+      "name": "Wayne Gretzky's 3D Hockey (WG3D Recomp)",
+      "project_url": "https://github.com/geno55/wg3d-recomp"
+    },
+    {
+      "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
+      "name": "Star Wars: Shadows of the Empire — N64 / SotE-Recomp",
+      "project_url": "https://github.com/GTTeancum/SotE-Recomp"
+    },
+    {
+      "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
+      "name": "Crystal Defenders (Xbox Live Arcade) — Cristalis (Claudio5702)",
+      "project_url": "https://github.com/Claudio5702/Cristalis"
+    },
+    {
+      "id": "ogre-battle-64-person-of-lordly-caliber",
+      "name": "Ogre Battle 64: Person of Lordly Caliber (ogre-battle-64-recomp)",
+      "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
+      "release_url": "https://github.com/lfarroco/ogre-battle-64-recomp/releases/tag/v0.9.1"
+    },
+    {
+      "id": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
+      "name": "Tony Hawk's Proving Ground — Proving Ground Recompiled (Newbie1337x)",
+      "project_url": "https://github.com/Newbie1337x/ProvingGroundRecomp"
+    },
+    {
+      "id": "rampagere-jjmhalew-rampage-total-destruction",
+      "name": "Rampage: Total Destruction — RampageRE (jjmhalew)",
+      "project_url": "https://github.com/jjmhalew/RampageRE"
+    },
+    {
+      "id": "brogue-broguece",
+      "name": "Brogue / Brogue Community Edition",
+      "project_url": "https://github.com/tmewett/BrogueCE",
+      "release_url": "https://github.com/tmewett/BrogueCE/releases/tag/v1.15.1"
+    }
+  ],
+  "archives": [
+    {
+      "listing": "crackdown-crackdown-recompiled",
+      "archive": "Crackdown-v0.6.2-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "lodilorenzo-cybermage-darklight-re-awakening",
+      "archive": "cybermage-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
+      "archive": "MechAssault2-PC-v0.1.0-win-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name", "descriptor"]
+      }
+    },
+    {
+      "listing": "crusader-no-remorse-sebsebseb1982-sdl-port",
+      "archive": "crusader-no-remorse-1.69.0-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "seal-team-sealteam-source-port",
+      "archive": "SealTeam-0.6.1-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "dead-or-alive-3-doa3-recomp",
+      "archive": "DOA3-v1.0.7-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:dead",
+          "missing:or",
+          "missing:alive",
+          "missing:recomp"
+        ]
+      }
+    },
+    {
+      "listing": "abilliontokens-sims1-recomp",
+      "archive": "Sims1-win64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "mdomangue26-thebigs2",
+      "archive": "TheBigs2-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "bustagrooverecompiled-releases-brankomatija-bust-a-groove",
+      "archive": "BustAGroove-v0.1.0-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "itc-recomp-spooky098529-import-tuner-challenge",
+      "archive": "itc-v0.5.0-win-amd64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "dark-rift-kilnan-recomp",
+      "archive": "DarkRiftRecompiled-macOS-arm64.zip",
+      "expected": {
+        "enrolls": ["partial-name", "descriptor"]
+      }
+    },
+    {
+      "listing": "f-zero-x-n64hub",
+      "archive": "FZeroXRecompiled-v0.1.16-windows-x64.zip",
+      "expected": {
+        "enrolls": ["partial-name", "descriptor"]
+      }
+    },
+    {
+      "listing": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
+      "archive": "gow2-recomp-0.4.7-linux-x86_64.tar.gz",
+      "expected": {
+        "archive-name-unaccounted": ["gow"]
+      }
+    },
+    {
+      "listing": "skate-2-skate2recompiled",
+      "archive": "Skate2-PC-v0.2.0.zip",
+      "expected": {
+        "enrolls": ["partial-name", "descriptor"]
+      }
+    },
+    {
+      "listing": "skate-2007-skate1recompiled",
+      "archive": "Skate1-PC-v0.2.0.zip",
+      "expected": {
+        "enrolls": ["partial-name", "descriptor"]
+      }
+    },
+    {
+      "listing": "wayne-gretzky-s-3d-hockey-wg3d-recomp",
+      "archive": "wg3d-recomp-1.0-win64.zip",
+      "expected": {
+        "enrolls": []
+      }
+    },
+    {
+      "listing": "overkilllabs3-gears-judgement-recomp",
+      "archive": "gow-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": [
+          "ascension-arnaldolima1-arnaldolima1-god-of-war-ascension",
+          "psp-web-recomp-snuri00-god-of-war-chains-of-olympus"
+        ]
+      }
+    },
+    {
+      "listing": "ascension-arnaldolima1-arnaldolima1-god-of-war-ascension",
+      "archive": "gow-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": [
+          "overkilllabs3-gears-judgement-recomp",
+          "psp-web-recomp-snuri00-god-of-war-chains-of-olympus"
+        ]
+      }
+    },
+    {
+      "listing": "mstan-legendofzeldanesrecomp",
+      "archive": "tloz-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": ["chrissotraidis-bluewake", "kirby-letsgo-oracles-decomp"]
+      }
+    },
+    {
+      "listing": "abilliontokens-sims2-recomp",
+      "archive": "ts2-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": [
+          "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+          "split2-recomp-phobos665-timesplitters-2",
+          "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue"
+        ]
+      }
+    },
+    {
+      "listing": "split2-recomp-phobos665-timesplitters-2",
+      "archive": "ts2-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": [
+          "abilliontokens-sims2-recomp",
+          "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+          "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue"
+        ]
+      }
+    },
+    {
+      "listing": "split2-recomp-phobos665-timesplitters-2",
+      "archive": "TimeSplitters2-1.0-win64.zip",
+      "expected": {
+        "archive-names-another-listing": ["destinity13-timesplitters-2-ps2-slus20314-native-linux"]
+      }
+    },
+    {
+      "listing": "dragon-ball-z-budokai-hd-first-game-dbz1",
+      "archive": "dbz-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:dragon",
+          "missing:ball",
+          "missing:z",
+          "missing:budokai",
+          "missing:hd",
+          "missing:first",
+          "missing:game",
+          "missing:1"
+        ]
+      }
+    },
+    {
+      "listing": "opentennis-fizl0-hot-shots-tennis",
+      "archive": "hst-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": ["nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip"]
+      }
+    },
+    {
+      "listing": "opentennis-fizl0-hot-shots-tennis",
+      "archive": "Tennis-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:hot",
+          "missing:shots",
+          "missing:open",
+          "missing:fizl",
+          "missing:0"
+        ]
+      }
+    },
+    {
+      "listing": "alexbeav-tony-hawk-s-pro-skater-recomp",
+      "archive": "thps-1.0-win64.zip",
+      "expected": {
+        "name-not-unique-in-catalog": ["lancommander-tonywasaproskater"]
+      }
+    },
+    {
+      "listing": "alexbeav-digimon-world-2-recomp",
+      "archive": "dw2-1.0-win64.zip",
+      "expected": {
+        "archive-names-another-listing": ["dw2-pc-wyrelade-digimon-world-2"]
+      }
+    },
+    {
+      "listing": "split2-recomp-phobos665-timesplitters-2",
+      "archive": "phobos665-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:time",
+          "missing:splitters",
+          "missing:2",
+          "missing:split",
+          "missing:2",
+          "missing:recomp"
+        ]
+      }
+    },
+    {
+      "listing": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
+      "archive": "Jstar269-1.0-win64.zip",
+      "expected": {
+        "archive-name-unaccounted": [
+          "missing:hot",
+          "missing:shots",
+          "missing:tennis",
+          "missing:get",
+          "missing:a",
+          "missing:grip",
+          "missing:nakagawa",
+          "missing:recomp"
+        ]
+      }
+    },
+    {
+      "listing": "rampagere-jjmhalew-rampage-total-destruction",
+      "archive": "Rampage-1.0-win64.zip",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    }
+  ],
+  "programs": [
+    {
+      "listing": "star-wars-shadows-of-the-empire-n64-sote-recomp",
+      "program": "shadowsoftheempire.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
+      "program": "crystaldefenders.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "ogre-battle-64-person-of-lordly-caliber",
+      "program": "ogrebattle64.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
+      "program": "provingground.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "rampagere-jjmhalew-rampage-total-destruction",
+      "program": "rampage.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "brogue-broguece",
+      "program": "brogue.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "dw2-pc-wyrelade-digimon-world-2",
+      "program": "dw2.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "alexbeav-digimon-world-2-recomp",
+      "program": "dw2.exe",
+      "expected": {
+        "name-not-unique-in-catalog": [
+          "dw2-pc-wyrelade-digimon-world-2",
+          "pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2"
+        ]
+      }
+    },
+    {
+      "listing": "wayne-gretzky-s-3d-hockey-wg3d-recomp",
+      "program": "wg3d.exe",
+      "expected": {
+        "enrolls": ["partial-name"]
+      }
+    },
+    {
+      "listing": "opentennis-fizl0-hot-shots-tennis",
+      "program": "hst.exe",
+      "expected": {
+        "name-not-unique-in-catalog": ["nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip"]
+      }
+    }
+  ]
+}

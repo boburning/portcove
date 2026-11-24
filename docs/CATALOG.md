@@ -4118,11 +4118,34 @@ needed (`registration_queues.enrollment_reliefs`), and
 `registration_queues.relieved_enrollments` lists the relieved enrollments by
 relief for a person to hand-check first.
 
-- **Partial name** (`partial-name`). An accepted name is read in title
+- **Partial name** (`partial-name`). An accepted name is read in
   segments: runs of words joined only by a space, `-`, `_`, `.`, an
-  apostrophe or glued, so a colon, bracket, slash or dash starts a new
-  segment. The archive's product may omit whole segments and a segment's
-  leading words, but once it keeps a word of a segment it keeps every later
+  apostrophe, `&`, `+`, `,` or glued (`&`, `+` and `,` link like `and`), so a
+  colon, bracket, slash or dash starts a new segment. The first segment and
+  colon subtitles are title segments; from the first em or en dash, slash,
+  backslash, vertical bar or opening bracket on, every segment is an
+  annotation (an author handle, a project, tool or platform name). The
+  archive's product may omit whole segments, but never one that holds a
+  sequel number (`sequel`): a number of one to three digits or a roman
+  number, unless it is part of a dotted version (`0.1`), follows a linked
+  platform word (`platformNumberWords`: "Xbox 360", "Nintendo 64", `N64`) or
+  is glued inside an annotation token of two or more letters (`BT2`,
+  `OpenKai2`, `oric212`); a single letter glued to it (`X4`) stays a sequel.
+  An annotation may also repeat a number the product carries ("Gears of War
+  2 — Gears of War 2 port" for `GearsOfWar2`). So `Halo` never accounts for
+  "Halo: 2", "Halo — 2" or "Halo, 2", `Doom` never for "Doom (2)" or "Doom:
+  3", `Shenmue` never for "Shenmue: Chapter 2", `MegaMan` never for "Mega
+  Man: X4" or "Mega Man (X4)", and `FinalFantasyVII` never for "Final
+  Fantasy VII / VIII". Before the first word it keeps of a segment, the
+  product may omit only articles (`the`, `a`, `an`) or a leading run that
+  ends in a possessive ("Tony Hawk's", "Tom Clancy's", "Disney's"): `Contra`
+  never accounts for "Super Contra", `Metroid` for "Super Metroid",
+  `PacMan` for "Ms. Pac-Man", `MarioBros` for "Super Mario Bros.",
+  `MortalKombat3` for "Ultimate Mortal Kombat 3", `CastleWolfenstein` for
+  "Return to Castle Wolfenstein", `Auto` for "Grand Theft Auto: Vice City",
+  `Mario` for "Paper Mario" or `Sonic` for "Sonic & Knuckles", while
+  `provingground` accounts for "Tony Hawk's Proving Ground". Once it keeps a
+  word of a segment it keeps every later
   word of that segment, except the segment's trailing port descriptors and
   measured edition suffixes (`editionSuffixWords`: `ce`, "Brogue CE"). So
   `Crackdown-v0.6.2-windows-x64.zip` accounts for "Crackdown (Crackdown
@@ -4137,11 +4160,14 @@ relief for a person to hand-check first.
   A port descriptor inside the title is a title word and is never omitted
   ("Static Shock" is never `Shock`, "Pal Game Party" never `Game-Party`). Every
   omitted name word, a trailing descriptor included, is recorded as
-  `partial-name`. When a core word is omitted, a kept word must be
-  distinctive: not an article or connector, a generic or edition noun, a
-  platform or console word, a descriptor, a neutral word, a number or a
-  single letter (`nonDistinctiveWords`). So `game-1.0.zip` never accounts for
-  "The Game". Numbers are never optional: every number of the archive's
+  `partial-name`. When a core word is omitted, a kept word of a title
+  segment must be distinctive: not an article or connector, a generic or
+  edition noun, a platform or console word, a descriptor, a neutral word, a
+  number or a single letter (`nonDistinctiveWords`). So `game-1.0.zip` never
+  accounts for "The Game", and an annotation alone never accounts for
+  anything: an archive named only after the author, the project or the tool
+  ("Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)" for
+  `GloriousEggroll-…`) withholds. Numbers are never optional: every number of the archive's
   product must be a whole number of the name where it stands; a kept number
   keeps its linked preceding word (`MegaMan2` never accounts for "Mega Man
   Legends 2"); a kept word keeps its linked preceding number; and a number of
@@ -4153,15 +4179,26 @@ relief for a person to hand-check first.
   (`Lantern (1998)`), or the `360` of `crackdown-xbox360-recompiled`, linked
   only to `xbox`. Across names too: a product that drops a number another of
   the listing's accepted names ties to a kept word, and does not carry that
-  number elsewhere, is unaccounted, also when it spells the id or repository
+  number elsewhere, is unaccounted (a number glued inside an annotation
+  token never is one, nor one an annotation repeats from the product), also when it spells the id or repository
   name exactly (`Doom-1.0-…` for a listing named "Doom 2" whose id is `doom`,
   `Sims1-…` for "The Sims 2"). `DOA3` for "Dead or Alive 3 (DOA3 Recomp)"
   carries its `3`. A platform name split by camel case (`PlayStation 2`)
   makes its number mandatory: the cost is stated.
-- **Initialism** (`initialism`). A product of two to six letters may be the
+- **Initialism** (`initialism`). A product of three to six letters, or two
+  to six with a number of the name among its initials, may be the
   initials of the first title segment's words from its first word on,
   covering more than half of that segment's words and at least two of them,
-  with a distinctive word among them. A word gives its first letter, a
+  with a distinctive word among them, and only where the partial name made
+  of that segment's words, omitting the same later segments, is accepted
+  (`laterSegmentsDroppable`): `nfs` never stands for "Need for Speed:
+  Underground 2", `dbz` for "Dragon Ball Z: Budokai 3", `sw` for "Star Wars:
+  Episode II", `mm` for "Mega Man: X4", `kh` for "Kingdom Hearts: Volume 2",
+  `gow` for "Gears of War: 2" or `dw` for "Dynasty Warriors: Gundam 2". Since
+  generator 26 a two-letter initialism without a number is none: `mm` for
+  "Midtown Madness", `ki` for "Killer Instinct" and `sc` for "Super Contra"
+  withhold (`mm2` for "Mega Man 2" and `ki2` for "Killer Instinct 2" do
+  not). A word gives its first letter, a
   capitalised acronym its first letter or all of it (`otesa` for
   `OpenTESArena`), a number all its digits or roman letters (`wg3d` for
   "Wayne Gretzky's 3D Hockey"), a possessive `s` nothing (`thps` for "Tony
@@ -4179,15 +4216,17 @@ relief for a person to hand-check first.
   repository named `gears-of-war-port` or `gow-recomp`, while `gow2` does;
   `nfs` never stands for "Need for Speed Underground" through a repository
   named `nfs-recomp`, `thps` never for "Tony Hawk's Pro Skater 2" through
-  `thps-port`, and `SSX-Recomp` never for "SSX 3". Measured: `mm`, `sst`,
-  `rsc`, `ghr`, `gow`, `mhgu`, `dw2`, `wg3d`, `doa3`, `itc`, `ki`, `thps`,
-  `otesa`. An initialism that is a
+  `thps-port`, and `SSX-Recomp` never for "SSX 3". Measured: `sst`,
+  `rsc`, `ghr`, `gow`, `mhgu`, `dw2`, `wg3d`, `doa3`, `itc`, `thps`,
+  `otesa`; `mm` and `ki` were measured too and are lost since generator 26
+  (`ki` is still accounted where the repository name spells it, `ki-recomp`).
+  An initialism that is a
   deny-list, neutral, descriptor, channel, variant, layout or package-form
   word, a roman number, or a short edition, medium or bonus word (`ds`, `sv`,
   `svr`, `cl`, `ed`, `me`, `dlc`, `ost`, `bgm`, `hd`, `sd`, `uhd`, `dx`, `cd`,
   `dvd`, `ex`, `se`, `ce`, `le`, `re`, `mp`, `sp`, `vr`, `xl`), is never one
-  (`initialismVetoWords`), even where it really is the initials; `sc` for
-  "Super Contra" is one. `ewj` for "Earthworm Jim" is not recovered as an
+  (`initialismVetoWords`), even where it really is the initials; `sc2` for
+  "Super Contra 2" is one. `ewj` for "Earthworm Jim" is not recovered as an
   initialism: `earthworm` is one word in every accepted name, and the rules
   split no compound words; it is accounted only where the repository name
   spells it (`ewj-port`).
@@ -4254,6 +4293,37 @@ relief for a person to hand-check first.
   `SSX3-Recomp-v0.3.0-windows-x86_64/` and `Dora64-3-1.0.0-Windows-x64/`
   failed the per-word folder rule only because of their glued digits.
 
+A name is relieved when it is accepted only through a partial name or an
+initialism: a product that spells one of the listing's accepted names whole,
+adding or omitting only descriptors and edition suffixes (`DarkRiftRecompiled`
+for the repository `DarkRiftRecomp`, `itc` for the repository `ITC-Recomp`),
+or only adding a build identifier, is not relieved, and the fit prefers such
+a spelling over a relieved one.
+
+**Uniqueness** (`name-not-unique-in-catalog`, generator 26). A relieved
+archive or program name is accepted only if no catalog listing in another
+repository would accept the same product literal, by equality with one of
+its accepted names or by the same reliefs (`catalogNameCollisions`; the gate
+restates it from `generation.records` with its own index,
+`gateCollisions`). A name that cannot tell two catalog games apart is a
+contradiction, whatever the repository says: on the catalog of November 24,
+2026, `gow` is accepted by God of War listings and by "Gears of War:
+Judgment", `tloz` by twelve Zelda listings, `ts2` by "The Sims 2",
+"TimeSplitters 2" (twice) and "Toy Story 2", `hst` by both Hot Shots Tennis
+games, `dw2` by Digimon World 2 and Dynasty Warriors 2, and `thps` by two
+ports of Tony Hawk's Pro Skater. The withhold lists the other listings as
+evidence (`registration_queues.reason_evidence`), so a person can see whether
+a more specific accepted name in the catalog would resolve it. A listing in
+the same repository is the [shared-repository](#release-lines) rule's
+concern and is not compared. The cost is stated: two ports of one game in
+different repositories collide too (`thps`), and such an identity waits for
+a person. The index maps every word of every listing's id, name and GitHub
+repository name, and the first letter of each, to its listings; it is built
+once per listing array (O(W) for W words in the catalog). A literal of length
+L is looked up in O(L × longest word) map reads after each leading run of
+descriptors, and only the listings found are checked with the reliefs, in
+code-point order of their ids.
+
 A relieved archive product that spells the complete accepted name (id, name
 or GitHub repository name, modulo descriptors) of another catalog listing,
 or the first title segment of the name of a listing in another repository
@@ -4265,8 +4335,14 @@ version that, with the product, spells another listing's name
 (`Wipeout-2048-…` for "Wipeout" beside a listing "Wipeout 2048"); alone such
 an archive stays in the `year_as_version` queue. A partial name that is a
 leading-word prefix of two or more listings' names (`Crackdown` beside
-"Crackdown" and "Crackdown 2") enrolls but is listed in
-`registration_queues.franchise_only_partial` for a person to check first. An archive that
+"Crackdown" and "Crackdown 2"), or an initialism whose run's words are
+(`mm2` beside "Mega Man 2" and "Mega Man 2: Disc 3"), enrolls but is listed
+in `registration_queues.franchise_only_partial` for a person to check first.
+`HalfLife` for "Half-Life: Blue Shift" is such a franchise-only partial name
+(the colon makes "Blue Shift" a later segment without a number); beside a
+"Half-Life: Opposing Force" listing in another repository it spells that
+listing's first title segment and withholds, and beside any other listing in
+another repository that accepts it it withholds by uniqueness. An archive that
 spells its own listing's name exactly is not compared, and the check reads
 archive names only: a relieved program name is not compared with other
 listings.
@@ -4940,7 +5016,9 @@ metadata declares the launcher as the game's runtime entry), `role-program`
 (a program or its folder named for a debug, server, tools, editor, SDK, demo,
 trial or test role), `non-ascii-name` (an archive or program name outside
 ASCII), `archive-names-another-listing` (a relieved archive product spells
-another catalog listing's complete name), `archive-name-unaccounted` (the
+another catalog listing's complete name), `name-not-unique-in-catalog` (a
+relieved archive or program name that a listing in another repository would
+accept too), `archive-name-unaccounted` (the
 offered archive's name holds a token that is neither the listing's or
 repository's name, a version, a neutral word nor a measured relief),
 `split-package` (another archive without programs whose name allows
@@ -4953,15 +5031,17 @@ or sits in a folder of unaccounted words). When no platform fits, the reason is 
 gave. `bundled-toolchain` follows `core-refused` in that order.
 `registration_queues` also holds `reason_evidence` (per reason among
 `role-program`, `launcher-entry`, `non-ascii-name`,
-`archive-names-another-listing`, `archive-name-unaccounted`,
-`program-name-unaccounted` and `split-package`, per withheld
+`archive-names-another-listing`, `name-not-unique-in-catalog`,
+`archive-name-unaccounted`, `program-name-unaccounted` and
+`split-package`, per withheld
 identity, the matched word with the program path, or the platform with the
 archive name and program path), `accepted_by_repository_name_only` and
 `numbered_products` (enrolled identities accepted only by the repository's
 name, or by counting a number as a product word), `enrollment_reliefs` and
 `relieved_enrollments` (each enrolled identity's [name reliefs](#measured-name-reliefs),
 and the relieved identities by relief), `franchise_only_partial` (enrolled
-partial names shared as a prefix by two or more listings), `unaccounted_tokens` (per closed-vocabulary
+partial names, and initialisms by their run's words, shared as a prefix by
+two or more listings), `unaccounted_tokens` (per closed-vocabulary
 reason, each unaccounted token with the number of identities it withholds and
 those identities, most frequent first: the evidence a person reads before a
 token joins a neutral list), `bundled_toolchains` (each withheld
@@ -5036,7 +5116,7 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 25, the facts parser version from 5 to 23 and
+generator version from 5 to 26, the facts parser version from 5 to 23 and
 the facts table format from 4 to 17 (generator 23: the measured name
 reliefs, `archive-names-another-listing` and the `enrollment_reliefs` and
 `relieved_enrollments` queues; generator 24: title segments for partial names
@@ -5044,7 +5124,12 @@ and initialisms, title descriptors kept, only `p` as a patch letter, the
 first-segment and number-suffix cross-listing checks and the
 `franchise_only_partial` queue; generator 25: truncated initialisms across
 the listing's names, so a repository name without the sequel number never
-accounts for a numbered entry; generator 22 and parser 23: the
+accounts for a numbered entry; generator 26: uniqueness of relieved names
+(`name-not-unique-in-catalog`), initialisms only where the partial name of
+the same words is accepted and of three letters unless numbered, no omitted
+segment with a sequel number, only articles or a possessive run before kept
+words, annotations alone never accounting for a name, and `&`, `+` and `,`
+linking words; generator 22 and parser 23: the
 ordered archive grammar, folder numbers by the same grammar, relief only for
 recognised forms and the listing's own names, a `.wad` as a competing
 container, `release` before a status word's number, and the

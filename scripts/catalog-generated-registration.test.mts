@@ -77,7 +77,12 @@ import {
   nameForm,
   nameInitialisms,
   reliefSpelling,
+  dropsLinkedNumber,
   digitRuns,
+  catalogNameCollisions,
+  gateCollisions,
+  platformNumberWords,
+  gatePlatformNumberWords,
   initialismVetoWords,
   gateInitialismVeto,
   portDescriptorWords,
@@ -7330,6 +7335,20 @@ void test("every fit withholding reason is restated by the gate or exempted with
     return forged;
   };
   const spaceRecord = listing(unseen, { name: "Space Game", original_game_title: "Space Game" });
+  const fixtureSubtitled = listing(unseen, {
+    name: "Runtime Fixture: Unseen",
+    original_game_title: "Runtime Fixture",
+  });
+  const wordsOf = (record: AuthoredPort, artifacts: ArtifactFactV2[]) =>
+    entry(artifacts, {}, unseen, { listing_words: listingWords(record.listing) });
+  const deadOrAlive = listing(unseen, {
+    name: "Dead or Alive 3",
+    original_game_title: "Dead or Alive 3",
+  });
+  const dawnOfAges = listing("zz-other-dawn", {
+    name: "Dawn of Ages 3: Rise",
+    original_game_title: "Dawn of Ages 3: Rise",
+  });
   const spaceFacts = (program: string) =>
     entry([named("Space-Game-1.0-win64.zip", [player(program)], 11, "windows")], {}, unseen, {
       listing_words: listingWords(spaceRecord.listing),
@@ -7477,7 +7496,12 @@ void test("every fit withholding reason is restated by the gate or exempted with
     "archive-names-another-listing": [
       {
         // The first title segment of a listing in another repository.
-        facts: entry([named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows")]),
+        // (Generator 26: the record is named so that `Runtime-Fixture` is a
+        // partial name of it; N4 no longer drops the id's leading words.)
+        record: fixtureSubtitled,
+        facts: wordsOf(fixtureSubtitled, [
+          named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows"),
+        ]),
         others: [
           listing("zz-other-unseen", {
             name: "Runtime Fixture — Remade (someone)",
@@ -7486,12 +7510,46 @@ void test("every fit withholding reason is restated by the gate or exempted with
         ],
       },
       {
-        facts: entry([named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows")]),
+        record: fixtureSubtitled,
+        facts: wordsOf(fixtureSubtitled, [
+          named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows"),
+        ]),
         others: [
           listing("zz-other-runtime", {
             name: "Other",
             original_game_title: "Other",
             project_url: "https://github.com/fixture-owner/runtime-fixture-recomp",
+          }),
+        ],
+      },
+    ],
+    "name-not-unique-in-catalog": [
+      {
+        // An initialism archive another repository's listing accepts too.
+        record: deadOrAlive,
+        facts: wordsOf(deadOrAlive, [
+          named("doa3-1.0-win64.zip", [player("DOA3.exe")], 11, "windows"),
+        ]),
+        others: [dawnOfAges],
+      },
+      {
+        // A relieved program name, in an archive spelling the name exactly.
+        record: deadOrAlive,
+        facts: wordsOf(deadOrAlive, [
+          named("Dead-or-Alive-3-1.0-win64.zip", [player("DOA3.exe")], 11, "windows"),
+        ]),
+        others: [dawnOfAges],
+      },
+      {
+        // A partial name another listing accepts by dropping a possessive run.
+        record: fixtureSubtitled,
+        facts: wordsOf(fixtureSubtitled, [
+          named("Runtime-Fixture-1.0-win64.zip", game, 11, "windows"),
+        ]),
+        others: [
+          listing("zz-other-hawk", {
+            name: "Tony Hawk's Runtime Fixture",
+            original_game_title: "Tony Hawk's Runtime Fixture",
           }),
         ],
       },
@@ -8020,7 +8078,9 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "Crackdown-v0.6.2-windows-x64.zip",
       ["partial-name"],
     ],
-    ["Dead or Alive 3 (DOA3 Recomp)", "doa3-recomp", "DOA3-v1.0.7-win64.zip", ["initialism"]],
+    // Generator 26: the repository's name minus its descriptor spells it
+    // (equal, no uniqueness check needed), before the listing's initialism.
+    ["Dead or Alive 3 (DOA3 Recomp)", "doa3-recomp", "DOA3-v1.0.7-win64.zip", ["partial-name"]],
     [
       "The Sims (Original Xbox Static Recompilation)",
       "sims1-recomp",
@@ -8055,11 +8115,18 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
     // The title as measured already spells these exactly.
     ["The Bigs 2", "The-Bigs-2-Recompiled", "TheBigs2-windows-x64.zip", []],
     ["Bust A Groove", "BustAGrooveRecompiled-Releases", "BustAGroove-v0.1.0-windows-x64.zip", []],
-    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", ["initialism"]],
+    // Generator 26: the repository's name minus its descriptor, as for DOA3.
+    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", ["partial-name"]],
     // (b) the archive adds a measured port descriptor.
     ["Dark Rift", "DarkRiftRecomp", "DarkRiftRecompiled-macOS-arm64.zip", ["descriptor"]],
     ["F-Zero X", "f-zero-x-recomp", "FZeroXRecompiled-v0.1.16-windows-x64.zip", ["descriptor"]],
-    ["Killer Instinct", "ki-recomp", "KIRecompiled-macOS-arm64.zip", ["initialism", "descriptor"]],
+    // Generator 26: `ki` is no initialism (N1); the repository name spells it.
+    [
+      "Killer Instinct",
+      "ki-recomp",
+      "KIRecompiled-macOS-arm64.zip",
+      ["partial-name", "descriptor"],
+    ],
     [
       "Gears of War 2",
       "gears-of-war-2-pc-port",
@@ -8083,7 +8150,6 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
     ["Lantern", "lantern", "Lantern-PAL-1.0-win64.zip", ["descriptor"]],
     // (c) initialisms of an accepted name.
     ["Tony Hawk's Pro Skater", "skater-port", "thps-1.0-win64.zip", ["initialism"]],
-    ["Midtown Madness", "madness-port", "mm-v1.0-windows-x64.zip", ["initialism"]],
     ["Sega Superstars Tennis", "tennis-port", "sst-1.0-win64.zip", ["initialism"]],
     ["RalliSport Challenge", "challenge-port", "rsc-1.0-win64.zip", ["initialism"]],
     ["God Hand Rearmed", "rearmed-port", "ghr-1.0-win64.zip", ["initialism"]],
@@ -8092,7 +8158,6 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
     ["Digimon World 2", "world-port", "dw2-1.0-win64.zip", ["initialism"]],
     ["Wayne Gretzky's 3D Hockey", "hockey-port", "wg3d-1.0-win64.zip", ["initialism"]],
     ["Dead or Alive 3", "alive-port", "doa3-1.0-win64.zip", ["initialism"]],
-    ["Killer Instinct", "instinct-port", "ki-1.0-win64.zip", ["initialism"]],
     ["OpenTESArena", "arena-port", "otesa-1.0-win64.zip", ["initialism"]],
     // (f) build identifiers.
     ["Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", ["build-id"]],
@@ -8123,7 +8188,7 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "doa3-recomp",
       "DOA3-v1.0.7-win64.zip",
       "DOA3.exe",
-      ["initialism"],
+      ["partial-name"],
     ],
     [
       "Crusader: No Remorse / SDL port",
@@ -8160,7 +8225,13 @@ void test("measured shapes (a)-(f) enroll under the name reliefs, in fit and gat
       "MechAssault2.exe",
       ["partial-name", "descriptor"],
     ],
-    ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip", "itc.exe", ["initialism"]],
+    [
+      "Import Tuner Challenge",
+      "ITC-Recomp",
+      "itc-v0.5.0-win-amd64.zip",
+      "itc.exe",
+      ["partial-name"],
+    ],
     ["Lantern", "lantern", "Lantern-e1625759-windows-x64.zip", "Lantern.exe", ["build-id"]],
     [
       "Condemned 2",
@@ -8414,12 +8485,15 @@ void test("what the reliefs do not cover stays withheld: channel, variant and ro
   );
   assert.ok(dated.decision.fit, JSON.stringify(dated.decision));
   assert.equal(dated.gate, "accepted");
-  // A real initialism no list holds is one: `sc` for "Super Contra".
-  assert.ok("product" in reliefAccount("Super Contra", "contra-port", "sc-1.0-win64.zip"));
+  // A real initialism no list holds is one: `sc2` for "Super Contra 2". Two
+  // letters alone are no initialism since generator 26 (N1): `sc` for "Super
+  // Contra" withholds.
+  assert.ok("product" in reliefAccount("Super Contra 2", "contra-port", "sc2-1.0-win64.zip"));
+  assert.ok(!("product" in reliefAccount("Super Contra", "contra-port", "sc-1.0-win64.zip")));
   for (const word of ["sc", "dx", "hd", "cd", "re"])
     assert.equal(
-      nameInitialisms(nameForm(`${word[0]!.toUpperCase()}ame ${word[1]!.toUpperCase()}ore`)).has(
-        word,
+      nameInitialisms(nameForm(`${word[0]!.toUpperCase()}ame ${word[1]!.toUpperCase()}ore 2`)).has(
+        `${word}2`,
       ),
       !["dx", "hd", "cd", "re"].includes(word),
       word,
@@ -8644,6 +8718,7 @@ void test("relieved enrollments are listed by relief for a person to hand-check 
     ],
     ["e", "F-Zero X", "f-zero-x-recomp", "FZeroXRecompiled-v0.1.16-windows-x64.zip", "FZeroX.exe"],
     ["f", "Lantern Two", "lantern-two", "Lantern-Two-1.0-win64.zip", "LanternTwo.exe"],
+    ["g", "Dead or Alive 3", "alive-port", "doa3-1.0-win64.zip", "DOA3.exe"],
   ];
   const records: AuthoredPort[] = [];
   const entries: ListingFactsEntry[] = [];
@@ -8663,15 +8738,17 @@ void test("relieved enrollments are listed by relief for a person to hand-check 
   const queues = registrationQueues(generation);
   assert.deepEqual(queues.enrollment_reliefs, {
     "zz-relief-a": ["partial-name"],
-    "zz-relief-b": ["initialism"],
+    // Generator 26: the repository's name minus its descriptor.
+    "zz-relief-b": ["partial-name"],
     "zz-relief-c": ["build-id"],
     "zz-relief-d": ["folder"],
     "zz-relief-e": ["descriptor"],
     "zz-relief-f": [],
+    "zz-relief-g": ["initialism"],
   });
   assert.deepEqual(queues.relieved_enrollments, {
-    "partial-name": ["zz-relief-a"],
-    initialism: ["zz-relief-b"],
+    "partial-name": ["zz-relief-a", "zz-relief-b"],
+    initialism: ["zz-relief-g"],
     descriptor: ["zz-relief-e"],
     "build-id": ["zz-relief-c"],
     folder: ["zz-relief-d"],
@@ -9046,7 +9123,6 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
     ["RalliSport Challenge", "challenge-port", "rsc-1.0-win64.zip"],
     ["God Hand Rearmed", "rearmed-port", "ghr-1.0-win64.zip"],
     ["Import Tuner Challenge", "ITC-Recomp", "itc-v0.5.0-win-amd64.zip"],
-    ["Killer Instinct", "instinct-port", "ki-1.0-win64.zip"],
   ];
   for (const [name, repository, archive] of enrolled)
     assert.ok("product" in reliefAccount(name, repository, archive), `${archive} for ${name}`);
@@ -9061,22 +9137,29 @@ void test("second review: a partial name keeps its segment's tail, initialisms k
   assert.equal(reasonOf(shock.decision), "program-name-unaccounted");
   assert.notEqual(shock.gate, "accepted");
   // B3: the fit and the gate agree on descriptors before an initialism.
+  // (Generator 26: three letters, since two-letter initialisms need a number.)
   for (const [name, repository, archive] of [
-    ["Super Contra", "contra-port", "recomp-sc-1.0-win64.zip"],
-    ["Super Contra", "contra-port", "usa-sc-1.0-win64.zip"],
+    ["Super Contra Force", "contra-port", "recomp-scf-1.0-win64.zip"],
+    ["Super Contra Force", "contra-port", "usa-scf-1.0-win64.zip"],
     ["Gears of War 2", "gears-port", "Native_Gow2.zip"],
   ] as const)
     assert.ok("product" in reliefAccount(name, repository, archive), archive);
-  const kiForms = reliefForms(
-    reliefRecord("ki", "Killer Instinct", "ki-port").listing,
-    "fixture-owner/ki-port",
-    "kiport",
+  const kigForms = reliefForms(
+    reliefRecord("kig", "Killer Instinct Gold", "kig-port").listing,
+    "fixture-owner/kig-port",
+    "kigport",
   );
   assert.equal(
-    programNameUnaccounted("port-ki-win64/ki.exe", new Set(["kiport"]), new Set(), false, kiForms),
+    programNameUnaccounted(
+      "port-kig-win64/kig.exe",
+      new Set(["kigport"]),
+      new Set(),
+      false,
+      kigForms,
+    ),
     null,
   );
-  assert.ok(gateProgramAccounted("port-ki-win64/ki.exe", ["kiport"], [], false, kiForms));
+  assert.ok(gateProgramAccounted("port-kig-win64/kig.exe", ["kigport"], [], false, kigForms));
   // B1 across names for programs and folders: `gow` through a repository
   // name without the `2` withholds; `gow2` stays accounted.
   const gowForms = reliefForms(
@@ -9204,4 +9287,528 @@ void test("random titles: no dropped segment tail, dropped or re-attached number
     series++;
   }
   assert.ok(series > 400, `${series} series titles`);
+});
+
+// ---------------------------------------------------------------------------
+// Generator 26: one name must name one catalog game (U), and the reliefs
+// follow the partial-name rule (N1 to N4).
+
+void test("generator 26: initialisms follow the partial-name rule, sequel segments stay, only articles or a possessive run lead, an annotation alone names nothing, in fit and gate (N1-N4)", () => {
+  const withheld: [string, string, string, string][] = [
+    // N1: an initialism only where the partial name of the same words, with
+    // the same omitted later segments, is accepted; two letters only with a number.
+    ["N1", "Need for Speed: Underground 2", "zzrepo", "nfs-1.0-win64.zip"],
+    ["N1", "Dragon Ball Z: Budokai 3", "zzrepo", "dbz-1.0-win64.zip"],
+    ["N1", "Star Wars: Episode II", "zzrepo", "sw-1.0-win64.zip"],
+    ["N1", "Mega Man: X4", "zzrepo", "mm-1.0-win64.zip"],
+    ["N1", "Kingdom Hearts: Volume 2", "zzrepo", "kh-1.0-win64.zip"],
+    ["N1", "Gears of War: 2", "zzrepo", "gow-1.0-win64.zip"],
+    ["N1", "Dynasty Warriors: Gundam 2", "zzrepo", "dw-1.0-win64.zip"],
+    ["N1", "Gears of War — Gears of War 2 port", "zzrepo", "gow-1.0-win64.zip"],
+    ["N1", "Midtown Madness", "madness-port", "mm-v1.0-windows-x64.zip"],
+    ["N1", "Killer Instinct", "instinct-port", "ki-1.0-win64.zip"],
+    ["N1", "Super Contra", "contra-port", "sc-1.0-win64.zip"],
+    // N2: no omitted segment holds a sequel number or a glued sequel chunk.
+    ["N2", "Halo: 2", "zzrepo", "Halo-1.0-win64.zip"],
+    ["N2", "Halo — 2", "zzrepo", "Halo-1.0-win64.zip"],
+    ["N2", "Halo, 2", "zzrepo", "Halo-1.0-win64.zip"],
+    ["N2", "Doom (2)", "zzrepo", "Doom-1.0-win64.zip"],
+    ["N2", "Doom: 3", "zzrepo", "Doom-1.0-win64.zip"],
+    ["N2", "Star Wars: Episode II", "zzrepo", "StarWars-1.0-win64.zip"],
+    ["N2", "Shenmue: Chapter 2", "zzrepo", "Shenmue-1.0-win64.zip"],
+    ["N2", "Kingdom Hearts: Volume 2", "zzrepo", "KingdomHearts-1.0-win64.zip"],
+    ["N2", "Mega Man: X4", "zzrepo", "MegaMan-1.0-win64.zip"],
+    ["N2", "Mega Man (X4)", "zzrepo", "MegaMan-1.0-win64.zip"],
+    ["N2", "Final Fantasy VII / VIII", "zzrepo", "FinalFantasyVII-1.0-win64.zip"],
+    // N3: an annotation alone (an author handle, a project or tool name).
+    [
+      "N3",
+      "Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)",
+      "zzrepo",
+      "GloriousEggroll-1.0-win64.zip",
+    ],
+    ["N3", "TimeSplitters 2 — split2-recomp (phobos665)", "zzrepo", "phobos665-1.0-win64.zip"],
+    ["N3", "Lantern — Lantern Engine (someone)", "zzrepo", "Someone-1.0-win64.zip"],
+    [
+      "N3",
+      "Import Tuner Challenge — ITC-Recomp (Spooky098529)",
+      "zzrepo",
+      "Spooky098529-1.0-win64.zip",
+    ],
+    // N4: leading words go only as articles or a run ending in a possessive;
+    // `&`, `+` and `,` link like `and`.
+    ["N4", "Super Contra", "zzrepo", "Contra-1.0-win64.zip"],
+    ["N4", "Super Metroid", "zzrepo", "Metroid-1.0-win64.zip"],
+    ["N4", "Ms. Pac-Man", "zzrepo", "PacMan-1.0-win64.zip"],
+    ["N4", "Super Mario Bros.", "zzrepo", "MarioBros-1.0-win64.zip"],
+    ["N4", "Ultimate Mortal Kombat 3", "zzrepo", "MortalKombat3-1.0-win64.zip"],
+    ["N4", "Return to Castle Wolfenstein", "zzrepo", "CastleWolfenstein-1.0-win64.zip"],
+    ["N4", "Grand Theft Auto: Vice City", "zzrepo", "Auto-1.0-win64.zip"],
+    ["N4", "Paper Mario", "zzrepo", "Mario-1.0-win64.zip"],
+    ["N4", "Sonic & Knuckles", "zzrepo", "Sonic-1.0-win64.zip"],
+    ["N4", "Sonic + Knuckles", "zzrepo", "Sonic-1.0-win64.zip"],
+    ["N4", "Hot Shots Tennis", "zzrepo", "Tennis-1.0-win64.zip"],
+    ["N4", "The Legend of Zelda", "zzrepo", "Zelda-1.0-win64.zip"],
+  ];
+  for (const [rule, name, repository, archive] of withheld) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok("unaccounted" in fit, `${rule}: ${archive} for ${name}: ${JSON.stringify(fit)}`);
+  }
+  const enrolled: [string, string, string, string[]][] = [
+    // Articles and a possessive run may lead; a colon subtitle is a title segment.
+    ["The Lantern", "zzrepo", "Lantern-1.0-win64.zip", ["partial-name"]],
+    ["Tony Hawk's Proving Ground", "zzrepo", "ProvingGround-1.0-win64.zip", ["partial-name"]],
+    ["Disney's Lantern Quest", "zzrepo", "LanternQuest-1.0-win64.zip", ["partial-name"]],
+    [
+      "Star Wars: Shadows of the Empire",
+      "zzrepo",
+      "ShadowsOfTheEmpire-1.0-win64.zip",
+      ["partial-name"],
+    ],
+    // Exempt numbers: a year, a dotted version, a platform's number, an
+    // annotation token's number, and an annotation repeating a carried number.
+    ["Lantern (1998)", "zzrepo", "Lantern-1.0-win64.zip", ["partial-name"]],
+    ["Lantern — Lantern Remake 0.1", "zzrepo", "Lantern-1.0-win64.zip", ["partial-name"]],
+    ["Crackdown: Xbox 360", "zzrepo", "Crackdown-1.0-win64.zip", ["partial-name"]],
+    ["Lantern (N64)", "zzrepo", "Lantern-1.0-win64.zip", ["partial-name"]],
+    ["Gears of War 2 — BT2 Recomp", "zzrepo", "GearsOfWar2-1.0-win64.zip", ["partial-name"]],
+    ["Lantern — Lantern Port (oric212)", "zzrepo", "Lantern-1.0-win64.zip", ["partial-name"]],
+    [
+      "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
+      "gears-of-war-2-pc-port",
+      "gow2-recomp-0.4.7-linux-x86_64.tar.gz",
+      ["descriptor", "initialism"],
+    ],
+    // A franchise-only partial name of a colon title (queued, see below).
+    ["Half-Life: Blue Shift", "zzrepo", "HalfLife-1.0-win64.zip", ["partial-name"]],
+    // Two letters with the name's number.
+    ["Mega Man 2", "zzrepo", "mm2-1.0-win64.zip", ["initialism"]],
+  ];
+  for (const [name, repository, archive, reliefs] of enrolled) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok("product" in fit, `${archive} for ${name}: ${JSON.stringify(fit)}`);
+    assert.deepEqual(fit.reliefs.toSorted(), reliefs.toSorted(), archive);
+  }
+  // The same rules for program names, in fit and gate.
+  const programs: [string, string, boolean][] = [
+    ["Super Contra", "contra.exe", false],
+    ["Mega Man: X4", "megaman.exe", false],
+    ["Need for Speed: Underground 2", "nfs.exe", false],
+    ["Killer Instinct", "ki.exe", false],
+    ["Lantern — Lantern Engine (someone)", "someone.exe", false],
+    ["Tony Hawk's Proving Ground", "provingground.exe", true],
+    ["Digimon World 2", "dw2.exe", true],
+    ["Rampage: Total Destruction", "rampage.exe", true],
+  ];
+  for (const [name, path, accounted] of programs) {
+    const forms = reliefForms(
+      reliefRecord("n", name, "zz-n-port").listing,
+      "fixture-owner/zz-n-port",
+      "",
+    );
+    const fit = programNameUnaccounted(path, new Set(), new Set(), false, forms);
+    assert.equal(fit === null, accounted, `${path} for ${name}`);
+    assert.equal(gateProgramAccounted(path, [], [], false, forms), accounted, `gate ${path}`);
+  }
+  // Platform words whose number is no sequel are restated by the gate.
+  assert.deepEqual(gatePlatformNumberWords, [...platformNumberWords]);
+  // N1: a two-letter initialism needs a number of the run; three letters do not.
+  assert.equal(nameInitialisms(nameForm("Killer Instinct")).has("ki"), false);
+  assert.equal(nameInitialisms(nameForm("Killer Instinct 2")).has("ki2"), true);
+  assert.equal(nameInitialisms(nameForm("Killer Instinct Gold")).has("kig"), true);
+});
+
+/** A fixture listing as an authored record, bound to its own upstream URLs. */
+function fixtureRecord(fields: Record<string, unknown>) {
+  return listing(String(fields.id), {
+    ...fields,
+    original_game_title: fields.name,
+    project_url: fields.project_url ?? fields.release_url,
+  });
+}
+/** The GitHub repository a fixture listing names. */
+function fixtureRepository(fields: Record<string, unknown>) {
+  const repository = gateProviderRepository(fields);
+  assert.ok(repository !== null, String(fields.id));
+  return repository;
+}
+
+void test("generator 26: measured names and real-catalog collisions keep their stated outcome, in fit and gate (U fixture)", () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      join(root, "scripts/fixtures/generated-registration-name-uniqueness.json"),
+      "utf8",
+    ),
+  ) as {
+    listings: Record<string, unknown>[];
+    archives: { listing: string; archive: string; expected: Record<string, string[]> }[];
+    programs: { listing: string; program: string; expected: Record<string, string[]> }[];
+  };
+  const records = fixture.listings.map(fixtureRecord);
+  const catalog = records.map((record) => record.listing as Record<string, unknown>);
+  const own = (id: string) => catalog.find((item) => item.id === id)!;
+  let collisions = 0;
+  for (const { listing: id, archive, expected } of fixture.archives) {
+    const listed = own(id);
+    const repository = fixtureRepository(listed);
+    const fit = archiveNameAccount(archive, listed, repository, catalog);
+    const gate = gateArchiveAccount(archive, listed, repository, catalog);
+    const [outcome, detail] = Object.entries(expected)[0]!;
+    const where = `${archive} for ${String(listed.name)}`;
+    assert.equal("product" in fit ? fit.product : null, gate, `fit and gate agree on ${where}`);
+    if (outcome === "enrolls") {
+      assert.ok("product" in fit, `${where}: ${JSON.stringify(fit)}`);
+      assert.deepEqual(fit.reliefs, detail, where);
+    } else if (outcome === "name-not-unique-in-catalog") {
+      assert.deepEqual("notUnique" in fit ? fit.notUnique : fit, detail, where);
+      collisions++;
+    } else if (outcome === "archive-names-another-listing")
+      assert.deepEqual("anotherListing" in fit ? fit.anotherListing : fit, detail, where);
+    else assert.deepEqual("unaccounted" in fit ? fit.unaccounted : fit, detail, where);
+  }
+  for (const { listing: id, program, expected } of fixture.programs) {
+    const listed = own(id);
+    const repository = fixtureRepository(listed);
+    const forms = reliefForms(listed, repository, "");
+    const relieved: string[] = [];
+    const used = new Set<(typeof nameReliefs)[number]>();
+    const left = programNameUnaccounted(
+      program,
+      new Set(),
+      new Set(),
+      false,
+      forms,
+      used,
+      forms,
+      relieved,
+    );
+    const colliding = relieved.flatMap((literal) =>
+      catalogNameCollisions(literal, digitRuns(literal), catalog, id, repository),
+    );
+    const unique = (literal: string) =>
+      gateCollisions(literal, gateDigits(literal), catalog, id, repository, null).length === 0;
+    const gate = gateProgramAccounted(program, [], [], false, forms, forms, unique);
+    const [outcome, detail] = Object.entries(expected)[0]!;
+    const where = `${program} for ${String(listed.name)}`;
+    if (outcome === "enrolls") {
+      assert.equal(left, null, where);
+      assert.deepEqual(colliding, [], where);
+      assert.deepEqual([...used], detail, where);
+      assert.ok(gate, `gate ${where}`);
+    } else {
+      assert.ok(!gate, `gate ${where}`);
+      if (outcome === "name-not-unique-in-catalog") {
+        assert.equal(left, null, where);
+        assert.deepEqual(colliding, detail, where);
+        collisions++;
+      } else assert.equal(left, detail, where);
+    }
+  }
+  assert.ok(collisions >= 8, `${collisions} collisions`);
+  // A whole decision: `thps` in the repository of one Tony Hawk's Pro Skater
+  // port collides with the other port's listing, and the withhold names it.
+  const skater = records.find(
+    (record) => record.listing.id === "alexbeav-tony-hawk-s-pro-skater-recomp",
+  )!;
+  const facts = entry(
+    [named("thps-1.0-win64.zip", [player("DOA3.exe")], 11, "windows")],
+    {},
+    skater.listing.id,
+    {
+      repository: fixtureRepository(skater.listing),
+      listing_words: listingWords(skater.listing),
+    },
+  );
+  const decision = fitDecision(skater, facts, generatedAt, fitContext(records));
+  assert.equal(reasonOf(decision), "name-not-unique-in-catalog");
+  assert.deepEqual((decision as { evidence?: string[] }).evidence, [
+    "windows-x86-64: thps-1.0-win64.zip (lancommander-tonywasaproskater)",
+  ]);
+  const others = records.filter((record) => record !== skater);
+  assert.match(gateOn(skater, facts, { others }), /accepts too, so it names no one game/u);
+  const queued = registrationQueues(generateRegistrations(records, table(facts)));
+  assert.deepEqual(queued.reason_evidence["name-not-unique-in-catalog"], {
+    "alexbeav-tony-hawk-s-pro-skater-recomp": [
+      "windows-x86-64: thps-1.0-win64.zip (lancommander-tonywasaproskater)",
+    ],
+  });
+});
+
+/** A literal's digit runs, for the gate's helpers. */
+function gateDigits(literal: string) {
+  return digitRuns(literal);
+}
+
+void test("generator 26: initialisms are queued as franchise-only by the words of their run; a colon title's partial name too", () => {
+  const records = [
+    reliefRecord("hl", "Half-Life: Blue Shift", "blue-shift-port"),
+    listing("zz-half-life", {
+      name: "Half-Life 2",
+      original_game_title: "Half-Life 2",
+      project_url: "https://github.com/fixture-owner/half-life-2-port",
+    }),
+    reliefRecord("mm2", "Mega Man 2", "mega-port"),
+    // Its own rules refuse `mm2` (N1: a sequel segment), so it shares the
+    // run's words without accepting the initialism.
+    listing("zz-mega-man-2-disc-3", {
+      name: "Mega Man 2: Disc 3",
+      original_game_title: "Mega Man 2",
+      project_url: "https://github.com/fixture-owner/mega-man-2-disc-3",
+    }),
+  ];
+  const catalog = records.map((record) => record.listing as Record<string, unknown>);
+  const halfLife = archiveNameAccount(
+    "HalfLife-1.0-win64.zip",
+    records[0]!.listing,
+    "fixture-owner/blue-shift-port",
+    catalog,
+  );
+  assert.ok("product" in halfLife && halfLife.franchise, JSON.stringify(halfLife));
+  const megaMan = archiveNameAccount(
+    "mm2-1.0-win64.zip",
+    records[2]!.listing,
+    "fixture-owner/mega-port",
+    catalog,
+  );
+  assert.ok("product" in megaMan && megaMan.franchise, JSON.stringify(megaMan));
+  // Beside "Half-Life: Opposing Force" in another repository, `HalfLife`
+  // spells that listing's first title segment (archive-names-another-listing);
+  // beside "Valve's Half-Life: Decay" it is accepted by both, only under a
+  // relief (name-not-unique-in-catalog). Both withhold, in fit and gate.
+  for (const [other, expected] of [
+    ["Half-Life: Opposing Force", { anotherListing: ["zz-half-life-other"] }],
+    ["Valve's Half-Life: Decay", { notUnique: ["zz-half-life-other"] }],
+  ] as const) {
+    const sibling = listing("zz-half-life-other", {
+      name: other,
+      original_game_title: other,
+      project_url: "https://github.com/fixture-owner/half-life-other-port",
+    });
+    const both = [...catalog, sibling.listing as Record<string, unknown>];
+    assert.deepEqual(
+      archiveNameAccount(
+        "HalfLife-1.0-win64.zip",
+        records[0]!.listing,
+        "fixture-owner/blue-shift-port",
+        both,
+      ),
+      expected,
+      other,
+    );
+    assert.equal(
+      gateArchiveAccount(
+        "HalfLife-1.0-win64.zip",
+        records[0]!.listing,
+        "fixture-owner/blue-shift-port",
+        both,
+      ),
+      null,
+      other,
+    );
+  }
+  // In the same repository the other listing is the shared-repository rule's concern.
+  const sameRepository = listing("zz-half-life-same", {
+    name: "Half-Life: Opposing Force",
+    original_game_title: "Half-Life: Opposing Force",
+    project_url: "https://github.com/fixture-owner/blue-shift-port",
+  });
+  assert.deepEqual(
+    catalogNameCollisions(
+      "halflife",
+      digitRuns("halflife"),
+      [...catalog, sameRepository.listing as Record<string, unknown>],
+      records[0]!.listing.id,
+      "fixture-owner/blue-shift-port",
+    ),
+    [],
+  );
+});
+
+void test("random catalogs: a relieved literal accepted for a listing is never accepted for a listing in another repository; fit and gate agree (U property)", () => {
+  let seed = 8_569_026;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = [
+    "dark",
+    "storm",
+    "hunter",
+    "blade",
+    "orbit",
+    "the",
+    "of",
+    "super",
+    "tony",
+    "hawk's",
+  ];
+  const segmentText = () => {
+    const words = Array.from({ length: 1 + Math.floor(random() * 3) }, () => pick(vocabulary));
+    if (random() < 0.3) words.push(pick(["2", "3", "II", "X4", "64"]));
+    return words.join(" ");
+  };
+  // Each round shares a few segments between its listings, so names collide.
+  let shared: string[] = [];
+  const title = () => {
+    let text = random() < 0.5 ? pick(shared) : segmentText();
+    if (random() < 0.5) text += `: ${random() < 0.5 ? pick(shared) : segmentText()}`;
+    if (random() < 0.4) text += ` — ${segmentText()}`;
+    if (random() < 0.3) text += ` (${pick(["someone", "oric212", "Recomp", "N64", "2"])})`;
+    return text;
+  };
+  const literalsOf = (name: string) => {
+    const form = nameForm(name);
+    const literals = new Set<string>(nameInitialisms(form));
+    const segments = new Map<number, string[]>();
+    for (const word of form)
+      segments.set(word.segment, [...(segments.get(word.segment) ?? []), word.word]);
+    for (const words of segments.values())
+      for (let start = 0; start < words.length; start++) literals.add(words.slice(start).join(""));
+    return [...literals];
+  };
+  let relievedChecked = 0;
+  let collided = 0;
+  for (let round = 0; round < 150; round++) {
+    const size = 3 + Math.floor(random() * 6);
+    shared = [segmentText(), segmentText()];
+    const repositories = Array.from({ length: size }, (_, at) => `zz-u-${round}-${at}`);
+    const records = Array.from({ length: size }, (_, at) =>
+      listing(`zz-u-${round}-${at}`, {
+        name: title(),
+        original_game_title: "Original",
+        // Some listings share a repository.
+        project_url: `https://github.com/fixture-owner/${random() < 0.2 ? repositories[0] : repositories[at]}`,
+      }),
+    );
+    const catalog = records.map((record) => record.listing as Record<string, unknown>);
+    for (const record of records) {
+      const repository = `fixture-owner/${String(record.listing.project_url).split("/").pop()}`;
+      for (const literal of literalsOf(String(record.listing.name))) {
+        if (!/^[a-z]/u.test(literal)) continue;
+        const archive = `${literal}-1.0-win64.zip`;
+        const fit = archiveNameAccount(archive, record.listing, repository, catalog);
+        const gate = gateArchiveAccount(archive, record.listing, repository, catalog);
+        assert.equal(
+          "product" in fit ? fit.product : null,
+          gate,
+          `parity ${archive} for ${String(record.listing.name)}`,
+        );
+        if ("notUnique" in fit) collided++;
+        if (!("product" in fit)) continue;
+        const product = fit.product;
+        const equal = [record.listing.id, record.listing.name, repository.split("/")[1]]
+          .map((raw) =>
+            nameForm(String(raw))
+              .filter((word) => !word.optional)
+              .map((word) => word.word)
+              .join(""),
+          )
+          .includes(product);
+        if (
+          equal ||
+          fit.reliefs.every((relief) => relief === "descriptor" || relief === "build-id")
+        )
+          continue;
+        relievedChecked++;
+        // No listing in another repository accepts the literal, by equality
+        // or by the reliefs: checked over every listing, without the index.
+        for (const other of catalog) {
+          if (other.id === record.listing.id) continue;
+          const otherRepository = `fixture-owner/${String(other.project_url).split("/").pop()}`;
+          if (otherRepository === repository) continue;
+          const forms = [other.id, other.name, otherRepository.split("/")[1]].map((raw) =>
+            nameForm(String(raw)),
+          );
+          const digits = digitRuns(product);
+          const cuts = new Set([0, product.length]);
+          const accepts =
+            forms.some(
+              (form) =>
+                form.map((word) => word.word).join("") === product ||
+                reliefSpelling(product, digits, form, cuts) !== null,
+            ) && !dropsLinkedNumber(product, digits, forms, cuts);
+          assert.ok(
+            !accepts,
+            `${archive} enrolled for ${String(record.listing.name)} but ${String(other.name)} accepts it`,
+          );
+        }
+      }
+    }
+  }
+  assert.ok(relievedChecked > 200, `${relievedChecked} relieved enrollments checked`);
+  assert.ok(collided > 50, `${collided} collisions withheld`);
+});
+
+void test("forced enrollments over random catalogs with colliding listings: the gate never accepts what the fit withholds, nor withholds what it accepts (U parity)", () => {
+  let seed = 8_569_260;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const archives = [
+    "Crackdown-v0.6.2-windows-x64.zip",
+    "cdr-1.0-win64.zip",
+    "cdx-1.0-win64.zip",
+    "Crackdown-Recompiled-1.0-win64.zip",
+    "Recompiled-1.0-win64.zip",
+    "Crackdown-Xbox-1.0-win64.zip",
+  ];
+  const programs = ["Crackdown.exe", "CrackdownRecompiled.exe", "cd.exe", "crackdown-x64.exe"];
+  const others = [
+    // Accept `crackdown` by a partial name, in another repository.
+    listing("zz-u-crackdown-other", {
+      name: "Crackdown: Other City",
+      original_game_title: "Crackdown",
+      project_url: "https://github.com/fixture-owner/crackdown-other-city",
+    }),
+    listing("zz-u-crackdown-hawk", {
+      name: "Tony Hawk's Crackdown",
+      original_game_title: "Tony Hawk's Crackdown",
+      project_url: "https://github.com/fixture-owner/hawk-crackdown",
+    }),
+    // Accepts the initialism `cdr`, in another repository.
+    listing("zz-u-cdr", {
+      name: "Cosmic Dust Rally",
+      original_game_title: "Cosmic Dust Rally",
+      project_url: "https://github.com/fixture-owner/cosmic-dust-rally",
+    }),
+    // The same repository: never a collision.
+    listing("zz-u-same", {
+      name: "Crackdown: Same Repository",
+      original_game_title: "Crackdown",
+      project_url: "https://github.com/fixture-owner/crackdown-xbox360-recompiled",
+    }),
+  ];
+  let refused = 0;
+  let enrolled = 0;
+  let notUnique = 0;
+  for (let round = 0; round < 400; round++) {
+    const chosen = others.filter(() => random() < 0.5);
+    const { decision, gate } = reliefDecision(
+      "u",
+      pick([
+        "Crackdown (Crackdown Recompiled)",
+        "Crackdown Recompiled: Xbox",
+        "Crack Down Recompiled",
+      ]),
+      "crackdown-xbox360-recompiled",
+      pick(archives),
+      [pick(programs)],
+      { others: chosen },
+    );
+    if (decision.fit) {
+      assert.equal(gate, "accepted", JSON.stringify(decision));
+      enrolled++;
+    } else {
+      assert.notEqual(gate, "accepted", `${decision.reason}: ${decision.detail}`);
+      if (decision.reason === "name-not-unique-in-catalog") notUnique++;
+      refused++;
+    }
+  }
+  assert.ok(
+    refused > 100 && enrolled > 10 && notUnique > 5,
+    `${refused} refused, ${enrolled} enrolled, ${notUnique} not unique`,
+  );
 });
