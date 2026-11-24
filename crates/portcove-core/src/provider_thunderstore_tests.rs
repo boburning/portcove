@@ -84,7 +84,9 @@ fn serve(
         let path = request.split_whitespace().nth(1).unwrap_or("");
         let dependency_url = format!("{web}/package/download/Tools/Shared/2.1.0/");
         let versions = versions.lock().unwrap();
-        if path == format!("/c/{COMMUNITY}/api/v1/package/") {
+        if path == format!("/c/{COMMUNITY}/api/v1/package-listing-index/")
+            || path.contains("listing-chunk/")
+        {
             let mut listing = vec![serde_json::json!({
                 "name": "Timer", "full_name": "Owner-Timer", "owner": "Owner",
                 "date_updated": "2026-11-10T00:00:00Z", "is_deprecated": false,
@@ -108,12 +110,13 @@ fn serve(
                     }],
                 }));
             }
-            let listing = serde_json::to_string(&listing).unwrap();
-            return format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{listing}",
-                listing.len()
+            return crate::thunderstore::listing_fixture(
+                path,
+                &web,
+                COMMUNITY,
+                &[serde_json::json!(listing)],
             )
-            .into_bytes();
+            .expect("a current listing chunk");
         }
         if format!("{web}{path}") == dependency_url
             && let Some(bytes) = &dependency
