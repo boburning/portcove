@@ -7991,25 +7991,6 @@
       "availability": "unknown"
     },
     {
-      "id": "ace-driver-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Ace Driver / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Ace Driver arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7363,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "ace-driver",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Ace Driver",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
       "id": "ace-of-spades-openspades",
       "name": "Ace of Spades / OpenSpades",
       "original_game_title": "Ace of Spades",
@@ -18674,25 +18655,6 @@
       "original_game_title": "Tyrian"
     },
     {
-      "id": "angler-king-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Angler King / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Angler King arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7369,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "angler-king",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Angler King",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
       "id": "angry-birds-re-hatched-collection",
       "project_url": "https://github.com/TekRantGaming/angry-birds-re-hatched-collection",
       "name": "Angry Birds Re-Hatched Collection / TekRantGaming",
@@ -19226,25 +19188,6 @@
         ]
       },
       "original_game_title": "Dragon Warrior IV",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
-      "id": "armadillo-racing-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Armadillo Racing / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Armadillo Racing arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7361,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "armadillo-racing",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Armadillo Racing",
       "platforms": [],
       "availability": "unknown"
     },
@@ -33281,25 +33224,6 @@
       "availability": "unknown"
     },
     {
-      "id": "crisis-zone-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Crisis Zone / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Crisis Zone arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7367,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "crisis-zone",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Crisis Zone",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
       "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
       "name": "Crystal Defenders (Xbox Live Arcade) — Cristalis (Claudio5702)",
       "original_game_title": "Crystal Defenders",
@@ -33838,44 +33762,6 @@
         "source_editions": []
       },
       "original_game_title": "Cut the Rope"
-    },
-    {
-      "id": "cyber-commando-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Cyber Commando / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Cyber Commando arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7364,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "cyber-commando",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Cyber Commando",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
-      "id": "cyber-sled-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Cyber Sled / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Cyber Sled arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7366,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "cyber-sled",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Cyber Sled",
-      "platforms": [],
-      "availability": "unknown"
     },
     {
       "id": "cyberbots-fullmetal-madness-cps2-recomp",
@@ -94806,25 +94692,6 @@
       "availability": "unknown"
     },
     {
-      "id": "ridge-racer-2-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Ridge Racer 2 / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Ridge Racer 2 arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7365,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "ridge-racer-2",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Ridge Racer 2",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
       "id": "ridge-racer-6-ridge-racer-6-recomp",
       "name": "Ridge Racer 6 (Ridge Racer 6 Recomp)",
       "summary": "Attach an independently permitted, prepared Ridge Racer 6 Windows native game with its exact USA executable and explicit prepared game folder. Preserve the actual Documents data root; the official asset’s internal TestBuild-09 folder label differs from its 0.1.5 release tag.",
@@ -118602,25 +118469,6 @@
         ]
       },
       "original_game_title": "Demon's Souls",
-      "platforms": [],
-      "availability": "unknown"
-    },
-    {
-      "id": "time-crisis-ii-namco-2x-pc",
-      "project_url": "https://github.com/spacestate1/namco22-decompile",
-      "name": "Time Crisis II / Namco 2x Systems for PC (spacestate1)",
-      "summary": "Decompilation-based PC port of the Time Crisis II arcade game from Namco's System 22/23 hardware. Requires your own copy of the arcade game.",
-      "issue_number": 7368,
-      "listed_at": "2026-11-24",
-      "original_game": {
-        "format_version": 1,
-        "id": "time-crisis-ii",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "Time Crisis II",
       "platforms": [],
       "availability": "unknown"
     },
