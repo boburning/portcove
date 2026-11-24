@@ -1501,7 +1501,10 @@ export default interface Resources {
       },
       "recipe": {
         "allowCode": "I allow the exact packages below to run mod code.",
+        "checkAllProviders": "Check the provider for every missing mod",
         "checkProvider": "Check provider for {{name}}",
+        "checkStopped": "Stopped at {{name}}. {{reason}} The mods checked before it stay ready, including after a restart.",
+        "checkedSoFar": "{{done}} of {{total}} mods checked with the provider.",
         "close": "Close review",
         "details": "Recipe inputs and details",
         "disabled": "{{name}} is off",
@@ -1604,6 +1607,7 @@ export default interface Resources {
           "held": "Update needs review.",
           "unavailable": "Check unavailable. Portcove will try again."
         },
+        "automaticIncomplete": "Some results of the last automatic check could not be read. The next automatic check records them again.",
         "check": "Check for mod updates",
         "checking": "Checking for mod updates…",
         "detail": {
@@ -1658,7 +1662,7 @@ export default interface Resources {
         "disabledFilter": "Disabled",
         "discardOlder": "Discard older changes",
         "done": "Done",
-        "draftLimit": "You can queue up to 16 additions. Apply or undo some before adding more.",
+        "draftLimit": "A setup can hold up to {{limit}} mods. Apply or undo some changes before adding more.",
         "editOrder": "Edit order",
         "emptySource": "{{provider}} has no mods for this port.",
         "enabledFilter": "Enabled",
@@ -1779,6 +1783,15 @@ export default interface Resources {
       "rolling": "Rolling",
       "stable": "Stable",
       "unknown": "Unknown channel"
+    },
+    "deferral": {
+      "resetUnknown": "The reset time is unknown.",
+      "resets": "Resets: {{time}}.",
+      "resetsEstimated": "Resets: about {{time}} (Portcove’s estimate).",
+      "rowLabel": "Update check not run for {{port}}",
+      "rowNote": "Not checked: request limit.",
+      "summary_one": "{{count}} port not checked yet because a request limit was reached. The next check starts with this port.",
+      "summary_other": "{{count}} ports not checked yet because a request limit was reached. The next check starts with these ports."
     },
     "releaseChannel": {
       "changeEffect": "Changing channel selects releases for future checks and updates. Your installed version stays unchanged.",

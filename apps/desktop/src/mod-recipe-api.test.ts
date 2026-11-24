@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "./api";
-import type { OutputDesktopRecipeImportReview } from "./transport-types.generated";
+import type { RecipeImportReview } from "./transport-types.generated";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -17,7 +17,7 @@ it("returns the native recipe plan unchanged through inspect, acquisition, disca
         serialized_plan,
         setting_values: ["2048.0", "9007199254740993", "-0.0"],
       }),
-    ) as OutputDesktopRecipeImportReview;
+    ) as RecipeImportReview;
   };
   const invoke = vi.fn((command: string, _args: unknown) =>
     Promise.resolve(

@@ -36,6 +36,9 @@ export interface ReleasedReaderFixture {
   binary: Buffer;
   version: string;
   withdrawn?: string[];
+  /** Refuse the anonymous attestation read the way GitHub refuses an address
+   * past its anonymous API rate limit. */
+  rateLimited?: boolean;
   /** Adjust the fixture before it is served (negative cases). */
   mutate?: (fixture: {
     statement: Record<string, unknown>;
@@ -123,6 +126,8 @@ export function fixtureReleasedReaderSources(options: ReleasedReaderFixture) {
     },
     attestations: (digest) => {
       requests.push(`attestations:${digest}`);
+      if (options.rateLimited)
+        return Promise.reject(new Error("Public Portcove API attestations unavailable (403)"));
       return Promise.resolve({ attestations: [{ bundle: { fixture: digest } }] });
     },
     verifyAttestation: () => fixture.statement,

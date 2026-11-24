@@ -85,7 +85,14 @@ import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
-import { capacityConstant, catalogSizeBounds, catalogSizeGuard } from "./catalog-capacity.mts";
+import {
+  catalogSizeBounds,
+  catalogSizeGuard,
+  listingDeliveryBounds,
+  listingDirectoryMeasures,
+  withdrawalIdentities,
+  type CapacityMeasure,
+} from "./catalog-capacity.mts";
 import {
   checkListingFactsTable,
   compareCodePoints,
@@ -141,7 +148,7 @@ import {
   type ObservedRelease,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
-import { listingDeliveryMaximum } from "./listing-directory-carrier.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -1917,24 +1924,35 @@ export interface CapacityRow {
   ok: boolean;
 }
 
+/** The listing text row's name, shared with `catalog-capacity`. */
+const listingTextRow = "generated listings.json bytes";
+
 /**
- * The batch against both released-reader bounds, at Core's supported share
- * (`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+ * The batch against the bounds its required `catalog-capacity --check`
+ * enforces, at Core's supported share (`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
  *  - `MAX_CATALOG_BYTES` (16 MiB): the generated catalog, its compact and
  *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
  *    JSON-escaped retained installed contract, estimated as the escaped
  *    `catalog.json` text plus `retainedContractReserveBytes`;
- *  - the canonical `listings.json` against the listing publisher's 8 MiB
- *    canonical read (`listingDeliveryMaximum`) and Core's inspection text
- *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`).
- * Released readers refuse more than the bound, so a batch past a ceiling is
- * never proposed: its required check would fail.
+ *  - the canonical `listings.json` against Core's listing directory text
+ *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`, `listingDirectoryTextMaximum`),
+ *    the one bound every tool that reads the canonical text follows (Core's
+ *    inspection, the listing publisher's canonical read and this job). A test
+ *    pins the constant to Core; this is a working-memory bound, not a
+ *    released-reader bound;
+ *  - `listingDelivery`: the projections of that directory released readers
+ *    bound (the compact carrier's decoded, wire and record bytes, the
+ *    listing and withdrawal counts and the element budget, each with its own
+ *    margin, and the frozen legacy target, informational only), exactly the
+ *    other listing rows of `catalog-capacity` (`listingDirectoryMeasures`).
+ * The required check refuses a batch past any of these ceilings, so such a
+ * batch is never proposed.
  */
 export function batchCapacity(input: {
   catalogText: string;
   listingBytes: number;
   signedCatalogSource: string;
-  listingSource: string;
+  listingDelivery: readonly CapacityMeasure[];
 }): { ok: boolean; percent: number; rows: CapacityRow[] } {
   const bounds = catalogSizeBounds(input.signedCatalogSource);
   const guard = catalogSizeGuard(
@@ -1943,17 +1961,12 @@ export function batchCapacity(input: {
     bounds,
     [
       [
-        "generated listings.json bytes",
+        listingTextRow,
         input.listingBytes,
-        listingDeliveryMaximum,
-        "listing publisher canonical read bound",
+        listingDirectoryTextMaximum,
+        "Core listing directory text bound",
       ],
-      [
-        "generated listings.json inspection bytes",
-        input.listingBytes,
-        capacityConstant(input.listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
-        "Core listing inspection bound",
-      ],
+      ...input.listingDelivery.filter(([name]) => name !== listingTextRow),
     ],
   );
   const ceiling = Math.floor((bounds.current * bounds.percent) / 100);
@@ -3281,20 +3294,49 @@ async function main(argv: string[]): Promise<string> {
       // The regenerated catalog against both released-reader bounds, before
       // any pull request exists. Records the result; the stop is `assess`'s.
       if (!option.output) throw new Error("capacity needs --output.");
+      const listingsPath = path.join(root, "crates/portcove-core/catalog/listings.json");
+      const listingBytes = statSync(listingsPath).size;
+      // The delivery projections are measured only within the text bound; past
+      // it the text row already refuses the batch.
+      // The same measures, bounds and committed withdrawals as
+      // `catalog-capacity --check`.
+      const listingDelivery =
+        listingBytes > listingDirectoryTextMaximum
+          ? []
+          : listingDirectoryMeasures(
+              readFileSync(listingsPath),
+              listingDeliveryBounds(
+                readFileSync(path.join(root, "crates/portcove-listing-carrier/src/lib.rs"), "utf8"),
+                readFileSync(
+                  path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
+                  "utf8",
+                ),
+                readFileSync(
+                  path.join(root, "crates/portcove-core/src/listing_delivery.rs"),
+                  "utf8",
+                ),
+              ),
+              undefined,
+              withdrawalIdentities(
+                JSON.parse(
+                  readFileSync(
+                    path.join(root, "crates/portcove-core/catalog/listing-withdrawals.json"),
+                    "utf8",
+                  ),
+                ),
+              ),
+            );
       const result = batchCapacity({
         catalogText: readFileSync(
           path.join(root, "crates/portcove-core/catalog/catalog.json"),
           "utf8",
         ),
-        listingBytes: statSync(path.join(root, "crates/portcove-core/catalog/listings.json")).size,
+        listingBytes,
         signedCatalogSource: readFileSync(
           path.join(root, "crates/portcove-core/src/signed_catalog.rs"),
           "utf8",
         ),
-        listingSource: readFileSync(
-          path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
-          "utf8",
-        ),
+        listingDelivery,
       });
       const detail = capacityDetail(result) ?? null;
       writeFileSync(option.output, `${JSON.stringify({ ...result, detail })}\n`);

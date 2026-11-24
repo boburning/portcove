@@ -12,6 +12,8 @@ export type ModUpdateControlProps = {
   generation: number;
   policy: ModUpdatePolicy;
   automaticChecks: ModAutoUpdateCheck[];
+  /** The stored results of the last automatic check could not be read in full. */
+  automaticChecksIncomplete?: boolean;
   disabled: boolean;
   setPolicy: (policy: ModUpdatePolicy) => void;
   providerForPackage: (nativeId: string) => string | undefined;
@@ -26,6 +28,7 @@ export function ModUpdateControl({
   generation,
   policy,
   automaticChecks,
+  automaticChecksIncomplete = false,
   disabled,
   setPolicy,
   providerForPackage,
@@ -110,6 +113,9 @@ export function ModUpdateControl({
       <p id={helpId} className="text-sm text-pc-muted-foreground">
         {labels.detail[policy]}
       </p>
+      {policy === "automatic_eligible" && automaticChecksIncomplete && (
+        <p className="text-sm">{t("mods.updates.automaticIncomplete")}</p>
+      )}
       {policy === "automatic_eligible" &&
         (automaticChecks.length > 0 ? (
           <ul

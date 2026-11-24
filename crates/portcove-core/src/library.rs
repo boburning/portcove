@@ -331,6 +331,7 @@ pub struct Library {
     pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
+    pub(crate) thunderstore_listings: crate::thunderstore::ListingSnapshots,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -584,6 +585,16 @@ const HTTP_CACHE_RECORD_RESERVE_BYTES: u64 = 4096;
 const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 const HTTP_CACHE_RECORD_BYTES_SQL: &str = "length(CAST(body AS BLOB)) + 2 * length(CAST(url AS BLOB)) + COALESCE(length(CAST(etag AS BLOB)), 0) + COALESCE(length(CAST(last_modified AS BLOB)), 0) + ?1";
 
+/// Keys of saved walk progress (such as a GitLab release-history walk) kept
+/// in the conditional-request table. They are tiny, are removed when their
+/// walk finishes, and are not responses: response traffic never evicts them,
+/// so a long walk's continuation does not depend on the 64 MiB response
+/// budget. Age pruning still removes abandoned progress after seven days, and
+/// at most [`CONTINUATION_MAX_ROWS`] (newest first) are kept.
+pub(crate) const CONTINUATION_KEY_PREFIX: &str = "portcove-continuation:";
+const CONTINUATION_MAX_ROWS: i64 = 1024;
+const NOT_CONTINUATION_SQL: &str = "substr(url, 1, 22) <> 'portcove-continuation:'";
+
 fn prune_http_cache(connection: &Connection) -> Result<()> {
     prune_http_cache_with_limits(
         connection,
@@ -601,8 +612,19 @@ fn prune_http_cache_with_limits(
         "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
         [max_age_seconds],
     )?;
+    connection.execute(
+        &format!(
+            "DELETE FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL}) AND rowid NOT IN (
+                SELECT rowid FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL})
+                ORDER BY updated_at DESC, rowid DESC LIMIT ?1
+            )"
+        ),
+        [CONTINUATION_MAX_ROWS],
+    )?;
     let retained_bytes: u64 = connection.query_row(
-        &format!("SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache"),
+        &format!(
+            "SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}"
+        ),
         [HTTP_CACHE_RECORD_RESERVE_BYTES],
         |row| row.get(0),
     )?;
@@ -611,7 +633,9 @@ fn prune_http_cache_with_limits(
     }
     // A single uncacheable response must not evict smaller useful responses.
     connection.execute(
-        &format!("DELETE FROM github_http_cache WHERE {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"),
+        &format!(
+            "DELETE FROM github_http_cache WHERE {NOT_CONTINUATION_SQL} AND {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"
+        ),
         params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
     )?;
     connection.execute(
@@ -620,7 +644,7 @@ fn prune_http_cache_with_limits(
             SELECT rowid FROM (
                 SELECT rowid, SUM({HTTP_CACHE_RECORD_BYTES_SQL}) OVER (
                     ORDER BY updated_at DESC, rowid DESC ROWS UNBOUNDED PRECEDING
-                ) AS retained_bytes FROM github_http_cache
+                ) AS retained_bytes FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}
             ) WHERE retained_bytes > ?2
         )"
         ),
@@ -842,6 +866,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         })
     }
@@ -859,6 +884,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -1741,13 +1767,25 @@ impl Library {
                     a.started_at, a.finished_at, a.cancellation_phase, a.cancel_requested,
                     a.failure_json,
                     a.status = 'running' AS is_current,
-                    a.status = 'failed' AS needs_attention,
+                    -- A check a provider rate limit stopped is not checked: it
+                    -- resumes after the reset and needs nothing from the player.
+                    a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ) AS needs_attention,
                     EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
                       AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
-                OR a.status = 'failed'
+                OR (a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ))
                 OR EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
                 OR a.rowid IN (SELECT rowid FROM terminal_history)
              ORDER BY a.started_at DESC, a.rowid DESC",
@@ -1936,6 +1974,62 @@ impl Library {
             ));
         }
         Ok(snapshot)
+    }
+
+    /// When each port's update check last succeeded, from the durable snapshots.
+    pub(crate) fn update_checked_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement =
+            connection.prepare("SELECT port_id, checked_at FROM update_snapshots")?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
+    /// When each port's update check last reached a verdict (it succeeded, or failed
+    /// for a reason other than a provider rate limit), from the retained activity
+    /// history. A rate-limited or deferred attempt, a listing read only in part, a
+    /// cancellation and an interruption learned nothing, so they do not move the
+    /// game back in the order.
+    pub(crate) fn update_check_attempted_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT target_id, started_at, failure_json FROM activity_history
+             WHERE operation='check_update' AND status IN ('succeeded', 'failed')
+               AND target_id IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?;
+        let mut attempted = HashMap::<String, i64>::new();
+        for row in rows {
+            let (port_id, started_at, failure) = row?;
+            let no_verdict = failure
+                .as_deref()
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                .is_some_and(|failure| {
+                    failure
+                        .get("presentation")
+                        .and_then(|presentation| presentation.get("presentation_key"))
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|key| {
+                            matches!(
+                                key,
+                                "provider_rate_limited"
+                                    | "inventory_incomplete"
+                                    | "operation_interrupted"
+                            )
+                        })
+                });
+            if !no_verdict {
+                let latest = attempted.entry(port_id).or_insert(started_at);
+                *latest = (*latest).max(started_at);
+            }
+        }
+        Ok(attempted)
     }
 
     pub fn update_snapshot(&self, port_id: &str) -> Result<Option<UpdateSnapshot>> {
@@ -2246,6 +2340,12 @@ impl Library {
             .map_err(PortcoveError::from)?;
         transaction.commit()?;
         Ok(cached)
+    }
+
+    pub(crate) fn remove_http_cache(&self, url: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
+        Ok(())
     }
 
     pub(crate) fn store_http_cache(
@@ -4326,6 +4426,97 @@ mod tests {
     }
 
     #[test]
+    fn a_rate_limited_update_check_is_not_checked_rather_than_needing_attention() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let finish = |operation, port: &str, error: PortcoveError| {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some(port))
+                .unwrap();
+            library
+                .finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Failed,
+                    Some(&error.message),
+                    Some(&error.report()),
+                )
+                .unwrap();
+            activity.id
+        };
+        let limited = || {
+            PortcoveError::network("GitHub API returned 403").with_known_cause(
+                crate::failure::KnownFailureCause::ProviderRequest {
+                    provider: crate::failure::FailureProvider::Github,
+                    status: 403,
+                    rate_limited: true,
+                    resets_at: Some(1_900_000_000),
+                },
+            )
+        };
+        let rate_limited_check = finish(ActivityOperation::CheckUpdate, "limited", limited());
+        // A listing a rate limit cut short reads as that rate limit.
+        let limited_listing = finish(
+            ActivityOperation::CheckUpdate,
+            "limited-listing",
+            crate::failure::inventory_incomplete_after(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                1,
+                None,
+                limited(),
+            ),
+        );
+        // A listing that stopped for another reason (a list that never ends)
+        // stays visible: it may keep happening and needs a look.
+        let incomplete = finish(
+            ActivityOperation::CheckUpdate,
+            "incomplete",
+            crate::failure::inventory_incomplete(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                3,
+                Some(2),
+            ),
+        );
+        let ordinary_failure = finish(
+            ActivityOperation::CheckUpdate,
+            "gone",
+            PortcoveError::network("the repository is gone"),
+        );
+        // The same rate limit on another operation is still that operation's failure.
+        let limited_install = finish(ActivityOperation::Install, "install", limited());
+
+        let feed = library.activity_feed(50).unwrap();
+        for not_attention in [&rate_limited_check, &limited_listing] {
+            assert!(
+                !feed.attention_required_activity_ids.contains(not_attention),
+                "{not_attention}"
+            );
+            // Still in the history, presented as the rate limit.
+            let record = feed
+                .records
+                .iter()
+                .find(|record| &record.id == not_attention)
+                .unwrap();
+            assert_eq!(
+                record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .presentation
+                    .presentation_key,
+                "provider_rate_limited"
+            );
+        }
+        for attention in [&incomplete, &ordinary_failure, &limited_install] {
+            assert!(
+                feed.attention_required_activity_ids.contains(attention),
+                "{attention}"
+            );
+        }
+    }
+
+    #[test]
     fn activity_feed_keeps_old_current_attention_and_recovery_rows_beyond_history() {
         let temporary = tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
@@ -4570,6 +4761,41 @@ mod tests {
                 "https://example.test/c".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn saved_walk_progress_survives_response_pressure_but_not_age() {
+        // A walk's continuation must not depend on the response budget: newer
+        // responses filling the budget evict older responses, never progress.
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        let progress = format!("{CONTINUATION_KEY_PREFIX}v1:walk");
+        let abandoned = format!("{CONTINUATION_KEY_PREFIX}v1:abandoned");
+        for (url, body, updated_at) in [
+            (abandoned.as_str(), "{}", 1_i64),
+            (progress.as_str(), "{\"next_page\":7}", 2_000_000_000_i64),
+            ("https://example.test/a", "aaaa", 2_000_000_001_i64),
+            ("https://example.test/b", "bbbb", 2_000_000_002_i64),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO github_http_cache(url, body, updated_at) VALUES (?1, ?2, ?3)",
+                    params![url, body, updated_at],
+                )
+                .unwrap();
+        }
+        let one_record =
+            HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * "https://example.test/b".len() as u64 + 4;
+        prune_http_cache_with_limits(&connection, one_record, 1_000_000_000).unwrap();
+        let urls = connection
+            .prepare("SELECT url FROM github_http_cache ORDER BY url")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(urls, vec!["https://example.test/b".to_owned(), progress]);
     }
 
     #[test]

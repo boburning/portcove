@@ -11,8 +11,10 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
   changeModEdit,
+  draftHasRoom,
   draftSize,
   emptyModDraft,
+  MOD_SETUP_CAPACITY,
   type LocalModSelection,
   type ModDraft,
 } from "../features/mod-setups/mod-draft";
@@ -55,7 +57,10 @@ type Props = {
   onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
   onAppliedFromPlay?: (() => void) | undefined;
-  updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
+  updates?: Pick<
+    ModUpdateControlProps,
+    "policy" | "setPolicy" | "automaticChecks" | "automaticChecksIncomplete"
+  >;
 };
 
 /**
@@ -287,8 +292,8 @@ export function ModProviderBrowser({
   const queue = (item: Project, file: File) => {
     if (!item.game_id) return;
     const gameId = item.game_id;
-    if (draft.additions.length + localFiles.length >= 16) {
-      setFailure(t("mods.workspace.draftLimit"));
+    if (!draftHasRoom(draft.additions.length + localFiles.length)) {
+      setFailure(t("mods.workspace.draftLimit", { limit: MOD_SETUP_CAPACITY }));
       return;
     }
     setDraft((current) => ({

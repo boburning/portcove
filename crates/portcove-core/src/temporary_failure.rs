@@ -297,7 +297,9 @@ pub(crate) fn parse_retry_after(value: &str, now: i64) -> Option<i64> {
     Some(instant.min(now.saturating_add(STATED_WAIT_CEILING_SECONDS)))
 }
 
-fn http_date(value: &str) -> Option<i64> {
+/// An HTTP-date in any of its three forms, in Unix seconds. The one HTTP-date
+/// parser; [`parse_retry_after`] and the GitHub budget's `Date` reading use it.
+pub(crate) fn http_date(value: &str) -> Option<i64> {
     if let Ok(moment) =
         time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc2822)
     {
@@ -373,9 +375,11 @@ impl PortcoveError {
             Some(KnownFailureCause::InventoryIncomplete { resets_at, .. }) => {
                 return Some((TemporaryCause::InventoryIncomplete, *resets_at));
             }
-            // Arm reserved for #8638: its
-            // `KnownFailureCause::ProviderAllowanceExhausted { resets_at }`
-            // classifies as `(TemporaryCause::RateLimited, *resets_at)` here.
+            // Core refused locally because the provider already reported the
+            // allowance spent or asked for a wait: a rate limit until reset.
+            Some(KnownFailureCause::ProviderAllowanceExhausted { resets_at, .. }) => {
+                return Some((TemporaryCause::RateLimited, retry_after.max(*resets_at)));
+            }
             Some(KnownFailureCause::Busy) => return Some((TemporaryCause::GameBusy, None)),
             Some(KnownFailureCause::RetainedDownloadUnreadable) => {
                 return Some((TemporaryCause::FileInUse, None));
@@ -586,6 +590,47 @@ mod tests {
     }
 
     #[test]
+    fn a_local_allowance_refusal_is_a_rate_limit_with_its_reset() {
+        let now = crate::Library::now();
+        let refused = |resets_at, throttled, reset_reported| {
+            PortcoveError::network("not sent").with_known_cause(
+                KnownFailureCause::ProviderAllowanceExhausted {
+                    provider: crate::failure::FailureProvider::Github,
+                    resets_at,
+                    throttled,
+                    reset_reported,
+                    signed_in: None,
+                },
+            )
+        };
+        assert_eq!(
+            refused(Some(now + 900), false, true).temporary_cause(),
+            Some((TemporaryCause::RateLimited, Some(now + 900)))
+        );
+        assert_eq!(
+            refused(None, true, false).temporary_cause(),
+            Some((TemporaryCause::RateLimited, None))
+        );
+        // A deferred item inherits the stopping request's Retry-After.
+        let (cause, reset) = refused(None, true, false)
+            .detail("retry_after", "60")
+            .temporary_cause()
+            .unwrap();
+        assert_eq!(cause, TemporaryCause::RateLimited);
+        assert!((now + 60..=now + 65).contains(&reset.unwrap()));
+        // Never a lasting attempt.
+        assert!(matches!(
+            FailedAttempt::of(
+                None,
+                TemporaryFailure::of(&refused(Some(now + 900), false, true)),
+                KeptDownloads::default,
+                now,
+            ),
+            FailedAttempt::Temporary(_)
+        ));
+    }
+
+    #[test]
     fn explanation_names_the_situation_and_keeps_the_instant_separate() {
         let retry = TemporaryRetry {
             cause: TemporaryCause::RateLimited,
@@ -662,6 +707,7 @@ mod tests {
                     read: 3,
                     total: Some(9),
                     resets_at: Some(42),
+                    rate_limit: None,
                 })
                 .temporary_cause(),
             Some((TemporaryCause::InventoryIncomplete, Some(42)))
