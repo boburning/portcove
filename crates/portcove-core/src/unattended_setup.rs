@@ -271,10 +271,33 @@ impl PortcoveService {
         }
     }
 
-    /// Whether this process runs any unattended setup now; lets a closing host
-    /// skip opening a service when there is nothing to stop.
-    pub fn unattended_setups_active() -> bool {
-        with_runs(|runs| !runs.is_empty())
+    /// The host's exit entry point (Desktop close and restart). It always
+    /// latches the stop for `library` first, whatever is running: between two
+    /// games a pass holds no reservation while it re-plans the next one, and
+    /// must still find the latch before it reserves. Only when this library
+    /// has runs to stop does it open a service (`open`) to record their clean
+    /// stops and ask their installs to stop. Returns how many runs were asked.
+    pub fn stop_unattended_setups_for_exit(
+        library: &crate::Library,
+        open: impl FnOnce() -> Option<PortcoveService>,
+    ) -> usize {
+        let root = library.root().to_path_buf();
+        let running = with_registry(|registry| {
+            if !registry.stopping.contains(&root) {
+                registry.stopping.push(root.clone());
+            }
+            registry.runs.iter().any(|run| run.root == root)
+        });
+        if !running {
+            return 0;
+        }
+        match open() {
+            Some(service) => service.stop_unattended_setups(),
+            None => {
+                tracing::warn!("unattended setup could not be stopped cleanly for exit");
+                0
+            }
+        }
     }
 
     /// Stops this library's unattended setup cleanly, for a host that is
@@ -313,6 +336,12 @@ impl PortcoveService {
             }
         }
         runs.len()
+    }
+
+    /// Whether any run of this library is registered now.
+    #[cfg(test)]
+    pub(crate) fn unattended_setups_registered_for_test(library: &crate::Library) -> bool {
+        with_runs(|runs| runs.iter().any(|run| run.root == library.root()))
     }
 
     /// Lifts this library's stop latch, as a new process starts without it.

@@ -1042,6 +1042,17 @@ mod tests {
     }
 
     #[test]
+    fn batches_written_before_clean_stops_and_download_keys_still_read() {
+        let old = r#"{"format_version":1,"id":"b","created_at":1,"updated_at":2,"cancel_requested":false,"items":[{"port_id":"game","expected_plan_sha256":"aa","state":"running"}]}"#;
+        let record = decode_batch("b", old).unwrap();
+        assert_eq!(record.clean_stop_at, None);
+        assert!(record.items[0].download_keys.is_empty());
+        assert_eq!(record.items[0].temporary, None);
+        // Unchanged shape when re-written.
+        assert_eq!(serde_json::to_string(&record).unwrap(), old);
+    }
+
+    #[test]
     fn selections_are_bounded_unique_and_non_empty() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();

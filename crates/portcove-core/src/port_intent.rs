@@ -1302,18 +1302,24 @@ mod tests {
 
     const STACK_PORT: &str = "standing-worker-fixture";
 
-    struct StackRelease(crate::ResolvedRelease);
+    /// Runs when a port's release is resolved (planning and re-planning).
+    type ResolveHook = std::sync::Arc<dyn Fn(&str) + Send + Sync>;
+
+    struct StackRelease(crate::ResolvedRelease, Option<ResolveHook>);
 
     #[async_trait::async_trait]
     impl crate::ReleaseProvider for StackRelease {
         async fn resolve(
             &self,
-            _: &crate::PortDefinition,
+            port: &crate::PortDefinition,
             channel: crate::ReleaseChannel,
             platform: crate::Platform,
         ) -> Result<crate::ResolvedRelease> {
             assert_eq!(channel, crate::ReleaseChannel::Stable);
             assert_eq!(platform, crate::Platform::current().unwrap());
+            if let Some(hook) = &self.1 {
+                hook(&port.id);
+            }
             Ok(self.0.clone())
         }
     }
@@ -1382,6 +1388,17 @@ mod tests {
         executable: &str,
         ports: &[&str],
     ) -> PortcoveService {
+        stack_service_hooked(temporary, origin, payload, executable, ports, None)
+    }
+
+    fn stack_service_hooked(
+        temporary: &tempfile::TempDir,
+        origin: &str,
+        payload: &[u8],
+        executable: &str,
+        ports: &[&str],
+        hook: Option<ResolveHook>,
+    ) -> PortcoveService {
         let platform = crate::Platform::current().unwrap();
         let platform_key = serde_json::to_value(platform)
             .unwrap()
@@ -1423,9 +1440,11 @@ mod tests {
             })).collect::<Vec<_>>()
         }).to_string()).unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let mut service =
-            PortcoveService::with_provider(library, std::sync::Arc::new(StackRelease(release)))
-                .unwrap();
+        let mut service = PortcoveService::with_provider(
+            library,
+            std::sync::Arc::new(StackRelease(release, hook)),
+        )
+        .unwrap();
         service.replace_catalog_for_test(catalog);
         service
             .register_source("standing-worker-original", &source)
@@ -1766,6 +1785,16 @@ mod tests {
                 ],
                 "{pass:?}"
             );
+            // Each unattended batch kept its plan's download entry, derived
+            // from the plan by the production path.
+            let key = format!(
+                "{}-{}",
+                crate::signed_catalog::digest(&payload),
+                payload.len()
+            );
+            for batch in &pass.batches {
+                assert_eq!(batch.items[0].download_keys, [key.clone()]);
+            }
         });
     }
 
@@ -1929,6 +1958,70 @@ mod tests {
             );
             let later = service.library.port_intent(LATER).unwrap().unwrap();
             assert_eq!((later.failed_attempts, later.temporary_retry), (0, None));
+            service.resume_unattended_setups_for_test();
+        });
+    }
+
+    #[test]
+    fn closing_while_the_pass_replans_the_next_game_never_starts_it() {
+        const LATER: &str = "standing-worker-fixture-later";
+        on_large_stack(|| async {
+            let temporary = tempfile::tempdir().unwrap();
+            let (executable, _, payload) = stack_payload();
+            let answer = whole_answer(&payload);
+            let (origin, _requests, _server) =
+                crate::test_http::serve_routed_http_bytes(4, move |_| answer.clone());
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            // Armed once the first game finished: the next resolve of the
+            // second game is the pass re-planning it, with no run registered.
+            let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let exits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let hook: ResolveHook = {
+                let (library, armed, exits) = (library.clone(), armed.clone(), exits.clone());
+                std::sync::Arc::new(move |port: &str| {
+                    if port == LATER && armed.load(std::sync::atomic::Ordering::SeqCst) {
+                        assert!(!PortcoveService::unattended_setups_registered_for_test(
+                            &library
+                        ));
+                        // The same entry point the Desktop exit handler calls.
+                        PortcoveService::stop_unattended_setups_for_exit(&library, || {
+                            Some(PortcoveService::new(library.clone()).unwrap())
+                        });
+                        exits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                })
+            };
+            drop(library);
+            let service = stack_service_hooked(
+                &temporary,
+                &origin,
+                &payload,
+                &executable,
+                &[STACK_PORT, LATER],
+                Some(hook),
+            );
+            for port in [STACK_PORT, LATER] {
+                service
+                    .set_port_intent(port, PortIntentMode::SetUpWhenReady)
+                    .unwrap();
+            }
+            let pass = service
+                .run_standing_setup(|event| {
+                    if event.parent_operation_id.is_none()
+                        && matches!(event.event, crate::OperationEventKind::Finished { .. })
+                    {
+                        armed.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                })
+                .await
+                .unwrap();
+            assert_eq!(exits.load(std::sync::atomic::Ordering::SeqCst), 1);
+            // The first game finished; the second never started.
+            assert_eq!(pass.batches.len(), 1, "{pass:?}");
+            assert_eq!(pass.batches[0].items[0].port_id, STACK_PORT);
+            assert_eq!(pass.batches[0].items[0].state, InstallBatchItemState::Ready);
+            assert!(service.status(LATER).unwrap().active.is_none());
+            assert!(service.unfinished_install_batches().unwrap().is_empty());
             service.resume_unattended_setups_for_test();
         });
     }

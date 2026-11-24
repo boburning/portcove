@@ -3505,26 +3505,23 @@ pub fn run() -> std::process::ExitCode {
 /// clean stop, then its install is asked to stop at its cancellation boundary.
 /// Best effort and quick; a library that is not open has nothing running.
 pub(crate) fn stop_unattended_setup_for_exit(app: &tauri::AppHandle) {
-    if !PortcoveService::unattended_setups_active() {
-        return;
-    }
     let Some(state) = app.try_state::<DesktopState>() else {
         return;
     };
-    match service(state.inner()) {
-        Ok(service) => {
-            let stopped = service.stop_unattended_setups();
-            tracing::info!(
-                component = "standing_setup",
-                stopped,
-                message = "unattended setup stopped cleanly for exit"
-            );
-        }
-        Err(_) => tracing::warn!(
-            component = "standing_setup",
-            message = "unattended setup could not be stopped cleanly for exit"
-        ),
-    }
+    // A library that is not open has nothing running.
+    let Ok(ready_state) = ready(state.inner()) else {
+        return;
+    };
+    // Core latches the stop even when nothing is registered (a pass between
+    // two games), and opens a service only when there are runs to stop.
+    let stopped = PortcoveService::stop_unattended_setups_for_exit(&ready_state.library, || {
+        service(state.inner()).ok()
+    });
+    tracing::info!(
+        component = "standing_setup",
+        stopped,
+        message = "unattended setup stopped cleanly for exit"
+    );
 }
 
 type StartupResult = Result<(), Box<dyn std::error::Error>>;
