@@ -24,8 +24,11 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import {
+  PublicationInventoryIncompleteError,
   createPublicationInventoryWithSdk,
+  createReleasePublicationReader,
   readPublicationAllocationsWithSdk,
+  releasePublicationPrefixRefsQuery,
   releasePublicationRefsQuery,
 } from "./release-publication-inventory.mts";
 
@@ -615,11 +618,26 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
       },
       graphql: (query: string, variables?: Readonly<Record<string, unknown>>) => {
         calls.push("GraphQL refs");
-        assert.match(query, /query AdmissionRefs/u);
+        assert.match(query, /query Admission(?:Prefix)?Refs/u);
         assert.doesNotMatch(query, /mutation/u);
         const offset = variables?.cursor === null ? 0 : Number(variables?.cursor);
-        if (offset === 0) tagRounds++;
-        const rows = structuredClone(tags.slice(offset, offset + 100));
+        // A namespace scan reads one ref prefix, with names relative to it.
+        const scoped =
+          typeof variables?.prefix === "string"
+            ? String(variables.prefix).slice("refs/tags/".length)
+            : null;
+        if (offset === 0 && scoped === null) tagRounds++;
+        const matching =
+          scoped === null
+            ? tags
+            : tags
+                .filter((tag) => tag.name.startsWith(scoped))
+                .map((tag) => ({
+                  ...tag,
+                  name: tag.name.slice(scoped.length),
+                  prefix: `refs/tags/${scoped}`,
+                }));
+        const rows = structuredClone(matching.slice(offset, offset + 100));
         if (faults.value === "tag-drift" && tagRounds > 1 && rows[0])
           rows[0].target.oid = "e".repeat(40);
         if (faults.value === "duplicate-tag" && rows[1]) rows[1].id = rows[0]!.id;
@@ -632,10 +650,10 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
               databaseId: 1354613114,
               nameWithOwner: "boburning/portcove",
               refs: {
-                totalCount: tags.length + (faults.value === "truncated" ? 1 : 0),
+                totalCount: matching.length + (faults.value === "truncated" ? 1 : 0),
                 nodes: rows,
                 pageInfo: {
-                  hasNextPage: offset + 100 < tags.length,
+                  hasNextPage: offset + 100 < matching.length,
                   endCursor: String(offset + rows.length),
                 },
               },
@@ -688,10 +706,12 @@ void test("locked allocation reader joins the exact raw prepared and source comm
         assert.ok(typeof init?.body === "string");
         const raw: unknown = JSON.parse(init.body);
         assert.ok(
-          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+          isRecord(raw) &&
+            raw.query === releasePublicationPrefixRefsQuery &&
+            isRecord(raw.variables),
         );
         return Response.json({
-          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+          data: api.graphql(releasePublicationPrefixRefsQuery, raw.variables).data,
         });
       }
       return Response.json(api.request("GET", pathname.slice(1)).body);
@@ -710,6 +730,7 @@ void test("locked allocation reader joins the exact raw prepared and source comm
   ]);
   assert.deepEqual(paths, [
     "/repos/boburning/portcove",
+    "/graphql",
     "/graphql",
     `/repos/boburning/portcove/git/commits/${f.prepared.sha}`,
     `/repos/boburning/portcove/git/commits/${f.original.sha}`,
@@ -1228,10 +1249,12 @@ void test("source publication inventory keeps ordered short pages, exact repo al
         (await reader.releases()).map((row) => row.id),
         [1, 3],
       );
+      // The walk's earlier page is re-read once at the end and must not change.
       assert.deepEqual(routes, [
         "/repos/boburning/portcove",
         "/repos/boburning/portcove/releases?per_page=100",
         second,
+        "/repos/boburning/portcove/releases?per_page=100",
       ]);
     }
   }
@@ -1315,7 +1338,10 @@ for (const failure of ["releases", "comparison"] as const)
     if (failure === "comparison") {
       assert.match(events.at(-1) ?? "", /^\/repos\/boburning\/portcove\/compare\//u);
       assert.equal(events.filter((event) => event.includes("/compare/")).length, 1);
-    } else assert.equal(events.length, 4);
+    } else
+      // A transient inventory refusal retries with bounded backoff (three
+      // attempts in total) and then fails; it is never read as an empty list.
+      assert.deepEqual(events.slice(3), Array(3).fill("/repos/boburning/portcove/releases"));
   });
 
 void test("default admission journal uses a separate scoped SDK read through a stalled body", async (t) => {
@@ -1479,4 +1505,472 @@ void test("default admission brackets exact SDK check pages and statuses across 
       mocked.mock.restore();
     }
   }
+});
+
+/** Simulated provider for lifetime-scale inventory behavior. It models GitHub
+ * page and cursor semantics only; it does not measure a real provider quota. */
+function simulatedPublicationProvider(count: number, extraTags: string[] = []) {
+  const time = "2026-11-04T00:00:00Z";
+  const releases = Array.from({ length: count }, (_, index) => ({
+    id: index + 1,
+    tag_name: `v0.${Math.floor(index / 1000)}.${index % 1000}`,
+    draft: false,
+    prerelease: true,
+    published_at: time,
+    updated_at: time,
+  }));
+  const tag = (name: string, index: number) => ({
+    id: `ref-${index}`,
+    name,
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: index.toString(16).padStart(40, "0") },
+  });
+  const tags = [...releases.map((release) => release.tag_name), ...extraTags]
+    .map(tag)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const provider = {
+    releases,
+    tags,
+    tag,
+    requests: 0,
+    fault: undefined as
+      | ((url: URL, body: Record<string, unknown> | null) => Response | undefined)
+      | undefined,
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      provider.requests++;
+      const body: unknown = request.method === "POST" ? await request.json() : null;
+      assert.ok(body === null || isRecord(body));
+      const fault = provider.fault?.(url, body);
+      if (fault) return fault;
+      if (url.pathname === "/repos/boburning/portcove")
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_scale",
+        });
+      if (url.pathname === "/repos/boburning/portcove/releases") {
+        const page = Number(url.searchParams.get("page") ?? "1");
+        const listing = [...provider.releases].reverse();
+        const rows = listing.slice((page - 1) * 100, page * 100);
+        return Response.json(
+          rows,
+          page * 100 < listing.length
+            ? {
+                headers: {
+                  link: `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                },
+              }
+            : undefined,
+        );
+      }
+      assert.equal(url.pathname, "/graphql");
+      assert.ok(isRecord(body) && typeof body.query === "string" && isRecord(body.variables));
+      const variables = body.variables;
+      const repository = {
+        id: "R_scale",
+        databaseId: 1354613114,
+        nameWithOwner: "boburning/portcove",
+      };
+      if (/query AdmissionExactRef/u.test(body.query)) {
+        const name = String(variables.name).slice("refs/tags/".length);
+        const ref = provider.tags.find((value) => value.name === name) ?? null;
+        return Response.json({ data: { repository: { ...repository, ref } } });
+      }
+      const scoped =
+        typeof variables.prefix === "string" ? variables.prefix.slice("refs/tags/".length) : "";
+      const matching = provider.tags
+        .filter((value) => value.name.startsWith(scoped))
+        .map((value) => ({
+          ...value,
+          name: value.name.slice(scoped.length),
+          prefix: `refs/tags/${scoped}`,
+        }));
+      const offset = variables.cursor === null ? 0 : Number(variables.cursor);
+      const nodes = matching.slice(offset, offset + 100);
+      return Response.json({
+        data: {
+          repository: {
+            ...repository,
+            refs: {
+              totalCount: matching.length,
+              pageInfo: {
+                hasNextPage: offset + 100 < matching.length,
+                endCursor: String(offset + nodes.length),
+              },
+              nodes,
+            },
+          },
+        },
+      });
+    },
+  };
+  return provider;
+}
+
+function openSimulatedInventory(provider: ReturnType<typeof simulatedPublicationProvider>) {
+  return createPublicationInventoryWithSdk({
+    token: "synthetic-scale-inventory",
+    deadline: performance.now() + 120000,
+    recheck: async () => {},
+    fetch: provider.fetch,
+  });
+}
+
+async function interruptedScan(
+  provider: ReturnType<typeof simulatedPublicationProvider>,
+  scan: (reader: Awaited<ReturnType<typeof openSimulatedInventory>>) => Promise<unknown>,
+) {
+  const error = await scan(await openSimulatedInventory(provider)).then(
+    () => assert.fail("a budget-interrupted inventory resolved as complete"),
+    (cause: unknown) => cause,
+  );
+  assert.ok(error instanceof PublicationInventoryIncompleteError);
+  assert.match(error.message, /publication inventory budget exceeded/u);
+  return error;
+}
+
+for (const count of [1000, 5000, 20000])
+  void test(`release and tag inventories read past the former 1,600-record ceiling to provider exhaustion at ${count} records`, async () => {
+    const provider = simulatedPublicationProvider(count);
+    const ids = Array.from({ length: count }, (_, index) => index + 1);
+    const names = provider.tags.map((row) => row.name);
+    if (count <= 7900) {
+      // Within one reader's request budget (walk plus end-of-walk re-reads,
+      // about 7,900 Releases) the read is a single pass.
+      const reader = await openSimulatedInventory(provider);
+      assert.deepEqual(
+        (await reader.releases()).map((row) => row.id),
+        ids,
+      );
+      assert.deepEqual(
+        (await (await openSimulatedInventory(provider)).tags()).map((row) => row.name),
+        names,
+      );
+      return;
+    }
+    // Past one budget the single pass fails visibly; continuation reaches the
+    // end and is labeled a composite rather than a single snapshot.
+    const releases = await interruptedScan(provider, (reader) => reader.releases());
+    const resumed = await (
+      await openSimulatedInventory(provider)
+    ).resumeReleases(releases.checkpoint);
+    assert.equal(resumed.snapshot, "composite-across-budget-windows");
+    assert.deepEqual(
+      resumed.rows.map((row) => row.id),
+      ids,
+    );
+    const tags = await interruptedScan(provider, (reader) => reader.tags());
+    const resumedTags = await (await openSimulatedInventory(provider)).resumeTags(tags.checkpoint);
+    assert.equal(resumedTags.snapshot, "composite-across-budget-windows");
+    assert.deepEqual(
+      resumedTags.rows.map((row) => row.name),
+      names,
+    );
+  });
+
+void test("a budget-interrupted inventory is refused as complete and continues only from its own checkpoint", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  assert.match(interrupted.message, /incomplete after 15900 records; resumable/u);
+  assert.equal(interrupted.checkpoint.kind, "releases");
+  assert.equal(interrupted.checkpoint.rows.length, 15900);
+  const resumed = await (
+    await openSimulatedInventory(provider)
+  ).resumeReleases(interrupted.checkpoint);
+  assert.equal(new Set(resumed.rows.map((row) => row.id)).size, 20000);
+  const tagError = await interruptedScan(provider, (reader) => reader.tags());
+  assert.equal(tagError.checkpoint.kind, "tags");
+  const tags = await (await openSimulatedInventory(provider)).resumeTags(tagError.checkpoint);
+  assert.equal(new Set(tags.rows.map((row) => row.id)).size, 20000);
+  // A checkpoint belongs to one scan kind, row projection and position.
+  const reader = await openSimulatedInventory(provider);
+  await assert.rejects(
+    reader.resumeReleases(tagError.checkpoint),
+    /checkpoint does not match this scan/u,
+  );
+  assert.equal(interrupted.checkpoint.kind, "releases");
+  for (const forged of [
+    { ...interrupted.checkpoint, projection: "notes" as const },
+    { ...interrupted.checkpoint, previous: { route: interrupted.checkpoint.route, ids: [1] } },
+    { ...interrupted.checkpoint, head: [] },
+  ])
+    await assert.rejects(reader.resumeReleases(forged), /checkpoint does not match this scan/u);
+});
+
+void test("resuming fails visibly when the head page or the last accepted page changed", async () => {
+  for (const change of ["older-deleted", "added-and-deleted", "tag-added-and-deleted"] as const) {
+    const provider = simulatedPublicationProvider(20000);
+    const tags = change === "tag-added-and-deleted";
+    const interrupted = await interruptedScan(provider, (reader) =>
+      tags ? reader.tags() : reader.releases(),
+    );
+    const reader = await openSimulatedInventory(provider);
+    if (change === "older-deleted") {
+      // Deleting an already-read Release shifts every later page by one row.
+      provider.releases.splice(provider.releases.length - 1000, 1);
+    } else if (change === "added-and-deleted") {
+      // A new Release plus a deleted one keeps every page count unchanged.
+      provider.releases.splice(provider.releases.length - 5, 1);
+      provider.releases.push({ ...provider.releases.at(-1)!, id: 99999, tag_name: "v9.9.9" });
+    } else {
+      // A new tag plus a deleted already-read tag keeps totalCount unchanged.
+      provider.tags.splice(500, 1);
+      provider.tags.unshift(provider.tag("a-new-tag", 99999));
+    }
+    await assert.rejects(
+      tags
+        ? reader.resumeTags(interrupted.checkpoint)
+        : reader.resumeReleases(interrupted.checkpoint),
+      tags
+        ? /admission refs changed before their resume point/u
+        : /release inventory changed before its resume point/u,
+    );
+  }
+});
+
+void test("a Release deleted behind a resumed window during its walk fails visibly", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  let deleted = false;
+  provider.fault = (url) => {
+    // Delete a Release from an earlier window's page while page 170 is read.
+    if (!deleted && url.searchParams.get("page") === "170") {
+      provider.releases.splice(provider.releases.length - 5000, 1);
+      deleted = true;
+    }
+    return undefined;
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).resumeReleases(interrupted.checkpoint),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /changed during the scan/u.test(error.message),
+  );
+});
+
+void test("a composite continuation does not re-observe edits to already-read records", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  // Publishing an older draft in place moves no row and changes no count.
+  const edited = provider.releases[15000]!;
+  edited.draft = true;
+  const resumed = await (
+    await openSimulatedInventory(provider)
+  ).resumeReleases(interrupted.checkpoint);
+  // This is why a composite is labeled and is not conflict authority alone.
+  assert.equal(resumed.snapshot, "composite-across-budget-windows");
+  assert.equal(resumed.rows.find((row) => row.id === edited.id)?.draft, false);
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    PublicationInventoryIncompleteError,
+  );
+});
+
+void test("a single-pass Release read of one short page costs no verification requests", async () => {
+  const provider = simulatedPublicationProvider(15);
+  const reader = await openSimulatedInventory(provider);
+  const before = provider.requests;
+  assert.equal((await reader.releases()).length, 15);
+  assert.equal(provider.requests - before, 1);
+});
+
+void test("a Release deleted from an already-read page during a single pass fails visibly", async () => {
+  for (const deletedPage of [1, 3]) {
+    const provider = simulatedPublicationProvider(1000);
+    const removed = provider.releases.at(-((deletedPage - 1) * 100 + 7))!.id;
+    const skipped = provider.releases.at(-(5 * 100 + 1))!.id;
+    let deleted = false;
+    provider.fault = (url) => {
+      // Delete after page 5 is read and before page 6: page 6 loses its first row.
+      if (!deleted && url.searchParams.get("page") === "6") {
+        provider.releases.splice(
+          provider.releases.findIndex((row) => row.id === removed),
+          1,
+        );
+        deleted = true;
+      }
+      return undefined;
+    };
+    const error = await (await openSimulatedInventory(provider)).releases().then(
+      () => assert.fail("a walk that skipped a Release resolved as complete"),
+      (cause: unknown) => cause,
+    );
+    assert.ok(error instanceof PublicationInventoryIncompleteError);
+    assert.match(error.message, /release inventory changed during the scan/u);
+    // The checkpoint never claims the shifted row was read.
+    assert.ok(!error.checkpoint.rows.some((row) => isRecord(row) && row.id === skipped));
+    // A fresh read after the change is complete again.
+    provider.fault = undefined;
+    const rows = await (await openSimulatedInventory(provider)).releases();
+    assert.equal(rows.length, 999);
+    assert.ok(rows.some((row) => row.id === skipped));
+  }
+});
+
+void test("a Release published mid-walk fails visibly in a single pass", async () => {
+  const provider = simulatedPublicationProvider(1000);
+  let published = false;
+  provider.fault = (url) => {
+    if (!published && url.searchParams.get("page") === "4") {
+      provider.releases.push({ ...provider.releases.at(-1)!, id: 5000, tag_name: "v9.9.9" });
+      published = true;
+    }
+    return undefined;
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    /duplicates a Release ID/u,
+  );
+});
+
+void test("a provider that drops the next relation at a full page boundary fails visibly", async () => {
+  const provider = simulatedPublicationProvider(1000);
+  provider.fault = (url) => {
+    const page = Number(url.searchParams.get("page") ?? "1");
+    if (url.pathname !== "/repos/boburning/portcove/releases" || page !== 4) return undefined;
+    // A full page without `next`, although six more pages exist.
+    return Response.json([...provider.releases].reverse().slice(300, 400));
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /ended before the provider was exhausted/u.test(error.message),
+  );
+});
+
+void test("a provider that ends a short page without next is the documented residual", async () => {
+  // REST Release listing reports no total, so a short page without `next` is
+  // indistinguishable from the real end. This pins the residual, not a defect.
+  const provider = simulatedPublicationProvider(1000);
+  provider.fault = (url) =>
+    url.pathname === "/repos/boburning/portcove/releases" && url.searchParams.get("page") === "4"
+      ? Response.json([...provider.releases].reverse().slice(300, 350))
+      : undefined;
+  assert.equal((await (await openSimulatedInventory(provider)).releases()).length, 350);
+});
+
+void test("the legacy synchronous Release reader verifies its walk the same way", () => {
+  const provider = simulatedPublicationProvider(300);
+  const listing = () => [...provider.releases].reverse();
+  let deleted = false;
+  const reader = createReleasePublicationReader({
+    request(method, endpoint) {
+      assert.equal(method, "GET");
+      const url = new URL(endpoint, "https://api.github.com/");
+      if (url.pathname === "/repos/boburning/portcove")
+        return {
+          headers: new Map(),
+          body: { id: 1354613114, full_name: "boburning/portcove", node_id: "R_scale" },
+        };
+      const page = Number(url.searchParams.get("page") ?? "1");
+      if (page === 2 && !deleted) {
+        provider.releases.splice(provider.releases.length - 3, 1);
+        deleted = true;
+      }
+      const rows = listing().slice((page - 1) * 100, page * 100);
+      const more = page * 100 < listing().length;
+      return {
+        headers: new Map(
+          more
+            ? [
+                [
+                  "link",
+                  `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                ],
+              ]
+            : [],
+        ),
+        body: rows,
+      };
+    },
+    graphql() {
+      throw new Error("not used");
+    },
+  });
+  assert.throws(
+    () => reader.releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /changed during the scan/u.test(error.message),
+  );
+  assert.equal(reader.releases().length, 299);
+});
+
+void test("exact identity and namespace receipt reads detect conflicts beyond the former bound at 20,000 tags", async () => {
+  const receipts = Array.from({ length: 2000 }, (_, index) => [
+    `portcove-fixture-prepared/v1.0.${index}`,
+    ...(index === 1999
+      ? []
+      : [`portcove-fixture-prepared-source/${index.toString(16).padStart(40, "0")}`]),
+  ]).flat();
+  const provider = simulatedPublicationProvider(20000, receipts);
+  const reader = await openSimulatedInventory(provider);
+  const before = provider.requests;
+  const last = await reader.tag("v0.19.999");
+  assert.equal(last?.name, "v0.19.999");
+  assert.equal(await reader.tag("v9.9.9"), null);
+  assert.equal(provider.requests - before, 2);
+  const namespace = await reader.namespaceTags("portcove-fixture");
+  assert.equal(namespace.length, 3999);
+  assert.ok(namespace.every((row) => row.prefix === "refs/tags/"));
+  assert.equal(provider.requests - before, 2 + 20 + 20);
+  // The unpaired receipt sorts past position 1,600 and is still a conflict.
+  await assert.rejects(
+    reader.readAllocations(namespace, "portcove-fixture"),
+    /incomplete receipt pairs/u,
+  );
+});
+
+void test("incomplete provider evidence is refused rather than read as absence", async () => {
+  const provider = simulatedPublicationProvider(5000);
+  provider.fault = (url, body) => {
+    if (
+      url.pathname === "/repos/boburning/portcove/releases" &&
+      url.searchParams.get("page") === "30"
+    )
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.cursor === "2500")
+      return Response.json({
+        data: {
+          repository: {
+            id: "R_scale",
+            databaseId: 1354613114,
+            nameWithOwner: "boburning/portcove",
+            refs: {
+              totalCount: 5000,
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: [],
+            },
+          },
+        },
+      });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.name === "refs/tags/v0.0.1")
+      return Response.json({
+        data: {
+          repository: {
+            id: "R_scale",
+            databaseId: 1354613114,
+            nameWithOwner: "boburning/portcove",
+          },
+        },
+      });
+    if (isRecord(body) && isRecord(body.variables) && body.variables.name === "refs/tags/v0.0.2")
+      return Response.json({ data: null, errors: [{ message: "timeout" }] });
+    return undefined;
+  };
+  const reader = await openSimulatedInventory(provider);
+  await assert.rejects(
+    reader.releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError && error.checkpoint.rows.length === 2900,
+  );
+  await assert.rejects(reader.tags(), /admission refs omit records/u);
+  await assert.rejects(reader.tag("v0.0.1"), /exact tag lookup response is incomplete/u);
+  // A provider GraphQL error is a failed lookup, never a null (absent) ref.
+  await assert.rejects(reader.tag("v0.0.2"), /timeout/u);
+  await assert.rejects(reader.tag("refs/tags/v0.0.3"), /requires one valid tag name/u);
 });

@@ -28,14 +28,76 @@ pub(crate) struct ListingDeliveryDocument {
     pub directory: CatalogListingDocument,
 }
 
-use portcove_listing_carrier::{MAX_COMPACT_RECORD_BYTES, MAX_LISTING_ENTRIES, bounded_entries};
+use portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES;
 
+/// Measured working memory one element adds through decode, parse and
+/// projection, beyond about three times the decoded bytes (SIGNED-CATALOG.md
+/// "Reader generations"): 3.93 KiB per listing, 68 bytes per withdrawal.
+pub(crate) const LISTING_WORKING_BYTES: usize = 4_027;
+pub(crate) const WITHDRAWAL_WORKING_BYTES: usize = 68;
+/// One admission's element budget: the measured element share of a realistic
+/// directory at the 32 MiB decoded bound (about 10,300 listings x 3.93 KiB).
+/// The decoded bound alone admits 350,672 minimal listings, measured at 1.4
+/// GiB; this keeps every element shape near the realistic directory's
+/// working memory. Larger directories need continuation, not a larger count.
+pub(crate) const ELEMENT_WORKING_BUDGET: usize = 40 * 1024 * 1024;
+
+/// A list that charges each element against the element budget while it is
+/// parsed, so an oversized list is refused before it is allocated.
+fn charged<'de, D, T, const CHARGE: usize>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct Entries<T, const CHARGE: usize>(std::marker::PhantomData<T>);
+
+    impl<'de, T: Deserialize<'de>, const CHARGE: usize> serde::de::Visitor<'de> for Entries<T, CHARGE> {
+        type Value = Vec<T>;
+
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "listing directory entries within the element budget")
+        }
+
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(
+            self,
+            mut seq: A,
+        ) -> std::result::Result<Vec<T>, A::Error> {
+            let mut entries = Vec::new();
+            while let Some(value) = seq.next_element()? {
+                if (entries.len() + 1) * CHARGE > ELEMENT_WORKING_BUDGET {
+                    return Err(serde::de::Error::custom(
+                        "compact listing directory exceeds its element budget",
+                    ));
+                }
+                entries.push(value);
+            }
+            Ok(entries)
+        }
+    }
+
+    deserializer.deserialize_seq(Entries::<T, CHARGE>(std::marker::PhantomData))
+}
+
+fn charged_withdrawals<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Vec<String>, D::Error> {
+    charged::<D, String, WITHDRAWAL_WORKING_BYTES>(deserializer)
+}
+
+fn charged_listings<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Vec<CompactListing>, D::Error> {
+    charged::<D, CompactListing, LISTING_WORKING_BYTES>(deserializer)
+}
+
+// The publisher still honors the released readers' `MAX_LISTING_ENTRIES`
+// until they are no longer supported.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DecodedCompactDirectory {
     listing_delivery_schema: u32,
     revision: u64,
-    #[serde(deserialize_with = "bounded_entries")]
+    #[serde(deserialize_with = "charged_withdrawals")]
     withdrawn_ids: Vec<String>,
     directory: CompactListingRecords,
 }
@@ -44,7 +106,7 @@ struct DecodedCompactDirectory {
 #[serde(deny_unknown_fields)]
 struct CompactListingRecords {
     format_version: u32,
-    #[serde(deserialize_with = "bounded_entries")]
+    #[serde(deserialize_with = "charged_listings")]
     listings: Vec<CompactListing>,
 }
 
@@ -74,28 +136,264 @@ impl<'de> Deserialize<'de> for CompactListing {
 mod projection_tests {
     use super::*;
 
+    /// Deterministic scale scenario: the committed directory repeated `scale`
+    /// times, each repetition with fresh identities. A validation scenario
+    /// for measurement only; it is never a product limit.
+    #[cfg(target_os = "linux")]
+    fn scaled_compact_document(scale: usize) -> Vec<u8> {
+        let mut directory: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/listings.json")).unwrap();
+        let rows = directory["listings"].as_array().unwrap().clone();
+        let mut listings = Vec::with_capacity(rows.len() * scale);
+        for copy in 0..scale {
+            for row in &rows {
+                let mut row = row.clone();
+                if copy > 0 {
+                    // Every reference to the listing's own identity (its id and
+                    // media subjects) moves to the fresh identity together.
+                    fn rename(value: &mut serde_json::Value, from: &str, to: &str) {
+                        match value {
+                            serde_json::Value::String(text) if text == from => *text = to.into(),
+                            serde_json::Value::Array(items) => {
+                                items.iter_mut().for_each(|item| rename(item, from, to))
+                            }
+                            serde_json::Value::Object(fields) => {
+                                fields.values_mut().for_each(|item| rename(item, from, to))
+                            }
+                            _ => {}
+                        }
+                    }
+                    let id = row["id"].as_str().unwrap().to_owned();
+                    rename(&mut row, &id, &format!("{id}-scale-{copy}"));
+                }
+                listings.push(row);
+            }
+        }
+        directory["listings"] = listings.into();
+        serde_json::to_vec(&serde_json::json!({
+            "listing_delivery_schema": 1,
+            "revision": 1,
+            "withdrawn_ids": [],
+            "directory": directory,
+        }))
+        .unwrap()
+    }
+
+    /// Worst-case element shape at the released decoded bound: the smallest
+    /// valid listing rows, or the shortest withdrawals, filling 32 MiB.
+    #[cfg(target_os = "linux")]
+    fn worst_case_compact_document(shape: &str) -> Vec<u8> {
+        let budget = MAX_COMPACT_DECODED_BYTES - 1024;
+        let (mut listings, mut withdrawn) = (Vec::new(), Vec::new());
+        let mut used = 0;
+        for index in 0.. {
+            let element = match shape {
+                "minimal-listings" => format!(
+                    r#"{{"id":"l-{index}","name":"Listing","summary":"Description.","project_url":"https://example.org"}}"#
+                ),
+                "minimal-withdrawals" => format!(r#""w-{index}""#),
+                _ => panic!("unknown PORTCOVE_LISTING_SHAPE"),
+            };
+            used += element.len() + 1;
+            if used > budget {
+                break;
+            }
+            if shape == "minimal-listings" {
+                listings.push(element);
+            } else {
+                withdrawn.push(element);
+            }
+        }
+        format!(
+            r#"{{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[{}],"directory":{{"format_version":15,"listings":[{}]}}}}"#,
+            withdrawn.join(","),
+            listings.join(",")
+        )
+        .into_bytes()
+    }
+
+    #[cfg(target_os = "linux")]
+    fn resident_kib(field: &str) -> u64 {
+        std::fs::read_to_string("/proc/self/status")
+            .unwrap()
+            .lines()
+            .find_map(|line| line.strip_prefix(field))
+            .and_then(|value| value.trim().trim_end_matches("kB").trim().parse().ok())
+            .unwrap()
+    }
+
+    /// Measurement for the reader-limit decision (#1422). Generation and
+    /// measurement run in separate processes so freed fixture memory is not
+    /// reused: `PORTCOVE_LISTING_SCALE=N PORTCOVE_LISTING_CARRIER=FILE cargo
+    /// nextest run -p portcove-core --lib --run-ignored only
+    /// measure_compact_directory_admission` writes FILE when it is absent and
+    /// measures decode, parse and projection of it when it exists.
+    #[cfg(target_os = "linux")]
     #[test]
-    fn compact_parse_rejects_record_and_entry_overflow_and_duplicate_fields() {
-        let envelope = |listings: &str| {
+    #[ignore = "measurement; run explicitly, one phase per process"]
+    fn measure_compact_directory_admission() {
+        use std::io::Write as _;
+        let path = std::path::PathBuf::from(std::env::var("PORTCOVE_LISTING_CARRIER").unwrap());
+        if !path.exists() {
+            let scale = std::env::var("PORTCOVE_LISTING_SCALE")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(1);
+            let decoded = match std::env::var("PORTCOVE_LISTING_SHAPE").as_deref() {
+                Ok(shape) => worst_case_compact_document(shape),
+                Err(_) => scaled_compact_document(scale),
+            };
+            let mut gzip =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            gzip.write_all(&decoded).unwrap();
+            let carrier = serde_json::to_vec(&serde_json::json!({
+                "carrier": COMPACT_CARRIER,
+                "decoded_bytes": decoded.len(),
+                "decoded_sha256": hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&decoded)),
+                "gzip_base64": base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    gzip.finish().unwrap()
+                ),
+            }))
+            .unwrap();
+            std::fs::write(&path, carrier).unwrap();
+            let mut directory: serde_json::Value = serde_json::from_slice(&decoded).unwrap();
+            std::fs::write(
+                path.with_extension("text"),
+                serde_json::to_string_pretty(&directory["directory"].take()).unwrap(),
+            )
+            .unwrap();
+            return;
+        }
+        if std::env::var("PORTCOVE_LISTING_MEASURE").as_deref() == Ok("text") {
+            // Authored-text inspection: the `catalog inspect-listings` parse.
+            let text = std::fs::read_to_string(path.with_extension("text")).unwrap();
+            std::fs::write("/proc/self/clear_refs", "5").unwrap();
+            let before = resident_kib("VmRSS:");
+            let started = std::time::Instant::now();
+            let document = CatalogListingDocument::from_json(&text).unwrap();
+            eprintln!(
+                "text listings={} text_bytes={} total_ms={} baseline_rss_kib={before} \
+                 peak_increment_kib={}",
+                document.listings.len(),
+                text.len(),
+                started.elapsed().as_millis(),
+                resident_kib("VmHWM:").saturating_sub(before),
+            );
+            return;
+        }
+        let baseline_catalog = Catalog::embedded().unwrap();
+        let carrier = std::fs::read(&path).unwrap();
+        // Attribute only admission work to the peak (Linux >= 4.0).
+        std::fs::write("/proc/self/clear_refs", "5").unwrap();
+        let before = resident_kib("VmRSS:");
+        let started = std::time::Instant::now();
+        let (bytes, _) =
+            portcove_listing_carrier::decode_within(&carrier, usize::MAX, usize::MAX).unwrap();
+        let document = match ListingDeliveryDocument::parse_compact_within(&bytes, usize::MAX) {
+            Ok(document) => document,
+            Err(error) => {
+                eprintln!(
+                    "refused decoded_bytes={} parse_ms={} peak_increment_kib={}: {}",
+                    bytes.len(),
+                    started.elapsed().as_millis(),
+                    resident_kib("VmHWM:").saturating_sub(before),
+                    error.message
+                );
+                return;
+            }
+        };
+        let parsed = started.elapsed();
+        let projected = document.project(baseline_catalog).unwrap();
+        let elapsed = started.elapsed();
+        let peak = resident_kib("VmHWM:");
+        eprintln!(
+            "listings={} delivered={} withdrawn={} wire_bytes={} decoded_bytes={} parse_ms={} \
+             total_ms={} baseline_rss_kib={before} peak_increment_kib={}",
+            projected.listing_document().listings.len(),
+            document.directory.listings.len(),
+            document.withdrawn_ids.len(),
+            carrier.len(),
+            bytes.len(),
+            parsed.as_millis(),
+            elapsed.as_millis(),
+            peak.saturating_sub(before),
+        );
+    }
+
+    #[test]
+    fn compact_parse_charges_an_element_budget_not_the_released_count() {
+        let envelope = |withdrawn: &str, listings: &str| {
             format!(
-                r#"{{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{{"format_version":11,"listings":[{listings}]}}}}"#
+                r#"{{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[{withdrawn}],"directory":{{"format_version":11,"listings":[{listings}]}}}}"#
             )
         };
         let oversize = format!(r#"{{"id":"{}"}}"#, "a".repeat(MAX_COMPACT_RECORD_BYTES));
         let oversized =
-            ListingDeliveryDocument::parse_compact(envelope(&oversize).as_bytes()).unwrap_err();
+            ListingDeliveryDocument::parse_compact(envelope("", &oversize).as_bytes()).unwrap_err();
         assert!(oversized.message.contains("record exceeds its byte bound"));
-        let valid = r#"{"id":"listing","name":"Listing","summary":"Description","project_url":"https://example.org"}"#;
-        let too_many = format!("{}{valid}", format!("{valid},").repeat(MAX_LISTING_ENTRIES));
-        let overflow =
-            ListingDeliveryDocument::parse_compact(envelope(&too_many).as_bytes()).unwrap_err();
+        // The released readers' 10,000 count no longer applies; elements are
+        // charged against the measured working-memory budget instead.
+        let count = portcove_listing_carrier::MAX_LISTING_ENTRIES + 1;
+        let listings = (0..count)
+            .map(|index| {
+                format!(
+                    r#"{{"id":"listing-{index}","name":"Listing","summary":"Description","project_url":"https://example.org"}}"#
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let withdrawn = (0..count)
+            .map(|index| format!(r#""withdrawn-{index}""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        let complete = envelope(&withdrawn, &listings);
+        let document = ListingDeliveryDocument::parse_compact(complete.as_bytes()).unwrap();
+        assert_eq!(document.directory.listings.len(), count);
+        assert_eq!(document.withdrawn_ids.len(), count);
         assert!(
-            overflow
+            ListingDeliveryDocument::parse_compact_within(complete.as_bytes(), complete.len() - 1)
+                .unwrap_err()
                 .message
-                .contains("directory exceeds its entry bound")
+                .contains("compact listing delivery exceeds its byte bound")
+        );
+        let row = |index: usize| {
+            format!(
+                r#"{{"id":"listing-{index}","name":"Listing","summary":"Description","project_url":"https://example.org"}}"#
+            )
+        };
+        let over = ELEMENT_WORKING_BUDGET / LISTING_WORKING_BYTES + 1;
+        let over_listings = (0..over).map(row).collect::<Vec<_>>().join(",");
+        // Refused while parsing the compact carrier, before the list is built.
+        assert!(
+            ListingDeliveryDocument::parse_compact(envelope("", &over_listings).as_bytes())
+                .unwrap_err()
+                .message
+                .contains("element budget")
+        );
+        // The legacy carrier applies the same charge after its parse.
+        assert!(
+            ListingDeliveryDocument::parse(envelope("", &over_listings).as_bytes())
+                .unwrap_err()
+                .message
+                .contains("element budget")
+        );
+        // Withdrawals cost far less than listings, so many more fit.
+        let withdrawals = (0..100_000)
+            .map(|index| format!(r#""withdrawn-{index}""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert_eq!(
+            ListingDeliveryDocument::parse_compact(envelope(&withdrawals, "").as_bytes())
+                .unwrap()
+                .withdrawn_ids
+                .len(),
+            100_000
         );
         let duplicate = r#"{"id":"listing","id":"other","name":"Listing","summary":"Description","project_url":"https://example.org"}"#;
-        assert!(ListingDeliveryDocument::parse_compact(envelope(duplicate).as_bytes()).is_err());
+        assert!(
+            ListingDeliveryDocument::parse_compact(envelope("", duplicate).as_bytes()).is_err()
+        );
     }
 
     #[test]
@@ -318,7 +616,11 @@ impl ListingDeliveryDocument {
     }
 
     pub(crate) fn parse_compact(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() > MAX_COMPACT_DECODED_BYTES {
+        Self::parse_compact_within(bytes, MAX_COMPACT_DECODED_BYTES)
+    }
+
+    fn parse_compact_within(bytes: &[u8], max_decoded: usize) -> Result<Self> {
+        if bytes.len() > max_decoded {
             return Err(PortcoveError::verification(
                 "compact listing delivery exceeds its byte bound",
             ));
@@ -346,12 +648,17 @@ impl ListingDeliveryDocument {
                 "unsupported listing delivery schema",
             ));
         }
-        if document.revision == 0
-            || document.revision > 9_007_199_254_740_991
-            || document.withdrawn_ids.len() > MAX_LISTING_ENTRIES
-        {
+        if document.revision == 0 || document.revision > 9_007_199_254_740_991 {
             return Err(PortcoveError::verification(
-                "invalid listing delivery revision or count",
+                "invalid listing delivery revision",
+            ));
+        }
+        // Both carriers share one element budget across listings and withdrawals.
+        let charge = document.directory.listings.len() * LISTING_WORKING_BYTES
+            + document.withdrawn_ids.len() * WITHDRAWAL_WORKING_BYTES;
+        if charge > ELEMENT_WORKING_BUDGET {
+            return Err(PortcoveError::verification(
+                "listing delivery exceeds its element budget",
             ));
         }
         document.directory.validate()?;

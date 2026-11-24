@@ -1080,3 +1080,86 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     assert!(catalog.listing("new-unmanaged-port").is_ok());
     assert!(catalog.port("new-unmanaged-port").is_err());
 }
+
+#[tokio::test]
+async fn compact_directory_beyond_the_released_entry_count_round_trips_through_reopen() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::{Digest, Sha256};
+    use std::io::Write as _;
+
+    // Past the released readers' 10,000-entry count on both lists, well
+    // within the decoded byte bound this reader generation enforces.
+    let count = portcove_listing_carrier::MAX_LISTING_ENTRIES + 1;
+    let listings = (0..count)
+        .map(|index| {
+            json!({
+                "id": format!("scaled-listing-{index}"),
+                "name": "Scaled listing",
+                "summary": "Descriptive authenticated fixture; no executable authority.",
+                "project_url": "https://example.invalid/project",
+            })
+        })
+        .collect::<Vec<_>>();
+    let withdrawn = (0..count)
+        .map(|index| format!("withdrawn-listing-{index}"))
+        .collect::<Vec<_>>();
+    let decoded = serde_json::to_vec(&json!({
+        "listing_delivery_schema": 1,
+        "revision": 2,
+        "withdrawn_ids": withdrawn,
+        "directory": {"format_version": 15, "listings": listings},
+    }))
+    .unwrap();
+    assert!(decoded.len() <= listing_delivery::MAX_COMPACT_DECODED_BYTES);
+    let mut gzip = GzEncoder::new(Vec::new(), Compression::default());
+    gzip.write_all(&decoded).unwrap();
+    let carrier = serde_json::to_vec(&json!({
+        "carrier": listing_delivery::COMPACT_CARRIER,
+        "decoded_bytes": decoded.len(),
+        "decoded_sha256": hex::encode(Sha256::digest(&decoded)),
+        "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+    }))
+    .unwrap();
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (directory, library) = library();
+    let root = publish(&fixture, &key, 1, &feed(1)).await;
+    provision(&library, &root);
+    refresh(&library, &fixture, &root).await.unwrap();
+    let root = fixture
+        .publish_with_policy(
+            &[
+                (
+                    listing_delivery::TARGET.into(),
+                    serde_json::to_vec(&feed(1)).unwrap(),
+                ),
+                (listing_delivery::COMPACT_TARGET.into(), carrier),
+            ],
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let admitted = refresh(&library, &fixture, &root).await.unwrap();
+    assert_eq!(admitted.listing_count, count);
+    assert_eq!(admitted.withdrawn_ids.len(), count);
+    drop(library);
+
+    // A fresh open reads the stored row back through the same parser.
+    let reopened = Library::open(directory.path()).unwrap();
+    let status = reopened.listing_delivery_status().unwrap();
+    assert!(status.selected);
+    assert_eq!(status.revision, Some(2));
+    assert_eq!(status.listing_count, count);
+    assert_eq!(status.withdrawn_ids.len(), count);
+    let catalog = reopened.load_catalog().unwrap().0;
+    assert!(catalog.listing("scaled-listing-0").is_ok());
+    assert!(
+        catalog
+            .listing(&format!("scaled-listing-{}", count - 1))
+            .is_ok()
+    );
+}

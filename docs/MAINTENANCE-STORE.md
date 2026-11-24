@@ -1773,9 +1773,10 @@ record declares its exact `sha256`; otherwise the catalog title keys its text
 spells. A historical row that names no subject this way is an unattributed
 entry, so the gate turns unknown instead of passing. A builder pack is chosen
 only through a definition's admitted projection and names no title, so an
-unmatched tool row is counted and rot-checked but covers no identity. Only `#[test]` functions and items gated on exactly
-`#[cfg(test)]`, and test-named files, are excluded; platform gates such as
-`cfg(any(test, windows))` are production code. Each kind reports its count,
+unmatched tool row is counted and rot-checked but covers no identity. Only `#[test]` functions, items gated on a
+predicate that requires `test` (`cfg(test)`, `cfg(all(test, windows))`, nested
+`all`), and test-named files are excluded; platform gates such as
+`cfg(any(test, windows))` and `cfg(not(test))` are production code. Each kind reports its count,
 files, covered identities where derivable and any entries it cannot attribute,
 and is `retired` when its detector finds nothing.
 

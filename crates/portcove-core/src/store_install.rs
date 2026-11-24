@@ -18,11 +18,11 @@ use crate::{PortcoveError, PortcoveService, Result, game_file_root::path_key};
 #[path = "store_install_tests.rs"]
 mod tests;
 
-/// Largest store metadata file read (Steam VDF/ACF, Epic manifest).
+/// Largest store metadata file read (Steam VDF/ACF, Epic manifest). Real
+/// files are a few kilobytes; a larger one is reported as unreadable.
 const MAX_METADATA_BYTES: u64 = 1024 * 1024;
-/// Steam libraries considered across every client root.
-const MAX_STEAM_LIBRARIES: usize = 64;
-/// Directory entries examined in one manifest directory.
+/// Directory entries examined in one manifest directory for the suggestion
+/// list. The ownership check reads every entry.
 const MAX_MANIFEST_DIRECTORY_ENTRIES: usize = 16_384;
 /// Installs reported in one detection.
 const MAX_INSTALLS: usize = 4_096;
@@ -84,18 +84,42 @@ pub struct RegisteredStoreInstall {
     pub product_id: Option<String>,
 }
 
+/// Every GOG install record the host could read, and how many it could not.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RegisteredStoreInstalls {
+    pub installs: Vec<RegisteredStoreInstall>,
+    /// Records that exist but could not be read. Any such record means the
+    /// store's install locations are not completely known.
+    pub unread_records: u32,
+}
+
+impl From<Vec<RegisteredStoreInstall>> for RegisteredStoreInstalls {
+    fn from(installs: Vec<RegisteredStoreInstall>) -> Self {
+        Self {
+            installs,
+            unread_records: 0,
+        }
+    }
+}
+
 /// Host facts behind store detection. Production reads the registry and
 /// default locations; tests supply fixture folders.
 pub trait StoreInstallHost: Send + Sync {
     /// Steam client folders (each normally holds `steamapps`).
     fn steam_client_roots(&self) -> Vec<PathBuf>;
-    /// GOG installs recorded in the Windows registry.
-    fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall>;
+    /// GOG installs recorded in the Windows registry, all of them.
+    fn gog_registered_installs(&self) -> RegisteredStoreInstalls;
     /// Epic Games Launcher manifest folders holding `*.item` files.
     fn epic_manifest_dirs(&self) -> Vec<PathBuf>;
     /// The stores this host can read.
     fn checked_stores(&self) -> Vec<GameStore> {
         vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
+    }
+    /// Places where the host looks for store folders (a registry value, an
+    /// environment variable) that exist but could not be read. Each one
+    /// leaves the store's locations incomplete.
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        Vec::new()
     }
 }
 
@@ -110,8 +134,8 @@ impl StoreInstallHost for NoStoreInstallHost {
         Vec::new()
     }
 
-    fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
-        Vec::new()
+    fn gog_registered_installs(&self) -> RegisteredStoreInstalls {
+        RegisteredStoreInstalls::default()
     }
 
     fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
@@ -194,12 +218,11 @@ fn embedded_store_original_layouts() -> &'static [StoreOriginalLayout] {
     })
 }
 
-/// What a detection found, including folders that must never lose files
-/// through a Move even when no single install names them.
+/// What a suggestion listing found. Ownership decisions never use it; see
+/// [`store_folder_ownership`].
 #[derive(Debug, Default)]
 struct Detection<'a> {
     report: StoreGameInstalls,
-    protected: Vec<(GameStore, PathBuf)>,
     seen: BTreeMap<String, Option<usize>>,
     requested_profile: Option<String>,
     layouts: &'a [StoreOriginalLayout],
@@ -237,8 +260,6 @@ impl Detection<'_> {
             }
             return;
         }
-        // Protect the folder from a Move even past the listing bound.
-        self.protected.push((store, path.clone()));
         if self.report.installs.len() >= MAX_INSTALLS {
             self.seen.insert(key, None);
             self.report.limited = true;
@@ -262,10 +283,6 @@ impl Detection<'_> {
     }
 }
 
-fn detect(host: &dyn StoreInstallHost) -> Detection<'static> {
-    detect_for_profile(host, None)
-}
-
 fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> Detection<'static> {
     detect_with_layouts(host, profile_id, embedded_store_original_layouts())
 }
@@ -282,7 +299,12 @@ fn detect_with_layouts<'a>(
     };
     detection.report.checked_stores = host.checked_stores();
     detect_steam(host, &mut detection);
-    for install in host.gog_registered_installs() {
+    let gog = host.gog_registered_installs();
+    detection.report.skipped_entries = detection
+        .report
+        .skipped_entries
+        .saturating_add(gog.unread_records);
+    for install in gog.installs {
         detection.add(
             GameStore::Gog,
             &install.title,
@@ -303,28 +325,37 @@ fn detect_with_layouts<'a>(
     detection
 }
 
-fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection<'_>) {
-    // Canonical `steamapps` folders, kept as resolved so a linked or
-    // differently cased folder is still read and protected as itself.
-    let mut libraries = Vec::<PathBuf>::new();
+/// Every Steam library this host's Steam clients record.
+#[derive(Debug, Default)]
+struct SteamLibraries {
+    /// Canonical `steamapps` folders, kept as resolved so a linked or
+    /// differently cased folder is still read and protected as itself.
+    libraries: Vec<PathBuf>,
+    /// Listed libraries whose folder does not exist (an emptied or removed
+    /// library). Nothing there can hold the player's files.
+    missing: u32,
+    /// Library lists or listed folders that could not be read, so some
+    /// library locations are unknown.
+    unread: Vec<PathBuf>,
+}
+
+/// Read every client's library list. Default client locations are often
+/// simply absent; a library Steam lists but that cannot be read stays unknown.
+fn steam_libraries(host: &dyn StoreInstallHost) -> SteamLibraries {
+    let mut found = SteamLibraries::default();
     let mut library_keys = BTreeSet::new();
-    // `listed` libraries come from Steam's own list, so a bad entry counts as
-    // skipped; default client locations are often simply absent.
-    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection<'_>| {
-        let Some(steamapps) = existing_folder(&path.join("steamapps")) else {
-            if listed {
-                detection.skip();
+    let mut push = |path: &Path, listed: bool, found: &mut SteamLibraries| {
+        let steamapps = path.join("steamapps");
+        match folder_state(&steamapps) {
+            FolderState::Present(steamapps) => {
+                if library_keys.insert(path_key(&steamapps.to_string_lossy())) {
+                    found.libraries.push(steamapps);
+                }
             }
-            return;
-        };
-        if !library_keys.insert(path_key(&steamapps.to_string_lossy())) {
-            return;
+            FolderState::Absent if listed => found.missing = found.missing.saturating_add(1),
+            FolderState::Absent => {}
+            FolderState::Unreadable => found.unread.push(steamapps),
         }
-        if libraries.len() >= MAX_STEAM_LIBRARIES {
-            detection.report.limited = true;
-            return;
-        }
-        libraries.push(steamapps);
     };
     // A client found through two locations (or a link) is read once, so its
     // listed libraries are neither reread nor counted twice.
@@ -337,27 +368,39 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection<'_>) {
         if !client_keys.insert(key) {
             continue;
         }
-        push_library(&root, false, detection);
+        push(&root, false, &mut found);
         let folders = root.join("steamapps").join("libraryfolders.vdf");
-        if !folders.exists() {
-            continue;
+        match std::fs::symlink_metadata(&folders) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(_) => {
+                found.unread.push(folders);
+                continue;
+            }
+            Ok(_) => {}
         }
-        match read_text(&folders) {
-            Some(text) => {
-                for library in steam_library_paths(&text) {
-                    push_library(&library, true, detection);
+        match read_text(&folders).and_then(|text| steam_library_paths(&text)) {
+            Some(paths) => {
+                for library in paths {
+                    push(&library, true, &mut found);
                 }
             }
-            None => detection.skip(),
+            None => found.unread.push(folders),
         }
     }
+    found
+}
+
+fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection<'_>) {
+    let found = steam_libraries(host);
+    let unread = u32::try_from(found.unread.len()).unwrap_or(u32::MAX);
+    detection.report.skipped_entries = detection
+        .report
+        .skipped_entries
+        .saturating_add(found.missing)
+        .saturating_add(unread);
+    let libraries = found.libraries;
     for steamapps in libraries {
-        detection
-            .protected
-            .push((GameStore::Steam, steamapps.clone()));
-        for manifest in manifest_files(&steamapps, detection, |name| {
-            name.starts_with("appmanifest_") && name.ends_with(".acf")
-        }) {
+        for manifest in manifest_files(&steamapps, detection, steam_manifest_name) {
             let Some(text) = read_text(&manifest) else {
                 detection.skip();
                 continue;
@@ -470,6 +513,28 @@ fn read_text(path: &Path) -> Option<String> {
     )
 }
 
+/// What reading one store-recorded location established.
+enum FolderState {
+    /// It exists; the canonical path.
+    Present(PathBuf),
+    /// Nothing exists there.
+    Absent,
+    /// It could not be resolved (a relative record, a permission or device
+    /// error), so where it really is stays unknown.
+    Unreadable,
+}
+
+fn folder_state(path: &Path) -> FolderState {
+    if !path.is_absolute() {
+        return FolderState::Unreadable;
+    }
+    match std::fs::canonicalize(path) {
+        Ok(canonical) => FolderState::Present(canonical),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => FolderState::Absent,
+        Err(_) => FolderState::Unreadable,
+    }
+}
+
 /// An absolute path to an existing folder, canonicalized.
 fn existing_folder(path: &Path) -> Option<PathBuf> {
     if !path.is_absolute() {
@@ -569,18 +634,18 @@ fn vdf_pairs(tokens: &[VdfToken]) -> Option<Vec<(usize, String, String)>> {
 /// Library folders listed by Steam's `libraryfolders.vdf`, in both the
 /// current (`"path"` inside numbered blocks) and the older (numbered string
 /// values) layouts.
-fn steam_library_paths(text: &str) -> Vec<PathBuf> {
-    let Some(pairs) = vdf_tokens(text).and_then(|tokens| vdf_pairs(&tokens)) else {
-        return Vec::new();
-    };
-    pairs
+/// `None` when the file is not a readable library list.
+fn steam_library_paths(text: &str) -> Option<Vec<PathBuf>> {
+    let pairs = vdf_tokens(text).and_then(|tokens| vdf_pairs(&tokens))?;
+    let paths = pairs
         .into_iter()
         .filter(|(depth, key, _)| {
             (*depth == 2 && key.eq_ignore_ascii_case("path"))
                 || (*depth == 1 && !key.is_empty() && key.bytes().all(|byte| byte.is_ascii_digit()))
         })
         .map(|(_, _, value)| PathBuf::from(value))
-        .collect()
+        .collect();
+    Some(paths)
 }
 
 /// `(name, installdir)` from a Steam `appmanifest_*.acf`.
@@ -763,32 +828,274 @@ impl PortcoveService {
 
     /// Refuse to remove files from a folder a store installed, or a folder
     /// that contains one: the store's game would lose them. `path` is
-    /// canonical. Store folders whose metadata could not be read are only
-    /// protected through the `steamapps` folder name.
+    /// canonical. A Move is allowed only when every store this host reads was
+    /// read completely and none of them covers `path`.
     pub(crate) fn refuse_store_install_move(&self, profile_id: &str, path: &Path) -> Result<()> {
-        // A folder recognized only by its `steamapps` name may not be Steam's,
-        // so its message does not claim a Steam game.
-        let found = detect(self.store_install_host())
-            .protected
-            .into_iter()
-            .find(|(_, folder)| inside(path, folder) || inside(folder, path))
-            .map(|(store, folder)| (store, folder, true))
-            .or_else(|| steamapps_ancestor(path).map(|folder| (GameStore::Steam, folder, false)));
-        let Some((store, folder, detected)) = found else {
-            return Ok(());
+        match store_folder_ownership(self.store_install_host(), path) {
+            StoreFolderOwnership::NotStoreOwned => Ok(()),
+            StoreFolderOwnership::StoreOwned {
+                store,
+                folder,
+                evidence,
+            } => {
+                let store_name = store_name(store);
+                // A folder recognized only by its `steamapps` name may not be
+                // Steam's, so its message does not claim a Steam game.
+                let message = match evidence {
+                    OwnershipEvidence::StoreRecord => format!(
+                        "These files are part of a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
+                    ),
+                    OwnershipEvidence::SteamappsName => "These files are in a folder named steamapps, where Steam keeps its games. Moving them could break a Steam game; copy them into Portcove or use them where they are.".to_owned(),
+                };
+                Err(PortcoveError::conflict(message)
+                    .detail("profile_id", profile_id)
+                    .detail("store_ownership", "store_owned")
+                    .detail("store", store_name)
+                    .detail("store_folder", folder.display().to_string()))
+            }
+            StoreFolderOwnership::Undetermined { unread } => {
+                // Unique, in reading order.
+                let mut stores = Vec::new();
+                for (store, _) in &unread {
+                    if !stores.contains(store) {
+                        stores.push(*store);
+                    }
+                }
+                let names = store_list(&stores);
+                let (_, first) = &unread[0];
+                Err(PortcoveError::conflict(format!(
+                    "Portcove couldn’t read every game location {names} recorded, so it can’t confirm these files are safe to move. Copy them into Portcove or use them where they are."
+                ))
+                .detail("profile_id", profile_id)
+                .detail("store_ownership", "not_checked")
+                .detail(
+                    "unchecked_stores",
+                    stores
+                        .iter()
+                        .map(|store| store_name(*store))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                )
+                .detail("unread_record", first)
+                .detail("unread_records", unread.len().to_string()))
+            }
+        }
+    }
+}
+
+/// How a store's claim on a path was established.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OwnershipEvidence {
+    /// The store's own install records name the folder.
+    StoreRecord,
+    /// A folder on the path is named `steamapps`; Steam keeps every game in
+    /// one, so this needs no metadata.
+    SteamappsName,
+}
+
+/// Whether one selected file or folder belongs to a store, decided only from
+/// complete evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum StoreFolderOwnership {
+    /// Every store this host reads was read completely, and none of them
+    /// installed into, under or around the path.
+    NotStoreOwned,
+    /// The path is inside, or contains, a folder a store installed.
+    StoreOwned {
+        store: GameStore,
+        folder: PathBuf,
+        evidence: OwnershipEvidence,
+    },
+    /// No record covers the path, but some records could not be read, so
+    /// ownership is not yet known. Never treated as permission.
+    Undetermined {
+        /// Each unread record's store and location (a file, folder or
+        /// registry key), in reading order. Never empty.
+        unread: Vec<(GameStore, String)>,
+    },
+}
+
+/// Decide whether a Move of `path` (canonical) could remove a store's files.
+/// Unlike the suggestion list, this reads every record with no count bound:
+/// each record is checked and dropped, so memory stays flat. Only a store this
+/// host can read is consulted; one it cannot read has no records here.
+pub(crate) fn store_folder_ownership(
+    host: &dyn StoreInstallHost,
+    path: &Path,
+) -> StoreFolderOwnership {
+    if let Some(folder) = steamapps_ancestor(path) {
+        return StoreFolderOwnership::StoreOwned {
+            store: GameStore::Steam,
+            folder,
+            evidence: OwnershipEvidence::SteamappsName,
         };
-        let store_name = store_name(store);
-        let message = if detected {
-            format!(
-                "These files are part of a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
-            )
-        } else {
-            "These files are in a folder named steamapps, where Steam keeps its games. Moving them could break a Steam game; copy them into Portcove or use them where they are.".to_owned()
+    }
+    let covers = |folder: &Path| inside(path, folder) || inside(folder, path);
+    let owned = |store, folder: PathBuf| StoreFolderOwnership::StoreOwned {
+        store,
+        folder,
+        evidence: OwnershipEvidence::StoreRecord,
+    };
+    let stores = host.checked_stores();
+    let mut unread = host
+        .unread_store_locations()
+        .into_iter()
+        .filter(|(store, _)| stores.contains(store))
+        .collect::<Vec<_>>();
+    if stores.contains(&GameStore::Steam) {
+        let found = steam_libraries(host);
+        if let Some(folder) = found.libraries.iter().find(|folder| covers(folder)) {
+            return owned(GameStore::Steam, folder.clone());
+        }
+        for steamapps in &found.libraries {
+            if let Some(folder) = record_ownership(
+                GameStore::Steam,
+                steamapps,
+                steam_manifest_name,
+                |text| steam_install_location(steamapps, text),
+                &covers,
+                &mut unread,
+            ) {
+                return owned(GameStore::Steam, folder);
+            }
+        }
+        unread.extend(
+            found
+                .unread
+                .iter()
+                .map(|location| (GameStore::Steam, location.display().to_string())),
+        );
+    }
+    if stores.contains(&GameStore::Gog) {
+        let records = host.gog_registered_installs();
+        for install in records.installs {
+            match folder_state(&install.path) {
+                FolderState::Present(folder) if covers(&folder) => {
+                    return owned(GameStore::Gog, folder);
+                }
+                FolderState::Present(_) | FolderState::Absent => {}
+                FolderState::Unreadable => {
+                    unread.push((GameStore::Gog, install.path.display().to_string()));
+                }
+            }
+        }
+        if records.unread_records > 0 {
+            unread.push((
+                GameStore::Gog,
+                format!("{} registry records", records.unread_records),
+            ));
+        }
+    }
+    if stores.contains(&GameStore::Epic) {
+        for directory in host.epic_manifest_dirs() {
+            if let Some(folder) = record_ownership(
+                GameStore::Epic,
+                &directory,
+                |name| name.ends_with(".item"),
+                epic_install_location,
+                &covers,
+                &mut unread,
+            ) {
+                return owned(GameStore::Epic, folder);
+            }
+        }
+    }
+    if unread.is_empty() {
+        StoreFolderOwnership::NotStoreOwned
+    } else {
+        StoreFolderOwnership::Undetermined { unread }
+    }
+}
+
+/// Read every record file in `directory` whose lowercased name `accept`
+/// admits, returning the first recorded location that `covers` matches.
+/// `location` turns one record's text into its install location, or `None`
+/// when the record cannot be understood. An unreadable listing, file or
+/// location is added to `unread`; a missing folder or record is not.
+fn record_ownership(
+    store: GameStore,
+    directory: &Path,
+    accept: impl Fn(&str) -> bool,
+    location: impl Fn(&str) -> Option<PathBuf>,
+    covers: &dyn Fn(&Path) -> bool,
+    unread: &mut Vec<(GameStore, String)>,
+) -> Option<PathBuf> {
+    let mut unreadable = |location: &Path| {
+        unread.push((store, location.display().to_string()));
+    };
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(_) => {
+            unreadable(directory);
+            return None;
+        }
+    };
+    for entry in entries {
+        let Ok(entry) = entry else {
+            // The rest of the listing is unknown; one unread mark suffices
+            // and stopping guarantees the walk ends.
+            unreadable(directory);
+            break;
         };
-        Err(PortcoveError::conflict(message)
-            .detail("profile_id", profile_id)
-            .detail("store", store_name)
-            .detail("store_folder", folder.display().to_string()))
+        let name = entry.file_name();
+        if !name
+            .to_str()
+            .is_some_and(|name| accept(&name.to_ascii_lowercase()))
+        {
+            continue;
+        }
+        let record = entry.path();
+        if std::fs::symlink_metadata(&record)
+            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+        {
+            // Removed while listing.
+            continue;
+        }
+        let Some(path) = read_text(&record).and_then(|text| location(&text)) else {
+            unreadable(&record);
+            continue;
+        };
+        match folder_state(&path) {
+            FolderState::Present(folder) if covers(&folder) => return Some(folder),
+            FolderState::Present(_) | FolderState::Absent => {}
+            FolderState::Unreadable => unreadable(&record),
+        }
+    }
+    None
+}
+
+/// An Epic `*.item` manifest's install location. An unfinished install still
+/// belongs to Epic.
+fn epic_install_location(text: &str) -> Option<PathBuf> {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()?
+        .get("InstallLocation")
+        .and_then(serde_json::Value::as_str)
+        .map(PathBuf::from)
+}
+
+/// A Steam app manifest's game folder. Steam keeps it in `common`, but that
+/// entry may be a link to a folder elsewhere.
+fn steam_install_location(steamapps: &Path, text: &str) -> Option<PathBuf> {
+    let (_, installdir, _) = steam_app_manifest(text)?;
+    single_normal_component(&installdir).then(|| steamapps.join("common").join(installdir))
+}
+
+fn steam_manifest_name(name: &str) -> bool {
+    name.starts_with("appmanifest_") && name.ends_with(".acf")
+}
+
+/// "Steam", "Steam and GOG", "Steam, GOG and Epic".
+fn store_list(stores: &[GameStore]) -> String {
+    let names = stores
+        .iter()
+        .map(|store| store_name(*store))
+        .collect::<Vec<_>>();
+    match names.as_slice() {
+        [] => String::new(),
+        [only] => (*only).to_owned(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
     }
 }
 
@@ -802,6 +1109,21 @@ impl StoreInstallHost for SystemStoreInstallHost {
             vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
         } else {
             vec![GameStore::Steam]
+        }
+    }
+
+    fn unread_store_locations(&self) -> Vec<(GameStore, String)> {
+        #[cfg(windows)]
+        {
+            let mut unread = windows::steam_registry_unread();
+            if std::env::var_os("ProgramData").is_none() {
+                unread.push((GameStore::Epic, "%ProgramData%".to_owned()));
+            }
+            unread
+        }
+        #[cfg(not(windows))]
+        {
+            Vec::new()
         }
     }
 
@@ -830,14 +1152,14 @@ impl StoreInstallHost for SystemStoreInstallHost {
         roots
     }
 
-    fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
+    fn gog_registered_installs(&self) -> RegisteredStoreInstalls {
         #[cfg(windows)]
         {
             windows::gog_registered_installs()
         }
         #[cfg(not(windows))]
         {
-            Vec::new()
+            RegisteredStoreInstalls::default()
         }
     }
 
@@ -872,17 +1194,18 @@ mod windows {
     };
 
     use windows_sys::Win32::{
-        Foundation::{ERROR_NO_MORE_ITEMS, ERROR_SUCCESS},
+        Foundation::{ERROR_FILE_NOT_FOUND, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS},
         System::Registry::{
             HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY, RRF_RT_REG_SZ,
             RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW,
         },
     };
 
-    use super::{RegisteredStoreInstall, product_number};
+    use super::{GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, product_number};
 
-    const MAX_SUBKEYS: u32 = 4_096;
+    /// Registry key names are at most 255 characters (a Windows limit).
     const MAX_NAME_UNITS: usize = 256;
+    /// Largest string value read; a path or title is far smaller.
     const MAX_VALUE_BYTES: u32 = 64 * 1024;
 
     struct Key(HKEY);
@@ -901,11 +1224,39 @@ mod windows {
     }
 
     fn open(parent: HKEY, path: &str, view: u32) -> Option<Key> {
+        open_status(parent, path, view).ok()
+    }
+
+    /// The key, or the status Windows returned for it.
+    fn open_status(parent: HKEY, path: &str, view: u32) -> Result<Key, u32> {
         let path = wide(path);
         let mut key: HKEY = null_mut();
         // SAFETY: the name is null terminated and `key` is a live output slot.
         let status = unsafe { RegOpenKeyExW(parent, path.as_ptr(), 0, KEY_READ | view, &mut key) };
-        (status == ERROR_SUCCESS).then_some(Key(key))
+        if status == ERROR_SUCCESS {
+            Ok(Key(key))
+        } else {
+            Err(status)
+        }
+    }
+
+    /// Whether a value exists at all, whatever its type or size.
+    fn value_exists(key: &Key, name: &str) -> bool {
+        let name = wide(name);
+        let mut bytes = 0_u32;
+        // SAFETY: the name is null terminated; null data asks only for the size.
+        let status = unsafe {
+            RegGetValueW(
+                key.0,
+                null(),
+                name.as_ptr(),
+                windows_sys::Win32::System::Registry::RRF_RT_ANY,
+                null_mut(),
+                null_mut(),
+                &mut bytes,
+            )
+        };
+        status != ERROR_FILE_NOT_FOUND
     }
 
     fn string(key: &Key, name: &str) -> Option<String> {
@@ -970,16 +1321,58 @@ mod windows {
         roots
     }
 
-    pub(super) fn gog_registered_installs() -> Vec<RegisteredStoreInstall> {
-        let Some(games) = open(
+    /// Steam's registry locations that exist but could not be read; a Steam
+    /// client there could hold libraries Portcove would not see.
+    pub(super) fn steam_registry_unread() -> Vec<(GameStore, String)> {
+        let mut unread = Vec::new();
+        for (parent, label, path, view, value) in [
+            (
+                HKEY_CURRENT_USER,
+                "HKCU",
+                "Software\\Valve\\Steam",
+                0,
+                "SteamPath",
+            ),
+            (
+                HKEY_LOCAL_MACHINE,
+                "HKLM",
+                "SOFTWARE\\Valve\\Steam",
+                KEY_WOW64_32KEY,
+                "InstallPath",
+            ),
+        ] {
+            let readable = match open_status(parent, path, view) {
+                Ok(key) => string(&key, value).is_some() || !value_exists(&key, value),
+                Err(status) => status == ERROR_FILE_NOT_FOUND,
+            };
+            if !readable {
+                unread.push((GameStore::Steam, format!("{label}\\{path}\\{value}")));
+            }
+        }
+        unread
+    }
+
+    /// Every game key under GOG's registry list. A key that exists but cannot
+    /// be read, or whose install path cannot be read, is counted as unread so
+    /// an incomplete list is never mistaken for a complete one.
+    pub(super) fn gog_registered_installs() -> RegisteredStoreInstalls {
+        let mut result = RegisteredStoreInstalls::default();
+        let games = match open_status(
             HKEY_LOCAL_MACHINE,
             "SOFTWARE\\GOG.com\\Games",
             KEY_WOW64_32KEY,
-        ) else {
-            return Vec::new();
+        ) {
+            Ok(games) => games,
+            Err(ERROR_FILE_NOT_FOUND) => return result,
+            Err(_) => {
+                result.unread_records = 1;
+                return result;
+            }
         };
+        let mut unread = || result.unread_records = result.unread_records.saturating_add(1);
         let mut installs = Vec::new();
-        for index in 0..MAX_SUBKEYS {
+        // Enumeration ends only when Windows reports no more keys.
+        for index in 0_u32.. {
             let mut name = vec![0_u16; MAX_NAME_UNITS];
             let mut length = name.len() as u32;
             // SAFETY: `games` is open and the buffer and its length match.
@@ -999,23 +1392,38 @@ mod windows {
                 break;
             }
             if status != ERROR_SUCCESS {
-                continue;
+                // A failed index (for example a deleted list key) may fail
+                // for every later index too, so stop: the list is already
+                // marked incomplete.
+                unread();
+                break;
             }
             name.truncate(length as usize);
             let Ok(name) = String::from_utf16(&name) else {
+                unread();
                 continue;
             };
-            let Some(game) = open(games.0, &name, KEY_WOW64_32KEY) else {
-                continue;
+            let game = match open_status(games.0, &name, KEY_WOW64_32KEY) {
+                Ok(game) => game,
+                // Removed while listing.
+                Err(ERROR_FILE_NOT_FOUND) => continue,
+                Err(_) => {
+                    unread();
+                    continue;
+                }
             };
-            if let Some(path) = string(&game, "path") {
-                installs.push(RegisteredStoreInstall {
+            match string(&game, "path") {
+                Some(path) => installs.push(RegisteredStoreInstall {
                     title: string(&game, "gameName").unwrap_or_default(),
                     path: PathBuf::from(path),
                     product_id: product_number(&name).map(|id| id.to_string()),
-                });
+                }),
+                // A key with no install path records no folder.
+                None if !value_exists(&game, "path") => {}
+                None => unread(),
             }
         }
-        installs
+        result.installs = installs;
+        result
     }
 }

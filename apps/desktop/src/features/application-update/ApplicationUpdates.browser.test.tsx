@@ -158,3 +158,25 @@ it("shows a host-reported update as active without inventing local download prog
   expect(install).not.toHaveBeenCalled();
   await captureParityState("application-update-host-active");
 });
+
+it("does not blame the connection when the update server returns no update information", async () => {
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    ...available,
+    available: null,
+  });
+  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+    channel: "beta",
+    automatic_checks: true,
+  });
+  vi.spyOn(desktopApi, "checkApplicationUpdate").mockRejectedValue({
+    ...failureReport(),
+    code: "network",
+    details: { application_update_refusal: "release-not-found" },
+  });
+  await render(<Fixture />);
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Portcove couldn’t get update information. Try again later.");
+  await expect.element(page.getByText(/internet connection/u)).not.toBeInTheDocument();
+});

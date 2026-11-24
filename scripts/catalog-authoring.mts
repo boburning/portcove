@@ -18,7 +18,6 @@ import type {
 } from "./settings-qualification.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import {
   enrollmentTableName,
@@ -26,16 +25,6 @@ import {
   generateRegistrations,
 } from "./catalog-generated-registration.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
-import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
-import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
-import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
-import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
-import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
-import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
-import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
-import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
-import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
-import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -119,15 +108,7 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
-  /** Shared Portcove-owned profile directory and Windows path policy. */
-  native_managed_profile_v1?: true;
   route_facts_v1?: RouteFactsV1;
-  /** Reviewed bundled scenario launch and externally owned player profiles. */
-  alephone_pinned_windows_v1?: true;
-  /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
-  opengoal_setup_v1?: true;
-  /** Shared official Raze Windows package and portable-profile layout. */
-  raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
@@ -139,7 +120,6 @@ export interface AuthoredPort extends Record<string, unknown> {
     | true
     | "bundled-openbios"
     | "split-mods"
-    | "split-mods-diagnostics"
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
@@ -147,22 +127,8 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "technically-computers-input-files";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true | "config-directory" | "technical-settings";
-  /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
-  reflectionhle_portable_paths_v1?: true;
-  /** Shared persistent files for the reviewed Crispy Doom Windows player. */
-  crispy_doom_windows_persistence_v1?: true;
   /** Registration-only user-selected runtime on the declared platforms. */
   external_registration_v1?: true;
-  /** Shared persistent and mutable paths for the reviewed Chocolate Windows players. */
-  chocolate_family_windows_persistence_v1?: true;
-  /** Shared Windows player data paths for the reviewed Gen2Recomped editions. */
-  gen2recomp_windows_persistence_v1?: true;
-  /** Reviewed portable data paths for the two distinct RSDKv4 game routes. */
-  rsdkv4_portable_data_v1?: true;
-  /** Shared official OpenMoHAA package and per-edition portable layout. */
-  openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
-  /** Shared Windows ZIP, Linux TAR.XZ and local config.yaml for matching reviewed routes. */
-  openx_portable_v1?: true | string;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -473,7 +439,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
   const inherit = record.listing_inherit_asset_hints;
   if (inherit === undefined) return authored;
   const listing = record.listing;
-  const integration = projectOpenXPortable(projectOpenMohaaPortable(record)).integration;
+  const integration = record.integration;
   const release = integration?.release;
   const invalid = () =>
     new Error(
@@ -577,9 +543,59 @@ function projectExternalRegistration(record: AuthoredPort): AuthoredPort {
   };
 }
 
+/**
+ * Retired authoring shorthands. Each carried one upstream's facts, so its
+ * fields are now authored explicitly in the integration. Refuse them rather
+ * than retaining them as unknown metadata, which would silently drop the
+ * fields they used to supply.
+ */
+const retiredShorthands = [
+  "alephone_pinned_windows_v1",
+  "chocolate_family_windows_persistence_v1",
+  "crispy_doom_windows_persistence_v1",
+  "gen2recomp_windows_persistence_v1",
+  "native_managed_profile_v1",
+  "opengoal_setup_v1",
+  "openmohaa_portable_v1",
+  "openx_portable_v1",
+  "raze_windows_profile_v1",
+  "reflectionhle_portable_paths_v1",
+  "rsdkv4_portable_data_v1",
+];
+
+/**
+ * A Direct pin hosted on GitHub must be a canonical release download of the
+ * record's own project: `<project_url>/releases/download/<tag>/<file>`, with
+ * literal unreserved segments and no query or fragment.
+ */
+function checkGithubDirectPins(projectUrl: unknown, release: unknown) {
+  if (!isRecord(release) || !isRecord(release.direct)) return;
+  for (const [platform, pin] of Object.entries(release.direct)) {
+    const value = isRecord(pin) ? pin.url : undefined;
+    const url = typeof value === "string" ? URL.parse(value) : null;
+    if (url?.hostname !== "github.com") continue;
+    const project = typeof projectUrl === "string" ? URL.parse(projectUrl) : null;
+    const prefix = `${project?.pathname.replace(/\/$/u, "")}/releases/download/`;
+    const segments = url.pathname.slice(prefix.length).split("/");
+    if (
+      project?.origin !== url.origin ||
+      value !== `${url.origin}${url.pathname}` ||
+      !url.pathname.startsWith(prefix) ||
+      segments.length !== 2 ||
+      !segments.every((segment) => /^[A-Za-z0-9._-]+$/u.test(segment))
+    )
+      throw new Error(
+        `A GitHub Direct pin for ${platform} must be a canonical release download of the listing project_url.`,
+      );
+  }
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
+  const retired = retiredShorthands.find((field) => Object.hasOwn(value, field));
+  if (retired !== undefined)
+    throw new Error(`${retired} is retired; author the integration fields it supplied explicitly.`);
   if (value.original_game_review !== undefined) checkOriginalGameReview(value.original_game_review);
   const listing = value.listing;
   if (
@@ -807,11 +823,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     );
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
-  const integration = projectExternalRegistration(
-    projectOpenXPortable(
-      projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
-    ),
-  ).integration;
+  const integration = projectExternalRegistration(value as AuthoredPort).integration;
   if (integration !== undefined) {
     if (
       integration.upstream_active_reviewed !== undefined &&
@@ -823,6 +835,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Invalid reviewed active upstream status.");
     }
 
+    checkGithubDirectPins(listing.project_url, integration.release);
     if (Object.hasOwn(integration, "managed_acquisition_hold"))
       throw new Error(
         `${listing.id} integration.managed_acquisition_hold is derived; author integration.acquisition_restrictions instead.`,
@@ -880,18 +893,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
-  projectNativeManagedProfile(record);
   projectReviewedFlatPackageLayout(record);
-  projectOpenGoalSetup(record);
-  projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
   projectN64RecompPersistence(record);
-  projectReflectionHlePortablePaths(record);
-  projectCrispyDoomWindowsPersistence(record);
-  projectChocolateFamilyWindowsPersistence(record);
-  projectGen2RecompWindowsPersistence(record);
-  projectRsdkv4PortableData(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -939,13 +944,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectReviewedFlatPackageLayout(
-    projectRazeWindowsProfile(
-      projectOpenGoalSetup(
-        projectNativeManagedProfile(projectAlephOnePinnedWindows(projectOpenXPortable(input))),
-      ),
-    ),
-  );
+  const declared = projectReviewedFlatPackageLayout(input);
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(
@@ -953,14 +952,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       ),
     ),
   );
-  const portable = projectChocolateFamilyWindowsPersistence(
-    projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
-  );
-  const operational = projectExternalRegistration(
-    projectGen2RecompWindowsPersistence(
-      projectOpenMohaaPortable(projectRsdkv4PortableData(portable)),
-    ),
-  ).integration;
+  const operational = projectExternalRegistration(record).integration;
   if (!operational) return undefined;
   const integration = projectManagedRestrictions(record.listing.id, structuredClone(operational));
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
@@ -1036,8 +1028,6 @@ export function assembleCatalogRecords(
   });
   const listings = records
     .map(projectRouteFacts)
-    .map(projectOpenMohaaPortable)
-    .map(projectOpenXPortable)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
@@ -1144,6 +1134,8 @@ export function assembleCatalogRecords(
                               : 1;
   return {
     records,
+    /** The checked authored records before generated registration routes were added. */
+    authored,
     catalog,
     directory: { format_version, listings },
     generation,

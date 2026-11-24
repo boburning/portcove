@@ -105,15 +105,17 @@ separate Protect main and Protect release tags policies. GitHub's
 match the three flat tag prefixes `portcove-production-controller-*`,
 `portcove-upstream-rehearsal-*`, and `portcove-controller-canary-*`.
 
-| Policy                                  | Effective permission                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Portcove controller tag immutability    | Deny updates and deletion across the three tag prefixes, with no bypass.                                                  |
-| Portcove controller tag creation        | Allow creation across those prefixes only to the existing repository owner, user ID `43177418`.                           |
-| Portcove release state writer           | Allow updates to `portcove-release-inputs` and `portcove-production-coordinator-state` only to App `5632044`.             |
-| Portcove release branch retention       | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass. |
-| Portcove publication pause owner update | Allow updates to `portcove-release-pause` only to the existing repository owner.                                          |
-| Portcove release tag creation           | Allow creation of every `v*` tag, previews included, only to the repository owner.                                        |
-| Portcove nightly tag immutability       | Deny updates and deletion of `nightly-*` tags to everyone except the repository owner. Creation stays open.               |
+| Policy                                    | Effective permission                                                                                                       |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Portcove controller tag immutability      | Deny updates and deletion across the three tag prefixes, with no bypass.                                                   |
+| Portcove controller tag creation          | Allow creation across those prefixes only to the existing repository owner, user ID `43177418`.                            |
+| Portcove release state writer             | Allow updates to `portcove-release-inputs` and `portcove-production-coordinator-state` only to App `5632044`.              |
+| Portcove release branch retention         | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass.  |
+| Portcove publication pause owner update   | Allow updates to `portcove-release-pause` only to the existing repository owner.                                           |
+| Portcove release tag creation             | Allow creation of every `v*` tag, previews included, only to the repository owner.                                         |
+| Portcove nightly tag immutability         | Deny updates and deletion of `nightly-*` tags to everyone except the repository owner. Creation stays open.                |
+| Portcove release receipt tag immutability | Deny updates and deletion of `portcove-production-prepared/*` and `portcove-production-prepared-source/*`, with no bypass. |
+| Portcove release receipt tag creation     | Allow creation of those two receipt namespaces only to App `5632044`, the release state writer.                            |
 
 Protect main and Protect release tags continue as separate repository policies.
 Protect release tags still denies updating or deleting any `v*` tag, with no
@@ -128,6 +130,40 @@ GitHub refuses the GitHub Actions app as a bypass actor on a user-owned
 repository, but only the owner can move or delete one, and publishing the
 immutable release locks it. `--apply-release-rulesets` widens the earlier
 policy, which excluded `v*-preview.*`, in place.
+Preparation receipts are the allocation authority for application versions:
+each `portcove-production-prepared/v<version>` tag and its
+`portcove-production-prepared-source/<source commit>` tag name one raw
+prepared commit. The owner decision on #1422 (2026-11-23) lets later commands
+rely on that pair identity without re-reading every historical raw commit, on
+the condition that nobody, the owner included, can move or delete a receipt.
+Coordinator checkpoints create receipts in the same atomic ref transaction
+that advances `portcove-production-coordinator-state`, which only App
+`5632044` may update, so creation is limited to that App. GitHub matches each
+pattern's `*` against one path component, which is exactly one receipt name.
+`--check-release-rulesets` fails when either receipt policy is missing or
+weaker. `requireReceiptTagProtectionPolicy` interprets the isolated observer's
+inventory for the release consumers that rely on receipt pairs without
+re-reading historical raw commits; no production code calls it until those
+consumers are wired (#8626). Exact raw-commit verification remains at
+allocation time, for the active reservation, and in the published-source proof.
+Every coordinator checkpoint after an allocation re-asserts both receipts with
+`beforeOid` equal to `afterOid` inside its signed atomic transaction, so the
+immutability policy is applied only because GitHub accepts that same-object
+assertion. A probe on 2026-11-23 (recorded on #1422) sent such an `updateRefs`
+for a tag under the no-bypass "Portcove controller tag immutability" ruleset
+(ID `27037961`, `update` and `deletion`), and GitHub accepted it without moving
+the ref. The probe used the owner account's token rather than App `5632044`;
+the ruleset has no bypass actor, so the rule applied to that caller the same
+way. It did not re-test that a real move or deletion is refused.
+Receipt-shaped names nested one level deeper, such as
+`portcove-production-prepared/v1.0.0/x`, are outside the one-component
+patterns: any writer could create one, and readers then refuse the namespace
+(fail closed, but a denial of service). Covering them needs an additional `**`
+creation pattern, which is an owner decision.
+`node scripts/release-receipt-validation.mts` is the read-only cutover check:
+it verifies every existing pair against its source commit, prepared commit and
+preparation intent and prints the covered inventory, its digest and every
+discrepancy.
 Release observers still bind complete inventory and branch observations.
 Protected environments and controller admission still require exact appointments
 and the original source and workflow identities.
