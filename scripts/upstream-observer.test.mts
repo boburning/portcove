@@ -59,6 +59,7 @@ import {
   validateObservationContinuation,
   checksumSourcesFromProjections,
   releaseListFact,
+  releaseListFacts,
   releaseTextWindow,
   windowedReleaseText,
 } from "./upstream-observer.mts";
@@ -3356,4 +3357,34 @@ void test("release lists keep each newest release's own text, bounded to what th
       () => releaseListFact({ ...row(8, "2026-08-01T00:00:00Z"), text }),
       /bounded projection/u,
     );
+});
+
+void test("release text outside the window is never read", () => {
+  const at = (day: number) => `2026-01-${String(day).padStart(2, "0")}T00:00:00Z`;
+  const rows = Array.from({ length: 6 }, (_, index) => {
+    const row: Record<string, unknown> = {
+      id: index + 1,
+      tag_name: `v${index + 1}`,
+      draft: false,
+      prerelease: false,
+      created_at: at(index + 1),
+      published_at: at(index + 1),
+      name: `Release ${index + 1}`,
+    };
+    // The two oldest rows' bodies fail if anything reads them.
+    Object.defineProperty(row, "body", {
+      enumerable: true,
+      get: () => {
+        if (index < 2) throw new Error(`body ${index + 1} was read`);
+        return "Notes";
+      },
+    });
+    return row;
+  });
+  const facts = releaseListFacts(rows, true);
+  assert.deepEqual(
+    facts.map((fact) => fact.text?.title ?? null),
+    [null, null, "Release 3", "Release 4", "Release 5", "Release 6"],
+  );
+  assert.ok(releaseListFacts(rows, false).every((fact) => !("text" in fact)));
 });

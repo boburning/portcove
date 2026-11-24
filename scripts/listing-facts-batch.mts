@@ -526,18 +526,23 @@ export type RefusalReason =
   | "asset-unavailable"
   | "core-refused"
   | "mismatch"
-  | "out-of-scope";
+  | "out-of-scope"
+  | "job-fault";
 /** Refusals that are the runner's time or the provider's condition: retried, never a stop. */
 export const transientReasons: readonly RefusalReason[] = ["over-budget", "transient"];
 /**
  * Whether a refusal is a verdict on one identity's facts, which withholds
  * only that identity (`withholdRefused`): every refusal but the runner's or
  * provider's condition (`transientReasons`) and an entry outside the
- * authored candidate scope (`out-of-scope`), which says the change itself is
- * unsound.
+ * authored candidate scope (`out-of-scope`) or a fault of the job's own
+ * code, CLI or credentials (`job-fault`: an error that is no statement of the
+ * provider's data or of Core's verdict on the bytes), which say the
+ * reproduction itself is unsound.
  */
 export const identityRefusal = (refusal: Pick<Refusal, "reason">) =>
-  !transientReasons.includes(refusal.reason) && refusal.reason !== "out-of-scope";
+  !transientReasons.includes(refusal.reason) &&
+  refusal.reason !== "out-of-scope" &&
+  refusal.reason !== "job-fault";
 export interface Refusal {
   port_id: string;
   reason: RefusalReason;
@@ -788,7 +793,7 @@ export async function reproduceFacts(inputs: {
           detail: `The release list could not be read: ${error.message}`,
         };
       return {
-        reason: "release-unavailable",
+        reason: providerStatement(error) ? "release-unavailable" : "job-fault",
         detail: `The release list could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
       };
     }
@@ -991,13 +996,8 @@ export async function reproduceFacts(inputs: {
         counts = listingCounts(inspection.leaves);
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
-        const permanent = error instanceof InspectionError && error.permanent;
         return {
-          reason: permanent
-            ? "core-refused"
-            : transientInspection(error)
-              ? "transient"
-              : "asset-unavailable",
+          reason: inspectionRefusal(error),
           detail: `${artifact.name}: ${error instanceof Error ? error.message : "inspection failed"}`,
         };
       }
@@ -1051,18 +1051,19 @@ export async function reproduceFacts(inputs: {
         outcome = "inspected";
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
+        const reason = inspectionRefusal(error);
         outcome =
-          error instanceof InspectionError && error.permanent
+          reason === "core-refused" && error instanceof InspectionError
             ? error.refusal
-            : transientInspection(error)
-              ? "transient"
-              : "unavailable";
+            : reason === "asset-unavailable"
+              ? "unavailable"
+              : reason;
       }
       if (outcome !== archive.refusal)
         return {
           reason:
-            outcome === "transient"
-              ? "transient"
+            outcome === "transient" || outcome === "over-budget" || outcome === "job-fault"
+              ? outcome
               : outcome === "unavailable"
                 ? "asset-unavailable"
                 : "mismatch",
@@ -1165,6 +1166,39 @@ export function quotaResumeAt(
 }
 /** A response past `githubResponseBytes`: the provider's answer, never retried. */
 class OversizedResponseError extends Error {}
+/** A provider answer with a non-success status that no retry applies to. */
+export class GithubStatusError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+/** Provider data that does not have the shape the provider states it in. */
+export class ProviderDataError extends Error {}
+/**
+ * Whether a failed release-list read states something about the
+ * repository's own data: it is gone (404, 410) or the provider answered
+ * malformed records. Any other failure (a permission refusal, a fault in the
+ * job's own code) is no verdict on the identity (`job-fault`).
+ */
+export const providerStatement = (error: unknown) =>
+  (error instanceof GithubStatusError && [404, 410].includes(error.status)) ||
+  error instanceof ProviderDataError;
+/**
+ * The refusal reason of a failed inspection: Core's permanent verdict
+ * (`core-refused`), the runner's or provider's condition (`transient`), the
+ * shard's deadline (`over-budget`), another typed inspection failure of
+ * these bytes (`asset-unavailable`), or anything else, which is a fault of the
+ * job's own code or CLI (`job-fault`).
+ */
+export function inspectionRefusal(error: unknown): RefusalReason {
+  if (!(error instanceof InspectionError)) return "job-fault";
+  if (error.permanent) return "core-refused";
+  if (transientInspection(error)) return "transient";
+  if (error.cause === "over-budget") return "over-budget";
+  return "asset-unavailable";
+}
 /**
  * A response body read up to `githubResponseBytes`: reading stops, and the
  * request fails, as soon as the bound is passed, so an oversized answer is
@@ -1289,7 +1323,8 @@ export async function githubRequest(
       stated = false;
       continue;
     }
-    if (!response.ok) throw new Error(`${method} ${url} answered ${response.status}.`);
+    if (!response.ok)
+      throw new GithubStatusError(`${method} ${url} answered ${response.status}.`, response.status);
     if (!body.length) return null;
     try {
       return JSON.parse(body.toString("utf8")) as unknown;
@@ -1345,7 +1380,7 @@ export function githubReleaseLister(
  */
 export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
   if (!Array.isArray(value) || value.length > releaseListPage)
-    throw new Error("The provider release list is malformed.");
+    throw new ProviderDataError("The provider release list is malformed.");
   const releases = value.map((release: unknown): ObservedRelease & { draft: boolean } => {
     if (
       !isRecord(release) ||
@@ -1357,7 +1392,7 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       !(release.published_at === null || typeof release.published_at === "string") ||
       !Array.isArray(release.assets)
     )
-      throw new Error("A provider release list record is malformed.");
+      throw new ProviderDataError("A provider release list record is malformed.");
     const readable = (asset: unknown): asset is Record<string, unknown> =>
       isRecord(asset) &&
       Number.isSafeInteger(asset.id) &&
@@ -1933,13 +1968,26 @@ export function carryOver(
 ): { table: ListingFactsTable; carried: string[] } {
   const plan = reproductionPlan(baseline, current);
   if (plan.entries.length <= limit) return { table: current, carried: [] };
-  const carried = new Set(plan.entries.slice(limit).map((entry) => entry.port_id));
   const before = new Map(
     (isRecord(baseline) && Array.isArray(baseline.entries)
       ? (baseline.entries as ListingFactsEntry[])
       : []
     ).map((entry) => [entry.port_id, entry]),
   );
+  // An entry whose same release reproduction already refused waits behind
+  // every other: a refusal that recurs never holds another identity's slot.
+  const refusedAgain = (entry: ListingFactsEntry) => {
+    const prior = before.get(entry.port_id);
+    return (
+      prior?.ineligible?.reason === "reproduction-refused" &&
+      prior.observation.release_id === entry.observation.release_id
+    );
+  };
+  const ordered = [
+    ...plan.entries.filter((entry) => !refusedAgain(entry)),
+    ...plan.entries.filter(refusedAgain),
+  ];
+  const carried = new Set(ordered.slice(limit).map((entry) => entry.port_id));
   const entries = current.entries.flatMap((entry) => {
     if (!carried.has(entry.port_id)) return [entry];
     const prior = before.get(entry.port_id);
@@ -2085,6 +2133,7 @@ export const stopConditionNames = [
   "gate-refused",
   "catalog-capacity",
   "reproduction-unsound",
+  "withheld-batch-unchecked",
   "reproduction-transient",
   "path-allowlist",
   "required-check-failed",
@@ -2202,6 +2251,11 @@ export function stopConditions(input: {
   paths: "ok" | "violated" | "skipped";
   /** `transient`: refused only for the runner's time (`reproductionTransient`), no stop. */
   reproduction: "ok" | "refused" | "transient" | "skipped";
+  /**
+   * The step that failed while the batch was rebuilt without the identities
+   * reproduction refused (`withholdRefused`), when one did.
+   */
+  withheldRecheck?: string;
   delta?: { added: number; withdrawn: number; changed: number };
   /** Withdrawals no upstream fact explains (`withdrawalCauses`). */
   held?: readonly { port_id: string; cause: string }[];
@@ -2222,10 +2276,15 @@ export function stopConditions(input: {
   // itself: an entry outside the authored candidate scope, a change that
   // also edits authored sources, or a shard that ended without its typed
   // per-identity record.
+  if (input.withheldRecheck)
+    add(
+      "withheld-batch-unchecked",
+      `Reproduction refused single identities, but the batch without them could not be completed (${input.withheldRecheck} failed), so nothing was proposed.`,
+    );
   if (input.reproduction === "refused")
     add(
       "reproduction-unsound",
-      "The reproduction gave no per-identity outcome: an entry outside the authored candidate scope, a change that also edits authored sources, or a shard that ended without its typed record.",
+      "The reproduction gave no per-identity outcome: an entry outside the authored candidate scope, a change that also edits authored sources, a fault of the job's own code, CLI or credentials, or a shard that ended without its typed record.",
     );
   if (!input.summary) {
     add("worker-error", "The facts worker failed before writing its summary.");
@@ -3469,6 +3528,7 @@ async function main(argv: string[]): Promise<string> {
             : ((option.reproduction as "ok" | "refused" | "skipped") ?? "skipped"),
         ...(delta ? { delta, held: delta.held ?? [] } : {}),
         ...capacityInput(option.capacity),
+        ...(option["withheld-recheck"] ? { withheldRecheck: option["withheld-recheck"] } : {}),
         details: reproductionDetails(option.refusals),
       });
       if (record)

@@ -109,6 +109,8 @@ import {
   mergeMessage,
   withdrawalCauses,
   identityRefusal,
+  inspectionRefusal,
+  GithubStatusError,
   identityRefusals,
   refusalRecord,
   withholdRefused,
@@ -665,7 +667,52 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     classify: coreClassifier,
     boundLines: unbound([entry]),
   });
-  assert.equal(unavailable.refused[0]!.reason, "release-unavailable");
+  // An untyped failure is no statement of the provider's data: a fault of
+  // the job itself, which stops it instead of withholding the identity.
+  assert.equal(unavailable.refused[0]!.reason, "job-fault");
+  const listedAs = async (error: Error) =>
+    (
+      await reproduceFacts({
+        entries: [entry],
+        listReleases: async () => {
+          throw error;
+        },
+        inspect: inspector(players),
+        classify: coreClassifier,
+        boundLines: unbound([entry]),
+      })
+    ).refused[0]!.reason;
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 404.", 404)),
+    "release-unavailable",
+  );
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 410.", 410)),
+    "release-unavailable",
+  );
+  assert.equal(await listedAs(new GithubStatusError("GET x answered 401.", 401)), "job-fault");
+  assert.equal(await listedAs(new GithubStatusError("GET x answered 403.", 403)), "job-fault");
+  assert.equal(await listedAs(new TypeError("x is not a function")), "job-fault");
+  // Inspection: Core's verdict and typed failures are the identity's; the
+  // deadline is the runner's; anything untyped is the job's own fault.
+  assert.equal(inspectionRefusal(new InspectionError("Core refused.", true)), "core-refused");
+  assert.equal(
+    inspectionRefusal(new InspectionError("Download failed.", false, "core-unknown", "network")),
+    "transient",
+  );
+  assert.equal(
+    inspectionRefusal(new InspectionError("Killed.", false, "core-unknown", "over-budget")),
+    "over-budget",
+  );
+  assert.equal(
+    inspectionRefusal(
+      new InspectionError("No result.", false, "core-unknown", "unreadable-archive"),
+    ),
+    "asset-unavailable",
+  );
+  assert.equal(inspectionRefusal(new Error("spawn portcove ENOENT")), "job-fault");
+  assert.equal(await refusal(() => undefined, new Error("spawn portcove ENOENT")), "job-fault");
+  assert.equal(identityRefusal({ reason: "job-fault" }), false);
 });
 
 void test("a refused archive, the release's line facts and its installers are reproduced too (D2, D4, D5)", async () => {
@@ -1057,7 +1104,7 @@ void test("reproduction proves the named release is still the newest stable one 
         throw new Error("rate limited");
       })
     ).reason,
-    "release-unavailable",
+    "job-fault",
   );
   assert.equal(
     (await refused(async () => parseProviderReleaseList([{ id: 8 }]))).reason,
@@ -3776,4 +3823,51 @@ void test("the decide job withholds refused identities and re-checks the batch b
   const ready = steps[index("ready")]!;
   assert.equal(ready.env!.MATERIAL, "${{ steps.effective.outputs.material }}");
   assert.match(ready.env!.REPRODUCE!, /steps\.withhold\.outcome == 'failure' && 'failure'/u);
+});
+
+void test("repeat refusals wait behind other entries, and an unbuilt withheld batch is its own stop (#1422 2)", () => {
+  const ids = ["zz-a-refused", "zz-b", "zz-c"];
+  const fresh = ids.map((id) => fixture(id).entry);
+  const current = { ...emptyFactsTable(), entries: fresh, entries_sha256: digestOf(fresh) };
+  const refusedBefore = withholdRefused(current, [
+    { port_id: "zz-a-refused", reason: "mismatch", detail: "x" },
+  ]).table.entries[0]!;
+  const baseline = { ...emptyFactsTable(), entries: [refusedBefore] };
+  // With two slots, the identity refused on this same release again waits.
+  assert.deepEqual(carryOver(baseline, current, 2).carried, ["zz-a-refused"]);
+  // Refused for an older release, it is no repeat: port_id order holds.
+  const olderRelease = structuredClone(refusedBefore);
+  olderRelease.observation.release_id = 7;
+  assert.deepEqual(
+    carryOver({ ...emptyFactsTable(), entries: [olderRelease] }, current, 2).carried,
+    ["zz-c"],
+  );
+  const conditions = stopConditions({
+    runId: "9",
+    now: "2026-11-21T00:00:00.000Z",
+    summary: summary(),
+    history: [],
+    versions: "v",
+    gate: "skipped",
+    paths: "skipped",
+    reproduction: "ok",
+    withheldRecheck: "regenerating the batch",
+  }).conditions;
+  assert.deepEqual(
+    conditions.map((condition) => condition.name),
+    ["withheld-batch-unchecked"],
+  );
+  assert.match(conditions[0]!.detail, /regenerating the batch failed/u);
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<string, { steps: { id?: string; run?: string; env?: Record<string, string> }[] }>;
+  };
+  const steps = workflow.jobs.decide!.steps;
+  const effective = steps.find((step) => step.id === "effective")!;
+  assert.equal(effective.env!.REQUEUED, "${{ steps.requeue.outcome }}");
+  assert.match(effective.run!, /paths=skipped/u);
+  assert.match(effective.run!, /recheck=regenerating the batch/u);
+  assert.match(effective.run!, /recheck=publishing its exception queues/u);
+  const assess = steps.find((step) => step.id === "assess")!;
+  assert.equal(assess.env!.RECHECK, "${{ steps.effective.outputs.recheck }}");
+  assert.match(assess.run!, /--withheld-recheck/u);
 });

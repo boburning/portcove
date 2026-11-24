@@ -4816,8 +4816,11 @@ observation window), the release name and of the body only the raw line the
 rule judges, with whether that reading was cut (`text: { title, body,
 body_truncated }`, `bodyExcerpt`). Reading the kept part gives the rule the
 same line and the same completeness as the whole body, so keeping less never
-changes a statement. A change to that text during an observation is a
-concurrent change like any other fact. Managed sources keep no text and
+changes a statement. Only the rows inside that window are read for text at
+all, so untrusted text of older releases is never parsed. A change to that
+text during an observation is a concurrent change like any other fact. A
+source shared by a listing and a managed port keeps no text, so that
+listing's releases stay `release-text-unobserved`. Managed sources keep no text and
 their facts are unchanged. The listing projection carries the text beside
 the observation (`listing_release_text`, bound to the observation's facts
 digest), never inside `upstream_observation`, whose shape Core's signed
@@ -5960,7 +5963,13 @@ latest causes.
 A reproduction shard records every refusal typed (`refusalRecord`). A refusal
 of one identity's facts (`identityRefusal`: `release-unavailable`,
 `release-changed`, `not-latest-stable`, `asset-unavailable`, `core-refused`
-or `mismatch`) is a verdict on that identity, not on the job: the shard
+or `mismatch`) is a verdict on that identity, not on the job. A release list
+read counts as `release-unavailable` only when the provider states it
+(404, 410, or malformed records); an archive inspection counts only when it
+fails with the worker's typed inspection error. Any other failure (a
+permission refusal, a missing CLI, a fault of the job's own code) is
+`job-fault`, which stops the job like `out-of-scope`. For a verdict on one
+identity the shard
 passes, and `decide` withholds the identity (`withholdRefused`). Its entry
 becomes ineligible `reproduction-refused` for the release it was refused
 for, naming the refusal reason only, so a repeated refusal of the same
@@ -5971,7 +5980,12 @@ checks run again on the batch as it now stands; the rest of the batch
 proceeds. The identity is listed under `reproduction-refused` in the
 exception queues for a person to hand-check, and the worker derives it again
 on every run (it is never reconfirmed as ineligible), so it lands without a
-person once reproduction agrees. Measured: `youkaicountry-yknytt`'s release
+person once reproduction agrees. When a batch must carry entries
+(`carryOver`), an entry refused before for the same release waits behind
+every other, so a recurring refusal never holds another identity's slot. If
+the batch without the withheld identities cannot be regenerated, or its
+exception queues cannot be published, nothing is proposed and the run stops
+as `withheld-batch-unchecked`, naming that step. Measured: `youkaicountry-yknytt`'s release
 list now titles its releases as betas; that refusal used to stop the whole
 job until a person acted, and it now withholds only that identity. A refusal
 that would withdraw a route players already have is held instead
@@ -5998,8 +6012,10 @@ the run's refusal records). The conditions are `gate-refused`, `catalog-capacity
 [catalog capacity](#catalog-capacity)), `reproduction-unsound` (the
 reproduction gave no per-identity outcome: an entry outside the authored
 candidate scope, `out-of-scope`, a change that also edits authored sources,
-a shard that ended without its typed record, or a batch that could not be
-regenerated or re-checked without the withheld identities),
+a shard that ended without its typed record, a `job-fault` refusal, or a
+batch whose separation, clock or canonical-output checks failed after an
+identity was withheld), `withheld-batch-unchecked` (the batch without the withheld
+identities could not be regenerated or its exception queues published),
 `reproduction-transient` (a reproduction that ended only transiently on two
 consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `foreign-batch-author` (a batch-shaped

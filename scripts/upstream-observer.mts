@@ -680,16 +680,11 @@ export function releaseListFact(
   const kept = text ? releaseTextFact(release as Record<string, unknown>) : undefined;
   return kept === undefined ? fact : { ...fact, text: kept };
 }
-/**
- * Release list rows with text kept only for the newest `releaseTextWindow`
- * non-draft releases among them (publication time, then id): applied to each
- * page and to the whole list alike, so a page keeps a superset of the list's
- * window and the facts derived from fresh and retained pages agree.
- */
-export function windowedReleaseText<
-  Row extends { id: number; draft: boolean; published_at: string | null; text?: ReleaseTextFact },
->(rows: readonly Row[]): Row[] {
-  const kept = new Set(
+/** The ids of the newest `releaseTextWindow` non-draft rows: publication time, then id. */
+function textWindowIds(
+  rows: readonly { id: number; draft: boolean; published_at: string | null }[],
+) {
+  return new Set(
     rows
       .filter((row) => !row.draft)
       .toSorted(
@@ -700,11 +695,37 @@ export function windowedReleaseText<
       .slice(0, releaseTextWindow)
       .map((row) => row.id),
   );
+}
+/**
+ * Release list rows with text kept only for the newest `releaseTextWindow`
+ * non-draft releases among them (publication time, then id): applied to each
+ * page and to the whole list alike, so a page keeps a superset of the list's
+ * window and the facts derived from fresh and retained pages agree.
+ */
+export function windowedReleaseText<
+  Row extends { id: number; draft: boolean; published_at: string | null; text?: ReleaseTextFact },
+>(rows: readonly Row[]): Row[] {
+  const kept = textWindowIds(rows);
   return rows.map((row) => {
     if (kept.has(row.id) || !Object.hasOwn(row, "text")) return row;
     const { text: _text, ...rest } = row;
     return rest as Row;
   });
+}
+/**
+ * A release list's rows as facts (`releaseListFact`), reading release text
+ * only for the rows inside the text window, so untrusted text outside it is
+ * never parsed; with `text` false, no row keeps text.
+ */
+export function releaseListFacts(
+  rows: readonly unknown[],
+  text: boolean,
+): (ReturnType<typeof releaseFact> & { text?: ReleaseTextFact })[] {
+  const facts = rows.map((row) => releaseFact(row));
+  const kept = text ? textWindowIds(facts) : new Set<number>();
+  return rows.map((row, index) =>
+    kept.has(facts[index]!.id) ? releaseListFact(row) : facts[index]!,
+  );
 }
 /** Whether a configuration keeps release text (`release_text`). */
 const keepsText = (config: Pick<ObserverConfig, "release_text">) =>
@@ -996,8 +1017,7 @@ function observerPageFacts(
     "invalid-checkpoint",
     "page collection differs",
   );
-  if (tail === "/releases")
-    return windowedReleaseText(body.map((row) => releaseListFact(row, keepsText(config))));
+  if (tail === "/releases") return releaseListFacts(body, keepsText(config));
   requireFact(/^\/releases\/\d+\/assets$/u.test(tail), "invalid-checkpoint", "page kind differs");
   const releaseId = Number(tail.split("/")[2]);
   const tags = new Set<string>();
@@ -1361,9 +1381,9 @@ export function reusableProviderObservation(
       if (!nextPage(page.link, pathname, index, config)) return records;
     }
   };
-  const releases = windowedReleaseText(
-    collection(`${root}/releases`).map((row) => releaseListFact(row, keepsText(config))),
-  ).map((fact) => ({ ...fact, assets: [] as ReturnType<typeof assetFact>[] }));
+  const releases = releaseListFacts(collection(`${root}/releases`), keepsText(config)).map(
+    (fact) => ({ ...fact, assets: [] as ReturnType<typeof assetFact>[] }),
+  );
   const releaseIds = new Set(releases.map((release) => release.id));
   requireFact(
     releaseIds.size === releases.length,
@@ -2051,13 +2071,14 @@ export async function observeUpstream(
     );
     // The kept release text is compared on validation like every other
     // fact: a changed title or read body line is a concurrent change.
-    const listRow = (row: unknown) => releaseListFact(row, keepsText(config));
-    const headers = windowedReleaseText(
-      (
-        await collection(`${repositoryPath}/releases`, listRow, (rows) =>
-          windowedReleaseText(rows as ReturnType<typeof releaseListFact>[]),
-        )
-      ).map(listRow),
+    const keep = keepsText(config);
+    const headers = releaseListFacts(
+      await collection(
+        `${repositoryPath}/releases`,
+        (row) => row,
+        (rows) => releaseListFacts(rows, keep),
+      ),
+      keep,
     );
     let selectedAssets: Set<number> | null = null;
     const releases: ProviderObservation["facts"]["releases"] = headers.map((header) => ({
