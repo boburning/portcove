@@ -21,17 +21,6 @@ filter = 'package(portcove-core) & test(/^service::tests::mstan_snes_installatio
 slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
 success-output = "immediate"
 
-# Windows run 45335676662 (fast-rust-test partition 3, head 924e10d5c) hit the
-# 120s cutoff on this recipe round trip at the 513- and 2,000-package setups
-# without an assertion failure, then passed its retry in 102.3s. It reviews
-# about 2,500 local package files before exporting and importing both setups.
-# Allow up to 240s on Windows; assertions, cleanup and retries are unchanged.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^recipe::tests::a_setup_past_the_former_package_bounds_round_trips_through_recipe_import$/)'
-slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
-success-output = "immediate"
-
 # The same partition retained this complete three-version Tails fixture's
 # 90.350s cutoff. It includes backup, rollback, consented restore and interrupted
 # activation/recovery. Give only this Windows case finite180s completion and

@@ -1650,50 +1650,132 @@ pub(crate) fn provider_evidence(
     package: &crate::RecipePackage,
     provider: Option<&ProviderPackageRef>,
 ) -> Result<ProviderEvidence> {
-    let candidates = connection
-        .prepare(
-            "SELECT r.profile_id, r.revision FROM profile_revisions r
-             JOIN profiles p ON p.id = r.profile_id
-             WHERE p.port_id=?1 AND instr(r.revision_json, ?2) > 0
-             ORDER BY r.profile_id, r.revision",
-        )?
-        .query_map(params![port_id, package.sha256], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut recorded = false;
-    let mut has_requirements = false;
-    let mut known_requirements = false;
-    for (profile_id, revision) in candidates {
-        let stored = revision_from(connection, &profile_id, revision)?;
-        for member in &stored.packages {
-            if member.sha256 != package.sha256 || member.native_id != package.native_id {
-                continue;
-            }
-            known_requirements |= !member.provider_requires.is_empty();
-            if member.provider.as_ref() != provider {
-                continue;
-            }
-            recorded = true;
-            if !member.provider_requires.is_empty() {
-                has_requirements = true;
-                if member.provider_requires == package.provider_requires {
-                    return Ok(ProviderEvidence::Matches);
+    Ok(
+        ProviderEvidenceIndex::read(connection, port_id, std::iter::once(package))?
+            .evidence(package, provider),
+    )
+}
+
+/// What the port's retained history recorded for a set of exact packages,
+/// read in one pass: each revision that names one of the packages' digests is
+/// parsed once, however many of the packages it holds. Looking each package up
+/// separately parsed the same revisions once per package, which grew with the
+/// square of the setup's size.
+pub(crate) struct ProviderEvidenceIndex {
+    /// (digest, native ID) → each recorded (label, requirements), in history order.
+    recorded: std::collections::HashMap<
+        (String, String),
+        Vec<(Option<ProviderPackageRef>, Vec<ProviderRequirement>)>,
+    >,
+}
+
+impl ProviderEvidenceIndex {
+    pub(crate) fn read<'a>(
+        connection: &Connection,
+        port_id: &str,
+        packages: impl IntoIterator<Item = &'a crate::RecipePackage>,
+    ) -> Result<Self> {
+        let wanted = packages
+            .into_iter()
+            .map(|package| (package.sha256.clone(), package.native_id.clone()))
+            .collect::<std::collections::HashSet<_>>();
+        let digests = wanted
+            .iter()
+            .map(|(sha256, _)| sha256.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        // The same candidates the per-package query selected: revisions of
+        // this port whose stored text contains one of the digests.
+        let mut candidates = Vec::new();
+        {
+            let mut statement = connection.prepare(
+                "SELECT r.profile_id, r.revision, r.revision_json FROM profile_revisions r
+                 JOIN profiles p ON p.id = r.profile_id
+                 WHERE p.port_id=?1
+                 ORDER BY r.profile_id, r.revision",
+            )?;
+            let mut rows = statement.query(params![port_id])?;
+            while let Some(row) = rows.next()? {
+                let json = row.get_ref(2)?.as_str().map_err(rusqlite::Error::from)?;
+                if names_any_digest(json, &digests) {
+                    candidates.push((row.get::<_, String>(0)?, row.get::<_, u64>(1)?));
                 }
             }
         }
+        let mut recorded = std::collections::HashMap::<_, Vec<_>>::new();
+        for (profile_id, revision) in candidates {
+            let stored = revision_from(connection, &profile_id, revision)?;
+            for member in stored.packages {
+                let key = (member.sha256, member.native_id);
+                if wanted.contains(&key) {
+                    recorded
+                        .entry(key)
+                        .or_default()
+                        .push((member.provider, member.provider_requires));
+                }
+            }
+        }
+        Ok(Self { recorded })
     }
-    Ok(if recorded {
-        if has_requirements || !package.provider_requires.is_empty() {
+
+    pub(crate) fn evidence(
+        &self,
+        package: &crate::RecipePackage,
+        provider: Option<&ProviderPackageRef>,
+    ) -> ProviderEvidence {
+        let mut recorded = false;
+        let mut has_requirements = false;
+        let mut known_requirements = false;
+        let members = self
+            .recorded
+            .get(&(package.sha256.clone(), package.native_id.clone()))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for (label, requirements) in members {
+            known_requirements |= !requirements.is_empty();
+            if label.as_ref() != provider {
+                continue;
+            }
+            recorded = true;
+            if !requirements.is_empty() {
+                has_requirements = true;
+                if *requirements == package.provider_requires {
+                    return ProviderEvidence::Matches;
+                }
+            }
+        }
+        if recorded {
+            if has_requirements || !package.provider_requires.is_empty() {
+                ProviderEvidence::RequirementsDiffer
+            } else {
+                ProviderEvidence::Matches
+            }
+        } else if known_requirements {
             ProviderEvidence::RequirementsDiffer
         } else {
-            ProviderEvidence::Matches
+            ProviderEvidence::Unrecorded
         }
-    } else if known_requirements {
-        ProviderEvidence::RequirementsDiffer
-    } else {
-        ProviderEvidence::Unrecorded
-    })
+    }
+}
+
+/// Whether `text` contains one of `digests` (64 lowercase hex characters each)
+/// anywhere, as SQLite's `instr` would find it, in one pass over the text.
+pub(crate) fn names_any_digest(text: &str, digests: &std::collections::HashSet<&str>) -> bool {
+    let bytes = text.as_bytes();
+    let hex = |byte: &u8| matches!(byte, b'0'..=b'9' | b'a'..=b'f');
+    let mut start = 0;
+    while start < bytes.len() {
+        if !hex(&bytes[start]) {
+            start += 1;
+            continue;
+        }
+        let end = start + bytes[start..].iter().take_while(|byte| hex(byte)).count();
+        // Every 64-character window of the hex run, as a substring search would.
+        if end - start >= 64 && (start..=end - 64).any(|at| digests.contains(&text[at..at + 64])) {
+            return true;
+        }
+        start = end;
+    }
+    false
 }
 
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {

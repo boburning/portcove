@@ -2007,3 +2007,66 @@ async fn a_review_budget_refusal_while_acquiring_keeps_earlier_progress() {
     assert!(resumed.staging.contains(&first));
     assert_eq!(resumed.provider_checks, [second]);
 }
+
+#[test]
+fn reviewing_and_applying_a_large_recipe_reads_the_port_history_once_not_per_package() {
+    let w = world();
+    let packages = 300;
+    grow_setup(&w, packages);
+    let recipe = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    let revisions = w
+        .service
+        .profile_revisions("starship", &w.profile)
+        .unwrap()
+        .len();
+    let decoded = |run: &dyn Fn()| {
+        profile::DECODED_RECORDS.with(|count| count.set(0));
+        run();
+        profile::DECODED_RECORDS.with(std::cell::Cell::get)
+    };
+    // Provider evidence for every package comes from one pass over the
+    // port's history, so the records read follow the history, not the
+    // number of packages times the history.
+    let bound = 4 * revisions + 16;
+    let plan = std::cell::RefCell::new(None);
+    let reviewed = decoded(&|| {
+        *plan.borrow_mut() = Some(w.service.plan_recipe_import(&recipe).unwrap());
+    });
+    assert!(
+        reviewed <= bound,
+        "{reviewed} records for {packages} packages"
+    );
+    let plan = plan.into_inner().unwrap();
+    assert!(plan.can_apply, "{:?}", plan.holds);
+    let token = w
+        .service
+        .authorize_recipe_import(&plan, "Copy")
+        .unwrap()
+        .token;
+    let applied = decoded(&|| {
+        w.service
+            .apply_recipe_import(&plan, "Copy", &token)
+            .unwrap();
+    });
+    assert!(
+        applied <= 2 * bound,
+        "{applied} records for {packages} packages"
+    );
+}
+
+#[test]
+fn the_digest_scan_finds_a_digest_wherever_a_substring_search_would() {
+    let digest = "ab".repeat(32);
+    let wanted = std::collections::HashSet::from([digest.as_str()]);
+    assert!(profile::names_any_digest(
+        &format!("{{\"sha256\":\"{digest}\"}}"),
+        &wanted
+    ));
+    // Inside a longer hex run, as `instr` would also match.
+    assert!(profile::names_any_digest(&format!("0{digest}1"), &wanted));
+    assert!(!profile::names_any_digest(&"ab".repeat(31), &wanted));
+    assert!(!profile::names_any_digest(&"cd".repeat(40), &wanted));
+}

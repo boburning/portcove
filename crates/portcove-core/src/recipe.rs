@@ -1608,6 +1608,8 @@ impl PortcoveService {
         let mut provider_checks = Vec::new();
         let recomp_game = layout.recomp_game();
         let connection = self.library.connection()?;
+        let evidence_index =
+            profile::ProviderEvidenceIndex::read(&connection, &recipe.port_id, &recipe.packages)?;
         let packages = recipe
             .packages
             .iter()
@@ -1664,12 +1666,7 @@ impl PortcoveService {
                         runs: staged.runs_code.clone(),
                     });
                 }
-                let evidence = profile::provider_evidence(
-                    &connection,
-                    &recipe.port_id,
-                    package,
-                    package.provider.as_ref(),
-                )?;
+                let evidence = evidence_index.evidence(package, package.provider.as_ref());
                 let closure_member = !package.provider_requires.is_empty()
                     || recipe.packages.iter().filter(|member| member.enabled).any(|member| {
                         member.provider_requires.iter().any(|requirement| {
@@ -1975,16 +1972,14 @@ impl PortcoveService {
         // bytes and file name, so update checks never follow a label the recipe
         // supplied. The reviewed plan says which labels are dropped.
         let connection = self.library.connection()?;
+        let evidence_index =
+            profile::ProviderEvidenceIndex::read(&connection, &port_id, &plan.recipe.packages)?;
         let mut providers = Vec::with_capacity(plan.recipe.packages.len());
         for package in &plan.recipe.packages {
             let kept = match &package.provider {
                 Some(provider)
-                    if profile::provider_evidence(
-                        &connection,
-                        &port_id,
-                        package,
-                        Some(provider),
-                    )? == profile::ProviderEvidence::Matches =>
+                    if evidence_index.evidence(package, Some(provider))
+                        == profile::ProviderEvidence::Matches =>
                 {
                     Some(provider.clone())
                 }
