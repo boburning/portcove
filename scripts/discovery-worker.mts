@@ -1033,14 +1033,21 @@ export async function discoveryWorkerMain(argv: string[]) {
         { request: request("export"), reservationBytes: Math.ceil(Number(size) * 2) },
       );
     } catch (error) {
-      if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+      // An unmigrated store has nothing to export yet; report it rather than fail.
+      const unmigrated =
+        !(error instanceof MaintenanceResourceDeferred) &&
+        /does not exist/u.test(errorMessage(error));
+      if (!(error instanceof MaintenanceResourceDeferred) && !unmigrated) throw error;
       // The meter or allowance is unavailable; keep the prior export and say so.
-      const deferred = `Discovery status export deferred: ${error.message}\n`;
+      const reason = unmigrated
+        ? "The maintenance store is not migrated for discovery collection yet"
+        : errorMessage(error);
+      const deferred = `Discovery status export deferred: ${reason}\n`;
       writeFileSync(
         path.join(output, "status.md"),
         `## Unattended discovery collection\n\n${deferred}`,
       );
-      console.log(JSON.stringify({ outcome: "deferred", reason: error.message }));
+      console.log(JSON.stringify({ outcome: "deferred", reason }));
       return 75;
     }
     if (!isRecord(status)) throw new MaintenanceStoreError("Malformed discovery status");

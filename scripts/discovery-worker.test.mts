@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -21,6 +22,7 @@ import type {
 import type { DiscoveryWorkerResult } from "./discovery-worker.mts";
 import {
   discoveryDefinitionDigest,
+  discoveryWorkerMain,
   importLocalState,
   leadObservation,
   leadWatch,
@@ -1149,3 +1151,31 @@ void test("the status report shows each curated source's coverage and baseline p
   assert.match(text, /\| unbaked-registry \| never \|/u);
   assert.match(text, /\| unbaked-registry \| 2026-11-24T01:43 \| 7709 \| 857 \| 6852 \| 1718 \|/u);
 });
+
+void test(
+  "the status export reports an unmigrated store instead of failing",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const environment = postgresFixture(context, server.directory!).start("unmigrated").owner;
+    const root = fileURLToPath(new URL("../", import.meta.url));
+    mkdirSync(path.join(root, "work"), { recursive: true });
+    const output = mkdtempSync(path.join(root, "work", "discovery-status-test-"));
+    context.after(() => rmSync(output, { recursive: true, force: true }));
+    const name = "PORTCOVE_DISCOVERY_STATUS_TEST_URL";
+    const saved = { url: process.env[name], run: process.env.GITHUB_RUN_ID };
+    process.env[name] =
+      `postgresql://${environment.PGUSER}@localhost/${environment.PGDATABASE}?host=${environment.PGHOST}&port=${environment.PGPORT}`;
+    delete process.env.GITHUB_RUN_ID;
+    context.after(() => {
+      if (saved.url === undefined) delete process.env[name];
+      else process.env[name] = saved.url;
+      if (saved.run !== undefined) process.env.GITHUB_RUN_ID = saved.run;
+    });
+    const code = await discoveryWorkerMain(["status", "--database-env", name, "--output", output]);
+    assert.equal(code, 75);
+    assert.match(
+      readFileSync(path.join(output, "status.md"), "utf8"),
+      /deferred: The maintenance store is not migrated for discovery collection yet/u,
+    );
+  },
+);
