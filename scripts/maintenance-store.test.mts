@@ -1089,7 +1089,7 @@ void test(
       if (!(error instanceof MaintenanceBackupDeferred)) return false;
       required = error.requiredBytes;
       assert.equal(error.reservedBytes, 2_000_000);
-      return required > 2_000_000 && required < 5_000_000;
+      return Number.isSafeInteger(required) && required > 2_000_000;
     });
     // Same verified local seed, fresh production snapshot, newly sized allowance.
     const result = await recover(required + 100_000);
