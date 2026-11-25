@@ -1457,7 +1457,10 @@ deadline; those targets are reported as `time-budget`. Targets that need no
 further I/O keep their outcome after the deadline: a resolved skip, a package
 reused from the checkpoint, a remembered failure, or a remembered unlistable
 retry, which stays `unlistable`. Targets that share one package
-re-check it once per run. Every target not scanned
+attempt it once per run, including transient failures. The existing checkpoint
+retains ordinary transient attempt order: fresh assets and the oldest deferred
+attempts take precedence on the next run, without increasing any budget.
+Successful scans and persistent failures leave that rotation. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a
