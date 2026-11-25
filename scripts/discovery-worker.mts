@@ -1024,8 +1024,12 @@ export async function readStoredLeads(
 
 /** Recent measured transfer and current state size, read before admission. */
 export const discoveryTransferForecastQuery = `SELECT json_build_object(
-  'state_bytes', coalesce((SELECT max(octet_length(portcove_maintenance.discovery_expanded_state(scope, state)::text))
-    FROM portcove_maintenance.discovery_collection_state), 0),
+  'state_bytes', coalesce((SELECT max(octet_length(s.state::text) + coalesce(h.bytes, 0))
+    FROM portcove_maintenance.discovery_collection_state s
+    LEFT JOIN LATERAL (
+      SELECT sum(octet_length(to_jsonb(hint_key)::text) + octet_length(hint::text) + 8) + 32 AS bytes
+      FROM portcove_maintenance.discovery_external_hints WHERE scope = s.scope
+    ) h ON true), 0),
   'record_bytes', coalesce((SELECT sum(octet_length(record::text))
     FROM portcove_maintenance.discovery_lead_records), 0),
   -- Neon meters only what the database sends to the client.
