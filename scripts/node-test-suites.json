@@ -4345,6 +4345,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-receipt-wire.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9693],
+        ["roadmap-check", 193]
+      ]
+    },
+    {
       "file": "scripts/roadmap-scoped.test.mts",
       "memberships": [
         ["catalog-full-2", 9700],
