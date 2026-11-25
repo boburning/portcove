@@ -106,8 +106,14 @@ actual restored hint and lead payloads. After fenced compact acquisition, the
 production database compares those fingerprints and returns changed/new rows
 and removed keys. The current continuation always comes from production.
 An unavailable seed or oversized seed/delta falls back to the complete read;
-no additional public cache or artifact is published. Initial admission still
-reserves for the complete-read fallback, not an optimistic delta estimate. Discovery pass
+no additional public cache or artifact is published. Initial admission can instead use a measured seed plan: a single read-only
+statement returns the exact delta JSON sizes and the production revision,
+activation generation and definition. The collector uses the same frozen seed
+fingerprints and acquires only that revision. Each response is capped at its
+measured size; a moved or oversized plan defers rather than falling back to an
+unadmitted complete read. If no usable plan exists, the complete-read admission
+remains the fallback. The existing operation minimum, provider ceiling and
+protocol headroom still apply; later passes keep complete-read admission. Discovery pass
 admission uses the larger of the measured previous receive payload and the
 current cold-read estimate, plus acknowledgement and protocol headroom, rather
 than counting the same acquire twice. The provider ceiling is unchanged.
