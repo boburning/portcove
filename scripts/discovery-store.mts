@@ -171,13 +171,13 @@ type SeedRowKind = keyof typeof seedTables;
 /** Local PostgreSQL computes fingerprints from the actual seed values, using
  * the same jsonb serialization as production. The seed is not authoritative:
  * changed/new rows come from production and absent keys are removed. */
-export function readSeededDiscoveryRows(
+function loadSeedRows(
   environment: NodeJS.ProcessEnv,
   seed: NodeJS.ProcessEnv,
   scope: string,
   kind: SeedRowKind,
   pageBytes: number,
-): { rows: Record<string, unknown>; bytes: number } | null {
+): SeedRows | null {
   if (!seed.PGHOST?.startsWith("/") || seed.PGHOST === environment.PGHOST &&
     seed.PGPORT === environment.PGPORT && seed.PGDATABASE === environment.PGDATABASE ||
     seed.PGOPTIONS || seed.PGSERVICE)
@@ -207,20 +207,88 @@ export function readSeededDiscoveryRows(
     hashes[id] = row.sha;
     rows[id] = row.value;
   }
-  // One bounded response. On a large delta, return only a sentinel and use
-  // the normal complete, paged reader. Never use an incomplete delta.
-  const output = runSql(environment, `SET TRANSACTION READ ONLY;
-    WITH local AS (SELECT key, value AS sha FROM jsonb_each_text(${sqlLiteral(JSON.stringify(hashes))}::jsonb)),
+  return { hashes, rows };
+}
+
+type SeedRows = { hashes: Record<string, string>; rows: Record<string, unknown> };
+
+/** Use exactly the same delta expression for the measurement and the read. */
+function seededDeltaSql(scope: string, kind: SeedRowKind, hashes: Record<string, string>) {
+  const { table, key, value } = seedTables[kind];
+  return `WITH local AS (SELECT key, value AS sha FROM jsonb_each_text(${sqlLiteral(JSON.stringify(hashes))}::jsonb)),
     remote AS (
       SELECT ${key}::text AS key, ${value} AS value,
         encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex') AS sha
-      FROM ${relation} WHERE scope = ${sqlLiteral(scope)}
-    ), delta AS (
-      SELECT jsonb_build_object(
-        'changed', coalesce(jsonb_object_agg(r.key, r.value) FILTER (WHERE r.key IS NOT NULL), '{}'::jsonb),
-        'removed', coalesce(jsonb_agg(l.key) FILTER (WHERE r.key IS NULL), '[]'::jsonb)
-      ) AS data FROM local l FULL JOIN remote r USING (key) WHERE l.sha IS DISTINCT FROM r.sha
-    ) SELECT CASE WHEN octet_length(data::text) <= ${pageBytes} THEN data ELSE 'null'::jsonb END FROM delta;`, { timeoutMs: 300_000 }).trim();
+      FROM portcove_maintenance.${table} WHERE scope = ${sqlLiteral(scope)}
+    )
+    SELECT jsonb_build_object(
+      'changed', coalesce(jsonb_object_agg(r.key, r.value) FILTER (WHERE r.key IS NOT NULL), '{}'::jsonb),
+      'removed', coalesce(jsonb_agg(l.key) FILTER (WHERE r.key IS NULL), '[]'::jsonb)
+    ) AS data FROM local l FULL JOIN remote r USING (key) WHERE l.sha IS DISTINCT FROM r.sha`;
+}
+
+export interface DiscoverySeedPlan {
+  scope: string;
+  revision: number;
+  generation: number;
+  definition: string;
+  compactBytes: number;
+  hintsBytes: number;
+  leadsBytes: number;
+  hints: SeedRows;
+  leads: SeedRows;
+}
+
+/** Read only byte counts and a revision fence, not actual production payloads.
+ * Both delta estimates and the fence are derived in one MVCC statement. */
+export function measureDiscoverySeed(
+  environment: NodeJS.ProcessEnv,
+  seed: NodeJS.ProcessEnv,
+  scope: string,
+  pageBytes = Math.floor(outputLimitBytes / 2),
+): DiscoverySeedPlan | null {
+  const hints = loadSeedRows(environment, seed, scope, "hints", pageBytes);
+  const leads = loadSeedRows(environment, seed, scope, "leads", pageBytes);
+  if (!hints || !leads) return null;
+  const raw = runSql(environment, `SET TRANSACTION READ ONLY;
+    SELECT coalesce((SELECT jsonb_build_object(
+      'revision', s.revision, 'generation', a.collection_generation,
+      'definition', s.definition_sha256, 'compactBytes', octet_length(s.state::text),
+      'hintsBytes', (SELECT octet_length(data::text) FROM (${seededDeltaSql(scope, "hints", hints.hashes)}) h),
+      'leadsBytes', (SELECT octet_length(data::text) FROM (${seededDeltaSql(scope, "leads", leads.hashes)}) l)
+    ) FROM portcove_maintenance.discovery_collection_state s
+      CROSS JOIN portcove_maintenance_meta.discovery_intake_activation a
+      WHERE s.scope = ${sqlLiteral(scope)}), 'null'::jsonb)::text;`,
+    { timeoutMs: 300_000 }).trim();
+  const plan: unknown = JSON.parse(raw);
+  if (plan === null) return null;
+  if (!isRecord(plan) || typeof plan.definition !== "string" ||
+    ![plan.revision, plan.generation, plan.compactBytes, plan.hintsBytes, plan.leadsBytes]
+      .every((value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0))
+    throw new MaintenanceStoreError("Malformed discovery seed measurement");
+  if (Number(plan.hintsBytes) > pageBytes || Number(plan.leadsBytes) > pageBytes ||
+      Number(plan.compactBytes) > pageBytes) return null;
+  return {
+    scope, revision: Number(plan.revision), generation: Number(plan.generation),
+    definition: plan.definition, compactBytes: Number(plan.compactBytes),
+    hintsBytes: Number(plan.hintsBytes), leadsBytes: Number(plan.leadsBytes), hints, leads,
+  };
+}
+
+export function readSeededDiscoveryRows(
+  environment: NodeJS.ProcessEnv,
+  seed: NodeJS.ProcessEnv,
+  scope: string,
+  kind: SeedRowKind,
+  pageBytes: number,
+  planned?: SeedRows,
+): { rows: Record<string, unknown>; bytes: number } | null {
+  const baseline = planned ?? loadSeedRows(environment, seed, scope, kind, pageBytes);
+  if (!baseline) return null;
+  const rows = Object.assign(Object.create(null) as Record<string, unknown>, baseline.rows);
+  const output = runSql(environment, `SET TRANSACTION READ ONLY;
+    SELECT CASE WHEN octet_length(data::text) <= ${pageBytes} THEN data ELSE 'null'::jsonb END
+    FROM (${seededDeltaSql(scope, kind, baseline.hashes)}) delta;`, { timeoutMs: 300_000 }).trim();
   const delta: unknown = JSON.parse(output);
   if (delta === null) return null;
   if (!isRecord(delta) || !isRecord(delta.changed) || !Array.isArray(delta.removed) ||
