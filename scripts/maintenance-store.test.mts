@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
-import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
+import { backupReusingHistory, createBackupRecovery, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
 import {
   acquireMaintenanceReservation,
   cutoverReading,
@@ -975,6 +975,25 @@ void test(
         WHERE attempt_id = '${first}';`,
     );
     assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    // A known pre-export deferral charges only measured metadata. Unknown
+    // deferrals and failed exports keep their full reservation.
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET operation = 'recovery', outcome = 'deferred', estimate_bytes = 2000000,
+            finished_at = clock_timestamp() - interval '1 hour'
+        WHERE attempt_id = '${first}';`,
+    );
+    const measured = take("measured-preflight");
+    assert.ok(measured.attempt_id);
+    assert.ok(measured.unreconciled_bytes < 3_000_000_000);
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET estimate_bytes = NULL WHERE attempt_id = '${first}';`,
+    );
+    assert.equal(take("unmeasured-preflight").attempt_id, null);
+
     // The fixed cutover sample predates the completion, so it never settles.
     const cutover = {
       ...meter,
@@ -1064,14 +1083,22 @@ void test(
       /Protected table inventory/u,
     );
     runSql(source, "DROP TABLE portcove_maintenance.unexpected;");
-    const result = await backupReusingHistory({
-      source,
-      prefixDatabase: prefix,
-      target,
-      previous,
-      output,
-      reservedBytes: 5_000_000,
+    const recover = createBackupRecovery({ source, prefixDatabase: prefix, target, previous, output });
+    let required = 0;
+    await assert.rejects(recover(2_000_000), (error: unknown) => {
+      if (!(error instanceof MaintenanceBackupDeferred)) return false;
+      required = error.requiredBytes;
+      assert.equal(error.reservedBytes, 2_000_000);
+      return required > 2_000_000 && required < 5_000_000;
     });
+    // Same verified local seed, fresh production snapshot, newly sized allowance.
+    const result = await recover(required + 100_000);
+    const measurement = { host: source.PGHOST!, payloadBytes: 0, byteLimit: 2_000_000, deadline: Date.now() + 60_000 };
+    await maintenanceTransfer.run(measurement, () => withExportedSnapshot(source, async (_snapshot, query) => {
+      const response = await query("SELECT repeat('x', 10000);");
+      assert.ok(response.length >= 10_000);
+    }));
+    assert.ok(measurement.payloadBytes >= 10_000, "exported-snapshot responses are charged to admission");
     assert.ok(result.transfer.history_copy_bytes > 0 && result.transfer.history_copy_bytes < 250);
     assert.ok(result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"));
     assert.ok(!result.transfer.reused_tables.includes("portcove_maintenance.collection_runs"));
