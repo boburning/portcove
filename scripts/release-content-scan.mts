@@ -500,8 +500,15 @@ export async function scan(
   }
   // Phase 2: give fresh and longest-waiting ordinary assets first access to the
   // same budgets. Reused, persistent and retry-cohort outcomes keep their behavior.
+  const blockingFailure = (key: string) => {
+    const failure = failures.get(key);
+    return failure &&
+      (failure.code !== "asset-too-large" || maxAssetBytes <= failure.max_asset_bytes)
+      ? failure
+      : undefined;
+  };
   const attemptAge = (plan: Plan) =>
-    "key" in plan && !next.has(plan.key) && !failures.has(plan.key) && !retries.has(plan.key)
+    "key" in plan && !next.has(plan.key) && !blockingFailure(plan.key) && !retries.has(plan.key)
       ? deferredAttempts.get(plan.key) ?? 0
       : 0;
   const ordered = [...plans].sort((a, b) => attemptAge(a) - attemptAge(b));
@@ -548,8 +555,8 @@ export async function scan(
     }
     // A downloaded asset that failed for a deterministic cause is not fetched again
     // until its release, the rules or (for its size) the per-asset limit changes.
-    const failed = failures.get(key);
-    if (failed && (failed.code !== "asset-too-large" || maxAssetBytes <= failed.max_asset_bytes)) {
+    const failed = blockingFailure(key);
+    if (failed) {
       skip(
         failed.code,
         `asset ${asset.name}: ${failed.code} in an earlier run; not retried for this release`,
@@ -601,6 +608,9 @@ export async function scan(
       else skip("time-budget", "time budget reached; scanned in a later run");
       continue;
     }
+    // The previous size-bound failure no longer governs this admitted attempt.
+    // Its new outcome determines whether it is persistent or rotates normally.
+    failures.delete(key);
     if (retry) retries.set(key, retryRun);
     else {
       attempts++;

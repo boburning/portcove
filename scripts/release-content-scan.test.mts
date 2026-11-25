@@ -251,6 +251,43 @@ void test("transient failures rotate behind fresh assets and shared attempts sta
   assert.equal(third.deferredAttempts.size, 0);
 });
 
+void test("a size-bound failure becomes an ordinary rotating attempt when its allowance grows", async () => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const tooLarge: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new ScanError("asset-too-large", "package exceeded the old allowance");
+    },
+  };
+  const first = await scan([targets[0]!], new Map(), tooLarge, {
+    maxAssetBytes: 10,
+  });
+  assert.equal(first.failures.size, 1);
+  const failing: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new Error("temporary transfer interruption");
+    },
+  };
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: first.failures,
+  });
+  assert.equal(second.failures.size, 0);
+  assert.equal(second.deferredAttempts.size, 1);
+  assert.equal(second.report.unscanned[0]?.code, "scan-failed");
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: second.failures,
+    deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(third.report.scanned.map(({ id }) => id), ["header"]);
+});
+
 void test("budgets leave assets for a later run without guessing their contents", async () => {
   const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
   assert.equal(limited.report.scanned.length, 1);
