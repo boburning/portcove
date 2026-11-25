@@ -1628,7 +1628,11 @@ run, attempt where needed, source revision and trigger. A successful delivery
 with a saved output can satisfy an equivalent request. Cancellation or an
 uncertain outcome leaves its full reservation charged for the period. A completed
 operation records a logical PostgreSQL response estimate with a protocol margin.
-It stays charged alongside the project meter until the meter has settled past it:
+A recovery explicitly deferred before starting any file export also records its
+measured SQL response bytes, including exported-snapshot queries, with a
+conservative protocol allowance. Only that known preflight outcome can settle
+on its measured estimate; unknown and partially executed failures keep their
+full reservation. The measurement stays charged alongside the project meter until the meter has settled past it:
 once a sample is taken at least two hours after the operation finished, the
 cumulative counter already includes that transfer, whichever client caused it,
 and the estimate is no longer added on top. Neon refreshes usage roughly every
@@ -1657,9 +1661,12 @@ defers work. The next scheduled maintenance
 run, or the next existing discovery intake event, retries from its durable source
 or receipt. Retained-artifact reports and restore checks remain available offline.
 A repeated deferral stays visible as the age of the last verified recovery point
-and with its remaining allowance. If a large export cannot fit its reservation,
-work waits for a separately admissible baseline export. Normal collection
-failure does not grant permission for a full export.
+and with its remaining allowance. If a recovery's preflight finds that the conservative export estimate exceeds
+its admitted reservation, the same invocation can make one newly admitted
+attempt sized to that estimate. It reuses the verified local seed but replans
+against a new production snapshot. The normal provider meter, recovery reserve
+and hard ceiling still apply; a denied initial admission or denied retry defers
+work. Normal collection failure does not grant permission for a full export.
 
 ### Workload model
 
