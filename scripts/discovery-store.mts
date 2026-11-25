@@ -332,6 +332,7 @@ export function postgresDiscoveryStore(
   /** Bytes per lead-record page; half of one client command's output by default. */
   pageBytes = Math.floor(outputLimitBytes / 2),
   seed?: NodeJS.ProcessEnv,
+  plan?: DiscoverySeedPlan,
 ): DiscoveryStore {
   // Per-adapter cache, never an independent authority. Only an exact confirmed
   // acquisition/commit can establish the baseline for the next delta.
@@ -343,16 +344,25 @@ export function postgresDiscoveryStore(
     hints: Map<string, string>;
   }>();
   const active = new Map<string, { attempt: string; generation: number; token: string }>();
+  if (plan && !seed) throw new MaintenanceStoreError("A measured discovery plan requires a seed");
+  let pendingPlan = plan;
+  const plannedLoads = new Map<string, { plan: DiscoverySeedPlan; lease: DiscoveryLease }>();
   return {
     acquire(lease, options) {
       try {
         const { known } = options;
+        const planned = pendingPlan?.scope === lease.scope ? pendingPlan : undefined;
+        if (planned) pendingPlan = undefined;
+        plannedLoads.delete(lease.scope);
         const args = `${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)},
           ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
           ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)}`;
         const output = runSql(
           environment,
-          known
+          planned
+            ? `SELECT portcove_maintenance.discovery_acquire_planned(${args}, ${planned.revision},
+                ${planned.generation}, ${sqlLiteral(planned.definition)}, ${planned.compactBytes})::text;`
+            : known
             ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
                  ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
                  ${uuid(known.attempt)})::text;`
@@ -360,10 +370,13 @@ export function postgresDiscoveryStore(
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         let received = Buffer.byteLength(output);
-        if (seed && !known) {
+        if (seed && (planned || !known)) {
           try {
-            const hints = readSeededDiscoveryRows(environment, seed, lease.scope, "hints", pageBytes)
-              ?? loadExternalHints(environment, lease.scope, pageBytes);
+            const incremental = readSeededDiscoveryRows(environment, seed, lease.scope, "hints",
+              planned?.hintsBytes ?? pageBytes, planned?.hints);
+            if (planned && !incremental)
+              throw new DiscoveryStoreRefused("stale-writer", "Measured hint delta no longer fits; replan before reading");
+            const hints = incremental ?? loadExternalHints(environment, lease.scope, pageBytes);
             received += hints.bytes;
             if (isRecord(grant.state.leads) && isRecord(grant.state.leads.external))
               grant.state.leads.external.hints = hints.rows;
@@ -375,6 +388,7 @@ export function postgresDiscoveryStore(
             throw error;
           }
         }
+        if (planned) plannedLoads.set(lease.scope, { plan: planned, lease });
         const previous = baselines.get(lease.scope);
         const revision = Number(grant.revision);
         const generation = Number(grant.generation);
@@ -437,7 +451,24 @@ export function postgresDiscoveryStore(
       }
     },
     loadLeadRecords(scope) {
-      const incremental = seed && readSeededDiscoveryRows(environment, seed, scope, "leads", pageBytes);
+      const measured = plannedLoads.get(scope);
+      plannedLoads.delete(scope);
+      const incremental = seed && readSeededDiscoveryRows(environment, seed, scope, "leads",
+        measured?.plan.leadsBytes ?? pageBytes, measured?.plan.leads);
+      if (measured) {
+        if (!incremental)
+          throw new DiscoveryStoreRefused("stale-writer", "Measured lead delta no longer fits; replan before reading");
+        const { plan, lease } = measured;
+        const valid = runSql(environment, `SET TRANSACTION READ ONLY;
+          SELECT EXISTS (SELECT 1 FROM portcove_maintenance.discovery_collection_state s
+            CROSS JOIN portcove_maintenance_meta.discovery_intake_activation a
+            WHERE s.scope = ${sqlLiteral(scope)} AND s.revision = ${plan.revision}
+              AND s.lease_token = ${uuid(lease.token)} AND s.lease_generation = ${plan.generation}
+              AND a.collection_active AND a.collection_generation = ${plan.generation}
+              AND s.lease_expires_at > clock_timestamp())::text;`).trim();
+        if (valid !== "true")
+          throw new DiscoveryStoreRefused("stale-writer", "Discovery lease or revision moved during hydration");
+      }
       if (incremental) return {
         records: Object.entries(incremental.rows).sort(([a], [b]) => Number(a) - Number(b)).map(([, row]) => row),
         bytes: incremental.bytes,
