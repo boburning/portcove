@@ -12,6 +12,7 @@ import {
   nextLeadPage,
   parseLeadState,
   pendingLeads,
+  selectLeadReleaseChecks,
   restartLeadSlice,
   LeadSearchChanged,
   leadSearchFamilyCount,
@@ -44,6 +45,7 @@ import {
 } from "./discovery-external-lists.mts";
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
+import { collectLeadReleaseHints, type DiscoveryCollectionHost } from "./discovery-collection.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
@@ -555,6 +557,45 @@ void test("changed search index can restart on a later run without dropping coll
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(52)]), now, "replacement");
   assert.equal(Object.keys(state.records).length, 51);
 });
+void test("early release probes share the existing budget and preserve failed observations", async () => {
+  const later = "2026-11-01T12:56:46.011Z";
+  const state = retainLeadResults(parseLeadState(undefined), [item(1), item(2), item(3), item(4)], now, "first");
+  for (const lead of Object.values(state.records))
+    lead.release_hint = { assets_observed: true, observed_at: now, evidence: "prior.json" };
+  const budget = new DiscoveryBudget("ordinary", () => {}, () => Date.parse(later), later, {
+    requests: 8, bytes: 1024 * 1024, milliseconds: 60000,
+  });
+  const calls: string[] = [];
+  const sdk = await fixtureGitHub(({ endpoint }) => {
+    calls.push(endpoint);
+    budget.charge("GET", endpoint, 1, 100, "200");
+    if (endpoint.includes("/game-1/"))
+      return new Response(JSON.stringify({ message: "Not Found" }), {
+        status: 404, headers: { "content-type": "application/json" },
+      });
+    if (endpoint.includes("/game-2/")) return [{ draft: false, assets: null }];
+    return [{ draft: false, assets: [{ state: "uploaded", name: "native.zip" }] }];
+  });
+  const host = {
+    leads: state, budget, source: { sdk }, unattended: true,
+    journal: { started_at: later, notes: [] },
+    runDir: "fixture", save() {}, persist() {}, knownLeadUrls: () => new Set<string>(),
+  } as unknown as DiscoveryCollectionHost;
+  assert.deepEqual(await collectLeadReleaseHints(host, true), { attempted: 2, unavailable: 1, malformed: 1 });
+  assert.equal(calls.length, 2, "early phase leaves capacity for other source families");
+  assert.equal(state.records["1"]?.release_hint?.observed_at, now);
+  assert.equal(state.records["1"]?.release_probe?.outcome, "unavailable");
+  assert.equal(state.records["2"]?.release_hint?.assets_observed, true);
+  assert.equal(state.records["2"]?.release_probe?.outcome, "invalid-response");
+  assert.deepEqual(selectLeadReleaseChecks(state, new Set(), later, true).map(({ id }) => id), [3, 4]);
+  assert.deepEqual(await collectLeadReleaseHints(host), { attempted: 2, unavailable: 0, malformed: 0 });
+  assert.equal(calls.length, 4, "a failed path cannot starve later leads or retry in the same run");
+  assert.equal(state.records["3"]?.release_hint?.observed_at, later);
+  assert.deepEqual(parseLeadState(state).records["1"]?.release_probe, state.records["1"]?.release_probe);
+  const next = "2026-11-02T12:56:46.011Z";
+  assert.deepEqual(selectLeadReleaseChecks(state, new Set(), next, true).map(({ id }) => id), [1, 2, 3, 4]);
+});
+
 void test("weekly held-lead refresh catches release-only changes without a source push", () => {
   let state = parseLeadState(undefined);
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "first");
