@@ -186,3 +186,28 @@ CREATE FUNCTION portcove_maintenance.discovery_acquire_seeded(
 $hint_seed$;
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_seeded(
   text, uuid, uuid, integer, text, text, text) FROM PUBLIC;
+
+-- The small reservation is valid only for the measured revision. A mismatch
+-- rolls back acquisition, before returning the continuation or any rows.
+CREATE FUNCTION portcove_maintenance.discovery_acquire_planned(
+  target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
+  definition text, revision_source text, runner_name text,
+  planned_revision bigint, planned_generation bigint, planned_definition text,
+  planned_compact_bytes bigint
+) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $planned_seed$
+DECLARE
+  grant_value jsonb;
+BEGIN
+  grant_value := portcove_maintenance.discovery_acquire_compact(
+    target_scope, target_attempt, token, lease_seconds, definition, revision_source, runner_name);
+  IF (grant_value->>'revision')::bigint IS DISTINCT FROM planned_revision
+    OR (grant_value->>'generation')::bigint IS DISTINCT FROM planned_generation
+    OR grant_value->>'definition_sha256' IS DISTINCT FROM planned_definition
+    OR octet_length((grant_value->'state')::text) > planned_compact_bytes THEN
+    RAISE EXCEPTION 'Discovery measured read plan moved before acquisition'
+      USING ERRCODE = 'P0001', HINT = 'portcove-discovery-stale-writer';
+  END IF;
+  RETURN grant_value;
+END $planned_seed$;
+REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_planned(
+  text, uuid, uuid, integer, text, text, text, bigint, bigint, text, bigint) FROM PUBLIC;
