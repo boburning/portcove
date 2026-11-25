@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   applyReviewedGameAssignments,
   catalogGameIdentityReport,
+  catalogSemanticReview,
   type ReviewedGameAssignment,
 } from "./catalog-game-identity.mts";
 import { readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
@@ -210,4 +211,50 @@ void test("reviewed unresolved and non-single-game decisions remain authoring-on
     after.records.find(({ listing }) => listing.id === "remake"),
     { ...before, original_game_review: review },
   );
+});
+
+void test("semantic review flags candidate relationships without assigning or merging identities", () => {
+  const a = record("alpha", "target-a", true);
+  const b = record("beta", "target-b", true);
+  const c = record("remake", "target-c", true);
+  const d = record("other-route", "target-d", true);
+  a.listing.project_url = "https://github.com/Test/Shared.git/";
+  b.listing.project_url = "https://github.com/test/shared";
+  d.listing.project_url = "https://github.com/test/shared";
+  a.listing.original_game_title = "Regional A";
+  b.listing.original_game_title = "Regional B";
+  d.listing.original_game_title = "Regional A";
+  c.listing.original_game = game("different-game");
+  d.listing.original_game = game("different-game");
+  a.listing.artwork = { game_id: 42 };
+  b.listing.artwork = { game_id: 43 };
+  c.listing.artwork = { game_id: 42 };
+  a.listing.original_game!.source_editions = [
+    { id: "edition-a", title: "Edition A", evidence_urls: ["https://example.org/source"] },
+  ];
+  a.listing.platforms = ["windows-x86-64"];
+  a.listing.availability = "packages";
+  const records = [a, b, c, d];
+  const before = structuredClone(records);
+  const report = catalogSemanticReview(records);
+  assert.deepEqual(report.same_game_repository, [
+    { game_id: "original-game", repository: "test/shared", port_ids: ["alpha", "beta"] },
+  ]);
+  assert.deepEqual(report.same_game_different_titles, [
+    { game_id: "different-game", titles: ["Regional A", "Shared Name"], port_ids: ["other-route", "remake"] },
+    { game_id: "original-game", titles: ["Regional A", "Regional B"], port_ids: ["alpha", "beta"] },
+  ]);
+  assert.deepEqual(report.same_game_different_artwork, [
+    { game_id: "original-game", artwork_ids: ["42", "43"], port_ids: ["alpha", "beta"] },
+  ]);
+  assert.deepEqual(report.shared_artwork_different_games, [
+    { artwork_id: "42", game_ids: ["different-game", "original-game"], port_ids: ["alpha", "remake"] },
+  ]);
+  assert.deepEqual(report.missing_authored_metadata.source_editions, ["beta", "other-route", "remake"]);
+  assert.deepEqual(report.missing_authored_metadata.edition_system, ["alpha"]);
+  assert.deepEqual(report.missing_authored_metadata.platforms, ["beta", "other-route", "remake"]);
+  assert.deepEqual(report.missing_authored_metadata.availability, ["beta", "other-route", "remake"]);
+  assert.deepEqual(report.missing_authored_metadata.artwork, ["other-route"]);
+  assert.deepEqual(records, before);
+  assert.deepEqual(catalogSemanticReview([...records].reverse()), report);
 });
