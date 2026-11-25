@@ -1020,9 +1020,20 @@ void test(
     runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
       (scope, definition_sha256, revision, state, state_sha256, updated_at)
       VALUES ('primary', '${hex("a")}', 0, jsonb_build_object('fixture', repeat('x', 3000000)),
-        '${hex("b")}', clock_timestamp());`);
+        '${hex("b")}', clock_timestamp());
+      INSERT INTO portcove_maintenance.discovery_collection_attempts
+        (attempt_id, scope, acquisition, collection_generation, source_revision, runner, started_at, finished_at, outcome)
+      VALUES ('00000000-0000-4000-8000-000000000001', 'primary', 1, 1, 'test', 'test', clock_timestamp(), clock_timestamp(), 'complete');
+      INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
+      SELECT 'primary', i, jsonb_build_object('id', i, 'payload', repeat('y', 30000)),
+        '00000000-0000-4000-8000-000000000001'::uuid FROM generate_series(1, 100) i;`);
     const previous = path.join(fixture.root, "previous");
     await backup(source, previous);
+    runSql(source, `UPDATE portcove_maintenance.discovery_lead_records
+      SET record = jsonb_build_object('id', 1, 'payload', 'changed') WHERE scope = 'primary' AND lead_id = 1;
+      DELETE FROM portcove_maintenance.discovery_lead_records WHERE scope = 'primary' AND lead_id = 2;
+      INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
+      VALUES ('primary', 101, '{"id":101,"payload":"new"}', '00000000-0000-4000-8000-000000000001');`);
     runSql(source, executorSeed);
     runSql(
       source,
@@ -1065,6 +1076,9 @@ void test(
     assert.ok(result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"));
     assert.ok(!result.transfer.reused_tables.includes("portcove_maintenance.collection_runs"));
     assert.ok(result.transfer.estimated_payload_ceiling < 5_000_000);
+    assert.deepEqual(result.transfer.row_delta_tables, [{ table: "portcove_maintenance.discovery_lead_records", changed_or_removed_keys: 3 }]);
+    assert.ok(result.transfer.row_delta_copy_bytes > 0 && result.transfer.row_delta_copy_bytes < 1000);
+    assert.ok(result.transfer.row_delta_plan_bytes > 0);
     assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
     const restored = restore(proof, output);
     assert.equal(restored.sequences_verified, true);
