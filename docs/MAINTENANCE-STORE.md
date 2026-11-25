@@ -112,8 +112,12 @@ activation generation and definition. The collector uses the same frozen seed
 fingerprints and acquires only that revision. Each response is capped at its
 measured size; a moved or oversized plan defers rather than falling back to an
 unadmitted complete read. If no usable plan exists, the complete-read admission
-remains the fallback. The existing operation minimum, provider ceiling and
-protocol headroom still apply; later passes keep complete-read admission. Discovery pass
+remains the fallback. For the revision-fenced initial discovery read, the
+measured response envelope plus acknowledgement and protocol headroom replaces
+the 16 MB bootstrap estimate. The provider ceiling and recovery reserve do not
+change. Later passes retain complete-read admission; other operation estimates
+remain conservative defaults until their readers prove equivalent bounds.
+Admission evidence identifies the reservation basis. Discovery pass
 admission uses the larger of the measured previous receive payload and the
 current cold-read estimate, plus acknowledgement and protocol headroom, rather
 than counting the same acquire twice. The provider ceiling is unchanged.
