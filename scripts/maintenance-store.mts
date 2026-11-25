@@ -572,6 +572,14 @@ export async function withExportedSnapshot<T>(
     waiting = undefined;
   };
   child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    if (transfer && transfer.host === environment.PGHOST) {
+      transfer.payloadBytes += Buffer.byteLength(chunk);
+      if (transfer.payloadBytes > transfer.byteLimit) {
+        fail(new MaintenanceStoreError("Maintenance snapshot exhausted its response allowance"));
+        child.kill();
+        return;
+      }
+    }
     stdout += chunk;
     const end = stdout.indexOf(`${marker}\n`);
     if (end >= 0 && waiting) {
@@ -946,35 +954,38 @@ async function runStoreCommand(
     );
   else if (command === "backup-reusing-history") {
     if (!output) throw new MaintenanceStoreError("backup-reusing-history requires --output DIR");
-    const { backupReusingHistory } = await import("./maintenance-backup-reuse.mts");
+    const { createBackupRecovery, MaintenanceBackupDeferred } = await import("./maintenance-backup-reuse.mts");
     const prefixDatabase = connectionFromEnvironment("PORTCOVE_MAINTENANCE_PREFIX_URL");
     const target = connectionFromEnvironment("PORTCOVE_MAINTENANCE_SCRATCH_URL");
     delete process.env.PORTCOVE_MAINTENANCE_PREFIX_URL;
     delete process.env.PORTCOVE_MAINTENANCE_SCRATCH_URL;
-    result = await policy.withMaintenanceAdmission(
-      environment,
-      !input || recoveryEnvelope === "full"
-        ? "recovery-full"
-        : recoveryEnvelope === "catchup"
-          ? "recovery-catchup"
-          : "recovery",
-      (bytes) =>
-        backupReusingHistory({
-          source: environment,
-          prefixDatabase,
-          target,
-          previous: input && path.resolve(input),
-          output: path.resolve(output),
-          reservedBytes: bytes,
-          reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
-        }),
-      {
+    const operation = !input || recoveryEnvelope === "full"
+      ? "recovery-full"
+      : recoveryEnvelope === "catchup" ? "recovery-catchup" : "recovery";
+    const recover = createBackupRecovery({
+      source: environment,
+      prefixDatabase,
+      target,
+      previous: input && path.resolve(input),
+      output: path.resolve(output),
+      reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
+    });
+    const admit = (reservationBytes?: number) =>
+      policy.withMaintenanceAdmission(environment, operation, recover, {
+        ...(reservationBytes === undefined ? {} : { reservationBytes }),
         estimate: ({ transfer }) =>
           2_000_000 +
           Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
             transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
-      },
-    );
+      });
+    try {
+      result = await admit();
+    } catch (error) {
+      // Only a known pre-export deferral can retry. Replan against a new
+      // snapshot after fresh admission; never retry a possibly partial export.
+      if (!(error instanceof MaintenanceBackupDeferred)) throw error;
+      result = await admit(error.requiredBytes);
+    }
   } else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     if (policy.isNeon(environment))
