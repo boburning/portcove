@@ -35,6 +35,7 @@ const activation = "portcove_maintenance_meta.discovery_intake_activation";
  * while the digest covers the entire row including its mutable columns. */
 const discoveryDeltaTables = [
   { table: schema + ".discovery_lead_records", key: "jsonb_build_array(t.scope, t.lead_id)::text" },
+  { table: schema + ".discovery_external_hints", key: "jsonb_build_array(t.scope, t.hint_key)::text" },
   { table: schema + ".discovery_observations", key: "jsonb_build_array(t.provider, t.provider_id, t.parser_version, t.content_sha256)::text" },
 ] as const;
 type DeltaTable = (typeof discoveryDeltaTables)[number];
