@@ -2002,7 +2002,10 @@ function normalizedArtworkTypeName(value: unknown): string | undefined {
  * descriptor. Unlike JSON or controller payload reads, this needs no whole-file
  * byte envelope: memory stays bounded independently of the compiled CLI size. */
 export function hashCoreImageValidatorFile(file: string) {
-  const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  const fd = openSync(
+    file,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+  );
   try {
     const before = fstatSync(fd, { bigint: true });
     if (!before.isFile() || before.size <= 0n)
@@ -2013,7 +2016,13 @@ export function hashCoreImageValidatorFile(file: string) {
     for (;;) {
       // Read at most the original extent plus one byte to detect growth.
       const remaining = before.size - length + 1n;
-      const read = readSync(fd, buffer, 0, Number(remaining < BigInt(buffer.length) ? remaining : BigInt(buffer.length)), null);
+      const read = readSync(
+        fd,
+        buffer,
+        0,
+        Number(remaining < BigInt(buffer.length) ? remaining : BigInt(buffer.length)),
+        null,
+      );
       if (!read) break;
       length += BigInt(read);
       if (length > before.size) throw new Error("Core image validator changed while hashing.");
@@ -2027,7 +2036,8 @@ export function hashCoreImageValidatorFile(file: string) {
       after.ino !== before.ino ||
       after.mtimeNs !== before.mtimeNs ||
       after.ctimeNs !== before.ctimeNs
-    ) throw new Error("Core image validator changed while hashing.");
+    )
+      throw new Error("Core image validator changed while hashing.");
     return hash.digest("hex");
   } finally {
     closeSync(fd);
