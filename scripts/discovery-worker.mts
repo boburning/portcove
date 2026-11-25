@@ -1024,7 +1024,7 @@ export async function readStoredLeads(
 
 /** Recent measured transfer and current state size, read before admission. */
 export const discoveryTransferForecastQuery = `SELECT json_build_object(
-  'state_bytes', coalesce((SELECT max(octet_length(state::text))
+  'state_bytes', coalesce((SELECT max(octet_length(portcove_maintenance.discovery_expanded_state(scope, state)::text))
     FROM portcove_maintenance.discovery_collection_state), 0),
   'record_bytes', coalesce((SELECT sum(octet_length(record::text))
     FROM portcove_maintenance.discovery_lead_records), 0),
